@@ -5,7 +5,7 @@ Contracts follow the specification in 00-index.md, 02-content-pipeline.md,
 and 03-learning-engine.md.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 CEFR = Literal["A1", "A2", "B1", "B2"]
 Dimension = Literal["grammar", "vocab"]
-TagState = Literal["unseen", "learning", "acquired"]
+TagState = Literal["locked", "ready", "unseen", "learning", "acquired", "dormant"]
 AcquiredVia = Literal["kalibrierung", "inferred", "earned"] | None
 ItemType = Literal[
     "cloze_free",
@@ -250,18 +250,22 @@ class Bank(Protocol):
 class TagStateModel(BaseModel):
     model_config = ConfigDict(frozen=True)
     tag_id: str
-    dimension: Dimension
-    state: TagState
+    dimension: Dimension = "grammar"
+    state: TagState = "locked"
     acquired_via: AcquiredVia = None
     fsrs_stability: float = 0.0
     fsrs_difficulty: float = 0.0
-    due_at: datetime
+    due_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     attempts: int = 0
     correct: int = 0
     consecutive_failures: int = 0
     consecutive_unhinted_passes: int = 0
+    promotion_consecutive_passes: int = 0
+    promotion_distinct_facets: list[str] = Field(default_factory=list)
     facets_seen_in_streak: set[str] = Field(default_factory=set)
+    inferred_stability_cap: float | None = None
     introduced_at: datetime | None = None
+    last_review_at: datetime | None = None
 
 
 class RoundItem(BaseModel):
