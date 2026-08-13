@@ -195,15 +195,17 @@ class Verifier(Protocol):
 class BankItem(BaseModel):
     model_config = ConfigDict(frozen=True)
     id: str
-    tag_id: str
-    dimension: Dimension
+    tag_id: str = ""
+    topic_id: str = ""
+    dimension: Dimension = "grammar"
     type: ItemType
     cefr: CEFR
     difficulty: Difficulty
     prompt: str
     cue: str | None = None
     accepted_answers: list[str]  # non-empty, deduplicated
-    distractors: list[str]  # 3, for hint level 2
+    distractors: list[Distractor] | list[str]  # 3, for hint level 2
+    rule_hint: str = ""
     block_id: str | None = None  # paragraph_cloze grouping
     block_position: int | None = None
     confusion_group: str | None = None  # copied from topic; enables offline minimal-pair fallback
@@ -211,6 +213,12 @@ class BankItem(BaseModel):
     carrier_lemmas: list[str] = Field(default_factory=list)
     domain: str | None = None
     source_sentence_id: str | None = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.topic_id and not self.tag_id:
+            object.__setattr__(self, "tag_id", self.topic_id)
+        elif self.tag_id and not self.topic_id:
+            object.__setattr__(self, "topic_id", self.tag_id)
 
 
 class InsertReport(BaseModel):
