@@ -53,6 +53,8 @@ PROMOTION_CONSECUTIVE_PASSES: int = 3  # learning -> acquired, unhinted
 PROMOTION_MIN_DISTINCT_FACETS: int = 2  # evidence must span cells, not repeat one
 SPLIT_MIN_ATTEMPTS_PER_FACET: int = 20  # before a topic can be flagged for splitting
 SPLIT_ACCURACY_GAP: float = 0.40  # facet accuracy spread that flags a candidate
+VERIFICATION_KILL_GATE_THRESHOLD: float = 0.15  # drop rate exceeding 15% trips the kill gate
+KILL_GATE_DROP_THRESHOLD: float = 0.15
 
 MODEL_LIVE: str = "gemini-3.5-flash-lite"  # explanations, production grading, report narrative
 MODEL_GENERATE: str = "gemini-3.5-flash-lite"  # batch, thinking OFF
@@ -147,6 +149,17 @@ class BatchClient(Protocol):
 # Content Pipeline: Verification Contracts
 # ==============================================================================
 
+ErrorTaxonomy = Literal[
+    "schema",
+    "topic_leak",
+    "ambiguity",
+    "morphological_defect",
+    "vocabulary_ceiling_violation",
+    "pedagogical_flaw",
+    "register_mismatch",
+    "duplicate",
+]
+
 RejectionReason = Literal[
     "schema",
     "topic_leak",
@@ -160,10 +173,14 @@ RejectionReason = Literal[
 
 class VerificationResult(BaseModel):
     model_config = ConfigDict(frozen=True)
-    item: CandidateItem
-    accepted: bool
+    item: CandidateItem | None = None
+    accepted: bool = True
+    passed: bool = True
     accepted_answers: list[str] = Field(default_factory=list)
     rejections: list[RejectionReason] = Field(default_factory=list)
+    layer_failed: int | None = None
+    reason: str | None = None
+    error_type: ErrorTaxonomy | None = None
 
 
 class Verifier(Protocol):
