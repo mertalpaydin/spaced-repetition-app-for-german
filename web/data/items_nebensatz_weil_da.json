@@ -1,0 +1,44 @@
+[
+  {
+    "id": "bank_b1_001",
+    "tag_id": "nebensatz_weil_da",
+    "topic_id": "nebensatz_weil_da",
+    "dimension": "grammar",
+    "type": "cloze_free",
+    "cefr": "B1",
+    "difficulty": 2,
+    "prompt": "Ich bleibe heute zu Hause, ___ ich erkältet bin.",
+    "cue": null,
+    "accepted_answers": [
+      "weil",
+      "da"
+    ],
+    "distractors": [
+      {
+        "text": "denn",
+        "implied_topic_id": "konjunktionen_position_0"
+      },
+      {
+        "text": "deshalb",
+        "implied_topic_id": "diskurs_adverbialanschluss"
+      },
+      {
+        "text": "obwohl",
+        "implied_topic_id": "nebensatz_obwohl_trotzdem"
+      }
+    ],
+    "rule_hint": "Kausale Nebensätze mit 'weil' oder 'da' schicken das konjugierte Verb ans Satzende.",
+    "block_id": null,
+    "block_position": null,
+    "confusion_group": null,
+    "facet": null,
+    "carrier_lemmas": [
+      "Hause",
+      "bleiben",
+      "erkältet",
+      "heute"
+    ],
+    "domain": null,
+    "source_sentence_id": null
+  }
+]

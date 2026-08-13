@@ -1,0 +1,43 @@
+[
+  {
+    "id": "bank_b1_002",
+    "tag_id": "konjunktiv_ii_irreal_gegenwart",
+    "topic_id": "konjunktiv_ii_irreal_gegenwart",
+    "dimension": "grammar",
+    "type": "cloze_cued",
+    "cefr": "B1",
+    "difficulty": 2,
+    "prompt": "Wenn ich mehr Zeit hätte, ___ ich gerne öfter reisen. (würde)",
+    "cue": "würde",
+    "accepted_answers": [
+      "würde"
+    ],
+    "distractors": [
+      {
+        "text": "werde",
+        "implied_topic_id": "futur_i"
+      },
+      {
+        "text": "wurde",
+        "implied_topic_id": "passiv_praeteritum"
+      },
+      {
+        "text": "wäre",
+        "implied_topic_id": "konjunktiv_ii_irreal_gegenwart"
+      }
+    ],
+    "rule_hint": "Konjunktiv II Gegenwart: würde-Ersatzform + Infinitiv.",
+    "block_id": null,
+    "block_position": null,
+    "confusion_group": null,
+    "facet": null,
+    "carrier_lemmas": [
+      "Zeit",
+      "haben",
+      "reisen",
+      "öfter"
+    ],
+    "domain": null,
+    "source_sentence_id": null
+  }
+]

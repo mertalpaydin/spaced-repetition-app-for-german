@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="DeutschMaster - Spec-driven German Grammar Trainer with Multi-Dimensional FSRS Memory Scheduling.">
+  <meta name="theme-color" content="#3b82f6">
+  <title>DeutschMaster - Deutsche Grammatik Trainer</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <div class="logo-group">
+      <span class="logo-badge">DM</span>
+      <h1 class="app-title">DeutschMaster</h1>
+    </div>
+    <nav>
+      <button id="nav-practice-btn" class="nav-btn active">Üben (Practice)</button>
+      <button id="nav-dag-btn" class="nav-btn">Grammatik-Baum (DAG)</button>
+      <button id="nav-stats-btn" class="nav-btn">Statistik</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- 1. Practice Round View -->
+    <section id="view-practice" class="view-section active">
+      <div class="session-bar">
+        <div class="session-stats">
+          <span>Runde: <strong id="stat-round-progress">1 / 6</strong></span>
+          <span>Genauigkeit: <strong id="stat-accuracy">100%</strong></span>
+          <span>Serie: <strong id="stat-streak">0 🔥</strong></span>
+        </div>
+        <div class="topic-tag-indicator">
+          <span id="card-tag-badge" class="tag-badge">Kasus: Dativ</span>
+        </div>
+      </div>
+      <div class="progress-track">
+        <div id="session-progress-fill" class="progress-fill"></div>
+      </div>
+
+      <div class="exercise-card">
+        <div class="card-header">
+          <span id="card-cefr-badge" class="tag-badge">A2</span>
+          <span id="card-diff-badge" class="difficulty-badge">Schwierigkeit: Stufe 1</span>
+        </div>
+
+        <div id="exercise-prompt" class="prompt-box">
+          Das Buch liegt auf <span class="gap-blank">___</span> Tisch.
+        </div>
+
+        <div id="cued-area" class="cued-box" style="display: none;">
+          <span class="cued-label">Hinweis:</span> <strong id="cued-word"></strong>
+        </div>
+
+        <!-- Text Input Mode -->
+        <div id="text-input-area" class="input-area">
+          <input type="text" id="user-answer-input" class="text-input" placeholder="Lösung eingeben..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <button id="submit-btn" class="btn-primary">Prüfen</button>
+        </div>
+
+        <!-- Multiple Choice Mode (Options) -->
+        <div id="options-area" class="options-grid" style="display: none;">
+          <!-- Dynamically populated buttons -->
+        </div>
+
+        <!-- 4-Tier Hint Ladder -->
+        <div class="hint-container">
+          <div class="hint-header">
+            <span id="hint-status-text" class="stat-label">Hinweis-Stufe: 0 / 4</span>
+            <button id="request-hint-btn" class="btn-hint">💡 Hinweis anfordern (H)</button>
+          </div>
+          <div id="hint-box" class="hint-content"></div>
+        </div>
+
+        <div id="feedback-box" class="feedback-box"></div>
+      </div>
+    </section>
+
+    <!-- 2. Round Summary View -->
+    <section id="view-summary" class="view-section">
+      <div class="summary-card">
+        <h2>Runde Abgeschlossen! 🎉</h2>
+        <div id="summary-score-value" class="summary-score">83%</div>
+        <p id="summary-feedback-msg">Hervorragende Leistung! Dein FSRS-Gedächtnisintervall wurde aktualisiert.</p>
+
+        <div class="summary-stats-grid">
+          <div class="stat-box">
+            <span id="summary-correct" class="stat-value">5 / 6</span>
+            <span class="stat-label">Richtig</span>
+          </div>
+          <div class="stat-box">
+            <span id="summary-unhinted" class="stat-value">4</span>
+            <span class="stat-label">Ohne Hinweis</span>
+          </div>
+          <div class="stat-box">
+            <span id="summary-promotions" class="stat-value">1</span>
+            <span class="stat-label">Themen Befördert</span>
+          </div>
+        </div>
+
+        <button id="btn-next-round" class="btn-primary" style="margin-top: 1.5rem; width: 100%;">Nächste Runde starten</button>
+      </div>
+    </section>
+
+    <!-- 3. Grammar Taxonomy DAG Tree View -->
+    <section id="view-dag" class="view-section">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Grammatik-Taxonomie (A1–B2)</h2>
+        <span id="dag-acquired-counter" class="tag-badge">12 / 87 Erworben</span>
+      </div>
+      <p style="color: var(--text-secondary); font-size: 0.9rem;">
+        Themen schalten sich automatisch frei (Ready), sobald alle Voraussetzungen erworben sind. 3 fehlerfreie Durchgänge ohne Hinweise befördern ein Thema zu "Acquired".
+      </p>
+      <div id="dag-tree-container" class="dag-grid">
+        <!-- Dynamically populated taxonomy nodes -->
+      </div>
+    </section>
+
+    <!-- 4. Stats View -->
+    <section id="view-stats" class="view-section">
+      <h2>Lernstatistik & Speicher-Metriken</h2>
+      <div class="summary-stats-grid">
+        <div class="stat-box">
+          <span id="stats-total-reviews" class="stat-value">0</span>
+          <span class="stat-label">Wiederholungen</span>
+        </div>
+        <div class="stat-box">
+          <span id="stats-accuracy-overall" class="stat-value">100%</span>
+          <span class="stat-label">Gesamtgenauigkeit</span>
+        </div>
+        <div class="stat-box">
+          <span id="stats-forecast-load" class="stat-value">0</span>
+          <span class="stat-label">7-Tage FSRS Last</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>DeutschMaster &copy; 2026 &bull; Spec-Driven FSRS German Learning System &bull; 100% Offline-Ready</p>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>

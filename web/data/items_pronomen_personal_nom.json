@@ -1,0 +1,43 @@
+[
+  {
+    "id": "bank_a1_001",
+    "tag_id": "pronomen_personal_nom",
+    "topic_id": "pronomen_personal_nom",
+    "dimension": "grammar",
+    "type": "cloze_free",
+    "cefr": "A1",
+    "difficulty": 1,
+    "prompt": "___ heiße Max und komme aus Deutschland.",
+    "cue": null,
+    "accepted_answers": [
+      "Ich",
+      "ich"
+    ],
+    "distractors": [
+      {
+        "text": "Du",
+        "implied_topic_id": "pronomen_personal_nom"
+      },
+      {
+        "text": "Er",
+        "implied_topic_id": "pronomen_personal_nom"
+      },
+      {
+        "text": "Wir",
+        "implied_topic_id": "pronomen_personal_nom"
+      }
+    ],
+    "rule_hint": "Subjekt in der 1. Person Singular ist 'ich'.",
+    "block_id": null,
+    "block_position": null,
+    "confusion_group": null,
+    "facet": null,
+    "carrier_lemmas": [
+      "Deutschland",
+      "heißen",
+      "kommen"
+    ],
+    "domain": null,
+    "source_sentence_id": null
+  }
+]

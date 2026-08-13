@@ -1,0 +1,62 @@
+{
+  "format_version": 1,
+  "generated_at": "2026-08-13T20:49:45.619152+00:00",
+  "total_items": 8,
+  "topic_count": 8,
+  "cefr_breakdown": {
+    "A2": 2,
+    "B2": 2,
+    "B1": 2,
+    "A1": 2
+  },
+  "topics": [
+    {
+      "topic_id": "akkusativ_nach_praeposition",
+      "item_count": 1,
+      "file": "items_akkusativ_nach_praeposition.json",
+      "cefr": "A2"
+    },
+    {
+      "topic_id": "dativ_nach_praeposition",
+      "item_count": 1,
+      "file": "items_dativ_nach_praeposition.json",
+      "cefr": "A2"
+    },
+    {
+      "topic_id": "konjunktiv_i_indirekte_rede",
+      "item_count": 1,
+      "file": "items_konjunktiv_i_indirekte_rede.json",
+      "cefr": "B2"
+    },
+    {
+      "topic_id": "konjunktiv_ii_irreal_gegenwart",
+      "item_count": 1,
+      "file": "items_konjunktiv_ii_irreal_gegenwart.json",
+      "cefr": "B1"
+    },
+    {
+      "topic_id": "nebensatz_weil_da",
+      "item_count": 1,
+      "file": "items_nebensatz_weil_da.json",
+      "cefr": "B1"
+    },
+    {
+      "topic_id": "passiversatz_erweitert_b2",
+      "item_count": 1,
+      "file": "items_passiversatz_erweitert_b2.json",
+      "cefr": "B2"
+    },
+    {
+      "topic_id": "pronomen_personal_nom",
+      "item_count": 1,
+      "file": "items_pronomen_personal_nom.json",
+      "cefr": "A1"
+    },
+    {
+      "topic_id": "verb_praesens_regelm",
+      "item_count": 1,
+      "file": "items_verb_praesens_regelm.json",
+      "cefr": "A1"
+    }
+  ]
+}

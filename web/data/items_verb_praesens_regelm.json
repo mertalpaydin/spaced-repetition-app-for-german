@@ -1,0 +1,43 @@
+[
+  {
+    "id": "bank_a1_002",
+    "tag_id": "verb_praesens_regelm",
+    "topic_id": "verb_praesens_regelm",
+    "dimension": "grammar",
+    "type": "cloze_cued",
+    "cefr": "A1",
+    "difficulty": 1,
+    "prompt": "Er ___ jeden Tag im Büro. (arbeiten)",
+    "cue": "arbeiten",
+    "accepted_answers": [
+      "arbeitet"
+    ],
+    "distractors": [
+      {
+        "text": "arbeite",
+        "implied_topic_id": "verb_praesens_regelm"
+      },
+      {
+        "text": "arbeitest",
+        "implied_topic_id": "verb_praesens_regelm"
+      },
+      {
+        "text": "arbeiten",
+        "implied_topic_id": "verb_praesens_regelm"
+      }
+    ],
+    "rule_hint": "Endung bei 'er/sie/es' im Präsens ist '-t' bzw. '-et' nach d/t.",
+    "block_id": null,
+    "block_position": null,
+    "confusion_group": null,
+    "facet": null,
+    "carrier_lemmas": [
+      "Büro",
+      "Tag",
+      "arbeiten",
+      "jeder"
+    ],
+    "domain": null,
+    "source_sentence_id": null
+  }
+]

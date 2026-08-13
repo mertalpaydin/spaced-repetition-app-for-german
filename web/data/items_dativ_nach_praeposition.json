@@ -1,0 +1,42 @@
+[
+  {
+    "id": "bank_a2_001",
+    "tag_id": "dativ_nach_praeposition",
+    "topic_id": "dativ_nach_praeposition",
+    "dimension": "grammar",
+    "type": "cloze_free",
+    "cefr": "A2",
+    "difficulty": 1,
+    "prompt": "Das Buch liegt auf ___ Tisch.",
+    "cue": null,
+    "accepted_answers": [
+      "dem"
+    ],
+    "distractors": [
+      {
+        "text": "den",
+        "implied_topic_id": "kasus_akkusativ_formen"
+      },
+      {
+        "text": "des",
+        "implied_topic_id": "kasus_genitiv_formen"
+      },
+      {
+        "text": "das",
+        "implied_topic_id": "artikel_bestimmt_nom"
+      }
+    ],
+    "rule_hint": "Wechselpräposition auf + Dativ bei statischer Ortsangabe (Wo?).",
+    "block_id": null,
+    "block_position": null,
+    "confusion_group": null,
+    "facet": null,
+    "carrier_lemmas": [
+      "Buch",
+      "Tisch",
+      "liegen"
+    ],
+    "domain": null,
+    "source_sentence_id": null
+  }
+]

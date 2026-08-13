@@ -1,0 +1,42 @@
+[
+  {
+    "id": "bank_a2_002",
+    "tag_id": "akkusativ_nach_praeposition",
+    "topic_id": "akkusativ_nach_praeposition",
+    "dimension": "grammar",
+    "type": "cloze_free",
+    "cefr": "A2",
+    "difficulty": 1,
+    "prompt": "Er legt das Buch auf ___ Tisch.",
+    "cue": null,
+    "accepted_answers": [
+      "den"
+    ],
+    "distractors": [
+      {
+        "text": "dem",
+        "implied_topic_id": "kasus_dativ_formen"
+      },
+      {
+        "text": "des",
+        "implied_topic_id": "kasus_genitiv_formen"
+      },
+      {
+        "text": "das",
+        "implied_topic_id": "artikel_bestimmt_nom"
+      }
+    ],
+    "rule_hint": "Wechselpräposition auf + Akkusativ bei Richtung (Wohin?).",
+    "block_id": null,
+    "block_position": null,
+    "confusion_group": null,
+    "facet": null,
+    "carrier_lemmas": [
+      "Buch",
+      "Tisch",
+      "legen"
+    ],
+    "domain": null,
+    "source_sentence_id": null
+  }
+]
