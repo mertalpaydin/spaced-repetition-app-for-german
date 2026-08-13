@@ -1,4 +1,4 @@
-"""Topic state machine managing DAG progression, unhinted promotion gates, and states."""
+"""Topic state machine managing lifecycle from locked to acquired with promotion gates."""
 
 from datetime import UTC, datetime
 
@@ -28,7 +28,6 @@ class TopicStateManager:
         # Initialize missing topics
         for topic_id, topic in self.topics.items():
             if topic_id not in self.states:
-                # Root topics (0 prerequisites) start in ready state, others locked
                 initial_state: TagState = "ready" if len(topic.prereqs) == 0 else "locked"
                 self.states[topic_id] = TagStateModel(
                     tag_id=topic_id,
@@ -51,10 +50,12 @@ class TopicStateManager:
         topic_id: str,
         is_unhinted_pass: bool,
         facet: str | None = None,
+        now: datetime | None = None,
     ) -> TagStateModel:
         """Record an exercise attempt and update consecutive passes / promotion."""
         current = self.states[topic_id]
-        now = datetime.now(UTC)
+        topic_obj = self.topics.get(topic_id)
+        ref_time = now or datetime.now(UTC)
 
         # Transition ready -> learning on first practice
         new_state = current.state
@@ -68,16 +69,13 @@ class TopicStateManager:
             consecutive_passes += 1
             if facet:
                 distinct_facets.add(facet)
-            else:
-                distinct_facets.add("default")
 
-            # Check promotion gate: >= 3 consecutive passes spanning >= 2 distinct facets
-            if (
-                new_state == "learning"
-                and consecutive_passes >= PROMOTION_CONSECUTIVE_PASSES
-                and len(distinct_facets) >= PROMOTION_MIN_DISTINCT_FACETS
-            ):
-                new_state = "acquired"
+            # Check if topic is unfaceted (no morph_spec facets or facet is None)
+            is_unfaceted = topic_obj is None or not topic_obj.morph_spec
+
+            if new_state == "learning" and consecutive_passes >= PROMOTION_CONSECUTIVE_PASSES:
+                if is_unfaceted or len(distinct_facets) >= PROMOTION_MIN_DISTINCT_FACETS:
+                    new_state = "acquired"
         else:
             # Failure or hinted attempt resets consecutive pass streak
             consecutive_passes = 0
@@ -88,7 +86,7 @@ class TopicStateManager:
             acquired_via=current.acquired_via,
             promotion_consecutive_passes=consecutive_passes,
             promotion_distinct_facets=sorted(distinct_facets),
-            last_review_at=now,
+            last_review_at=ref_time,
         )
         self.states[topic_id] = updated
 
@@ -110,19 +108,16 @@ class TopicStateManager:
         return updated
 
     def _refresh_ready_topics(self) -> None:
-        """Unlock topics to ready when all their prerequisites are acquired."""
+        """Check all locked topics and promote to ready if all prerequisites are acquired."""
         for topic_id, topic in self.topics.items():
-            current = self.states[topic_id]
-            if current.state == "locked":
-                # Check if all prerequisites are acquired
-                all_prereqs_acquired = all(
-                    self.states[p].state == "acquired" for p in topic.prereqs if p in self.states
+            if self.states[topic_id].state == "locked":
+                prereqs_met = all(
+                    self.states.get(p_id) is not None and self.states[p_id].state == "acquired"
+                    for p_id in topic.prereqs
                 )
-                if all_prereqs_acquired:
+                if prereqs_met:
                     self.states[topic_id] = TagStateModel(
                         tag_id=topic_id,
                         state="ready",
-                        acquired_via=current.acquired_via,
-                        promotion_consecutive_passes=0,
-                        promotion_distinct_facets=[],
+                        acquired_via=self.states[topic_id].acquired_via,
                     )

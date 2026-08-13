@@ -49,12 +49,48 @@ class PromptBuilder:
     }
 
     @classmethod
+    def get_grammar_blocklist(cls) -> set[str]:
+        """Derive blocklist dynamically from taxonomy grammatical labels."""
+        terms = set(cls.GRAMMAR_TERMS_BLOCKLIST)
+        metalanguage_markers = {
+            "verb",
+            "satz",
+            "form",
+            "endung",
+            "deklination",
+            "konjunktiv",
+            "passiv",
+            "kasus",
+            "komparativ",
+            "superlativ",
+            "partizip",
+            "infinitiv",
+            "negation",
+            "pronomen",
+            "artikel",
+            "präposition",
+            "praeposition",
+            "tempus",
+            "modus",
+        }
+        try:
+            from src.taxonomy.loader import load_taxonomy
+
+            for topic in load_taxonomy():
+                for word in re.findall(r"\b[a-zA-ZäöüÄÖÜß]+\b", topic.name_de.lower()):
+                    if any(marker in word for marker in metalanguage_markers):
+                        terms.add(word)
+        except Exception:
+            pass
+        return terms
+
+    @classmethod
     def check_for_topic_leaks(cls, text: str) -> list[str]:
         """Scan a prompt or generated string for forbidden grammatical terminology."""
         lower_text = text.lower()
         leaks: list[str] = []
-        for term in cls.GRAMMAR_TERMS_BLOCKLIST:
-            # Check for whole-word matches
+        blocklist = cls.get_grammar_blocklist()
+        for term in blocklist:
             if re.search(rf"\b{re.escape(term)}\b", lower_text):
                 leaks.append(term)
         return leaks

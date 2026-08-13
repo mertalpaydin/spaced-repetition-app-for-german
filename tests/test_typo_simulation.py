@@ -6,16 +6,27 @@ from src.engine.typo_grader import ScopedTypoGrader
 
 
 def test_typo_grader_exact_and_capitalization() -> None:
-    """Verify exact match and case-sensitivity feedback."""
+    """Verify exact match and strict case-sensitivity."""
     res_exact = ScopedTypoGrader.grade("dem", ["dem"])
     assert res_exact.is_correct is True
     assert res_exact.is_exact is True
     assert res_exact.is_scoped_typo is False
 
+    # In German, capitalization error strictly FAILS
     res_cap = ScopedTypoGrader.grade("Dem", ["dem"])
-    assert res_cap.is_correct is True
-    assert res_cap.is_exact is False
+    assert res_cap.is_correct is False
     assert res_cap.is_capitalization_error is True
+
+
+def test_typo_grader_transliteration_and_whitespace() -> None:
+    """Verify German umlaut transliteration (oe, ae, ue, ss) and whitespace normalization."""
+    res_oe = ScopedTypoGrader.grade("groesser", ["größer"])
+    assert res_oe.is_correct is True
+    assert res_oe.is_transliteration is True
+
+    res_ws = ScopedTypoGrader.grade("dem   Mann", ["dem Mann"])
+    assert res_ws.is_correct is True
+    assert res_ws.is_exact is True
 
 
 def test_typo_grader_scoped_typo_peripheral_vs_grammatical_morpheme() -> None:

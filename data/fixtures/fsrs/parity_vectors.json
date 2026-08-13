@@ -1,0 +1,24 @@
+{
+  "description": "FSRS-4.5 cross-language parity test vectors",
+  "w": [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61],
+  "request_retention": 0.9,
+  "maximum_interval": 36500,
+  "test_cases": [
+    {
+      "card_id": "test_card_1",
+      "history": [
+        {"rating": 3, "elapsed_days": 0, "expected_state": "learning"},
+        {"rating": 3, "elapsed_days": 1, "expected_state": "review"},
+        {"rating": 3, "elapsed_days": 3, "expected_state": "review"}
+      ]
+    },
+    {
+      "card_id": "test_card_2",
+      "history": [
+        {"rating": 1, "elapsed_days": 0, "expected_state": "learning"},
+        {"rating": 3, "elapsed_days": 1, "expected_state": "review"},
+        {"rating": 1, "elapsed_days": 4, "expected_state": "relearning"}
+      ]
+    }
+  ]
+}

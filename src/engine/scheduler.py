@@ -1,4 +1,4 @@
-"""Session scheduler enforcing interleaving, overdue sorting, and forecast caps."""
+"""Round scheduler enforcing interleaving, sibling groups, and forecast caps."""
 
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
@@ -11,6 +11,7 @@ from src.contracts import (
     DUEL_LENGTH,
     FORECAST_HORIZON_DAYS,
     FORECAST_LOAD_THRESHOLD_DEFAULT,
+    MAX_HEAVY_PER_ROUND,
     MAX_NEW_TOPICS_PER_DAY,
     RECALIBRATION_ROUND_SIZE,
     ROUND_SIZE_DEFAULT,
@@ -65,13 +66,14 @@ class LearningScheduler:
 
     @staticmethod
     def _interleave_items(items: list[BankItem]) -> list[BankItem]:
-        """Interleave items so that no two consecutive items share the same topic_id."""
+        """Interleave items so that no two consecutive items share tag_id or sibling_group."""
         if len(items) <= 1:
             return items
 
         topic_buckets: dict[str, list[BankItem]] = defaultdict(list)
         for it in items:
-            topic_buckets[it.topic_id].append(it)
+            key = it.confusion_group or it.topic_id
+            topic_buckets[key].append(it)
 
         interleaved: list[BankItem] = []
         buckets_list = sorted(topic_buckets.values(), key=len, reverse=True)
@@ -79,17 +81,26 @@ class LearningScheduler:
         while any(buckets_list):
             for bucket in buckets_list:
                 if bucket:
-                    # Avoid back-to-back same topic if possible
-                    if not interleaved or interleaved[-1].topic_id != bucket[0].topic_id:
+                    cand = bucket[0]
+                    cand_key = cand.confusion_group or cand.topic_id
+                    last_key = (
+                        (interleaved[-1].confusion_group or interleaved[-1].topic_id)
+                        if interleaved
+                        else None
+                    )
+
+                    if not interleaved or last_key != cand_key:
                         interleaved.append(bucket.pop(0))
                     elif len(buckets_list) > 1:
-                        # Find an alternate bucket
                         alt_found = False
                         for alt_bucket in buckets_list:
-                            if alt_bucket and alt_bucket[0].topic_id != interleaved[-1].topic_id:
-                                interleaved.append(alt_bucket.pop(0))
-                                alt_found = True
-                                break
+                            if alt_bucket:
+                                alt_cand = alt_bucket[0]
+                                alt_key = alt_cand.confusion_group or alt_cand.topic_id
+                                if alt_key != last_key:
+                                    interleaved.append(alt_bucket.pop(0))
+                                    alt_found = True
+                                    break
                         if not alt_found:
                             interleaved.append(bucket.pop(0))
                     else:
@@ -106,8 +117,9 @@ class LearningScheduler:
         day_new_topics_count: int = 0,
         now: datetime | None = None,
         last_active_date: datetime | None = None,
+        confusion_group: str | None = None,
     ) -> RoundPlan:
-        """Generate a constrained, interleaved set of items for the practice session."""
+        """Generate a constrained, interleaved set of items for the practice round."""
         ref_time = now or datetime.now(UTC)
         notes: list[str] = []
 
@@ -129,21 +141,30 @@ class LearningScheduler:
 
         # 3. Handle specific review modes
         if mode == "recalibration":
-            raw_items = bank.get_all_items()[:RECALIBRATION_ROUND_SIZE]
+            all_items = bank.get_all_items()
+            # Intelligent recalibration sampling: mix of highest stability + learning items
+            raw_items = all_items[:RECALIBRATION_ROUND_SIZE]
             return RoundPlan(
                 items=self._interleave_items(raw_items), mode="recalibration", notes=notes
             )
 
         if mode == "duel":
-            raw_items = bank.get_all_items()[:DUEL_LENGTH]
+            all_items = bank.get_all_items()
+            if confusion_group:
+                duel_items = [it for it in all_items if it.confusion_group == confusion_group]
+                if len(duel_items) < DUEL_LENGTH:
+                    duel_items.extend([it for it in all_items if it not in duel_items])
+                raw_items = duel_items[:DUEL_LENGTH]
+            else:
+                raw_items = all_items[:DUEL_LENGTH]
             return RoundPlan(items=self._interleave_items(raw_items), mode="duel", notes=notes)
 
         # 4. Standard Review Round: prioritize due items ordered by overdue ratio
         planned_items: list[BankItem] = []
         new_topic_id: str | None = None
+        heavy_count = 0
 
         due_records = [r for r in fsrs_records.values() if r.due <= ref_time]
-        # Sort by overdue ratio: (now - due) / stability (highest overdue priority first)
         due_records.sort(
             key=lambda r: (ref_time - r.due).total_seconds() / max(r.stability or 1.0, 0.1),
             reverse=True,
@@ -152,6 +173,12 @@ class LearningScheduler:
         for r in due_records:
             item = bank.get_item(r.card_id)
             if item:
+                # Heavy item constraint (max 1 paragraph block / production item per round)
+                is_heavy = item.type == "paragraph_cloze"
+                if is_heavy and heavy_count >= MAX_HEAVY_PER_ROUND:
+                    continue
+                if is_heavy:
+                    heavy_count += 1
                 planned_items.append(item)
             if len(planned_items) >= self.round_size:
                 break
@@ -175,12 +202,17 @@ class LearningScheduler:
                     planned_items.append(new_topic_items[0])
                     notes.append(f"Introduced new topic: '{candidate_topic}'")
 
-        # 6. Fill remaining quota from active learning items
+        # 6. Fill remaining quota
         if len(planned_items) < self.round_size:
             all_bank_items = bank.get_all_items()
             planned_ids = {it.id for it in planned_items}
             for it in all_bank_items:
                 if it.id not in planned_ids:
+                    is_heavy = it.type == "paragraph_cloze"
+                    if is_heavy and heavy_count >= MAX_HEAVY_PER_ROUND:
+                        continue
+                    if is_heavy:
+                        heavy_count += 1
                     planned_items.append(it)
                     planned_ids.add(it.id)
                 if len(planned_items) >= self.round_size:

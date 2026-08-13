@@ -1,0 +1,13 @@
+user_input,accepted_answers,expected_is_correct,expected_is_scoped_typo,expected_is_transliteration,expected_is_capitalization_error,comment
+dem,dem,true,false,false,false,exact match
+Dem,dem,false,false,false,true,capitalization error fails in German
+dem mann,dem Mann,false,false,false,true,capitalization on noun fails in German
+dem Mnn,dem Mann,true,true,false,false,peripheral typo on stem passes
+den,dem,false,false,false,false,grammatical morpheme case error fails
+grosser,größer,false,false,false,false,comparative umlaut distinction fails
+groesser,größer,true,false,true,false,umlaut transliteration oe/ue/ae passes
+schoen,schön,true,false,true,false,umlaut transliteration oe passes
+schon,schön,false,false,false,false,meaning changing minimal pair fails
+haette,hätte,true,false,true,false,subjunctive transliteration passes
+hatte,hätte,false,false,false,false,tense/mood minimal pair fails
+"dem   Mann",dem Mann,true,false,false,false,whitespace normalization
