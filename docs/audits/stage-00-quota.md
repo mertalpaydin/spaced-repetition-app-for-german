@@ -14,7 +14,7 @@ Date of Audit: August 2026
 |---|---|---|---|---|---|
 | **Item Generation (Stage 3, 10)** | `gemini-3.5-flash-lite` | Free Sync / Billed Batch | Batch | **OFF** | High volume, low stakes, cheapest token cost. Thinking OFF avoids ballooning output tokens. |
 | **Topic-Leak Checking (Stage 4)** | `gemini-3.5-flash-lite` | Free Sync / Billed Batch | Batch | **OFF** | Fast term/context classifier. |
-| **Answer-Set Expansion (Stage 4)** | `gemini-3.6-flash` | Billed Project | Batch | **Low / Medium** | High-precision morphological & syntactic expansion. Accuracy-critical to avoid false negatives. |
+| **Answer-Set Expansion (Stage 4)** | `gemini-3.7-flash` | Billed Project | Batch | **Low / Medium** | High-precision morphological & syntactic expansion. Accuracy-critical to avoid false negatives. |
 | **Live Explanations (Stage 11b)** | `gemini-3.5-flash-lite` | Free / Billed Sync | Sync | **OFF** | On-demand user diagnostic feedback with local `(item_id, user_answer)` caching. |
 | **Production Grading (Stage 11a)** | `gemini-3.5-flash-lite` | Free / Billed Sync | Sync | **OFF** | 3-rubric grading (target structure, accuracy, naturalness). |
 | **Weekly Report (Stage 11)** | `gemini-3.5-flash-lite` | Billed Sync | Sync | **OFF** | Rolling activity-triggered narrative scorecard. |

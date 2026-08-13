@@ -20,7 +20,7 @@ This application practices **interleaved**:
 
 - **Offline Pipeline (Python)**:
   - Lexical parsing, Tatoeba sentence seeding, and Falko-MERLIN error mining.
-  - Multi-step verification chain (schema, topic-leak detection, Gemini 3.6 Flash answer-set expansion, spaCy morphology checking, vocabulary ceiling limits, and embedding deduplication).
+  - Multi-step verification chain (schema, topic-leak detection, Gemini 3.7 Flash answer-set expansion, spaCy morphology checking, vocabulary ceiling limits, and embedding deduplication).
   - SQLite bank storage with strict integrity guarantees and delta JSON export.
 - **Learning Engine (Python / TypeScript Parity)**:
   - FSRS scheduling engine with daily introduction budgets and 7-day forecast load gating.

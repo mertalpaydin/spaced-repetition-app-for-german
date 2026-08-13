@@ -518,7 +518,7 @@ The ninety-day joint simulation of scheduler plus top-up is the test that actual
 
 The three things the recurring budget buys, in priority order.
 
-Models: `gemini-3.5-flash-lite` for every live call (explanations, production grading, report narrative), thinking off. `gemini-3.6-flash` with low or medium thinking for override verification, which is asynchronous.
+Models: `gemini-3.5-flash-lite` for every live call (explanations, production grading, report narrative), thinking off. `gemini-3.7-flash` with low or medium thinking for override verification, which is asynchronous.
 
 ### 11a. Production grading
 

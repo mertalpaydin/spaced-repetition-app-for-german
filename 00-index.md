@@ -81,7 +81,7 @@ SPLIT_ACCURACY_GAP = 0.40             # facet accuracy spread that flags a candi
 
 MODEL_LIVE      = "gemini-3.5-flash-lite"   # explanations, production grading, report
 MODEL_GENERATE  = "gemini-3.5-flash-lite"   # batch, thinking OFF
-MODEL_VERIFY    = "gemini-3.6-flash"        # batch, thinking low/medium
+MODEL_VERIFY    = "gemini-3.7-flash"        # batch, thinking low/medium
 THINKING_VERIFY = "low"                     # tune against measured recall
 
 DUEL_LENGTH = 8                       # items per duel, range 6-8

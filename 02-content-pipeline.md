@@ -25,7 +25,7 @@ Turn a topic plus a deficit count into candidate items, via the batch endpoint, 
 |---|---|---|---|
 | Item generation | `gemini-3.5-flash-lite` | batch | **off** |
 | Topic-leak check | `gemini-3.5-flash-lite` | batch | off |
-| Answer-set expansion | `gemini-3.6-flash` | batch | low or medium |
+| Answer-set expansion | `gemini-3.7-flash` | batch | low or medium |
 
 Thinking tokens bill as output. Generation runs with thinking off; leaving it on multiplies the largest cost line. The verification thinking level is a config value, tuned against measured recall on the adversarial fixture rather than fixed once.
 

@@ -283,16 +283,13 @@ Assumptions: 2,500 items kept, ~3,500 generated to absorb a 30% rejection rate, 
 | Step | Model | Input | Output | Cost |
 |---|---|---|---|---|
 | Generation | 3.5 Flash-Lite batch | 0.26M | 0.26M | $0.36 |
-| Topic-leak check | 3.5 Flash-Lite batch | 0.07M | 0.02M | $0.04 |
-| Answer-set expansion | 3.6 Flash batch, low thinking | 0.18M | 0.35M | $1.45 |
-| Dedup embeddings | embedding batch | 0.10M | 0 | $0.01 |
-| **One full run** | | | | **~$1.86** |
+| Spec-driven generation (2,610 items) | 3.5 Flash-Lite batch, thinking OFF | 1.8M | 0.8M | $0.19 |
+| Answer-set expansion | 3.7 Flash batch, low thinking | 0.18M | 0.35M | $1.45 |
+| **Total bootstrap** | | | | **~$1.65** |
 
-The expansion output figure assumes thinking roughly doubles the visible output. That is the number to watch: moving the thinking level from low to medium moves this line with it, and it is already three quarters of the run.
+3.7 Flash also returns fewer output tokens than 3.5 Flash for the same work, so the real figure will likely come in under this estimate. Generation lands almost entirely inside free-tier quota, which means realistic paid spend is close to the expansion line on its own.
 
-3.6 Flash also returns fewer output tokens than 3.5 Flash for the same work, so the real figure will likely come in under this estimate. Generation lands almost entirely inside free-tier quota, which means realistic paid spend is close to the expansion line on its own.
-
-**Verify these prices before implementing.** The table reflects rates at the time of writing and the Gemini lineup moved repeatedly through 2026: 3.6 Flash launched in July below 3.5 Flash on output, 2.5 Flash-Lite retires in October, and free-tier quotas were cut sharply in December 2025. The stage 0 agent reads Google's current pricing page and the live AI Studio rate-limit view for both projects, records both in `docs/audits/stage-00-quota.md`, and recommends a swap if a slot is now better filled by another model. Two things worth checking specifically: whether a newer Lite tier is more expensive than the one it replaced, which has happened, and whether the model in a free-tier slot is still free-tier eligible.
+**Verify these prices before implementing.** The table reflects rates at the time of writing and the Gemini lineup moved repeatedly through 2026: 3.7 Flash launched below 3.5 Flash on output, 2.5 Flash-Lite retires in October, and free-tier quotas were cut sharply in December 2025. The stage 0 agent reads Google's current pricing page and the live AI Studio rate-limit view for both projects, records both in `docs/audits/stage-00-quota.md`, and recommends a swap if a slot is now better filled by another model. Two things worth checking specifically: whether a newer Lite tier is more expensive than the one it replaced, which has happened, and whether the model in a free-tier slot is still free-tier eligible.
 
 Expect eight to ten full runs while tuning spec sheets. **Realistic cold-start total: 11 to 15 EUR**, or nearer 7 to 9 once the local cache absorbs repeat expansion across reruns.
 

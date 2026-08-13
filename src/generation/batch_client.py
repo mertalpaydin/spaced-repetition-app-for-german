@@ -32,7 +32,7 @@ class CostTracker:
     # Gemini 3.5 Flash-Lite pricing: $0.0375 / 1M in, $0.15 / 1M out
     PRICING_PER_MILLION: dict[str, tuple[float, float]] = {
         "gemini-3.5-flash-lite": (0.0375, 0.15),
-        "gemini-3.6-flash": (0.075, 0.30),
+        "gemini-3.7-flash": (0.075, 0.30),
     }
 
     def __init__(self) -> None:

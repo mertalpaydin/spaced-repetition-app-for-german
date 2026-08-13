@@ -59,7 +59,7 @@ MIN_STOCK_PER_TIER: int = 8
 
 MODEL_LIVE: str = "gemini-3.5-flash-lite"  # explanations, production grading, report narrative
 MODEL_GENERATE: str = "gemini-3.5-flash-lite"  # batch, thinking OFF
-MODEL_VERIFY: str = "gemini-3.6-flash"  # batch, thinking low/medium
+MODEL_VERIFY: str = "gemini-3.7-flash"  # batch, thinking low/medium
 THINKING_VERIFY: str = "low"  # tune against measured recall
 
 DUEL_LENGTH: int = 8  # items per duel, range 6-8
