@@ -1,0 +1,1583 @@
+# ==============================================================================
+# German Grammar Topic Taxonomy (A1 - B2)
+# ==============================================================================
+# Built from Goethe-Institut Prüfungsziele (A1, A2, B1, B2) & BAMF Rahmencurriculum
+# Prerequisite graph forms an acyclic DAG.
+
+# ------------------------------------------------------------------------------
+# A1 LEVEL (21 Topics)
+# ------------------------------------------------------------------------------
+- id: pronomen_personal_nom
+  name_de: "Personalpronomen im Nominativ"
+  cefr: A1
+  prereqs: []
+  confusion_group: personalpronomen_kasus
+  description: "Personal pronouns acting as subject in the Nominative case (ich, du, er, sie, es, wir, ihr, sie, Sie)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Nom, Pos: Pron}
+  rule_hint: "Nominativ als Subjekt: ich, du, er, sie, es, wir, ihr, sie, Sie."
+  intro_card:
+    summary: "Personalpronomen im Nominativ"
+    rule_de: "Das Personalpronomen steht im Nominativ, wenn es das Subjekt des Satzes ist (Wer oder was handelt?)."
+    worked_examples:
+      - "Ich lerne Deutsch."
+      - "Er kommt aus Berlin."
+    contrast_note: "Unterscheide das Subjekt (Nominativ: er) vom direkten Objekt (Akkusativ: ihn)."
+
+- id: verb_sein_haben
+  name_de: "Konjugation von sein und haben (Präsens)"
+  cefr: A1
+  prereqs: [pronomen_personal_nom]
+  confusion_group: perfekt_hilfsverb
+  description: "Present tense conjugations of auxiliary/copula verbs 'sein' and 'haben'."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Tense: Pres, VerbType: Aux}
+  rule_hint: "Konjugation: bin/bist/ist/sind/seid/sind und habe/hast/hat/haben/habt/haben."
+  intro_card:
+    summary: "Verben 'sein' und 'haben' im Präsens"
+    rule_de: "'sein' (ich bin, du bist, er ist...) und 'haben' (ich habe, du hast, er hat...) sind unregelmäßig und grundlegend."
+    worked_examples:
+      - "Wir sind müde."
+      - "Er hat einen Hund."
+    contrast_note: "'sein' drückt Zustand oder Identität aus; 'haben' Besitz."
+
+- id: verb_praesens_regelm
+  name_de: "Regelmäßige Verben im Präsens"
+  cefr: A1
+  prereqs: [pronomen_personal_nom]
+  confusion_group: verb_praesens_stamm
+  description: "Regular weak verb conjugation in present tense (-e, -st, -t, -en, -t, -en)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Tense: Pres}
+  rule_hint: "Präsens-Endungen: ich -e, du -st, er/sie/es -t, wir -en, ihr -t, sie/Sie -en."
+  intro_card:
+    summary: "Regelmäßige Verben im Präsens"
+    rule_de: "An den Verbstamm werden die Personalendungen -e, -st, -t, -en, -t, -en angehängt."
+    worked_examples:
+      - "Ich wohne in München."
+      - "Sie lernen fleißig."
+    contrast_note: "Bei Verben auf -t/-d (z.B. arbeiten) wird bei du/er/ihr ein -e- eingefügt (du arbeitest)."
+
+- id: verb_praesens_vokalwechsel
+  name_de: "Verben mit Vokalwechsel im Präsens"
+  cefr: A1
+  prereqs: [verb_praesens_regelm]
+  confusion_group: verb_praesens_stamm
+  description: "Strong verbs with stem vowel change in 2nd and 3rd person singular (e->i/ie, a->ä, au->äu)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Tense: Pres, VowelChange: true}
+  rule_hint: "Vokalwechsel nur bei du und er/sie/es (z.B. geben -> du gibst, fahren -> er fährt)."
+  intro_card:
+    summary: "Verben mit Vokalwechsel (e -> i/ie, a -> ä)"
+    rule_de: "Starke Verben ändern ihren Stammvokal in der 2. und 3. Person Singular (du gibst, er fährt, sie liest)."
+    worked_examples:
+      - "Er liest gern Bücher."
+      - "Fährst du morgen nach Köln?"
+    contrast_note: "In der 1. Person Singular (ich) und im Plural (wir, ihr, sie) bleibt der Stammvokal unverändert."
+
+- id: satzbau_hauptsatz_position2
+  name_de: "Satzbau im Hauptsatz (Verb an Position 2)"
+  cefr: A1
+  prereqs: [verb_praesens_regelm]
+  confusion_group: wortstellung_verb
+  description: "Word order in declarative main clauses: conjugated verb occupies position 2."
+  eligible_types: [cloze_free, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "Im Hauptsatz steht das konjugierte Verb immer an Position 2."
+  intro_card:
+    summary: "Hauptsatz: Verb auf Position 2"
+    rule_de: "Im deutschen Aussagesatz steht das finite (konjugierte) Verb fest an zweiter Stelle, egal welches Element auf Position 1 steht."
+    worked_examples:
+      - "Heute koche ich eine Suppe."
+      - "Ich koche heute eine Suppe."
+    contrast_note: "Wenn Position 1 von Zeit oder Ort belegt ist, folgt sofort das Verb und dann das Subjekt (Inversion)."
+
+- id: satzbau_frage_inversion
+  name_de: "Satzbau bei W-Fragen und Ja/Nein-Fragen"
+  cefr: A1
+  prereqs: [satzbau_hauptsatz_position2]
+  confusion_group: wortstellung_verb
+  description: "Question structures: W-questions (W-word on 1, Verb on 2) vs Yes/No questions (Verb on 1)."
+  eligible_types: [cloze_free, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "Ja/Nein-Frage: Verb auf Position 1. W-Frage: Fragewort auf 1, Verb auf 2."
+  intro_card:
+    summary: "Fragesätze im Deutschen"
+    rule_de: "Bei Ja/Nein-Fragen beginnt der Satz mit dem konjugierten Verb. Bei W-Fragen steht das Fragewort auf Position 1, das Verb auf 2."
+    worked_examples:
+      - "Kommst du morgen zur Party?"
+      - "Wo wohnst du?"
+    contrast_note: "Verwechsle nicht Ja/Nein-Fragen (Verb auf 1) mit Aussagesätzen (Verb auf 2)."
+
+- id: artikel_bestimmt_nom
+  name_de: "Bestimmter Artikel im Nominativ"
+  cefr: A1
+  prereqs: [pronomen_personal_nom]
+  confusion_group: artikelwoerter
+  description: "Definite articles in the Nominative case (der, die, das, die)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Nom, ArtType: Def}
+  rule_hint: "Nominativ bestimmter Artikel: der (maskulin), die (feminin), das (neutral), die (Plural)."
+  intro_card:
+    summary: "Bestimmter Artikel im Nominativ"
+    rule_de: "Der bestimmte Artikel bezeichnet bekannte Nomen im Nominativ: der (m), die (f), das (n), die (Pl)."
+    worked_examples:
+      - "Der Tisch ist neu."
+      - "Das Kind spielt im Garten."
+    contrast_note: "Grammatikalisches Genus stimmt im Deutschen oft nicht mit dem biologischen Geschlecht überein."
+
+- id: artikel_unbestimmt_kein_nom
+  name_de: "Unbestimmter Artikel und Negativartikel (Nominativ)"
+  cefr: A1
+  prereqs: [artikel_bestimmt_nom]
+  confusion_group: artikelwoerter
+  description: "Indefinite (ein, eine) and negative (kein, keine) articles in Nominative."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Nom, ArtType: IndefOrNeg}
+  rule_hint: "Nominativ: ein/kein (m/n), eine/keine (f), keine (Plural)."
+  intro_card:
+    summary: "Unbestimmter Artikel und 'kein' im Nominativ"
+    rule_de: "Unbestimmt: ein (m), eine (f), ein (n). Negativ: kein (m), keine (f), kein (n), keine (Plural). Unbestimmter Plural hat keinen Artikel."
+    worked_examples:
+      - "Das ist ein schönes Haus."
+      - "Hier steht kein Stuhl."
+    contrast_note: "'kein' negiert Nomen mit unbestimmtem oder ohne Artikel; 'nicht' negiert Verben und Adjektive."
+
+- id: artikel_possessiv_nom
+  name_de: "Possessivartikel im Nominativ"
+  cefr: A1
+  prereqs: [artikel_unbestimmt_kein_nom]
+  confusion_group: artikelwoerter
+  description: "Possessive determiners in the Nominative case (mein, dein, sein, ihr, unser, euer, ihr, Ihr)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Nom, ArtType: Poss}
+  rule_hint: "Possessivartikel folgen im Nominativ der Deklination von 'ein/kein' (mein/meine/mein)."
+  intro_card:
+    summary: "Possessivartikel im Nominativ"
+    rule_de: "Possessivartikel drücken Besitz/Zugehörigkeit aus und enden im Nominativ wie 'ein': mein Bruder, meine Schwester, mein Buch."
+    worked_examples:
+      - "Mein Auto ist blau."
+      - "Ist das deine Tasche?"
+    contrast_note: "Achte auf 'euer' (m/n) vs 'eure' (f/Pl - Ausfall des mittleren e)."
+
+- id: nomen_plural
+  name_de: "Nomen Pluralbildung"
+  cefr: A1
+  prereqs: [artikel_bestimmt_nom]
+  confusion_group: nomen_endungen
+  description: "Plural formation patterns of German nouns (-e, -(e)n, -er, -s, Umlaut)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Number: Plur}
+  rule_hint: "Pluralendungen: -e (mit/ohne Umlaut), -(e)n, -er (mit Umlaut), -s oder keine Endung."
+  intro_card:
+    summary: "Pluralformen der Nomen"
+    rule_de: "Alle Nomen haben im Plural den Artikel 'die'. Die Endungen variieren: -e, -n/-en, -er, -s oder endungslos (oft mit Umlaut)."
+    worked_examples:
+      - "ein Tag -> viele Tage"
+      - "eine Frau -> zwei Frauen"
+    contrast_note: "Feminine Nomen auf -ung, -heit, -keit, -schaft, -in bilden den Plural fast immer auf -en / -nen."
+
+- id: kasus_akkusativ_formen
+  name_de: "Akkusativformen der Artikel (bestimmt / unbestimmt)"
+  cefr: A1
+  prereqs: [artikel_bestimmt_nom, artikel_unbestimmt_kein_nom]
+  confusion_group: kasus_formen
+  description: "Accusative articles for direct objects: only masculine changes (den, einen, keinen), others remain."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Acc}
+  rule_hint: "Im Akkusativ ändert sich nur Maskulinum: der -> den, ein -> einen, kein -> keinen."
+  intro_card:
+    summary: "Akkusativ: Artikelformen"
+    rule_de: "Das direkte Objekt (Wen oder was?) steht im Akkusativ. Nur maskuline Formen ändern sich: den / einen / meinen."
+    worked_examples:
+      - "Ich sehe den Mann."
+      - "Wir kaufen einen Tisch."
+    contrast_note: "Feminin (die/eine), Neutral (das/ein) und Plural (die/keine) bleiben wie im Nominativ."
+
+- id: pronomen_personal_akk
+  name_de: "Personalpronomen im Akkusativ"
+  cefr: A1
+  prereqs: [pronomen_personal_nom, kasus_akkusativ_formen]
+  confusion_group: personalpronomen_kasus
+  description: "Personal pronouns in the Accusative case (mich, dich, ihn, sie, es, uns, euch, sie, Sie)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Acc, Pos: Pron}
+  rule_hint: "Akkusativ Pronomen: mich, dich, ihn, sie, es, uns, euch, sie, Sie."
+  intro_card:
+    summary: "Personalpronomen im Akkusativ"
+    rule_de: "Personalpronomen als direktes Objekt: mich, dich, ihn, sie, es, uns, euch, sie, Sie."
+    worked_examples:
+      - "Liebst du mich?"
+      - "Ich kenne ihn nicht."
+    contrast_note: "Verwechsle nicht: 'er' (Nominativ Subjekt) mit 'ihn' (Akkusativ Objekt)."
+
+- id: modalverben_praesens
+  name_de: "Modalverben im Präsens"
+  cefr: A1
+  prereqs: [verb_praesens_regelm, satzbau_hauptsatz_position2]
+  confusion_group: modalverben_bedeutung
+  description: "Modal verbs (können, müssen, wollen, dürfen, sollen, möchten) with infinitive at clause end (Satzklammer)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Tense: Pres, VerbType: Modal}
+  rule_hint: "Modalverb konjugiert auf Position 2, Vollverb im Infinitiv am Satzende."
+  intro_card:
+    summary: "Modalverben im Präsens (Satzklammer)"
+    rule_de: "Modalverben (können, müssen, wollen, dürfen, sollen) haben im Singular Vokalwechsel. 1. und 3. Person Singular haben keine Endung (ich kann, er kann). Der Infinitiv steht am Satzende."
+    worked_examples:
+      - "Ich muss heute lange arbeiten."
+      - "Kannst du mir helfen?"
+    contrast_note: "Modalverb bildet mit dem Infinitiv am Ende die typische deutsche Satzklammer."
+
+- id: verben_trennbar_praesens
+  name_de: "Trennbare Verben im Präsens"
+  cefr: A1
+  prereqs: [verb_praesens_regelm, satzbau_hauptsatz_position2]
+  confusion_group: verben_trennbar_praefix
+  description: "Separable verbs: prefix separates and moves to the end of main clause in present tense."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Tense: Pres, Separable: true}
+  rule_hint: "Präfix trennt sich im Hauptsatz ab und steht am Satzende (z.B. aufstehen -> ich stehe auf)."
+  intro_card:
+    summary: "Trennbare Verben im Präsens"
+    rule_de: "Betonte Vorsilben (ab-, an-, auf-, aus-, ein-, mit-, vor-, zu-) trennen sich im Hauptsatz vom Verbstamm und stehen ganz am Ende."
+    worked_examples:
+      - "Der Zug kommt um acht Uhr an."
+      - "Ich stehe jeden Tag früh auf."
+    contrast_note: "Untrennbare Vorsilben (be-, emp-, ent-, er-, ge-, ver-, zer-) trennen sich nie (z.B. verstehen -> ich verstehe)."
+
+- id: imperativ
+  name_de: "Imperativ (du, ihr, Sie)"
+  cefr: A1
+  prereqs: [verb_praesens_regelm, verb_praesens_vokalwechsel]
+  confusion_group: satzbau_modus
+  description: "Imperative forms for informal singular (du), informal plural (ihr), and formal (Sie)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Mood: Imp}
+  rule_hint: "du: Verbstamm (ohne -st/du); ihr: Verbstamm + -t; Sie: Infinitiv + Sie."
+  intro_card:
+    summary: "Imperativ (Befehlsform)"
+    rule_de: "du-Form: Stamm ohne Endung/Pronomen (Komm!). ihr-Form: wie Präsens ohne Pronomen (Kommt!). Sie-Form: Infinitiv + Sie (Kommen Sie!)."
+    worked_examples:
+      - "Sprich bitte langsamer!"
+      - "Macht die Bücher auf!"
+    contrast_note: "Vokalwechsel e->i bleibt im Imperativ Singular erhalten (Gib!), Umlaut a->ä fällt weg (Fahr!)."
+
+- id: praepositionen_akkusativ
+  name_de: "Feste Präpositionen mit Akkusativ"
+  cefr: A1
+  prereqs: [kasus_akkusativ_formen]
+  confusion_group: praepositionen_kasus_fest
+  description: "Prepositions that strictly govern the Accusative case: bis, durch, für, gegen, ohne, um."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Acc, Pos: Prep}
+  rule_hint: "Akkusativ-Präpositionen: durch, für, gegen, ohne, um, bis."
+  intro_card:
+    summary: "Präpositionen mit Akkusativ (DOGFU: durch, ohne, gegen, für, um)"
+    rule_de: "Nach den Präpositionen bis, durch, für, gegen, ohne, um steht immer der Akkusativ."
+    worked_examples:
+      - "Das Geschenk ist für meinen Vater."
+      - "Wir fahren durch den Tunnel."
+    contrast_note: "Diese Präpositionen fordern niemals den Dativ."
+
+- id: kasus_dativ_formen
+  name_de: "Dativformen der Artikel (bestimmt / unbestimmt)"
+  cefr: A1
+  prereqs: [artikel_bestimmt_nom, artikel_unbestimmt_kein_nom]
+  confusion_group: kasus_formen
+  description: "Dative case articles: dem / einem (m, n), der / einer (f), den ...-n / keinen ...-n (Plural)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Dat}
+  rule_hint: "Dativ Artikel: dem (m/n), der (f), den + Nomen-(e)n (Plural)."
+  intro_card:
+    summary: "Dativ: Artikelformen"
+    rule_de: "Das indirekte Objekt (Wem?) steht im Dativ: dem (m), der (f), dem (n), den + Plural-Nomen mit -(e)n."
+    worked_examples:
+      - "Ich antworte dem Lehrer."
+      - "Sie hilft einer alten Frau."
+    contrast_note: "Im Dativ Plural erhalten auch die Nomen ein zusätzliches -(e)n (den Kindern), außer Nomen auf -s."
+
+- id: pronomen_personal_dat
+  name_de: "Personalpronomen im Dativ"
+  cefr: A1
+  prereqs: [pronomen_personal_nom, kasus_dativ_formen]
+  confusion_group: personalpronomen_kasus
+  description: "Personal pronouns in the Dative case (mir, dir, ihm, ihr, ihm, uns, euch, ihnen, Ihnen)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Dat, Pos: Pron}
+  rule_hint: "Dativ Pronomen: mir, dir, ihm, ihr, ihm, uns, euch, ihnen, Ihnen."
+  intro_card:
+    summary: "Personalpronomen im Dativ"
+    rule_de: "Personalpronomen als Dativ-Objekt: mir, dir, ihm, ihr, ihm, uns, euch, ihnen, Ihnen."
+    worked_examples:
+      - "Wie geht es dir?"
+      - "Das Buch gehört mir."
+    contrast_note: "Verwechsle nicht: 'mich' (Akkusativ) mit 'mir' (Dativ); 'ihn' (Akk) mit 'ihm' (Dat)."
+
+- id: praepositionen_dativ
+  name_de: "Feste Präpositionen mit Dativ"
+  cefr: A1
+  prereqs: [kasus_dativ_formen]
+  confusion_group: praepositionen_kasus_fest
+  description: "Prepositions that strictly govern Dative: aus, bei, mit, nach, seit, von, zu, gegenüber."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Dat, Pos: Prep}
+  rule_hint: "Dativ-Präpositionen: aus, bei, mit, nach, seit, von, zu, gegenüber."
+  intro_card:
+    summary: "Präpositionen mit Dativ"
+    rule_de: "Nach aus, bei, mit, nach, seit, von, zu, gegenüber steht immer der Dativ."
+    worked_examples:
+      - "Ich fahre mit dem Bus."
+      - "Sie wohnt seit einem Jahr bei ihren Eltern."
+    contrast_note: "Verschmelzungen: beim (bei dem), zum (zu dem), zur (zu der), vom (von dem)."
+
+- id: perfekt_haben
+  name_de: "Perfekt mit haben"
+  cefr: A1
+  prereqs: [verb_sein_haben, satzbau_hauptsatz_position2]
+  confusion_group: perfekt_hilfsverb
+  description: "Past compound tense (Perfekt) formed with auxiliary 'haben' + Partizip II at sentence end."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Tense: Past, Aspect: Perf, VerbType: AuxHaben}
+  rule_hint: "Perfekt mit haben: konjugiertes haben auf Position 2, Partizip II am Satzende."
+  intro_card:
+    summary: "Perfekt mit 'haben'"
+    rule_de: "Die meisten Verben bilden das Perfekt mit 'haben' + Partizip II am Satzende (ich habe gelernt / gearbeitet / gegessen)."
+    worked_examples:
+      - "Ich habe gestern einen Kuchen gebacken."
+      - "Hast du deine Hausaufgaben gemacht?"
+    contrast_note: "Transitive Verben (mit Akkusativobjekt) und reflexive Verben bilden das Perfekt immer mit 'haben'."
+
+- id: perfekt_sein
+  name_de: "Perfekt mit sein"
+  cefr: A1
+  prereqs: [verb_sein_haben, satzbau_hauptsatz_position2]
+  confusion_group: perfekt_hilfsverb
+  description: "Past compound tense (Perfekt) formed with auxiliary 'sein' (movement, change of state, sein/bleiben)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Tense: Past, Aspect: Perf, VerbType: AuxSein}
+  rule_hint: "Perfekt mit sein: Verben der Ortsveränderung (gehen, fahren), Zustandsänderung (aufwachen, sterben) sowie sein und bleiben."
+  intro_card:
+    summary: "Perfekt mit 'sein'"
+    rule_de: "Verben der Bewegung von A nach B (gehen, fahren, fliegen), Zustandsänderung (einschlafen, wachsen) und 'sein'/'bleiben' bilden das Perfekt mit 'sein'."
+    worked_examples:
+      - "Wir sind nach Hause gegangen."
+      - "Er ist gestern spät eingeschlafen."
+    contrast_note: "Unterscheide: 'Ich habe geschwommen' (Dauer/Sportart) vs 'Ich bin ans Ufer geschwommen' (Richtung)."
+
+# ------------------------------------------------------------------------------
+# A2 LEVEL (22 Topics)
+# ------------------------------------------------------------------------------
+- id: dativ_nach_praeposition
+  name_de: "Dativ nach Wechselpräposition (Ort / statisch)"
+  cefr: A2
+  prereqs: [kasus_dativ_formen, artikel_bestimmt_nom]
+  confusion_group: kasus_wechselpraeposition
+  description: "Two-way prepositions governing Dative when expressing static location or state (answers 'Wo?')."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Dat, Pos: Prep}
+  rule_hint: "Wechselpräposition + Dativ bei Ortsangabe (Wo? statische Position)."
+  intro_card:
+    summary: "Wechselpräpositionen mit Dativ (Wo?)"
+    rule_de: "Die 9 Wechselpräpositionen (an, auf, hinter, in, neben, über, unter, vor, zwischen) verlangen den DATIV bei der Frage 'Wo?' (Ort / Stillstand)."
+    worked_examples:
+      - "Das Buch liegt auf dem Tisch."
+      - "Wir sitzen im (in dem) Restaurant."
+    contrast_note: "Dativ = Wo? (Zustand: stehen, liegen, sitzen) vs. Akkusativ = Wohin? (Richtung: stellen, legen, setzen)."
+
+- id: akkusativ_nach_praeposition
+  name_de: "Akkusativ nach Wechselpräposition (Richtung / dynamisch)"
+  cefr: A2
+  prereqs: [kasus_akkusativ_formen, artikel_bestimmt_nom]
+  confusion_group: kasus_wechselpraeposition
+  description: "Two-way prepositions governing Accusative when expressing direction or movement towards a goal (answers 'Wohin?')."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Acc, Pos: Prep}
+  rule_hint: "Wechselpräposition + Akkusativ bei Richtungsangabe (Wohin? dynamische Bewegung)."
+  intro_card:
+    summary: "Wechselpräpositionen mit Akkusativ (Wohin?)"
+    rule_de: "Die Wechselpräpositionen verlangen den AKKUSATIV bei der Frage 'Wohin?' (Richtung / Ziel einer Bewegung)."
+    worked_examples:
+      - "Ich lege das Buch auf den Tisch."
+      - "Er geht in die Küche."
+    contrast_note: "Akkusativ = Wohin? (Aktion: stellen, legen, setzen) vs. Dativ = Wo? (Ort: stehen, liegen, sitzen)."
+
+- id: praeteritum_sein_haben_modal
+  name_de: "Präteritum von sein, haben und Modalverben"
+  cefr: A2
+  prereqs: [verb_sein_haben, modalverben_praesens]
+  confusion_group: vergangenheit
+  description: "Simple past of auxiliary verbs (war, hatte) and modal verbs (konnte, musste, wollte, durfte, sollte)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Tense: Past}
+  rule_hint: "Präteritum: war/hatte und konnte/musste/wollte/durfte/sollte (ohne Umlaut!)."
+  intro_card:
+    summary: "Präteritum von 'sein', 'haben' und Modalverben"
+    rule_de: "In gesprochener und geschriebener Sprache werden 'sein' (ich war), 'haben' (ich hatte) und Modalverben (ich konnte, musste...) bevorzugt im Präteritum verwendet."
+    worked_examples:
+      - "Gestern war ich krank und hatte Fieber."
+      - "Wir mussten lange auf den Bus warten."
+    contrast_note: "Modalverben verlieren im Präteritum immer ihren Umlaut: können -> konnte, müssen -> musste, dürfen -> durfte."
+
+- id: verben_reflexiv_akk
+  name_de: "Reflexive Verben mit Akkusativ"
+  cefr: A2
+  prereqs: [pronomen_personal_akk, verb_praesens_regelm]
+  confusion_group: reflexivpronomen_kasus
+  description: "Reflexive verbs governing Accusative reflexive pronouns (mich, dich, sich, uns, euch, sich)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Acc, Reflexive: true}
+  rule_hint: "Reflexivpronomen im Akkusativ: mich, dich, sich, uns, euch, sich."
+  intro_card:
+    summary: "Reflexive Verben mit Akkusativ"
+    rule_de: "Verben wie sich freuen, sich ärgern, sich waschen beziehen sich auf das Subjekt zurück: mich, dich, sich, uns, euch, sich."
+    worked_examples:
+      - "Ich freue mich auf das Wochenende."
+      - "Er zieht sich schnell an."
+    contrast_note: "In der 3. Person (Singular und Plural) sowie formell (Sie) heißt das Reflexivpronomen immer 'sich'."
+
+- id: verben_reflexiv_dat
+  name_de: "Reflexive Verben mit Dativ"
+  cefr: A2
+  prereqs: [pronomen_personal_dat, verben_reflexiv_akk]
+  confusion_group: reflexivpronomen_kasus
+  description: "Reflexive verbs with Dative reflexive pronouns when an explicit Accusative object is present (mir, dir, sich...)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Dat, Reflexive: true}
+  rule_hint: "Wenn bereits ein Akkusativobjekt im Satz steht, steht das Reflexivpronomen im Dativ: mir, dir, sich, uns, euch, sich."
+  intro_card:
+    summary: "Reflexivpronomen im Dativ"
+    rule_de: "Wenn ein konkretes Akkusativobjekt genannt wird, steht das Reflexivpronomen bei 'ich' und 'du' im Dativ: mir / dir (z.B. 'Ich wasche MIR die Hände')."
+    worked_examples:
+      - "Ich putze mir die Zähne."
+      - "Du ziehst dir eine Jacke an."
+    contrast_note: "Vergleiche: 'Ich wasche mich (Akk)' vs 'Ich wasche mir (Dat) das Gesicht (Akk)'."
+
+- id: verben_dativ_akkusativ_objekte
+  name_de: "Stellung von Dativ- und Akkusativobjekten"
+  cefr: A2
+  prereqs: [kasus_dativ_formen, kasus_akkusativ_formen, pronomen_personal_dat, pronomen_personal_akk]
+  confusion_group: wortstellung_objekte
+  description: "Word order of double objects: Nouns = Dative before Accusative; Pronouns = Accusative pronoun before Dative pronoun."
+  eligible_types: [cloze_free, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "Nomen: Dativ vor Akkusativ ('dem Mann den Brief'). Pronomen: Akkusativ vor Dativ ('ihn ihm')."
+  intro_card:
+    summary: "Wortstellung bei Dativ- und Akkusativobjekt"
+    rule_de: "Regel 1: Stehen zwei Nomen, kommt Dativ vor Akkusativ (Ich gebe dem Mann das Buch). Regel 2: Steht ein Pronomen, kommt Pronomen vor Nomen. Regel 3: Stehen zwei Pronomen, kommt Akkusativ vor Dativ (Ich gebe es ihm)."
+    worked_examples:
+      - "Der Lehrer gibt dem Schüler das Buch."
+      - "Er gibt es ihm."
+    contrast_note: "Merksatz bei Pronomen: Pronomen wollen nach vorne; 'Akk vor Dat' bei Doppelpronomen."
+
+- id: adjektivdeklination_bestimmt
+  name_de: "Adjektivdeklination nach bestimmtem Artikel (Typ 1)"
+  cefr: A2
+  prereqs: [artikel_bestimmt_nom, kasus_akkusativ_formen, kasus_dativ_formen]
+  confusion_group: adjektivendungen_typ
+  description: "Weak adjective endings after definite articles: only -e (Nom Sg, Acc Fem/Neut) and -en everywhere else."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {ArtType: Def, Declension: Weak}
+  rule_hint: "Nach bestimmtem Artikel: Endung -e im Nominativ Singular (und Akk f/n); überall sonst -en!"
+  intro_card:
+    summary: "Adjektivdeklination nach bestimmtem Artikel (Schwache Deklination)"
+    rule_de: "Da der bestimmte Artikel (der, die, das...) das Genus bereits anzeigt, braucht das Adjektiv nur die Endung -e (im Nom Sg und Akk f/n) oder -en (Dativ, Genitiv, Plural und Akk m)."
+    worked_examples:
+      - "Der alte Mann liest die neue Zeitung."
+      - "Ich helfe dem netten Nachbarn."
+    contrast_note: "Plural und Dativ haben nach bestimmtem Artikel immer die Endung -en."
+
+- id: adjektivdeklination_unbestimmt
+  name_de: "Adjektivdeklination nach unbestimmtem / kein Artikel (Typ 2)"
+  cefr: A2
+  prereqs: [artikel_unbestimmt_kein_nom, adjektivdeklination_bestimmt]
+  confusion_group: adjektivendungen_typ
+  description: "Mixed adjective endings after ein/kein/mein: adjective carries signal ending when article lacks it (-er, -e, -es), else -en."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {ArtType: Indef, Declension: Mixed}
+  rule_hint: "Nach ein/kein/mein: Adjektiv zeigt Signalendung (-er für maskulin, -es für neutral, -e für feminin), im Dativ/Plural immer -en."
+  intro_card:
+    summary: "Adjektivdeklination nach ein / kein / mein (Gemischte Deklination)"
+    rule_de: "Wenn 'ein' keine Endung hat (Nom m/n, Akk n), übernimmt das Adjektiv die Signalendung: ein gutER Wein, ein schönES Haus. Im Dativ und Plural immer -en (keinen nettEN Leuten)."
+    worked_examples:
+      - "Ein alter Baum steht im Garten."
+      - "Sie kauft ein rotes Kleid."
+    contrast_note: "Nom. maskulin: 'ein gutER Mann' vs 'der gutE Mann'."
+
+- id: adjektivdeklination_nullartikel
+  name_de: "Adjektivdeklination ohne Artikel (Typ 3 / Starke Deklination)"
+  cefr: A2
+  prereqs: [adjektivdeklination_unbestimmt]
+  confusion_group: adjektivendungen_typ
+  description: "Strong adjective endings with zero article: adjective carries definite article endings (-er, -e, -es, -en, -em, etc.)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {ArtType: Zero, Declension: Strong}
+  rule_hint: "Ohne Artikel: Adjektiv übernimmt die Endungen des bestimmten Artikels (z.B. frischER Kaffee, kaltES Wasser, heißEM Tee)."
+  intro_card:
+    summary: "Adjektivdeklination ohne Artikel (Starke Deklination)"
+    rule_de: "Steht kein Artikel vor dem Nomen, muss das Adjektiv das Signal tragen und übernimmt fast alle Endungen von 'der/die/das' (kaltER Tee, frischE Milch, kühlES Wasser, mit frischer Milch)."
+    worked_examples:
+      - "Deutscher Wein ist weltweit bekannt."
+      - "Wir trinken frische Milch."
+    contrast_note: "Einzige Ausnahme: Genitiv maskulin und neutral Singular endet auf -en (guten Weines), weil das Nomen bereits -(e)s hat."
+
+- id: adjektiv_komparativ_superlativ
+  name_de: "Komparativ und Superlativ der Adjektive"
+  cefr: A2
+  prereqs: [verb_praesens_regelm]
+  confusion_group: adjektiv_vergleich
+  description: "Comparison of adjectives: Komparativ (-er + als) and Superlativ (am -sten / der -ste) with vowel umlauts."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Degree: CompOrSup}
+  rule_hint: "Komparativ: Stamm + -er (schneller als). Superlativ: am ...-sten oder bestimmter Artikel + ...-ste."
+  intro_card:
+    summary: "Steigerung der Adjektive (Komparativ und Superlativ)"
+    rule_de: "Komparativ: Adjektiv + -er (oft mit Umlaut: alt -> älter als). Superlativ: am + Adjektiv + -sten (am ältesten) oder attributiv: der älteste Baum."
+    worked_examples:
+      - "Er läuft schneller als sein Bruder."
+      - "Dieser Berg ist der höchste von allen."
+    contrast_note: "Gleichheit: 'so ... wie'. Ungleichheit: 'Komparativ + als'. Unregelmäßig: gut/besser/am besten; viel/mehr/am meisten; gern/lieber/am liebsten."
+
+- id: nebensatz_weil_da
+  name_de: "Kausale Nebensätze mit weil und da"
+  cefr: A2
+  prereqs: [satzbau_hauptsatz_position2]
+  confusion_group: nebensatz_konnektoren
+  description: "Causal subordinate clauses with 'weil' and 'da': conjugated verb moves to the end of the subclause."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Subordinate: true}
+  rule_hint: "Nach 'weil' und 'da' steht das konjugierte Verb ganz am Ende des Nebensatzes."
+  intro_card:
+    summary: "Kausale Nebensätze mit 'weil' und 'da' (Verb am Ende)"
+    rule_de: "'weil' und 'da' leiten einen kausalen Nebensatz ein. Das finite Verb wandert an die allerletzte Stelle."
+    worked_examples:
+      - "Ich bleibe im Bett, weil ich krank bin."
+      - "Da es regnet, nehmen wir einen Schirm."
+    contrast_note: "Vergleiche mit 'denn' (Hauptsatz, Position 0, Verb auf 2): '... denn ich bin krank'."
+
+- id: nebensatz_dass
+  name_de: "Objektsätze mit dass"
+  cefr: A2
+  prereqs: [satzbau_hauptsatz_position2]
+  confusion_group: nebensatz_konnektoren
+  description: "Complement clauses introduced by conjunction 'dass' with verb-final word order."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Subordinate: true}
+  rule_hint: "Nach 'dass' steht das konjugierte Verb ganz am Satzende."
+  intro_card:
+    summary: "Nebensätze mit 'dass'"
+    rule_de: "'dass' verbindet einen Hauptsatz des Meinens/Wissens/Sagens mit einem Objektsatz. Das Verb steht am Ende."
+    worked_examples:
+      - "Ich weiß, dass du recht hast."
+      - "Er hofft, dass das Wetter schön bleibt."
+    contrast_note: "Achte auf den Unterschied zwischen der Konjunktion 'dass' (mit Doppel-s) und dem Relativ-/Demonstrativpronomen 'das' (ein s)."
+
+- id: nebensatz_wenn
+  name_de: "Konditionale und temporale Nebensätze mit wenn"
+  cefr: A2
+  prereqs: [satzbau_hauptsatz_position2]
+  confusion_group: nebensatz_konnektoren
+  description: "Conditional/temporal clauses with 'wenn' with verb-final word order."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Subordinate: true}
+  rule_hint: "Nach 'wenn' steht das konjugierte Verb am Ende des Nebensatzes."
+  intro_card:
+    summary: "Nebensätze mit 'wenn' (Bedingung / Gegenwart & Zukunft)"
+    rule_de: "'wenn' leitet eine Bedingung (Falls...) oder wiederholte Handlung ein. Das Verb steht am Ende."
+    worked_examples:
+      - "Wenn ich Zeit habe, besuche ich dich."
+      - "Ruf mich an, wenn du am Bahnhof ankommst."
+    contrast_note: "Bei einmaligen Ereignissen in der Vergangenheit wird 'als' statt 'wenn' verwendet."
+
+- id: nebensatz_indirekte_frage
+  name_de: "Indirekte Fragesätze mit ob und W-Wörtern"
+  cefr: A2
+  prereqs: [satzbau_frage_inversion, nebensatz_dass]
+  confusion_group: nebensatz_konnektoren
+  description: "Indirect questions: Ja/Nein questions become 'ob'-clauses; W-questions use W-word as conjunction. Verb moves to end."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Subordinate: true}
+  rule_hint: "Indirekte Frage: 'ob' (bei Ja/Nein-Fragen) oder Fragewort + Verb am Ende."
+  intro_card:
+    summary: "Indirekte Fragesätze ('ob' und W-Wörter)"
+    rule_de: "Aus direkten Fragen werden Nebensätze mit Verb-Endstellung: Ja/Nein-Frage -> 'ob...'; W-Frage -> 'wann/wo/wie...'."
+    worked_examples:
+      - "Ich weiß nicht, ob er heute kommt."
+      - "Können Sie mir sagen, wo der Bahnhof ist?"
+    contrast_note: "Direkte Frage: 'Wo ist der Bahnhof?' (Verb auf 2) vs Indirekte Frage: '... wo der Bahnhof ist' (Verb am Ende)."
+
+- id: konjunktionen_position_0
+  name_de: "Nebenordnende Konjunktionen auf Position 0 (ADUSO)"
+  cefr: A2
+  prereqs: [satzbau_hauptsatz_position2]
+  confusion_group: nebensatz_konnektoren
+  description: "Coordinating conjunctions (aber, denn, und, sondern, oder) that occupy position 0 without altering word order."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "ADUSO (aber, denn, und, sondern, oder) steht auf Position 0. Danach folgt normale Hauptsatz-Wortstellung (Subjekt + Verb auf 2)."
+  intro_card:
+    summary: "Koordinierende Konjunktionen auf Position 0 (ADUSO)"
+    rule_de: "Die Konjunktionen Aber, Denn, Und, Sondern, Oder verbinden zwei Hauptsätze und zählen als Position 0. Das Verb bleibt auf Position 2."
+    worked_examples:
+      - "Ich möchte kommen, aber ich habe keine Zeit."
+      - "Er lernt Deutsch, denn er will in Wien studieren."
+    contrast_note: "Vergleiche: 'denn' (Pos 0, Verb auf 2) vs 'weil' (Nebensatz, Verb am Ende)."
+
+- id: konjunktiv_ii_hoeflichkeit
+  name_de: "Konjunktiv II der Höflichkeit (würde / könnte / hätte / wäre)"
+  cefr: A2
+  prereqs: [praeteritum_sein_haben_modal]
+  confusion_group: konjunktiv
+  description: "Polite requests, wishes and questions using 'würde + Infinitiv', 'könnte', 'hätte', 'wäre'."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Mood: SubjII}
+  rule_hint: "Höflicher Konjunktiv II: Ich würde gern..., Könnten Sie mir helfen?, Hätten Sie Zeit?, Wären Sie so nett?"
+  intro_card:
+    summary: "Konjunktiv II der Höflichkeit"
+    rule_de: "Für höfliche Bitten und Fragen nutzt man 'würde + Infinitiv am Satzende' oder die festen Formen 'könnte', 'hätte', 'wäre', 'möchte'."
+    worked_examples:
+      - "Könnten Sie das bitte wiederholen?"
+      - "Ich hätte gern eine Tasse Kaffee."
+    contrast_note: "'Ich will einen Kaffee' klingt unhöflich; 'Ich hätte gern...' oder 'Ich möchte...' ist höflich."
+
+- id: passiv_praesens
+  name_de: "Vorgangspassiv im Präsens"
+  cefr: A2
+  prereqs: [verb_praesens_regelm, perfekt_haben]
+  confusion_group: passiv_vorgang_zustand
+  description: "Present tense passive voice: werden (conjugated on pos 2) + Partizip II at sentence end."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Voice: Pass, Tense: Pres}
+  rule_hint: "Vorgangspassiv Präsens: konjugiertes 'werden' + Partizip II am Satzende (z.B. Das Auto wird repariert)."
+  intro_card:
+    summary: "Vorgangspassiv im Präsens"
+    rule_de: "Das Passiv stellt die Handlung/den Vorgang in den Mittelpunkt. Bildung: werden (Präsens: wird / werden) + Partizip II am Ende."
+    worked_examples:
+      - "Das Haus wird gebaut."
+      - "Hier werden Deutschkurse angeboten."
+    contrast_note: "Aktiv: 'Der Mechaniker repariert das Auto' -> Passiv: 'Das Auto wird (vom Mechaniker) repariert'."
+
+- id: infinitiv_mit_zu
+  name_de: "Infinitiv mit zu"
+  cefr: A2
+  prereqs: [satzbau_hauptsatz_position2]
+  confusion_group: infinitiv_konstruktionen
+  description: "Infinitive clauses with 'zu': placed before final verb (or infixed in separable verbs: 'aufzustehen')."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "Infinitiv mit zu steht am Satzende. Bei trennbaren Verben: zwischen Vorsilbe und Stamm (z.B. einzukaufen)."
+  intro_card:
+    summary: "Infinitiv mit 'zu'"
+    rule_de: "Nach bestimmten Verben (hoffen, planen, vergessen...) und Ausdrücken (Es ist wichtig, Lust haben) steht 'zu + Infinitiv' am Satzende."
+    worked_examples:
+      - "Ich hoffe, dich bald wiederzusehen."
+      - "Es ist verboten, hier zu rauchen."
+    contrast_note: "Modalverben und Verben der Bewegung/Wahrnehmung (sehen, hören, gehen) stehen OHNE 'zu' (Ich kann schwimmen, Ich gehe einkaufen)."
+
+- id: infinitiv_um_zu
+  name_de: "Finale Infinitivkonstruktion mit um...zu"
+  cefr: A2
+  prereqs: [infinitiv_mit_zu]
+  confusion_group: infinitiv_konstruktionen
+  description: "Purpose clause 'um...zu' + infinitive when subjects of main and subclause are identical."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "'um ... zu + Infinitiv' drückt ein Ziel/eine Absicht aus (gleiches Subjekt wie im Hauptsatz)."
+  intro_card:
+    summary: "Finalsätze mit 'um...zu'"
+    rule_de: "'um ... zu + Infinitiv' antwortet auf 'Wozu?' oder 'Mit welcher Absicht?'. Funktioniert nur, wenn das Subjekt in beiden Satzteilen identisch ist."
+    worked_examples:
+      - "Er lernt fleißig, um die Prüfung zu bestehen."
+      - "Ich fahre in die Stadt, um einzukaufen."
+    contrast_note: "Bei unterschiedlichen Subjekten muss 'damit + Nebensatz' verwendet werden."
+
+- id: temporal_praepositionen
+  name_de: "Temporale Präpositionen (im, am, um, vor, nach, seit, ab, bis)"
+  cefr: A2
+  prereqs: [kasus_dativ_formen, kasus_akkusativ_formen]
+  confusion_group: temporal_praep
+  description: "Time prepositions governing Dative/Accusative (um + Uhrzeit, am + Tag, im + Monat/Jahreszeit, seit/vor + Dativ, bis + Akkusativ)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Pos: Prep}
+  rule_hint: "um (Uhrzeit), am (Tage/Tageszeiten), im (Monate/Jahreszeiten), seit (Dativ, dauert an), vor (Dativ, vergangen)."
+  intro_card:
+    summary: "Temporale Präpositionen"
+    rule_de: "um (genaue Uhrzeit), am (Tage, Daten, Tageszeiten), im (Monate, Jahre, Jahreszeiten), vor + Dativ (Vergangenheit), seit + Dativ (Gegenwart, Beginn in Vergangenheit)."
+    worked_examples:
+      - "Der Kurs beginnt um 9 Uhr am Montag."
+      - "Ich lebe seit drei Jahren in Hamburg."
+    contrast_note: "'vor' = abgeschlossen in der Vergangenheit vs. 'seit' = begann in der Vergangenheit und dauert bis heute an."
+
+- id: lokal_wohin_woher
+  name_de: "Lokale Richtungspräpositionen (nach, zu, in, aus, von)"
+  cefr: A2
+  prereqs: [kasus_dativ_formen, kasus_akkusativ_formen]
+  confusion_group: praepositionen_kasus_fest
+  description: "Directional prepositions: nach (cities/countries without article), in (places/countries with article), zu (persons/specific destinations), aus/von (origin)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Pos: Prep}
+  rule_hint: "nach + Städte/Länder ohne Artikel; in + Länder mit Artikel / Gebäude; zu + Personen/Gebäude; aus + Herkunft."
+  intro_card:
+    summary: "Lokale Präpositionen: Wohin? und Woher?"
+    rule_de: "Wohin: 'nach' (Städte/Länder ohne Artikel: nach Berlin), 'in' (in die Schweiz, ins Kino), 'zu' (zu Personen/Geschäften: zum Arzt, zur Post). Woher: 'aus' (aus dem Haus, aus Italien) oder 'von' (vom Arzt)."
+    worked_examples:
+      - "Ich fahre nach Deutschland, aber in die Schweiz."
+      - "Morgen muss ich zum Zahnarzt gehen."
+    contrast_note: "'zu' betont das Ziel/die Person (Dativ) vs. 'nach' für geographische Eigennamen ohne Artikel."
+
+- id: pronomen_demonstrativ_indefinit
+  name_de: "Demonstrativ- und Indefinitpronomen (dieser, welcher, jeder, alle)"
+  cefr: A2
+  prereqs: [artikel_bestimmt_nom, kasus_akkusativ_formen, kasus_dativ_formen]
+  confusion_group: artikelwoerter
+  description: "Demonstrative determiners (dieser/diese/dieses) and indefinite pronouns (jeder, alle, man, jemand, niemand)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Pos: Pron}
+  rule_hint: "dieser/welcher/jeder dekliniert genau wie der bestimmte Artikel (dieser, diese, dieses, diesem, diesen...)."
+  intro_card:
+    summary: "Demonstrativ- und Indefinitpronomen"
+    rule_de: "'dieser' (bestimmend) und 'jeder' (Singular) folgen den Endungen des bestimmten Artikels (dieser Mann, diese Frau, dieses Buch, jedem Kind)."
+    worked_examples:
+      - "Dieser Mantel gefällt mir besser als jener."
+      - "Jeder Teilnehmer muss sich anmelden."
+    contrast_note: "'alle' steht im Plural (alle Kinder); 'jeder' steht im Singular (jedes Kind)."
+
+# ------------------------------------------------------------------------------
+# B1 LEVEL (24 Topics)
+# ------------------------------------------------------------------------------
+- id: relativsatz_nom_akk
+  name_de: "Relativsätze im Nominativ und Akkusativ"
+  cefr: B1
+  prereqs: [artikel_bestimmt_nom, kasus_akkusativ_formen, satzbau_hauptsatz_position2]
+  confusion_group: relativpronomen
+  description: "Relative clauses in Nominative and Accusative cases; pronoun matches antecedent in gender/number and clause function in case."
+  eligible_types: [cloze_free, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Case: NomOrAcc, Subordinate: true}
+  rule_hint: "Relativpronomen entspricht dem Genus des Bezugsworts; Kasus bestimmt die Rolle im Nebensatz (Verb am Ende)."
+  intro_card:
+    summary: "Relativsätze im Nominativ und Akkusativ"
+    rule_de: "Relativsätze geben Zusatzinformationen. Das Relativpronomen übernimmt Genus und Numerus vom Bezugswort, den Kasus von seiner Funktion im Relativsatz (Verb am Ende)."
+    worked_examples:
+      - "Das ist der Mann, der dort wohnt. (Subjekt -> Nom)"
+      - "Das ist der Mann, den ich gestern gesehen habe. (Objekt -> Akk)"
+    contrast_note: "Relativpronomen gleichen den bestimmten Artikeln (der/die/das/die), im Dativ Plural 'denen' und im Genitiv 'dessen/deren'."
+
+- id: relativsatz_dativ
+  name_de: "Relativsätze im Dativ"
+  cefr: B1
+  prereqs: [kasus_dativ_formen, relativsatz_nom_akk]
+  confusion_group: relativpronomen
+  description: "Relative clauses with Dative relative pronouns (dem, der, dem, denen)."
+  eligible_types: [cloze_free, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Case: Dat, Subordinate: true}
+  rule_hint: "Relativpronomen im Dativ: dem (m/n), der (f), denen (Plural!)."
+  intro_card:
+    summary: "Relativsätze im Dativ"
+    rule_de: "Steht das Relativpronomen im Dativ (nach Dativverben wie helfen, danken oder Dativpräpositionen): dem (m/n), der (f), denen (Plural!)."
+    worked_examples:
+      - "Das ist der Kollege, dem ich geholfen habe."
+      - "Hier sind die Freunde, mit denen ich verreise."
+    contrast_note: "Achtung im Plural: Der bestimmte Artikel heißt 'den', das Relativpronomen heißt 'denen'!"
+
+- id: relativsatz_praeposition
+  name_de: "Relativsätze mit Präpositionen"
+  cefr: B1
+  prereqs: [relativsatz_nom_akk, relativsatz_dativ, praepositionen_dativ, praepositionen_akkusativ]
+  confusion_group: relativpronomen
+  description: "Relative clauses governed by prepositions: preposition precedes relative pronoun (in dem, mit der, über die, auf denen)."
+  eligible_types: [cloze_free, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Subordinate: true}
+  rule_hint: "Die Präposition steht vor dem Relativpronomen und bestimmt dessen Kasus (z.B. das Haus, in dem ich wohne)."
+  intro_card:
+    summary: "Relativsätze mit Präpositionen"
+    rule_de: "Die Präposition wandert mit dem Relativpronomen an den Anfang des Relativsatzes. Die Präposition bestimmt den Kasus des Pronomens."
+    worked_examples:
+      - "Das ist der Tisch, auf den ich das Buch gelegt habe. (Akk)"
+      - "Das ist die Stadt, aus der meine Familie kommt. (Dat)"
+    contrast_note: "Bei Sachen kann statt Präposition + Pronomen auch ein wo(r)-Kompositum stehen (worüber, womit)."
+
+- id: relativsatz_genitiv
+  name_de: "Relativsätze im Genitiv (dessen, deren)"
+  cefr: B1
+  prereqs: [relativsatz_nom_akk]
+  confusion_group: relativpronomen
+  description: "Genitive relative clauses expressing possession (dessen for m/n, deren for f/pl) without article on following noun."
+  eligible_types: [cloze_free, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Case: Gen, Subordinate: true}
+  rule_hint: "Genitiv-Relativpronomen: dessen (m/n), deren (f/Pl). Das folgende Nomen steht OHNE Artikel!"
+  intro_card:
+    summary: "Relativsätze im Genitiv ('dessen' und 'deren')"
+    rule_de: "Drückt Besitz/Zugehörigkeit aus: 'dessen' für maskuline und neutrale Nomen, 'deren' für feminine Nomen und Plural. Das nachfolgende Nomen hat keinen Artikel."
+    worked_examples:
+      - "Der Autor, dessen Buch ich lese, ist berühmt."
+      - "Die Frau, deren Auto gestohlen wurde, weint."
+    contrast_note: "Kein Artikel nach dem Pronomen: 'dessen Buch' (RICHTIG) vs 'dessen das Buch' (FALSCH)."
+
+- id: kasus_genitiv_formen
+  name_de: "Genitivformen (Artikel, Nomen und n-Deklination)"
+  cefr: B1
+  prereqs: [kasus_dativ_formen, kasus_akkusativ_formen]
+  confusion_group: kasus_formen
+  description: "Genitive case: des ...-(e)s (m/n), der (f/pl), and masculine weak nouns (n-Deklination: des Kunden, des Studenten)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Gen}
+  rule_hint: "Genitiv: des + Nomen-(e)s (m/n), der (f/Pl). N-Deklination bei schwachen maskulinen Nomen (des Kollegen)."
+  intro_card:
+    summary: "Genitivformen der Artikel und Nomen"
+    rule_de: "Der Genitiv (Wessen?) zeigt Besitz an: des Vaters/Kindes (m/n mit -s/-es Endung), der Mutter/Eltern (f/Pl ohne Nomen-Endung)."
+    worked_examples:
+      - "Das ist das Auto des Chefs."
+      - "Die Farbe der Blumen ist schön."
+    contrast_note: "Schwache maskuline Nomen (n-Deklination) erhalten im Genitiv, Dativ und Akkusativ ein -(e)n: des Studenten, den Polizisten."
+
+- id: praepositionen_genitiv
+  name_de: "Präpositionen mit Genitiv (wegen, während, trotz, statt)"
+  cefr: B1
+  prereqs: [kasus_genitiv_formen]
+  confusion_group: praepositionen_kasus_fest
+  description: "Prepositions that govern the Genitive case: wegen, während, trotz, (an)statt, innerhalb, außerhalb."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Gen, Pos: Prep}
+  rule_hint: "Genitiv-Präpositionen: wegen, während, trotz, statt, innerhalb, außerhalb + Genitiv."
+  intro_card:
+    summary: "Präpositionen mit Genitiv"
+    rule_de: "Nach wegen (kausal), während (temporal), trotz (konzessiv), statt (adversativ) folgt standardsprachlich immer der Genitiv."
+    worked_examples:
+      - "Trotz des schlechten Wetters gingen wir spazieren."
+      - "Wegen einer Panne kam der Zug zu spät."
+    contrast_note: "Umgangssprachlich hört man oft Dativ ('wegen dem Regen'), standardsprachlich und in Prüfungen gilt nur der Genitiv ('wegen des Regens')."
+
+- id: verben_feste_praepositionen
+  name_de: "Verben mit festen Präpositionen"
+  cefr: B1
+  prereqs: [kasus_dativ_formen, kasus_akkusativ_formen]
+  confusion_group: praepositionen_kasus_fest
+  description: "Verbs with fixed prepositions and their governed case (warten auf + Akk, denken an + Akk, abhängen von + Dat, träumen von + Dat)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "Lerne Verb + Präposition + Kasus als feste Einheit (z.B. warten auf + Akk, sich interessieren für + Akk, teilnehmen an + Dat)."
+  intro_card:
+    summary: "Verben mit festen Präpositionen"
+    rule_de: "Viele Verben fordern eine feste Präposition mit festem Kasus: z.B. denken an (+ Akk), träumen von (+ Dat), sich freuen auf/über (+ Akk)."
+    worked_examples:
+      - "Wir warten seit einer Stunde auf den Bus."
+      - "Er nimmt an dem Seminar teil."
+    contrast_note: "'sich freuen auf' = Zukunft vs 'sich freuen über' = Gegenwart/Vergangenheit."
+
+- id: pronominaladverbien_da_wo
+  name_de: "Pronominaladverbien (da(r)- und wo(r)-Komposita)"
+  cefr: B1
+  prereqs: [verben_feste_praepositionen]
+  confusion_group: pronominaladverbien
+  description: "Pronominal adverbs referring to objects/concepts (damit, dafür, darüber, womit, worüber); inserted -r- before vowels."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Pos: Adv}
+  rule_hint: "da(r)- + Präposition für Sachen/Sachverhalte (damit, darüber). Bei Personen: Präposition + Pronomen (mit ihm, über sie)."
+  intro_card:
+    summary: "Pronominaladverbien (da- und wo-Verbindungen)"
+    rule_de: "Bezieht sich ein Verb mit Präposition auf eine Sache/Idee, nutzt man da(r)- + Präposition (damit, daran, worauf). Bei Vokalbeginn wird ein -r- eingefügt (darauf, worüber)."
+    worked_examples:
+      - "Denkst du an die Prüfung? - Ja, ich denke daran."
+      - "Worüber sprecht ihr? - Über das neue Projekt."
+    contrast_note: "Gilt nur für Sachen! Für Personen: 'Denkst du an deine Mutter?' -> 'Ja, ich denke an sie' (NICHT: daran)."
+
+- id: praeteritum_vollverben
+  name_de: "Präteritum regelmäßiger und unregelmäßiger Vollverben"
+  cefr: B1
+  prereqs: [praeteritum_sein_haben_modal]
+  confusion_group: vergangenheit
+  description: "Simple past of full lexical verbs (weak: -te, -test, -te...; strong: ablaut vowel change + -, -st, -, -en, -t, -en)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Tense: Past}
+  rule_hint: "Präteritum schwache Verben: Stamm + -te/-test/-te/-ten/-tet/-ten. Starke Verben: Vokalwechsel (ging, schrieb, sah)."
+  intro_card:
+    summary: "Präteritum der Vollverben (Schriftsprache / Erzählung)"
+    rule_de: "Das Präteritum wird vor allem in Texten, Berichten und Erzählungen verwendet. Schwache Verben: Stamm + -te (lernte). Starke Verben: Stammvokalwechsel ohne Endung in 1./3. Person (er ging, sie schrieb)."
+    worked_examples:
+      - "Er schloss die Tür und ging leise hinaus."
+      - "Plötzlich begann es zu schneien."
+    contrast_note: "1. und 3. Person Singular haben im Präteritum starker Verben nie eine Endung (ich sah, er sah)."
+
+- id: plusquamperfekt
+  name_de: "Plusquamperfekt (Vorvergangenheit)"
+  cefr: B1
+  prereqs: [praeteritum_vollverben, perfekt_haben, perfekt_sein]
+  confusion_group: vergangenheit
+  description: "Past perfect tense expressing anteriority: hatte/war (Präteritum) + Partizip II at sentence end."
+  eligible_types: [cloze_free, cloze_cued, paragraph_cloze, error_correction]
+  requires_context: true
+  morph_spec: {Tense: PastPerf}
+  rule_hint: "Plusquamperfekt: hatte/war im Präteritum + Partizip II am Satzende (drückt Vorzeitigkeit in der Vergangenheit aus)."
+  intro_card:
+    summary: "Plusquamperfekt (Vorvergangenheit)"
+    rule_de: "Das Plusquamperfekt drückt ein Ereignis aus, das VOR einem anderen vergangenen Ereignis passiert ist. Bildung: hatte / war + Partizip II."
+    worked_examples:
+      - "Nachdem er gefrühstückt hatte, ging er zur Arbeit."
+      - "Als wir ankamen, war der Zug bereits abgefahren."
+    contrast_note: "Typisch in Kombination mit 'nachdem' (Nebensatz im Plusquamperfekt, Hauptsatz im Präteritum)."
+
+- id: nebensatz_als_wenn
+  name_de: "Temporale Nebensätze: als vs. wenn"
+  cefr: B1
+  prereqs: [nebensatz_wenn, praeteritum_vollverben]
+  confusion_group: temporal_als_wenn
+  description: "Temporal contrast: 'als' for one-time past event vs 'wenn' for repeated past events or present/future conditions."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Subordinate: true}
+  rule_hint: "'als' = einmalig in der Vergangenheit. 'wenn' = wiederholt in der Vergangenheit (immer wenn) oder Gegenwart/Zukunft."
+  intro_card:
+    summary: "Temporalsätze: 'als' vs. 'wenn'"
+    rule_de: "'als' steht für ein einmaliges Ereignis oder einen einmaligen Zustand in der Vergangenheit. 'wenn' steht für Gegenwart/Zukunft oder wiederholte Handlungen in der Vergangenheit ('jedes Mal wenn')."
+    worked_examples:
+      - "Als ich ein Kind war, wohnten wir auf dem Land."
+      - "Immer wenn er nach Hause kam, bellte der Hund."
+    contrast_note: "'Als ich 18 Jahre alt wurde...' (einmalig -> als) vs 'Wenn die Sonne scheint, gehen wir baden' (Gegenwart -> wenn)."
+
+- id: nebensatz_temporal_erweitert
+  name_de: "Erweiterte Temporalsätze (während, nachdem, bevor, seitdem, bis)"
+  cefr: B1
+  prereqs: [nebensatz_weil_da, plusquamperfekt]
+  confusion_group: nebensatz_konnektoren
+  description: "Temporal subclauses expressing simultaneity (während, solange), anteriority (nachdem), posteriority (bevor, ehe), and boundary (seitdem, bis)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Subordinate: true}
+  rule_hint: "während (Gleichzeitigkeit), nachdem (Vorzeitigkeit), bevor (Nachzeitigkeit), seitdem (Beginn), bis (Endpunkt) + Verb am Ende."
+  intro_card:
+    summary: "Erweiterte temporale Konnektoren"
+    rule_de: "Temporale Konjunktionen mit Verb-Endstellung: nachdem (Vorzeitigkeit), während (Gleichzeitigkeit), bevor/ehe (Nachzeitigkeit), bis (Endpunkt), seitdem (Startpunkt)."
+    worked_examples:
+      - "Bevor wir essen, waschen wir die Hände."
+      - "Seitdem sie in Wien wohnt, spricht sie fließend Deutsch."
+    contrast_note: "Achte auf Zeitverhältnisse bei 'nachdem': Nachdem + Plusquamperfekt -> Hauptsatz im Präteritum."
+
+- id: nebensatz_obwohl_trotzdem
+  name_de: "Konzessive Satzverbindung (obwohl vs. trotzdem)"
+  cefr: B1
+  prereqs: [nebensatz_weil_da, satzbau_hauptsatz_position2]
+  confusion_group: nebensatz_konnektoren
+  description: "Concessive connection: 'obwohl' (subclause, verb at end) vs 'trotzdem' (adverbial connector, verb on position 2)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "'obwohl' = Nebensatz (Verb am Ende). 'trotzdem' = Hauptsatz-Adverb (Position 1, danach direkt Verb auf 2)."
+  intro_card:
+    summary: "Konzessive Verknüpfung: 'obwohl' vs. 'trotzdem'"
+    rule_de: "Drückt einen unerwarteten Gegensatz aus. 'obwohl' leitet einen Nebensatz ein (Verb am Ende). 'trotzdem' ist ein Adverb im Hauptsatz (Verb auf Position 2)."
+    worked_examples:
+      - "Obwohl es in Strömen regnete, ging er ohne Schirm hinaus."
+      - "Es regnete in Strömen. Trotzdem ging er ohne Schirm hinaus."
+    contrast_note: "Gleiche Bedeutung, andere Satzstruktur: 'obwohl' (Verb am Ende) vs 'trotzdem' (Inversion: trotzdem ging er)."
+
+- id: nebensatz_sodass_deshalb
+  name_de: "Konsekutive Satzverbindung (sodass vs. deshalb / deswegen)"
+  cefr: B1
+  prereqs: [nebensatz_weil_da, satzbau_hauptsatz_position2]
+  confusion_group: nebensatz_konnektoren
+  description: "Consecutive connection: 'sodass / so...dass' (subclause, verb at end) vs 'deshalb / deswegen' (adverbial on pos 1, verb on pos 2)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "'sodass' = Nebensatz (Verb am Ende). 'deshalb/deswegen' = Hauptsatz (Position 1, Verb auf 2)."
+  intro_card:
+    summary: "Konsekutive Verknüpfung: 'sodass' vs. 'deshalb / deswegen'"
+    rule_de: "Drückt eine Folge/Wirkung aus. 'sodass' leitet einen Nebensatz ein (Verb am Ende). 'deshalb / deswegen / daher' stehen auf Position 1 im Hauptsatz gefolgt vom Verb."
+    worked_examples:
+      - "Er war krank, sodass er nicht zur Prüfung kommen konnte."
+      - "Er war krank. Deshalb konnte er nicht zur Prüfung kommen."
+    contrast_note: "Vergleiche Kausal (Ursache: weil/denn) mit Konsekutiv (Folge: sodass/deshalb)."
+
+- id: nebensatz_damit_um_zu
+  name_de: "Finale Satzverbindung (damit vs. um...zu)"
+  cefr: B1
+  prereqs: [infinitiv_um_zu, nebensatz_weil_da]
+  confusion_group: finale_konnektoren
+  description: "Purpose clauses: 'um...zu' requires identical subject in both clauses; 'damit' is used for different subjects (or identical)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Subordinate: true}
+  rule_hint: "'damit' + Nebensatz (bei verschiedenen oder gleichen Subjekten). 'um ... zu' (NUR bei gleichem Subjekt!)."
+  intro_card:
+    summary: "Finalsätze: 'damit' vs. 'um...zu'"
+    rule_de: "'damit' verbindet Sätze mit unterschiedlichen Subjekten (und leitet einen Nebensatz mit Verb am Ende ein). 'um...zu' wird genutzt, wenn das Subjekt im Haupt- und Nebensatz gleich ist."
+    worked_examples:
+      - "Die Mutter gibt dem Kind Geld, damit es sich ein Eis kauft. (Subjekte verschieden)"
+      - "Das Kind spart Geld, um sich ein Eis zu kaufen. (Subjekt gleich)"
+    contrast_note: "Wenn Subjekte unterschiedlich sind, ist 'um...zu' grammatikalisch unmöglich."
+
+- id: konnektoren_zweiteilig_kopulativ
+  name_de: "Zweiteilige Konnektoren (sowohl...als auch, weder...noch, nicht nur...sondern auch)"
+  cefr: B1
+  prereqs: [konjunktionen_position_0]
+  confusion_group: zweiteilige_konnektoren
+  description: "Copulative two-part connectors: 'sowohl...als auch' (positive addition), 'nicht nur...sondern auch' (emphatic), 'weder...noch' (double negation)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "sowohl A als auch B (beides positiv); nicht nur A sondern auch B (Steigerung); weder A noch B (doppelte Verneinung ohne 'nicht')."
+  intro_card:
+    summary: "Zweiteilige Konnektoren (Kopulativ)"
+    rule_de: "Verbinden zwei Satzglieder oder Sätze: 'sowohl ... als auch' (und), 'nicht nur ... sondern auch' (betonendes und), 'weder ... noch' (keines von beiden)."
+    worked_examples:
+      - "Sie spricht sowohl Englisch als auch Spanisch."
+      - "Er trinkt weder Kaffee noch Tee."
+    contrast_note: "Bei 'weder...noch' wird kein zusätzliches 'nicht' oder 'kein' gebraucht, da 'weder' bereits verneint."
+
+- id: konnektoren_zweiteilig_adversativ
+  name_de: "Zweiteilige Konnektoren (entweder...oder, zwar...aber, einerseits...andererseits)"
+  cefr: B1
+  prereqs: [konnektoren_zweiteilig_kopulativ]
+  confusion_group: zweiteilige_konnektoren
+  description: "Alternative and adversative two-part connectors: 'entweder...oder' (exclusive or), 'zwar...aber' (concession), 'einerseits...andererseits'."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "entweder A oder B (Alternative); zwar A, aber B (Einschränkung); einerseits A, andererseits B (zwei Perspektiven)."
+  intro_card:
+    summary: "Zweiteilige Konnektoren (Alternativ & Adversativ)"
+    rule_de: "'entweder ... oder' (eine von zwei Möglichkeiten), 'zwar ... aber' (Zugeständnis mit Einschränkung), 'einerseits ... andererseits' (zwei Seiten)."
+    worked_examples:
+      - "Wir fahren entweder nach Italien oder nach Kroatien."
+      - "Die Wohnung ist zwar klein, aber sehr gemütlich."
+    contrast_note: "'zwar' bereitet den Hörer auf das folgende 'aber' vor."
+
+- id: konnektoren_je_desto
+  name_de: "Proportionale Konnektoren (je...desto / je...umso)"
+  cefr: B1
+  prereqs: [adjektiv_komparativ_superlativ, nebensatz_weil_da]
+  confusion_group: zweiteilige_konnektoren
+  description: "Proportional connector: 'je + Komparativ' in subclause (verb-final) + 'desto/umso + Komparativ' in main clause (verb directly follows)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "je + Komparativ ... (Verb am Ende), desto/umso + Komparativ + Verb auf Position 2."
+  intro_card:
+    summary: "Proportionalsätze mit 'je ... desto / umso'"
+    rule_de: "Drückt eine proportionale Entwicklung aus. 'je + Komparativ' steht im Nebensatz (Verb am Ende). 'desto/umso + Komparativ' steht im Hauptsatz gefolgt vom finiten Verb."
+    worked_examples:
+      - "Je mehr man übt, desto besser wird man."
+      - "Je früher wir abfahren, umso schneller kommen wir an."
+    contrast_note: "Achte auf die Satzstellung im Hauptsatz: Nach 'desto besser' folgt sofort das finite Verb ('wird man'), nicht das Subjekt!"
+
+- id: konjunktiv_ii_irreal_gegenwart
+  name_de: "Konjunktiv II: Irreale Wünsche und Bedingungen (Gegenwart)"
+  cefr: B1
+  prereqs: [konjunktiv_ii_hoeflichkeit, nebensatz_wenn]
+  confusion_group: konjunktiv
+  description: "Unreal conditional clauses and wishes in the present: wenn + Konjunktiv II (wäre, hätte, würde + Infinitiv)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Mood: SubjII, Tense: Pres}
+  rule_hint: "Irrealer Konjunktiv II Gegenwart: Wenn ich reich wäre, würde ich eine Weltreise machen."
+  intro_card:
+    summary: "Konjunktiv II: Irreale Gegenwart & Wünsche"
+    rule_de: "Drückt Hypothesen, Träume und irreale Bedingungen aus: 'wenn + Konjunktiv II (Verb am Ende) -> Hauptsatz mit würde + Infinitiv / hätte / wäre'."
+    worked_examples:
+      - "Wenn ich mehr Zeit hätte, würde ich mehr Sport treiben."
+      - "Wenn das Wetter schön wäre, gingen wir spazieren."
+    contrast_note: "Indikativ (real): 'Wenn ich Zeit habe, komme ich' vs Konjunktiv II (irreal): 'Wenn ich Zeit hätte, käme ich'."
+
+- id: konjunktiv_ii_vergangenheit
+  name_de: "Konjunktiv II: Irreale Bedingungen (Vergangenheit)"
+  cefr: B1
+  prereqs: [konjunktiv_ii_irreal_gegenwart, plusquamperfekt]
+  confusion_group: konjunktiv
+  description: "Unreal conditions in the past: wäre/hätte + Partizip II expressing what could have happened but did not."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Mood: SubjII, Tense: Past}
+  rule_hint: "Irrealer Konjunktiv II Vergangenheit: wäre / hätte + Partizip II (z.B. Wenn ich das gewusst hätte, wäre ich gekommen)."
+  intro_card:
+    summary: "Konjunktiv II der Vergangenheit"
+    rule_de: "Drückt vergangene, nicht mehr änderbare Tatsachen aus. Bildung: Konjunktiv II von haben/sein (hätte / wäre) + Partizip II."
+    worked_examples:
+      - "Wenn du mich angerufen hättest, hätte ich dir geholfen."
+      - "Fast wäre ich zu spät zum Flughafen gekommen."
+    contrast_note: "Gegenwart: 'Wenn ich Zeit hätte, käme ich' vs Vergangenheit: 'Wenn ich Zeit gehabt hätte, wäre ich gekommen'."
+
+- id: passiv_praeteritum
+  name_de: "Vorgangspassiv im Präteritum"
+  cefr: B1
+  prereqs: [passiv_praesens, praeteritum_vollverben]
+  confusion_group: passiv_vorgang_zustand
+  description: "Past passive voice: wurde / wurden (conjugated pos 2) + Partizip II at sentence end."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Voice: Pass, Tense: Past}
+  rule_hint: "Vorgangspassiv Präteritum: wurde / wurden + Partizip II am Satzende."
+  intro_card:
+    summary: "Vorgangspassiv im Präteritum"
+    rule_de: "Beschreibt vergangene Handlungen im Passiv. Bildung: wurde / wurdest / wurde / wurden / wurdet / wurden + Partizip II."
+    worked_examples:
+      - "Das Schloss wurde im 18. Jahrhundert erbaut."
+      - "Die Verletzten wurden sofort ins Krankenhaus gebracht."
+    contrast_note: "Präsens: 'Das Haus wird gebaut' vs Präteritum: 'Das Haus wurde gebaut' vs Perfekt: 'Das Haus ist gebaut worden'."
+
+- id: passiv_modalverben
+  name_de: "Passiv mit Modalverben"
+  cefr: B1
+  prereqs: [passiv_praesens, modalverben_praesens]
+  confusion_group: passiv_vorgang_zustand
+  description: "Passive with modal verbs: Modalverb on pos 2 + Partizip II + werden (Infinitiv) at sentence end."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Voice: Pass, VerbType: Modal}
+  rule_hint: "Passiv mit Modalverb: Modalverb konjugiert auf Position 2, am Satzende: Partizip II + werden (Infinitiv)."
+  intro_card:
+    summary: "Passiv mit Modalverben"
+    rule_de: "Kombination aus Modalverb und Passiv: Das Modalverb steht konjugiert auf Position 2, am Satzende steht 'Partizip II + werden'."
+    worked_examples:
+      - "Die Rechnung muss bis Freitag bezahlt werden."
+      - "Hier darf nicht fotografiert werden."
+    contrast_note: "Im Präteritum: 'Die Rechnung musste bezahlt werden'."
+
+- id: passiversatz_formen_b1
+  name_de: "Passiversatzformen (sein + zu + Infinitiv, -bar / -lich)"
+  cefr: B1
+  prereqs: [passiv_modalverben, infinitiv_mit_zu]
+  confusion_group: passiversatz
+  description: "Passive alternatives: 'sein + zu + Infinitiv' (must/can be done) and adjectives with suffix -bar / -lich."
+  eligible_types: [cloze_free, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "sein + zu + Infinitiv = muss / kann getan werden; Adjektive auf -bar/-lich = kann getan werden (machbar, lesbar)."
+  intro_card:
+    summary: "Passiversatzformen (B1)"
+    rule_de: "'sein + zu + Infinitiv' drückt eine Notwendigkeit (müssen) oder Möglichkeit (können) aus. Adjektive auf -bar oder -lich drücken Machbarkeit aus."
+    worked_examples:
+      - "Die Aufgabe ist bis morgen zu erledigen. (= muss erledigt werden)"
+      - "Der Text ist leicht lesbar. (= kann leicht gelesen werden)"
+    contrast_note: "Sehr häufig in Fachtexten und Bedienungsanleitungen, um Passiv mit Modalverb abzuwechseln."
+
+- id: futur_i
+  name_de: "Futur I (Zukunft und Vermutung)"
+  cefr: B1
+  prereqs: [verb_praesens_regelm, satzbau_hauptsatz_position2]
+  confusion_group: verb_zeiten
+  description: "Future I: werden (conjugated pos 2) + Infinitiv at sentence end; expresses future intentions or present assumptions."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Tense: FutI}
+  rule_hint: "Futur I: konjugiertes 'werden' + Infinitiv am Satzende (z.B. Er wird morgen ankommen / Er wird wohl krank sein)."
+  intro_card:
+    summary: "Futur I (Zukunft und Vermutung)"
+    rule_de: "Bildung: werden (Präsens) + Infinitiv am Satzende. Verwendung: feste Absicht in der Zukunft oder Vermutung in der Gegenwart (oft mit 'wohl', 'sicher')."
+    worked_examples:
+      - "Nächstes Jahr werde ich nach Spanien reisen."
+      - "Wo ist Thomas? - Er wird wohl noch im Büro sein."
+    contrast_note: "Im Deutschen drückt man Zukunft im Alltag meist mit Präsens + Zeitangabe aus ('Ich fahre morgen'). Futur I betont Absicht oder Vermutung."
+
+# ------------------------------------------------------------------------------
+# B2 LEVEL (20 Topics)
+# ------------------------------------------------------------------------------
+- id: konjunktiv_i_indirekte_rede
+  name_de: "Konjunktiv I in der indirekten Rede"
+  cefr: B2
+  prereqs: [verb_praesens_regelm, nebensatz_dass]
+  confusion_group: konjunktiv
+  description: "Subjunctive I for indirect reporting in journalism and formal registers; distinct forms derived from present stem."
+  eligible_types: [paragraph_cloze, error_correction]
+  requires_context: true
+  morph_spec: {Mood: SubjI}
+  rule_hint: "Konjunktiv I: Verbstamm + -e, -est, -e, -en, -et, -en (z.B. er habe, er sei, er wisse, er komme)."
+  intro_card:
+    summary: "Konjunktiv I: Indirekte Rede"
+    rule_de: "Wird in der gehobenen Schriftsprache und im Journalismus für neutrale Berichterstattung genutzt. Bildung: Verbstamm + Konjunktiv-Endungen (-e, -est, -e, -en, -et, -en)."
+    worked_examples:
+      - "Der Minister erklärte, die Regierung habe alle Maßnahmen geprüft."
+      - "Sie sagte, sie sei mit dem Ergebnis zufrieden."
+    contrast_note: "Wenn die Konjunktiv-I-Form mit dem Indikativ identisch ist (z.B. sie haben), weicht man auf Konjunktiv II aus (sie hätten)."
+
+- id: konjunktiv_i_ersatzformen
+  name_de: "Konjunktiv I vs. Konjunktiv II Ersatzformen"
+  cefr: B2
+  prereqs: [konjunktiv_i_indirekte_rede, konjunktiv_ii_irreal_gegenwart]
+  confusion_group: konjunktiv
+  description: "Replacement hierarchy in reported speech: when Konjunktiv I is identical to Indikativ, replace with Konjunktiv II or 'würde + Inf'."
+  eligible_types: [paragraph_cloze, error_correction]
+  requires_context: true
+  morph_spec: {Mood: SubjIErsatz}
+  rule_hint: "Wenn Konjunktiv I gleich Indikativ ist (z.B. 1. Sg / 1. & 3. Plural), verwende Konjunktiv II oder würde-Form."
+  intro_card:
+    summary: "Ersatzformen der indirekten Rede"
+    rule_de: "In der 1. Person Sg sowie in der 1. und 3. Person Plural gleicht Konjunktiv I meist dem Indikativ (sie sagen / sie sagen). Dann MUSS Konjunktiv II als Ersatzform genutzt werden (sie sagten / sie würden sagen)."
+    worked_examples:
+      - "Die Zeugen behaupten, sie hätten (statt: haben) den Täter gesehen."
+      - "Sie sagten, sie würden morgen abreisen."
+    contrast_note: "Stufenleiter: Konjunktiv I -> falls gleich wie Indikativ: Konjunktiv II -> falls gleich wie Präteritum: würde + Infinitiv."
+
+- id: zustandspassiv
+  name_de: "Zustandspassiv (sein + Partizip II)"
+  cefr: B2
+  prereqs: [passiv_praesens, passiv_praeteritum]
+  confusion_group: passiv_vorgang_zustand
+  description: "Stative passive expressing completed result or state: sein + Partizip II."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Voice: PassStat}
+  rule_hint: "Zustandspassiv: konjugiertes 'sein' + Partizip II (beschreibt den fertigen Zustand / das Ergebnis)."
+  intro_card:
+    summary: "Zustandspassiv ('sein' + Partizip II)"
+    rule_de: "Das Vorgangspassiv ('werden') beschreibt die laufende Handlung. Das Zustandspassiv ('sein') beschreibt das fertige Resultat / den Zustand danach."
+    worked_examples:
+      - "Das Geschäft ist sonntags geschlossen. (Zustand)"
+      - "Die Tür wird gerade geschlossen. (Vorgang)"
+    contrast_note: "Vorgangspassiv: 'Die Suppe wird gekocht' (Prozess) vs Zustandspassiv: 'Die Suppe ist gekocht' (fertig zum Essen)."
+
+- id: zustandspassiv_zeiten
+  name_de: "Zustandspassiv in verschiedenen Zeitformen"
+  cefr: B2
+  prereqs: [zustandspassiv, praeteritum_vollverben]
+  confusion_group: passiv_vorgang_zustand
+  description: "Stative passive across tenses: war + Partizip II (Präteritum), ist + Partizip II + gewesen (Perfekt)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Voice: PassStat}
+  rule_hint: "Präteritum Zustandspassiv: war + Partizip II. Perfekt: ist + Partizip II + gewesen."
+  intro_card:
+    summary: "Zustandspassiv in Vergangenheit und Zukunft"
+    rule_de: "Präteritum: war + Partizip II (Das Fenster war geöffnet). Perfekt: ist + Partizip II + gewesen (Das Fenster ist geöffnet gewesen). Futur I: wird + Partizip II + sein."
+    worked_examples:
+      - "Als wir ankamen, war das Museum bereits geschlossen."
+      - "Bis morgen wird die Straße repariert sein."
+    contrast_note: "Unterscheide: 'war gebaut' (Zustand in Vergangenheit) vs 'wurde gebaut' (Handlung in Vergangenheit)."
+
+- id: passiv_unpersoenlich
+  name_de: "Unpersönliches Passiv (subjektloses Passiv)"
+  cefr: B2
+  prereqs: [passiv_praesens]
+  confusion_group: passiv_vorgang_zustand
+  description: "Impersonal passive of intransitive verbs without subject: 'Es wird getanzt' / 'Hier wird gearbeitet'."
+  eligible_types: [cloze_free, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Voice: Pass}
+  rule_hint: "Unpersönliches Passiv: 'Es wird...' auf Position 1 oder entfällt bei Vorfeldbelegung ('Hier wird nicht geraucht')."
+  intro_card:
+    summary: "Unpersönliches Passiv"
+    rule_de: "Auch intransitive Verben (ohne Akkusativobjekt) können ein Passiv bilden. Das Pronomen 'es' steht nur auf Position 1 als Platzhalter; rückt ein anderes Element nach vorne, entfällt 'es'."
+    worked_examples:
+      - "Es wird heute viel getanzt."
+      - "Sonntags wird in dieser Firma nicht gearbeitet."
+    contrast_note: "'Es wird gearbeitet' vs 'Hier wird gearbeitet' (OHNE 'es'!)."
+
+- id: modalverben_subjektiv_vermutung
+  name_de: "Subjektive Modalverben: Vermutung (muss, dürfte, kann, könnte)"
+  cefr: B2
+  prereqs: [modalverben_praesens, konjunktiv_ii_hoeflichkeit]
+  confusion_group: subjektive_modalverben
+  description: "Epistemic use of modal verbs expressing varying degrees of probability/certainty: muss (100%), dürfte (75%), kann/könnte (50%)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {VerbType: ModalEpistemic}
+  rule_hint: "Sicherheit: muss (fast 100%), dürfte (sehr wahrscheinlich ~75%), kann/könnte (möglich ~50%)."
+  intro_card:
+    summary: "Subjektive Modalverben: Vermutung"
+    rule_de: "Drückt den Grad der Gewissheit des Sprechers aus: 'muss' (sicher), 'dürfte' (sehr wahrscheinlich), 'kann/könnte' (möglich), 'kann nicht' (unmöglich)."
+    worked_examples:
+      - "Er arbeitet seit 10 Stunden, er muss sehr müde sein. (99% sicher)"
+      - "Das Paket dürfte morgen ankommen. (wahrscheinlich)"
+    contrast_note: "In der Vergangenheit: Modalverb Präsens + Infinitiv Perfekt ('Er muss den Zug verpasst haben')."
+
+- id: modalverben_subjektiv_behauptung
+  name_de: "Subjektive Modalverben: Distanzierung und Behauptung (soll, will)"
+  cefr: B2
+  prereqs: [modalverben_subjektiv_vermutung]
+  confusion_group: subjektive_modalverben
+  description: "Modal verbs expressing reported claims: 'soll' (rumour/others claim) vs 'will' (the subject claims about themselves)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {VerbType: ModalEpistemic}
+  rule_hint: "'soll' = man sagt über ihn (Gerücht); 'will' = er behauptet über sich selbst (Zweifel des Sprechers)."
+  intro_card:
+    summary: "Subjektive Modalverben: 'soll' und 'will'"
+    rule_de: "'soll' gibt fremde Aussagen / Gerüchte wieder ('Man sagt, dass...'). 'will' gibt eine eigene Behauptung des Subjekts wieder, die der Sprecher bezweifelt."
+    worked_examples:
+      - "Der neue Chef soll sehr streng sein. (= Man sagt, er sei streng)"
+      - "Er will den Zeugen nicht gekannt haben. (= Er behauptet es, man bezweifelt es)"
+    contrast_note: "'soll' = Dritte über Subjekt vs 'will' = Subjekt über sich selbst."
+
+- id: partizip_i_attributiv
+  name_de: "Partizip I als Adjektiv (Partizip Präsens)"
+  cefr: B2
+  prereqs: [verb_praesens_regelm, adjektivdeklination_bestimmt]
+  confusion_group: partizipialattribute
+  description: "Participle I (Infinitiv + -d + Adjektivendung) used attributively to express ongoing, active simultaneous action."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Aspect: Prog, Pos: Adj}
+  rule_hint: "Partizip I: Infinitiv + d + Adjektivendung (z.B. das spielende Kind, die lachenden Gäste)."
+  intro_card:
+    summary: "Partizip I als Adjektiv (Gleichzeitigkeit / Aktiv)"
+    rule_de: "Bildung: Infinitiv + -d + Deklinationsendung. Drückt einen aktiven, gerade ablaufenden Vorgang aus (= ein Kind, das spielt)."
+    worked_examples:
+      - "Das weinende Kind sucht seine Mutter."
+      - "Wir brauchen dringend fließendes Wasser."
+    contrast_note: "Partizip I ist immer aktiv und gleichzeitig; Partizip II meist passiv oder vorzeitig."
+
+- id: partizip_ii_attributiv_erweitert
+  name_de: "Erweitertes Partizip II als Adjektivattribut"
+  cefr: B2
+  prereqs: [perfekt_haben, partizip_i_attributiv, relativsatz_nom_akk]
+  confusion_group: partizipialattribute
+  description: "Extended participial attributes preceding nouns, condensing relative clauses into compact pre-nominal structures."
+  eligible_types: [cloze_free, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Aspect: Perf, Pos: Adj}
+  rule_hint: "Erweitertes Partizip: Artikel ... Angaben ... Partizip + Endung + Nomen (z.B. das [von Experten entwickelte] Programm)."
+  intro_card:
+    summary: "Erweiterte Partizipialattribute"
+    rule_de: "Ein Partizip II mit Angaben steht zwischen Artikel und Nomen. Es fasst einen Relativsatz kompakt zusammen: Artikel [weitere Angaben] Partizip+Endung Nomen."
+    worked_examples:
+      - "Das gestern vom Ministerium veröffentlichte Dokument ist brisant."
+      - "Die durch den Sturm schwer beschädigten Gebäude werden renoviert."
+    contrast_note: "Auflösung in Relativsatz: 'Das Dokument, das gestern veröffentlicht wurde...'."
+
+- id: funktionsverbgefuege
+  name_de: "Funktionsverbgefüge (Nomen-Verb-Verbindungen)"
+  cefr: B2
+  prereqs: [kasus_akkusativ_formen, kasus_dativ_formen]
+  confusion_group: stilistik_register
+  description: "Fixed noun-verb collocations (FVG) in formal register (zur Verfügung stehen, in Frage kommen, eine Entscheidung treffen)."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "Feste Fügung aus Nomen + Präposition + Verb (z.B. zur Verfügung stehen = verfügbar sein; in Betracht ziehen = berücksichtigen)."
+  intro_card:
+    summary: "Funktionsverbgefüge (Nomen-Verb-Verbindungen)"
+    rule_de: "Feste Kombinationen aus einem Nomen (oft mit Präposition) und einem Verb, bei denen das Nomen die Hauptbedeutung trägt (Entscheidung treffen = entscheiden; in Kraft treten = gültig werden)."
+    worked_examples:
+      - "Wir müssen bald eine Entscheidung treffen."
+      - "Dieser Vorschlag kommt für uns nicht in Frage."
+    contrast_note: "Typisch für den gehobenen Sprachstil und die offizielle Geschäftssprache."
+
+- id: nominalstil_verbalstil
+  name_de: "Nominalstil und Verbalstil (Umformungen)"
+  cefr: B2
+  prereqs: [praepositionen_genitiv, nebensatz_weil_da]
+  confusion_group: stilistik_register
+  description: "Transformation between verbal clauses (Nebensätze mit Konjunktionen) and nominal structures (Präpositionalgefüge mit Genitiv/Dativ)."
+  eligible_types: [paragraph_cloze, transformation, error_correction]
+  requires_context: true
+  morph_spec: {}
+  rule_hint: "Verbal: Weil es regnete... <-> Nominal: Wegen des Regens...; Verbal: Obwohl er krank war... <-> Nominal: Trotz seiner Krankheit..."
+  intro_card:
+    summary: "Nominalstil vs. Verbalstil"
+    rule_de: "Nominalstil (Fachtext/Behördensprache): Präposition + Nomen im Genitiv/Dativ. Verbalstil (Alltagssprache): Konjunktion + Nebensatz mit finitem Verb."
+    worked_examples:
+      - "Nominal: Bei der Ankunft des Zuges... <-> Verbal: Als der Zug ankam..."
+      - "Nominal: Zur Verbesserung der Qualität... <-> Verbal: Um die Qualität zu verbessern..."
+    contrast_note: "weil -> wegen (+ Gen); obwohl -> trotz (+ Gen); wenn/als -> bei (+ Dat); um zu -> zu/zwecks (+ Gen)."
+
+- id: praepositionen_genitiv_gehoben
+  name_de: "Gehobene Präpositionen mit Genitiv (anlässlich, infolge, zugunsten, anhand)"
+  cefr: B2
+  prereqs: [praepositionen_genitiv]
+  confusion_group: praepositionen_kasus_fest
+  description: "Complex and formal Genitive prepositions in academic/formal registers (anhand, anlässlich, infolge, zugunsten, bezüglich, mittels)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {Case: Gen, Pos: Prep}
+  rule_hint: "Gehobene Genitiv-Präpositionen: anhand, anlässlich, infolge, zugunsten, bezüglich, gemäß, mangels + Genitiv."
+  intro_card:
+    summary: "Gehobene Genitiv-Präpositionen"
+    rule_de: "Präpositionen des B2/C1-Registers: anlässlich (temporal/kausal), infolge (konsekutiv), zugunsten (final), anhand (instrumental), bezüglich (thematisch)."
+    worked_examples:
+      - "Anhand dieser Daten können wir das Problem analysieren."
+      - "Infolge des Unfalls war die Autobahn stundenlang gesperrt."
+    contrast_note: "'anhand eines Beispiels' = mit Hilfe eines Beispiels; 'bezüglich Ihres Schreibens' = in Bezug auf Ihr Schreiben."
+
+- id: nomen_feste_praepositionen
+  name_de: "Feste Nomen-Präposition-Verbindungen"
+  cefr: B2
+  prereqs: [verben_feste_praepositionen, kasus_genitiv_formen]
+  confusion_group: praepositionen_kasus_fest
+  description: "Nouns that take fixed prepositions with specific cases (das Interesse an + Dat, die Hoffnung auf + Akk, die Angst vor + Dat)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "Lerne Nomen + Präposition + Kasus: das Interesse an (+ Dat), die Freude über/auf (+ Akk), die Angst vor (+ Dat)."
+  intro_card:
+    summary: "Nomen mit festen Präpositionen"
+    rule_de: "Viele Nomen leiten sich von Verben ab und fordern dieselbe Präposition: sich interessieren für -> das Interesse an/für; hoffen auf -> die Hoffnung auf (+ Akk)."
+    worked_examples:
+      - "Sein großes Interesse an der Kunst überraschte alle."
+      - "Die Hoffnung auf eine baldige Einigung schwindet."
+    contrast_note: "Achte auf den Kasus: Angst vor + DATIV; Hoffnung auf + AKKUSATIV."
+
+- id: adjektiv_feste_praepositionen
+  name_de: "Feste Adjektiv-Präposition-Verbindungen"
+  cefr: B2
+  prereqs: [verben_feste_praepositionen]
+  confusion_group: praepositionen_kasus_fest
+  description: "Adjectives that take fixed prepositions with specific cases (stolz auf + Akk, zufrieden mit + Dat, bereit zu + Dat, fähig zu + Dat)."
+  eligible_types: [cloze_free, cloze_cued, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "Lerne Adjektiv + Präposition: stolz auf (+ Akk), zufrieden mit (+ Dat), interessiert an (+ Dat), verantwortlich für (+ Akk)."
+  intro_card:
+    summary: "Adjektive mit festen Präpositionen"
+    rule_de: "Prädikative Adjektive binden oft feste Präpositionen: zufrieden mit (+ Dat), stolz auf (+ Akk), wütend auf/über (+ Akk), begeistert von (+ Dat)."
+    worked_examples:
+      - "Die Eltern sind sehr stolz auf ihren Sohn."
+      - "Bist du mit dem Angebot zufrieden?"
+    contrast_note: "Vergleiche: 'stolz auf' (Akk) vs 'abhängig von' (Dat)."
+
+- id: infinitiv_ohne_anstatt_zu
+  name_de: "Modale Infinitivkonstruktionen (ohne...zu, anstatt...zu)"
+  cefr: B2
+  prereqs: [infinitiv_um_zu]
+  confusion_group: infinitiv_konstruktionen
+  description: "Modal infinitive clauses expressing absence ('ohne...zu') or substitution ('anstatt...zu') with identical subject."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "ohne ... zu + Infinitiv (ohne dass etwas geschieht); anstatt ... zu + Infinitiv (Alternative, die nicht gewählt wurde)."
+  intro_card:
+    summary: "Infinitivkonstruktionen mit 'ohne...zu' und 'anstatt...zu'"
+    rule_de: "'ohne ... zu + Infinitiv' drückt aus, dass eine erwartete Handlung unterbleibt. 'anstatt / statt ... zu + Infinitiv' drückt einen Ersatz aus."
+    worked_examples:
+      - "Er ging an mir vorbei, ohne mich zu grüßen."
+      - "Anstatt sich zu entschuldigen, lachte er nur."
+    contrast_note: "Bei Subjektungleichheit: 'ohne dass' bzw. 'anstatt dass' als Nebensatz verwenden."
+
+- id: modalpartikeln
+  name_de: "Modalpartikeln (ja, denn, doch, mal, eben, halt, wohl)"
+  cefr: B2
+  prereqs: [satzbau_hauptsatz_position2]
+  confusion_group: modalpartikeln_nuance
+  description: "Abtönungspartikeln that color tone and attitude in conversation (ja = as you know, doch = urging/contradiction, denn = curiosity)."
+  eligible_types: [paragraph_cloze, cloze_free, cloze_cued, error_correction]
+  requires_context: true
+  morph_spec: {Pos: Part}
+  rule_hint: "Modalpartikeln verändern die Nuance: 'ja' (Bekanntes), 'doch' (Widerspruch/Erinnerung), 'denn' (Interesse), 'mal' (Höflichkeit)."
+  intro_card:
+    summary: "Modalpartikeln (Abtönungspartikeln)"
+    rule_de: "Unflektierbare Wörter, die die emotionale Haltung des Sprechers vermitteln: 'ja' (wissen wir beide), 'denn' (freundliches Interesse), 'doch' (Aufforderung/Widerspruch), 'halt/eben' (unabänderlich)."
+    worked_examples:
+      - "Komm doch mal her! (freundliche Einladung)"
+      - "Das ist ja eine tolle Überraschung!"
+    contrast_note: "Modalpartikeln sind unbetont und stehen im Mittelfeld des Satzes."
+
+- id: relativsatz_was_wo
+  name_de: "Relativsätze mit was, wo, wohin, worüber (verallgemeinernd)"
+  cefr: B2
+  prereqs: [relativsatz_nom_akk, pronominaladverbien_da_wo]
+  confusion_group: relativpronomen
+  description: "Relative clauses with generalized relative pronouns ('was' after alles/nichts/etwas/Superlativ; 'wo/wohin' after place names)."
+  eligible_types: [cloze_free, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Subordinate: true}
+  rule_hint: "'was' nach Indefinitpronomen (alles, nichts, etwas, vieles) und nominalisierten Superlativen (das Beste, was...). 'wo/wohin' nach Orten."
+  intro_card:
+    summary: "Relativpronomen 'was', 'wo', 'worüber'"
+    rule_de: "Nach neutralen Indefinitpronomen (alles, nichts, etwas, manches) und neutralen Superlativen steht 'was'. Nach Ortsangaben steht 'wo' oder 'wohin'."
+    worked_examples:
+      - "Das ist alles, was ich darüber weiß."
+      - "Das Schönste, was mir je passiert ist, war diese Reise."
+    contrast_note: "Falsch: 'alles, das ich weiß'. Richtig: 'alles, WAS ich weiß'."
+
+- id: diskurs_adverbialanschluss
+  name_de: "Satzverknüpfung im Diskurs (allerdings, dennoch, folglich, insofern)"
+  cefr: B2
+  prereqs: [nebensatz_obwohl_trotzdem, satzbau_hauptsatz_position2]
+  confusion_group: diskurs_konnektoren
+  description: "Connective discourse adverbs linking paragraphs and arguments: allerdings, dennoch, folglich, insofern, demnach."
+  eligible_types: [paragraph_cloze, transformation, error_correction]
+  requires_context: true
+  morph_spec: {Pos: Adv}
+  rule_hint: "Konnektivadverbien verbinden Sätze logisch: allerdings (Einschränkung), dennoch (Gegensatz), folglich (Schlussfolgerung)."
+  intro_card:
+    summary: "Satzverknüpfung im Diskurs"
+    rule_de: "Gehobene Adverbien zur logischen Gliederung: allerdings (einschränkend), dennoch/gleichwohl (konzessiv), folglich/demnach (konsekutiv), insofern (spezifizierend)."
+    worked_examples:
+      - "Die Ergebnisse sind ermutigend; allerdings bedarf es weiterer Studien."
+      - "Die Frist ist abgelaufen. Folglich können keine Anträge mehr angenommen werden."
+    contrast_note: "Als Adverbien können sie auf Position 1 stehen (Inversion: 'Folglich können...') oder im Mittelfeld ('Wir können folglich...')."
+
+- id: passiversatz_erweitert_b2
+  name_de: "Erweiterte Passiversatzformen (sich lassen + Infinitiv, Gerundiv)"
+  cefr: B2
+  prereqs: [passiversatz_formen_b1, partizip_i_attributiv]
+  confusion_group: passiversatz
+  description: "Advanced passive substitutes: 'sich lassen + Infinitiv' and gerundive attributes ('zu + Partizip I' = muss getan werden)."
+  eligible_types: [cloze_free, transformation, error_correction]
+  requires_context: false
+  morph_spec: {}
+  rule_hint: "sich lassen + Infinitiv = kann getan werden (z.B. Das Problem lässt sich lösen); zu + Partizip I = Gerundiv (die zu lösende Aufgabe)."
+  intro_card:
+    summary: "Erweiterte Passiversatzformen (B2)"
+    rule_de: "1. 'sich lassen + Infinitiv' drückt Machbarkeit/Möglichkeit aus (= kann gemacht werden). 2. Gerundiv: 'zu + Partizip I + Adjektivendung' vor dem Nomen drückt eine Notwendigkeit aus (= die gelöst werden muss)."
+    worked_examples:
+      - "Das Problem lässt sich leicht lösen. (= Das Problem kann gelöst werden)"
+      - "Die noch zu erledigenden Aufgaben sind im Protokoll vermerkt."
+    contrast_note: "Gerundiv ('die zu zahlende Rechnung') steht immer attributiv vor dem Nomen."
+
+- id: futur_ii
+  name_de: "Futur II (Abgeschlossene Zukunft und Vermutung über Vergangenes)"
+  cefr: B2
+  prereqs: [futur_i, perfekt_haben, perfekt_sein]
+  confusion_group: verb_zeiten
+  description: "Future II: werden (pos 2) + Partizip II + haben/sein (Infinitiv) at end; expresses completed action in future or past assumption."
+  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  requires_context: false
+  morph_spec: {Tense: FutII}
+  rule_hint: "Futur II: werden + Partizip II + haben/sein (z.B. Er wird wohl angekommen sein / Bis morgen werde ich es geschafft haben)."
+  intro_card:
+    summary: "Futur II (Vollendete Zukunft / Vermutung über Vergangenes)"
+    rule_de: "Bildung: werden (Präsens) + Partizip II + haben/sein (Infinitiv) am Satzende. Drückt eine Vermutung über ein vergangenes Ereignis aus oder eine Handlung, die in der Zukunft abgeschlossen sein wird."
+    worked_examples:
+      - "Er antwortet nicht; er wird wohl schon eingeschlafen sein. (Vermutung über Vergangenheit)"
+      - "Bis Ende des Jahres werde ich die B2-Prüfung bestanden haben. (Zukunft)"
+    contrast_note: "Vermutung über Gegenwart: Futur I ('Er wird im Büro sein') vs Vermutung über Vergangenheit: Futur II ('Er wird im Büro gewesen sein')."

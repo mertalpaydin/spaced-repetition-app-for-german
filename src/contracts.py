@@ -6,7 +6,7 @@ and 03-learning-engine.md.
 """
 
 from datetime import datetime
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -88,7 +88,7 @@ class Topic(BaseModel):
     description: str
     eligible_types: list[ItemType] = Field(default_factory=list)
     requires_context: bool = False
-    morph_spec: dict[str, str] = Field(default_factory=dict)
+    morph_spec: dict[str, Any] = Field(default_factory=dict)
     rule_hint: str = ""
     intro_card: IntroCard | None = None
     split_into: list[str] | None = None
