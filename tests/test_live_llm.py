@@ -1,8 +1,9 @@
-"""Unit tests for live LLM explanations, production grader, and weekly progress reports."""
+"""Unit tests for live LLM explanations, 3D grader, minimal pairs, and reports."""
 
 import pytest
 from src.contracts import BankItem, Distractor
 from src.llm.live_explainer import LiveExplainer
+from src.llm.minimal_pairs import MinimalPairGenerator
 from src.llm.production_grader import ProductionGrader
 from src.llm.provider import MockLlmClient
 from src.llm.weekly_report import WeeklyReportGenerator
@@ -36,8 +37,8 @@ def test_live_explainer_generates_explanation(sample_item: BankItem) -> None:
     assert result.rule_summary == sample_item.rule_hint
 
 
-def test_production_grader_evaluates_sentence() -> None:
-    """Test grading an open-ended production sentence submission."""
+def test_production_grader_evaluates_3d_rubric() -> None:
+    """Test grading an open-ended production sentence across 3 dimensions."""
     grader = ProductionGrader(provider=MockLlmClient())
     result = grader.grade_production(
         target_topic_id="nebensatz_weil_da",
@@ -46,9 +47,21 @@ def test_production_grader_evaluates_sentence() -> None:
         student_submission="Ich lerne Deutsch, weil ich in Berlin studieren möchte.",
     )
 
-    assert result.passed is True
-    assert result.score == 1.0
-    assert "korrekt" in result.feedback.lower()
+    assert result.target_structure_used is True
+    assert result.grammatical_accuracy == 1.0
+    assert result.naturalness == 1.0
+    assert result.is_pass is True
+
+
+def test_minimal_pair_generator_preseeded() -> None:
+    """Test retrieving preseeded contrastive minimal pair drills."""
+    generator = MinimalPairGenerator()
+    drill = generator.get_or_generate_drill("wechselpraepositionen")
+
+    assert drill.confusion_group == "wechselpraepositionen"
+    assert "auf ___ Tisch" in drill.sentence_a
+    assert drill.target_a == "dem"
+    assert drill.target_b == "den"
 
 
 def test_weekly_report_generator_synthesizes_metrics() -> None:

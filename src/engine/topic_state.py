@@ -41,6 +41,11 @@ class TopicStateManager:
         """Get the current state model for a topic."""
         return self.states[topic_id]
 
+    def start_topic(self, topic_id: str) -> None:
+        """Explicitly transition a ready topic to learning state."""
+        if topic_id in self.states and self.states[topic_id].state == "ready":
+            self.states[topic_id] = self.states[topic_id].model_copy(update={"state": "learning"})
+
     def record_attempt(
         self,
         topic_id: str,

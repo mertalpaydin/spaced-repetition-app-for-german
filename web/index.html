@@ -56,6 +56,14 @@
           <span class="cued-label">Hinweis:</span> <strong id="cued-word"></strong>
         </div>
 
+        <!-- German Umlaut Soft Keys -->
+        <div class="umlaut-bar" style="display: flex; gap: 6px; margin-bottom: 8px; justify-content: center;">
+          <button type="button" class="btn-umlaut" data-char="ä" style="padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--surface-light); cursor: pointer;">ä</button>
+          <button type="button" class="btn-umlaut" data-char="ö" style="padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--surface-light); cursor: pointer;">ö</button>
+          <button type="button" class="btn-umlaut" data-char="ü" style="padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--surface-light); cursor: pointer;">ü</button>
+          <button type="button" class="btn-umlaut" data-char="ß" style="padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--surface-light); cursor: pointer;">ß</button>
+        </div>
+
         <!-- Text Input Mode -->
         <div id="text-input-area" class="input-area">
           <input type="text" id="user-answer-input" class="text-input" placeholder="Lösung eingeben..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
@@ -144,6 +152,7 @@
     <p>DeutschMaster &copy; 2026 &bull; Spec-Driven FSRS German Learning System &bull; 100% Offline-Ready</p>
   </footer>
 
+  <script src="./db.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

@@ -186,6 +186,49 @@
       return;
     }
 
+    function setupEventListeners() {
+      // Soft keys for German umlauts
+      document.querySelectorAll('.btn-umlaut').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const char = btn.getAttribute('data-char');
+          if (userInput && char) {
+            userInput.value += char;
+            userInput.focus();
+          }
+        });
+      });
+
+      if (submitBtn) {
+        submitBtn.addEventListener('click', handleAnswerSubmission);
+      }
+      if (userInput) {
+        userInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAnswerSubmission();
+          }
+        });
+      }
+
+      if (requestHintBtn) {
+        requestHintBtn.addEventListener('click', handleRequestHint);
+      }
+
+      // Global keyboard shortcuts
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'h' || e.key === 'H') {
+          if (document.activeElement !== userInput) {
+            e.preventDefault();
+            handleRequestHint();
+          }
+        }
+      });
+    }
+
+    function renderDiff(userStr, targetStr) {
+      return `<span style="color: var(--error); text-decoration: line-through;">${userStr}</span> &rarr; <span style="color: var(--success); font-weight: bold;">${targetStr}</span>`;
+    }
+
     const item = currentRoundItems[currentItemIndex];
     currentHintLevel = 0;
 

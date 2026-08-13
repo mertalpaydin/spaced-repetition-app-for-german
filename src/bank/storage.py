@@ -32,8 +32,9 @@ class SqliteItemBank:
                     """
                     INSERT INTO items (
                         id, topic_id, type, difficulty, cefr, prompt, cue,
-                        accepted_answers_json, rule_hint, source_batch_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        accepted_answers_json, rule_hint, facet, confusion_group,
+                        block_id, block_position, domain, source_sentence_id, source_batch_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         item.id,
@@ -45,6 +46,12 @@ class SqliteItemBank:
                         item.cue,
                         json.dumps(item.accepted_answers, ensure_ascii=False),
                         item.rule_hint,
+                        item.facet,
+                        item.confusion_group,
+                        item.block_id,
+                        item.block_position,
+                        item.domain,
+                        item.source_sentence_id,
                         source_batch_id,
                     ),
                 )
@@ -227,5 +234,13 @@ class SqliteItemBank:
             accepted_answers=json.loads(row["accepted_answers_json"]),
             distractors=distractors,
             rule_hint=row["rule_hint"] or "",
+            facet=row["facet"] if "facet" in row.keys() else None,
+            confusion_group=row["confusion_group"] if "confusion_group" in row.keys() else None,
+            block_id=row["block_id"] if "block_id" in row.keys() else None,
+            block_position=row["block_position"] if "block_position" in row.keys() else None,
+            domain=row["domain"] if "domain" in row.keys() else None,
+            source_sentence_id=row["source_sentence_id"]
+            if "source_sentence_id" in row.keys()
+            else None,
             carrier_lemmas=carrier_lemmas,
         )

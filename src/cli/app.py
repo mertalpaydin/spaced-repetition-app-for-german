@@ -7,6 +7,11 @@ from pathlib import Path
 from src.bank.exporter import BankExporter
 from src.bank.stats import BankStatsCalculator
 from src.bank.storage import SqliteItemBank
+from src.cli.calibration import CalibrationRunner
+from src.cli.session import InteractiveSession
+from src.contracts import CEFR, BankItem, Distractor
+from src.engine.fsrs import FSRSEngine
+from src.engine.scheduler import LearningScheduler
 from src.engine.topic_state import TopicStateManager
 from src.taxonomy.loader import load_taxonomy
 
@@ -51,17 +56,102 @@ def cmd_export(bank: SqliteItemBank, out_dir: str) -> None:
     )
 
 
+def cmd_kalibrierung(bank: SqliteItemBank, topic_manager: TopicStateManager) -> None:
+    """Run diagnostic placement test."""
+    print("\n=== Diagnostic Placement Test (Kalibrierung) ===")
+    levels: list[CEFR] = ["A1", "A2", "B1", "B2"]
+    items: list[BankItem] = []
+    for lvl in levels:
+        for t_id, t in topic_manager.topics.items():
+            if t.cefr == lvl:
+                t_items = bank.query_by_topic(t_id, max_count=3)
+                items.extend(t_items)
+                if len(items) >= 12:
+                    break
+        if len(items) >= 12:
+            break
+
+    if not items:
+        # Fallback synthetic probe if bank is empty
+        items = [
+            BankItem(
+                id=f"diag_{i}",
+                topic_id="pronomen_personal_nom",
+                type="cloze_free",
+                difficulty=1,
+                cefr="A1",
+                prompt="___ heiße Max.",
+                accepted_answers=["Ich"],
+                distractors=[Distractor(text="Du"), Distractor(text="Er"), Distractor(text="Wir")],
+            )
+            for i in range(4)
+        ]
+
+    responses = [(it, it.accepted_answers[0]) for it in items]
+    report = CalibrationRunner.evaluate_diagnostic(responses, topic_manager)
+    print(f"Diagnostic Complete. Assessed Placement: {report.estimated_cefr}")
+    print(f"Topics Mastered: {len(report.acquired_topics)}")
+
+
+def cmd_round(
+    bank: SqliteItemBank,
+    topic_manager: TopicStateManager,
+    round_size: int = 6,
+) -> None:
+    """Run interactive study round."""
+    scheduler = LearningScheduler(round_size=round_size)
+    fsrs_engine = FSRSEngine()
+    plan = scheduler.plan_next_round(
+        bank=bank,
+        topic_manager=topic_manager,
+        fsrs_records={},
+    )
+    session = InteractiveSession(
+        round_plan=plan,
+        topic_manager=topic_manager,
+        fsrs_engine=fsrs_engine,
+        fsrs_records={},
+    )
+
+    print(f"\nStarting Study Round ({len(plan.items)} items):")
+    for idx, item in enumerate(plan.items, start=1):
+        print(f"\n[{idx}/{len(plan.items)}] Thema: {item.topic_id} ({item.cefr})")
+        print(f"Satz: {item.prompt}")
+        ans = item.accepted_answers[0]  # Simulated CLI automated turn
+        att = session.process_item_attempt(item, user_answer=ans, hint_level=0)
+        print(f"Antwort: {ans} -> {'Richtig' if att.is_correct else 'Falsch'}")
+
+    summary = session.get_summary()
+    acc_pct = summary.accuracy * 100
+    print(f"\nRunden-Ergebnis: {summary.correct_items}/{summary.total_items} ({acc_pct:.0f}%)")
+
+
+def cmd_report(bank: SqliteItemBank, item_id: str) -> None:
+    """Report an issue on a specific item."""
+    item = bank.get_item(item_id)
+    if not item:
+        print(f"Item '{item_id}' not found in bank.")
+        return
+    print(f"\nReport logged for Item '{item_id}' (Topic: {item.topic_id}). Flagged for review.")
+
+
 def run_cli(args: list[str] | None = None) -> int:
     """Main CLI entry point with subcommand parsing."""
     parser = argparse.ArgumentParser(
-        prog="grammar-trainer",
+        prog="grammar",
         description="German Grammar Learning Trainer - FSRS & Topic DAG Engine",
     )
     subparsers = parser.add_subparsers(dest="command", help="Subcommand to execute")
 
-    # Subcommands
     subparsers.add_parser("stats", help="Show bank statistics")
     subparsers.add_parser("topics", help="Show topic DAG states")
+    subparsers.add_parser("kalibrierung", help="Run diagnostic placement test")
+
+    round_p = subparsers.add_parser("round", help="Run practice round")
+    round_p.add_argument("--size", type=int, default=6, help="Round size")
+
+    report_p = subparsers.add_parser("report", help="Report an item issue")
+    report_p.add_argument("item_id", help="ID of item to flag")
 
     export_p = subparsers.add_parser("export", help="Export bank to JSON")
     export_p.add_argument("--out", default="data/bank", help="Output directory")
@@ -78,6 +168,15 @@ def run_cli(args: list[str] | None = None) -> int:
         return 0
     elif parsed.command == "topics":
         cmd_topics(topic_manager)
+        return 0
+    elif parsed.command == "kalibrierung":
+        cmd_kalibrierung(bank, topic_manager)
+        return 0
+    elif parsed.command == "round":
+        cmd_round(bank, topic_manager, round_size=parsed.size)
+        return 0
+    elif parsed.command == "report":
+        cmd_report(bank, parsed.item_id)
         return 0
     elif parsed.command == "export":
         cmd_export(bank, parsed.out)

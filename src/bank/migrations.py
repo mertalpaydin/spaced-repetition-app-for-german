@@ -19,6 +19,12 @@ CREATE TABLE IF NOT EXISTS items (
     cue TEXT,
     accepted_answers_json TEXT NOT NULL,
     rule_hint TEXT DEFAULT '',
+    facet TEXT,
+    confusion_group TEXT,
+    block_id TEXT,
+    block_position INTEGER,
+    domain TEXT,
+    source_sentence_id TEXT,
     source_batch_id TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

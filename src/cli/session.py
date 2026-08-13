@@ -9,6 +9,7 @@ from src.engine.fsrs import FSRSEngine, FSRSRecord
 from src.engine.hints import HintPolicy
 from src.engine.scheduler import RoundPlan
 from src.engine.topic_state import TopicStateManager
+from src.engine.typo_grader import ScopedTypoGrader
 
 
 class AttemptResult(BaseModel):
@@ -19,6 +20,9 @@ class AttemptResult(BaseModel):
     topic_id: str
     user_answer: str
     is_correct: bool
+    is_scoped_typo: bool = False
+    is_capitalization_error: bool = False
+    feedback_message: str | None = None
     hint_level: HintLevel
     fsrs_rating: FsrsRating
     is_unhinted_pass: bool
@@ -58,41 +62,40 @@ class InteractiveSession:
         hint_level: HintLevel = 0,
         is_fast: bool = False,
     ) -> AttemptResult:
-        """Evaluate user answer, update topic state machine and FSRS record."""
-        clean_ans = user_answer.strip()
-        is_correct = clean_ans in item.accepted_answers or clean_ans.lower() in [
-            a.lower() for a in item.accepted_answers
-        ]
+        """Evaluate user answer with scoped typo tolerance and update FSRS record."""
+        grade_res = ScopedTypoGrader.grade(user_answer, item.accepted_answers)
+        is_correct = grade_res.is_correct
 
         is_unhinted = HintPolicy.is_unhinted_pass(hint_level=hint_level, is_correct=is_correct)
         rating = HintPolicy.evaluate_attempt(
             hint_level=hint_level, is_correct=is_correct, is_fast=is_fast
         )
 
-        # 1. Update Topic State Manager
+        now = datetime.now(UTC)
+
+        # Update FSRS card
+        card_record = self.fsrs_records.get(
+            item.id,
+            FSRSRecord(card_id=item.id, due=now),
+        )
+        updated_card = self.fsrs_engine.schedule_review(card_record, rating=rating, now=now)
+        self.fsrs_records[item.id] = updated_card
+
+        # Update Topic State Machine
         self.topic_manager.record_attempt(
             topic_id=item.topic_id,
             is_unhinted_pass=is_unhinted,
             facet=item.facet,
         )
 
-        # 2. Update FSRS memory record
-        current_record = self.fsrs_records.get(
-            item.id,
-            FSRSRecord(card_id=item.id),
-        )
-        updated_record = self.fsrs_engine.schedule_review(
-            record=current_record,
-            rating=rating,
-            now=datetime.now(UTC),
-        )
-        self.fsrs_records[item.id] = updated_record
-
         result = AttemptResult(
             item_id=item.id,
             topic_id=item.topic_id,
-            user_answer=clean_ans,
+            user_answer=user_answer,
             is_correct=is_correct,
+            is_scoped_typo=grade_res.is_scoped_typo,
+            is_capitalization_error=grade_res.is_capitalization_error,
+            feedback_message=grade_res.feedback_message,
             hint_level=hint_level,
             fsrs_rating=rating,
             is_unhinted_pass=is_unhinted,
@@ -101,18 +104,16 @@ class InteractiveSession:
         return result
 
     def get_summary(self) -> RoundSummary:
-        """Compute end-of-round performance metrics."""
+        """Calculate summary statistics for the completed session."""
         total = len(self.attempts)
-        if total == 0:
-            return RoundSummary(total_items=0, correct_items=0, accuracy=0.0, unhinted_passes=0)
-
         correct = sum(1 for a in self.attempts if a.is_correct)
         unhinted = sum(1 for a in self.attempts if a.is_unhinted_pass)
+        accuracy = round(correct / total, 3) if total > 0 else 0.0
 
         return RoundSummary(
             total_items=total,
             correct_items=correct,
-            accuracy=round(correct / total, 2),
+            accuracy=accuracy,
             unhinted_passes=unhinted,
             attempts=self.attempts,
         )

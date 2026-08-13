@@ -1,5 +1,6 @@
-"""Session scheduler and round pacing engine."""
+"""Session scheduler enforcing interleaving, overdue sorting, and forecast caps."""
 
+from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -10,7 +11,6 @@ from src.contracts import (
     DUEL_LENGTH,
     FORECAST_HORIZON_DAYS,
     FORECAST_LOAD_THRESHOLD_DEFAULT,
-    MAX_HEAVY_PER_ROUND,
     MAX_NEW_TOPICS_PER_DAY,
     RECALIBRATION_ROUND_SIZE,
     ROUND_SIZE_DEFAULT,
@@ -48,10 +48,54 @@ class LearningScheduler:
         records: list[FSRSRecord],
         now: datetime | None = None,
     ) -> int:
-        """Calculate total reviews due over the next 7 days."""
+        """Calculate maximum single-day review load over the next 7 days."""
         ref_time = now or datetime.now(UTC)
-        horizon = ref_time + timedelta(days=FORECAST_HORIZON_DAYS)
-        return sum(1 for r in records if r.due <= horizon)
+        daily_counts: dict[str, int] = defaultdict(int)
+
+        for d in range(FORECAST_HORIZON_DAYS):
+            day_date = (ref_time + timedelta(days=d)).date().isoformat()
+            daily_counts[day_date] = 0
+
+        for r in records:
+            if r.due <= ref_time + timedelta(days=FORECAST_HORIZON_DAYS):
+                r_date = r.due.date().isoformat()
+                daily_counts[r_date] += 1
+
+        return max(daily_counts.values()) if daily_counts else 0
+
+    @staticmethod
+    def _interleave_items(items: list[BankItem]) -> list[BankItem]:
+        """Interleave items so that no two consecutive items share the same topic_id."""
+        if len(items) <= 1:
+            return items
+
+        topic_buckets: dict[str, list[BankItem]] = defaultdict(list)
+        for it in items:
+            topic_buckets[it.topic_id].append(it)
+
+        interleaved: list[BankItem] = []
+        buckets_list = sorted(topic_buckets.values(), key=len, reverse=True)
+
+        while any(buckets_list):
+            for bucket in buckets_list:
+                if bucket:
+                    # Avoid back-to-back same topic if possible
+                    if not interleaved or interleaved[-1].topic_id != bucket[0].topic_id:
+                        interleaved.append(bucket.pop(0))
+                    elif len(buckets_list) > 1:
+                        # Find an alternate bucket
+                        alt_found = False
+                        for alt_bucket in buckets_list:
+                            if alt_bucket and alt_bucket[0].topic_id != interleaved[-1].topic_id:
+                                interleaved.append(alt_bucket.pop(0))
+                                alt_found = True
+                                break
+                        if not alt_found:
+                            interleaved.append(bucket.pop(0))
+                    else:
+                        interleaved.append(bucket.pop(0))
+
+        return interleaved
 
     def plan_next_round(
         self,
@@ -63,7 +107,7 @@ class LearningScheduler:
         now: datetime | None = None,
         last_active_date: datetime | None = None,
     ) -> RoundPlan:
-        """Generate a constrained set of items for the upcoming practice session."""
+        """Generate a constrained, interleaved set of items for the practice session."""
         ref_time = now or datetime.now(UTC)
         notes: list[str] = []
 
@@ -75,74 +119,77 @@ class LearningScheduler:
             )
 
         # 2. Check 7-day overload forecast limit
-        forecast_load = self.forecast_7day_load(list(fsrs_records.values()), now=ref_time)
-        overload_blocked = forecast_load > self.forecast_threshold
+        peak_daily_forecast = self.forecast_7day_load(list(fsrs_records.values()), now=ref_time)
+        overload_blocked = peak_daily_forecast > self.forecast_threshold
         if overload_blocked:
             notes.append(
-                f"7-day review forecast ({forecast_load}) "
-                f"exceeds threshold ({self.forecast_threshold})."
+                f"Peak daily review forecast ({peak_daily_forecast}) "
+                f"exceeds threshold ({self.forecast_threshold}). Halting new topic introductions."
             )
 
         # 3. Handle specific review modes
         if mode == "recalibration":
-            items = bank.get_all_items()[:RECALIBRATION_ROUND_SIZE]
-            return RoundPlan(items=items, mode="recalibration", notes=notes)
+            raw_items = bank.get_all_items()[:RECALIBRATION_ROUND_SIZE]
+            return RoundPlan(
+                items=self._interleave_items(raw_items), mode="recalibration", notes=notes
+            )
 
         if mode == "duel":
-            items = bank.get_all_items()[:DUEL_LENGTH]
-            return RoundPlan(items=items, mode="duel", notes=notes)
+            raw_items = bank.get_all_items()[:DUEL_LENGTH]
+            return RoundPlan(items=self._interleave_items(raw_items), mode="duel", notes=notes)
 
-        # 4. Standard Review Round: prioritize due items, inject 1 new topic if eligible
+        # 4. Standard Review Round: prioritize due items ordered by overdue ratio
         planned_items: list[BankItem] = []
         new_topic_id: str | None = None
 
-        # Find due FSRS cards
-        due_card_ids = [r.card_id for r in fsrs_records.values() if r.due <= ref_time]
-        for c_id in due_card_ids:
-            it = bank.get_item(c_id)
-            if it:
-                planned_items.append(it)
+        due_records = [r for r in fsrs_records.values() if r.due <= ref_time]
+        # Sort by overdue ratio: (now - due) / stability (highest overdue priority first)
+        due_records.sort(
+            key=lambda r: (ref_time - r.due).total_seconds() / max(r.stability or 1.0, 0.1),
+            reverse=True,
+        )
+
+        for r in due_records:
+            item = bank.get_item(r.card_id)
+            if item:
+                planned_items.append(item)
             if len(planned_items) >= self.round_size:
                 break
 
-        # If capacity remains and not overload blocked, inject from a 'ready' topic
+        # 5. Inject 1 new topic if capacity remains and not overload blocked
         if (
-            len(planned_items) < self.round_size
-            and not overload_blocked
+            not overload_blocked
+            and len(planned_items) < self.round_size
             and day_new_topics_count < MAX_NEW_TOPICS_PER_DAY
         ):
             ready_topics = [t_id for t_id, s in topic_manager.states.items() if s.state == "ready"]
             if ready_topics:
-                new_topic_id = ready_topics[0]
-                new_items = bank.query_by_topic(
-                    new_topic_id, max_count=self.round_size - len(planned_items)
-                )
-                planned_items.extend(new_items)
-                notes.append(f"Introducing new topic: '{new_topic_id}'.")
+                candidate_topic = ready_topics[0]
+                new_topic_items = bank.query_by_difficulty(candidate_topic, difficulty=1)
+                if not new_topic_items:
+                    new_topic_items = bank.query_by_topic(candidate_topic)
 
-        # Fill remaining slots with review items from active topics
+                if new_topic_items:
+                    new_topic_id = candidate_topic
+                    topic_manager.start_topic(candidate_topic)
+                    planned_items.append(new_topic_items[0])
+                    notes.append(f"Introduced new topic: '{candidate_topic}'")
+
+        # 6. Fill remaining quota from active learning items
         if len(planned_items) < self.round_size:
-            all_bank = bank.get_all_items()
-            for it in all_bank:
-                if it not in planned_items:
+            all_bank_items = bank.get_all_items()
+            planned_ids = {it.id for it in planned_items}
+            for it in all_bank_items:
+                if it.id not in planned_ids:
                     planned_items.append(it)
+                    planned_ids.add(it.id)
                 if len(planned_items) >= self.round_size:
                     break
 
-        # Heavy item constraint: max 1 heavy item per round
-        heavy_count = 0
-        final_items: list[BankItem] = []
-        for it in planned_items:
-            is_heavy = it.type == "paragraph_cloze" or it.block_id is not None
-            if is_heavy:
-                if heavy_count < MAX_HEAVY_PER_ROUND:
-                    heavy_count += 1
-                    final_items.append(it)
-            else:
-                final_items.append(it)
+        interleaved_plan = self._interleave_items(planned_items)
 
         return RoundPlan(
-            items=final_items[: self.round_size],
+            items=interleaved_plan,
             mode=mode,
             new_topic_id=new_topic_id,
             is_overload_blocked=overload_blocked,
