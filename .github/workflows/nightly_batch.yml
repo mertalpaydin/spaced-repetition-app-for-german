@@ -1,0 +1,30 @@
+name: Nightly Batch Generation & Verification
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # 02:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  batch-generation:
+    name: Generate & Verify Candidate Items
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: uv sync
+
+      - name: Run Bank Health Audit
+        run: uv run python -m src.audit.bank_health --db data/bank.db

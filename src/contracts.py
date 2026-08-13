@@ -55,6 +55,7 @@ SPLIT_MIN_ATTEMPTS_PER_FACET: int = 20  # before a topic can be flagged for spli
 SPLIT_ACCURACY_GAP: float = 0.40  # facet accuracy spread that flags a candidate
 VERIFICATION_KILL_GATE_THRESHOLD: float = 0.15  # drop rate exceeding 15% trips the kill gate
 KILL_GATE_DROP_THRESHOLD: float = 0.15
+MIN_STOCK_PER_TIER: int = 8
 
 MODEL_LIVE: str = "gemini-3.5-flash-lite"  # explanations, production grading, report narrative
 MODEL_GENERATE: str = "gemini-3.5-flash-lite"  # batch, thinking OFF
