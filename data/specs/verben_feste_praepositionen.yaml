@@ -1,0 +1,35 @@
+topic_id: verben_feste_praepositionen
+cefr: B1
+target_form: Verbs with fixed prepositions and their governed case (warten auf + Akk,
+  denken an + Akk, abhängen von + Dat, träumen von + Dat).
+item_types:
+- cloze_free
+- cloze_cued
+- error_correction
+max_tokens_per_sentence: 18
+vocabulary_ceiling: B1
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: Wir ___ seit einer Stunde auf den Bus.
+  accepted_answers:
+  - warten
+  difficulty: 1
+  cue: null
+- prompt: Er ___ an dem Seminar teil.
+  accepted_answers:
+  - nimmt
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null

@@ -1,0 +1,35 @@
+topic_id: relativsatz_nom_akk
+cefr: B1
+target_form: Relative clauses in Nominative and Accusative cases; pronoun matches
+  antecedent in gender/number and clause function in case.
+item_types:
+- cloze_free
+- transformation
+- error_correction
+max_tokens_per_sentence: 18
+vocabulary_ceiling: B1
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: Das ___ der Mann, der dort wohnt. (Subjekt -> Nom)
+  accepted_answers:
+  - ist
+  difficulty: 1
+  cue: null
+- prompt: Das ___ der Mann, den ich gestern gesehen habe. (Objekt -> Akk)
+  accepted_answers:
+  - ist
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null

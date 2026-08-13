@@ -1,0 +1,36 @@
+topic_id: nebensatz_dass
+cefr: A2
+target_form: Complement clauses introduced by conjunction 'dass' with verb-final word
+  order.
+item_types:
+- cloze_free
+- cloze_cued
+- transformation
+- error_correction
+max_tokens_per_sentence: 18
+vocabulary_ceiling: A2
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: Ich ___ dass du recht hast.
+  accepted_answers:
+  - weiß
+  difficulty: 1
+  cue: null
+- prompt: Er ___ dass das Wetter schön bleibt.
+  accepted_answers:
+  - hofft
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null

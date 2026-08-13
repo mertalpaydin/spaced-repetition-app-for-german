@@ -1,0 +1,35 @@
+topic_id: passiversatz_formen_b1
+cefr: B1
+target_form: 'Passive alternatives: ''sein + zu + Infinitiv'' (must/can be done) and
+  adjectives with suffix -bar / -lich.'
+item_types:
+- cloze_free
+- transformation
+- error_correction
+max_tokens_per_sentence: 18
+vocabulary_ceiling: B1
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: Die ___ ist bis morgen zu erledigen. (= muss erledigt werden)
+  accepted_answers:
+  - Aufgabe
+  difficulty: 1
+  cue: null
+- prompt: Der ___ ist leicht lesbar. (= kann leicht gelesen werden)
+  accepted_answers:
+  - Text
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null

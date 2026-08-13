@@ -1,0 +1,37 @@
+topic_id: modalverben_subjektiv_behauptung
+cefr: B2
+target_form: 'Modal verbs expressing reported claims: ''soll'' (rumour/others claim)
+  vs ''will'' (the subject claims about themselves).'
+item_types:
+- cloze_free
+- cloze_cued
+- transformation
+- error_correction
+max_tokens_per_sentence: 24
+vocabulary_ceiling: B2
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: Der ___ Chef soll sehr streng sein. (= Man sagt, er sei streng)
+  accepted_answers:
+  - neue
+  difficulty: 1
+  cue: null
+- prompt: Er ___ den Zeugen nicht gekannt haben. (= Er behauptet es, man bezweifelt
+    es)
+  accepted_answers:
+  - will
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null

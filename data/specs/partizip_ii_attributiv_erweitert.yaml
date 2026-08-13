@@ -1,0 +1,35 @@
+topic_id: partizip_ii_attributiv_erweitert
+cefr: B2
+target_form: Extended participial attributes preceding nouns, condensing relative
+  clauses into compact pre-nominal structures.
+item_types:
+- cloze_free
+- transformation
+- error_correction
+max_tokens_per_sentence: 24
+vocabulary_ceiling: B2
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: Das ___ vom Ministerium veröffentlichte Dokument ist brisant.
+  accepted_answers:
+  - gestern
+  difficulty: 1
+  cue: null
+- prompt: Die ___ den Sturm schwer beschädigten Gebäude werden renoviert.
+  accepted_answers:
+  - durch
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null

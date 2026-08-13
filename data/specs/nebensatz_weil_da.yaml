@@ -1,0 +1,36 @@
+topic_id: nebensatz_weil_da
+cefr: A2
+target_form: 'Causal subordinate clauses with ''weil'' and ''da'': conjugated verb
+  moves to the end of the subclause.'
+item_types:
+- cloze_free
+- cloze_cued
+- transformation
+- error_correction
+max_tokens_per_sentence: 18
+vocabulary_ceiling: A2
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: Ich ___ im Bett, weil ich krank bin.
+  accepted_answers:
+  - bleibe
+  difficulty: 1
+  cue: null
+- prompt: Da ___ regnet, nehmen wir einen Schirm.
+  accepted_answers:
+  - es
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null

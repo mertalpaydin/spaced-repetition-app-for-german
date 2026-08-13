@@ -1,0 +1,35 @@
+topic_id: satzbau_hauptsatz_position2
+cefr: A1
+target_form: 'Word order in declarative main clauses: conjugated verb occupies position
+  2.'
+item_types:
+- cloze_free
+- transformation
+- error_correction
+max_tokens_per_sentence: 14
+vocabulary_ceiling: A1
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: Heute ___ ich eine Suppe.
+  accepted_answers:
+  - koche
+  difficulty: 1
+  cue: null
+- prompt: Ich ___ heute eine Suppe.
+  accepted_answers:
+  - koche
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null

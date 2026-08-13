@@ -1,0 +1,36 @@
+topic_id: passiv_praeteritum
+cefr: B1
+target_form: 'Past passive voice: wurde / wurden (conjugated pos 2) + Partizip II
+  at sentence end.'
+item_types:
+- cloze_free
+- cloze_cued
+- transformation
+- error_correction
+max_tokens_per_sentence: 18
+vocabulary_ceiling: B1
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: Das ___ wurde im 18. Jahrhundert erbaut.
+  accepted_answers:
+  - Schloss
+  difficulty: 1
+  cue: null
+- prompt: Die ___ wurden sofort ins Krankenhaus gebracht.
+  accepted_answers:
+  - Verletzten
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null

@@ -1,0 +1,34 @@
+topic_id: nomen_plural
+cefr: A1
+target_form: Plural formation patterns of German nouns (-e, -(e)n, -er, -s, Umlaut).
+item_types:
+- cloze_free
+- cloze_cued
+- error_correction
+max_tokens_per_sentence: 14
+vocabulary_ceiling: A1
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: ein ___ -> viele Tage
+  accepted_answers:
+  - Tag
+  difficulty: 1
+  cue: null
+- prompt: eine ___ -> zwei Frauen
+  accepted_answers:
+  - Frau
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null

@@ -1,0 +1,35 @@
+topic_id: nominalstil_verbalstil
+cefr: B2
+target_form: Transformation between verbal clauses (Nebensätze mit Konjunktionen)
+  and nominal structures (Präpositionalgefüge mit Genitiv/Dativ).
+item_types:
+- paragraph_cloze
+- error_correction
+max_tokens_per_sentence: 24
+vocabulary_ceiling: B2
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: 'Nominal: ___ der Ankunft des Zuges... <-> Verbal: Als der Zug ankam...'
+  accepted_answers:
+  - Bei
+  difficulty: 1
+  cue: null
+- prompt: 'Nominal: ___ Verbesserung der Qualität... <-> Verbal: Um die Qualität zu
+    verbessern...'
+  accepted_answers:
+  - Zur
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null

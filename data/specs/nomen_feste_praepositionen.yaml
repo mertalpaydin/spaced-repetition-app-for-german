@@ -1,0 +1,35 @@
+topic_id: nomen_feste_praepositionen
+cefr: B2
+target_form: Nouns that take fixed prepositions with specific cases (das Interesse
+  an + Dat, die Hoffnung auf + Akk, die Angst vor + Dat).
+item_types:
+- cloze_free
+- cloze_cued
+- error_correction
+max_tokens_per_sentence: 24
+vocabulary_ceiling: B2
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: Sein ___ Interesse an der Kunst überraschte alle.
+  accepted_answers:
+  - großes
+  difficulty: 1
+  cue: null
+- prompt: Die ___ auf eine baldige Einigung schwindet.
+  accepted_answers:
+  - Hoffnung
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null

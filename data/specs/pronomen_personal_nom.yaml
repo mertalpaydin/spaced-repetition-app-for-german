@@ -1,0 +1,35 @@
+topic_id: pronomen_personal_nom
+cefr: A1
+target_form: Personal pronouns acting as subject in the Nominative case (ich, du,
+  er, sie, es, wir, ihr, sie, Sie).
+item_types:
+- cloze_free
+- cloze_cued
+- error_correction
+max_tokens_per_sentence: 14
+vocabulary_ceiling: A1
+difficulty_tiers:
+  1: Simple single clause, high-frequency vocabulary, concrete context.
+  2: One subordinate or coordinate clause, mid-frequency vocabulary.
+  3: Nested clauses, distractors present in context, low-frequency vocabulary.
+forbidden:
+- any grammatical terminology in the prompt
+- any instruction naming case, tense, or mood
+- the answer appearing elsewhere in the sentence
+- unnatural or convoluted German phrasing
+gold_examples:
+- prompt: Ich ___ Deutsch.
+  accepted_answers:
+  - lerne
+  difficulty: 1
+  cue: null
+- prompt: Er ___ aus Berlin.
+  accepted_answers:
+  - kommt
+  difficulty: 1
+  cue: null
+- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+  accepted_answers:
+  - einer
+  difficulty: 1
+  cue: null
