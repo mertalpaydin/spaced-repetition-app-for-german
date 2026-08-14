@@ -287,9 +287,20 @@ class GeminiBatchClient:
         (docs/02-content-pipeline.md: ``test_malformed_model_output_is_rejected_not_coerced``).
         ``topic_id`` and ``difficulty`` are always taken from the request, never
         trusted from the model's own claim about them.
+
+        The prompt requests raw JSON but the transport sends no
+        ``response_mime_type``, so Gemini routinely wraps the payload in a
+        ```` ```json ... ``` ```` fence (confirmed against the live free-lane
+        endpoint). Strip that fence before parsing; a response that still
+        isn't valid JSON after stripping is genuinely malformed and is
+        dropped as before.
         """
+        text = response_text.strip()
+        if text.startswith("```"):
+            text = text.removeprefix("```json").removeprefix("```")
+            text = text.removesuffix("```").strip()
         try:
-            payload = json.loads(response_text)
+            payload = json.loads(text)
         except json.JSONDecodeError:
             return []
         raw_items = payload.get("items") if isinstance(payload, dict) else None

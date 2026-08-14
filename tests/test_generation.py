@@ -378,6 +378,45 @@ def test_gemini_batch_client_parses_realistic_response_and_drops_malformed_items
     assert items[0].difficulty == 1
 
 
+def test_gemini_batch_client_strips_markdown_fence_before_parsing(tmp_path: Path) -> None:
+    """Gemini routinely wraps its JSON response in a ```json ... ``` fence
+    since no ``response_mime_type`` is set on the request. The parser must
+    strip that fence rather than treating the whole response as malformed."""
+
+    def fake_transport(
+        *, model: str, prompt: str, lane: str, mode: str, purpose: str
+    ) -> tuple[str, int, int]:
+        payload = {
+            "items": [
+                {
+                    "type": "cloze_free",
+                    "prompt": "Das Buch liegt auf ___ Tisch.",
+                    "proposed_answer": "dem",
+                    "distractors": [
+                        {"text": "den", "implied_topic_id": "kasus_akkusativ_formen"},
+                        {"text": "des", "implied_topic_id": "kasus_genitiv_formen"},
+                        {"text": "das", "implied_topic_id": "artikel_bestimmt_nom"},
+                    ],
+                }
+            ]
+        }
+        fenced = f"```json\n{json.dumps(payload)}\n```"
+        return fenced, 20, 20
+
+    llm_client = _make_llm_client(tmp_path)
+    llm_client._call_transport = fake_transport  # type: ignore[method-assign]
+    batch_client = GeminiBatchClient(llm_client)
+
+    req = GenerationRequest(
+        topic_id="dativ_nach_praeposition", count=1, difficulty=1, item_types=["cloze_free"]
+    )
+    batch_id = batch_client.submit([req])
+    items = batch_client.retrieve(batch_id)
+
+    assert len(items) == 1
+    assert items[0].proposed_answer == "dem"
+
+
 def test_gemini_batch_client_used_when_key_configured_mock_reserved_for_offline(
     tmp_path: Path,
 ) -> None:
