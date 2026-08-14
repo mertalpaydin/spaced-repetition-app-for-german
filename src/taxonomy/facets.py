@@ -44,6 +44,7 @@ alongside the constant below, is:
 |----------|---------------------------------------------|--------------------------|
 | Prep     | ``Pos == "Prep"``                            | Definite, Gender, Number |
 | Pron     | ``Pos == "Pron"``                            | Gender, Number, Person   |
+| RelPron  | ``PronType == "Rel"`` fixed in morph_spec    | Case, Gender, Number     |
 | Adj      | ``Pos == "Adj"`` or ``Degree`` fixed         | Case, Gender, Number     |
 | Adv      | ``Pos == "Adv"``                             | (none, adverbs don't decline) |
 | Part     | ``Pos == "Part"``                            | (none, particles don't decline) |
@@ -55,9 +56,23 @@ alongside the constant below, is:
 | Nominal  | ``Case`` fixed, none of the above            | Gender, Number           |
 | Default  | none of the above (unused today)             | Case, Gender, Number, Person |
 
+``RelPron`` exists because a relative pronoun genuinely varies over Case (its
+case comes from its role inside its own clause, independent of its
+antecedent), which none of ``Prep``/``Det``/``Nominal`` expose as a facet --
+those all assume Case is fixed by the topic. ``PronType: Rel`` is a real,
+non-disjunctive Universal Dependencies feature value (unlike the invented
+``Case: NomOrAcc`` this replaced in ``relativsatz_nom_akk``); a topic that
+also fixes ``Case`` (``relativsatz_genitiv`` fixes ``Case: Gen``) simply has
+Case filtered out of its facet space by the same "dim not in fixed" rule as
+every other category.
+
 A topic with an empty ``morph_spec`` returns an empty facet space
 unconditionally and short-circuits classification entirely: it has no
-facets, explicitly, per ``01-foundation.md:170``.
+facets, explicitly, per ``01-foundation.md:170``. A topic may also be marked
+``facet_exempt: true`` (with a ``facet_exempt_reason``) to the same effect
+while keeping a genuinely non-empty ``morph_spec`` for the stage 4
+morphology check -- see ``facet_space``'s docstring below for when that
+applies instead of emptying ``morph_spec``.
 
 ### Facet encoding
 
@@ -73,16 +88,43 @@ dimension genuinely cannot be pinned down from the answer surface form alone
 (a classic case: German "die" is simultaneously Nom/Akk feminine singular
 *and* Nom/Akk plural for every gender), the table records every candidate and
 the resolver emits ``"Unk"`` for any dimension the candidates disagree on,
-rather than guessing. Adjective attributive endings (comparative/participial)
-are not decoded at all -- German adjective endings are so densely
-syncretic (``-en`` alone spans most case/gender/number cells) that a
-"small, honest" table cannot do better than ``Unk`` for every cell, so that
-is exactly what it returns. Noun gender is lexical, not inflectional, so it
-is only resolved for a small fixed list of common nouns; everything else is
-``Unk``.
+rather than guessing. Noun gender is lexical, not inflectional, so it is only
+resolved for a small fixed list of common nouns; everything else is ``Unk``.
+
+### Adjective and participle endings: context, not guessing
+
+A bare attributive ending (``guten``) is genuinely ambiguous in isolation --
+it is simultaneously masculine accusative singular, dative plural, and more.
+But German attributive adjectives are almost always preceded by a determiner
+in the gap's local context, and that determiner disambiguates most of those
+cells. ``derive_facet`` therefore looks at the token immediately preceding
+the ``___`` gap in ``item.prompt``:
+
+* If it is a definite article or ein-word already in the tables above, the
+  ending is decoded against the matching declension paradigm (*weak* after
+  a definite article, *mixed* after an ein-word) and intersected with the
+  determiner's own candidate set. A dimension is only committed when both
+  sides agree; where they disagree (or the intersection is empty, i.e. the
+  prompt is contradictory), the dimension is ``"Unk"``.
+* If no such determiner precedes the gap (including the gap opening the
+  sentence), the ending is decoded against the *strong* declension paradigm
+  alone -- with zero article the adjective carries the same signal a
+  definite article would otherwise carry, so the ending is informative on
+  its own (subject to the same genuine syncretism as any other closed-class
+  table, e.g. strong ``-er`` alone still spans Nom Masc Sg, Dat Fem Sg, Gen
+  Fem Sg and Gen Plur).
+
+This is still a small, closed-class, deterministic lookup -- no spaCy, no
+guessing -- it is just scoped to the gap's immediate left context instead of
+the answer alone. Where the determiner and ending genuinely leave a cell
+ambiguous (most famously the ``-en`` ending, which is syncretic across nearly
+every case/gender/number combination in all three declensions), the result
+is honestly ``"Unk"`` for that dimension rather than a guess.
 """
 
 from __future__ import annotations
+
+import re
 
 from src.contracts import BankItem, Topic
 
@@ -139,6 +181,7 @@ UNK = "Unk"
 _POS_CATEGORY_UNIVERSE: dict[str, tuple[str, ...]] = {
     "Prep": ("Definite", "Gender", "Number"),
     "Pron": ("Gender", "Number", "Person"),
+    "RelPron": ("Case", "Gender", "Number"),
     "Adj": ("Case", "Gender", "Number"),
     "AdjDecl": ("Case", "Gender", "Number"),
     "Adv": (),
@@ -166,6 +209,15 @@ def _pos_category(topic: Topic) -> str:
     if pos in _POS_CATEGORY_UNIVERSE:
         return pos
 
+    # A relative pronoun is genuinely PronType=Rel (a real, valid UD feature
+    # value -- unlike the disjunctive "NomOrAcc" this replaced). Case is
+    # deliberately left out of morph_spec for relativsatz_nom_akk because a
+    # relative pronoun's case is exactly the thing that varies with the
+    # pronoun's syntactic role in its own clause; relativsatz_genitiv fixes
+    # Case: Gen in addition, which the "dim not in fixed" filter below
+    # already handles correctly either way.
+    if morph.get("PronType") == "Rel":
+        return "RelPron"
     if tags.get("Declension"):
         return "AdjDecl"
     if tags.get("ArtType"):
@@ -192,7 +244,20 @@ def facet_space(topic: Topic) -> tuple[str, ...]:
     returns ``()`` explicitly -- this is the stage 6 promotion-rule
     degradation called out in ``01-foundation.md:170``, made unconditional
     and unambiguous here rather than left to a downstream truthiness check.
+
+    A topic may also be explicitly marked ``facet_exempt: true`` in
+    ``data/taxonomy.yaml`` (with a required ``facet_exempt_reason``). This is
+    for topics whose ``morph_spec`` is genuinely non-empty and still useful
+    for the stage 4 morphology check, but whose word class has no second
+    grammatical cell to vary into (impersonal passive's invariant 3sg
+    agreement; genitive syncretism with no Gender/Number combination left
+    undecided). Emptying ``morph_spec`` for those topics would silently
+    discard a real stage 4 constraint just to dodge stage 6, so the
+    exemption is instead a separate, visible, reasoned flag -- checked
+    first and unconditionally, exactly like the empty-``morph_spec`` case.
     """
+    if getattr(topic, "facet_exempt", False):
+        return ()
     if not topic.morph_spec:
         return ()
 
@@ -244,23 +309,71 @@ _DEFINITE_ARTICLE_PARADIGM: tuple[tuple[str, str, str, str], ...] = (
     ("des", "Gen", "Neut", "Sing"),
 )
 
-# ein-words (ein/kein/mein/dein/sein/ihr/unser): the "mixed declension"
+# Relative pronoun: its own paradigm, deliberately separate from
+# _DEFINITE_ARTICLE_PARADIGM above. Nominative and accusative relative
+# pronouns happen to share the definite article's surface forms, but Dative
+# plural ("denen", not "den") and the whole Genitive row ("dessen"/"deren",
+# not "des"/"der") genuinely differ -- reusing the article table would both
+# mis-decode those forms and, for the forms that do coincide, drag in
+# genitive/dative article candidates a relative pronoun can never actually
+# be. Plural is collapsed to a single Gender=UNK row per case, exactly like
+# _PERSONAL_PRONOUN_PARADIGM already does for 3rd-person plural "sie": German
+# does not mark gender in the plural at all (der/die/das -> die; dessen/deren
+# -> deren), so a real, distinct plural candidate that carries no gender
+# information is honest, not a guess -- and it is what lets e.g. "deren"
+# resolve Gender=Fem from its singular reading instead of collapsing to
+# all-Unk against three fabricated plural genders that were never really
+# separate candidates to begin with.
+_RELATIVE_PRONOUN_PARADIGM: tuple[tuple[str, str, str, str], ...] = (
+    # (form, Case, Gender, Number)
+    ("der", "Nom", "Masc", "Sing"),
+    ("die", "Nom", "Fem", "Sing"),
+    ("das", "Nom", "Neut", "Sing"),
+    ("die", "Nom", UNK, "Plur"),
+    ("den", "Acc", "Masc", "Sing"),
+    ("die", "Acc", "Fem", "Sing"),
+    ("das", "Acc", "Neut", "Sing"),
+    ("die", "Acc", UNK, "Plur"),
+    ("dem", "Dat", "Masc", "Sing"),
+    ("der", "Dat", "Fem", "Sing"),
+    ("dem", "Dat", "Neut", "Sing"),
+    ("denen", "Dat", UNK, "Plur"),
+    ("dessen", "Gen", "Masc", "Sing"),
+    ("deren", "Gen", "Fem", "Sing"),
+    ("dessen", "Gen", "Neut", "Sing"),
+    ("deren", "Gen", UNK, "Plur"),
+)
+
+# ein-words (ein/kein/mein/dein/sein/ihr/unser/euer): the "mixed declension"
 # ending pattern, keyed by ending only -- the stem carries no case/gender
-# information the ending doesn't already carry. "ein" itself has no plural.
-_EIN_WORD_STEMS: tuple[str, ...] = ("kein", "mein", "dein", "sein", "ihr", "unser", "ein")
+# information the ending doesn't already carry. "euer" additionally needs its
+# own contracted stem "eur-" (euer -> eure/eurem/euren/eurer/eures drops the
+# second "e" everywhere except the bare zero-ending form) alongside the full
+# "euer" stem for that zero-ending form itself; the two never collide ("euer"
+# does not start with "eur" + a valid ending prefix conflict, since "eur"'s
+# third letter is "r" where "euer"'s third letter is "e").
+_EIN_WORD_STEMS: tuple[str, ...] = (
+    "kein",
+    "mein",
+    "dein",
+    "sein",
+    "ihr",
+    "unser",
+    "euer",
+    "eur",
+    "ein",
+)
 _EIN_ENDING_PARADIGM: tuple[tuple[str, str, str, str], ...] = (
     # (ending, Case, Gender, Number)
     ("", "Nom", "Masc", "Sing"),
     ("", "Nom", "Neut", "Sing"),
     ("", "Acc", "Neut", "Sing"),
+    # "ein" itself has no plural at all, so for this closed word class the
+    # bare -e ending is unambiguously feminine nominative/accusative
+    # singular -- not also conflated with a fabricated Nom/Acc plural -e
+    # cell the way the shared _DEFINITE_ARTICLE_PARADIGM's "die" is.
     ("e", "Nom", "Fem", "Sing"),
     ("e", "Acc", "Fem", "Sing"),
-    ("e", "Nom", "Masc", "Plur"),
-    ("e", "Nom", "Fem", "Plur"),
-    ("e", "Nom", "Neut", "Plur"),
-    ("e", "Acc", "Masc", "Plur"),
-    ("e", "Acc", "Fem", "Plur"),
-    ("e", "Acc", "Neut", "Plur"),
     ("en", "Acc", "Masc", "Sing"),
     ("en", "Dat", "Masc", "Plur"),
     ("en", "Dat", "Fem", "Plur"),
@@ -400,6 +513,98 @@ _PLURAL_NOUN_GENDER: dict[str, str] = {
 }
 
 
+# ==============================================================================
+# Attributive adjective/participle endings, scoped by declension class
+#
+# German attributive adjectives decline in one of three patterns depending on
+# what (if anything) precedes them: *weak* after a definite article (or
+# der-word), *mixed* after an ein-word, *strong* with no article at all. Each
+# paradigm is honestly syncretic where German itself is syncretic (most
+# famously the weak/mixed "-en" ending, which spans nearly every non-Nom-Sg
+# cell) -- the resolver below only commits a dimension when every candidate
+# agrees, exactly like the other closed-class tables in this module.
+# ==============================================================================
+
+_ADJ_ENDING_WEAK: tuple[tuple[str, str, str, str], ...] = (
+    # (ending, Case, Gender, Number) -- after a definite article / der-word.
+    ("e", "Nom", "Masc", "Sing"),
+    ("e", "Nom", "Fem", "Sing"),
+    ("e", "Nom", "Neut", "Sing"),
+    ("e", "Acc", "Fem", "Sing"),
+    ("e", "Acc", "Neut", "Sing"),
+    ("en", "Acc", "Masc", "Sing"),
+    ("en", "Dat", "Masc", "Sing"),
+    ("en", "Dat", "Fem", "Sing"),
+    ("en", "Dat", "Neut", "Sing"),
+    ("en", "Gen", "Masc", "Sing"),
+    ("en", "Gen", "Fem", "Sing"),
+    ("en", "Gen", "Neut", "Sing"),
+    ("en", "Nom", "Masc", "Plur"),
+    ("en", "Nom", "Fem", "Plur"),
+    ("en", "Nom", "Neut", "Plur"),
+    ("en", "Acc", "Masc", "Plur"),
+    ("en", "Acc", "Fem", "Plur"),
+    ("en", "Acc", "Neut", "Plur"),
+    ("en", "Dat", "Masc", "Plur"),
+    ("en", "Dat", "Fem", "Plur"),
+    ("en", "Dat", "Neut", "Plur"),
+    ("en", "Gen", "Masc", "Plur"),
+    ("en", "Gen", "Fem", "Plur"),
+    ("en", "Gen", "Neut", "Plur"),
+)
+
+_ADJ_ENDING_MIXED: tuple[tuple[str, str, str, str], ...] = (
+    # (ending, Case, Gender, Number) -- after an ein-word. Plural is
+    # identical to the weak paradigm (mixed declension only differs from
+    # weak in the singular).
+    ("er", "Nom", "Masc", "Sing"),
+    ("e", "Nom", "Fem", "Sing"),
+    ("es", "Nom", "Neut", "Sing"),
+    ("en", "Acc", "Masc", "Sing"),
+    ("e", "Acc", "Fem", "Sing"),
+    ("es", "Acc", "Neut", "Sing"),
+    ("en", "Dat", "Masc", "Sing"),
+    ("en", "Dat", "Fem", "Sing"),
+    ("en", "Dat", "Neut", "Sing"),
+    ("en", "Gen", "Masc", "Sing"),
+    ("en", "Gen", "Fem", "Sing"),
+    ("en", "Gen", "Neut", "Sing"),
+    *(row for row in _ADJ_ENDING_WEAK if row[3] == "Plur"),
+)
+
+_ADJ_ENDING_STRONG: tuple[tuple[str, str, str, str], ...] = (
+    # (ending, Case, Gender, Number) -- zero article: the adjective carries
+    # the definite-article-like signal itself, except Gen Masc/Neut Sg
+    # ("-en", not "-es") because the noun already carries the genitive -(e)s.
+    ("er", "Nom", "Masc", "Sing"),
+    ("e", "Nom", "Fem", "Sing"),
+    ("es", "Nom", "Neut", "Sing"),
+    ("en", "Acc", "Masc", "Sing"),
+    ("e", "Acc", "Fem", "Sing"),
+    ("es", "Acc", "Neut", "Sing"),
+    ("em", "Dat", "Masc", "Sing"),
+    ("er", "Dat", "Fem", "Sing"),
+    ("em", "Dat", "Neut", "Sing"),
+    ("en", "Gen", "Masc", "Sing"),
+    ("er", "Gen", "Fem", "Sing"),
+    ("en", "Gen", "Neut", "Sing"),
+    ("e", "Nom", "Masc", "Plur"),
+    ("e", "Nom", "Fem", "Plur"),
+    ("e", "Nom", "Neut", "Plur"),
+    ("e", "Acc", "Masc", "Plur"),
+    ("e", "Acc", "Fem", "Plur"),
+    ("e", "Acc", "Neut", "Plur"),
+    ("en", "Dat", "Masc", "Plur"),
+    ("en", "Dat", "Fem", "Plur"),
+    ("en", "Dat", "Neut", "Plur"),
+    ("er", "Gen", "Masc", "Plur"),
+    ("er", "Gen", "Fem", "Plur"),
+    ("er", "Gen", "Neut", "Plur"),
+)
+
+_GAP_MARKER = "___"
+
+
 def _resolve(
     candidates: list[dict[str, str]],
     dims: tuple[str, ...],
@@ -443,6 +648,19 @@ def _decode_article(answer: str, fixed_case: str | None, dims: tuple[str, ...]) 
                 return resolved
 
     return dict.fromkeys(dims, UNK)
+
+
+def _decode_relative_pronoun(
+    answer: str, fixed_case: str | None, dims: tuple[str, ...]
+) -> dict[str, str]:
+    candidates: list[dict[str, str]] = [
+        {"Case": c, "Gender": g, "Number": n}
+        for (form, c, g, n) in _RELATIVE_PRONOUN_PARADIGM
+        if form == answer and (fixed_case is None or c == fixed_case)
+    ]
+    if not candidates:
+        return dict.fromkeys(dims, UNK)
+    return _resolve(candidates, dims)
 
 
 def _decode_personal_pronoun(
@@ -489,6 +707,88 @@ def _decode_noun(answer: str, dims: tuple[str, ...]) -> dict[str, str]:
     return {dim: (gender if dim == "Gender" else UNK) for dim in dims}
 
 
+def _preceding_token(prompt: str) -> str | None:
+    """The word immediately before the ``___`` gap, lowercased, or ``None``.
+
+    ``None`` both when the gap is missing and when the gap opens the prompt
+    (no preceding word at all) -- both cases the zero-article / strong
+    declension caller treats identically: no determiner to consult.
+    """
+    gap_pos = prompt.find(_GAP_MARKER)
+    if gap_pos == -1:
+        return None
+    before = prompt[:gap_pos]
+    words = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]+", before)
+    return words[-1].lower() if words else None
+
+
+def _determiner_candidates(token: str) -> tuple[str, list[tuple[str, str, str]]] | None:
+    """Classify ``token`` as a weak- or mixed-declension trigger.
+
+    Returns ``(declension, candidates)`` where ``declension`` is ``"weak"``
+    for a definite article / der-word or ``"mixed"`` for an ein-word, and
+    ``candidates`` is every (Case, Gender, Number) the token is grammatically
+    ambiguous between. ``None`` if ``token`` matches neither closed class --
+    the caller then treats the gap as zero-article (strong declension).
+    """
+    article_candidates = [
+        (c, g, n) for (form, c, g, n) in _DEFINITE_ARTICLE_PARADIGM if form == token
+    ]
+    if article_candidates:
+        return "weak", article_candidates
+
+    for stem in _EIN_WORD_STEMS:
+        if token.startswith(stem):
+            ending = token[len(stem) :]
+            ein_candidates = [(c, g, n) for (e, c, g, n) in _EIN_ENDING_PARADIGM if e == ending]
+            if ein_candidates:
+                return "mixed", ein_candidates
+
+    return None
+
+
+def _match_adjective_ending(
+    answer: str, paradigm: tuple[tuple[str, str, str, str], ...]
+) -> list[tuple[str, str, str]]:
+    """Every (Case, Gender, Number) ``answer``'s ending is consistent with in ``paradigm``.
+
+    German attributive endings end in a distinct final letter each (-e, -en,
+    -er, -es, -em), so at most one ending in a paradigm ever matches.
+    """
+    for ending in sorted({row[0] for row in paradigm}, key=len, reverse=True):
+        if answer.endswith(ending) and len(answer) > len(ending):
+            return [(c, g, n) for (e, c, g, n) in paradigm if e == ending]
+    return []
+
+
+def _decode_attributive_adjective(
+    prompt: str, answer: str, dims: tuple[str, ...]
+) -> dict[str, str]:
+    """Decode an attributive adjective/participle ending using its gap's left context.
+
+    See the module docstring's "Adjective and participle endings" section:
+    a determiner immediately before the gap selects the weak or mixed
+    declension paradigm and constrains the ending's own candidates; no
+    determiner falls back to the strong declension paradigm, which is
+    informative on its own.
+    """
+    token = _preceding_token(prompt)
+    determiner = _determiner_candidates(token) if token else None
+
+    if determiner is not None:
+        declension, det_candidates = determiner
+        paradigm = _ADJ_ENDING_WEAK if declension == "weak" else _ADJ_ENDING_MIXED
+        ending_candidates = set(_match_adjective_ending(answer, paradigm))
+        combined = [c for c in det_candidates if c in ending_candidates]
+    else:
+        combined = _match_adjective_ending(answer, _ADJ_ENDING_STRONG)
+
+    if not combined:
+        return dict.fromkeys(dims, UNK)
+    candidates = [{"Case": c, "Gender": g, "Number": n} for (c, g, n) in combined]
+    return _resolve(candidates, dims)
+
+
 def derive_facet(item: BankItem, topic: Topic) -> str | None:
     """Derive the stable, canonical facet an ingested item exhibits for ``topic``.
 
@@ -509,6 +809,8 @@ def derive_facet(item: BankItem, topic: Topic) -> str | None:
 
     if category in ("Prep", "Det", "Nominal"):
         values = _decode_article(answer, fixed_case, dims)
+    elif category == "RelPron":
+        values = _decode_relative_pronoun(answer, fixed_case, dims)
     elif category == "Pron":
         values = _decode_personal_pronoun(answer, fixed_case, dims)
     elif category == "ReflVerb":
@@ -517,10 +819,11 @@ def derive_facet(item: BankItem, topic: Topic) -> str | None:
         values = _decode_verb(answer, dims)
     elif category == "Noun":
         values = _decode_noun(answer, dims)
+    elif category in ("Adj", "AdjDecl"):
+        values = _decode_attributive_adjective(item.prompt, answer, dims)
     else:
-        # Adj / AdjDecl attributive endings and any unclassified bucket:
-        # German adjective endings are too syncretic for a small honest
-        # table to resolve reliably (see module docstring). Explicit Unk.
+        # Any unclassified bucket falls back to explicit Unk rather than
+        # guessing.
         values = dict.fromkeys(dims, UNK)
 
     return "|".join(f"{dim}={values.get(dim, UNK)}" for dim in sorted(dims))

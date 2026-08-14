@@ -243,10 +243,18 @@ def test_morph_spec_keys_are_valid_universal_dependencies_features(
 def test_facet_space_derivable_from_morph_spec(taxonomy_topics: list[Topic]) -> None:
     """For every topic with non-empty morph_spec, the unspecified features must yield
     at least 2 possible facet values, or the topic can never satisfy the promotion rule.
+
+    Topics explicitly marked ``facet_exempt`` are skipped here on purpose: they
+    keep a genuinely non-empty ``morph_spec`` for the stage 4 morphology check
+    while being deliberately, visibly excused from the stage 6 facet-variety
+    requirement (see ``test_facet_exempt_topics_declare_a_reason`` below and
+    ``facet_space``'s docstring in ``src/taxonomy/facets.py``).
     """
     checked_any = False
     for t in taxonomy_topics:
         if not t.morph_spec:
+            continue
+        if getattr(t, "facet_exempt", False):
             continue
         checked_any = True
         dims = facet_space(t)
@@ -259,6 +267,31 @@ def test_facet_space_derivable_from_morph_spec(taxonomy_topics: list[Topic]) -> 
             "value(s), which can never satisfy PROMOTION_MIN_DISTINCT_FACETS"
         )
     assert checked_any, "expected at least one topic with a non-empty morph_spec"
+
+
+def test_facet_exempt_topics_declare_a_reason_and_actually_degrade(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """``facet_exempt`` must be a deliberate, visible, reasoned property, not a
+    silent side effect: every topic that sets it must also carry a non-empty
+    ``facet_exempt_reason``, must keep a genuinely non-empty ``morph_spec``
+    (an empty one is the separate, pre-existing degradation path and doesn't
+    need this flag at all), and must actually derive an empty facet space.
+    """
+    exempt_topics = [t for t in taxonomy_topics if getattr(t, "facet_exempt", False)]
+    assert exempt_topics, "expected at least one facet_exempt topic"
+    for t in exempt_topics:
+        reason = getattr(t, "facet_exempt_reason", None)
+        assert reason and reason.strip(), (
+            f"Topic '{t.id}' sets facet_exempt but has no facet_exempt_reason"
+        )
+        assert t.morph_spec, (
+            f"Topic '{t.id}' sets facet_exempt with an empty morph_spec; the empty-"
+            "morph_spec degradation already covers that case without this flag"
+        )
+        assert facet_space(t) == (), (
+            f"Topic '{t.id}' is facet_exempt but facet_space(t) did not degrade to ()"
+        )
 
 
 def test_empty_morph_spec_topics_declare_no_facets_explicitly(
@@ -353,3 +386,222 @@ def test_realistic_bank_yields_distinct_facets_for_a_faceted_topic(
     facets = {derive_facet(item, topic) for item in items}
     assert len(facets) >= 2
     assert None not in facets
+
+
+# ==============================================================================
+# Adjective / participle attributive endings: context-aware derivation
+#
+# `guten` alone is genuinely ambiguous (masc acc sg, dat plur, ...), but the
+# determiner immediately before the gap almost always disambiguates it. These
+# topics used to collapse every item to a single all-Unk facet, which is a
+# structural deadlock: PROMOTION_MIN_DISTINCT_FACETS can never be satisfied.
+# ==============================================================================
+
+_ADJECTIVE_AND_PARTICIPLE_GOLD_PAIRS: dict[str, tuple[tuple[str, str], tuple[str, str]]] = {
+    # Each topic maps to two (prompt, answer) pairs a real gold set would
+    # plausibly contain -- a definite-article-preceded example (weak
+    # declension) and a second example that must land on a different facet.
+    "adjektivdeklination_bestimmt": (
+        ("Der ___ Mann liest die Zeitung.", "alte"),
+        ("Das ___ Kind spielt im Garten.", "alte"),
+    ),
+    "adjektivdeklination_unbestimmt": (
+        ("Ein ___ Baum steht im Garten.", "alter"),
+        ("Sie kauft ein ___ Auto.", "altes"),
+    ),
+    "adjektiv_komparativ_superlativ": (
+        ("Der ___ Sohn hilft im Haushalt.", "ältere"),
+        ("Er hat eine ___ Idee als ich.", "bessere"),
+    ),
+    "partizip_i_attributiv": (
+        ("Der ___ Mann ruft laut.", "rufende"),
+        ("Das ___ Kind sucht seine Mutter.", "weinende"),
+    ),
+    "partizip_ii_attributiv_erweitert": (
+        ("Der ___ Brief liegt auf dem Tisch.", "geschriebene"),
+        ("Ich lese das ___ Buch.", "geschriebene"),
+    ),
+}
+
+
+def _all_unk_facet(facet: str | None, dims: tuple[str, ...]) -> bool:
+    if facet is None:
+        return True
+    return set(facet.split("|")) == {f"{dim}=Unk" for dim in dims}
+
+
+@pytest.mark.parametrize("topic_id", sorted(_ADJECTIVE_AND_PARTICIPLE_GOLD_PAIRS))
+def test_adjective_and_participle_topics_escape_the_all_unk_deadlock(
+    taxonomy_topics: list[Topic], topic_id: str
+) -> None:
+    """A realistic gold set (determiner before the gap, adjective as the answer) must
+    produce at least two distinct, non-all-Unk facets for each adjective/participle
+    topic, or PROMOTION_MIN_DISTINCT_FACETS can never be satisfied -- the exact
+    deadlock that made these topics permanently stuck in 'learning'.
+    """
+    topic = {t.id: t for t in taxonomy_topics}[topic_id]
+    dims = facet_space(topic)
+    assert dims, f"{topic_id} unexpectedly has no facet space"
+
+    items = [
+        BankItem(
+            id=f"{topic_id}-{idx}",
+            topic_id=topic_id,
+            type="cloze_free",
+            difficulty=1,
+            cefr=topic.cefr,
+            prompt=prompt,
+            accepted_answers=[answer],
+        )
+        for idx, (prompt, answer) in enumerate(_ADJECTIVE_AND_PARTICIPLE_GOLD_PAIRS[topic_id])
+    ]
+    facets = [derive_facet(item, topic) for item in items]
+
+    assert None not in facets
+    assert len(set(facets)) >= 2, f"{topic_id}: gold set collapsed to a single facet {facets}"
+    for facet in facets:
+        assert not _all_unk_facet(facet, dims), (
+            f"{topic_id}: realistic answer yielded an all-Unk facet {facet!r} over {dims}"
+        )
+
+
+def test_adjective_facet_derivation_reads_the_determiner_before_the_gap(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """`Der ___ Mann liest.` (alte) and `Ich sehe den ___ Mann.` (alten) must not
+    collapse to the same facet -- the determiner immediately before the gap
+    ('der' vs 'den') is exactly the context that disambiguates an otherwise
+    identically-ambiguous weak adjective ending.
+    """
+    topic = {t.id: t for t in taxonomy_topics}["adjektivdeklination_bestimmt"]
+
+    nominative_item = BankItem(
+        id="nom",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr=topic.cefr,
+        prompt="Der ___ Mann liest.",
+        accepted_answers=["alte"],
+    )
+    accusative_item = BankItem(
+        id="acc",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr=topic.cefr,
+        prompt="Ich sehe den ___ Mann.",
+        accepted_answers=["alten"],
+    )
+
+    nominative_facet = derive_facet(nominative_item, topic)
+    accusative_facet = derive_facet(accusative_item, topic)
+
+    assert nominative_facet != accusative_facet
+    assert nominative_facet == "Case=Nom|Gender=Masc|Number=Sing"
+
+
+def test_adjective_facet_derivation_resolves_mixed_declension_after_ein_word(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """An ein-word before the gap must select the mixed declension paradigm, not
+    the weak one -- 'ein alter Baum' (nom masc sg) and 'ein altes Auto' (a
+    genuinely ambiguous nom/acc neut sg) must resolve differently from their
+    weak-declension counterparts.
+    """
+    topic = {t.id: t for t in taxonomy_topics}["adjektivdeklination_unbestimmt"]
+
+    masc_item = BankItem(
+        id="masc",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr=topic.cefr,
+        prompt="Ein ___ Baum steht im Garten.",
+        accepted_answers=["alter"],
+    )
+    neut_item = BankItem(
+        id="neut",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr=topic.cefr,
+        prompt="Sie kauft ein ___ Auto.",
+        accepted_answers=["altes"],
+    )
+
+    assert derive_facet(masc_item, topic) == "Case=Nom|Gender=Masc|Number=Sing"
+    neut_facet = derive_facet(neut_item, topic)
+    assert neut_facet is not None
+    assert "Gender=Neut" in neut_facet
+    assert "Number=Sing" in neut_facet
+
+
+def test_adjective_facet_derivation_handles_zero_article_with_strong_ending(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """With no determiner before the gap (including the gap opening the prompt),
+    the strong declension ending must be read on its own -- 'Frisches Brot'
+    (nom/acc neut sg, zero article) is informative without any preceding word.
+    """
+    topic = {t.id: t for t in taxonomy_topics}["adjektiv_komparativ_superlativ"]
+
+    item = BankItem(
+        id="zero-article",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr=topic.cefr,
+        prompt="___ Brot schmeckt am besten.",
+        accepted_answers=["Frischeres"],
+    )
+    facet = derive_facet(item, topic)
+    assert facet is not None
+    assert "Gender=Neut" in facet
+    assert "Number=Sing" in facet
+
+
+def test_adjective_facet_derivation_never_guesses_on_contradictory_context(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """A determiner/ending combination that is not jointly attested anywhere in the
+    paradigm (a malformed or contradictory prompt) must degrade to all-Unk rather
+    than committing to a value neither side actually supports.
+    """
+    topic = {t.id: t for t in taxonomy_topics}["adjektivdeklination_bestimmt"]
+    dims = facet_space(topic)
+
+    item = BankItem(
+        id="contradictory",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr=topic.cefr,
+        # "der" (weak) never combines with a bare "-er" ending anywhere in the
+        # weak paradigm (that ending only exists in the mixed/strong tables).
+        prompt="Der ___ Mann liest.",
+        accepted_answers=["alter"],
+    )
+    facet = derive_facet(item, topic)
+    assert _all_unk_facet(facet, dims)
+
+
+def test_derive_facet_is_deterministic_for_context_aware_adjective_decoding(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """Same item plus same topic must always yield the same facet string, even once
+    derivation depends on parsing ``item.prompt`` rather than the answer alone.
+    """
+    topic = {t.id: t for t in taxonomy_topics}["partizip_ii_attributiv_erweitert"]
+    item = BankItem(
+        id="det-1",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr=topic.cefr,
+        prompt="Der ___ Brief liegt auf dem Tisch.",
+        accepted_answers=["geschriebene"],
+    )
+    results = {derive_facet(item, topic) for _ in range(5)}
+    assert len(results) == 1
+    assert next(iter(results)) == "Case=Nom|Gender=Masc|Number=Sing"
