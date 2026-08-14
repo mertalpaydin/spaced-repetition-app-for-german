@@ -11,3 +11,12 @@ migrations_dir = "migrations"
 [vars]
 ENVIRONMENT = "production"
 API_VERSION = "1.0.0"
+
+# SYNC_TOKEN is a required shared-secret bearer token: every request except
+# GET /health must send `Authorization: Bearer <SYNC_TOKEN>` or the worker
+# returns 401 before touching D1 (see src/index.js isAuthenticated). It is a
+# secret binding, never a plaintext var, and must never be committed here.
+# Set it with:
+#   wrangler secret put SYNC_TOKEN
+# [secrets]
+# SYNC_TOKEN = "<set via `wrangler secret put SYNC_TOKEN`, never committed>"
