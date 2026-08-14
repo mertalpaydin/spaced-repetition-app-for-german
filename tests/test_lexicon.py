@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from src.lexicon.extractor import WordlistPdfExtractor
 from src.lexicon.frequency import FrequencyBander
+from src.lexicon.lemmatizer import lemma_candidates, normalise
 from src.lexicon.vocabulary import VocabularyStore
 
 
@@ -95,3 +96,79 @@ def test_pdf_extractor_extracts_from_raw_dir() -> None:
         vocab = extractor.extract_all()
         assert len(vocab) > 1000
         assert "tisch" in vocab or "haus" in vocab
+
+
+def test_lemmatisation_handles_separable_verbs() -> None:
+    """ "Ich rufe dich morgen an" lemmatises to "anrufen", not "rufen" + "an".
+
+    A lemmatiser that only strips inflection from the finite verb token and
+    ignores the separated prefix elsewhere in the sentence mis-lemmatises to
+    the (unrelated, non-separable-reading) bare verb, silently corrupting
+    vocab tagging for one of the most common A1-B1 construction patterns in
+    German.
+    """
+    candidates = lemma_candidates("rufe", context_tokens=["Ich", "rufe", "dich", "morgen", "an"])
+    assert "anrufen" in candidates
+    assert "rufen" in candidates
+    # The separable-verb reading uses more sentence evidence than the bare
+    # stem, so it must be preferred (tried before the bare stem candidate).
+    assert candidates.index("anrufen") < candidates.index("rufen")
+
+    # Without the separating prefix present anywhere in the sentence, the
+    # separable-verb candidate must not be fabricated.
+    no_context_candidates = lemma_candidates("rufe")
+    assert "anrufen" not in no_context_candidates
+    assert "rufen" in no_context_candidates
+
+
+def test_lemmatisation_resolves_separable_verb_against_vocab_store() -> None:
+    """A vocab store that only knows "anrufen" (not "rufen") must still
+    accept "Ich rufe dich morgen an." -- the separable-verb reading is the
+    one that resolves, exactly as required by 01-foundation.md stage 2.
+    """
+    store = VocabularyStore({"anrufen": "A2"})
+    violations = store.validate_sentence("Ich rufe dich morgen an.", "A2")
+    assert violations == []
+
+
+def test_umlaut_and_eszett_normalisation_is_lossless() -> None:
+    """normalise("Straße") round-trips (idempotent), and "Strasse" maps to
+    the same lookup key as "Straße" -- the old `.lower()`-only implementation
+    treated them as two distinct, unrelated dictionary keys.
+    """
+    strasse_key = normalise("Straße")
+    assert normalise(strasse_key) == strasse_key
+    assert normalise("Strasse") == strasse_key
+    assert normalise("STRASSE") == strasse_key
+
+    store = VocabularyStore({"straße": "A2"})
+    assert store.get_level("Straße") == "A2"
+    assert store.get_level("Strasse") == "A2"
+    assert store.get_level("strasse") == "A2"
+
+
+def test_lemmatisation_resolves_inflected_ceiling_violations(vocab_store: VocabularyStore) -> None:
+    """Inflected surface forms absent from the scraped wordlist resolve via
+    their lemma instead of tripping a false vocabulary-ceiling violation.
+    """
+    assert vocab_store.is_within_ceiling("Regens", "B1")  # genitive of "Regen"
+    assert vocab_store.is_within_ceiling("blieben", "B1")  # preterite of "bleiben"
+    assert vocab_store.is_within_ceiling("gemacht", "A1")  # participle of "machen"
+    assert vocab_store.is_within_ceiling("gefahren", "A1")  # participle of "fahren"
+    assert vocab_store.is_within_ceiling("Gehst", "A1")  # 2sg present of "gehen"
+    assert vocab_store.is_within_ceiling("Sprich", "A1")  # irregular imperative of "sprechen"
+    assert vocab_store.is_within_ceiling("spielende", "B2")  # attributive Partizip I of "spielen"
+    assert vocab_store.is_within_ceiling("erstellenden", "B2")  # declined Partizip I of "erstellen"
+    assert vocab_store.is_within_ceiling("beschlossenen", "B2")  # declined irregular Partizip II
+    assert vocab_store.is_within_ceiling("Strömen", "B2")  # umlaut dative plural of "Strom"
+
+
+def test_proper_nouns_are_whitelisted_not_added_as_vocabulary() -> None:
+    """Given names never trip the ceiling check via a dedicated whitelist,
+    not by being enumerated into the scraped vocabulary dictionary.
+    """
+    store = VocabularyStore({"haus": "A1"})  # deliberately does not contain any names
+    assert store.is_within_ceiling("Anna", "A1")
+    assert store.is_within_ceiling("Lisa", "A1")
+    assert "anna" not in store.vocab
+    assert "lisa" not in store.vocab
