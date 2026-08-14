@@ -40,5 +40,19 @@ CREATE TABLE IF NOT EXISTS sync_events (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS review_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    topic_id TEXT NOT NULL,
+    user_answer TEXT NOT NULL,
+    is_correct INTEGER NOT NULL,
+    hint_level INTEGER NOT NULL,
+    fsrs_rating INTEGER NOT NULL,
+    response_ms INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_user_topic_updated ON user_topic_states(user_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_user_fsrs_due ON user_fsrs_cards(user_id, due_at);
+CREATE INDEX IF NOT EXISTS idx_user_review_logs ON review_logs(user_id, created_at);

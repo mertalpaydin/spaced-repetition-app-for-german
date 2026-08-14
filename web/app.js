@@ -307,11 +307,17 @@
 
   // Data Loading & Storage Initialization
   async function initStorageAndItems() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(err => {
+        console.warn('Service Worker registration skipped:', err);
+      });
+    }
+
     if (window.offlineStorage) {
       await window.offlineStorage.init();
-      const savedStates = await window.offlineStorage.getAll('topic_states');
+      const savedStates = await window.offlineStorage.getTopicStates();
       if (savedStates && savedStates.length > 0) {
-        savedStates.forEach(s => { topicStates[s.tag_id] = s; });
+        savedStates.forEach(s => { topicStates[s.topic_id || s.tag_id] = s; });
       }
     }
 
@@ -461,13 +467,25 @@
     if (!inputVal) return;
 
     const result = gradeSubmission(inputVal, item.accepted_answers);
-    roundAttempts.push({
+    const attemptData = {
       item_id: item.id,
       topic_id: item.topic_id,
       user_answer: inputVal,
       is_correct: result.isCorrect,
       hint_level: currentHintLevel
-    });
+    };
+    roundAttempts.push(attemptData);
+
+    if (window.offlineStorage) {
+      window.offlineStorage.appendReviewLog({
+        card_id: item.id,
+        topic_id: item.topic_id,
+        user_answer: inputVal,
+        is_correct: result.isCorrect,
+        hint_level: currentHintLevel,
+        timestamp: new Date().toISOString()
+      }).catch(console.warn);
+    }
 
     feedbackBox.style.display = 'block';
     if (result.isCorrect) {

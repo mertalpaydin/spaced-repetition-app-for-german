@@ -63,8 +63,8 @@ PROMOTION_MIN_DISTINCT_FACETS: int = 2  # evidence must span cells, not repeat o
 SPLIT_MIN_ATTEMPTS_PER_FACET: int = 20  # before a topic can be flagged for splitting
 SPLIT_ACCURACY_GAP: float = 0.40  # facet accuracy spread that flags a candidate
 
-MODEL_LIVE: str = "gemini-3.7-flash"
-MODEL_GENERATE: str = "gemini-3.7-flash"
+MODEL_LIVE: str = "gemini-3.5-flash-lite"
+MODEL_GENERATE: str = "gemini-3.5-flash-lite"
 MODEL_VERIFY: str = "gemini-3.7-flash"
 THINKING_VERIFY: str = "low"
 

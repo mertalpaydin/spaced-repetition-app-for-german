@@ -65,10 +65,24 @@ CREATE TABLE IF NOT EXISTS batches (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS review_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id TEXT NOT NULL,
+    topic_id TEXT NOT NULL,
+    user_answer TEXT NOT NULL,
+    is_correct INTEGER NOT NULL,
+    hint_level INTEGER NOT NULL,
+    fsrs_rating INTEGER NOT NULL,
+    response_ms INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_items_topic_id ON items(topic_id);
 CREATE INDEX IF NOT EXISTS idx_items_cefr ON items(cefr);
 CREATE INDEX IF NOT EXISTS idx_items_difficulty ON items(topic_id, difficulty);
 CREATE INDEX IF NOT EXISTS idx_distractors_item_id ON distractors(item_id);
+CREATE INDEX IF NOT EXISTS idx_review_logs_topic_id ON review_logs(topic_id);
+CREATE INDEX IF NOT EXISTS idx_review_logs_created ON review_logs(created_at);
 """
 
 

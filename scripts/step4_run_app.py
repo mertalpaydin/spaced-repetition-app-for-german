@@ -3,12 +3,12 @@
 Run this script directly in your IDE (Right click -> Run Python File, or hit F5).
 """
 
-from pathlib import Path
 import webbrowser
+from pathlib import Path
 
 from src.bank.storage import SqliteItemBank
 from src.cli.app import cmd_stats, cmd_topics
-from src.cli.session import InteractiveSession
+from src.cli.sitting import InteractiveSitting
 from src.engine.fsrs import FSRSEngine
 from src.engine.scheduler import LearningScheduler
 from src.engine.topic_state import TopicStateManager
@@ -56,7 +56,7 @@ def main() -> None:
             topic_manager=topic_manager,
             fsrs_records={},
         )
-        session = InteractiveSession(
+        session = InteractiveSitting(
             round_plan=plan,
             topic_manager=topic_manager,
             fsrs_engine=fsrs_engine,

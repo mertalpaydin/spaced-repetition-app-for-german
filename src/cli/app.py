@@ -87,7 +87,15 @@ def cmd_kalibrierung(bank: SqliteItemBank, topic_manager: TopicStateManager) -> 
             for i in range(4)
         ]
 
-    responses = [(it, it.accepted_answers[0]) for it in items]
+    responses: list[tuple[BankItem, str]] = []
+    for it in items:
+        if sys.stdin.isatty():
+            print(f"[{it.cefr}] {it.prompt}")
+            ans = input("Lösung: ").strip() or it.accepted_answers[0]
+        else:
+            ans = it.accepted_answers[0]
+        responses.append((it, ans))
+
     report = CalibrationRunner.evaluate_diagnostic(responses, topic_manager)
     print(f"Diagnostic Complete. Assessed Placement: {report.estimated_cefr}")
     print(f"Topics Mastered: {len(report.acquired_topics)}")
@@ -119,8 +127,21 @@ def cmd_round(
         print(f"Satz: {item.prompt}")
         if item.cue:
             print(f"Hinweis: {item.cue}")
-        ans = item.accepted_answers[0]
+
+        if sys.stdin.isatty():
+            ans = input("Deine Antwort: ").strip() or item.accepted_answers[0]
+        else:
+            ans = item.accepted_answers[0]
+
         att = session.process_item_attempt(item, user_answer=ans, hint_level=0)
+        bank.append_review_log(
+            item_id=item.id,
+            topic_id=item.topic_id,
+            user_answer=ans,
+            is_correct=att.is_correct,
+            hint_level=0,
+            fsrs_rating=att.fsrs_rating,
+        )
         print(f"Ergebnis: {'Richtig' if att.is_correct else 'Falsch'}")
 
     summary = session.get_summary()

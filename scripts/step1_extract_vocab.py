@@ -1,4 +1,4 @@
-"""Step 1: Extract German vocabulary from raw PDFs in data/raw/ to data/fixtures/corpus/vocab_levels.json.
+"""Step 1: Extract German vocabulary from raw PDFs in data/raw/ to vocab_levels.json.
 
 Run this script directly in your IDE (Right click -> Run Python File, or hit F5).
 """
@@ -24,12 +24,16 @@ def main() -> None:
         return
 
     print(f"Reading PDFs from: {raw_dir.resolve()} ...")
-    extractor = WordlistPdfExtractor()
-    extracted_vocab = extractor.extract_from_directory(raw_dir)
+    extractor = WordlistPdfExtractor(raw_dir=raw_dir)
+    extracted_vocab = extractor.extract_all()
 
     print("\nExtraction Summary:")
-    for level, words in sorted(extracted_vocab.items()):
-        print(f"  - Level {level}: {len(words)} lemmas extracted")
+    counts: dict[str, int] = {}
+    for _word, level in extracted_vocab.items():
+        lvl_str = str(level)
+        counts[lvl_str] = counts.get(lvl_str, 0) + 1
+    for lvl, count in sorted(counts.items()):
+        print(f"  - Level {lvl}: {count} lemmas extracted")
 
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(extracted_vocab, f, indent=2, ensure_ascii=False)

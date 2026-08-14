@@ -28,13 +28,13 @@ jobs:
         run: uv sync
 
       - name: Ruff Format Check
-        run: uv run ruff format --check src tests
+        run: uv run ruff format --check src tests scripts
 
       - name: Ruff Lint Check
-        run: uv run ruff check src tests
+        run: uv run ruff check src tests scripts
 
       - name: Mypy Strict Type Check
-        run: uv run mypy --strict src/
+        run: uv run mypy --strict src/ scripts/
 
       - name: Run Test Suite with Coverage Gate (>= 85%)
         run: uv run pytest --cov=src --cov-fail-under=85 tests/

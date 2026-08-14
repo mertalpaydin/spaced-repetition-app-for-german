@@ -3,6 +3,7 @@
 import json
 import sqlite3
 from pathlib import Path
+from typing import Any
 
 from src.bank.migrations import run_migrations
 from src.contracts import BankItem, Difficulty, Distractor, VerificationResult
@@ -244,3 +245,59 @@ class SqliteItemBank:
             else None,
             carrier_lemmas=carrier_lemmas,
         )
+
+    def append_review_log(
+        self,
+        item_id: str,
+        topic_id: str,
+        user_answer: str,
+        is_correct: bool,
+        hint_level: int,
+        fsrs_rating: str | int,
+        response_ms: int = 0,
+    ) -> None:
+        """Append an immutable review log entry to SQLite storage."""
+        conn = self._get_connection()
+        try:
+            with conn:
+                conn.execute(
+                    """
+                    INSERT INTO review_logs (
+                        item_id, topic_id, user_answer, is_correct,
+                        hint_level, fsrs_rating, response_ms
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        item_id,
+                        topic_id,
+                        user_answer,
+                        1 if is_correct else 0,
+                        hint_level,
+                        fsrs_rating,
+                        response_ms,
+                    ),
+                )
+        finally:
+            conn.close()
+
+    def get_review_logs(
+        self, topic_id: str | None = None, limit: int = 1000
+    ) -> list[dict[str, Any]]:
+        """Retrieve recent review logs optionally filtered by topic_id."""
+        conn = self._get_connection()
+        try:
+            cur = conn.cursor()
+            if topic_id:
+                cur.execute(
+                    "SELECT * FROM review_logs WHERE topic_id = ? ORDER BY created_at DESC LIMIT ?",
+                    (topic_id, limit),
+                )
+            else:
+                cur.execute(
+                    "SELECT * FROM review_logs ORDER BY created_at DESC LIMIT ?",
+                    (limit,),
+                )
+            rows = cur.fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()

@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass, field
 
 from src.contracts import (
+    MODEL_GENERATE,
     BatchId,
     BatchStatus,
     CandidateItem,
@@ -84,7 +85,7 @@ class MockBatchClient:
             total_items = sum(r.count for r in requests)
             self.cost_tracker.record_usage(
                 batch_id=batch_id,
-                model="gemini-3.5-flash-lite",
+                model=MODEL_GENERATE,
                 input_tokens=total_items * 150,
                 output_tokens=total_items * 180,
             )

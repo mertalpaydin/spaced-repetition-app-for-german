@@ -89,11 +89,7 @@ def test_expected_topic_ids_golden(taxonomy_topics: list[Topic], data_fixtures_d
     golden_file = data_fixtures_dir / "taxonomy" / "expected_ids.json"
     current_ids = [t.id for t in taxonomy_topics]
 
-    if not golden_file.exists():
-        # First-time initialization
-        with golden_file.open("w", encoding="utf-8") as f:
-            json.dump(current_ids, f, indent=2, ensure_ascii=False)
-
+    assert golden_file.exists(), f"Taxonomy expected IDs fixture missing: {golden_file}"
     with golden_file.open("r", encoding="utf-8") as f:
         expected_ids = json.load(f)
 
