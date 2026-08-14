@@ -85,7 +85,7 @@ class TaxonomyValidator:
 
         for cg_name, members in confusion_groups.items():
             if len(members) < 2:
-                warnings.append(f"Confusion group '{cg_name}' has fewer than 2 members: {members}")
+                errors.append(f"Confusion group '{cg_name}' has fewer than 2 members: {members}")
 
         # 7. CEFR distribution
         cefr_counts: dict[str, int] = defaultdict(int)

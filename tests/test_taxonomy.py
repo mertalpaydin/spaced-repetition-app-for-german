@@ -1,10 +1,17 @@
 """Unit and golden tests for the Grammar Topic Taxonomy and Prerequisite DAG."""
 
 import json
+from collections import defaultdict
 from pathlib import Path
 
 import pytest
-from src.contracts import CEFR, Topic
+from src.contracts import CEFR, BankItem, Topic
+from src.taxonomy.facets import (
+    GERMAN_UD_FEATURE_UNIVERSE,
+    VALUE_CARDINALITY,
+    derive_facet,
+    facet_space,
+)
 from src.taxonomy.loader import load_taxonomy
 from src.taxonomy.validator import TaxonomyValidator
 
@@ -173,3 +180,176 @@ def test_validator_get_transitive_prereqs_missing_key() -> None:
     validator = TaxonomyValidator([t1])
     with pytest.raises(KeyError):
         validator.get_transitive_prereqs("unknown_id")
+
+
+def test_every_confusion_group_has_at_least_two_members(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """01-foundation.md:193: a group of one cannot produce interleaved contrast.
+
+    This must be a hard requirement, not a warning: CLAUDE.md rule 7 forbids
+    downgrading a failing check to keep report.is_valid green.
+    """
+    groups: dict[str, list[str]] = defaultdict(list)
+    for t in taxonomy_topics:
+        if t.confusion_group:
+            groups[t.confusion_group].append(t.id)
+
+    singletons = {name: members for name, members in groups.items() if len(members) < 2}
+    assert not singletons, f"Confusion groups with fewer than 2 members: {singletons}"
+
+
+def test_validator_flags_singleton_confusion_group_as_error() -> None:
+    """A confusion group of one member must fail validation, not merely warn."""
+    t1 = Topic(
+        id="t1",
+        name_de="T1",
+        cefr="A1",
+        description="D",
+        eligible_types=["cloze_free"],
+        confusion_group="lonely_group",
+    )
+    validator = TaxonomyValidator([t1])
+    report = validator.validate()
+
+    assert not report.is_valid
+    assert any("fewer than 2 members" in e for e in report.errors)
+    assert not any("fewer than 2 members" in w for w in report.warnings)
+
+
+# ==============================================================================
+# morph_spec / facets (01-foundation.md:168-170, 259-269)
+# ==============================================================================
+
+
+def test_morph_spec_keys_are_valid_universal_dependencies_features(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """Reject typos or invented keys that would silently disable the stage 4 morphology check.
+
+    Only genuine Universal Dependencies FEATS keys may appear in morph_spec.
+    Anything else (part-of-speech tags, syntactic markers like "Subordinate"
+    or "Separable") belongs on Topic.syntax_tags instead.
+    """
+    allowed = set(GERMAN_UD_FEATURE_UNIVERSE)
+    for t in taxonomy_topics:
+        for key in t.morph_spec or {}:
+            assert key in allowed, (
+                f"Topic '{t.id}' morph_spec key '{key}' is not a valid Universal "
+                f"Dependencies feature. Allowed keys: {sorted(allowed)}"
+            )
+
+
+def test_facet_space_derivable_from_morph_spec(taxonomy_topics: list[Topic]) -> None:
+    """For every topic with non-empty morph_spec, the unspecified features must yield
+    at least 2 possible facet values, or the topic can never satisfy the promotion rule.
+    """
+    checked_any = False
+    for t in taxonomy_topics:
+        if not t.morph_spec:
+            continue
+        checked_any = True
+        dims = facet_space(t)
+        assert dims, f"Topic '{t.id}' has a non-empty morph_spec but derives no facet dimensions"
+        cardinality = 1
+        for dim in dims:
+            cardinality *= VALUE_CARDINALITY[dim]
+        assert cardinality >= 2, (
+            f"Topic '{t.id}' facet space {dims} yields only {cardinality} possible facet "
+            "value(s), which can never satisfy PROMOTION_MIN_DISTINCT_FACETS"
+        )
+    assert checked_any, "expected at least one topic with a non-empty morph_spec"
+
+
+def test_empty_morph_spec_topics_declare_no_facets_explicitly(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """An empty morph_spec must yield an explicit empty facet-space tuple, not an absent field."""
+    empty_topics = [t for t in taxonomy_topics if not t.morph_spec]
+    assert empty_topics, "expected at least one topic with an empty morph_spec"
+    for t in empty_topics:
+        dims = facet_space(t)
+        assert dims == ()
+        assert dims is not None
+
+
+def test_derive_facet_is_deterministic(taxonomy_topics: list[Topic]) -> None:
+    """Same item plus same topic must always yield the same facet string."""
+    topics_by_id = {t.id: t for t in taxonomy_topics}
+    topic = topics_by_id["dativ_nach_praeposition"]
+    item = BankItem(
+        id="det-1",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr="A2",
+        prompt="Das Buch liegt auf ___ Tisch.",
+        accepted_answers=["dem"],
+    )
+    results = {derive_facet(item, topic) for _ in range(5)}
+    assert len(results) == 1
+    assert next(iter(results)) is not None
+
+
+def test_derive_facet_is_none_iff_facet_space_empty(taxonomy_topics: list[Topic]) -> None:
+    """derive_facet returns None exactly when the topic's facet space is empty."""
+    topics_by_id = {t.id: t for t in taxonomy_topics}
+
+    faceted_topic = topics_by_id["dativ_nach_praeposition"]
+    assert facet_space(faceted_topic) != ()
+    faceted_item = BankItem(
+        id="i1",
+        topic_id=faceted_topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr="A2",
+        prompt="Das Buch liegt auf ___ Tisch.",
+        accepted_answers=["dem"],
+    )
+    assert derive_facet(faceted_item, faceted_topic) is not None
+
+    unfaceted_topic = topics_by_id["nebensatz_weil_da"]
+    assert facet_space(unfaceted_topic) == ()
+    unfaceted_item = BankItem(
+        id="i2",
+        topic_id=unfaceted_topic.id,
+        type="cloze_free",
+        difficulty=2,
+        cefr="B1",
+        prompt="Er bleibt hier, weil er müde ___.",
+        accepted_answers=["ist"],
+    )
+    assert derive_facet(unfaceted_item, unfaceted_topic) is None
+
+
+def test_realistic_bank_yields_distinct_facets_for_a_faceted_topic(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """A small realistic item bank must produce at least two distinct facets for at
+    least one faceted topic, or PROMOTION_MIN_DISTINCT_FACETS can never be satisfied.
+    """
+    topics_by_id = {t.id: t for t in taxonomy_topics}
+    topic = topics_by_id["artikel_bestimmt_nom"]
+    items = [
+        BankItem(
+            id="a1",
+            topic_id=topic.id,
+            type="cloze_free",
+            difficulty=1,
+            cefr="A1",
+            prompt="___ Tisch ist groß.",
+            accepted_answers=["Der"],
+        ),
+        BankItem(
+            id="a2",
+            topic_id=topic.id,
+            type="cloze_free",
+            difficulty=1,
+            cefr="A1",
+            prompt="___ Kind schläft.",
+            accepted_answers=["Das"],
+        ),
+    ]
+    facets = {derive_facet(item, topic) for item in items}
+    assert len(facets) >= 2
+    assert None not in facets

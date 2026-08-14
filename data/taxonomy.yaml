@@ -15,7 +15,8 @@
   description: "Personal pronouns acting as subject in the Nominative case (ich, du, er, sie, es, wir, ihr, sie, Sie)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Nom, Pos: Pron}
+  morph_spec: {Case: Nom}
+  syntax_tags: {Pos: "Pron"}
   rule_hint: "Nominativ als Subjekt: ich, du, er, sie, es, wir, ihr, sie, Sie."
   intro_card:
     summary: "Personalpronomen im Nominativ"
@@ -33,7 +34,8 @@
   description: "Present tense conjugations of auxiliary/copula verbs 'sein' and 'haben'."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Tense: Pres, VerbType: Aux}
+  morph_spec: {Tense: Pres}
+  syntax_tags: {VerbType: "Aux"}
   rule_hint: "Konjugation: bin/bist/ist/sind/seid/sind und habe/hast/hat/haben/habt/haben."
   intro_card:
     summary: "Verben 'sein' und 'haben' im Präsens"
@@ -69,7 +71,8 @@
   description: "Strong verbs with stem vowel change in 2nd and 3rd person singular (e->i/ie, a->ä, au->äu)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Tense: Pres, VowelChange: true}
+  morph_spec: {Tense: Pres}
+  syntax_tags: {VowelChange: "true"}
   rule_hint: "Vokalwechsel nur bei du und er/sie/es (z.B. geben -> du gibst, fahren -> er fährt)."
   intro_card:
     summary: "Verben mit Vokalwechsel (e -> i/ie, a -> ä)"
@@ -123,7 +126,8 @@
   description: "Definite articles in the Nominative case (der, die, das, die)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Nom, ArtType: Def}
+  morph_spec: {Case: Nom}
+  syntax_tags: {ArtType: "Def"}
   rule_hint: "Nominativ bestimmter Artikel: der (maskulin), die (feminin), das (neutral), die (Plural)."
   intro_card:
     summary: "Bestimmter Artikel im Nominativ"
@@ -141,7 +145,8 @@
   description: "Indefinite (ein, eine) and negative (kein, keine) articles in Nominative."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Nom, ArtType: IndefOrNeg}
+  morph_spec: {Case: Nom}
+  syntax_tags: {ArtType: "IndefOrNeg"}
   rule_hint: "Nominativ: ein/kein (m/n), eine/keine (f), keine (Plural)."
   intro_card:
     summary: "Unbestimmter Artikel und 'kein' im Nominativ"
@@ -159,7 +164,8 @@
   description: "Possessive determiners in the Nominative case (mein, dein, sein, ihr, unser, euer, ihr, Ihr)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Nom, ArtType: Poss}
+  morph_spec: {Case: Nom}
+  syntax_tags: {ArtType: "Poss"}
   rule_hint: "Possessivartikel folgen im Nominativ der Deklination von 'ein/kein' (mein/meine/mein)."
   intro_card:
     summary: "Possessivartikel im Nominativ"
@@ -173,7 +179,10 @@
   name_de: "Nomen Pluralbildung"
   cefr: A1
   prereqs: [artikel_bestimmt_nom]
-  confusion_group: nomen_endungen
+  # confusion_group removed: no other topic in the taxonomy tests noun
+  # plural-ending selection, so a group of one would be dishonest padding
+  # (01-foundation.md:193). See DEFECT 2 report for the full singleton audit.
+  confusion_group: null
   description: "Plural formation patterns of German nouns (-e, -(e)n, -er, -s, Umlaut)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
@@ -213,7 +222,8 @@
   description: "Personal pronouns in the Accusative case (mich, dich, ihn, sie, es, uns, euch, sie, Sie)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Acc, Pos: Pron}
+  morph_spec: {Case: Acc}
+  syntax_tags: {Pos: "Pron"}
   rule_hint: "Akkusativ Pronomen: mich, dich, ihn, sie, es, uns, euch, sie, Sie."
   intro_card:
     summary: "Personalpronomen im Akkusativ"
@@ -227,11 +237,17 @@
   name_de: "Modalverben im Präsens"
   cefr: A1
   prereqs: [verb_praesens_regelm, satzbau_hauptsatz_position2]
-  confusion_group: modalverben_bedeutung
+  # Genuine sibling: the same modal-verb forms are reused with epistemic
+  # meaning in modalverben_subjektiv_vermutung/_behauptung ("er muss
+  # arbeiten" [obligation] vs "er muss krank sein" [assumption]) -- the
+  # textbook objective-vs-subjective modal-verb contrast. Joined to that
+  # group instead of the old one-member "modalverben_bedeutung".
+  confusion_group: subjektive_modalverben
   description: "Modal verbs (können, müssen, wollen, dürfen, sollen, möchten) with infinitive at clause end (Satzklammer)."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Tense: Pres, VerbType: Modal}
+  morph_spec: {Tense: Pres}
+  syntax_tags: {VerbType: "Modal"}
   rule_hint: "Modalverb konjugiert auf Position 2, Vollverb im Infinitiv am Satzende."
   intro_card:
     summary: "Modalverben im Präsens (Satzklammer)"
@@ -245,11 +261,16 @@
   name_de: "Trennbare Verben im Präsens"
   cefr: A1
   prereqs: [verb_praesens_regelm, satzbau_hauptsatz_position2]
-  confusion_group: verben_trennbar_praefix
+  # confusion_group removed: the intro card contrasts separable with
+  # inseparable-prefix verbs, but no topic in this taxonomy teaches
+  # inseparable-prefix verbs as a standalone item, so there is no real
+  # partner to interleave against (01-foundation.md:193).
+  confusion_group: null
   description: "Separable verbs: prefix separates and moves to the end of main clause in present tense."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Tense: Pres, Separable: true}
+  morph_spec: {Tense: Pres}
+  syntax_tags: {Separable: "true"}
   rule_hint: "Präfix trennt sich im Hauptsatz ab und steht am Satzende (z.B. aufstehen -> ich stehe auf)."
   intro_card:
     summary: "Trennbare Verben im Präsens"
@@ -263,7 +284,12 @@
   name_de: "Imperativ (du, ihr, Sie)"
   cefr: A1
   prereqs: [verb_praesens_regelm, verb_praesens_vokalwechsel]
-  confusion_group: satzbau_modus
+  # confusion_group removed: no other topic tests an alternative mood-form
+  # paradigm interleavable against the imperative (polite requests via
+  # Konjunktiv II are a different paradigm, already grouped under
+  # "konjunktiv" with its own internal contrasts). Inventing a pairing
+  # here would violate CLAUDE.md rule 7.
+  confusion_group: null
   description: "Imperative forms for informal singular (du), informal plural (ihr), and formal (Sie)."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
@@ -285,7 +311,8 @@
   description: "Prepositions that strictly govern the Accusative case: bis, durch, für, gegen, ohne, um."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Acc, Pos: Prep}
+  morph_spec: {Case: Acc}
+  syntax_tags: {Pos: "Prep"}
   rule_hint: "Akkusativ-Präpositionen: durch, für, gegen, ohne, um, bis."
   intro_card:
     summary: "Präpositionen mit Akkusativ (DOGFU: durch, ohne, gegen, für, um)"
@@ -321,7 +348,8 @@
   description: "Personal pronouns in the Dative case (mir, dir, ihm, ihr, ihm, uns, euch, ihnen, Ihnen)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Dat, Pos: Pron}
+  morph_spec: {Case: Dat}
+  syntax_tags: {Pos: "Pron"}
   rule_hint: "Dativ Pronomen: mir, dir, ihm, ihr, ihm, uns, euch, ihnen, Ihnen."
   intro_card:
     summary: "Personalpronomen im Dativ"
@@ -339,7 +367,8 @@
   description: "Prepositions that strictly govern Dative: aus, bei, mit, nach, seit, von, zu, gegenüber."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Dat, Pos: Prep}
+  morph_spec: {Case: Dat}
+  syntax_tags: {Pos: "Prep"}
   rule_hint: "Dativ-Präpositionen: aus, bei, mit, nach, seit, von, zu, gegenüber."
   intro_card:
     summary: "Präpositionen mit Dativ"
@@ -357,7 +386,8 @@
   description: "Past compound tense (Perfekt) formed with auxiliary 'haben' + Partizip II at sentence end."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Tense: Past, Aspect: Perf, VerbType: AuxHaben}
+  morph_spec: {Tense: Past, Aspect: Perf}
+  syntax_tags: {VerbType: "AuxHaben"}
   rule_hint: "Perfekt mit haben: konjugiertes haben auf Position 2, Partizip II am Satzende."
   intro_card:
     summary: "Perfekt mit 'haben'"
@@ -375,7 +405,8 @@
   description: "Past compound tense (Perfekt) formed with auxiliary 'sein' (movement, change of state, sein/bleiben)."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Tense: Past, Aspect: Perf, VerbType: AuxSein}
+  morph_spec: {Tense: Past, Aspect: Perf}
+  syntax_tags: {VerbType: "AuxSein"}
   rule_hint: "Perfekt mit sein: Verben der Ortsveränderung (gehen, fahren), Zustandsänderung (aufwachen, sterben) sowie sein und bleiben."
   intro_card:
     summary: "Perfekt mit 'sein'"
@@ -396,7 +427,8 @@
   description: "Two-way prepositions governing Dative when expressing static location or state (answers 'Wo?')."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Dat, Pos: Prep}
+  morph_spec: {Case: Dat}
+  syntax_tags: {Pos: "Prep"}
   rule_hint: "Wechselpräposition + Dativ bei Ortsangabe (Wo? statische Position)."
   intro_card:
     summary: "Wechselpräpositionen mit Dativ (Wo?)"
@@ -414,7 +446,8 @@
   description: "Two-way prepositions governing Accusative when expressing direction or movement towards a goal (answers 'Wohin?')."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Acc, Pos: Prep}
+  morph_spec: {Case: Acc}
+  syntax_tags: {Pos: "Prep"}
   rule_hint: "Wechselpräposition + Akkusativ bei Richtungsangabe (Wohin? dynamische Bewegung)."
   intro_card:
     summary: "Wechselpräpositionen mit Akkusativ (Wohin?)"
@@ -450,7 +483,7 @@
   description: "Reflexive verbs governing Accusative reflexive pronouns (mich, dich, sich, uns, euch, sich)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Acc, Reflexive: true}
+  morph_spec: {Case: Acc, Reflex: true}
   rule_hint: "Reflexivpronomen im Akkusativ: mich, dich, sich, uns, euch, sich."
   intro_card:
     summary: "Reflexive Verben mit Akkusativ"
@@ -468,7 +501,7 @@
   description: "Reflexive verbs with Dative reflexive pronouns when an explicit Accusative object is present (mir, dir, sich...)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Dat, Reflexive: true}
+  morph_spec: {Case: Dat, Reflex: true}
   rule_hint: "Wenn bereits ein Akkusativobjekt im Satz steht, steht das Reflexivpronomen im Dativ: mir, dir, sich, uns, euch, sich."
   intro_card:
     summary: "Reflexivpronomen im Dativ"
@@ -482,7 +515,10 @@
   name_de: "Stellung von Dativ- und Akkusativobjekten"
   cefr: A2
   prereqs: [kasus_dativ_formen, kasus_akkusativ_formen, pronomen_personal_dat, pronomen_personal_akk]
-  confusion_group: wortstellung_objekte
+  # confusion_group removed: this is the only topic testing double-object
+  # ordering; wortstellung_verb (verb position) is a different rule
+  # domain, not a lookalike a learner would substitute here.
+  confusion_group: null
   description: "Word order of double objects: Nouns = Dative before Accusative; Pronouns = Accusative pronoun before Dative pronoun."
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
@@ -504,7 +540,8 @@
   description: "Weak adjective endings after definite articles: only -e (Nom Sg, Acc Fem/Neut) and -en everywhere else."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {ArtType: Def, Declension: Weak}
+  morph_spec: {Definite: Def}
+  syntax_tags: {Declension: "Weak"}
   rule_hint: "Nach bestimmtem Artikel: Endung -e im Nominativ Singular (und Akk f/n); überall sonst -en!"
   intro_card:
     summary: "Adjektivdeklination nach bestimmtem Artikel (Schwache Deklination)"
@@ -522,7 +559,8 @@
   description: "Mixed adjective endings after ein/kein/mein: adjective carries signal ending when article lacks it (-er, -e, -es), else -en."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {ArtType: Indef, Declension: Mixed}
+  morph_spec: {Definite: Ind}
+  syntax_tags: {Declension: "Mixed"}
   rule_hint: "Nach ein/kein/mein: Adjektiv zeigt Signalendung (-er für maskulin, -es für neutral, -e für feminin), im Dativ/Plural immer -en."
   intro_card:
     summary: "Adjektivdeklination nach ein / kein / mein (Gemischte Deklination)"
@@ -540,7 +578,16 @@
   description: "Strong adjective endings with zero article: adjective carries definite article endings (-er, -e, -es, -en, -em, etc.)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {ArtType: Zero, Declension: Strong}
+  # morph_spec is deliberately {}: "zero article" has no Universal Dependencies
+  # FEATS equivalent. UD expresses a bare noun phrase by the absence of a Det,
+  # not by a feature value, so there is nothing genuine to translate ArtType:
+  # Zero into. Unlike adjektivdeklination_bestimmt/_unbestimmt (which fix
+  # Definite: Def / Ind), this topic has no morphological feature to fix and
+  # is honestly exempt from the stage 6 facet requirement, per
+  # 01-foundation.md:170. Declension: Strong stays in syntax_tags: it is a
+  # consequence of (missing) definiteness, not an independent UD feature.
+  morph_spec: {}
+  syntax_tags: {ArtType: "Zero", Declension: "Strong"}
   rule_hint: "Ohne Artikel: Adjektiv übernimmt die Endungen des bestimmten Artikels (z.B. frischER Kaffee, kaltES Wasser, heißEM Tee)."
   intro_card:
     summary: "Adjektivdeklination ohne Artikel (Starke Deklination)"
@@ -554,7 +601,11 @@
   name_de: "Komparativ und Superlativ der Adjektive"
   cefr: A2
   prereqs: [verb_praesens_regelm]
-  confusion_group: adjektiv_vergleich
+  # confusion_group removed: no other topic tests degree-of-comparison
+  # formation; adjektivendungen_typ is a different axis (case declension,
+  # not comparative/superlative formation), so pairing them would be
+  # invented, not genuine.
+  confusion_group: null
   description: "Comparison of adjectives: Komparativ (-er + als) and Superlativ (am -sten / der -ste) with vowel umlauts."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
@@ -576,7 +627,8 @@
   description: "Causal subordinate clauses with 'weil' and 'da': conjugated verb moves to the end of the subclause."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Subordinate: true}
+  morph_spec: {}
+  syntax_tags: {Subordinate: "true"}
   rule_hint: "Nach 'weil' und 'da' steht das konjugierte Verb ganz am Ende des Nebensatzes."
   intro_card:
     summary: "Kausale Nebensätze mit 'weil' und 'da' (Verb am Ende)"
@@ -594,7 +646,8 @@
   description: "Complement clauses introduced by conjunction 'dass' with verb-final word order."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Subordinate: true}
+  morph_spec: {}
+  syntax_tags: {Subordinate: "true"}
   rule_hint: "Nach 'dass' steht das konjugierte Verb ganz am Satzende."
   intro_card:
     summary: "Nebensätze mit 'dass'"
@@ -612,7 +665,8 @@
   description: "Conditional/temporal clauses with 'wenn' with verb-final word order."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Subordinate: true}
+  morph_spec: {}
+  syntax_tags: {Subordinate: "true"}
   rule_hint: "Nach 'wenn' steht das konjugierte Verb am Ende des Nebensatzes."
   intro_card:
     summary: "Nebensätze mit 'wenn' (Bedingung / Gegenwart & Zukunft)"
@@ -630,7 +684,8 @@
   description: "Indirect questions: Ja/Nein questions become 'ob'-clauses; W-questions use W-word as conjunction. Verb moves to end."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Subordinate: true}
+  morph_spec: {}
+  syntax_tags: {Subordinate: "true"}
   rule_hint: "Indirekte Frage: 'ob' (bei Ja/Nein-Fragen) oder Fragewort + Verb am Ende."
   intro_card:
     summary: "Indirekte Fragesätze ('ob' und W-Wörter)"
@@ -734,11 +789,19 @@
   name_de: "Temporale Präpositionen (im, am, um, vor, nach, seit, ab, bis)"
   cefr: A2
   prereqs: [kasus_dativ_formen, kasus_akkusativ_formen]
-  confusion_group: temporal_praep
+  # Genuine sibling: "seit"/"vor"/"bis" here are the prepositional twins of
+  # "seitdem"/"bevor"/"bis" as a subordinating conjunction
+  # (nebensatz_temporal_erweitert) and of the als/wenn temporal-clause
+  # choice (nebensatz_als_wenn). All three express the same time relations
+  # via a different word class -- Präposition+NP vs. Konjunktion+Nebensatz
+  # -- which is exactly the surface confusion German courses interleave.
+  # Renamed from the old one-member "temporal_praep".
+  confusion_group: temporal_ausdruecke
   description: "Time prepositions governing Dative/Accusative (um + Uhrzeit, am + Tag, im + Monat/Jahreszeit, seit/vor + Dativ, bis + Akkusativ)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Pos: Prep}
+  morph_spec: {}
+  syntax_tags: {Pos: "Prep"}
   rule_hint: "um (Uhrzeit), am (Tage/Tageszeiten), im (Monate/Jahreszeiten), seit (Dativ, dauert an), vor (Dativ, vergangen)."
   intro_card:
     summary: "Temporale Präpositionen"
@@ -756,7 +819,8 @@
   description: "Directional prepositions: nach (cities/countries without article), in (places/countries with article), zu (persons/specific destinations), aus/von (origin)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Pos: Prep}
+  morph_spec: {}
+  syntax_tags: {Pos: "Prep"}
   rule_hint: "nach + Städte/Länder ohne Artikel; in + Länder mit Artikel / Gebäude; zu + Personen/Gebäude; aus + Herkunft."
   intro_card:
     summary: "Lokale Präpositionen: Wohin? und Woher?"
@@ -774,7 +838,8 @@
   description: "Demonstrative determiners (dieser/diese/dieses) and indefinite pronouns (jeder, alle, man, jemand, niemand)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Pos: Pron}
+  morph_spec: {}
+  syntax_tags: {Pos: "Pron"}
   rule_hint: "dieser/welcher/jeder dekliniert genau wie der bestimmte Artikel (dieser, diese, dieses, diesem, diesen...)."
   intro_card:
     summary: "Demonstrativ- und Indefinitpronomen"
@@ -795,7 +860,8 @@
   description: "Relative clauses in Nominative and Accusative cases; pronoun matches antecedent in gender/number and clause function in case."
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
-  morph_spec: {Case: NomOrAcc, Subordinate: true}
+  morph_spec: {Case: NomOrAcc}
+  syntax_tags: {Subordinate: "true"}
   rule_hint: "Relativpronomen entspricht dem Genus des Bezugsworts; Kasus bestimmt die Rolle im Nebensatz (Verb am Ende)."
   intro_card:
     summary: "Relativsätze im Nominativ und Akkusativ"
@@ -813,7 +879,8 @@
   description: "Relative clauses with Dative relative pronouns (dem, der, dem, denen)."
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
-  morph_spec: {Case: Dat, Subordinate: true}
+  morph_spec: {Case: Dat}
+  syntax_tags: {Subordinate: "true"}
   rule_hint: "Relativpronomen im Dativ: dem (m/n), der (f), denen (Plural!)."
   intro_card:
     summary: "Relativsätze im Dativ"
@@ -831,7 +898,8 @@
   description: "Relative clauses governed by prepositions: preposition precedes relative pronoun (in dem, mit der, über die, auf denen)."
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
-  morph_spec: {Subordinate: true}
+  morph_spec: {}
+  syntax_tags: {Subordinate: "true"}
   rule_hint: "Die Präposition steht vor dem Relativpronomen und bestimmt dessen Kasus (z.B. das Haus, in dem ich wohne)."
   intro_card:
     summary: "Relativsätze mit Präpositionen"
@@ -849,7 +917,8 @@
   description: "Genitive relative clauses expressing possession (dessen for m/n, deren for f/pl) without article on following noun."
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
-  morph_spec: {Case: Gen, Subordinate: true}
+  morph_spec: {Case: Gen}
+  syntax_tags: {Subordinate: "true"}
   rule_hint: "Genitiv-Relativpronomen: dessen (m/n), deren (f/Pl). Das folgende Nomen steht OHNE Artikel!"
   intro_card:
     summary: "Relativsätze im Genitiv ('dessen' und 'deren')"
@@ -885,7 +954,8 @@
   description: "Prepositions that govern the Genitive case: wegen, während, trotz, (an)statt, innerhalb, außerhalb."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Gen, Pos: Prep}
+  morph_spec: {Case: Gen}
+  syntax_tags: {Pos: "Prep"}
   rule_hint: "Genitiv-Präpositionen: wegen, während, trotz, statt, innerhalb, außerhalb + Genitiv."
   intro_card:
     summary: "Präpositionen mit Genitiv"
@@ -917,11 +987,17 @@
   name_de: "Pronominaladverbien (da(r)- und wo(r)-Komposita)"
   cefr: B1
   prereqs: [verben_feste_praepositionen]
-  confusion_group: pronominaladverbien
+  # confusion_group removed: its internal Sache-vs-Person contrast (da(r)-
+  # compound vs Präposition+Personalpronomen) has no separate taxonomy
+  # topic to interleave with; verben_feste_praepositionen tests a
+  # different skill (which case a verb+preposition governs), not this
+  # anaphora choice.
+  confusion_group: null
   description: "Pronominal adverbs referring to objects/concepts (damit, dafür, darüber, womit, worüber); inserted -r- before vowels."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Pos: Adv}
+  morph_spec: {}
+  syntax_tags: {Pos: "Adv"}
   rule_hint: "da(r)- + Präposition für Sachen/Sachverhalte (damit, darüber). Bei Personen: Präposition + Pronomen (mit ihm, über sie)."
   intro_card:
     summary: "Pronominaladverbien (da- und wo-Verbindungen)"
@@ -971,11 +1047,15 @@
   name_de: "Temporale Nebensätze: als vs. wenn"
   cefr: B1
   prereqs: [nebensatz_wenn, praeteritum_vollverben]
-  confusion_group: temporal_als_wenn
+  # Joined to temporal_ausdruecke (see temporal_praepositionen): all three
+  # members express time relations, just via different word classes, which
+  # is the real source of confusion, not just the internal als/wenn split.
+  confusion_group: temporal_ausdruecke
   description: "Temporal contrast: 'als' for one-time past event vs 'wenn' for repeated past events or present/future conditions."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Subordinate: true}
+  morph_spec: {}
+  syntax_tags: {Subordinate: "true"}
   rule_hint: "'als' = einmalig in der Vergangenheit. 'wenn' = wiederholt in der Vergangenheit (immer wenn) oder Gegenwart/Zukunft."
   intro_card:
     summary: "Temporalsätze: 'als' vs. 'wenn'"
@@ -989,11 +1069,17 @@
   name_de: "Erweiterte Temporalsätze (während, nachdem, bevor, seitdem, bis)"
   cefr: B1
   prereqs: [nebensatz_weil_da, plusquamperfekt]
-  confusion_group: nebensatz_konnektoren
+  # Moved out of the generic nebensatz_konnektoren group and into
+  # temporal_ausdruecke: its real confusion partner is temporal_praepositionen
+  # (seitdem/seit, bevor/vor, bis/bis) and nebensatz_als_wenn, not the
+  # unrelated causal/final/consecutive connectors still in
+  # nebensatz_konnektoren.
+  confusion_group: temporal_ausdruecke
   description: "Temporal subclauses expressing simultaneity (während, solange), anteriority (nachdem), posteriority (bevor, ehe), and boundary (seitdem, bis)."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Subordinate: true}
+  morph_spec: {}
+  syntax_tags: {Subordinate: "true"}
   rule_hint: "während (Gleichzeitigkeit), nachdem (Vorzeitigkeit), bevor (Nachzeitigkeit), seitdem (Beginn), bis (Endpunkt) + Verb am Ende."
   intro_card:
     summary: "Erweiterte temporale Konnektoren"
@@ -1043,11 +1129,18 @@
   name_de: "Finale Satzverbindung (damit vs. um...zu)"
   cefr: B1
   prereqs: [infinitiv_um_zu, nebensatz_weil_da]
-  confusion_group: finale_konnektoren
+  # Genuine sibling: this topic is the choice between the zu-infinitive
+  # (um...zu, same subject) and a finite damit-clause (different subject),
+  # which is the same "infinitive construction vs. its finite alternative"
+  # theme already grouped in infinitiv_konstruktionen (alongside
+  # infinitiv_mit_zu, infinitiv_um_zu, infinitiv_ohne_anstatt_zu). Joined
+  # there instead of the old one-member "finale_konnektoren".
+  confusion_group: infinitiv_konstruktionen
   description: "Purpose clauses: 'um...zu' requires identical subject in both clauses; 'damit' is used for different subjects (or identical)."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Subordinate: true}
+  morph_spec: {}
+  syntax_tags: {Subordinate: "true"}
   rule_hint: "'damit' + Nebensatz (bei verschiedenen oder gleichen Subjekten). 'um ... zu' (NUR bei gleichem Subjekt!)."
   intro_card:
     summary: "Finalsätze: 'damit' vs. 'um...zu'"
@@ -1173,7 +1266,8 @@
   description: "Passive with modal verbs: Modalverb on pos 2 + Partizip II + werden (Infinitiv) at sentence end."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Voice: Pass, VerbType: Modal}
+  morph_spec: {Voice: Pass}
+  syntax_tags: {VerbType: "Modal"}
   rule_hint: "Passiv mit Modalverb: Modalverb konjugiert auf Position 2, am Satzende: Partizip II + werden (Infinitiv)."
   intro_card:
     summary: "Passiv mit Modalverben"
@@ -1320,7 +1414,8 @@
   description: "Epistemic use of modal verbs expressing varying degrees of probability/certainty: muss (100%), dürfte (75%), kann/könnte (50%)."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {VerbType: ModalEpistemic}
+  morph_spec: {}
+  syntax_tags: {VerbType: "ModalEpistemic"}
   rule_hint: "Sicherheit: muss (fast 100%), dürfte (sehr wahrscheinlich ~75%), kann/könnte (möglich ~50%)."
   intro_card:
     summary: "Subjektive Modalverben: Vermutung"
@@ -1338,7 +1433,8 @@
   description: "Modal verbs expressing reported claims: 'soll' (rumour/others claim) vs 'will' (the subject claims about themselves)."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {VerbType: ModalEpistemic}
+  morph_spec: {}
+  syntax_tags: {VerbType: "ModalEpistemic"}
   rule_hint: "'soll' = man sagt über ihn (Gerücht); 'will' = er behauptet über sich selbst (Zweifel des Sprechers)."
   intro_card:
     summary: "Subjektive Modalverben: 'soll' und 'will'"
@@ -1356,7 +1452,8 @@
   description: "Participle I (Infinitiv + -d + Adjektivendung) used attributively to express ongoing, active simultaneous action."
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
-  morph_spec: {Aspect: Prog, Pos: Adj}
+  morph_spec: {Aspect: Prog}
+  syntax_tags: {Pos: "Adj"}
   rule_hint: "Partizip I: Infinitiv + d + Adjektivendung (z.B. das spielende Kind, die lachenden Gäste)."
   intro_card:
     summary: "Partizip I als Adjektiv (Gleichzeitigkeit / Aktiv)"
@@ -1374,7 +1471,8 @@
   description: "Extended participial attributes preceding nouns, condensing relative clauses into compact pre-nominal structures."
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
-  morph_spec: {Aspect: Perf, Pos: Adj}
+  morph_spec: {Aspect: Perf}
+  syntax_tags: {Pos: "Adj"}
   rule_hint: "Erweitertes Partizip: Artikel ... Angaben ... Partizip + Endung + Nomen (z.B. das [von Experten entwickelte] Programm)."
   intro_card:
     summary: "Erweiterte Partizipialattribute"
@@ -1428,7 +1526,8 @@
   description: "Complex and formal Genitive prepositions in academic/formal registers (anhand, anlässlich, infolge, zugunsten, bezüglich, mittels)."
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
-  morph_spec: {Case: Gen, Pos: Prep}
+  morph_spec: {Case: Gen}
+  syntax_tags: {Pos: "Prep"}
   rule_hint: "Gehobene Genitiv-Präpositionen: anhand, anlässlich, infolge, zugunsten, bezüglich, gemäß, mangels + Genitiv."
   intro_card:
     summary: "Gehobene Genitiv-Präpositionen"
@@ -1496,11 +1595,17 @@
   name_de: "Modalpartikeln (ja, denn, doch, mal, eben, halt, wohl)"
   cefr: B2
   prereqs: [satzbau_hauptsatz_position2]
-  confusion_group: modalpartikeln_nuance
+  # confusion_group removed: no other topic tests Abtönungspartikeln; the
+  # real interleaved contrast is already internal to this topic (ja vs.
+  # doch vs. denn vs. mal). diskurs_adverbialanschluss is a different word
+  # class doing a different job (inter-sentence logical connection, not
+  # speaker attitude) and pairing them would be invented, not genuine.
+  confusion_group: null
   description: "Abtönungspartikeln that color tone and attitude in conversation (ja = as you know, doch = urging/contradiction, denn = curiosity)."
   eligible_types: [paragraph_cloze, cloze_free, cloze_cued, error_correction]
   requires_context: true
-  morph_spec: {Pos: Part}
+  morph_spec: {}
+  syntax_tags: {Pos: "Part"}
   rule_hint: "Modalpartikeln verändern die Nuance: 'ja' (Bekanntes), 'doch' (Widerspruch/Erinnerung), 'denn' (Interesse), 'mal' (Höflichkeit)."
   intro_card:
     summary: "Modalpartikeln (Abtönungspartikeln)"
@@ -1518,7 +1623,8 @@
   description: "Relative clauses with generalized relative pronouns ('was' after alles/nichts/etwas/Superlativ; 'wo/wohin' after place names)."
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
-  morph_spec: {Subordinate: true}
+  morph_spec: {}
+  syntax_tags: {Subordinate: "true"}
   rule_hint: "'was' nach Indefinitpronomen (alles, nichts, etwas, vieles) und nominalisierten Superlativen (das Beste, was...). 'wo/wohin' nach Orten."
   intro_card:
     summary: "Relativpronomen 'was', 'wo', 'worüber'"
@@ -1532,11 +1638,18 @@
   name_de: "Satzverknüpfung im Diskurs (allerdings, dennoch, folglich, insofern)"
   cefr: B2
   prereqs: [nebensatz_obwohl_trotzdem, satzbau_hauptsatz_position2]
-  confusion_group: diskurs_konnektoren
+  # Genuine sibling: "dennoch" is the register-raised synonym of
+  # "trotzdem" (nebensatz_obwohl_trotzdem) and "folglich"/"demnach" of
+  # "deshalb/deswegen" (nebensatz_sodass_deshalb) -- both already in
+  # nebensatz_konnektoren, both already contrasting a subordinating
+  # conjunction against a connective adverb. Joined there instead of the
+  # old one-member "diskurs_konnektoren".
+  confusion_group: nebensatz_konnektoren
   description: "Connective discourse adverbs linking paragraphs and arguments: allerdings, dennoch, folglich, insofern, demnach."
   eligible_types: [paragraph_cloze, transformation, error_correction]
   requires_context: true
-  morph_spec: {Pos: Adv}
+  morph_spec: {}
+  syntax_tags: {Pos: "Adv"}
   rule_hint: "Konnektivadverbien verbinden Sätze logisch: allerdings (Einschränkung), dennoch (Gegensatz), folglich (Schlussfolgerung)."
   intro_card:
     summary: "Satzverknüpfung im Diskurs"
