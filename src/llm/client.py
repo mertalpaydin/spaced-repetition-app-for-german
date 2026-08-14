@@ -58,8 +58,14 @@ class QuotaExceededError(Exception):
     exhaustion means the free lane is closed for the rest of the Pacific day.
     """
 
-    def __init__(self, quota_type: QuotaType, message: str = "") -> None:
+    def __init__(
+        self,
+        quota_type: QuotaType,
+        message: str = "",
+        retry_delay_seconds: float | None = None,
+    ) -> None:
         self.quota_type = quota_type
+        self.retry_delay_seconds = retry_delay_seconds
         super().__init__(message or f"Gemini quota exceeded: {quota_type}")
 
 
@@ -116,9 +122,14 @@ class GeminiLlmClient:
         "gemini-3.7-flash": (0.15, 0.60),
     }
 
-    # RPM 429s are transient; retry the same (free) lane after a short backoff.
+    # RPM 429s are transient; retry the same (free) lane after a backoff. This
+    # is only the fallback used when Google's response carries no structured
+    # RetryInfo -- the real backoff duration is read off the error itself (see
+    # ``_extract_retry_delay_seconds``), since the free tier's per-minute
+    # window is tens of seconds, not one, and a fixed 1s backoff retries into
+    # the same still-exhausted window and fails a pilot run outright.
     RPM_BACKOFF_SECONDS: float = 1.0
-    RPM_MAX_RETRIES: int = 1
+    RPM_MAX_RETRIES: int = 2
 
     def __init__(
         self,
@@ -359,6 +370,32 @@ class GeminiLlmClient:
         )
         return "rpm"
 
+    def _extract_retry_delay_seconds(self, exc: genai_errors.ClientError) -> float | None:
+        """Read Google's suggested backoff off the structured ``google.rpc.RetryInfo``
+        error detail (e.g. ``retryDelay: "48s"``), the same ``details`` list
+        ``_classify_quota_error`` reads ``QuotaFailure`` from.
+
+        The free tier's per-minute window is tens of seconds, not one, so a
+        fixed short backoff routinely retries into the same still-exhausted
+        window (confirmed against the live API: quota resets in ~48s, not
+        ~1s). Returns ``None`` if the detail is absent, so the caller can fall
+        back to ``RPM_BACKOFF_SECONDS``.
+        """
+        details = exc.details if isinstance(exc.details, dict) else {}
+        error_body = details.get("error", details) if isinstance(details, dict) else {}
+        if not isinstance(error_body, dict):
+            return None
+        for detail in error_body.get("details") or []:
+            if not isinstance(detail, dict):
+                continue
+            retry_delay = detail.get("retryDelay")
+            if isinstance(retry_delay, str) and retry_delay.endswith("s"):
+                try:
+                    return float(retry_delay[:-1])
+                except ValueError:
+                    return None
+        return None
+
     def _extract_text_and_tokens(
         self, response: genai_types.GenerateContentResponse, *, prompt: str
     ) -> tuple[str, int, int]:
@@ -409,7 +446,11 @@ class GeminiLlmClient:
             response = client.models.generate_content(model=model, contents=prompt, config=config)
         except genai_errors.ClientError as exc:
             if exc.code == 429:
-                raise QuotaExceededError(self._classify_quota_error(exc), str(exc)) from exc
+                raise QuotaExceededError(
+                    self._classify_quota_error(exc),
+                    str(exc),
+                    retry_delay_seconds=self._extract_retry_delay_seconds(exc),
+                ) from exc
             raise ModelRejectedError(
                 f"Gemini API rejected the request for model {model!r} (purpose={purpose!r}): {exc}"
             ) from exc
@@ -455,7 +496,11 @@ class GeminiLlmClient:
             job = client.batches.create(model=model, src=[inlined_request])
         except genai_errors.ClientError as exc:
             if exc.code == 429:
-                raise QuotaExceededError(self._classify_quota_error(exc), str(exc)) from exc
+                raise QuotaExceededError(
+                    self._classify_quota_error(exc),
+                    str(exc),
+                    retry_delay_seconds=self._extract_retry_delay_seconds(exc),
+                ) from exc
             raise ModelRejectedError(
                 f"Gemini batch API rejected the request for model {model!r} "
                 f"(purpose={purpose!r}): {exc}"
@@ -558,7 +603,7 @@ class GeminiLlmClient:
                     if attempts >= self.RPM_MAX_RETRIES:
                         raise
                     attempts += 1
-                    self._sleep(self.RPM_BACKOFF_SECONDS)
+                    self._sleep(exc.retry_delay_seconds or self.RPM_BACKOFF_SECONDS)
                     continue
                 # RPD: close the free lane and move the work to paid.
                 self._close_free_lane_until_pacific_midnight(ref_time)

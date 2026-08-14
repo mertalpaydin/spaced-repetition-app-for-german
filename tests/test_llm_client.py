@@ -87,20 +87,27 @@ def _fake_batch_job(response: genai_types.GenerateContentResponse) -> genai_type
     )
 
 
-def _client_error_429(quota_id: str) -> genai_errors.ClientError:
+def _client_error_429(quota_id: str, retry_delay: str | None = None) -> genai_errors.ClientError:
     """A structured 429 shaped like Google's real error envelope, carrying a
-    ``google.rpc.QuotaFailure`` violation with the given ``quotaId``."""
+    ``google.rpc.QuotaFailure`` violation with the given ``quotaId`` and,
+    optionally, a ``google.rpc.RetryInfo`` detail with the given ``retryDelay``
+    (e.g. ``"48s"``, matching the live API's real free-tier response)."""
+    details: list[dict[str, Any]] = [
+        {
+            "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+            "violations": [{"quotaId": quota_id}],
+        }
+    ]
+    if retry_delay is not None:
+        details.append(
+            {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": retry_delay}
+        )
     payload = {
         "error": {
             "code": 429,
             "status": "RESOURCE_EXHAUSTED",
             "message": "Resource has been exhausted.",
-            "details": [
-                {
-                    "@type": "type.googleapis.com/google.rpc.QuotaFailure",
-                    "violations": [{"quotaId": quota_id}],
-                }
-            ],
+            "details": details,
         }
     }
     return genai_errors.ClientError(429, payload, None)
@@ -318,6 +325,53 @@ def test_rpm_429_backs_off_and_stays_on_free_lane(tmp_path: Path) -> None:
     ]
     assert len(lines) == 1
     assert '"lane":"free"' in lines[0]
+
+
+def test_rpm_429_honors_google_suggested_retry_delay(tmp_path: Path) -> None:
+    """The live free tier's per-minute window resets in tens of seconds, not
+    one: a fixed 1s backoff retries into the same still-exhausted window and
+    fails the call outright (confirmed against the real API, which reports
+    ``retryDelay: "48s"`` on this quota). The backoff must honor Google's
+    suggested delay, from the structured ``RetryInfo`` error detail, over the
+    hardcoded fallback."""
+    sleeps: list[float] = []
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        sleep_fn=sleeps.append,
+    )
+
+    call_count = {"n": 0}
+
+    def flaky_transport(**kwargs: object) -> tuple[str, int, int]:
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            raise QuotaExceededError("rpm", retry_delay_seconds=48.0)
+        return _fake_transport_ok(**kwargs)
+
+    client._call_transport = flaky_transport  # type: ignore[method-assign]
+
+    response = client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
+
+    assert response
+    assert sleeps == [48.0]
+
+
+def test_extract_retry_delay_seconds_reads_structured_retry_info(tmp_path: Path) -> None:
+    """``retryDelay`` is read from the structured ``google.rpc.RetryInfo``
+    detail, and absence of that detail (an unclassifiable or differently
+    shaped 429) falls back to ``None`` rather than raising."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+
+    with_retry_info = _client_error_429(
+        "GenerateRequestsPerMinutePerProjectPerModel-FreeTier", retry_delay="48s"
+    )
+    without_retry_info = _client_error_429("GenerateRequestsPerMinutePerProjectPerModel-FreeTier")
+
+    assert client._extract_retry_delay_seconds(with_retry_info) == 48.0
+    assert client._extract_retry_delay_seconds(without_retry_info) is None
 
 
 def test_rpd_429_closes_free_lane_until_pacific_midnight(tmp_path: Path) -> None:
