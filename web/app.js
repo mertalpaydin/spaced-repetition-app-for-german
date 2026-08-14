@@ -84,7 +84,13 @@
     }
   ];
 
-  // Client-Side Scoped Typo Grader
+  // Client-Side Scoped Typo Grader.
+  //
+  // This set, CRITICAL_MINIMAL_PAIRS, and the grading algorithm below MUST
+  // stay identical to src/engine/typo_grader.py's ScopedTypoGrader. Two
+  // divergent graders writing to one FSRS history is a data-corruption path
+  // (04-application.md stage 9). tests/test_web.py asserts the morpheme and
+  // minimal-pair sets never drift apart again.
   const GRAMMATICAL_MORPHEMES = new Set([
     "dem", "den", "des", "der", "die", "das",
     "einem", "einen", "einer", "eines", "eine", "ein",
@@ -92,23 +98,50 @@
     "meinem", "meinen", "meiner", "meines", "meine", "mein",
     "seinem", "seinen", "seiner", "seines", "seine", "sein",
     "ihrem", "ihren", "ihrer", "ihres", "ihre", "ihr",
+    "unserem", "unseren", "unserer", "unseres", "unsere", "unser",
     "hat", "hatte", "hätte", "ist", "war", "wäre", "wird", "wurde", "würde",
     "sie", "Sie", "ihm", "ihn", "mir", "mich", "dir", "dich", "uns", "euch", "sich",
-    "weil", "dass", "obwohl", "wenn"
+    "als", "wenn", "weil", "denn", "obwohl", "dass", "da", "während", "wahrend",
+    "wegen", "trotz", "statt", "anstatt"
   ]);
 
-  const TRANSLITERATIONS = [
-    ["ae", "ä"], ["oe", "ö"], ["ue", "ü"],
-    ["Ae", "Ä"], ["Oe", "Ö"], ["Ue", "Ü"],
-    ["ss", "ß"]
-  ];
+  // Pairs that differ by exactly one edit but are never interchangeable: each
+  // member is grammatically real, so edit-distance tolerance must never
+  // paper over the difference. Mirrors ScopedTypoGrader.CRITICAL_MINIMAL_PAIRS.
+  const CRITICAL_MINIMAL_PAIRS = new Set([
+    "dem|den", "dem|des", "den|der",
+    "einem|einen", "einem|einer",
+    "hatte|hätte", "hatten|hätten",
+    "war|wäre", "waren|wären",
+    "konnte|könnte", "musste|müsste", "mochte|möchte",
+    "schon|schön", "schoner|schöner",
+    "großer|größer",
+    "flog|flöge"
+  ]);
 
-  function applyTransliteration(str) {
-    let res = str;
-    for (const [asc, ger] of TRANSLITERATIONS) {
-      res = res.replaceAll(asc, ger);
-    }
-    return res;
+  function isCriticalPair(a, b) {
+    const lowA = a.toLowerCase();
+    const lowB = b.toLowerCase();
+    return CRITICAL_MINIMAL_PAIRS.has(`${lowA}|${lowB}`) || CRITICAL_MINIMAL_PAIRS.has(`${lowB}|${lowA}`);
+  }
+
+  // Suffix window used to scope edit-distance tolerance when no faceted-topic
+  // signal is available client-side (see _edit_outside_suffix in the Python
+  // grader). German inflection is overwhelmingly suffixal, so an edit that
+  // reaches into the tail of the word is treated as a possible morpheme
+  // mutation, never as an incidental typo.
+  const SUFFIX_TOLERANCE_WINDOW = 2;
+
+  function commonPrefixLen(a, b) {
+    let n = 0;
+    while (n < a.length && n < b.length && a[n] === b[n]) n++;
+    return n;
+  }
+
+  function editOutsideSuffix(a, b, suffixLen = SUFFIX_TOLERANCE_WINDOW) {
+    const longerLen = Math.max(a.length, b.length);
+    if (longerLen <= suffixLen) return false;
+    return commonPrefixLen(a, b) < longerLen - suffixLen;
   }
 
   function levenshtein(a, b) {
@@ -131,88 +164,146 @@
     return matrix[b.length][a.length];
   }
 
-  function gradeSubmission(userInput, acceptedAnswers) {
-    const raw = userInput.trim().replace(/\s+/g, ' ');
-    const accepted = acceptedAnswers.map(a => a.trim().replace(/\s+/g, ' '));
+  // Canonicalize ß/ae/oe/ue so both sides of a transliteration comparison
+  // land on the same representation. Mirrors the canon_in/canon_ans
+  // normalization in ScopedTypoGrader.grade step 2.
+  function canonicalizeOrthography(str) {
+    return str
+      .replaceAll('ß', 'ss')
+      .replaceAll('ae', 'ä')
+      .replaceAll('oe', 'ö')
+      .replaceAll('ue', 'ü');
+  }
 
-    // 1. Exact Match (Strict Case)
-    if (accepted.includes(raw)) {
-      return { isCorrect: true, isExact: true, matched: raw, message: null };
-    }
+  // Faithful port of ScopedTypoGrader.grade (src/engine/typo_grader.py).
+  // `topicId` is accepted for forward compatibility with topic-scoped
+  // (morph_spec-faceted) tolerance, but the exported bank does not currently
+  // ship morph_spec to the client, so isFacetedTopic conservatively always
+  // returns false here -- exactly Python's fallback behaviour for an
+  // unrecognised/unknown topic_id. This never produces a false FAIL, only
+  // (at worst) a slightly wider tolerance than the server would apply.
+  function isFacetedTopic(_topicId) {
+    return false;
+  }
 
-    // 2. Transliteration Match
-    const translit = applyTransliteration(raw);
-    if (accepted.includes(translit) || (raw.toLowerCase() === "grosser" && accepted.includes("größer"))) {
+  function gradeSubmission(userInput, acceptedAnswers, topicId = null) {
+    const cleanInput = userInput.trim().replace(/\s+/g, ' ');
+    const cleanAccepted = acceptedAnswers.map(a => a.trim().replace(/\s+/g, ' '));
+
+    // 1. Exact Match
+    if (cleanAccepted.includes(cleanInput)) {
       return {
-        isCorrect: true,
-        isExact: false,
-        isTransliteration: true,
-        matched: translit,
-        message: `Richtig (Transliteration). Standard: '${accepted[0]}'`
+        isCorrect: true, isExact: true, isScopedTypo: false,
+        isTransliteration: false, isCapitalizationError: false,
+        matched: cleanInput, message: null
       };
     }
 
-    // 3. Capitalization Failure (Strict in German)
-    for (const ans of accepted) {
-      if (raw.toLowerCase() === ans.toLowerCase()) {
+    // 2. Umlaut & orthography transliteration match (ae/oe/ue <-> ä/ö/ü, ss <-> ß)
+    for (const ans of cleanAccepted) {
+      const inputLower = cleanInput.toLowerCase();
+      if (['grosser', 'groesser'].includes(inputLower) && ['größer', 'grösser'].includes(ans.toLowerCase())) {
         return {
-          isCorrect: false,
-          isCapitalizationError: true,
-          matched: ans,
-          message: `Falsch. Achte auf die Groß-/Kleinschreibung: '${ans}'`
+          isCorrect: true, isExact: false, isScopedTypo: false,
+          isTransliteration: true, isCapitalizationError: false,
+          matched: ans, message: `Richtig (Transliteration). Standard: '${ans}'`
+        };
+      }
+
+      if (isCriticalPair(cleanInput, ans)) continue;
+
+      const canonIn = canonicalizeOrthography(cleanInput);
+      const canonAns = canonicalizeOrthography(ans);
+      if (canonIn.toLowerCase() === canonAns.toLowerCase()) {
+        if (canonIn !== canonAns) {
+          return {
+            isCorrect: false, isExact: false, isScopedTypo: false,
+            isTransliteration: false, isCapitalizationError: true,
+            matched: ans, message: `Falsch. Achte auf die Groß-/Kleinschreibung: '${ans}'`
+          };
+        }
+        return {
+          isCorrect: true, isExact: false, isScopedTypo: false,
+          isTransliteration: true, isCapitalizationError: false,
+          matched: ans, message: `Richtig (Transliteration). Standard: '${ans}'`
         };
       }
     }
 
-    // 4. Multi-token & Peripheral Typos
-    for (const ans of accepted) {
-      const inToks = raw.split(' ');
-      const ansToks = ans.split(' ');
-      if (inToks.length === ansToks.length && ansToks.length > 1) {
-        let hasMorphemeErr = false;
-        let hasTypo = false;
-        let matchAll = true;
+    // 3. Capitalization-only difference -> FAILS in German
+    for (const ans of cleanAccepted) {
+      if (cleanInput.toLowerCase() === ans.toLowerCase() && cleanInput !== ans) {
+        return {
+          isCorrect: false, isExact: false, isScopedTypo: false,
+          isTransliteration: false, isCapitalizationError: true,
+          matched: ans, message: `Falsch. Achte auf die Groß-/Kleinschreibung: '${ans}'`
+        };
+      }
+    }
 
-        for (let i = 0; i < ansToks.length; i++) {
-          if (inToks[i] === ansToks[i]) continue;
-          if (GRAMMATICAL_MORPHEMES.has(inToks[i].toLowerCase()) || GRAMMATICAL_MORPHEMES.has(ansToks[i].toLowerCase())) {
-            hasMorphemeErr = true;
+    // 4. Multi-token / scoped single-token morpheme typo
+    for (const ans of cleanAccepted) {
+      const inTokens = cleanInput.split(' ');
+      const ansTokens = ans.split(' ');
+
+      if (inTokens.length === ansTokens.length && ansTokens.length > 1) {
+        const tokenMatches = [];
+        let hasTypo = false;
+        let hasMorphemeError = false;
+
+        for (let i = 0; i < ansTokens.length; i++) {
+          const inTok = inTokens[i];
+          const ansTok = ansTokens[i];
+          if (inTok === ansTok) {
+            tokenMatches.push(true);
+          } else if (GRAMMATICAL_MORPHEMES.has(inTok.toLowerCase()) || GRAMMATICAL_MORPHEMES.has(ansTok.toLowerCase())) {
+            hasMorphemeError = true;
             break;
-          }
-          if (levenshtein(inToks[i], ansToks[i]) === 1 && ansToks[i].length > 3) {
+          } else if (levenshtein(inTok, ansTok) === 1 && ansTok.length > 3) {
             hasTypo = true;
+            tokenMatches.push(true);
           } else {
-            matchAll = false;
+            tokenMatches.push(false);
           }
         }
-        if (!hasMorphemeErr && hasTypo && matchAll) {
+
+        if (!hasMorphemeError && hasTypo && tokenMatches.every(Boolean)) {
           return {
-            isCorrect: true,
-            isScopedTypo: true,
-            matched: ans,
-            message: `Richtig (Tippfehler). Schreibweise: '${ans}'`
+            isCorrect: true, isExact: false, isScopedTypo: true,
+            isTransliteration: false, isCapitalizationError: false,
+            matched: ans, message: `Richtig (Tippfehler). Schreibweise: '${ans}'`
           };
         }
         continue;
       }
 
-      if (!GRAMMATICAL_MORPHEMES.has(ans.toLowerCase()) && !GRAMMATICAL_MORPHEMES.has(raw.toLowerCase())) {
-        if (levenshtein(raw, ans) === 1 && ans.length > 3) {
-          return {
-            isCorrect: true,
-            isScopedTypo: true,
-            matched: ans,
-            message: `Richtig (Tippfehler). Schreibweise: '${ans}'`
-          };
-        }
+      if (isCriticalPair(cleanInput, ans)) continue;
+
+      if (GRAMMATICAL_MORPHEMES.has(ans.toLowerCase()) || GRAMMATICAL_MORPHEMES.has(cleanInput.toLowerCase())) {
+        continue;
       }
+
+      const dist = levenshtein(cleanInput, ans);
+      if (dist !== 1) continue;
+
+      // Single-token answer: the whole token is the candidate morpheme. A
+      // faceted topic gets zero tolerance; an unfaceted/unknown topic falls
+      // back to the suffix-scoped heuristic.
+      if (isFacetedTopic(topicId)) continue;
+      if (!editOutsideSuffix(cleanInput, ans)) continue;
+
+      return {
+        isCorrect: true, isExact: false, isScopedTypo: true,
+        isTransliteration: false, isCapitalizationError: false,
+        matched: ans, message: `Richtig (Tippfehler). Schreibweise: '${ans}'`
+      };
     }
 
+    // 5. Incorrect
     return {
-      isCorrect: false,
-      isExact: false,
-      matched: accepted[0],
-      message: `Falsch. Richtige Antwort: '${accepted[0]}'`
+      isCorrect: false, isExact: false, isScopedTypo: false,
+      isTransliteration: false, isCapitalizationError: false,
+      matched: cleanAccepted[0], message: `Falsch. Richtige Antwort: '${cleanAccepted[0]}'`
     };
   }
 
@@ -236,6 +327,68 @@
 
   let topicStates = {};
   let fsrsRecords = {};
+
+  // Export schema version. Import rejects any file whose version is not in
+  // this set rather than importing it blindly (04-application.md stage 8,
+  // "export includes a schema version and import rejects unknown versions").
+  const EXPORT_SCHEMA_VERSION = '2.0';
+  const SUPPORTED_IMPORT_VERSIONS = new Set(['2.0']);
+
+  // --- Derived-state helpers -------------------------------------------
+  // topic_state and fsrs card records are derived data: their only source of
+  // truth is review_log. `applyReviewToTopicState`/`applyReviewToFsrsCard`
+  // fold one new log entry into the current in-memory derived state (used on
+  // live grading, incremental). `computeTopicStatesFromLog`/
+  // `computeFsrsCardsFromLog` rebuild derived state from scratch given a full
+  // log (used on import, where the file's own tag_state must never be
+  // trusted directly -- 04-application.md:363).
+
+  function applyReviewToTopicState(states, entry) {
+    const topicId = entry.topic_id;
+    if (!topicId) return states;
+    const existing = states[topicId] || {
+      topic_id: topicId,
+      attempts: 0,
+      correct: 0,
+      last_result: null,
+      updated_at: null
+    };
+    const updated = {
+      ...existing,
+      attempts: existing.attempts + 1,
+      correct: existing.correct + (entry.is_correct ? 1 : 0),
+      last_result: !!entry.is_correct,
+      updated_at: entry.timestamp || existing.updated_at
+    };
+    return { ...states, [topicId]: updated };
+  }
+
+  function applyReviewToFsrsCard(cards, entry) {
+    const cardId = entry.card_id || entry.item_id;
+    if (!cardId) return cards;
+    const existing = cards[cardId] || {
+      card_id: cardId,
+      topic_id: entry.topic_id || null,
+      reps: 0,
+      lapses: 0,
+      last_review: null
+    };
+    const updated = {
+      ...existing,
+      reps: existing.reps + 1,
+      lapses: existing.lapses + (entry.is_correct ? 0 : 1),
+      last_review: entry.timestamp || existing.last_review
+    };
+    return { ...cards, [cardId]: updated };
+  }
+
+  function computeTopicStatesFromLog(reviewLog) {
+    return reviewLog.reduce(applyReviewToTopicState, {});
+  }
+
+  function computeFsrsCardsFromLog(reviewLog) {
+    return reviewLog.reduce(applyReviewToFsrsCard, {});
+  }
 
   // DOM Elements
   const viewPractice = document.getElementById('view-practice');
@@ -299,11 +452,40 @@
     document.getElementById('settings-modal').style.display = 'flex';
   });
   document.getElementById('btn-close-settings').addEventListener('click', () => {
+    // Settings apply from the next round only, never mid-round: they are
+    // read into `config` here (on close), not on every slider tick.
     config.roundSize = parseInt(document.getElementById('input-round-size').value, 10);
     config.vocabRatio = parseInt(document.getElementById('input-vocab-ratio').value, 10) / 100.0;
     config.forecastThreshold = parseInt(document.getElementById('input-forecast-thresh').value, 10);
     document.getElementById('settings-modal').style.display = 'none';
   });
+
+  // Slider readouts track the handle live; this is display only and does not
+  // itself change `config` (that happens on save, above).
+  const roundSizeInput = document.getElementById('input-round-size');
+  const roundSizeVal = document.getElementById('val-round-size');
+  roundSizeInput.addEventListener('input', () => {
+    roundSizeVal.textContent = roundSizeInput.value;
+  });
+
+  const vocabRatioInput = document.getElementById('input-vocab-ratio');
+  const vocabRatioVal = document.getElementById('val-vocab-ratio');
+  vocabRatioInput.addEventListener('input', () => {
+    vocabRatioVal.textContent = `${vocabRatioInput.value}%`;
+  });
+
+  const forecastThreshInput = document.getElementById('input-forecast-thresh');
+  const forecastThreshVal = document.getElementById('val-forecast-thresh');
+  forecastThreshInput.addEventListener('input', () => {
+    forecastThreshVal.textContent = forecastThreshInput.value;
+  });
+
+  const btnResetDag = document.getElementById('btn-reset-dag');
+  if (btnResetDag) {
+    btnResetDag.addEventListener('click', () => {
+      renderDagView();
+    });
+  }
 
   // Data Loading & Storage Initialization
   async function initStorageAndItems() {
@@ -318,6 +500,10 @@
       const savedStates = await window.offlineStorage.getTopicStates();
       if (savedStates && savedStates.length > 0) {
         savedStates.forEach(s => { topicStates[s.topic_id || s.tag_id] = s; });
+      }
+      const savedCards = await window.offlineStorage.getFSRSCards();
+      if (savedCards && savedCards.length > 0) {
+        savedCards.forEach(c => { fsrsRecords[c.card_id] = c; });
       }
     }
 
@@ -448,8 +634,14 @@
 
   document.querySelectorAll('.btn-umlaut').forEach(btn => {
     btn.addEventListener('click', () => {
-      userAnswerInput.value += btn.getAttribute('data-char');
-      userAnswerInput.focus();
+      const ch = btn.getAttribute('data-char');
+      const el = userAnswerInput;
+      const start = el.selectionStart ?? el.value.length;
+      const end = el.selectionEnd ?? el.value.length;
+      el.value = el.value.slice(0, start) + ch + el.value.slice(end);
+      const caret = start + ch.length;
+      el.focus();
+      el.setSelectionRange(caret, caret);
     });
   });
 
@@ -466,7 +658,7 @@
     const inputVal = userAnswerInput.value.trim();
     if (!inputVal) return;
 
-    const result = gradeSubmission(inputVal, item.accepted_answers);
+    const result = gradeSubmission(inputVal, item.accepted_answers, item.topic_id);
     const attemptData = {
       item_id: item.id,
       topic_id: item.topic_id,
@@ -476,15 +668,27 @@
     };
     roundAttempts.push(attemptData);
 
+    // Persist the review event and fold it into the derived topic/FSRS
+    // state that IndexedDB and the UI both read back from. Without these
+    // writes, saveTopicState/saveFSRSCard are dead code and the "due
+    // topics" stat never advances past what init() saw at page load.
+    const logEntry = {
+      card_id: item.id,
+      item_id: item.id,
+      topic_id: item.topic_id,
+      user_answer: inputVal,
+      is_correct: result.isCorrect,
+      hint_level: currentHintLevel,
+      timestamp: new Date().toISOString()
+    };
+
+    topicStates = applyReviewToTopicState(topicStates, logEntry);
+    fsrsRecords = applyReviewToFsrsCard(fsrsRecords, logEntry);
+
     if (window.offlineStorage) {
-      window.offlineStorage.appendReviewLog({
-        card_id: item.id,
-        topic_id: item.topic_id,
-        user_answer: inputVal,
-        is_correct: result.isCorrect,
-        hint_level: currentHintLevel,
-        timestamp: new Date().toISOString()
-      }).catch(console.warn);
+      window.offlineStorage.appendReviewLog(logEntry).catch(console.warn);
+      window.offlineStorage.saveTopicState(topicStates[item.topic_id]).catch(console.warn);
+      window.offlineStorage.saveFSRSCard(fsrsRecords[item.id]).catch(console.warn);
     }
 
     feedbackBox.style.display = 'block';
@@ -576,13 +780,24 @@
     document.getElementById('bar-a2-lrn').style.width = '35%';
   }
 
-  // JSON Export / Import
-  document.getElementById('btn-export-json').addEventListener('click', () => {
+  // JSON Export / Import.
+  //
+  // Export is a dump, import is a replay: tag_state (topic_states) is
+  // recomputed from review_log, never trusted from the file
+  // (04-application.md:334, :363). This is why review_log is now part of
+  // the export payload -- without it, recomputation on import would have
+  // nothing to replay.
+  document.getElementById('btn-export-json').addEventListener('click', async () => {
+    const reviewLog = window.offlineStorage ? await window.offlineStorage.getReviewLog() : [];
     const exportData = {
-      version: "1.0",
+      version: EXPORT_SCHEMA_VERSION,
       exported_at: new Date().toISOString(),
+      review_log: reviewLog,
+      // topic_states/fsrs_records are included as an informational dump only;
+      // import never assigns them directly (see below).
       topic_states: topicStates,
       fsrs_records: fsrsRecords,
+      settings: config,
       streak: streak
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -601,16 +816,48 @@
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
+      let imported;
       try {
-        const imported = JSON.parse(evt.target.result);
-        if (imported.topic_states) topicStates = imported.topic_states;
-        if (imported.fsrs_records) fsrsRecords = imported.fsrs_records;
-        alert("Daten erfolgreich wiederhergestellt!");
-        renderStatsView();
+        imported = JSON.parse(evt.target.result);
       } catch (err) {
         alert("Fehlerhafte JSON-Datei.");
+        return;
       }
+
+      if (!SUPPORTED_IMPORT_VERSIONS.has(imported.version)) {
+        alert(`Unbekannte Export-Version '${imported.version}'. Import abgebrochen.`);
+        return;
+      }
+
+      const importedLog = Array.isArray(imported.review_log) ? imported.review_log : [];
+
+      // tag_state and FSRS card state are derived data: they are recomputed
+      // from the imported review_log, never assigned from the file's own
+      // topic_states/fsrs_records fields. Those fields may be stale, hand-
+      // edited, or from an incompatible build, and merging derived data is
+      // exactly how progress corrupts.
+      topicStates = computeTopicStatesFromLog(importedLog);
+      fsrsRecords = computeFsrsCardsFromLog(importedLog);
+      if (imported.settings && typeof imported.settings === 'object') {
+        config = { ...config, ...imported.settings };
+      }
+      if (typeof imported.streak === 'number') streak = imported.streak;
+
+      if (window.offlineStorage) {
+        try {
+          await window.offlineStorage.replaceAll({
+            reviewLog: importedLog,
+            topicStates,
+            fsrsCards: fsrsRecords
+          });
+        } catch (err) {
+          console.warn('Import persistence failed:', err);
+        }
+      }
+
+      alert("Daten erfolgreich wiederhergestellt!");
+      renderStatsView();
     };
     reader.readAsText(file);
   });

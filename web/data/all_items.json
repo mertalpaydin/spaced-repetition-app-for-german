@@ -1,329 +1,314 @@
 [
   {
-    "id": "bank_a2_002",
-    "tag_id": "akkusativ_nach_praeposition",
+    "id": "bank_sample_006",
     "topic_id": "akkusativ_nach_praeposition",
+    "tag_id": "akkusativ_nach_praeposition",
     "dimension": "grammar",
     "type": "cloze_free",
+    "difficulty": 2,
     "cefr": "A2",
-    "difficulty": 1,
-    "prompt": "Er legt das Buch auf ___ Tisch.",
-    "cue": null,
+    "prompt": "Wir gehen durch ___ Park.",
     "accepted_answers": [
       "den"
     ],
     "distractors": [
       {
         "text": "dem",
-        "implied_topic_id": "kasus_dativ_formen"
-      },
-      {
-        "text": "des",
-        "implied_topic_id": "kasus_genitiv_formen"
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
         "text": "das",
-        "implied_topic_id": "artikel_bestimmt_nom"
+        "implied_topic_id": null,
+        "misconception": null
+      },
+      {
+        "text": "des",
+        "implied_topic_id": null,
+        "misconception": null
       }
     ],
-    "rule_hint": "Wechselpräposition auf + Akkusativ bei Richtung (Wohin?).",
+    "cue": null,
+    "rule_hint": null,
+    "facet": "Definite=Def|Gender=Masc|Number=Sing",
+    "confusion_group": "kasus_wechselpraeposition",
     "block_id": null,
     "block_position": null,
-    "confusion_group": null,
-    "facet": null,
-    "carrier_lemmas": [
-      "Buch",
-      "Tisch",
-      "legen"
-    ],
-    "domain": null,
+    "domain": "general",
+    "carrier_lemmas": [],
     "source_sentence_id": null
   },
   {
-    "id": "bank_a2_001",
-    "tag_id": "dativ_nach_praeposition",
-    "topic_id": "dativ_nach_praeposition",
+    "id": "bank_sample_003",
+    "topic_id": "artikel_bestimmt_nom",
+    "tag_id": "artikel_bestimmt_nom",
     "dimension": "grammar",
     "type": "cloze_free",
-    "cefr": "A2",
     "difficulty": 1,
-    "prompt": "Das Buch liegt auf ___ Tisch.",
+    "cefr": "A1",
+    "prompt": "___ Tisch ist groß.",
+    "accepted_answers": [
+      "Der"
+    ],
+    "distractors": [
+      {
+        "text": "Die",
+        "implied_topic_id": null,
+        "misconception": null
+      },
+      {
+        "text": "Das",
+        "implied_topic_id": null,
+        "misconception": null
+      },
+      {
+        "text": "Den",
+        "implied_topic_id": null,
+        "misconception": null
+      }
+    ],
     "cue": null,
+    "rule_hint": null,
+    "facet": "Gender=Masc|Number=Sing",
+    "confusion_group": "artikelwoerter",
+    "block_id": null,
+    "block_position": null,
+    "domain": "general",
+    "carrier_lemmas": [],
+    "source_sentence_id": null
+  },
+  {
+    "id": "bank_sample_004",
+    "topic_id": "artikel_unbestimmt_kein_nom",
+    "tag_id": "artikel_unbestimmt_kein_nom",
+    "dimension": "grammar",
+    "type": "cloze_free",
+    "difficulty": 1,
+    "cefr": "A1",
+    "prompt": "Hier steht ___ Auto.",
+    "accepted_answers": [
+      "ein"
+    ],
+    "distractors": [
+      {
+        "text": "eine",
+        "implied_topic_id": null,
+        "misconception": null
+      },
+      {
+        "text": "einen",
+        "implied_topic_id": null,
+        "misconception": null
+      },
+      {
+        "text": "einem",
+        "implied_topic_id": null,
+        "misconception": null
+      }
+    ],
+    "cue": null,
+    "rule_hint": null,
+    "facet": "Gender=Unk|Number=Sing",
+    "confusion_group": "artikelwoerter",
+    "block_id": null,
+    "block_position": null,
+    "domain": "general",
+    "carrier_lemmas": [],
+    "source_sentence_id": null
+  },
+  {
+    "id": "bank_sample_005",
+    "topic_id": "dativ_nach_praeposition",
+    "tag_id": "dativ_nach_praeposition",
+    "dimension": "grammar",
+    "type": "cloze_free",
+    "difficulty": 2,
+    "cefr": "A2",
+    "prompt": "Das Buch liegt auf ___ Tisch.",
     "accepted_answers": [
       "dem"
     ],
     "distractors": [
       {
         "text": "den",
-        "implied_topic_id": "kasus_akkusativ_formen"
-      },
-      {
-        "text": "des",
-        "implied_topic_id": "kasus_genitiv_formen"
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
         "text": "das",
-        "implied_topic_id": "artikel_bestimmt_nom"
+        "implied_topic_id": null,
+        "misconception": null
+      },
+      {
+        "text": "des",
+        "implied_topic_id": null,
+        "misconception": null
       }
     ],
-    "rule_hint": "Wechselpräposition auf + Dativ bei statischer Ortsangabe (Wo?).",
+    "cue": null,
+    "rule_hint": null,
+    "facet": "Definite=Def|Gender=Unk|Number=Sing",
+    "confusion_group": "kasus_wechselpraeposition",
     "block_id": null,
     "block_position": null,
-    "confusion_group": null,
-    "facet": null,
-    "carrier_lemmas": [
-      "Buch",
-      "Tisch",
-      "liegen"
-    ],
-    "domain": null,
+    "domain": "general",
+    "carrier_lemmas": [],
     "source_sentence_id": null
   },
   {
-    "id": "bank_b2_001",
-    "tag_id": "konjunktiv_i_indirekte_rede",
-    "topic_id": "konjunktiv_i_indirekte_rede",
+    "id": "bank_sample_008",
+    "topic_id": "konjunktiv_ii_irreal_gegenwart",
+    "tag_id": "konjunktiv_ii_irreal_gegenwart",
     "dimension": "grammar",
-    "type": "cloze_cued",
-    "cefr": "B2",
+    "type": "cloze_free",
     "difficulty": 3,
-    "prompt": "Die Sprecherin teilte mit, der Minister ___ heute zurückgetreten. (sein)",
-    "cue": "sein",
+    "cefr": "B1",
+    "prompt": "Wenn ich reich ___, würde ich reisen.",
     "accepted_answers": [
-      "sei"
+      "wäre"
     ],
     "distractors": [
-      {
-        "text": "ist",
-        "implied_topic_id": "verb_sein_haben"
-      },
-      {
-        "text": "wäre",
-        "implied_topic_id": "konjunktiv_ii_irreal_gegenwart"
-      },
       {
         "text": "war",
-        "implied_topic_id": "praeteritum_sein_haben_modal"
+        "implied_topic_id": null,
+        "misconception": null
+      },
+      {
+        "text": "bin",
+        "implied_topic_id": null,
+        "misconception": null
+      },
+      {
+        "text": "sei",
+        "implied_topic_id": null,
+        "misconception": null
       }
     ],
-    "rule_hint": "Indirekte Rede in der 3. Person Singular verlangt Konjunktiv I (sei).",
+    "cue": null,
+    "rule_hint": null,
+    "facet": "Number=Sing|Person=Unk",
+    "confusion_group": "konjunktiv",
     "block_id": null,
     "block_position": null,
-    "confusion_group": null,
-    "facet": null,
-    "carrier_lemmas": [
-      "Minister",
-      "Sprecherin",
-      "mitteilen",
-      "zurücktreten"
-    ],
-    "domain": null,
+    "domain": "general",
+    "carrier_lemmas": [],
     "source_sentence_id": null
   },
   {
-    "id": "bank_b1_002",
-    "tag_id": "konjunktiv_ii_irreal_gegenwart",
-    "topic_id": "konjunktiv_ii_irreal_gegenwart",
+    "id": "bank_sample_007",
+    "topic_id": "nebensatz_weil_da",
+    "tag_id": "nebensatz_weil_da",
     "dimension": "grammar",
-    "type": "cloze_cued",
-    "cefr": "B1",
+    "type": "cloze_free",
     "difficulty": 2,
-    "prompt": "Wenn ich mehr Zeit hätte, ___ ich gerne öfter reisen. (würde)",
-    "cue": "würde",
+    "cefr": "B1",
+    "prompt": "Er bleibt hier, weil er müde ___.",
     "accepted_answers": [
-      "würde"
+      "ist"
     ],
     "distractors": [
       {
-        "text": "werde",
-        "implied_topic_id": "futur_i"
+        "text": "war",
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
-        "text": "wurde",
-        "implied_topic_id": "passiv_praeteritum"
+        "text": "sein",
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
         "text": "wäre",
-        "implied_topic_id": "konjunktiv_ii_irreal_gegenwart"
+        "implied_topic_id": null,
+        "misconception": null
       }
     ],
-    "rule_hint": "Konjunktiv II Gegenwart: würde-Ersatzform + Infinitiv.",
-    "block_id": null,
-    "block_position": null,
-    "confusion_group": null,
-    "facet": null,
-    "carrier_lemmas": [
-      "Zeit",
-      "haben",
-      "reisen",
-      "öfter"
-    ],
-    "domain": null,
-    "source_sentence_id": null
-  },
-  {
-    "id": "bank_b1_001",
-    "tag_id": "nebensatz_weil_da",
-    "topic_id": "nebensatz_weil_da",
-    "dimension": "grammar",
-    "type": "cloze_free",
-    "cefr": "B1",
-    "difficulty": 2,
-    "prompt": "Ich bleibe heute zu Hause, ___ ich erkältet bin.",
     "cue": null,
-    "accepted_answers": [
-      "weil",
-      "da"
-    ],
-    "distractors": [
-      {
-        "text": "denn",
-        "implied_topic_id": "konjunktionen_position_0"
-      },
-      {
-        "text": "deshalb",
-        "implied_topic_id": "diskurs_adverbialanschluss"
-      },
-      {
-        "text": "obwohl",
-        "implied_topic_id": "nebensatz_obwohl_trotzdem"
-      }
-    ],
-    "rule_hint": "Kausale Nebensätze mit 'weil' oder 'da' schicken das konjugierte Verb ans Satzende.",
+    "rule_hint": null,
+    "facet": null,
+    "confusion_group": "nebensatz_konnektoren",
     "block_id": null,
     "block_position": null,
-    "confusion_group": null,
-    "facet": null,
-    "carrier_lemmas": [
-      "Hause",
-      "bleiben",
-      "erkältet",
-      "heute"
-    ],
-    "domain": null,
+    "domain": "general",
+    "carrier_lemmas": [],
     "source_sentence_id": null
   },
   {
-    "id": "bank_b2_002",
-    "tag_id": "passiversatz_erweitert_b2",
-    "topic_id": "passiversatz_erweitert_b2",
-    "dimension": "grammar",
-    "type": "cloze_free",
-    "cefr": "B2",
-    "difficulty": 3,
-    "prompt": "Dieses schwierige Problem lässt ___ nicht ohne Weiteres lösen.",
-    "cue": null,
-    "accepted_answers": [
-      "sich"
-    ],
-    "distractors": [
-      {
-        "text": "es",
-        "implied_topic_id": "pronomen_personal_nom"
-      },
-      {
-        "text": "uns",
-        "implied_topic_id": "pronomen_personal_dat"
-      },
-      {
-        "text": "ihm",
-        "implied_topic_id": "pronomen_personal_dat"
-      }
-    ],
-    "rule_hint": "Passiversatz: sich lassen + Infinitiv drückt eine passive Möglichkeit aus.",
-    "block_id": null,
-    "block_position": null,
-    "confusion_group": null,
-    "facet": null,
-    "carrier_lemmas": [
-      "Problem",
-      "lassen",
-      "lösen",
-      "schwierig"
-    ],
-    "domain": null,
-    "source_sentence_id": null
-  },
-  {
-    "id": "bank_a1_001",
-    "tag_id": "pronomen_personal_nom",
+    "id": "bank_sample_001",
     "topic_id": "pronomen_personal_nom",
+    "tag_id": "pronomen_personal_nom",
     "dimension": "grammar",
     "type": "cloze_free",
-    "cefr": "A1",
     "difficulty": 1,
-    "prompt": "___ heiße Max und komme aus Deutschland.",
-    "cue": null,
+    "cefr": "A1",
+    "prompt": "___ heiße Max.",
     "accepted_answers": [
-      "Ich",
-      "ich"
+      "Ich"
     ],
     "distractors": [
       {
         "text": "Du",
-        "implied_topic_id": "pronomen_personal_nom"
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
         "text": "Er",
-        "implied_topic_id": "pronomen_personal_nom"
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
         "text": "Wir",
-        "implied_topic_id": "pronomen_personal_nom"
+        "implied_topic_id": null,
+        "misconception": null
       }
     ],
-    "rule_hint": "Subjekt in der 1. Person Singular ist 'ich'.",
+    "cue": null,
+    "rule_hint": null,
+    "facet": "Gender=Unk|Number=Sing|Person=1",
+    "confusion_group": "personalpronomen_kasus",
     "block_id": null,
     "block_position": null,
-    "confusion_group": null,
-    "facet": null,
-    "carrier_lemmas": [
-      "Deutschland",
-      "heißen",
-      "kommen"
-    ],
-    "domain": null,
+    "domain": "general",
+    "carrier_lemmas": [],
     "source_sentence_id": null
   },
   {
-    "id": "bank_a1_002",
-    "tag_id": "verb_praesens_regelm",
+    "id": "bank_sample_002",
     "topic_id": "verb_praesens_regelm",
+    "tag_id": "verb_praesens_regelm",
     "dimension": "grammar",
-    "type": "cloze_cued",
-    "cefr": "A1",
+    "type": "cloze_free",
     "difficulty": 1,
-    "prompt": "Er ___ jeden Tag im Büro. (arbeiten)",
-    "cue": "arbeiten",
+    "cefr": "A1",
+    "prompt": "Er ___ Deutsch.",
     "accepted_answers": [
-      "arbeitet"
+      "lernt"
     ],
     "distractors": [
       {
-        "text": "arbeite",
-        "implied_topic_id": "verb_praesens_regelm"
+        "text": "lerne",
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
-        "text": "arbeitest",
-        "implied_topic_id": "verb_praesens_regelm"
+        "text": "lernst",
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
-        "text": "arbeiten",
-        "implied_topic_id": "verb_praesens_regelm"
+        "text": "lernen",
+        "implied_topic_id": null,
+        "misconception": null
       }
     ],
-    "rule_hint": "Endung bei 'er/sie/es' im Präsens ist '-t' bzw. '-et' nach d/t.",
+    "cue": null,
+    "rule_hint": null,
+    "facet": "Number=Unk|Person=Unk",
+    "confusion_group": "verb_praesens_stamm",
     "block_id": null,
     "block_position": null,
-    "confusion_group": null,
-    "facet": null,
-    "carrier_lemmas": [
-      "Büro",
-      "Tag",
-      "arbeiten",
-      "jeder"
-    ],
-    "domain": null,
+    "domain": "general",
+    "carrier_lemmas": [],
     "source_sentence_id": null
   }
 ]

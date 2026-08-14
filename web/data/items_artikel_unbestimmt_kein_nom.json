@@ -1,37 +1,37 @@
 [
   {
-    "id": "bank_sample_002",
-    "topic_id": "verb_praesens_regelm",
-    "tag_id": "verb_praesens_regelm",
+    "id": "bank_sample_004",
+    "topic_id": "artikel_unbestimmt_kein_nom",
+    "tag_id": "artikel_unbestimmt_kein_nom",
     "dimension": "grammar",
     "type": "cloze_free",
     "difficulty": 1,
     "cefr": "A1",
-    "prompt": "Er ___ Deutsch.",
+    "prompt": "Hier steht ___ Auto.",
     "accepted_answers": [
-      "lernt"
+      "ein"
     ],
     "distractors": [
       {
-        "text": "lerne",
+        "text": "eine",
         "implied_topic_id": null,
         "misconception": null
       },
       {
-        "text": "lernst",
+        "text": "einen",
         "implied_topic_id": null,
         "misconception": null
       },
       {
-        "text": "lernen",
+        "text": "einem",
         "implied_topic_id": null,
         "misconception": null
       }
     ],
     "cue": null,
     "rule_hint": null,
-    "facet": "Number=Unk|Person=Unk",
-    "confusion_group": "verb_praesens_stamm",
+    "facet": "Gender=Unk|Number=Sing",
+    "confusion_group": "artikelwoerter",
     "block_id": null,
     "block_position": null,
     "domain": "general",

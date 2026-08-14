@@ -1,44 +1,41 @@
 [
   {
-    "id": "bank_b1_001",
-    "tag_id": "nebensatz_weil_da",
+    "id": "bank_sample_007",
     "topic_id": "nebensatz_weil_da",
+    "tag_id": "nebensatz_weil_da",
     "dimension": "grammar",
     "type": "cloze_free",
-    "cefr": "B1",
     "difficulty": 2,
-    "prompt": "Ich bleibe heute zu Hause, ___ ich erkältet bin.",
-    "cue": null,
+    "cefr": "B1",
+    "prompt": "Er bleibt hier, weil er müde ___.",
     "accepted_answers": [
-      "weil",
-      "da"
+      "ist"
     ],
     "distractors": [
       {
-        "text": "denn",
-        "implied_topic_id": "konjunktionen_position_0"
+        "text": "war",
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
-        "text": "deshalb",
-        "implied_topic_id": "diskurs_adverbialanschluss"
+        "text": "sein",
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
-        "text": "obwohl",
-        "implied_topic_id": "nebensatz_obwohl_trotzdem"
+        "text": "wäre",
+        "implied_topic_id": null,
+        "misconception": null
       }
     ],
-    "rule_hint": "Kausale Nebensätze mit 'weil' oder 'da' schicken das konjugierte Verb ans Satzende.",
+    "cue": null,
+    "rule_hint": null,
+    "facet": null,
+    "confusion_group": "nebensatz_konnektoren",
     "block_id": null,
     "block_position": null,
-    "confusion_group": null,
-    "facet": null,
-    "carrier_lemmas": [
-      "Hause",
-      "bleiben",
-      "erkältet",
-      "heute"
-    ],
-    "domain": null,
+    "domain": "general",
+    "carrier_lemmas": [],
     "source_sentence_id": null
   }
 ]

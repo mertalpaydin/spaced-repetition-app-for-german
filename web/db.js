@@ -61,6 +61,41 @@ class OfflineStorage {
     return this._put('review_logs', logEntry);
   }
 
+  async getReviewLog() {
+    return this._getAll('review_logs');
+  }
+
+  /**
+   * Replace the entire local state (review log + derived topic/FSRS state)
+   * atomically-ish (store by store). Used by import: the imported review_log
+   * is the only trusted input, derived state is recomputed by the caller and
+   * handed in here to persist, never assigned from the imported file as-is.
+   */
+  async replaceAll({ reviewLog = [], topicStates = {}, fsrsCards = {} } = {}) {
+    await this._clear('review_logs');
+    await this._clear('topic_states');
+    await this._clear('fsrs_cards');
+    for (const entry of reviewLog) {
+      await this._put('review_logs', entry);
+    }
+    for (const state of Object.values(topicStates)) {
+      await this._put('topic_states', state);
+    }
+    for (const card of Object.values(fsrsCards)) {
+      await this._put('fsrs_cards', card);
+    }
+  }
+
+  async _clear(storeName) {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(storeName, 'readwrite');
+      const req = tx.objectStore(storeName).clear();
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   async _put(storeName, value) {
     if (!this.db) await this.init();
     return new Promise((resolve, reject) => {

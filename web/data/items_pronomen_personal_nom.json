@@ -1,43 +1,41 @@
 [
   {
-    "id": "bank_a1_001",
-    "tag_id": "pronomen_personal_nom",
+    "id": "bank_sample_001",
     "topic_id": "pronomen_personal_nom",
+    "tag_id": "pronomen_personal_nom",
     "dimension": "grammar",
     "type": "cloze_free",
-    "cefr": "A1",
     "difficulty": 1,
-    "prompt": "___ heiße Max und komme aus Deutschland.",
-    "cue": null,
+    "cefr": "A1",
+    "prompt": "___ heiße Max.",
     "accepted_answers": [
-      "Ich",
-      "ich"
+      "Ich"
     ],
     "distractors": [
       {
         "text": "Du",
-        "implied_topic_id": "pronomen_personal_nom"
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
         "text": "Er",
-        "implied_topic_id": "pronomen_personal_nom"
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
         "text": "Wir",
-        "implied_topic_id": "pronomen_personal_nom"
+        "implied_topic_id": null,
+        "misconception": null
       }
     ],
-    "rule_hint": "Subjekt in der 1. Person Singular ist 'ich'.",
+    "cue": null,
+    "rule_hint": null,
+    "facet": "Gender=Unk|Number=Sing|Person=1",
+    "confusion_group": "personalpronomen_kasus",
     "block_id": null,
     "block_position": null,
-    "confusion_group": null,
-    "facet": null,
-    "carrier_lemmas": [
-      "Deutschland",
-      "heißen",
-      "kommen"
-    ],
-    "domain": null,
+    "domain": "general",
+    "carrier_lemmas": [],
     "source_sentence_id": null
   }
 ]

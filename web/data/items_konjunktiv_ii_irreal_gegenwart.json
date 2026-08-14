@@ -1,43 +1,41 @@
 [
   {
-    "id": "bank_b1_002",
-    "tag_id": "konjunktiv_ii_irreal_gegenwart",
+    "id": "bank_sample_008",
     "topic_id": "konjunktiv_ii_irreal_gegenwart",
+    "tag_id": "konjunktiv_ii_irreal_gegenwart",
     "dimension": "grammar",
-    "type": "cloze_cued",
+    "type": "cloze_free",
+    "difficulty": 3,
     "cefr": "B1",
-    "difficulty": 2,
-    "prompt": "Wenn ich mehr Zeit hätte, ___ ich gerne öfter reisen. (würde)",
-    "cue": "würde",
+    "prompt": "Wenn ich reich ___, würde ich reisen.",
     "accepted_answers": [
-      "würde"
+      "wäre"
     ],
     "distractors": [
       {
-        "text": "werde",
-        "implied_topic_id": "futur_i"
+        "text": "war",
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
-        "text": "wurde",
-        "implied_topic_id": "passiv_praeteritum"
+        "text": "bin",
+        "implied_topic_id": null,
+        "misconception": null
       },
       {
-        "text": "wäre",
-        "implied_topic_id": "konjunktiv_ii_irreal_gegenwart"
+        "text": "sei",
+        "implied_topic_id": null,
+        "misconception": null
       }
     ],
-    "rule_hint": "Konjunktiv II Gegenwart: würde-Ersatzform + Infinitiv.",
+    "cue": null,
+    "rule_hint": null,
+    "facet": "Number=Sing|Person=Unk",
+    "confusion_group": "konjunktiv",
     "block_id": null,
     "block_position": null,
-    "confusion_group": null,
-    "facet": null,
-    "carrier_lemmas": [
-      "Zeit",
-      "haben",
-      "reisen",
-      "öfter"
-    ],
-    "domain": null,
+    "domain": "general",
+    "carrier_lemmas": [],
     "source_sentence_id": null
   }
 ]
