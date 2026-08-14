@@ -4,7 +4,8 @@ from pathlib import Path
 
 from src.audit.bank_health import BankHealthAuditor
 from src.bank.storage import SqliteItemBank
-from src.contracts import BankItem, Distractor
+from src.contracts import MIN_STOCK_PER_TIER, BankItem, Distractor
+from src.taxonomy.loader import load_taxonomy
 
 
 def test_ci_workflow_files_exist() -> None:
@@ -79,3 +80,45 @@ def test_bank_health_auditor_passes_clean_bank(tmp_path: Path) -> None:
     report = BankHealthAuditor.audit_bank(bank, min_items_per_topic=1)
     assert report.passed_audit is True
     assert len(report.defective_items) == 0
+
+
+def test_min_stock_per_tier_matches_stage5_dod_cold_seed_floor() -> None:
+    """The stage 5 DoD requires 12 items/topic cold-seeded A1-B2; the audit floor
+    must match it, not a smaller placeholder."""
+    assert MIN_STOCK_PER_TIER == 12
+
+
+def test_bank_health_reports_honest_shortfall_without_fabricating_items(
+    tmp_path: Path,
+) -> None:
+    """A near-empty bank must report the real numeric shortfall against the
+    DoD floor rather than silently passing or hiding the gap. Nothing here
+    fabricates bank content to close it."""
+    db_file = tmp_path / "shortfall_test.db"
+    bank = SqliteItemBank(db_file)
+    topics = load_taxonomy()
+
+    # Stock exactly one topic to the DoD floor; every other topic is empty.
+    fully_stocked_topic = topics[0].id
+    for i in range(MIN_STOCK_PER_TIER):
+        bank.insert_item(
+            BankItem(
+                id=f"stocked_{i}",
+                topic_id=fully_stocked_topic,
+                type="cloze_free",
+                difficulty=1,
+                cefr="A1",
+                prompt=f"___ Satz Nummer {i}.",
+                accepted_answers=["Ein"],
+                distractors=[Distractor(text="a"), Distractor(text="b"), Distractor(text="c")],
+            )
+        )
+
+    report = BankHealthAuditor.audit_bank(bank)  # default floor = MIN_STOCK_PER_TIER
+
+    assert report.total_items == MIN_STOCK_PER_TIER
+    # Every topic except the one stocked above is understocked.
+    assert len(report.understocked_topics) == len(topics) - 1
+    expected_shortfall = sum(MIN_STOCK_PER_TIER for t in topics if t.id != fully_stocked_topic)
+    assert report.total_shortfall == expected_shortfall
+    assert report.total_shortfall > 0

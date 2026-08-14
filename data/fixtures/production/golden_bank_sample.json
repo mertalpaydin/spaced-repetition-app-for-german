@@ -34,7 +34,7 @@
   },
   {
     "id": "bank_sample_004",
-    "topic_id": "artikel_unbestimmt_nom",
+    "topic_id": "artikel_unbestimmt_kein_nom",
     "type": "cloze_free",
     "difficulty": 1,
     "cefr": "A1",

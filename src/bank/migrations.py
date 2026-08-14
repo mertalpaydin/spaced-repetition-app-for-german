@@ -85,6 +85,60 @@ CREATE INDEX IF NOT EXISTS idx_review_logs_topic_id ON review_logs(topic_id);
 CREATE INDEX IF NOT EXISTS idx_review_logs_created ON review_logs(created_at);
 """
 
+# Version 2: `review_logs` gains `mode` and `facet`, and `fsrs_rating` is corrected
+# from a lying `INTEGER` declaration to `TEXT` (it has only ever held FsrsRating
+# string literals such as "good" or "again"). SQLite has no `ALTER COLUMN`, so the
+# table is rebuilt: existing rows are carried over, cast to the true `fsrs_rating`
+# type, and backfilled with `mode='review'` (the only mode the old code ever wrote)
+# and `facet=NULL` (not recorded pre-migration, so it is honestly left unknown
+# rather than guessed).
+MIGRATION_V2_SQL = """
+CREATE TABLE IF NOT EXISTS review_logs_v2 (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id TEXT NOT NULL,
+    topic_id TEXT NOT NULL,
+    user_answer TEXT NOT NULL,
+    is_correct INTEGER NOT NULL,
+    hint_level INTEGER NOT NULL,
+    fsrs_rating TEXT NOT NULL,
+    mode TEXT NOT NULL DEFAULT 'review',
+    facet TEXT,
+    response_ms INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO review_logs_v2 (
+    id, item_id, topic_id, user_answer, is_correct, hint_level,
+    fsrs_rating, mode, facet, response_ms, created_at
+)
+SELECT
+    id, item_id, topic_id, user_answer, is_correct, hint_level,
+    CAST(fsrs_rating AS TEXT), 'review', NULL, response_ms, created_at
+FROM review_logs;
+
+DROP TABLE review_logs;
+ALTER TABLE review_logs_v2 RENAME TO review_logs;
+
+CREATE INDEX IF NOT EXISTS idx_review_logs_topic_id ON review_logs(topic_id);
+CREATE INDEX IF NOT EXISTS idx_review_logs_created ON review_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_review_logs_mode ON review_logs(mode);
+"""
+
+
+# Version 3: `items` gains `tag_id` and `dimension`, the two ``BankItem``
+# contract fields that previously had no column at all -- a round trip
+# silently dropped them. `tag_id` is the general-purpose identifier the item
+# is stocked and exported under (a topic id for grammar items, a lemma for
+# vocabulary items); `dimension` records which. Both are plain `ALTER TABLE
+# ADD COLUMN`, so existing rows are simply backfilled with NULL / the
+# 'grammar' default -- no table rebuild needed, unlike v2.
+MIGRATION_V3_SQL = """
+ALTER TABLE items ADD COLUMN tag_id TEXT;
+ALTER TABLE items ADD COLUMN dimension TEXT NOT NULL DEFAULT 'grammar';
+
+CREATE INDEX IF NOT EXISTS idx_items_tag_id ON items(tag_id, difficulty);
+"""
+
 
 def run_migrations(db_path: Path | str) -> None:
     """Apply all pending migrations to the specified SQLite database."""
@@ -93,7 +147,6 @@ def run_migrations(db_path: Path | str) -> None:
     try:
         with conn:
             conn.executescript(MIGRATION_V1_SQL)
-            # Record version 1
             cur = conn.cursor()
             cur.execute("SELECT MAX(version) FROM schema_version;")
             row = cur.fetchone()
@@ -101,5 +154,16 @@ def run_migrations(db_path: Path | str) -> None:
 
             if current_version < 1:
                 cur.execute("INSERT INTO schema_version (version) VALUES (1);")
+                current_version = 1
+
+            if current_version < 2:
+                conn.executescript(MIGRATION_V2_SQL)
+                cur.execute("INSERT INTO schema_version (version) VALUES (2);")
+                current_version = 2
+
+            if current_version < 3:
+                conn.executescript(MIGRATION_V3_SQL)
+                cur.execute("INSERT INTO schema_version (version) VALUES (3);")
+                current_version = 3
     finally:
         conn.close()

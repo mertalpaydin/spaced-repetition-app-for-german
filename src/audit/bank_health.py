@@ -18,6 +18,12 @@ class BankHealthReport(BaseModel):
     total_items: int
     topics_with_items: int
     understocked_topics: list[str] = Field(default_factory=list)
+    # Sum, across every topic in the taxonomy, of max(0, floor - count). This
+    # is the number of items still needed to clear the stage 5 DoD cold-seed
+    # floor (MIN_STOCK_PER_TIER per topic) -- reported honestly rather than
+    # fabricated, since closing it requires the generation pipeline (whose
+    # transport is still mocked), not bank-layer code.
+    total_shortfall: int = 0
     defective_items: list[str] = Field(default_factory=list)
     passed_audit: bool = True
 
@@ -40,9 +46,11 @@ class BankHealthAuditor:
             topic_counts[it.topic_id] = topic_counts.get(it.topic_id, 0) + 1
 
         understocked: list[str] = []
+        total_shortfall = 0
         for t in topics:
             count = topic_counts.get(t.id, 0)
             if count < min_items_per_topic:
+                total_shortfall += min_items_per_topic - count
                 understocked.append(f"{t.id} ({count}/{min_items_per_topic})")
 
         defective: list[str] = []
@@ -69,6 +77,7 @@ class BankHealthAuditor:
             total_items=len(all_items),
             topics_with_items=len(topic_counts),
             understocked_topics=understocked,
+            total_shortfall=total_shortfall,
             defective_items=defective,
             passed_audit=passed,
         )
@@ -78,7 +87,12 @@ def main() -> int:
     """CLI entry point for running bank health audit."""
     parser = argparse.ArgumentParser(description="Bank Health Audit Runner")
     parser.add_argument("--db", default="data/bank.db", help="Path to SQLite database")
-    parser.add_argument("--min-stock", type=int, default=1, help="Min items per topic")
+    parser.add_argument(
+        "--min-stock",
+        type=int,
+        default=MIN_STOCK_PER_TIER,
+        help="Min items per topic (defaults to the stage 5 DoD cold-seed floor)",
+    )
     parsed = parser.parse_args()
 
     db_path = Path(parsed.db)
@@ -92,6 +106,8 @@ def main() -> int:
     print("\n=== Item Bank Health Audit Report ===")
     print(f"Total Items: {report.total_items}")
     print(f"Topics with Items: {report.topics_with_items}")
+    print(f"Understocked Topics: {len(report.understocked_topics)}")
+    print(f"Total Shortfall (items still needed to clear the floor): {report.total_shortfall}")
     print(f"Audit Passed: {report.passed_audit}")
 
     if report.defective_items:
