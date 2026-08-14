@@ -1,138 +1,90 @@
 [
   {
-    "id": "bank_a1_001",
+    "id": "bank_sample_001",
     "topic_id": "pronomen_personal_nom",
     "type": "cloze_free",
     "difficulty": 1,
     "cefr": "A1",
-    "prompt": "___ heiße Max und komme aus Deutschland.",
-    "cue": null,
-    "accepted_answers": ["Ich", "ich"],
-    "distractors": [
-      {"text": "Du", "implied_topic_id": "pronomen_personal_nom"},
-      {"text": "Er", "implied_topic_id": "pronomen_personal_nom"},
-      {"text": "Wir", "implied_topic_id": "pronomen_personal_nom"}
-    ],
-    "rule_hint": "Subjekt in der 1. Person Singular ist 'ich'.",
-    "carrier_lemmas": ["heißen", "kommen", "Deutschland"]
+    "prompt": "___ heiße Max.",
+    "accepted_answers": ["Ich"],
+    "distractors": [{"text": "Du"}, {"text": "Er"}, {"text": "Wir"}],
+    "facet": "sg1"
   },
   {
-    "id": "bank_a1_002",
+    "id": "bank_sample_002",
     "topic_id": "verb_praesens_regelm",
-    "type": "cloze_cued",
+    "type": "cloze_free",
     "difficulty": 1,
     "cefr": "A1",
-    "prompt": "Er ___ jeden Tag im Büro. (arbeiten)",
-    "cue": "arbeiten",
-    "accepted_answers": ["arbeitet"],
-    "distractors": [
-      {"text": "arbeite", "implied_topic_id": "verb_praesens_regelm"},
-      {"text": "arbeitest", "implied_topic_id": "verb_praesens_regelm"},
-      {"text": "arbeiten", "implied_topic_id": "verb_praesens_regelm"}
-    ],
-    "rule_hint": "Endung bei 'er/sie/es' im Präsens ist '-t' bzw. '-et' nach d/t.",
-    "carrier_lemmas": ["arbeiten", "jeder", "Tag", "Büro"]
+    "prompt": "Er ___ Deutsch.",
+    "accepted_answers": ["lernt"],
+    "distractors": [{"text": "lerne"}, {"text": "lernst"}, {"text": "lernen"}],
+    "facet": "sg3"
   },
   {
-    "id": "bank_a2_001",
+    "id": "bank_sample_003",
+    "topic_id": "artikel_bestimmt_nom",
+    "type": "cloze_free",
+    "difficulty": 1,
+    "cefr": "A1",
+    "prompt": "___ Tisch ist groß.",
+    "accepted_answers": ["Der"],
+    "distractors": [{"text": "Die"}, {"text": "Das"}, {"text": "Den"}],
+    "facet": "maskulin"
+  },
+  {
+    "id": "bank_sample_004",
+    "topic_id": "artikel_unbestimmt_nom",
+    "type": "cloze_free",
+    "difficulty": 1,
+    "cefr": "A1",
+    "prompt": "Hier steht ___ Auto.",
+    "accepted_answers": ["ein"],
+    "distractors": [{"text": "eine"}, {"text": "einen"}, {"text": "einem"}],
+    "facet": "neutral"
+  },
+  {
+    "id": "bank_sample_005",
     "topic_id": "dativ_nach_praeposition",
     "type": "cloze_free",
-    "difficulty": 1,
+    "difficulty": 2,
     "cefr": "A2",
     "prompt": "Das Buch liegt auf ___ Tisch.",
-    "cue": null,
     "accepted_answers": ["dem"],
-    "distractors": [
-      {"text": "den", "implied_topic_id": "kasus_akkusativ_formen"},
-      {"text": "des", "implied_topic_id": "kasus_genitiv_formen"},
-      {"text": "das", "implied_topic_id": "artikel_bestimmt_nom"}
-    ],
-    "rule_hint": "Wechselpräposition auf + Dativ bei statischer Ortsangabe (Wo?).",
-    "carrier_lemmas": ["Buch", "liegen", "Tisch"]
+    "distractors": [{"text": "den"}, {"text": "das"}, {"text": "des"}],
+    "facet": "masc_dat"
   },
   {
-    "id": "bank_a2_002",
+    "id": "bank_sample_006",
     "topic_id": "akkusativ_nach_praeposition",
     "type": "cloze_free",
-    "difficulty": 1,
+    "difficulty": 2,
     "cefr": "A2",
-    "prompt": "Er legt das Buch auf ___ Tisch.",
-    "cue": null,
+    "prompt": "Wir gehen durch ___ Park.",
     "accepted_answers": ["den"],
-    "distractors": [
-      {"text": "dem", "implied_topic_id": "kasus_dativ_formen"},
-      {"text": "des", "implied_topic_id": "kasus_genitiv_formen"},
-      {"text": "das", "implied_topic_id": "artikel_bestimmt_nom"}
-    ],
-    "rule_hint": "Wechselpräposition auf + Akkusativ bei Richtung (Wohin?).",
-    "carrier_lemmas": ["legen", "Buch", "Tisch"]
+    "distractors": [{"text": "dem"}, {"text": "das"}, {"text": "des"}],
+    "facet": "masc_acc"
   },
   {
-    "id": "bank_b1_001",
+    "id": "bank_sample_007",
     "topic_id": "nebensatz_weil_da",
     "type": "cloze_free",
     "difficulty": 2,
     "cefr": "B1",
-    "prompt": "Ich bleibe heute zu Hause, ___ ich erkältet bin.",
-    "cue": null,
-    "accepted_answers": ["weil", "da"],
-    "distractors": [
-      {"text": "denn", "implied_topic_id": "konjunktionen_position_0"},
-      {"text": "deshalb", "implied_topic_id": "diskurs_adverbialanschluss"},
-      {"text": "obwohl", "implied_topic_id": "nebensatz_obwohl_trotzdem"}
-    ],
-    "rule_hint": "Kausale Nebensätze mit 'weil' oder 'da' schicken das konjugierte Verb ans Satzende.",
-    "carrier_lemmas": ["bleiben", "heute", "Hause", "erkältet"]
+    "prompt": "Er bleibt hier, weil er müde ___.",
+    "accepted_answers": ["ist"],
+    "distractors": [{"text": "war"}, {"text": "sein"}, {"text": "wäre"}],
+    "facet": "nebensatz"
   },
   {
-    "id": "bank_b1_002",
+    "id": "bank_sample_008",
     "topic_id": "konjunktiv_ii_irreal_gegenwart",
-    "type": "cloze_cued",
-    "difficulty": 2,
-    "cefr": "B1",
-    "prompt": "Wenn ich mehr Zeit hätte, ___ ich gerne öfter reisen. (würde)",
-    "cue": "würde",
-    "accepted_answers": ["würde"],
-    "distractors": [
-      {"text": "werde", "implied_topic_id": "futur_i"},
-      {"text": "wurde", "implied_topic_id": "passiv_praeteritum"},
-      {"text": "wäre", "implied_topic_id": "konjunktiv_ii_irreal_gegenwart"}
-    ],
-    "rule_hint": "Konjunktiv II Gegenwart: würde-Ersatzform + Infinitiv.",
-    "carrier_lemmas": ["Zeit", "haben", "reisen", "öfter"]
-  },
-  {
-    "id": "bank_b2_001",
-    "topic_id": "konjunktiv_i_indirekte_rede",
-    "type": "cloze_cued",
-    "difficulty": 3,
-    "cefr": "B2",
-    "prompt": "Die Sprecherin teilte mit, der Minister ___ heute zurückgetreten. (sein)",
-    "cue": "sein",
-    "accepted_answers": ["sei"],
-    "distractors": [
-      {"text": "ist", "implied_topic_id": "verb_sein_haben"},
-      {"text": "wäre", "implied_topic_id": "konjunktiv_ii_irreal_gegenwart"},
-      {"text": "war", "implied_topic_id": "praeteritum_sein_haben_modal"}
-    ],
-    "rule_hint": "Indirekte Rede in der 3. Person Singular verlangt Konjunktiv I (sei).",
-    "carrier_lemmas": ["Sprecherin", "mitteilen", "Minister", "zurücktreten"]
-  },
-  {
-    "id": "bank_b2_002",
-    "topic_id": "passiversatz_erweitert_b2",
     "type": "cloze_free",
     "difficulty": 3,
-    "cefr": "B2",
-    "prompt": "Dieses schwierige Problem lässt ___ nicht ohne Weiteres lösen.",
-    "cue": null,
-    "accepted_answers": ["sich"],
-    "distractors": [
-      {"text": "es", "implied_topic_id": "pronomen_personal_nom"},
-      {"text": "uns", "implied_topic_id": "pronomen_personal_dat"},
-      {"text": "ihm", "implied_topic_id": "pronomen_personal_dat"}
-    ],
-    "rule_hint": "Passiversatz: sich lassen + Infinitiv drückt eine passive Möglichkeit aus.",
-    "carrier_lemmas": ["schwierig", "Problem", "lassen", "lösen"]
+    "cefr": "B1",
+    "prompt": "Wenn ich reich ___, würde ich reisen.",
+    "accepted_answers": ["wäre"],
+    "distractors": [{"text": "war"}, {"text": "bin"}, {"text": "sei"}],
+    "facet": "irreal"
   }
 ]

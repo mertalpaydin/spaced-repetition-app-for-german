@@ -143,3 +143,40 @@ class MockBatchClient:
                 )
 
         return results
+
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description="Gemini Batch Generation & Ingestion CLI")
+    parser.add_argument(
+        "--action",
+        choices=["submit", "ingest"],
+        required=True,
+        help="Action to perform: submit new batch or ingest completed batch",
+    )
+    parser.add_argument(
+        "--batch-id",
+        type=str,
+        default=None,
+        help="Optional specific batch ID for ingestion",
+    )
+    args = parser.parse_args()
+
+    client = MockBatchClient()
+    if args.action == "submit":
+        req = GenerationRequest(
+            topic_id="dativ_nach_praeposition",
+            count=10,
+            difficulty=1,
+            item_types=["cloze_free"],
+        )
+        batch_id = client.submit([req])
+        print(f"Submitted batch successfully: {batch_id}")
+    elif args.action == "ingest":
+        target_batch = args.batch_id or "batch_001"
+        client.poll(target_batch)
+        items = client.retrieve(target_batch)
+        print(f"Ingested {len(items)} items from batch {target_batch}")
+    sys.exit(0)

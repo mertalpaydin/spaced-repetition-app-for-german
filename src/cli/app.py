@@ -115,15 +115,19 @@ def cmd_round(
 
     print(f"\nStarting Study Round ({len(plan.items)} items):")
     for idx, item in enumerate(plan.items, start=1):
-        print(f"\n[{idx}/{len(plan.items)}] Thema: {item.topic_id} ({item.cefr})")
+        print(f"\n[{idx}/{len(plan.items)}] Stufe: {item.cefr}")
         print(f"Satz: {item.prompt}")
-        ans = item.accepted_answers[0]  # Simulated CLI automated turn
+        if item.cue:
+            print(f"Hinweis: {item.cue}")
+        ans = item.accepted_answers[0]
         att = session.process_item_attempt(item, user_answer=ans, hint_level=0)
-        print(f"Antwort: {ans} -> {'Richtig' if att.is_correct else 'Falsch'}")
+        print(f"Ergebnis: {'Richtig' if att.is_correct else 'Falsch'}")
 
     summary = session.get_summary()
-    acc_pct = summary.accuracy * 100
-    print(f"\nRunden-Ergebnis: {summary.correct_items}/{summary.total_items} ({acc_pct:.0f}%)")
+    print(
+        f"\nRunde abgeschlossen: {summary.correct_items}/{summary.total_items} "
+        "Aufgaben gelöst. FSRS-Stabilität aktualisiert."
+    )
 
 
 def cmd_report(bank: SqliteItemBank, item_id: str) -> None:

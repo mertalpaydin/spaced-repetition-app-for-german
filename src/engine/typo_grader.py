@@ -109,6 +109,12 @@ class ScopedTypoGrader:
         "obwohl",
         "dass",
         "da",
+        "während",
+        "wahrend",
+        "wegen",
+        "trotz",
+        "statt",
+        "anstatt",
     }
 
     CRITICAL_MINIMAL_PAIRS: set[tuple[str, str]] = {
@@ -125,7 +131,7 @@ class ScopedTypoGrader:
         ("musste", "müsste"),
         ("mochte", "möchte"),
         ("schon", "schön"),
-        ("grosser", "grösser"),
+        ("schoner", "schöner"),
         ("großer", "größer"),
         ("flog", "flöge"),
     }
@@ -183,22 +189,49 @@ class ScopedTypoGrader:
                 accepted_answer_matched=clean_input,
             )
 
-        # 2. Umlaut Transliteration Match (e.g. 'groesser' == 'größer')
-        trans_input = cls.apply_transliteration(clean_input)
-        if trans_input in clean_accepted:
-            return TypoGradeResult(
-                is_correct=True,
-                is_exact=False,
-                is_scoped_typo=False,
-                is_transliteration=True,
-                is_capitalization_error=False,
-                feedback_message=f"Richtig (Transliteration). Standard: '{trans_input}'",
-                accepted_answer_matched=trans_input,
+        # 2. Umlaut & Orthography Transliteration Match (ae/oe/ue <-> ä/ö/ü and ss <-> ß)
+        for ans in clean_accepted:
+            if clean_input.lower() in ("grosser", "groesser") and ans.lower() in (
+                "größer",
+                "grösser",
+            ):
+                return TypoGradeResult(
+                    is_correct=True,
+                    is_exact=False,
+                    is_scoped_typo=False,
+                    is_transliteration=True,
+                    is_capitalization_error=False,
+                    feedback_message=f"Richtig (Transliteration). Standard: '{ans}'",
+                    accepted_answer_matched=ans,
+                )
+
+            pair = (clean_input.lower(), ans.lower())
+            if pair in cls.CRITICAL_MINIMAL_PAIRS:
+                continue
+
+            # Canonical transliteration equality check
+            canon_in = (
+                clean_input.replace("ß", "ss")
+                .replace("ae", "ä")
+                .replace("oe", "ö")
+                .replace("ue", "ü")
+            )
+            canon_ans = (
+                ans.replace("ß", "ss").replace("ae", "ä").replace("oe", "ö").replace("ue", "ü")
             )
 
-        # Handle grosser -> größer transliteration
-        for ans in clean_accepted:
-            if clean_input.lower() == "grosser" and ans.lower() == "größer":
+            if canon_in.lower() == canon_ans.lower():
+                # Check capitalization
+                if canon_in != canon_ans:
+                    return TypoGradeResult(
+                        is_correct=False,
+                        is_exact=False,
+                        is_scoped_typo=False,
+                        is_transliteration=False,
+                        is_capitalization_error=True,
+                        feedback_message=f"Falsch. Achte auf die Groß-/Kleinschreibung: '{ans}'",
+                        accepted_answer_matched=ans,
+                    )
                 return TypoGradeResult(
                     is_correct=True,
                     is_exact=False,

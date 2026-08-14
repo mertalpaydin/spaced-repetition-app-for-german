@@ -80,3 +80,27 @@ def test_weekly_report_generator_synthesizes_metrics() -> None:
     assert len(report.newly_acquired_topics) == 2
     assert report.current_streak_days == 5
     assert len(report.narrative_summary) > 20
+
+
+def test_production_labelled_answers_golden() -> None:
+    """Verify labelled answers golden fixture has 30 items with valid rubric fields."""
+    import json
+    from pathlib import Path
+
+    fixture_path = Path("data/fixtures/production/labelled_answers.jsonl")
+    assert fixture_path.exists(), "labelled_answers.jsonl fixture must exist"
+
+    with fixture_path.open("r", encoding="utf-8") as f:
+        lines = [line.strip() for line in f if line.strip()]
+
+    assert len(lines) == 30, f"Expected 30 labelled answers, found {len(lines)}"
+
+    for line in lines:
+        row = json.loads(line)
+        assert "target_topic_id" in row
+        assert "student_submission" in row
+        assert isinstance(row["target_structure_used"], bool)
+        assert 0.0 <= row["grammatical_accuracy"] <= 1.0
+        assert 0.0 <= row["naturalness"] <= 1.0
+        assert isinstance(row["is_pass"], bool)
+        assert len(row["explanation_de"]) > 5

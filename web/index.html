@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="DeutschMaster - Spec-driven German Grammar Trainer with Multi-Dimensional FSRS Memory Scheduling.">
-  <meta name="theme-color" content="#3b82f6">
+  <meta name="theme-color" content="#2563eb">
   <title>DeutschMaster - Deutsche Grammatik Trainer</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="stylesheet" href="./styles.css">
@@ -19,33 +19,42 @@
       <h1 class="app-title">DeutschMaster</h1>
     </div>
     <nav>
-      <button id="nav-practice-btn" class="nav-btn active">Üben (Practice)</button>
-      <button id="nav-dag-btn" class="nav-btn">Grammatik-Baum (DAG)</button>
-      <button id="nav-stats-btn" class="nav-btn">Statistik</button>
+      <button id="nav-practice-btn" class="nav-btn active">Üben</button>
+      <button id="nav-dag-btn" class="nav-btn">Grammatik-Baum</button>
+      <button id="nav-duels-btn" class="nav-btn">Duelle</button>
+      <button id="nav-challenge-btn" class="nav-btn">Freies Schreiben</button>
+      <button id="nav-stats-btn" class="nav-btn">Statistik & Bericht</button>
+      <button id="nav-settings-btn" class="nav-btn">⚙️</button>
     </nav>
   </header>
 
   <main>
     <!-- 1. Practice Round View -->
     <section id="view-practice" class="view-section active">
-      <div class="session-bar">
-        <div class="session-stats">
-          <span>Runde: <strong id="stat-round-progress">1 / 6</strong></span>
-          <span>Genauigkeit: <strong id="stat-accuracy">100%</strong></span>
-          <span>Serie: <strong id="stat-streak">0 🔥</strong></span>
+      <!-- Round Preview Bar -->
+      <div id="round-preview-box" class="preview-banner" style="display: flex; justify-content: space-between; align-items: center; background: #eff6ff; border: 1px solid #bfdbfe; padding: 8px 16px; border-radius: 8px; margin-bottom: 12px;">
+        <span>🎯 <strong>Runde:</strong> 6 Aufgaben (~2 Min)</span>
+        <span id="preview-due-info">Fällig heute: <strong id="preview-due-count">6</strong></span>
+      </div>
+
+      <div class="round-bar">
+        <div class="round-stats">
+          <span>Aufgabe: <strong id="stat-round-progress">1 / 6</strong></span>
+          <span>Fällig: <strong id="stat-due-topics">0 Themen</strong></span>
+          <span>Serie: <strong id="stat-streak">0 Tage 🔥</strong></span>
         </div>
         <div class="topic-tag-indicator">
-          <span id="card-tag-badge" class="tag-badge">Kasus: Dativ</span>
+          <span id="card-tag-badge" class="tag-badge">Grammatik-Übung</span>
         </div>
       </div>
       <div class="progress-track">
-        <div id="session-progress-fill" class="progress-fill"></div>
+        <div id="round-progress-fill" class="progress-fill"></div>
       </div>
 
       <div class="exercise-card">
         <div class="card-header">
           <span id="card-cefr-badge" class="tag-badge">A2</span>
-          <span id="card-diff-badge" class="difficulty-badge">Schwierigkeit: Stufe 1</span>
+          <span id="card-diff-badge" class="difficulty-badge">Stufe 1</span>
         </div>
 
         <div id="exercise-prompt" class="prompt-box">
@@ -58,10 +67,10 @@
 
         <!-- German Umlaut Soft Keys -->
         <div class="umlaut-bar" style="display: flex; gap: 6px; margin-bottom: 8px; justify-content: center;">
-          <button type="button" class="btn-umlaut" data-char="ä" style="padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--surface-light); cursor: pointer;">ä</button>
-          <button type="button" class="btn-umlaut" data-char="ö" style="padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--surface-light); cursor: pointer;">ö</button>
-          <button type="button" class="btn-umlaut" data-char="ü" style="padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--surface-light); cursor: pointer;">ü</button>
-          <button type="button" class="btn-umlaut" data-char="ß" style="padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--surface-light); cursor: pointer;">ß</button>
+          <button type="button" class="btn-umlaut" data-char="ä">ä</button>
+          <button type="button" class="btn-umlaut" data-char="ö">ö</button>
+          <button type="button" class="btn-umlaut" data-char="ü">ü</button>
+          <button type="button" class="btn-umlaut" data-char="ß">ß</button>
         </div>
 
         <!-- Text Input Mode -->
@@ -91,17 +100,17 @@
     <!-- 2. Round Summary View -->
     <section id="view-summary" class="view-section">
       <div class="summary-card">
-        <h2>Runde Abgeschlossen! 🎉</h2>
-        <div id="summary-score-value" class="summary-score">83%</div>
-        <p id="summary-feedback-msg">Hervorragende Leistung! Dein FSRS-Gedächtnisintervall wurde aktualisiert.</p>
+        <h2>Runde Abgeschlossen! 🚀</h2>
+        <div id="summary-score-value" class="summary-score">6 Aufgaben Abgeschlossen</div>
+        <p id="summary-feedback-msg">Dein FSRS-Gedächtnisintervall und die Stabilität wurden deterministisch aktualisiert.</p>
 
         <div class="summary-stats-grid">
           <div class="stat-box">
-            <span id="summary-correct" class="stat-value">5 / 6</span>
+            <span id="summary-correct" class="stat-value">6 / 6</span>
             <span class="stat-label">Richtig</span>
           </div>
           <div class="stat-box">
-            <span id="summary-unhinted" class="stat-value">4</span>
+            <span id="summary-unhinted" class="stat-value">5</span>
             <span class="stat-label">Ohne Hinweis</span>
           </div>
           <div class="stat-box">
@@ -117,40 +126,104 @@
     <!-- 3. Grammar Taxonomy DAG Tree View -->
     <section id="view-dag" class="view-section">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>Grammatik-Taxonomie (A1–B2)</h2>
-        <span id="dag-acquired-counter" class="tag-badge">12 / 87 Erworben</span>
+        <h2>Grammatik-Taxonomie DAG (A1–B2)</h2>
+        <button id="btn-reset-dag" class="btn-hint">Zurücksetzen</button>
       </div>
-      <p style="color: var(--text-secondary); font-size: 0.9rem;">
-        Themen schalten sich automatisch frei (Ready), sobald alle Voraussetzungen erworben sind. 3 fehlerfreie Durchgänge ohne Hinweise befördern ein Thema zu "Acquired".
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+        Visueller Abhängigkeitsgraph: Vorbedingungen schalten nachfolgende Grammatikthemen frei.
       </p>
-      <div id="dag-tree-container" class="dag-grid">
-        <!-- Dynamically populated taxonomy nodes -->
+      <div id="dag-container" class="dag-tree-grid">
+        <!-- Dynamically generated topics with prereq edges -->
       </div>
     </section>
 
-    <!-- 4. Stats View -->
+    <!-- 4. Duel Library View -->
+    <section id="view-duels" class="view-section">
+      <h2>Verwechslungs-Duelle (Minimal Pairs)</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">Gezieltes Kontrasttraining für typische Fehlerpaare.</p>
+      <div id="duel-list" class="duel-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+        <!-- Dynamically populated duels -->
+      </div>
+    </section>
+
+    <!-- 5. Daily Challenge Free-Writing View -->
+    <section id="view-challenge" class="view-section">
+      <h2>Freies Schreiben (Produktion)</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">Bilde eigene Sätze mit Zielstrukturen. Die KI bewertet Struktur, Grammatik und Natürlichkeit.</p>
+      <div class="exercise-card">
+        <h3 id="challenge-prompt">Bilde einen Kausalsatz mit 'weil'.</h3>
+        <textarea id="challenge-input" class="text-input" style="width: 100%; min-height: 100px; margin: 12px 0;" placeholder="Schreibe deinen deutschen Satz hier..."></textarea>
+        <button id="btn-submit-challenge" class="btn-primary">Satz Bewerten</button>
+        <div id="challenge-feedback" style="margin-top: 16px; display: none;" class="feedback-box"></div>
+      </div>
+    </section>
+
+    <!-- 6. Statistics, Retention & Progress Report View -->
     <section id="view-stats" class="view-section">
-      <h2>Lernstatistik & Speicher-Metriken</h2>
-      <div class="summary-stats-grid">
-        <div class="stat-box">
-          <span id="stats-total-reviews" class="stat-value">0</span>
-          <span class="stat-label">Wiederholungen</span>
+      <h2>Lernfortschritt & CEFR-Abdeckung</h2>
+      
+      <!-- 3-Segment CEFR Coverage Bar (acquired, learning, unseen) -->
+      <div style="background: var(--surface); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 16px;">
+        <h3>CEFR Stufen-Abdeckung</h3>
+        <div style="margin: 8px 0;"><strong>A1:</strong> <span id="cov-a1-text">0% erworben</span></div>
+        <div style="height: 12px; border-radius: 6px; background: #e2e8f0; overflow: hidden; display: flex;" id="bar-a1">
+          <div style="background: #22c55e; width: 0%;" id="bar-a1-acq"></div>
+          <div style="background: #eab308; width: 0%;" id="bar-a1-lrn"></div>
         </div>
-        <div class="stat-box">
-          <span id="stats-accuracy-overall" class="stat-value">100%</span>
-          <span class="stat-label">Gesamtgenauigkeit</span>
+
+        <div style="margin: 8px 0;"><strong>A2:</strong> <span id="cov-a2-text">0% erworben</span></div>
+        <div style="height: 12px; border-radius: 6px; background: #e2e8f0; overflow: hidden; display: flex;" id="bar-a2">
+          <div style="background: #22c55e; width: 0%;" id="bar-a2-acq"></div>
+          <div style="background: #eab308; width: 0%;" id="bar-a2-lrn"></div>
         </div>
-        <div class="stat-box">
-          <span id="stats-forecast-load" class="stat-value">0</span>
-          <span class="stat-label">7-Tage FSRS Last</span>
+
+        <div style="margin: 8px 0;"><strong>B1:</strong> <span id="cov-b1-text">0% erworben</span></div>
+        <div style="height: 12px; border-radius: 6px; background: #e2e8f0; overflow: hidden; display: flex;" id="bar-b1">
+          <div style="background: #22c55e; width: 0%;" id="bar-b1-acq"></div>
+          <div style="background: #eab308; width: 0%;" id="bar-b1-lrn"></div>
+        </div>
+
+        <div style="margin: 8px 0;"><strong>B2:</strong> <span id="cov-b2-text">0% erworben</span></div>
+        <div style="height: 12px; border-radius: 6px; background: #e2e8f0; overflow: hidden; display: flex;" id="bar-b2">
+          <div style="background: #22c55e; width: 0%;" id="bar-b2-acq"></div>
+          <div style="background: #eab308; width: 0%;" id="bar-b2-lrn"></div>
         </div>
       </div>
-    </section>
-  </main>
 
-  <footer>
-    <p>DeutschMaster &copy; 2026 &bull; Spec-Driven FSRS German Learning System &bull; 100% Offline-Ready</p>
-  </footer>
+      <!-- Weekly Progress Report -->
+      <div style="background: var(--surface); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 16px;">
+        <h3>Aktivitäts-Wochenbericht</h3>
+        <p id="weekly-report-text">Bislang wurden 0 Wiederholungen durchgeführt. Absolviere mehr Runden für detaillierte Berichte.</p>
+      </div>
+
+      <!-- JSON Data Export / Import Replay -->
+      <div style="display: flex; gap: 8px;">
+        <button id="btn-export-json" class="btn-hint">📥 Daten Exportieren (JSON)</button>
+        <button id="btn-import-json" class="btn-hint">📤 Daten Importieren</button>
+        <input type="file" id="file-import-input" style="display: none;" accept=".json">
+      </div>
+    </section>
+
+    <!-- 7. Settings Modal -->
+    <div id="settings-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+      <div style="background: white; padding: 24px; border-radius: 12px; max-width: 440px; width: 90%;">
+        <h3>⚙️ Einstellungen</h3>
+        <div style="margin: 16px 0;">
+          <label><strong>Rundengröße (4–10):</strong> <span id="val-round-size">6</span></label>
+          <input type="range" id="input-round-size" min="4" max="10" value="6" style="width: 100%;">
+        </div>
+        <div style="margin: 16px 0;">
+          <label><strong>Vokabel-Anteil (0–50%):</strong> <span id="val-vocab-ratio">30%</span></label>
+          <input type="range" id="input-vocab-ratio" min="0" max="50" value="30" style="width: 100%;">
+        </div>
+        <div style="margin: 16px 0;">
+          <label><strong>Forecast Belastungslimit:</strong> <span id="val-forecast-thresh">50</span></label>
+          <input type="range" id="input-forecast-thresh" min="10" max="150" value="50" style="width: 100%;">
+        </div>
+        <button id="btn-close-settings" class="btn-primary" style="width: 100%; margin-top: 12px;">Speichern & Schließen</button>
+      </div>
+    </div>
+  </main>
 
   <script src="./db.js"></script>
   <script src="./app.js"></script>

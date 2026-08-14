@@ -13,6 +13,9 @@ from src.verification.pipeline import VerificationPipeline
 
 @pytest.fixture
 def adversarial_suite_path(data_fixtures_dir: Path) -> Path:
+    p = data_fixtures_dir / "verification" / "adversarial.jsonl"
+    if p.exists():
+        return p
     return data_fixtures_dir / "verification" / "adversarial_suite.jsonl"
 
 
@@ -53,7 +56,7 @@ def test_adversarial_suite_catches_all_known_defects(
     with adversarial_suite_path.open("r", encoding="utf-8") as f:
         lines = [line.strip() for line in f if line.strip()]
 
-    assert len(lines) == 30, f"Expected 30 adversarial items, found {len(lines)}"
+    assert len(lines) >= 30, f"Expected at least 30 adversarial items, found {len(lines)}"
 
     rejected_count = 0
     for idx, line in enumerate(lines, start=1):
@@ -75,7 +78,7 @@ def test_adversarial_suite_catches_all_known_defects(
             )
         rejected_count += 1
 
-    assert rejected_count == 30
+    assert rejected_count == len(lines)
 
 
 @pytest.mark.golden

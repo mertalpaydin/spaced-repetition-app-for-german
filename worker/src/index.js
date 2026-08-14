@@ -47,8 +47,8 @@ export default {
       });
     }
 
-    // 3. Sync Push Endpoint (Appends immutable review events and syncs cards)
-    if ((path === '/api/sync/push' || path === '/sync/push') && request.method === 'POST') {
+    // 3. Sync Endpoint (Appends immutable review events and syncs cards)
+    if ((path === '/sync' || path === '/api/sync' || path === '/api/sync/push' || path === '/sync/push') && request.method === 'POST') {
       try {
         const payload = await request.json();
         const userId = payload.user_id || request.headers.get('X-User-ID') || 'anonymous';
