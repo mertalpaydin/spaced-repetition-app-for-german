@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Er ___ krank, sodass er nicht zur Prüfung kommen konnte.
+- prompt: Er war sehr müde, ___ er sofort einschlief.
   accepted_answers:
-  - war
+  - sodass
   difficulty: 1
   cue: null
-- prompt: Er ___ krank. Deshalb konnte er nicht zur Prüfung kommen.
+- prompt: Die Straße war gesperrt; ___ mussten wir einen Umweg fahren.
   accepted_answers:
-  - war
-  difficulty: 1
+  - deshalb
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Verhandlungen, die seit Tagen liefen, gerieten so sehr ins Stocken,
+    ___ beide Seiten den Termin verschoben.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - dass
+  difficulty: 3
   cue: null

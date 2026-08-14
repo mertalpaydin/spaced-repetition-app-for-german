@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Er ___ die Tür und ging leise hinaus.
+- prompt: Sie ___ gestern Abend ein Buch.
   accepted_answers:
-  - schloss
+  - kaufte
   difficulty: 1
   cue: null
-- prompt: Plötzlich ___ es zu schneien.
+- prompt: Du ___ gestern spät nach Hause, weil die Bahn Verspätung hatte.
   accepted_answers:
-  - begann
-  difficulty: 1
+  - kamst
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Ingenieure ___ das Problem erst nach mehreren Wochen intensiver
+    Forschung, obwohl sie zunächst skeptisch gewesen waren.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - lösten
+  difficulty: 3
   cue: null

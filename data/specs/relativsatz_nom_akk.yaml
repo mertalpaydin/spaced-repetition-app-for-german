@@ -18,18 +18,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Das ___ der Mann, der dort wohnt. (Subjekt -> Nom)
+- prompt: Ich kenne den Mann, ___ dort drüben wohnt.
   accepted_answers:
-  - ist
+  - der
   difficulty: 1
   cue: null
-- prompt: Das ___ der Mann, den ich gestern gesehen habe. (Objekt -> Akk)
+- prompt: Der Kollege, ___ ich täglich im Aufzug treffe, arbeitet im dritten
+    Stock.
   accepted_answers:
-  - ist
-  difficulty: 1
+  - den
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Diese Bücher, ___ er mir vor Jahren empfohlen hat, stehen noch in
+    meinem Regal.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - die
+  difficulty: 3
   cue: null

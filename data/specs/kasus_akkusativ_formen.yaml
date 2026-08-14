@@ -18,18 +18,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Ich ___ den Mann.
+- prompt: Ich sehe ___ Mann dort drüben.
   accepted_answers:
-  - sehe
+  - den
   difficulty: 1
   cue: null
-- prompt: Wir ___ einen Tisch.
+- prompt: Weil sie Hunger hat, isst sie ___ Brötchen zum Frühstück.
   accepted_answers:
-  - kaufen
-  difficulty: 1
+  - das
+  - ein
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl der Film sehr lang war, fand das Publikum ___ Schauspieler brillant.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - den
+  - einen
+  difficulty: 3
   cue: null

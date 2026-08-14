@@ -18,18 +18,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Ich ___ mir die Zähne.
+- prompt: Ich putze ___ jeden Abend die Zähne.
   accepted_answers:
-  - putze
+  - mir
   difficulty: 1
   cue: null
-- prompt: Du ___ dir eine Jacke an.
+- prompt: Wenn ihr nach Hause kommt, wascht ___ bitte gründlich die Hände.
   accepted_answers:
-  - ziehst
-  difficulty: 1
+  - euch
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl die Zeit knapp war, kämmte ___ die Studentin vor dem Gespräch noch schnell
+    die Haare.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - sich
+  difficulty: 3
   cue: null

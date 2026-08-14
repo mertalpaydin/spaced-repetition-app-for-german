@@ -17,18 +17,24 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Der ___ erklärte, die Regierung habe alle Maßnahmen geprüft.
+- prompt: Die Kollegin hat dem Team eine wichtige Nachricht zukommen lassen.
+    Sie erklärt, sie ___ heute keine Zeit für das Meeting.
   accepted_answers:
-  - Minister
+  - habe
   difficulty: 1
   cue: null
-- prompt: Sie ___ sie sei mit dem Ergebnis zufrieden.
+- prompt: Die Ärzte haben sich nach der Untersuchung beraten. Sie erklären,
+    sie ___ mit dem Ergebnis zufrieden, auch wenn noch letzte Tests
+    ausstehen.
   accepted_answers:
-  - sagte
-  difficulty: 1
+  - seien
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Das Forschungsteam hat monatelang an einem neuen Verfahren
+    gearbeitet. Die Wissenschaftlerin betont, die Methode ___ deutlich
+    genauere Messwerte liefern als alle bisherigen Verfahren, die zuvor
+    eingesetzt wurden.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - könne
+  difficulty: 3
   cue: null

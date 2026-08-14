@@ -18,18 +18,18 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Kommst ___ morgen zur Party?
+- prompt: ___ du Hunger?
   accepted_answers:
-  - du
+  - Hast
   difficulty: 1
   cue: null
-- prompt: Wo ___ du?
+- prompt: Der Bus kommt später, aber wo ___ wir uns?
   accepted_answers:
-  - wohnst
-  difficulty: 1
+  - treffen
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Weil das Wetter schlecht ist, wann ___ ihr nach Hause?
   accepted_answers:
-  - einer
-  difficulty: 1
+  - kommt
+  difficulty: 3
   cue: null

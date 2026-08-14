@@ -17,18 +17,21 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Nachdem ___ gefrühstückt hatte, ging er zur Arbeit.
+- prompt: Nachdem er gefrühstückt ___, ging er zur Arbeit.
   accepted_answers:
-  - er
+  - hatte
   difficulty: 1
   cue: null
-- prompt: Als ___ ankamen, war der Zug bereits abgefahren.
+- prompt: Das Telefon klingelte spät in der Nacht. Du ___ da schon längst
+    eingeschlafen.
   accepted_answers:
-  - wir
-  difficulty: 1
+  - warst
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Nachdem die Wissenschaftler jahrelang an dem Projekt geforscht
+    ___, veröffentlichten sie ihre Ergebnisse in einer renommierten
+    Fachzeitschrift.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - hatten
+  difficulty: 3
   cue: null

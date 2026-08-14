@@ -18,18 +18,21 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Ich ___ Deutsch.
+- prompt: ___ kommt jeden Tag zu spät.
   accepted_answers:
-  - lerne
+  - Er
+  - Sie
+  - Es
   difficulty: 1
   cue: null
-- prompt: Er ___ aus Berlin.
+- prompt: Weil das Wetter schön ist, gehen ___ heute spazieren.
   accepted_answers:
-  - kommt
-  difficulty: 1
+  - wir
+  - sie
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl die Kinder müde waren, sangen ___ noch ein Lied vor dem Schlafen.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - sie
+  difficulty: 3
   cue: null

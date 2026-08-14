@@ -18,18 +18,21 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Es ___ heute viel getanzt.
+- prompt: Auf der Party ___ bis spät in die Nacht getanzt.
   accepted_answers:
-  - wird
+  - wurde
   difficulty: 1
   cue: null
-- prompt: Sonntags ___ in dieser Firma nicht gearbeitet.
+- prompt: In der Fabrik ___ früher sechs Tage die Woche gearbeitet, bis die
+    neuen Arbeitszeitregeln eingeführt wurden.
   accepted_answers:
-  - wird
-  difficulty: 1
+  - wurde
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: In diesem Kloster ___ jahrhundertelang in vollkommener Stille
+    gearbeitet, gebetet und gelesen, obwohl das strenge Regelwerk
+    mittlerweile gelockert worden ist.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - wurde
+  difficulty: 3
   cue: null

@@ -18,18 +18,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Er ___ gern Bücher.
+- prompt: Du ___ sehr gern Comics.
   accepted_answers:
   - liest
   difficulty: 1
   cue: null
-- prompt: Fährst ___ morgen nach Köln?
+- prompt: Wenn du Hunger hast, ___ du am besten sofort etwas.
   accepted_answers:
-  - du
-  difficulty: 1
+  - isst
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl ihre Kollegen häufig Überstunden machen, ___ meine Nachbarn abends meist
+    entspannt zu Abend.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - essen
+  difficulty: 3
   cue: null

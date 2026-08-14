@@ -18,18 +18,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Der ___ beginnt um 9 Uhr am Montag.
+- prompt: Der Unterricht beginnt ___ 8 Uhr.
   accepted_answers:
-  - Kurs
+  - um
   difficulty: 1
   cue: null
-- prompt: Ich ___ seit drei Jahren in Hamburg.
+- prompt: Er arbeitet ___ zwei Jahren als Lehrer, weil ihm der Beruf gefällt.
   accepted_answers:
-  - lebe
-  difficulty: 1
+  - seit
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Das Projekt, das wir im Januar gestartet haben, muss ___ Ende des Monats
+    fertig sein.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - bis
+  difficulty: 3
   cue: null

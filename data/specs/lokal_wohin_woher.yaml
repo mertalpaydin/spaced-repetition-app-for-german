@@ -18,18 +18,18 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Ich ___ nach Deutschland, aber in die Schweiz.
+- prompt: Ich fahre morgen ___ Berlin.
   accepted_answers:
-  - fahre
+  - nach
   difficulty: 1
   cue: null
-- prompt: Morgen ___ ich zum Zahnarzt gehen.
+- prompt: Sie geht heute ___ ihrer Ärztin, weil sie Kopfschmerzen hat.
   accepted_answers:
-  - muss
-  difficulty: 1
+  - zu
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Der Zug, der gerade eingefahren ist, kommt ___ der Schweiz.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - aus
+  difficulty: 3
   cue: null

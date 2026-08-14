@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Je ___ man übt, desto besser wird man.
+- prompt: Je länger die Party dauert, ___ müder werde ich.
   accepted_answers:
-  - mehr
+  - desto
   difficulty: 1
   cue: null
-- prompt: Je ___ wir abfahren, umso schneller kommen wir an.
+- prompt: Je mehr man übt, ___ sicherer wird man in der Prüfung.
   accepted_answers:
-  - früher
-  difficulty: 1
+  - umso
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Je länger die Verhandlungen zwischen den beiden Regierungen dauerten, ___
+    skeptischer wurden die Beobachter.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - desto
+  difficulty: 3
   cue: null

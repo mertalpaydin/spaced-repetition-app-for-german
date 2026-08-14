@@ -18,18 +18,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Dieser ___ gefällt mir besser als jener.
+- prompt: ___ Mantel gefällt mir sehr gut.
   accepted_answers:
-  - Mantel
+  - Dieser
   difficulty: 1
   cue: null
-- prompt: Jeder ___ muss sich anmelden.
+- prompt: In diesem Land spricht ___ meistens zwei Sprachen, weil die Grenzregion
+    mehrsprachig ist.
   accepted_answers:
-  - Teilnehmer
-  difficulty: 1
+  - man
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Bei dieser Prüfung, die sehr anspruchsvoll ist, darf ___ ein Wörterbuch
+    benutzen.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - niemand
+  difficulty: 3
   cue: null

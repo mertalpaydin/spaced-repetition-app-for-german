@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Das ___ wird gebaut.
+- prompt: Ich ___ oft nach dem Weg gefragt.
   accepted_answers:
-  - Haus
+  - werde
   difficulty: 1
   cue: null
-- prompt: Hier ___ Deutschkurse angeboten.
+- prompt: Ihr ___ zur Party eingeladen, sobald die Gästeliste feststeht.
+  accepted_answers:
+  - werdet
+  difficulty: 2
+  cue: null
+- prompt: Die Verträge ___ erst unterschrieben, nachdem alle Bedingungen
+    sorgfältig geprüft worden sind.
   accepted_answers:
   - werden
-  difficulty: 1
-  cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
-  accepted_answers:
-  - einer
-  difficulty: 1
+  difficulty: 3
   cue: null

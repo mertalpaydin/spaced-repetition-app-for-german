@@ -17,18 +17,18 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Der ___ ist neu.
+- prompt: ___ Tisch ist neu.
   accepted_answers:
-  - Tisch
+  - Der
   difficulty: 1
   cue: null
-- prompt: Das ___ spielt im Garten.
+- prompt: Weil es regnet, bleibt ___ Kind heute zu Hause.
   accepted_answers:
-  - Kind
-  difficulty: 1
+  - das
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl es spät war, blieb ___ Laden noch eine Stunde geöffnet.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - der
+  difficulty: 3
   cue: null

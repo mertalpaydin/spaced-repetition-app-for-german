@@ -24,13 +24,13 @@ gold_examples:
   - sind
   difficulty: 1
   cue: null
-- prompt: Er ___ gestern spät eingeschlafen.
+- prompt: Weil der Zug Verspätung hatte, ___ ich zu spät angekommen.
   accepted_answers:
-  - ist
-  difficulty: 1
+  - bin
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl ihr euch beeilt habt, ___ ihr trotzdem zu spät zur Vorstellung gekommen.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - seid
+  difficulty: 3
   cue: null

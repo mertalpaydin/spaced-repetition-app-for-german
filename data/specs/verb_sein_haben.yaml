@@ -17,18 +17,18 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Wir ___ müde.
+- prompt: Ich ___ heute sehr müde.
   accepted_answers:
-  - sind
+  - bin
   difficulty: 1
   cue: null
-- prompt: Er ___ einen Hund.
+- prompt: Weil ihr eine große Familie ___, braucht ihr ein großes Auto.
+  accepted_answers:
+  - habt
+  difficulty: 2
+  cue: null
+- prompt: Obwohl die Nachbarn oft laut streiten, ___ mein Bruder große Geduld mit ihnen.
   accepted_answers:
   - hat
-  difficulty: 1
-  cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
-  accepted_answers:
-  - einer
-  difficulty: 1
+  difficulty: 3
   cue: null

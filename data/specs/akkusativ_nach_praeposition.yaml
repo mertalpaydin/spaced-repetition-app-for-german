@@ -18,18 +18,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Ich ___ das Buch auf den Tisch.
+- prompt: Ich lege das Buch auf ___ Tisch.
   accepted_answers:
-  - lege
+  - den
+  - einen
   difficulty: 1
   cue: null
-- prompt: Er ___ in die Küche.
+- prompt: Weil die Show bald beginnt, läuft er schnell in ___ Gebäude.
   accepted_answers:
-  - geht
-  difficulty: 1
+  - das
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl der Weg steil war, stellte der Wanderer seinen Rucksack vorsichtig neben
+    ___ Felsen.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - einen
+  difficulty: 3
   cue: null

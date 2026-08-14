@@ -18,18 +18,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Das ___ vom Ministerium veröffentlichte Dokument ist brisant.
+- prompt: Das ___ Dokument sorgt für Aufsehen.
   accepted_answers:
-  - gestern
+  - vom Ministerium veröffentlichte
   difficulty: 1
   cue: null
-- prompt: Die ___ den Sturm schwer beschädigten Gebäude werden renoviert.
+- prompt: Er dankt dem ___ Kollegen für seine Unterstützung, obwohl die
+    Zusammenarbeit anfangs holprig verlief.
   accepted_answers:
-  - durch
-  difficulty: 1
+  - vom ganzen Team geschätzten
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die ___ Gebäude wurden vollständig saniert, obwohl die
+    ursprünglichen Baupläne bereits Jahrzehnte alt waren.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - durch den Sturm schwer beschädigten
+  difficulty: 3
   cue: null

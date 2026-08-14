@@ -18,18 +18,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Das ___ das Auto des Chefs.
+- prompt: Das ist das Auto ___ Chefs.
   accepted_answers:
-  - ist
+  - des
   difficulty: 1
   cue: null
-- prompt: Die ___ der Blumen ist schön.
+- prompt: Wir bewundern die Fassade ___ historischen Rathauses, das gerade
+    renoviert wird.
   accepted_answers:
-  - Farbe
-  difficulty: 1
+  - des
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Das Büro ___ neuen Studenten liegt im zweiten Stock, gleich neben
+    der Bibliothek.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - des
+  difficulty: 3
   cue: null

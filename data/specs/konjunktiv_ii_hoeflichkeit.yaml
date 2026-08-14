@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Könnten ___ das bitte wiederholen?
+- prompt: ___ Sie mir bitte kurz helfen?
   accepted_answers:
-  - Sie
+  - Könnten
   difficulty: 1
   cue: null
-- prompt: Ich ___ gern eine Tasse Kaffee.
+- prompt: Ich ___ gern noch eine Frage stellen, wenn Sie kurz Zeit haben.
   accepted_answers:
-  - hätte
-  difficulty: 1
+  - würde
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: ___ ihr bereit, uns bei diesem Projekt zu unterstützen, obwohl die
+    Frist bald endet?
   accepted_answers:
-  - einer
-  difficulty: 1
+  - Wärt
+  difficulty: 3
   cue: null

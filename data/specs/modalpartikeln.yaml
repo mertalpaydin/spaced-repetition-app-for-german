@@ -17,18 +17,21 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Komm ___ mal her! (freundliche Einladung)
+- prompt: Peter zögert immer noch, ins kalte Wasser zu springen. Spring ___ endlich
+    rein, das Wasser ist warm!
   accepted_answers:
   - doch
   difficulty: 1
   cue: null
-- prompt: Das ___ ja eine tolle Überraschung!
+- prompt: Mein Nachbar hat heute ungewöhnlich viele Pakete bekommen. Was macht er
+    ___ mit so vielen Paketen?
   accepted_answers:
-  - ist
-  difficulty: 1
+  - denn
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Nachbarn haben sich schon oft über den Lärm beschwert, den die Baustelle
+    nebenan verursacht. Die Bauarbeiten sind ___ eine große Belastung für alle Anwohner.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - ja
+  difficulty: 3
   cue: null

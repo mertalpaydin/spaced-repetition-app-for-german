@@ -19,18 +19,18 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Gestern ___ ich krank und hatte Fieber.
+- prompt: Früher ___ ich große Angst vor Hunden.
   accepted_answers:
-  - war
+  - hatte
   difficulty: 1
   cue: null
-- prompt: Wir ___ lange auf den Bus warten.
+- prompt: Weil es so kalt war, ___ wir dicke Jacken anziehen.
   accepted_answers:
   - mussten
-  difficulty: 1
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl du krank warst, ___ du unbedingt zur Prüfung kommen.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - wolltest
+  difficulty: 3
   cue: null

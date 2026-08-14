@@ -18,18 +18,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Das ___ der Tisch, auf den ich das Buch gelegt habe. (Akk)
+- prompt: Das ist das Haus, ___ ich wohne.
   accepted_answers:
-  - ist
+  - in dem
   difficulty: 1
   cue: null
-- prompt: Das ___ die Stadt, aus der meine Familie kommt. (Dat)
+- prompt: Die Kollegin, ___ ich das Projekt bespreche, kommt aus Hamburg.
   accepted_answers:
-  - ist
-  difficulty: 1
+  - mit der
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Konferenz, ___ zahlreiche Experten aus der ganzen Welt diskutierten,
+    fand großen Anklang.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - auf der
+  difficulty: 3
   cue: null

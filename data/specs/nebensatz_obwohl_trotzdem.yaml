@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Obwohl ___ in Strömen regnete, ging er ohne Schirm hinaus.
+- prompt: ___ es regnete, gingen wir spazieren.
   accepted_answers:
-  - es
+  - Obwohl
   difficulty: 1
   cue: null
-- prompt: Es ___ in Strömen. Trotzdem ging er ohne Schirm hinaus.
+- prompt: Es regnete stark; ___ gingen wir spazieren.
   accepted_answers:
-  - regnete
-  difficulty: 1
+  - trotzdem
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: ___ die Firma, die stark verschuldet war, alle Sparmaßnahmen ergriffen hatte,
+    musste sie schließlich Insolvenz anmelden.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - Obwohl
+  difficulty: 3
   cue: null

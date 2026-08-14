@@ -19,18 +19,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Wenn ___ mehr Zeit hätte, würde ich mehr Sport treiben.
+- prompt: Wenn ich mehr Zeit ___, würde ich mehr Sport treiben.
   accepted_answers:
-  - ich
+  - hätte
   difficulty: 1
   cue: null
-- prompt: Wenn ___ Wetter schön wäre, gingen wir spazieren.
+- prompt: Wenn ihr mehr Geduld ___, würde alles einfacher laufen.
   accepted_answers:
-  - das
-  difficulty: 1
+  - hättet
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Wenn die Firmen enger zusammenarbeiten ___, könnten viele Probleme
+    schneller gelöst werden, obwohl die Branche traditionell sehr
+    konkurrenzorientiert ist.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - würden
+  difficulty: 3
   cue: null

@@ -18,18 +18,18 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Ich ___ mich auf das Wochenende.
+- prompt: Ich freue ___ auf die Ferien.
   accepted_answers:
-  - freue
+  - mich
   difficulty: 1
   cue: null
-- prompt: Er ___ sich schnell an.
+- prompt: Weil der Bus gleich kommt, beeilen wir ___ sehr.
   accepted_answers:
-  - zieht
-  difficulty: 1
+  - uns
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl die Party schon begonnen hatte, zog mein Bruder ___ in aller Ruhe an.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - sich
+  difficulty: 3
   cue: null

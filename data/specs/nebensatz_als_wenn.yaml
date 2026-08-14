@@ -18,18 +18,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Als ___ ein Kind war, wohnten wir auf dem Land.
+- prompt: ___ ich letzten Sommer in Italien war, habe ich viel Eis gegessen.
   accepted_answers:
-  - ich
+  - Als
   difficulty: 1
   cue: null
-- prompt: Immer ___ er nach Hause kam, bellte der Hund.
+- prompt: ___ ich als Kind Fieber hatte, blieb ich immer zu Hause.
   accepted_answers:
-  - wenn
-  difficulty: 1
+  - Wenn
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: ___ die Verhandlungen, die Monate gedauert hatten, endlich abgeschlossen
+    wurden, atmeten alle Beteiligten auf.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - Als
+  difficulty: 3
   cue: null

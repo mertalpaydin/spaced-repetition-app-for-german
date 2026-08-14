@@ -19,18 +19,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Nächstes ___ werde ich nach Spanien reisen.
+- prompt: Ich ___ nächstes Jahr nach Spanien reisen.
   accepted_answers:
-  - Jahr
+  - werde
   difficulty: 1
   cue: null
-- prompt: Wo ___ Thomas? - Er wird wohl noch im Büro sein.
+- prompt: Du ___ die Prüfung sicher bestehen, wenn du weiter so fleißig
+    lernst.
   accepted_answers:
-  - ist
-  difficulty: 1
+  - wirst
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Teilnehmer ___ ihre Ergebnisse erst nächste Woche erfahren,
+    obwohl die Auswertung schon länger abgeschlossen ist.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - werden
+  difficulty: 3
   cue: null

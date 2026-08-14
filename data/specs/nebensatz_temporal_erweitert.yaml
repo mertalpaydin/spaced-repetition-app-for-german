@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Bevor ___ essen, waschen wir die Hände.
+- prompt: ___ ich koche, hört mein Bruder Musik.
   accepted_answers:
-  - wir
+  - Während
   difficulty: 1
   cue: null
-- prompt: Seitdem ___ in Wien wohnt, spricht sie fließend Deutsch.
+- prompt: ___ wir das Abendessen beendet hatten, räumten wir die Küche auf.
   accepted_answers:
-  - sie
-  difficulty: 1
+  - Nachdem
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: ___ die Firma, die letztes Jahr gegründet wurde, ihren ersten großen Auftrag
+    abschließt, bleibt die Zukunft ungewiss.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - Bis
+  difficulty: 3
   cue: null

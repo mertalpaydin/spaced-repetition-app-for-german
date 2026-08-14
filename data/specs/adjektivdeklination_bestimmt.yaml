@@ -18,18 +18,18 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Der ___ Mann liest die neue Zeitung.
+- prompt: Der ___ Mann liest die Zeitung.
   accepted_answers:
   - alte
   difficulty: 1
   cue: null
-- prompt: Ich ___ dem netten Nachbarn.
+- prompt: Weil er Hunger hatte, aß er die ___ Suppe sofort auf.
   accepted_answers:
-  - helfe
-  difficulty: 1
+  - heiße
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl der Wind stark blies, dankte die Crew dem ___ Kapitän für seine Ruhe.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - erfahrenen
+  difficulty: 3
   cue: null

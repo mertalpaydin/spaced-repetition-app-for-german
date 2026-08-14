@@ -24,13 +24,13 @@ gold_examples:
   - habe
   difficulty: 1
   cue: null
-- prompt: Hast ___ deine Hausaufgaben gemacht?
+- prompt: Weil wir Hunger hatten, ___ wir schnell etwas gekocht.
   accepted_answers:
-  - du
-  difficulty: 1
+  - haben
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl ihr müde wart, ___ ihr die ganze Wohnung aufgeräumt.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - habt
+  difficulty: 3
   cue: null

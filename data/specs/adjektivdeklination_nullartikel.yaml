@@ -18,18 +18,18 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Deutscher ___ ist weltweit bekannt.
+- prompt: ___ Kaffee schmeckt sehr gut.
   accepted_answers:
-  - Wein
+  - Heißer
   difficulty: 1
   cue: null
-- prompt: Wir ___ frische Milch.
+- prompt: Weil sie ___ Wasser trinkt, fühlt sie sich fit.
   accepted_answers:
-  - trinken
-  difficulty: 1
+  - kaltes
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Menschen, die viel reisen, schätzen ___ Erfahrungen im Ausland.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - wertvolle
+  difficulty: 3
   cue: null

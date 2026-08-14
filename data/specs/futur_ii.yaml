@@ -19,18 +19,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Er ___ nicht; er wird wohl schon eingeschlafen sein. (Vermutung über Vergangenheit)
+- prompt: Ich ___ das Buch bis nächste Woche gelesen haben.
   accepted_answers:
-  - antwortet
+  - werde
   difficulty: 1
   cue: null
-- prompt: Bis ___ des Jahres werde ich die B2-Prüfung bestanden haben. (Zukunft)
+- prompt: Du ___ die Prüfung sicher bestanden haben, wenn du weiter so
+    fleißig lernst.
   accepted_answers:
-  - Ende
-  difficulty: 1
+  - wirst
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Handwerker ___ das Haus bis zum Winter vollständig renoviert
+    haben, obwohl der Zeitplan von Anfang an sehr knapp war.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - werden
+  difficulty: 3
   cue: null

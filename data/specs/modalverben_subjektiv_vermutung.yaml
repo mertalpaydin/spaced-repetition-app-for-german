@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Er ___ seit 10 Stunden, er muss sehr müde sein. (99% sicher)
+- prompt: Das Licht brennt, er ___ zu Hause sein.
   accepted_answers:
-  - arbeitet
+  - muss
   difficulty: 1
   cue: null
-- prompt: Das ___ dürfte morgen ankommen. (wahrscheinlich)
+- prompt: Sie hat die Prüfung dieses Mal sehr gut vorbereitet, sie ___ bestehen.
   accepted_answers:
-  - Paket
-  difficulty: 1
+  - dürfte
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Der Kollege, der sonst immer pünktlich erscheint, ist heute noch nicht da;
+    er ___ im Stau stehen.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - könnte
+  difficulty: 3
   cue: null

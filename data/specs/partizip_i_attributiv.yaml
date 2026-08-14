@@ -24,13 +24,15 @@ gold_examples:
   - weinende
   difficulty: 1
   cue: null
-- prompt: Wir ___ dringend fließendes Wasser.
+- prompt: Er spricht mit dem ___ Mann, weil er offensichtlich Hilfe braucht.
   accepted_answers:
-  - brauchen
-  difficulty: 1
+  - wartenden
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Firma unterstützt die ___ Studierenden mit einem
+    zusätzlichen Stipendium, obwohl das Budget in diesem Jahr ohnehin
+    schon sehr knapp bemessen ist.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - forschenden
+  difficulty: 3
   cue: null

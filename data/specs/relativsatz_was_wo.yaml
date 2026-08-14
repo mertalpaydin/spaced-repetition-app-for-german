@@ -18,18 +18,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Das ___ alles, was ich darüber weiß.
+- prompt: Das ist alles, ___ ich dazu sagen kann.
   accepted_answers:
-  - ist
+  - was
   difficulty: 1
   cue: null
-- prompt: Das ___ was mir je passiert ist, war diese Reise.
+- prompt: Wir waren in München, ___ das Oktoberfest stattfindet.
   accepted_answers:
-  - Schönste
-  difficulty: 1
+  - wo
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Nichts, ___ die Kommission bisher vorgeschlagen hat, konnte die Kritiker
+    überzeugen.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - was
+  difficulty: 3
   cue: null

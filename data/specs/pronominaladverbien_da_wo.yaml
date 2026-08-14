@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Denkst ___ an die Prüfung? - Ja, ich denke daran.
+- prompt: Meine Nachbarin hat einen Hund und kümmert sich liebevoll ___.
   accepted_answers:
-  - du
+  - darum
   difficulty: 1
   cue: null
-- prompt: Worüber ___ ihr? - Über das neue Projekt.
+- prompt: Ich habe ein Problem, aber ich weiß nicht, ___ ich am besten anfangen soll.
   accepted_answers:
-  - sprecht
-  difficulty: 1
+  - womit
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die beiden Firmen verhandelten tagelang über den Vertrag, konnten sich am
+    Ende jedoch nicht ___ einigen.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - darauf
+  difficulty: 3
   cue: null

@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Ich ___ im Bett, weil ich krank bin.
+- prompt: Ich bleibe zu Hause, weil ich krank ___.
   accepted_answers:
-  - bleibe
+  - bin
   difficulty: 1
   cue: null
-- prompt: Da ___ regnet, nehmen wir einen Schirm.
+- prompt: Da es draußen kalt ___, ziehe ich eine Jacke an.
   accepted_answers:
-  - es
-  difficulty: 1
+  - ist
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Weil der Zug, der aus München kommt, Verspätung ___, warten die Fahrgäste
+    nervös.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - hat
+  difficulty: 3
   cue: null

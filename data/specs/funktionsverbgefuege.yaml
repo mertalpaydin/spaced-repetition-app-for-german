@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Wir ___ bald eine Entscheidung treffen.
+- prompt: Der Konferenzraum steht ab morgen zur ___.
   accepted_answers:
-  - müssen
+  - Verfügung
   difficulty: 1
   cue: null
-- prompt: Dieser ___ kommt für uns nicht in Frage.
+- prompt: Diese Lösung kommt für uns nicht in ___, weil sie zu teuer ist.
   accepted_answers:
-  - Vorschlag
-  difficulty: 1
+  - Frage
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Der Ausschuss, der seit Wochen über das Budget berät, muss endlich eine
+    Entscheidung ___.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - treffen
+  difficulty: 3
   cue: null

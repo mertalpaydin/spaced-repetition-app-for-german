@@ -18,18 +18,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Die ___ sind sehr stolz auf ihren Sohn.
+- prompt: Die Eltern sind sehr stolz ___ ihre Tochter.
   accepted_answers:
-  - Eltern
+  - auf
   difficulty: 1
   cue: null
-- prompt: Bist ___ mit dem Angebot zufrieden?
+- prompt: Nach dem Gespräch war sie sehr zufrieden ___ dem Ergebnis.
   accepted_answers:
-  - du
-  difficulty: 1
+  - mit
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Der Sportler, der jahrelang hart trainiert hat, ist zu solchen Höchstleistungen
+    ___.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - fähig
+  difficulty: 3
   cue: null

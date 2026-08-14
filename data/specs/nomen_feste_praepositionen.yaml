@@ -18,18 +18,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Sein ___ Interesse an der Kunst überraschte alle.
+- prompt: Sein Interesse ___ Kunst wächst von Jahr zu Jahr.
   accepted_answers:
-  - großes
+  - an
   difficulty: 1
   cue: null
-- prompt: Die ___ auf eine baldige Einigung schwindet.
+- prompt: Die Hoffnung ___ eine schnelle Einigung schwindet zunehmend.
   accepted_answers:
-  - Hoffnung
-  difficulty: 1
+  - auf
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Angst der Anwohner ___ weiteren Überschwemmungen wächst, seit der Fluss
+    über die Ufer getreten ist.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - vor
+  difficulty: 3
   cue: null

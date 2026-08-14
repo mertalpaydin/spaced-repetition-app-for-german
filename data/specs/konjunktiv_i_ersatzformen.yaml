@@ -17,18 +17,24 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: 'Die ___ behaupten, sie hätten (statt: haben) den Täter gesehen.'
+- prompt: Die Zeugen haben den Täter am Tatort gesehen. Sie erklären vor
+    Gericht, sie ___ den Täter am Tatort gesehen.
   accepted_answers:
-  - Zeugen
+  - hätten
   difficulty: 1
   cue: null
-- prompt: Sie ___ sie würden morgen abreisen.
+- prompt: Ich hatte meinem Chef vor Wochen versprochen, dass ich das
+    Projekt pünktlich abliefere. Ich erinnerte ihn daran, ich ___ das
+    Projekt termingerecht abschließen.
   accepted_answers:
-  - sagten
-  difficulty: 1
+  - würde
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Anwälte hatten im Vorfeld signalisiert, dass eine
+    Fertigstellung bis Ende des Monats realistisch sei. Nun betonen sie
+    erneut, sie ___ trotz der zusätzlichen Beweismittel, die kurzfristig
+    aufgetaucht waren, an diesem Zeitplan festhalten.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - könnten
+  difficulty: 3
   cue: null

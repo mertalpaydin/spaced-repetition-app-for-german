@@ -18,18 +18,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Der ___ dessen Buch ich lese, ist berühmt.
+- prompt: Der Autor, ___ Buch ich gerade lese, ist berühmt.
   accepted_answers:
-  - Autor
+  - dessen
   difficulty: 1
   cue: null
-- prompt: Die ___ deren Auto gestohlen wurde, weint.
+- prompt: Die Firma, ___ Produkte weltweit bekannt sind, sucht neue
+    Mitarbeiter.
   accepted_answers:
-  - Frau
-  difficulty: 1
+  - deren
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Wissenschaftler, ___ Studie großes Aufsehen erregt hatte,
+    wurden zu einem internationalen Kongress eingeladen.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - deren
+  difficulty: 3
   cue: null

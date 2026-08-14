@@ -18,18 +18,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Das ___ ist für meinen Vater.
+- prompt: Wir gehen durch ___ Park.
   accepted_answers:
-  - Geschenk
+  - den
+  - einen
   difficulty: 1
   cue: null
-- prompt: Wir ___ durch den Tunnel.
+- prompt: Weil sie Geburtstag hat, spare ich für ___ Geschenk.
   accepted_answers:
-  - fahren
-  difficulty: 1
+  - ein
+  - das
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl der Chef unzufrieden war, verließ der Praktikant das Büro ohne ___ Kommentar.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - einen
+  difficulty: 3
   cue: null

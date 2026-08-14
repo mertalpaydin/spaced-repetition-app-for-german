@@ -19,19 +19,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Der ___ Chef soll sehr streng sein. (= Man sagt, er sei streng)
+- prompt: Der neue Mitarbeiter ___ früher Profisportler gewesen sein.
   accepted_answers:
-  - neue
+  - soll
   difficulty: 1
   cue: null
-- prompt: Er ___ den Zeugen nicht gekannt haben. (= Er behauptet es, man bezweifelt
-    es)
+- prompt: Sie ___ die ganze Aufgabe allein gelöst haben, das behauptet sie zumindest
+    selbst.
   accepted_answers:
   - will
-  difficulty: 1
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Der Zeuge, der die Szene angeblich beobachtet hat, ___ den Täter genau erkannt
+    haben.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - will
+  difficulty: 3
   cue: null

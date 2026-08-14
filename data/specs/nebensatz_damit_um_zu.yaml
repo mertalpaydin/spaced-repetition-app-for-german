@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Die ___ gibt dem Kind Geld, damit es sich ein Eis kauft. (Subjekte verschieden)
+- prompt: Sie lernt Deutsch, um in Berlin ___.
   accepted_answers:
-  - Mutter
+  - zu studieren
   difficulty: 1
   cue: null
-- prompt: Das ___ spart Geld, um sich ein Eis zu kaufen. (Subjekt gleich)
+- prompt: Die Mutter macht das Licht aus, ___ das Baby einschlafen kann.
   accepted_answers:
-  - Kind
-  difficulty: 1
+  - damit
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Der Vorstand, der die neue Strategie entwickelt hat, veröffentlicht die
+    Zahlen, ___ die Aktionäre rechtzeitig informiert sind.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - damit
+  difficulty: 3
   cue: null

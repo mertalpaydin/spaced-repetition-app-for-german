@@ -18,18 +18,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Wir ___ seit einer Stunde auf den Bus.
+- prompt: Ich warte schon lange ___ eine Antwort.
   accepted_answers:
-  - warten
+  - auf
   difficulty: 1
   cue: null
-- prompt: Er ___ an dem Seminar teil.
+- prompt: Er denkt oft ___ seine Kindheit, wenn er dieses Lied hört.
   accepted_answers:
-  - nimmt
-  difficulty: 1
+  - an
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Der Erfolg des Projekts, das wir letztes Jahr starteten, hängt stark ___
+    der Teammotivation ab.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - von
+  difficulty: 3
   cue: null

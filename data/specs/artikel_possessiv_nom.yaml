@@ -18,18 +18,22 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Mein ___ ist blau.
+- prompt: ___ Auto ist blau.
   accepted_answers:
-  - Auto
+  - Mein
+  - Dein
+  - Sein
+  - Ihr
+  - Unser
   difficulty: 1
   cue: null
-- prompt: Ist ___ deine Tasche?
+- prompt: Weil sie umgezogen ist, gehört ___ Wohnung jetzt niemandem mehr.
   accepted_answers:
-  - das
-  difficulty: 1
+  - ihre
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl er selten zu Hause ist, kostet ___ Garten trotzdem viel Pflege.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - sein
+  difficulty: 3
   cue: null

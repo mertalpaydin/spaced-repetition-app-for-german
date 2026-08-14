@@ -19,18 +19,21 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Das ___ ist sonntags geschlossen. (Zustand)
+- prompt: Das Geschäft ___ sonntags geschlossen.
   accepted_answers:
-  - Geschäft
+  - ist
   difficulty: 1
   cue: null
-- prompt: Die ___ wird gerade geschlossen. (Vorgang)
+- prompt: Du ___ herzlich eingeladen, auch wenn die Einladung etwas spät
+    verschickt wurde.
   accepted_answers:
-  - Tür
-  difficulty: 1
+  - bist
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Verhandlungen ___ nach monatelangen Gesprächen endlich
+    abgeschlossen, obwohl beide Seiten zuvor kaum Kompromissbereitschaft
+    gezeigt hatten.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - sind
+  difficulty: 3
   cue: null

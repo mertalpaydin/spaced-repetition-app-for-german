@@ -19,18 +19,21 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Wenn ___ mich angerufen hättest, hätte ich dir geholfen.
+- prompt: Wenn du mich rechtzeitig angerufen ___, hätte ich dir geholfen.
   accepted_answers:
-  - du
+  - hättest
   difficulty: 1
   cue: null
-- prompt: Fast ___ ich zu spät zum Flughafen gekommen.
+- prompt: Fast ___ ich zu spät zum Flughafen gekommen, weil die Straßen an
+    diesem Morgen völlig verstopft waren.
   accepted_answers:
   - wäre
-  difficulty: 1
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Wenn die Verhandlungen früher zu einem Ergebnis gekommen ___,
+    hätten die beiden Länder den Konflikt vermutlich friedlich beigelegt,
+    obwohl die politischen Spannungen ohnehin schon lange bestanden.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - wären
+  difficulty: 3
   cue: null

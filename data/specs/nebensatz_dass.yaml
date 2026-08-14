@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Ich ___ dass du recht hast.
+- prompt: Ich glaube, dass er recht ___.
   accepted_answers:
-  - weiß
+  - hat
   difficulty: 1
   cue: null
-- prompt: Er ___ dass das Wetter schön bleibt.
+- prompt: Wir vermuten, dass das Paket morgen ___.
   accepted_answers:
-  - hofft
-  difficulty: 1
+  - ankommt
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Wissenschaftler behaupten, dass die Studie, die letztes Jahr veröffentlicht
+    wurde, fehlerhafte Ergebnisse ___.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - enthält
+  difficulty: 3
   cue: null

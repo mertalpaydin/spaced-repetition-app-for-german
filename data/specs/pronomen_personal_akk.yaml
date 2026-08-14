@@ -18,18 +18,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Liebst ___ mich?
+- prompt: Ich sehe ___ jeden Tag in der Schule.
   accepted_answers:
-  - du
+  - ihn
+  - sie
+  - es
   difficulty: 1
   cue: null
-- prompt: Ich ___ ihn nicht.
+- prompt: Weil ich im Regen stehe, holt mein Vater ___ vom Bahnhof ab.
   accepted_answers:
-  - kenne
-  difficulty: 1
+  - mich
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl sie mich kaum kennt, lud sie ___ spontan zu ihrer Feier ein.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - dich
+  difficulty: 3
   cue: null

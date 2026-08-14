@@ -17,18 +17,18 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: ein ___ -> viele Tage
+- prompt: ein Tisch -> viele ___
   accepted_answers:
-  - Tag
+  - Tische
   difficulty: 1
   cue: null
-- prompt: eine ___ -> zwei Frauen
+- prompt: Sie hat nur eine Katze, aber ihre Nachbarn haben viele ___.
   accepted_answers:
-  - Frau
-  difficulty: 1
+  - Katzen
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Obwohl jedes Kind ein Buch hat, liegen am Ende viele ___ auf dem Boden.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - Bücher
+  difficulty: 3
   cue: null

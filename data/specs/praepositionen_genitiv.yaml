@@ -23,13 +23,15 @@ gold_examples:
   - des
   difficulty: 1
   cue: null
-- prompt: Wegen ___ Panne kam der Zug zu spät.
+- prompt: Wegen ___ Panne kam der Zug zu spät, obwohl der Fahrplan das nicht
+    vorsah.
   accepted_answers:
   - einer
-  difficulty: 1
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Innerhalb ___ ersten Wochen, die für die Einarbeitung vorgesehen
+    waren, meldeten sich überraschend viele Teilnehmer krank.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - der
+  difficulty: 3
   cue: null

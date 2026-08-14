@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Sie ___ sowohl Englisch als auch Spanisch.
+- prompt: Sie spricht ___ Englisch als auch Französisch.
   accepted_answers:
-  - spricht
+  - sowohl
   difficulty: 1
   cue: null
-- prompt: Er ___ weder Kaffee noch Tee.
+- prompt: Er isst ___ Fleisch noch Fisch, weil er Vegetarier ist.
   accepted_answers:
-  - trinkt
-  difficulty: 1
+  - weder
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Reform, die derzeit diskutiert wird, stärkt ___ die Infrastruktur, sondern
+    auch die Bildungschancen.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - nicht nur
+  difficulty: 3
   cue: null

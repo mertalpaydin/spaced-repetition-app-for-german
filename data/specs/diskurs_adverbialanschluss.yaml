@@ -17,18 +17,24 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Die ___ sind ermutigend; allerdings bedarf es weiterer Studien.
+- prompt: Die neue Software soll die Arbeit erleichtern. ___ müssen die Mitarbeiter
+    zunächst geschult werden.
   accepted_answers:
-  - Ergebnisse
+  - Allerdings
   difficulty: 1
   cue: null
-- prompt: Die ___ ist abgelaufen. Folglich können keine Anträge mehr angenommen werden.
+- prompt: Die Testergebnisse waren eindeutig positiv. ___ wurde das Medikament für
+    den Markt zugelassen.
   accepted_answers:
-  - Frist
-  difficulty: 1
+  - Folglich
+  - Demnach
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Kritiker bemängeln seit Jahren die mangelnde Transparenz der Behörde,
+    die viele wichtige Entscheidungen unter Ausschluss der Öffentlichkeit trifft.
+    ___ bleibt das Vertrauen der Bürger in die Institution gering.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - Demnach
+  - Folglich
+  difficulty: 3
   cue: null

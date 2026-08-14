@@ -18,18 +18,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Das ___ lässt sich leicht lösen. (= Das Problem kann gelöst werden)
+- prompt: Diese Tür ___ leicht öffnen.
   accepted_answers:
-  - Problem
+  - lässt sich
   difficulty: 1
   cue: null
-- prompt: Die ___ zu erledigenden Aufgaben sind im Protokoll vermerkt.
+- prompt: Die ___ Unterlagen liegen bereits auf dem Schreibtisch.
   accepted_answers:
-  - noch
-  difficulty: 1
+  - einzureichenden
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Das Problem, das seit Monaten diskutiert wird, ___ sich nur mit viel Geduld
+    lösen.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - lässt
+  difficulty: 3
   cue: null

@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Er ___ an mir vorbei, ohne mich zu grüßen.
+- prompt: Er verließ den Raum, ohne ein Wort ___.
   accepted_answers:
-  - ging
+  - zu sagen
   difficulty: 1
   cue: null
-- prompt: Anstatt ___ zu entschuldigen, lachte er nur.
+- prompt: ___ sich zu entschuldigen, lachte er nur.
   accepted_answers:
-  - sich
-  difficulty: 1
+  - Anstatt
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Der Praktikant, der seit Wochen überlastet war, verließ das Büro, ___ seine
+    Aufgaben zu beenden.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - ohne
+  difficulty: 3
   cue: null

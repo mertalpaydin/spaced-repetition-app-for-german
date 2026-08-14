@@ -19,18 +19,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Wir ___ entweder nach Italien oder nach Kroatien.
+- prompt: Wir fahren ___ nach Spanien oder nach Portugal.
   accepted_answers:
-  - fahren
+  - entweder
   difficulty: 1
   cue: null
-- prompt: Die ___ ist zwar klein, aber sehr gemütlich.
+- prompt: Das Hotel ist ___ teuer, aber der Service ist hervorragend.
   accepted_answers:
-  - Wohnung
-  difficulty: 1
+  - zwar
+  difficulty: 2
   cue: null
-- prompt: Hier steht Beispielsatz Nummer 3 mit ___ Lücke.
+- prompt: Die Studie, die von der Universität durchgeführt wurde, zeigt ___ positive
+    Effekte, andererseits auch erhebliche Risiken.
   accepted_answers:
-  - einer
-  difficulty: 1
+  - einerseits
+  difficulty: 3
   cue: null
