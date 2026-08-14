@@ -17,7 +17,7 @@ def fsrs_engine() -> FSRSEngine:
 
 @pytest.fixture
 def initial_record() -> FSRSRecord:
-    return FSRSRecord(card_id="card_001")
+    return FSRSRecord(card_id="card_001", due=datetime.now(UTC))
 
 
 def test_fsrs_initial_state_and_first_review(

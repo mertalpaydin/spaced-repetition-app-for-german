@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from src.contracts import (
     INFERRED_STABILITY_CEILING_DAYS,
@@ -15,20 +15,25 @@ from src.contracts import (
 
 
 class AttemptRecord(BaseModel):
-    """Record of a single exercise attempt for state transition computation."""
+    """Record of a single exercise attempt for state transition computation.
+
+    ``timestamp`` has no default: the clock is always injected by the caller
+    rather than captured implicitly at construction time.
+    """
 
     model_config = ConfigDict(frozen=True)
     topic_id: str
     is_correct: bool
     hint_level: int = 0
     facet: str | None = None
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    timestamp: datetime
 
 
 class TopicStateManager:
     """Manages TagState lifecycle: unseen -> learning -> acquired (with demotion on relapse)."""
 
-    def __init__(self, topics: list[Topic]) -> None:
+    def __init__(self, topics: list[Topic], now: datetime | None = None) -> None:
+        ref_time = now or datetime.now(UTC)
         self.topics = {t.id: t for t in topics}
         self.states: dict[str, TagStateModel] = {}
         for t in topics:
@@ -38,7 +43,7 @@ class TopicStateManager:
                 state=initial_state,
                 fsrs_stability=0.0,
                 fsrs_difficulty=0.0,
-                due_at=datetime.now(UTC),
+                due_at=ref_time,
             )
 
     def get_state(self, topic_id: str) -> TagStateModel:
@@ -106,10 +111,6 @@ class TopicStateManager:
         is_unhinted_pass: bool | None = None,
         now: datetime | None = None,
     ) -> TagStateModel:
-        """Update topic state machine following an attempt."""
-        if is_unhinted_pass is not None:
-            is_correct = is_unhinted_pass
-            hint_level = 0 if is_unhinted_pass else 1
         """Update topic state machine following an attempt.
 
         Promotion Rules (learning -> acquired):
@@ -122,7 +123,17 @@ class TopicStateManager:
 
         Reset Rule:
         Any failure or hinted pass resets consecutive passes and facet streak counters.
+
+        ``is_unhinted_pass`` is a convenience shorthand for "this attempt was a
+        correct, unhinted pass" (used by Kalibrierung, which has no hint ladder).
+        It is only ever applied when explicitly ``True``; it never overrides an
+        explicitly passed ``is_correct``/``hint_level`` combination with a
+        failure, since a correct answer given with a hint is not a failure.
         """
+        if is_unhinted_pass:
+            is_correct = True
+            hint_level = 0
+
         ref_time = now or datetime.now(UTC)
         curr = self.states[topic_id]
         topic = self.topics.get(topic_id)

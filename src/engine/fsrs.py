@@ -4,18 +4,22 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from fsrs import Card, Rating, Scheduler, State
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from src.contracts import FsrsRating
 
 
 class FSRSRecord(BaseModel):
-    """Memory state of a single card/item under the FSRS algorithm."""
+    """Memory state of a single card/item under the FSRS algorithm.
+
+    ``due`` has no default: the clock is always injected by the caller rather
+    than captured implicitly at construction time (see ``CLAUDE.md``).
+    """
 
     model_config = ConfigDict(frozen=True)
     card_id: str
     state: str = "learning"  # learning, review, relearning
-    due: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    due: datetime
     stability: float | None = None
     difficulty: float | None = None
     step: int | None = 0

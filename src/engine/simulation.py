@@ -42,10 +42,9 @@ class LearnerSimulationHarness:
 
     def run_simulation(self, days: int = 180) -> SimulationSummary:
         """Run step-by-step daily simulation."""
-        topic_manager = TopicStateManager(self.topics)
-        fsrs_records: dict[str, FSRSRecord] = {}
-
         start_time = datetime(2026, 1, 1, 8, 0, tzinfo=UTC)
+        topic_manager = TopicStateManager(self.topics, now=start_time)
+        fsrs_records: dict[str, FSRSRecord] = {}
         total_reviews = 0
         total_successes = 0
         daily_counts: list[int] = []
@@ -93,7 +92,9 @@ class LearnerSimulationHarness:
                 # Extract topic_id from item_id
                 t_id = "_".join(card.card_id.split("_")[:-2])
                 if t_id in topic_manager.states:
-                    topic_manager.record_attempt(t_id, is_unhinted_pass=is_correct)
+                    topic_manager.record_attempt(
+                        t_id, is_unhinted_pass=is_correct, now=current_time
+                    )
 
                 day_reviews += 1
                 total_reviews += 1
