@@ -1,12 +1,26 @@
 """LLM Provider interfaces and mock client implementation for offline execution."""
 
+import os
 from typing import Protocol
 
 
 class LlmProvider(Protocol):
-    """Protocol for LLM inference providers."""
+    """Protocol for LLM inference providers.
 
-    def generate_text(self, prompt: str, system_prompt: str | None = None) -> str: ...
+    ``purpose`` and ``is_user_content`` are keyword-only and optional so that both
+    ``GeminiLlmClient`` (which uses them for cost-log attribution and lane routing)
+    and simpler providers like ``MockLlmClient`` (which ignore them) satisfy this
+    Protocol with the same call sites: ``provider.generate_text(prompt=..., system_prompt=...)``.
+    """
+
+    def generate_text(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        *,
+        purpose: str = "generation",
+        is_user_content: bool = False,
+    ) -> str: ...
 
 
 class MockLlmClient:
@@ -15,7 +29,14 @@ class MockLlmClient:
     def __init__(self, canned_response: str | None = None) -> None:
         self.canned_response = canned_response
 
-    def generate_text(self, prompt: str, system_prompt: str | None = None) -> str:
+    def generate_text(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        *,
+        purpose: str = "generation",
+        is_user_content: bool = False,
+    ) -> str:
         """Return canned or context-aware mock response."""
         if self.canned_response:
             return self.canned_response
@@ -38,3 +59,27 @@ class MockLlmClient:
             )
         else:
             return "Mock LLM Response"
+
+
+def _has_configured_api_key() -> bool:
+    return bool(
+        os.getenv("GEMINI_FREE_API_KEY")
+        or os.getenv("GEMINI_PAID_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+    )
+
+
+def default_llm_provider() -> LlmProvider:
+    """Return the real Gemini client when an API key is configured, else the offline mock.
+
+    This is the wiring point CLAUDE.md rule 4 requires: every feature module
+    (LiveExplainer, ProductionGrader, MinimalPairGenerator, WeeklyReportGenerator)
+    defaults to this instead of hardcoding ``MockLlmClient()``, so a configured key
+    is actually used, and an unconfigured environment (CI, offline development)
+    degrades to the deterministic mock instead of failing.
+    """
+    if _has_configured_api_key():
+        from src.llm.client import GeminiLlmClient
+
+        return GeminiLlmClient()
+    return MockLlmClient()

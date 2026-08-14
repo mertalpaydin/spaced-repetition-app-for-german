@@ -1,0 +1,7 @@
+# Non-secret application configuration. Secrets live in .env (see .env.example), never here.
+privacy:
+  # Whether the three calls that carry user-typed text (production grading, live
+  # explanations, weekly error analysis) are restricted to the paid (billed) lane.
+  # Default false: single-user personal tool, free lane is fine for your own writing.
+  # Flip to true before anyone other than you uses the app.
+  restrict_user_content_to_paid_lane: false

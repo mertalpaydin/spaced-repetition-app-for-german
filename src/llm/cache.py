@@ -11,6 +11,9 @@ class LlmCache:
 
     def __init__(self, cache_dir: Path | str = ".cache/llm") -> None:
         self.cache_dir = Path(cache_dir)
+
+    def _ensure_dir(self) -> None:
+        """Create the cache directory lazily, only when we are about to write to it."""
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _compute_key(self, model: str, prompt: str, **kwargs: Any) -> str:
@@ -23,19 +26,23 @@ class LlmCache:
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     def get(self, model: str, prompt: str, **kwargs: Any) -> str | None:
-        """Retrieve cached response string if present."""
+        """Retrieve cached response string if present. A missing/null response is a miss."""
         key = self._compute_key(model, prompt, **kwargs)
         cache_file = self.cache_dir / f"{key}.json"
-        if cache_file.exists():
-            try:
-                data = json.loads(cache_file.read_text(encoding="utf-8"))
-                return str(data.get("response"))
-            except Exception:
-                return None
-        return None
+        if not cache_file.exists():
+            return None
+        try:
+            data = json.loads(cache_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        response = data.get("response")
+        if response is None:
+            return None
+        return str(response)
 
     def set(self, model: str, prompt: str, response: str, **kwargs: Any) -> None:
         """Persist response string to disk cache."""
+        self._ensure_dir()
         key = self._compute_key(model, prompt, **kwargs)
         cache_file = self.cache_dir / f"{key}.json"
         data = {

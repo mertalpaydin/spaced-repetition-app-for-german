@@ -5,19 +5,27 @@ import json
 from pydantic import BaseModel, ConfigDict
 
 from src.contracts import CEFR
-from src.llm.provider import LlmProvider, MockLlmClient
+from src.llm.provider import LlmProvider, default_llm_provider
 
 
 class GradeResult(BaseModel):
-    """Evaluation result of open-ended production response with 3-dimensional rubric."""
+    """Evaluation result of open-ended production response with 3-dimensional rubric.
+
+    Only ``target_structure_used`` feeds FSRS: ``is_pass`` is defined to equal
+    it exactly. ``grammatical_accuracy`` and ``naturalness`` are shown to the
+    learner as feedback and never gate the verdict -- a response that nails
+    the target structure with a word-order slip must still pass the schedule,
+    and a fluent response that dodges the target structure must still fail it.
+    """
 
     model_config = ConfigDict(frozen=True)
     target_structure_used: bool  # ONLY this feeds FSRS rating
-    grammatical_accuracy: float  # 0.0 to 1.0
-    naturalness: float  # 0.0 to 1.0
-    is_pass: bool
+    grammatical_accuracy: float  # 0.0 to 1.0, feedback only
+    naturalness: float  # 0.0 to 1.0, feedback only
+    is_pass: bool  # == target_structure_used; the only dimension that reaches FSRS
     feedback: str
     corrected_sentence: str | None = None
+    requires_self_assessment: bool = False  # True when no verdict could be produced
 
 
 class ProductionGrader:
@@ -35,7 +43,7 @@ class ProductionGrader:
     )
 
     def __init__(self, provider: LlmProvider | None = None) -> None:
-        self.provider = provider or MockLlmClient()
+        self.provider = provider or default_llm_provider()
 
     def grade_production(
         self,
@@ -52,17 +60,21 @@ class ProductionGrader:
             "Bewerte die Antwort."
         )
 
-        response_text = self.provider.generate_text(
-            prompt=prompt,
-            system_prompt=self.SYSTEM_PROMPT,
-        )
-
         try:
+            response_text = self.provider.generate_text(
+                prompt=prompt,
+                system_prompt=self.SYSTEM_PROMPT,
+                purpose="production_grading",
+                is_user_content=True,  # carries the learner's submitted sentence
+            )
             parsed = json.loads(response_text)
             target_used = bool(parsed.get("target_structure_used", True))
             accuracy = float(parsed.get("grammatical_accuracy", 1.0))
             naturalness = float(parsed.get("naturalness", 1.0))
-            is_pass = target_used and accuracy >= 0.75
+
+            # Only the target-structure dimension feeds FSRS. Accuracy and
+            # naturalness are surfaced as feedback but never gate the verdict.
+            is_pass = target_used
 
             return GradeResult(
                 target_structure_used=target_used,
@@ -73,10 +85,24 @@ class ProductionGrader:
                 corrected_sentence=parsed.get("corrected_sentence"),
             )
         except Exception:
-            return GradeResult(
-                target_structure_used=True,
-                grammatical_accuracy=1.0,
-                naturalness=1.0,
-                is_pass=True,
-                feedback=response_text,
-            )
+            # The grader could not produce a verdict (network failure or
+            # malformed model output). Never silently pass the learner at a
+            # perfect score: degrade to self-assessment instead, and never
+            # block the round. The caller is expected to show a model answer
+            # and let the learner grade themselves.
+            return self._self_assessment_fallback()
+
+    @staticmethod
+    def _self_assessment_fallback() -> GradeResult:
+        """Degrade to learner self-assessment when no verdict can be produced."""
+        return GradeResult(
+            target_structure_used=False,
+            grammatical_accuracy=0.0,
+            naturalness=0.0,
+            is_pass=False,
+            feedback=(
+                "Automatische Bewertung nicht verfügbar. Bitte vergleiche deine Antwort "
+                "selbst mit einer Musterlösung."
+            ),
+            requires_self_assessment=True,
+        )

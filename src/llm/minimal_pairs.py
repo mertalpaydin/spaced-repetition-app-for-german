@@ -1,8 +1,10 @@
 """Interference-targeted minimal pair contrast generator with pre-seeded offline fallbacks."""
 
+import json
+
 from pydantic import BaseModel, ConfigDict
 
-from src.llm.provider import LlmProvider, MockLlmClient
+from src.llm.provider import LlmProvider, default_llm_provider
 
 
 class MinimalPairDrill(BaseModel):
@@ -20,6 +22,13 @@ class MinimalPairDrill(BaseModel):
 
 class MinimalPairGenerator:
     """Generates and retrieves minimal pair contrast drills for high-error confusion groups."""
+
+    GENERATION_SYSTEM_PROMPT = (
+        "Du erstellst kontrastive Minimalpaare für deutsche Grammatik. Gib ausschließlich "
+        "JSON zurück mit den Feldern sentence_a, target_a, explanation_a, sentence_b, "
+        "target_b, explanation_b. Die beiden Sätze müssen strukturell parallel sein und "
+        "sich nur in der kontrastierten Zielstruktur unterscheiden."
+    )
 
     PRESEEDED_FALLBACKS: dict[str, MinimalPairDrill] = {
         "wechselpraepositionen": MinimalPairDrill(
@@ -52,12 +61,47 @@ class MinimalPairGenerator:
     }
 
     def __init__(self, provider: LlmProvider | None = None) -> None:
-        self.provider = provider or MockLlmClient()
+        self.provider = provider or default_llm_provider()
 
-    def get_or_generate_drill(self, confusion_group: str) -> MinimalPairDrill:
-        """Retrieve pre-seeded drill or generate on-demand minimal pair drill."""
+    def get_or_generate_drill(self, confusion_group: str) -> MinimalPairDrill | None:
+        """Retrieve a pre-seeded drill, else generate one, else return ``None``.
+
+        Never returns a drill labelled with a group the caller did not ask
+        for: an unrecognised ``confusion_group`` either produces a freshly
+        generated drill for that exact group or a genuine miss (``None``),
+        it never silently substitutes an unrelated pre-seeded drill.
+        """
         if confusion_group in self.PRESEEDED_FALLBACKS:
             return self.PRESEEDED_FALLBACKS[confusion_group]
 
-        # Default fallback
-        return self.PRESEEDED_FALLBACKS["wechselpraepositionen"]
+        return self._generate_drill(confusion_group)
+
+    def _generate_drill(self, confusion_group: str) -> MinimalPairDrill | None:
+        """Generate a minimal pair for `confusion_group` through the injected provider."""
+        prompt = (
+            f"Confusion group: {confusion_group}\n"
+            "Erzeuge ein Minimalpaar, das genau diese beiden Strukturen kontrastiert."
+        )
+        try:
+            response_text = self.provider.generate_text(
+                prompt=prompt,
+                system_prompt=self.GENERATION_SYSTEM_PROMPT,
+                purpose="minimal_pair_generation",
+            )
+            parsed = json.loads(response_text)
+            return MinimalPairDrill(
+                # Forced, never trusted from the model: the drill's label must
+                # always match what the caller asked for.
+                confusion_group=confusion_group,
+                sentence_a=str(parsed["sentence_a"]),
+                target_a=str(parsed["target_a"]),
+                explanation_a=str(parsed["explanation_a"]),
+                sentence_b=str(parsed["sentence_b"]),
+                target_b=str(parsed["target_b"]),
+                explanation_b=str(parsed["explanation_b"]),
+            )
+        except Exception:
+            # Generation failed (network, malformed/incomplete JSON). A
+            # genuine miss must surface as None, never as a mislabelled
+            # pre-seeded drill from an unrelated confusion group.
+            return None
