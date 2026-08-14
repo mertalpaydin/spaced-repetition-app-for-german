@@ -1,493 +1,322 @@
 # Plan vs. Code: Gap Analysis
 
 Audit of the `Language_Learning_App` codebase against its stage plan documents.
-Date: 14 August 2026.
+Date: 14 August 2026, second pass after remediation commits `ad91872` and `40a2e8c`.
 
 **Scope of comparison:** `CLAUDE.md`, `00-index.md`, `01-foundation.md`, `02-content-pipeline.md`, `03-learning-engine.md`, `04-application.md`, `german-grammar-app-plan.md`, `README.md`, `COMMIT_RULES.md`.
 
-**How this was verified:** full source read of `src/`, `tests/`, `web/`, `worker/`, `scripts/`, `.github/`, `data/`, plus a clean reconstruction of the repo in an isolated environment where the test suite, `ruff`, `mypy --strict` and coverage were executed, and where the taxonomy, fixtures and spec sheets were parsed and counted directly. Every count and every claim of absence below was checked against the tree, not inferred.
+**How this was verified:** full source read of `src/`, `tests/`, `web/`, `worker/`, `scripts/`, `.github/`, `data/`, plus a clean reconstruction of the repo in an isolated environment where the test suite, `ruff`, `mypy --strict` and coverage were executed, the taxonomy and fixtures were parsed and counted, and the grader, verification chain, error classifier and CLI were run directly against live inputs. Every claim below was checked against the tree or against executed output. A passing test was never accepted as proof.
 
 ---
 
 ## 1. Summary
 
-The repo is a complete architectural skeleton of the plan with the load-bearing substance replaced by mocks, hardcoded tables, and constants that are declared but never read. Every stage 0 to 11 has a module with the right name, the right class names, and passing tests. Most stages do not deliver the behaviour their plan document specifies.
+The remediation pass fixed real things, and they are listed in section 2. It did not move the structural picture: the repo remains a complete architectural skeleton of the plan with the load-bearing substance replaced by mocks, hardcoded tables, and constants that are declared but never read.
 
-The build is green and should not be read as a signal of completeness:
+Of 57 specific defects re-checked across all stages, **9 are fixed, 8 are partially fixed, and 40 are unchanged.** The fixes cluster in tooling, fixtures and small wiring. The five findings the previous review ranked most consequential are all still open, and the remediation introduced 14 new defects, one of which is more serious than most of what it fixed.
+
+Build state, measured on a clean checkout:
 
 | Check | Result |
 |---|---|
-| `pytest tests/` | 100 passed, 0 failed |
-| `ruff check src tests` | clean |
-| `ruff format --check src tests` | 73 files formatted |
-| `mypy --strict src/` | no issues, 54 files |
-| `pytest --cov=src` | 84%, against a CI gate of `--cov-fail-under=85` |
+| `pytest tests/` | 105 passed, 0 failed |
+| `ruff check src tests scripts` | clean |
+| `ruff format --check src tests` | 76 files formatted |
+| `mypy --strict src/` | no issues, 56 files |
+| `pytest --cov=src` | **84%**, against a CI gate of `--cov-fail-under=85` |
 
-Coverage is the only gate that is currently marginal, and it may move a point either way on exact dependency versions in CI. The tests pass because they largely assert that mocks return what the mocks were written to return, and because they are not the tests the plan specifies.
+Coverage is still below the gate the repo sets for itself. Five tests were added and none of them closed a plan-named gap in the stages that matter.
 
-**Named-test coverage against the plan documents, counted test by test:**
+### The single most urgent item
 
-| Stages | Present / named in plan |
+`src/cli/app.py:94` and `:132`:
+
+```python
+ans = input("Lösung: ").strip() or it.accepted_answers[0]
+```
+
+This was introduced by the interactive-input fix. **Pressing Enter on an empty answer substitutes the correct answer**, which is then graded as a pass, rated `good` in FSRS, counted as an unhinted pass toward topic promotion, and written to `review_logs` as a truthful record. Verified by execution: four empty responses to `kalibrierung` yielded `Topics Mastered: 1`. This corrupts the exact data the stage 7 usability gate exists to collect, and it corrupts it silently. Fix before any manual use of the CLI.
+
+---
+
+## 2. What the remediation fixed
+
+Confirmed by inspection and execution.
+
+| Item | Evidence |
 |---|---|
-| 0 | 0 / 19 |
-| 1 | 7 / 28 |
-| 2 | 1 / 9 |
-| 2b | 0 / 9 |
-| 2c | 1 / 8 |
-| Foundation total | **9 / 73** |
+| `MODEL_LIVE` and `MODEL_GENERATE` back on the correct tier | `src/contracts.py:66-67` both now `"gemini-3.5-flash-lite"`; `MODEL_VERIFY` correctly `"gemini-3.7-flash"` |
+| Python 3.12 across the toolchain | `pyproject.toml:6,38,56` now `>=3.12` / `py312` / `3.12`, matching CI |
+| `hypothesis` added | `pyproject.toml:23` |
+| CI now lints and type-checks `scripts/` | `ci.yml:30-40` runs ruff and `mypy --strict` over `src/ scripts/`; `scripts/__init__.py` added |
+| `scripts/step1_extract_vocab.py` no longer calls a nonexistent method | now calls `extractor.extract_all()` and iterates the correct `{lemma: level}` shape |
+| Golden taxonomy fixture no longer self-heals | `tests/test_taxonomy.py:92` now `assert golden_file.exists()` before comparing, instead of writing the file it is meant to check |
+| Adversarial and known-good fixtures at specified size | both now exactly 60 lines, and the adversarial set is 8 per reason across six reasons plus 12 `pedagogical_flaw` |
+| Stale `adversarial_suite.jsonl` deleted | the tracked-but-missing file is gone |
+| Grading table and labelled answers at specified size | `grading_table.csv` 90 data rows against a spec of 80+; `labelled_answers.jsonl` 30 rows as specified |
+| PWA init bug fixed | `web/app.js:318` now calls `getTopicStates()`, which exists at `web/db.js:48` |
+| Service worker registered | `web/app.js:310-314` |
+| Injected clock, mostly | most call sites now take `now: datetime \| None = None`; see section 6 for the four that do not |
 
-Stages 3 to 11 name roughly another 180 tests. The repo contains 100 tests in total across all fourteen stages.
-
-**Both stage gates are unsatisfied, and the work past them was done anyway.** Stage 4 is a kill gate whose quantity has never been measured; stage 7 is a usability gate that cannot be attempted with the current CLI.
+That is genuine progress on stage 0 tooling and on two PWA blockers. It is not progress on any stage gate.
 
 ---
 
-## 2. Stage status
+## 3. Stage status
 
-| Stage | Name | Plan doc | Status |
+| Stage | Name | Status | Change since last review |
 |---|---|---|---|
-| 0 | Repo scaffold & CI | `01-foundation.md` | **PARTIAL.** CI scaffold real; the LLM client, cost log, spend ceiling, two-lane architecture and cache are all absent |
-| 1 | Taxonomy & DAG | `01-foundation.md` | **DIVERGED.** Strong content (87 topics, valid DAG); contract materially narrower than spec; `morph_spec` keys mostly invalid |
-| 2 | Corpus & lexicon | `01-foundation.md` | **MISSING as specified.** 8 seed sentences against a DoD of 20,000; no frequency bands; spaCy never used |
-| 2b | Learner error corpus | `01-foundation.md` | **DIVERGED.** The mapping is unfalsifiable: rules and external anchor were authored as one closed set |
-| 2c | Exercise scraping | `01-foundation.md` | **MISSING.** One parser over one synthetic fixture; no scraper exists |
-| 3 | Batch generation | `02-content-pipeline.md` | **PARTIAL.** 87 spec sheets exist; no real batch client, no API call anywhere |
-| 4 | Verification chain | `02-content-pipeline.md` | **DIVERGED. KILL GATE UNMEASURED** |
-| 5 | Bank storage & export | `02-content-pipeline.md` | **PARTIAL.** Schema good; no delta export, no facet derivation, insert not idempotent |
-| 6 | Scheduler & Kalibrierung | `03-learning-engine.md` | **PARTIAL / DIVERGED.** About half the pacing rules unenforced; duel, challenge and recalibration are stubs |
-| 7 | CLI & grading | `03-learning-engine.md` | **PARTIAL. USABILITY GATE NOT ATTEMPTED.** CLI has no persistence and auto-answers itself |
-| 8 | Offline PWA | `04-application.md` | **MISSING / DIVERGED.** No ts-fsrs, no SW registration, a fatal init bug, 6 of 11 UX surfaces absent |
-| 9 | Worker, D1, sync | `04-application.md` | **MISSING.** Three of five endpoints return constants; no `review_log` table; no auth |
-| 10 | Nightly automation | `04-application.md` | **PARTIAL.** Correct crons wrapping a mock; the ingest job crashes every night |
-| 11 | Live LLM features | `04-application.md` | **MISSING.** Zero API calls in the entire repo |
+| 0 | Repo scaffold & CI | **PARTIAL** | Improved. Toolchain and lint scope fixed; `src/llm/client.py` now exists but is orphaned and its transport is mocked |
+| 1 | Taxonomy & DAG | **DIVERGED** | Unchanged. `data/taxonomy.yaml` was not modified |
+| 2 | Corpus & lexicon | **MISSING as specified** | Unchanged apart from the `step1` script bug |
+| 2b | Learner error corpus | **DIVERGED** | Unchanged |
+| 2c | Exercise scraping | **MISSING** | Unchanged |
+| 3 | Batch generation | **PARTIAL** | Unchanged. Still no real batch client |
+| 4 | Verification chain | **DIVERGED. KILL GATE UNMEASURED** | Fixtures resized; chain and gate semantics unchanged |
+| 5 | Bank storage & export | **PARTIAL** | `review_logs` table added; every other item unchanged |
+| 6 | Scheduler & Kalibrierung | **PARTIAL / DIVERGED** | `src/engine/scheduler.py` is byte-identical. Facet plumbing added, derivation still absent |
+| 7 | CLI & grading | **PARTIAL. GATE NOT ATTEMPTED** | Interactive input added, with a new correctness bug. Grading unchanged |
+| 8 | Offline PWA | **MISSING / DIVERGED** | Two blockers fixed, one remains. All 11 UX surfaces unchanged |
+| 9 | Worker, D1, sync | **MISSING** | One dead table added. Endpoints, auth and merge semantics unchanged |
+| 10 | Nightly automation | **PARTIAL** | Unchanged. Ingest still crashes every night |
+| 11 | Live LLM features | **MISSING** | Unchanged. Still zero real API calls in the repo |
 
 ---
 
-## 3. CLAUDE.md invariant compliance
-
-`CLAUDE.md` section 2: *"These are invariants. Violating any of them is a defect regardless of whether tests pass."*
+## 4. CLAUDE.md invariant compliance
 
 | # | Invariant | Status |
 |---|---|---|
-| 1 | An LLM is never the source of truth for user progress; all progress computed in code from `review_log` | **Cannot be satisfied.** No `review_log` table exists: not in `src/bank/migrations.py`, not in `worker/schema.sql`. No progress number is computed from a log |
-| 2 | No item may name or hint at the grammar topic it tests | **Upheld for generated items** (blocklist at `src/generation/prompt_builder.py:15,52`, applied at `src/verification/layer1_syntax.py:45`). **Not applied to scraped items.** The one scraping fixture's heading is "Setzen Sie den richtigen Artikel im Dativ ein (Wo?)", and `parse_html_string` discards it rather than recording and checking it |
-| 3 | No LLM call on the critical path of answering an exercise | **Upheld.** `web/app.js:463` and the Python grader are both pure local. The one invariant fully honoured |
-| 4 | Every LLM call goes through `src/llm/client.py` | **Violated structurally. The file does not exist** |
-| 5 | One item, one `tag_id` | Upheld in the contract |
-| 6 | `accepted_answers` is always a list | Upheld (`src/contracts.py`) |
-| 7 | Do not weaken a failing test to make it pass | **Violated twice.** `src/taxonomy/validator.py:86-88` downgrades the "confusion group needs two members" check from error to warning, so `report.is_valid` stays `True` over twelve singleton groups. `tests/test_taxonomy.py:92-95` writes the golden fixture when missing, then asserts against what it just wrote |
-| 8 | Do not change a contract in the stage docs without flagging it | **Violated.** See section 5 |
+| 1 | Progress computed in code from `review_log`, never by an LLM | **Still unsatisfied.** A `review_logs` table now exists and the CLI writes to it, but nothing reads it back into state. `grep -rn "recompute\|rebuild_from_log\|from_review_log" src/ web/ worker/ tests/` returns zero hits. The table also has **no `mode` column** (`src/bank/migrations.py:68-78`), which `03-learning-engine.md:201` requires for the `mode in ("review","recalibration")` filter, so the recomputation it was added to enable is not expressible against it |
+| 2 | No item names or hints at its topic | Upheld for generated items. Still not applied to scraped items |
+| 3 | No LLM call on the answering critical path | **Upheld** |
+| 4 | Every LLM call goes through `src/llm/client.py` | **Formally satisfied, substantively not.** The file exists and `tests/test_llm_client.py:11` AST-scans for SDK imports. But no SDK is imported anywhere, so the scan passes vacuously, and `GeminiLlmClient` is imported by nothing except its own re-export and its own tests. See section 5 |
+| 5 | One item, one `tag_id` | Upheld in the contract, though `tag_id` still has no column |
+| 6 | `accepted_answers` is always a list | Upheld |
+| 7 | Do not weaken a failing test to make it pass | **Still violated once.** `src/taxonomy/validator.py:86-88` still downgrades the "confusion group needs two members" check to a warning, so `report.is_valid` stays `True` over 12 singleton groups. The golden-fixture self-heal, the other instance, is fixed |
+| 8 | Do not change a contract without flagging it | `TagState` still carries six values (`src/contracts.py:14`) against the plan's three, and `TagStateModel.state` still defaults to `"locked"` rather than `"unseen"` |
 
-### 3.1 The missing cost architecture
+### Standards still unmet
 
-`CLAUDE.md` section 9 and `01-foundation.md` stage 0 specify a complete spend-control system. A grep over `src/` for each component returns zero hits:
-
-`client.py` · `cost_log` · `BudgetExceeded` · `cache` · `lane` · `GEMINI_FREE_API_KEY` · `GEMINI_PAID_API_KEY` · `restrict_user_content_to_paid_lane` · `config.yaml`
-
-So there is no single entry point, no per-call cost rows, no month-to-date spend read, no `BudgetExceeded` raised at the 5 EUR ceiling, no free/paid lane split, no RPM-versus-RPD 429 discrimination, no overflow accumulation into a single batch, no local content-addressed cache (which the plan also designates as the crash-recovery idempotency mechanism), and no privacy flag.
-
-`.env.example` declares one key, `GEMINI_API_KEY`. The two-lane setup requires two, in two separate Google Cloud projects, which `CLAUDE.md:217` calls "mandatory, not an optimisation" because quota is per project and enabling billing destroys the free tier.
-
-The nearest existing thing is `CostTracker` (`src/generation/batch_client.py:29-60`): in-memory, per-batch, generation-only, no persistence, no lane, no ceiling enforcement, and it never raises.
-
-`01-foundation.md:91` is explicit about the guard that was meant to prevent this:
-
-> The SDK-import scan test is the enforcement mechanism for rule 4 in `CLAUDE.md`. It is not decorative. Write it now, before there is anything to violate it.
-
-`test_llm_client_is_the_only_module_importing_the_sdk` was not written. There is currently nothing to violate it because there is no SDK import at all, but there is also no wrapper for future calls to route through.
-
-### 3.2 Other CLAUDE.md standards not met
-
-- **Section 8, TypeScript for `web/` and `worker/`, `tsc --noEmit` and ESLint clean.** Zero `.ts` files in the repo. No `tsconfig`, no `package.json`, no ESLint config. `ci.yml` has no JS or TS step of any kind.
-- **Section 9, "Model IDs live in one config block. No model string appears inline anywhere in `src/`."** Violated at `src/generation/batch_client.py:34-35` (pricing dict keys) and `:87` (`model="gemini-3.5-flash-lite"` hardcoded inside `MockBatchClient.submit`).
-- **Section 8, Python 3.12.** `pyproject.toml` sets `requires-python = ">=3.11"`, ruff `target-version = "py311"`, mypy `python_version = "3.11"`. CI installs 3.12.
-- **Section 8, injected clock.** `datetime.now()` is called directly at `src/engine/scheduler.py:69,198`, `src/engine/topic_state.py:25,41,52,68,88,126`, `src/engine/fsrs.py:18,105,120`.
-- **Stage 0 deliverable `hypothesis`.** Not a dependency, despite `CLAUDE.md:163` calling for property-based tests where stage documents specify them.
-- **Section 7, `tests/unit/`, `tests/integration/`, `tests/simulation/`.** Tests are flat in `tests/`. The `simulation` and `live` markers are declared in `pyproject.toml` and used nowhere.
-- **`.gitignore`**, a stage 0 deliverable, is absent from the tracked tree.
+- **TypeScript for `web/` and `worker/`** (`CLAUDE.md:181`). Zero `.ts` files, no `tsconfig`, no `package.json`, no ESLint config. `ci.yml` has no JS or TS step.
+- **Test marker taxonomy** (`CLAUDE.md:159-160`, `00-index.md:139-148`). `ci.yml:40` still runs `pytest` unfiltered. No `-m "not live"`, no PR-only `simulation` job, no nightly `live` job. The markers remain declared and unused.
+- **`tests/unit|integration|simulation/`**. Tests are still flat.
+- **Repository layout** (`CLAUDE.md` section 3). The stage docs still sit at repo root rather than `docs/`; `data/taxonomy/topics.yaml`, `data/taxonomy/confusion_groups.yaml`, `data/taxonomy/errant_mapping.yaml`, `data/fixtures/taxonomy/goethe_inventory_checklist.yaml`, `ATTRIBUTION.md` and `config.yaml` do not exist.
+- **`.env.example` still declares one key.** The two-lane architecture needs `GEMINI_FREE_API_KEY` and `GEMINI_PAID_API_KEY` in separate Cloud projects (`01-foundation.md:98-99`). `GeminiLlmClient.__init__` reads both names but nothing documents them.
 
 ---
 
-## 4. Repository layout divergence
+## 5. The new LLM client
 
-`CLAUDE.md` section 3 specifies a layout. Several mismatches are load-bearing rather than cosmetic.
+`src/llm/client.py` (165 lines) and `src/llm/cache.py` (47 lines) are new and implement more of the plan than anything that preceded them: a `CostLogRow` model, a JSONL cost log that persists and reloads, `get_month_to_date_spend`, a `BudgetExceeded` exception, a content-addressed disk cache checked before transport, and a `Lane` literal.
 
-| Specified | Reality | Consequence |
-|---|---|---|
-| `docs/` holding `00-index.md` through `04-application.md` and `docs/plan/` | All six sit at repo root; `docs/` holds only `audits/` | Cross-references to `docs/` paths in `CLAUDE.md` and the stage docs resolve to nothing |
-| `data/taxonomy/topics.yaml` + `confusion_groups.yaml` | `data/taxonomy.yaml`, single flat file, confusion group as an inline string field | Confusion groups have no independent artefact to second-agent diff |
-| `data/taxonomy/errant_mapping.yaml` **[AGENT-CRITICAL]** | Absent; rules hardcoded at `src/corpus/learner_errors.py:151-165` | An agent-critical artefact exists only as Python literals, so it cannot be diffed or reviewed as data |
-| `data/fixtures/taxonomy/goethe_inventory_checklist.yaml` | Absent | The taxonomy's only external anchor is missing |
-| `ATTRIBUTION.md` | Absent | Stage 2 DoD item, and a licensing exposure |
-| `src/llm/client.py`, `src/llm/cache.py` | Absent | Invariant 4 |
-| `src/scheduler/` | `src/engine/` | Cosmetic |
-| `tests/unit|integration|simulation/` | Flat `tests/` | Marker taxonomy unenforced |
-| `config.yaml` | Absent | Privacy flag has nowhere to live |
+Four problems make it non-functional as the thing invariant 4 describes.
 
----
+**1. The transport is still a mock.** `src/llm/client.py:142-144`:
 
-## 5. Contract drift
+```python
+# 4. Generate Response (Mocked transport when no active network / keys)
+prompt_tokens = len(prompt.split()) * 2
+response_text = f"Mocked LLM generation response for {purpose}"
+```
 
-`CLAUDE.md` rule 8 and `00-index.md:44` both require a stage-document update in the same PR as any contract change.
+There is no `google.genai`, `httpx` or `requests` import in the file. `self.free_api_key` and `self.paid_api_key` are assigned at `:51-54` and never read again. The repo still contains zero real API calls.
 
-| Constant | Plan | Code |
-|---|---|---|
-| `TagState` | `unseen, learning, acquired` (3), `00-index.md:51` | `unseen, learning, acquired, locked, ready, dormant` (6), `src/contracts.py:14` |
-| `MODEL_LIVE` | `gemini-3.5-flash-lite`, `00-index.md:82` and `CLAUDE.md:197-199` | `gemini-3.7-flash`, `src/contracts.py:66` |
-| `MODEL_GENERATE` | `gemini-3.5-flash-lite`, thinking off, `00-index.md:83` and `CLAUDE.md:200-202` | `gemini-3.7-flash`, `src/contracts.py:67` |
+**2. Nothing routes through it.** `GeminiLlmClient` appears outside its own module only in `src/llm/__init__.py:4` and `tests/test_llm_client.py`. `live_explainer.py:32`, `production_grader.py:38`, `minimal_pairs.py:55` and `weekly_report.py:30` all still default to `MockLlmClient()`, and `src/generation/batch_client.py` does not import `src.llm` at all.
 
-`TagStateModel.state` also defaults to `"locked"` (`src/contracts.py:240`), not `"unseen"`.
+**3. It cannot be wired in as written.** `GeminiLlmClient.generate(prompt, model, purpose, ...)` does not satisfy the `LlmProvider` Protocol, which requires `generate_text(prompt, system_prompt)` (`src/llm/provider.py:15`). The two halves of the LLM layer are structurally incompatible and no adapter exists.
 
-### 5.1 Model routing defect
+**4. The spend ceiling cannot fire.** `_estimate_cost` returns `0.0` for `lane == "free"` (`client.py:91-92`), `lane` defaults to `"free"` (`:136`), and `self.free_lane_open` is set `True` at `:60` and **never mutated anywhere in the repo**. So every ordinary call logs `cost_usd=0.0`, month-to-date spend stays at zero, and `BudgetExceeded` at `:112` is unreachable. The test that appears to cover this (`tests/test_llm_client.py:37`) hand-injects a `$5.50` cost row.
 
-`MODEL_VERIFY = "gemini-3.7-flash"` is correct and intended. `MODEL_LIVE` and `MODEL_GENERATE` were swapped to `gemini-3.7-flash` at the same time and should not have been. Both should read `gemini-3.5-flash-lite`.
+Also missing from the stage 0 spec: RPM-versus-RPD 429 discrimination, retry and backoff, overflow accumulation into a single batch, and the `config.yaml` privacy flag (the flag is a constructor argument with no config file behind it). **Named tests: 5 of 19**, and the one that matters most passes vacuously.
 
-The consequential one is `MODEL_GENERATE`, which puts the highest-volume workload on the verifier tier: by the repo's own price table (`src/generation/batch_client.py:34-35`) that is roughly 2x input and 2x output cost against a 5 EUR per month ceiling that is not enforced anywhere. `CostTracker.PRICING_PER_MILLION` still prices `gemini-3.5-flash-lite`, so the cost model and the contract disagree.
-
-**Fix:** set `src/contracts.py:66-67` to `"gemini-3.5-flash-lite"`. `00-index.md`, `CLAUDE.md` and `.env.example` are already correct and need no change.
-
-### 5.2 Constants declared but never read outside `contracts.py`
-
-Verified by grep across `src/`:
-
-`MAX_REVIEWS_PER_DAY` · `VOCAB_RATIO_DEFAULT` · `SUGGESTION_WINDOWS` · `SUGGESTION_MIN_ACTIVE_DAYS` · `THRESHOLD_CLAMP` · `DUEL_MIN_ATTEMPTS_TO_SUGGEST` · `OVERRIDE_UPHELD_RATE_ALERT` · `WEEKLY_REPORT_TRIGGER_ITEMS` · `WEEKLY_REPORT_MANUAL_MIN_ITEMS` · `NO_ERROR_ITEM_SHARE`
-
-Each is a feature the plan specifies. Ten declared, zero enforced. `MAX_NEW_TOPICS_PER_DAY` and `MAX_HEAVY_PER_ROUND` are read; see section 8.
-
-### 5.3 Declared dependencies never imported
-
-`pyproject.toml` declares `spacy`, `google-genai` and `httpx`. None is imported anywhere in `src/`. This is the clearest single indicator of the stub-versus-implementation pattern: every "spaCy morphology analysis" and every "model call" in the plan is, in the code, a hardcoded table or a regex.
+Two smaller defects in the new code: `client.py:70-71` swallows cost-log corruption with `except Exception: pass`, silently under-counting spend, against `CLAUDE.md:178`; and `cache.py:197` returns `str(data.get("response"))`, so a cache file with a null response yields the literal string `"None"` instead of a miss.
 
 ---
 
-## 6. Stages 0 to 2c: foundation
+## 6. Stage-by-stage detail
 
-### Stage 0
+### Stages 1, 2, 2b, 2c: unchanged
 
-CI itself is honest. `ci.yml` runs `ruff format --check`, `ruff check`, `mypy --strict src/`, and `pytest --cov=src --cov-fail-under=85`, with no `continue-on-error`.
+`data/taxonomy.yaml`, `src/corpus/`, `src/lexicon/` and `data/specs/` were not modified. Re-verified directly:
 
-Everything else the stage is about is absent, per section 3.1. **Named tests: 0 of 19.** Two near-misses do not qualify:
+- **`morph_spec` keys are still mostly not Universal Dependencies features.** Eight invented keys remain: `Pos` (17 topics), `Subordinate` (12), `VerbType` (7), `ArtType` (6), `Declension` (3), `Reflexive` (2), `VowelChange` (1), `Separable` (1). UD spells it `Reflex` and has no `Pos`, `ArtType`, `Declension`, `Subordinate`, `VowelChange` or `Separable` feature. `01-foundation.md:267-269` names this exact failure: keys that "would silently disable the stage 4 morphology check".
+- **12 singleton confusion groups** remain, and the validator still downgrades the check to a warning.
+- **`derived_from`, `split_into`, `split_axis` are absent** from both the `Topic` model and the data, so topic splitting has no representation.
+- **`sibling_group` is set on 0 of 87 topics**, while `src/engine/scheduler.py:144` still claims to interleave on it.
+- **`class Taxonomy` with `topological_order()` does not exist**; zero hits repo-wide.
+- **All six `requires_context` topics remain eligible for single-sentence types**, `plusquamperfekt` and `modalpartikeln` most clearly.
+- **`goethe_inventory_checklist.yaml` still absent**, so the taxonomy's only external anchor is missing.
+- **Stage 2 corpus is still 8 seed sentences** against a DoD of 20,000. No Leipzig bands. **spaCy is still imported in zero files under `src/`**, so there is no lemmatisation and no morphological analysis anywhere in the repo.
+- **Stage 2b mapping is still unfalsifiable**: every ERRANT keep-list tag maps to `None`, `R:CONJ:SUBORD` maps to a topic despite `CONJ` being on the discard list, `mapped_sample.jsonl` is 100/100 mapped against a specified 15 to 30 percent band, and the golden test never invokes the mapper.
+- **Stage 2c is still one parser over one synthetic fixture**, with no scraper, and `topic_id` still force-injected by the constructor so low-confidence mappings cannot be left null.
 
-- `tests/test_application_pipeline.py:28-36` computes `is_blocked = tracker.total_cost_usd >= ceiling_usd` inside the test body and asserts the comparison it just wrote. No production code consults a ceiling.
-- `tests/test_generation.py:127` asserts `total_cost_usd > 0.0` after a batch submit: per batch, not per call, with no row schema.
+**Named-test coverage for stages 0 to 2c: 14 of 73**, up from 9 (the five new stage 0 client tests).
 
-**DoD: 0 of 6.** `docs/audits/stage-00-quota.md` exists and has a routing table plus a generic quota line, but contains no per-million prices for any model, no per-project observed figures, and no swap analysis. The DoD explicitly requires pricing there, and both `CLAUDE.md:209` and `01-foundation.md:110-112` spend a paragraph each on why.
+### Stage 3: unchanged
 
-### Stage 1
+`MockBatchClient` is still what `main()` instantiates (`src/generation/batch_client.py:168`). `CandidateItem.block_id` and `block_position` still absent. Paragraph-block validation still only English text inside the prompt payload. `NO_ERROR_ITEM_SHARE` still unreferenced. `build_spec_for_topic` still fabricates gold examples with `"Hier steht Beispielsatz Nummer {idx} mit ___ Lücke."`. All 87 spec sheets still carry exactly 3 gold examples, none traceable to human-authored material.
 
-**The content is the best work in the repo and is worth protecting.** Verified directly: 87 topics (band is 75 to 90), distributed A1 21 / A2 22 / B1 24 / B2 20; the prereq DAG is acyclic with 150 edges and zero dangling references; no prereq edge inverts CEFR (0 violations, though nothing tests this); 34 confusion groups; `rule_hint` and `intro_card` populated for all 87.
+### Stage 4: the kill gate still measures the wrong quantity
 
-The contract is materially narrower than `01-foundation.md:142-159`:
-
-| Spec field | Status |
-|---|---|
-| `id`, `name_de`, `cefr`, `prereqs`, `confusion_group`, `description`, `eligible_types`, `requires_context` | Present |
-| `morph_spec: dict[str, str]` | Typed `dict[str, Any] \| None`; optional where the spec requires it |
-| `rule_hint: str` | Typed `str \| None`; populated for all 87 but optional in the type |
-| `sibling_group` | On the model, **set on 0 of 87 topics**, yet `src/engine/scheduler.py:144` interleaves on it. Permanent no-op |
-| `intro_card: str` | **Type mismatch.** Spec says a static string; code is a nested `IntroCard` model |
-| `derived_from`, `split_into`, `split_axis` | **Absent from the model and the data.** The topic-splitting lineage mechanism has no representation |
-| `class Taxonomy` with `topological_order()`, `transitive_prereqs()`, `descendants()` | **Does not exist.** `topological_order` has zero hits repo-wide. The other two exist only as methods on `TaxonomyValidator`, not on the contract type downstream stages were told to depend on |
-
-Three data defects the specified tests would have caught, all verified directly:
-
-1. **`morph_spec` keys are mostly not Universal Dependencies features.** Of 15 distinct keys, only 7 are real UD features (`Case` 20, `Tense` 16, `Mood` 6, `Voice` 6, `Aspect` 4, `Number` 1, `Degree` 1). Eight are invented: `Pos` (17), `Subordinate` (12), `VerbType` (7), `ArtType` (6), `Declension` (3), `Reflexive` (2), `VowelChange` (1), `Separable` (1). UD uses `Reflex`, not `Reflexive`, and has no `Pos`, `ArtType`, `Declension`, `Subordinate`, `VowelChange` or `Separable` feature. `01-foundation.md:267-269` names this exact failure mode: keys that "would silently disable the stage 4 morphology check".
-2. **Twelve singleton confusion groups:** `nomen_endungen`, `modalverben_bedeutung`, `verben_trennbar_praefix`, `satzbau_modus`, `wortstellung_objekte`, `adjektiv_vergleich`, `temporal_praep`, `pronominaladverbien`, `temporal_als_wenn`, `finale_konnektoren`, `modalpartikeln_nuance`, `diskurs_konnektoren`. A group of one cannot produce interleaved contrast. 22 real groups remain, still above the DoD's eight.
-3. **All six `requires_context` topics are also eligible for single-sentence types.** Clearest cases: `plusquamperfekt` and `modalpartikeln`, both eligible for `cloze_free` and `cloze_cued`. `01-foundation.md:213-216` calls this "the assertion that stops a single-sentence item from pretending to test indirect speech". Only 6 topics are `requires_context` against the spec's "roughly 8 to 12".
-
-Separately, **`morph_spec` is specified to define facets** as the features it leaves unspecified (`01-foundation.md:168`), so facets are derived rather than hand-written. **No facet derivation exists anywhere in the repo.** This is the root of the stage 6 deadlock in section 8.
-
-**Named tests: 7 of 28.** Absent: the CEFR-ordering check, snake_case validation, the two-member confusion-group check, all six lineage and split tests, `test_facet_space_derivable_from_morph_spec`, `test_morph_spec_keys_are_valid_universal_dependencies_features`, `test_goethe_inventory_coverage`. Two present tests are weaker than specified: the intro-card worked-example check asserts one example where the spec says two (the data does satisfy two), and `transitive_prereqs` is tested for membership but never for self-exclusion.
-
-**DoD: 5 of 8.** The two that matter: `goethe_inventory_checklist.yaml` does not exist, so the external anchor `01-foundation.md:137` calls the point of the stage is absent and `test_goethe_inventory_coverage` cannot run; and no second-agent diff or conflict list exists anywhere for the DAG or confusion groups, which the agent-critical protocol requires since those two artefacts have no external key.
-
-### Stage 2
-
-`SeedSentence` and `Lexicon` do not exist. `CarrierSentence` (`src/corpus/tatoeba.py:32-41`) is missing `max_freq_band`, `licence`, `attribution`, `lemmas` and `source`. `01-foundation.md:338` says "licence hygiene is enforced by the schema, not by memory"; the schema cannot enforce fields it does not have. `VocabularyStore` implements none of `band()`, `in_goethe_list()` or `level_ceiling_ok()`.
-
-- **`data/fixtures/corpus/tatoeba_sample.tsv` contains 8 sentences.** The DoD requires at least 20,000 surviving filters. There is no ingest script for the real Tatoeba dump; `scripts/` has step1 through step4 and none touches Tatoeba.
-- **Leipzig frequency bands are absent entirely.** `FrequencyBander` is not frequency banding: with no word list supplied it degenerates to "is any word at least 12 characters" (`src/lexicon/frequency.py:26-31`). Band coverage is unmeasurable.
-- **spaCy `de_core_news_lg` is never used.** One hit repo-wide, the dependency line. Tokenisation is a regex; "lemmas" are surface tokens of length 3 or more minus a function-word set. **No lemmatisation exists**, so separable verbs cannot be handled, which `01-foundation.md:363` singles out as the failure that "silently corrupts vocab tagging". Morphology extraction is also unavailable to stage 4, which is why that chain is hand-rolled.
-- Three of four filtering rules do not exist: no proper-noun whitelist, no finite-verb check, no parse check. Token bounds are 3 to 30 against a spec of 4 to 18.
-- Umlaut normalisation is `.lower()` only, so `"Straße"` and `"Strasse"` are distinct keys.
-- `vocab_levels.json` (11,626 entries) is a surface-form dump from PDF regex extraction, not lemmas: it contains inflected forms and noise assigned to A1 (`"spiele"`, `"antwortet"`, `"kurzes"`, `"geh"`, `"fitzpatrick"`).
-- **Bug:** `scripts/step1_extract_vocab.py:28` calls `extractor.extract_from_directory(raw_dir)`, which does not exist on `WordlistPdfExtractor`, then iterates the result with the wrong shape. It is shielded from failure because `tests/test_lexicon.py:135-142` short-circuits when `data/raw/` is absent, and because `ci.yml` scopes ruff to `src tests` and mypy to `src/`, so **`scripts/` is linted by nothing**.
-
-**Named tests: 1 of 9. DoD: 0 of 4.**
-
-### Stage 2b
-
-`LearnerErrorItem` does not exist. `LearnerError` is missing `feature_delta`, `governor_pos` and `governor_lemma`, the three fields the mapping pipeline is built on. `cefr` defaults to `"A2"` rather than `None`, so unknown CEFR silently reads as A2.
-
-Of the four pipeline steps in `01-foundation.md:405-425`, none is implemented as specified:
-
-1. **ERRANT tag filter: absent**, and inverted in practice. Running the mapper against real ERRANT-German tags, **every tag on the spec's keep-list returns `None`**: `R:DET:FORM`, `R:VERB:FORM`, `R:PRON`, `R:WO`, `M:PREP`. Meanwhile `R:CONJ:SUBORD` maps to `nebensatz_weil_da`, and `CONJ` is on the spec's discard list.
-2. **Morphological diff: absent.** Nothing computes `{"Case": ("Acc", "Dat")}`.
-3. **Context routing via `errant_mapping.yaml` [AGENT-CRITICAL]: absent.** Replaced by a 13-entry dict plus a substring cascade over raw context text that checks `"in" in context_lower`, which matches inside a large fraction of German words.
-4. **Single-error filter: absent.** No edit counting anywhere.
-
-**The golden fixture is circular.** `mapped_sample.jsonl` has 100 rows, and all 100 have a non-null `mapped_topic_id`: **100% yield against a specified band of 15% to 30%**, in the direction `01-foundation.md:460-462` calls "the dangerous direction: it mislabels errors and corrupts the confusion-group analysis downstream". The 23 tag strings are not ERRANT tags: `R:PREP:WECHSEL`, `R:PRON:REL`, `R:DET:CASE:GEN`, `R:VERB:TENSE:FUT2` and so on. Real ERRANT deliberately cannot say "Wechselpräposition"; deriving that is the entire work of this stage, and these labels encode the answer. The fixture's tag set and the mapper's heuristic keys are the same closed set, authored together. The golden test never invokes the mapper: it asserts that each topic id exists in the taxonomy and that each row id starts with `merlin_`. **The 0.85 agreement rate is never computed.** Line 184 asserts every row is mapped, the exact inverse of the specified `test_unmapped_items_are_retained_with_topic_id_none`.
-
-`EmpiricalConfusionMatrix` is a working data structure that is never fed any corpus.
-
-**Named tests: 0 of 9. DoD: 0 of 5.**
-
-### Stage 2c
-
-`ScrapedItem` does not exist. `ScrapedExercise` is missing `source_url`, `prompt_raw`, `prompt_stripped`, `mapped_topic_id`, `cefr_claimed`, `scraped_at`, `source_topic_label` and `exercise_type`.
-
-Two substitutions are actively harmful:
-
-- **`topic_id` is required and injected by the parser constructor**, defaulting to `"dativ_nach_praeposition"`. The spec's "low-confidence mappings are left null rather than guessed" (`01-foundation.md:525`) is structurally impossible: every scraped item is force-labelled with whatever the caller passed.
-- **With no `prompt_raw` / `prompt_stripped` pair there is no way to verify that stripping happened.** In the one fixture the discarded heading is "Setzen Sie den richtigen Artikel im Dativ ein (Wo?)", a textbook topic leak, dropped silently rather than recorded and checked. `01-foundation.md:526` says the stripping "must be verified rather than assumed".
-
-There is no scraper: no `robots.txt` handling, no rate limiting, no user agent, no HTML disk cache, no network code. **One parser, not the DoD's two**, and its frozen fixture is 22 lines of hand-written synthetic markup (`<li data-id="scraped_001" data-answer="dem">`) rather than a capture of the real site, so it cannot serve its stated purpose of detecting a site redesign.
-
-The downstream cost exceeds the stage. `02-content-pipeline.md:270` requires `known_good.jsonl` to be sourced from scraped teacher answer keys, because "agent-generated 'known good' items are only agreement with the generator". And the highest-value deliverable, 20 to 30 human-authored gold examples per topic family wired into spec sheets, did not happen: **all 87 spec files carry exactly 3 gold examples each, 261 total**, none with a provenance field and none traceable to scraped material.
-
-**Named tests: 1 of 8. DoD: 0 of 4.**
-
----
-
-## 7. Stages 3 to 5: content pipeline
-
-### Stage 3
-
-**87 spec sheets exist**, one per taxonomy topic, carrying the specified fields.
-
-The client is not real. `src/generation/batch_client.py:62` defines `MockBatchClient`; `main()` at `:167` instantiates it. `MockBatchClient.submit:85` fabricates token counts as `total_items * 150` in and `* 180` out. `CostTracker.records` is in-memory only; the `batches` table exists but nothing in the generation path writes to it.
-
-Also missing:
-
-- `CandidateItem.block_id` and `block_position`, so paragraph-cloze gaps have nowhere to land.
-- Paragraph-block validation ("no two adjacent gaps share a `tag_id`", "reject if every gap is context-free") exists only as English text inside the prompt payload.
-- `NO_ERROR_ITEM_SHARE` is never referenced, so no-error error-correction items are never requested.
-- `build_spec_for_topic` **fabricates gold examples**, padding to three with `"Hier steht Beispielsatz Nummer {idx} mit ___ Lücke."` (`src/generation/spec.py:94-102`), against a plan that calls a leaky or wrong gold example the thing that "teaches the generator to leak across every item that topic ever produces".
-- `extra="allow"` on every contract plus `parse_distractors` silently dropping bad entries means malformed model output is coerced rather than rejected.
-
-`.github/workflows/generate-submit.yml:30` passes `GEMINI_API_KEY` into a code path that instantiates `MockBatchClient` and never reads the key. **The nightly generation submits nothing.**
-
-### Stage 4: the kill gate measures the wrong quantity
-
-This is the most consequential finding in the audit.
-
-`00-index.md:32` requires: audit 100 items and compute the **post-verifier error rate**, meaning of 100 items the chain **accepted**, how many are still wrong, judged by two independent auditors.
-
-`src/verification/pipeline.py:175-176`:
+`src/verification/pipeline.py:175-176` is unchanged:
 
 ```python
 error_rate = round(failed_count / len(candidates), 4)
 kill_gate_tripped = error_rate > kill_gate_threshold
 ```
 
-That is the **candidate rejection rate**. The two are opposite signals: under this implementation a more effective verifier trips the gate. `docs/audits/stage-04-2026-08-13.md:37` states the inversion explicitly, and `tests/test_verification.py:139` asserts the drop-rate semantics, so the divergence is locked in by test.
+`failed_count` counts candidates the chain **rejected**. The plan requires the post-verifier error rate among 100 **accepted** items, judged by two independent auditors (`00-index.md:32`, `02-content-pipeline.md:337-341`). These remain opposite signals: a chain that catches every defect scores a 100 percent "error rate". `tests/test_verification.py:170-178` still hardcodes the inversion, asserting that a chain which correctly caught both defects in a 10-item batch has failed.
 
-**The gate quantity has never been measured.** The committed audit reports fixture recall (100%) and false-rejection rate (0%) over 30 adversarial plus 30 known-good items. The plan specifies 60 plus 60 fixtures and a **separate** 100-item sample of accepted output. There is no second auditor, no different vendor, no recorded disagreements, and no statement of the correlated-auditor limitation, all required by `CLAUDE.md` section 10. The audit cites `adversarial_suite.jsonl`, which is deleted from disk while still tracked in git, and names the constant `KILL_GATE_DROP_THRESHOLD` while the code calls it `VERIFICATION_KILL_GATE_THRESHOLD`.
+No code path anywhere samples accepted items. `docs/audits/` still contains only `stage-00-quota.md` and `stage-04-2026-08-13.md`; the stage 4 audit is untouched and still cites the now-deleted `adversarial_suite.jsonl`, still reports 30 items, still credits "Layer 2 (spaCy Morphosyntax)" to code containing no spaCy, and still never computes the gate quantity. There is no second auditor and no new audit document.
 
-`CLAUDE.md:274`: *"Report the kill criteria honestly. Stage 4 has a measured error-rate threshold that determines whether the project continues. Do not tune the audit to pass it."*
-
-100% recall and 0% false positives is implausible given what the chain contains:
+The chain itself is unchanged:
 
 | # | Plan layer | Code | Real or stub |
 |---|---|---|---|
 | 1 | Schema validation | `layer1_syntax.py:17` | Real |
-| 2 | Topic-leak check | blocklist in Layer 1 plus `layer_topic_leak.py` | **Blocklist only.** Plan specifies a cheap batched model pass |
-| 3 | Answer-set expansion | `layer_expander.py` | **Stub, and dead.** 16 hardcoded contractions, never called from `pipeline.py`, 25% test coverage |
-| 4 | Morphology (spaCy) | `layer2_morphology.py` | **Not spaCy.** Hardcoded word lists for exactly 2 topic IDs plus one regex. **65 of the 68 topics with a `morph_spec` get no morphological check at all** |
+| 2 | Topic-leak check | blocklist plus `layer_topic_leak.py` | Blocklist only; no model pass |
+| 3 | Answer-set expansion | `layer_expander.py` | **Still dead.** Referenced only by its own definition and the `__init__` re-export; `pipeline.py` never imports it |
+| 4 | Morphology | `layer2_morphology.py` | **Still hardcoded to 3 topic IDs.** 65 of the 68 topics with a `morph_spec` get no morphological check |
 | 5 | Level check | folded into Layer 1 | Real, but silently skipped unless both `vocab_store` and `spec` are passed |
-| 6 | Embedding dedup | `dedup.py:41` | **Not embeddings.** Jaccard token overlap at 0.85; only runs against an existing bank, never within a batch |
-| 7 | Human audit, 5% sample | | **Missing** |
+| 6 | Dedup | `dedup.py:21-33` | Still Jaccard, not embeddings; still only against an existing bank, never within a batch |
+| 7 | Human audit, 5% sample | | Still missing |
 
-The claimed audit run covered `kasus_wechselpraeposition`, which contains exactly the two topics Layer 2 hardcodes. Whatever was measured was measured on the only topics with real morphology coverage.
+`VerificationResult.accepted_answers` and `.rejections` are still never populated: all six `return VerificationResult(...)` sites in `pipeline.py` omit both.
 
-Two further contract problems: `VerificationResult.accepted_answers` and `.rejections` are **never populated** by any return path, so the bank stores only the single proposed answer. And `RejectionReason` from the plan does not exist; the code uses a different `ErrorTaxonomy` vocabulary, and `ErrorClassifier.classify` routes nearly every real layer message to `pedagogical_flaw`, making `topic_leak`, `structural_malformation` and `morphosyntactic_error` unreachable. The plan's stated purpose for recording reasons, diagnosing a bad spec sheet from its rejection profile, is defeated.
+`ErrorClassifier.classify` is still broken. Fed the 20 literal reason strings the four layers actually emit, **15 of 20 return `pedagogical_flaw`**; `topic_leak`, `structural_malformation` and `morphosyntactic_error` are returned by no branch and are unreachable by construction. `"Topic leak: answer appears in sentence part ..."` hits the `"topic" in r_lower` branch at `classifier.py:27` and returns `pedagogical_flaw`.
 
-### Stage 5
+**New defects found in the resized fixtures:**
 
-The schema is sound: `items`, `distractors`, `carrier_lemmas`, `verification_log`, `batches`, `schema_version` plus indexes, with a re-runnable `run_migrations`. The export `manifest.json` shape matches `web/data/manifest.json` exactly.
+- **The adversarial golden test asserts nothing about which layer or reason fires.** `tests/test_verification.py:63` pops `"expected_layer"`, but the fixture field is `expected_layer_failed`. The key is never present, so the guard at `:72` makes the layer assertion dead code, and `expected_error_type` is asserted nowhere. The test checks only aggregate `not res.passed` across all 60 items, which is precisely the aggregate-hides-per-reason failure `02-content-pipeline.md:274-277` warns against.
+- **True `duplicate` recall is zero.** Items `adv_041` through `adv_048` are labelled `expected_error_type: "duplicate"`, `expected_layer_failed: 3`, but all eight ship with empty distractor lists and fail at layer 1 with `"Expected exactly 3 distractors, found 0."`. The dedup layer never executes in any test. Combined with the key mismatch, the suite reports 60/60 recall while the deduplication reason has never once been exercised.
+- **The false-positive measurement uses a weaker chain than the recall measurement.** `tests/test_verification.py:108` calls `verify_item(item)` with no `spec`, while the adversarial test at `:68` passes `spec=sample_spec`. With `spec=None` the vocabulary ceiling check, the spec `forbidden` rules and one topic-leak branch are all skipped. Running the same 60 known-good items with a spec attached yields 16 rejections. The reported 0 percent false-positive rate is not measured against the chain that produces the recall number.
+- **`TopicLeakValidator` uses substring containment.** `layer_topic_leak.py:35` tests `if ans_lower in part:` against the raw prompt segment rather than tokenising as its own section 1 does at `:24`. Answer `der` therefore matches inside `Kinder`, `oder`, `wieder`.
 
-- **`facet` is never derived at ingest.** No facet computation exists in `src/generation`, `src/verification` or `src/bank`; the only hits are field declarations and consumers in `src/engine`. Because `PROMOTION_MIN_DISTINCT_FACETS = 2`, **no faceted topic can ever be promoted out of `learning`**. Stage 6 depends on a stage 5 invariant with no implementation, and the derivation rule was specified back in stage 1.
-- **`confusion_group` is never written at ingest**, though the plan notes the offline minimal-pair fallback cannot derive it at runtime.
-- **`dimension` has no column**, so the grammar/vocab split does not survive a round trip. `tag_id` exists on the model but is never written or read; `topic_id` is the real field. Vocabulary items cannot be represented.
-- **`export_delta(since_id)` does not exist.** Zero hits. `BankExport` is declared and never constructed. `worker/src/index.js:45` returns a hardcoded `delta_items: []`. Both ends of the delta contract are stubs, despite `README.md:52` advertising delta export as a stage 5 deliverable.
-- **Insert is not idempotent.** `src/bank/storage.py:31` uses plain `INSERT`; re-inserting raises `IntegrityError`. Untested.
-- `insert(list) -> InsertReport` and `stock(tag_id, difficulty)` do not exist; `InsertReport` is not a type in the repo.
-- **The shared export-schema fixture is missing**, so server and client cannot diverge-detect.
-- DoD requires cold-seeding 12 items per topic across A1 to B2. `web/data/manifest.json` records the actual result: **8 items total, 1 per topic, 8 of 87 topics.** `MIN_STOCK_PER_TIER` is 5, not 12.
+### Stage 5: one table added, everything else unchanged
 
----
+**Added:** a `review_logs` table in `src/bank/migrations.py:68-78` with `append_review_log` and `get_review_logs` on `SqliteItemBank` (`storage.py:249-299`), written by the CLI at `app.py:137-144`. Verified: two `round` invocations produced 6 rows.
 
-## 8. Stages 6 and 7: learning engine
+Three defects in it:
 
-### What is real
+- **No `mode` column**, so the mode-filtered `tag_state` recomputation the table exists to support cannot be expressed.
+- **No `facet` column**, though the plan treats the log as the source of truth for facet accuracy.
+- **`fsrs_rating` is declared `INTEGER NOT NULL`** (`migrations.py:75`) but written as the `FsrsRating` string literal (`app.py:143`). Verified stored value: `'good'` with type `text`. SQLite's non-strict typing accepts it; the column will hold mixed types the moment the D1 sync or the PWA appends.
 
-py-fsrs is used properly and is not hand-rolled, with a correct rating map, lapse counting and retrievability. The forecast gate, the heavy-item cap, the dormancy-to-recalibration switch, the split-candidate detector, promotion (3 unhinted passes, 2 facets), demotion asymmetry, the `INFERRED_STABILITY_CEILING_DAYS` clamp, and the hint-to-rating ladder are all present and correctly shaped.
+Everything else stands:
 
-### Pacing constants: declared versus enforced
+- **`facet` is still never derived.** It is read in `topic_state.py:105`, `scheduler.py:305`, `cli/app.py:171`, stored at `storage.py:50` and columned at `migrations.py:22`, but computed nowhere. `grep -rn facet src/generation src/verification src/taxonomy` returns nothing. The only facets in existence are hand-written literals in the 8-item fixture (`"sg1"`, `"masc_dat"`), which `01-foundation.md:168` explicitly forbids: "Facets are therefore derived, never hand-written for 85 topics." Any pipeline-produced item has `facet=None`, so **all 68 faceted topics remain unpromotable in production**.
+- **`confusion_group` still never written at ingest.** All 8 fixture rows have it absent.
+- **No `dimension` column and no `tag_id` column.** Verified by round trip: a `BankItem` inserted with `tag_id='dativ_nach_praeposition', dimension='grammar'` reads back as `tag_id: None` and the default `dimension`. Export is therefore lossy, and `test_referential_integrity_every_tag_id_exists` cannot be written against this schema.
+- **`export_delta(since_id)` still does not exist**; `BankExport` is constructed only in a model-shape test.
+- **Insert is still not idempotent.** `storage.py:34` is a plain `INSERT`; re-inserting raises `sqlite3.IntegrityError`. Note `carrier_lemmas` at `:76` does use `INSERT OR IGNORE`, so the inconsistency is visible in the same function.
+- **`insert(list) -> InsertReport` and `stock(tag_id, difficulty)` still absent**; `InsertReport` is not a type in the repo.
+- **No shared export-schema fixture.** `tests/test_web.py` still has the server asserting against itself.
+- **Bank stock is still 8 items across 8 of 87 topics** against a DoD of 12 per topic. `MIN_STOCK_PER_TIER` is still 5.
 
-| Constant | Enforced in `scheduler.py`? |
-|---|---|
-| `MAX_HEAVY_PER_ROUND` | Yes (`:244`, `:278`) |
-| `FORECAST_HORIZON_DAYS`, `FORECAST_LOAD_THRESHOLD_DEFAULT` | Yes |
-| `ROUND_SIZE_DEFAULT` | Used as a cap; the 4 to 10 range is never validated |
-| `MAX_NEW_TOPICS_PER_DAY` | Read at `:256`, but **the day counter is a parameter defaulting to 0 with no persistence**, so ten rounds in one process each pass 0 and each introduce a topic. Precisely the bug the round/day distinction exists to prevent |
-| `MAX_REVIEWS_PER_DAY` | **Never imported.** No backlog cap, no overdue-ordered slipping |
-| `VOCAB_RATIO_DEFAULT` | **Never referenced.** No grammar/vocab mixing exists; `dimension` is never read |
-| `SUGGESTION_WINDOWS`, `SUGGESTION_MIN_ACTIVE_DAYS`, `THRESHOLD_CLAMP` | **Never used.** `ThresholdSuggestion` is a bag of hardcoded defaults with no computation function |
+### Stage 6: `src/engine/scheduler.py` was not modified
 
-**Two inconsistent forecasts.** `forecast()` (`:90-95`) drops any state with `day_offset < 0`, so overdue backlog contributes zero: 200 overdue tags yield `[0,0,0,0,0,0,0]` and `new_topics_allowed = 2`, defeating the debt-spiral guard exactly when it matters most. `forecast_7day_load()` (`:63-81`) counts overdue but buckets them under past dates and takes a max. `day_budget` uses the first, `plan_next_round` the second.
+Every scheduler finding stands verbatim. Re-verified:
 
-### Round assembly: 12 rules specified, 4 implemented
+- **Six pacing constants still have zero readers outside `contracts.py`**: `MAX_REVIEWS_PER_DAY`, `VOCAB_RATIO_DEFAULT`, `SUGGESTION_WINDOWS`, `SUGGESTION_MIN_ACTIVE_DAYS`, `THRESHOLD_CLAMP`, `DUEL_MIN_ATTEMPTS_TO_SUGGEST`. `MIN_PREREQ_STABILITY` is still undefined anywhere.
+- **`MAX_NEW_TOPICS_PER_DAY` day counter** is still a caller-supplied parameter defaulting to 0 (`scheduler.py:192`) that no caller ever supplies. With no state reload, every round re-enters at 0 and can introduce a new topic.
+- **Two inconsistent forecasts** remain: `forecast()` still drops `day_offset < 0` so overdue backlog contributes zero to the debt-spiral guard, while `forecast_7day_load()` counts it differently.
+- **Round assembly is still 4 of 12 rules.** Missing: prereq-stability filter, difficulty-tier matching (`:261` hardcodes `difficulty=1`), `seen_items` exclusion, `sibling_group` separation, grammar/vocab ratio, paragraph-gap counting, `requires_context` day-spreading, bonus-round flagging (`Round` and `RoundItem` still have zero construction sites), `eligible_types` override.
+- **`_interleave_items` still inverts rule 3**, using `it.confusion_group or it.topic_id` as the bucket key and driving confusion-group members apart.
+- **Review modes unchanged.** `build_duel` still pads with arbitrary unrelated items; `build_recalibration` still ignores its `states` argument and returns `all_items[:10]`; `challenge` still does not exist in Python, and `plan_next_round` silently falls through to the review path for it.
+- **`mark_acquired_kalibrierung` is still dead code**, zero call sites. Calibration still uses `mark_acquired_inferred`, so every calibration-acquired topic gets the 4-day ceiling and demotes on the first failure rather than the second.
+- **Kalibrierung is still not adaptive.** First 12 items by CEFR order, no branch on outcomes, no B1 start, no 35-item bound, no DAG propagation, no per-topic 2-of-2 rule. `calibration.py:81` still grades with `clean_ans in item.accepted_answers`, bypassing `ScopedTypoGrader`, which is not even imported there.
 
-Missing: prerequisite-stability filter (`MIN_PREREQ_STABILITY` is not defined anywhere, and the fill step at `:272-285` pulls arbitrary bank items with no topic-state, prereq or seen filter, so locked-topic items land in rounds); difficulty-tier matching to stability; `seen_items` exclusion (the identifier appears nowhere in the repo); `sibling_group` separation; grammar/vocab ratio; paragraph gaps counting individually; `requires_context` day-spreading; bonus-round flagging (`Round` and `RoundItem` are never constructed anywhere); `eligible_types` override.
+**Partial progress:** facet *plumbing* now works. `src/cli/sitting.py:90` passes `facet=item.facet` into `record_attempt`, and promotion fires correctly when a real facet is supplied. Executed: three unhinted passes with facets `['sg1','sg3','sg1']` promoted to `acquired`/`earned`. The derivation that would supply those facets in production still does not exist.
 
-**Rule 3 is inverted.** The plan says prefer same-`confusion_group` neighbours. `_interleave_items:159` uses `it.confusion_group or it.topic_id` as the bucket key, which forces confusion-group members apart.
+### Stage 7: interactive input added, grading unchanged, gate still unattempted
 
-### The facet deadlock
+**Grading is byte-identical.** `src/engine/typo_grader.py:171` is still `grade(cls, user_input, accepted_answers)` with no `topic_id` and no `morph_spec`. Executed against the current code:
 
-`facet` is never computed at ingest, so `new_facets` in `src/engine/topic_state.py:133-137` stays empty and `facet_condition_met` is permanently `False` for every topic with a `morph_spec`. **All 68 faceted topics can never reach `acquired`.** The same cause collapses every row in `detect_split_candidates` to `"default"`, so a split candidate can never be raised. Since the lineage fields (`split_into`, `derived_from`, `split_axis`) do not exist on `Topic`, a split could not be represented even if one were detected.
+```
+grade('großem', ['großen'])  -> is_correct=True   (wrong adjective declension)
+grade('geht',   ['gehst'])   -> is_correct=True   (wrong person ending)
+grade('kleinen',['kleinem']) -> is_correct=True   (dative/accusative confusion)
+```
 
-### `acquired_via`
+All three are scored `Richtig (Tippfehler)`. These are the "mutate the target morpheme, must fail" cases the plan's property test specifies. The only caller, `src/cli/sitting.py:67`, has `item.topic_id` available on the same line and does not pass it.
 
-`mark_acquired_kalibrierung` (about 10 days stability) is **dead code with zero call sites**. Calibration instead calls `mark_acquired_inferred` for topics the user answered correctly, so everything gets the 4-day ceiling and demotes on a single failure. The plan's four-row table is implemented for none of its rows.
+**Interactive input is partial.** `app.py:92-96` and `:131-134` branch on `sys.stdin.isatty()`. Real prompting exists in a terminal, but the non-tty path still auto-answers (`ans = item.accepted_answers[0]`), there is no injectable input seam for tests, and the empty-input substitution described in section 1 makes the collected data untrustworthy.
 
-### Review modes
+**Persistence is partial.** `review_logs` is written, but `run_cli` still rebuilds `TopicStateManager` from taxonomy on every invocation (`app.py:212-213`) and still passes `fsrs_records={}` (`:115`, `:121`). There is no read path from the log back into state. Executed proof: two consecutive `round --size 3` calls served the identical three items in the identical order.
 
-| Mode | Status |
-|---|---|
-| `review` | Partial |
-| `duel` | **Stub.** Filters by `confusion_group`, then pads with arbitrary unrelated bank items. No `duel_seen` set, no minimal-pair preference, no lock-until-both-introduced, no ranking, no CLI command |
-| `challenge` | **Missing in Python entirely.** Only a string literal and a PWA view |
-| `recalibration` | **Stub.** `build_recalibration` ignores its own `states` argument and returns `all_items[:10]` |
+**Still missing:** `grammar stats` prints item-bank statistics rather than topic states, stability and retention (`FSRSEngine.get_retrievability` exists and is never called from the CLI); `grammar report` prints a line and writes nothing; the hint content ladder for levels 1 to 4 exists only in JS, and `cmd_round` hardcodes `hint_level=0`; FSRS parity still asserts only `state` and `stability > 0`, never the next interval, and the fixture has no interval field to assert against; `docs/audits/stage-07-usage.md` does not exist.
 
-### Kalibrierung is not adaptive, and answers itself
+**The gate remains unattemptable.** The CLI forgets all state between invocations, offers no hints, reports no progress, and scores empty answers as correct.
 
-It takes the first 12 or fewer items by CEFR order; `next_item` returns the next unanswered item in list order. No branch on consecutive outcomes, no start-at-B1, no termination condition, no 35-item bound, no DAG propagation, no per-topic 2-of-2 rule. `evaluate_diagnostic` grades with `clean_ans in item.accepted_answers`, bypassing `ScopedTypoGrader`, so scoped typos fail during calibration and pass during review.
+### Stage 8: two blockers fixed, one remains
 
-`src/cli/app.py:90` reads `responses = [(it, it.accepted_answers[0]) for it in items]`. The user is never prompted; every probed topic is marked acquired on every run.
+Fixed: the `getAll` TypeError and the missing service-worker registration. `appendReviewLog` is now called at `web/app.js:480`.
 
-### Grading is approximated where the plan requires scoping
+**The third blocker is still open and now produces a silent no-op.** `saveTopicState` (`db.js:44`) and `saveFSRSCard` (`db.js:52`) still have zero call sites. `app.js:318` now reads topic state back, but nothing ever writes it, so the read is permanently empty and `statDueTopics` (`:362`) renders `0 Themen` forever.
 
-The plan's signature is `grade(expected, given, topic_id)` with typo tolerance **scoped to the tested morpheme**, derived from `morph_spec`. The code's `grade(user_input, accepted_answers)` takes no `topic_id` and no `morph_spec`. Scoping is approximated by an 80-word hardcoded closed-class list plus a 16-entry `CRITICAL_MINIMAL_PAIRS` set; anything outside those two sets gets blanket edit-distance-1 tolerance:
+**ts-fsrs is still absent.** No `package.json`, no vendored library, no CDN tag, no `.ts` file. `startNewRound()` is still `bankItems.slice(0, config.roundSize)` with no due queue, no rating, no interleaving. `fsrsRecords` is a dead `{}` written only by JSON import.
 
-- `grade("großem", ["großen"])` passes: wrong adjective declension ending
-- `grade("geht", ["gehst"])` passes: wrong person ending
+**The two graders still diverge.** The JS `GRAMMATICAL_MORPHEMES` set is missing 16 entries the Python set has (`unser` and its inflections, `als`, `denn`, `da`, `während`, `wegen`, `trotz`, `statt`, `anstatt`), and Python's 16-pair `CRITICAL_MINIMAL_PAIRS` has no JS counterpart, so JS will grade `hatte` to `hätte`, `war` to `wäre`, `konnte` to `könnte` as scoped typos where Python correctly fails them. The one-off `grosser`/`größer` hack is still at `app.js:145`.
 
-These are exactly the "mutate the target morpheme, must fail" cases the plan's property test specifies. The `größer` / `grosser` case is handled by a literal hardcoded special case. The test claiming to cover this is a 6-row list drawn from the same hardcoded set the implementation uses: it tests the lookup table against itself. This defect is downstream of stage 2, where the absence of spaCy means there is no morphological analysis to scope against.
+**All eleven retention surfaces are unchanged.** Diff highlighting still renders whole answers rather than the differing morpheme; capitalisation errors are still graded wrong rather than "correct, but"; round preview, pace estimate, streak freezes and the progress report are still static or hardcoded; the coverage bar still has 2 segments not 3, still hardcodes A1 and A2 percentages with B1 and B2 never written, and still uses the forbidden word "Stufen"; the DAG map is still 6 hardcoded topics with no edges; the duel library is still 3 hardcoded cards with none of the 7 required columns; the daily challenge still grades via `includes('weil')`; and export still omits `review_log` and settings while import still assigns `tag_state` directly from the file, which `04-application.md:363` forbids.
 
-### Stage 7 usability gate: not attempted, and not attemptable
+Also unchanged: umlaut buttons append at end rather than at cursor; the challenge textarea lacks the required input attributes; the progress bar shows within-round position rather than due-queue clearance; `web/manifest.json` references icon files that do not exist, and `tests/test_web.py:27` asserts only `len(icons) >= 2`, never existence.
 
-`run_cli` rebuilds `TopicStateManager` from taxonomy on every invocation and passes `fsrs_records={}`. **Nothing is written back. There is no user-state DB and no `review_log` table.** Every run starts from zero, and `grammar round` auto-answers every item correctly (`src/cli/app.py:122`).
+### Stage 9: one dead table added
 
-"Use the CLI daily for two weeks before starting stage 8" is not physically possible with this CLI. `docs/audits/stage-07-usage.md` does not exist. Stages 8 and 9 were built anyway.
+`worker/schema.sql:43-54` adds a `review_logs` table. **It has zero writers.** `/sync` still inserts review events into `sync_events` as opaque JSON blobs (`worker/src/index.js:62-67`), and a repo-wide grep for `review_logs` outside `schema.sql` returns nothing on the worker side. It also carries only an autoincrement primary key, so the plan's idempotent-duplicate-rows requirement still cannot hold, and `sync_events` still has no `item_id` or `timestamp` columns at all, so the uniqueness constraint is not even expressible.
 
-`grammar stats` also diverges: it prints item-bank statistics, not topic states, stability or retention. `grammar report` prints "Flagged for review" and writes nothing.
+Everything else unchanged: `/bank/delta` still returns a hardcoded empty list; `/override`, `/explain` and `/grade` still return constants, with `/grade` passing every submission including an empty one; `userId` still falls back to `'anonymous'` so any caller can read or overwrite any user's rows via `X-User-ID`; method guards still exist only on the two sync routes; `/sync` still counts and discards `topic_states`; there is still no bank table, override queue, explanation cache or cost table; `src/sync/client.py:91-126` still does timestamp last-write-wins directly on `tag_state` with `tests/test_worker_sync.py:64` asserting it as correct; and `OVERRIDE_UPHELD_RATE_ALERT` still has exactly one occurrence, its declaration.
 
-The absence of a `review_log` makes five requirements impossible at once: invariant 1, mode-filtered `tag_state` recomputation, override append-only semantics, lapse records for split detection, and the two-week gate.
+### Stage 10: unchanged
 
----
+`src/generation/batch_client.py:168` still instantiates `MockBatchClient` in the `__main__` block both workflows invoke. Submit still builds one hardcoded `GenerationRequest(topic_id="dativ_nach_praeposition", ...)` and prints a batch id that dies with the process. **Ingest still defaults to `batch_001` against an empty `submitted_batches` and raises `KeyError` on every nightly run.** `batch_client.py` still has no `import os` and never reads `GEMINI_API_KEY`. `SAFETY_FACTOR`, `MIN_BATCH_THRESHOLD` and any nightly item cap still do not exist. The new spend ceiling in `GeminiLlmClient` is not imported by `batch_client.py`, so the workflow path still has no ceiling check. `nightly_batch.yml` still duplicates the `0 2 * * *` cron and still audits `data/bank.db`, which is not in the repo, so that job red-fails nightly. All three stage 10 tests are still tautologies that recompute the assertion inline.
 
-## 9. Stages 8 to 11: application
+### Stage 11: unchanged
 
-### Stage 8: the PWA does not run
-
-1. **`web/app.js:312` calls `window.offlineStorage.getAll('topic_states')`.** `OfflineStorage` exposes `getTopicStates()` and a private `_getAll()`; there is no public `getAll`. The line sits outside the surrounding `try`, so the `TypeError` rejects `initStorageAndItems()` and `startNewRound()` never runs. **No round is ever startable.**
-2. **The service worker is never registered.** No `navigator.serviceWorker.register` anywhere. `sw.js` is dead code, so nothing is cached, the app is not installable-offline, and the Lighthouse PWA check cannot pass.
-3. **Nothing persists.** `saveTopicState`, `saveFSRSCard` and `appendReviewLog` are never called from anywhere. IndexedDB is read-only in practice.
-
-**ts-fsrs is absent.** No `package.json`, no `node_modules`, no vendored library, no CDN tag, no `.ts` file. **No scheduling code exists client-side**: `startNewRound()` is `bankItems.slice(0, config.roundSize)`. The parity fixture exists but is read only by the Python side, and even there the test asserts `state` and `stability > 0` rather than the **next interval**, which the plan names as the fixture's key quantity. The plan calls cross-language parity "the single most important test in this stage"; it is absent on both sides.
-
-**The two graders have already diverged.** The JS `GRAMMATICAL_MORPHEMES` is a strict subset of the Python set (missing `unserem` and `unseren` and friends, `als`, `denn`, `da`, `während`, `wegen`, `trotz`, `statt`, `anstatt`); the Python `CRITICAL_MINIMAL_PAIRS` set has no JS counterpart; the JS adds a one-off `"grosser"` / `"größer"` hack absent from Python.
-
-**The 11 retention surfaces:**
-
-| # | Surface | Status |
-|---|---|---|
-| 1 | Diff highlighting on the differing morpheme | **DIVERGED.** Renders whole-answer `given to expected`, not `d[en -> em]` |
-| 2 | "Correct, but..." | **PARTIAL.** Typo and transliteration paths emit a message, but capitalisation error is graded as wrong, where the plan requires passing the item and noting what was off |
-| 3 | Round preview from median response time | **MISSING.** Static literal; no response-time measurement exists |
-| 4 | Grammar coverage bar | **PARTIAL.** Two segments not three, no `unseen`; percentages hardcoded for A1 and A2, B1 and B2 never written; label says "Stufen", which the plan forbids |
-| 5 | Pace estimate, 30-day window | **MISSING** |
-| 6 | Streak with 2 freezes per month and repair | **MISSING.** `let streak = 3;` hardcoded |
-| 7 | Named progress report | **MISSING.** Static text; `#weekly-report-text` never written |
-| 8 | Interactive DAG topic map | **MISSING.** Flat grid of 6 hardcoded topics, no edges, not read from taxonomy |
-| 9 | Duel library, 7 columns | **MISSING.** Three hardcoded cards, none of the 7 columns, button has no handler |
-| 10 | Daily challenge | **PARTIAL.** Grading is `val.toLowerCase().includes('weil')` with hardcoded "100% / 95%" output |
-| 11 | Data export and import | **DIVERGED.** Omits `review_log` and settings; import assigns `tag_state` directly from the file, which `04-application.md:185` explicitly forbids |
-
-Other divergences: umlaut buttons append at end rather than at cursor; the challenge textarea lacks the required `autocorrect`, `autocapitalize` and `spellcheck` attributes; the progress bar shows within-round position rather than due-queue clearance, with no bonus segment; no 7-day forecast; the load-threshold control is a bare slider missing the window selector and suggested-value triple; `manifest.json` references icon files that do not exist.
-
-`tests/test_web.py` is 37 lines and 3 tests, two of which are file-existence checks. **There is no JS or TS test runner anywhere in the repo**, so none of the roughly 50 TypeScript tests in `04-application.md` exists.
-
-### Stage 9: three of five endpoints are stubs, and there is no auth
-
-| Plan endpoint | Code | Status |
-|---|---|---|
-| `POST /sync` | `worker/src/index.js:51-116` | **DIVERGED.** Writes `sync_events` and last-write-wins upserts `user_fsrs_cards`. `topic_states` is accepted, counted, and silently discarded. No `review_log`, no union, no `tag_state` recomputation |
-| `GET /bank/delta?since=<item_id>` | `:41-48` | **STUB.** Always `delta_items: []`, never touches `env.DB`, treats `since` as a timestamp not an item id |
-| `POST /override` | `:154-160` | **STUB.** Fixed `{status:'received'}`; no body parsed, no DB write, no verifier |
-| `POST /explain` | `:163-168` | **STUB.** Constant string for every request; no cache |
-| `POST /grade` | `:171-179` | **STUB.** Constant all-pass verdict |
-
-**No auth exists.** `userId` falls back to the literal `'anonymous'`, so any caller can read or overwrite any user's rows by supplying `X-User-ID`. Method guards are missing: `/override`, `/explain`, `/grade` and `/bank/delta` respond identically to GET, POST and PUT.
-
-`worker/schema.sql` is missing `review_log`, any bank or items table (so `/bank/delta` cannot ever return anything), the override queue, the explanation cache and the cost table. `sync_events` has **no uniqueness constraint on (user_id, item_id, timestamp)**, so the plan's idempotent-duplicate-rows requirement fails by construction. `user_topic_states` is dead; nothing writes to it.
-
-**`src/sync/client.py` does the one thing the plan forbids.** `04-application.md:363`: *"Never merge `tag_state` directly. It is derived data and merging derived data is how progress corrupts."* `merge_inbound_topics:91-126` is timestamp-based last-write-wins on `TagStateModel`, with no recomputation function in the module, and `tests/test_worker_sync.py:64` asserts that behaviour as correct.
-
-The override verification loop does not exist end to end. `OVERRIDE_UPHELD_RATE_ALERT` appears exactly once in the repo, its declaration.
-
-### Stage 10: correct crons wrapping a mock
-
-The workflow shells are right: submit at `0 2 * * *`, ingest at `0 8 * * *`, both `uv sync`, no `continue-on-error`, secrets wired. What they invoke is not.
-
-- **Submit** builds one hardcoded `GenerationRequest(topic_id="dativ_nach_praeposition", count=10, difficulty=1)`. No D1 read, no `tag_state`, no per-tag deficit, no spec-driven requests, and the batch ID is printed to stdout and lost with the runner.
-- **Ingest** defaults to `target_batch = "batch_001"`, which is not in a fresh mock's `submitted_batches`, so `poll()` raises `KeyError`. **`generate-ingest.yml` exits non-zero every night**, where the plan requires the pending case to exit 0.
-- Deficit calculation does not exist; neither `SAFETY_FACTOR` nor `MIN_BATCH_THRESHOLD` is defined. No spend ceiling, no nightly item cap, no cost-log persistence, no degradation path.
-- `nightly_batch.yml` **duplicates the `0 2 * * *` cron** of `generate-submit.yml` and runs the bank-health audit against `data/bank.db`, a file not in the repo. `src/audit/bank_health.py` is a genuine implementation, but it is not part of the two-phase job the plan describes.
-
-All three stage 10 tests in `tests/test_application_pipeline.py` are tautological: they recompute the assertion inline rather than calling production code.
-
-### Stage 11: zero API calls in the repo
-
-`src/llm/provider.py` is 40 lines: a `LlmProvider` Protocol and a `MockLlmClient` returning canned German strings by substring-matching the prompt. All four feature modules default to it. There is no Gemini client, no `genai` import, no HTTP call and no API-key read anywhere in `src/`. None of `MODEL_LIVE`, `MODEL_GENERATE` or `MODEL_VERIFY` is imported by `src/llm/`.
-
-- **Production grading:** correct three-dimension shape, but `is_pass = target_used and accuracy >= 0.75` gates the verdict on grammatical accuracy, contradicting the plan ("a response using Konjunktiv II correctly but with wrong word order must rate the konjunktiv_ii tag as a pass"). The `except` fallback returns `is_pass=True, accuracy=1.0, naturalness=1.0` on any parse failure, silently passing everything when the model misbehaves. Nothing consumes `target_structure_used`.
-- **Explanations:** the prompt includes the user's answer, but there is no cache keyed on `(item_id, user_answer)`, no hit-rate logging, no gating on explicit user action. The plan makes the cache key the central correctness property.
-- **Minimal pairs:** a static dict of three preseeded drills. `get_or_generate_drill` never generates, and for any unknown group silently returns the `wechselpraepositionen` drill, so `get_or_generate_drill("kasus_genitiv")` yields a drill labelled with the wrong confusion group.
-- **Weekly report:** takes pre-computed metrics as arguments. No window logic, no last-report timestamp, no trigger, no manual gate, no rate limit. Both trigger constants have zero readers repo-wide.
+Beyond the orphaned client covered in section 5: production grading still gates the verdict on grammatical accuracy (`is_pass = target_used and accuracy >= 0.75`) against a plan that says only the target-structure dimension may decide, and its `except` fallback still returns `is_pass=True, accuracy=1.0, naturalness=1.0` on any parse failure, silently passing everything. The explainer still has no cache and does not import `LlmCache`; the new cache is keyed on a prompt hash, not on `(item_id, user_answer)`. Minimal pairs is still a static dict of 3 drills whose `get_or_generate_drill` silently returns the `wechselpraepositionen` drill for any unknown group, and its `self.provider` is assigned and never called. The weekly report still has no window logic, no trigger, no manual gate and no rate limit; both trigger constants still have zero production readers.
 
 ---
 
-## 10. README accuracy
+## 7. Defects introduced by the remediation
 
-`README.md` presents stages 8 to 11 as delivered. Specifically: "Client-side `ts-fsrs` and IndexedDB persistence" (neither is real), "11 UX surfaces" (five present in some form, six absent), "browser-consumable delta export" (both ends are stubs), "Cloudflare Worker ... asynchronous answer override verification" (a stub returning a constant). Update it or the next reader will trust it.
-
-Two plan-side inconsistencies worth fixing:
-
-1. `04-application.md:110` says "Eight features" and then enumerates eleven; the DoD at `:332` says "All eleven retention surfaces". The eleven-item list is the operative one.
-2. `CLAUDE.md:11` and `:39` point at `docs/plan/german-grammar-app-plan.md`; the file is at repo root.
+1. **Empty input scores as correct.** `src/cli/app.py:94` and `:132`. Covered in section 1. Highest priority in this document.
+2. **`GeminiLlmClient` cannot be injected** into any feature module: `generate(...)` versus the Protocol's `generate_text(...)` (`src/llm/provider.py:15`). The LLM layer is structurally unwireable.
+3. **The spend ceiling is unreachable** because the free lane costs 0 and `free_lane_open` is never mutated (section 5).
+4. **`review_logs` lacks `mode` and `facet` columns**, so the table cannot support the recomputation and facet-accuracy analysis it was added to enable.
+5. **`review_logs.fsrs_rating` type mismatch**: declared `INTEGER NOT NULL`, written as a string, in both the SQLite and D1 schemas.
+6. **The D1 `review_logs` table has zero writers.**
+7. **The PWA topic-state read is a no-op** because `saveTopicState` still has no caller.
+8. **`is_unhinted_pass=False` conflates failure with a hinted pass.** `src/engine/topic_state.py:110-112` maps it to `is_correct=False, hint_level=1`, so a learner who answers correctly with a hint would be recorded as a failure and could demote an acquired topic. Latent today (only calibration uses the keyword, always `True`) but a live trap.
+9. **A docstring became a dead string literal.** `src/engine/topic_state.py:113-125`. The new `is_unhinted_pass` shim was inserted between the docstring and the block documenting the promotion and demotion rules, so those rules are now an unreachable expression statement. Ruff does not flag it because B018 is not enabled.
+10. **The adversarial fixture key mismatch** (`expected_layer` versus `expected_layer_failed`) makes the per-layer assertion dead code.
+11. **Eight `duplicate`-labelled adversarial items fail at layer 1** for having zero distractors, so the dedup reason has never been exercised while the suite reports full recall.
+12. **The known-good false-positive test passes no `spec`**, measuring a weaker chain than the recall test.
+13. **`GeminiLlmClient.__init__` and `LlmCache.__init__` create directories as a side effect** of construction, writing `.cache/` into the working directory on import-and-instantiate.
+14. **`LlmCache.get` returns the string `"None"`** for a cache file with a null response instead of signalling a miss.
 
 ---
 
-## 11. Work order
+## 8. Work order
 
-Ordered by what unblocks the most downstream work, not by stage number.
+Ordered by what unblocks the most downstream work.
 
-1. **Build `src/llm/client.py` with `cost_log`, `BudgetExceeded` and the two-lane split, and write the SDK-import scan test first.** This is invariant 4, it is stage 0's principal deliverable, and every stage 3, 4 and 11 feature is blocked behind it. Writing the scan test now, while there is nothing to violate it, is what `01-foundation.md:91` asks for and is a ten-line test.
-2. **Fix `src/contracts.py:66-67`:** set `MODEL_LIVE` and `MODEL_GENERATE` to `"gemini-3.5-flash-lite"`. `MODEL_VERIFY` stays `"gemini-3.7-flash"`. Then remove the inline model strings at `src/generation/batch_client.py:34-35,87` so the constants are the only source. Extend `tests/test_contracts.py` to assert model IDs and `Literal` memberships so the next drift is caught.
-3. **Derive `facet` from `morph_spec`, and correct the `morph_spec` keys in the same change.** One missing derivation deadlocks promotion for all 68 faceted topics and disables split detection. Eight of fifteen keys are invalid UD features and would silently disable the stage 4 morphology check anyway, so both belong in one pass.
-4. **Add a `review_log` table and CLI persistence.** Without it, invariant 1 plus four plan requirements are structurally impossible: mode-filtered `tag_state` recomputation, override semantics, lapse records, and the two-week usability gate.
-5. **Make the CLI interactive and stop it auto-answering.** `src/cli/app.py:90` and `:122` are two lines. The usability gate is the cheaper of the two gates to satisfy and is designed to catch scheduling problems before any frontend work.
-6. **Fix the kill-gate semantics and run the real audit.** Redefine `error_rate` as post-verifier error on accepted items, then sample 100 accepted items with a second auditor from a different vendor per `CLAUDE.md` section 10.
-7. **Wire spaCy `de_core_news_lg`.** Already a declared dependency, and it unblocks three things at once: real lemmatisation for stage 2 vocabulary banding, real morphology for stage 4 layer 2, and `morph_spec`-scoped typo tolerance for stage 7. All three are currently hand-rolled around its absence.
-8. **Scope typo tolerance to `morph_spec`** once spaCy is available. The current behaviour passes wrong declension and conjugation endings as typos, which corrupts every FSRS rating the app records.
-9. **Fix the three PWA blockers** (`getAll`, SW registration, the never-called persistence writes) before adding any of the six missing UX surfaces.
-10. **Add auth to the Worker** before it holds real user data.
+1. **Fix the empty-input substitution.** `src/cli/app.py:94` and `:132`. Two lines. Every hour the CLI is used before this lands produces corrupt FSRS ratings, corrupt promotion evidence and untruthful `review_logs` rows.
+2. **Make `GeminiLlmClient` real and wire it in.** Give it a genuine transport, reconcile its signature with `LlmProvider` (or replace the Protocol), route `live_explainer`, `production_grader`, `minimal_pairs`, `weekly_report` and `batch_client` through it, make `free_lane_open` mutable on RPD exhaustion, and add the missing 14 stage 0 tests. Until this lands, invariant 4 is satisfied only on paper and stages 3, 4 and 11 have no path to working.
+3. **Derive `facet` from `morph_spec` at ingest, and fix the `morph_spec` keys in the same change.** The plumbing is now in place and proven to work; only the derivation is missing. Eight of fifteen keys are invalid UD features and would silently disable the stage 4 morphology check anyway, so both belong in one pass. This unblocks promotion for 68 topics and enables split detection.
+4. **Add `mode` and `facet` columns to `review_logs`, fix the `fsrs_rating` type, and write the recomputation path** that reads the log back into `tag_state` filtered to `mode in ("review","recalibration")`. This is what makes invariant 1 true and what makes the stage 7 gate possible.
+5. **Fix the kill-gate semantics and run the real audit.** Redefine `error_rate` as post-verifier error on accepted items, wire `AnswerSetExpander` into the chain so `accepted_answers` is populated, fix the `expected_layer` key mismatch and the eight zero-distractor `duplicate` items, and give the known-good test the same `spec` the adversarial test gets. Then sample 100 accepted items with a second auditor from a different vendor per `CLAUDE.md` section 10.
+6. **Wire spaCy `de_core_news_lg`.** Already a declared dependency, and it unblocks three things at once: lemmatisation for stage 2 banding, real morphology for stage 4 layer 2, and `morph_spec`-scoped typo tolerance for stage 7.
+7. **Scope typo tolerance to `morph_spec`** once spaCy is available. Change the signature to accept `topic_id`. Wrong declension and conjugation endings currently pass as typos, which corrupts every FSRS rating the app records.
+8. **Call `saveTopicState` and `saveFSRSCard` in the PWA**, then add real client-side scheduling with ts-fsrs, then port the Python `CRITICAL_MINIMAL_PAIRS` and the 16 missing morphemes into the JS grader.
+9. **Add auth to the Worker** before it holds real user data, and give `review_logs` and `sync_events` the uniqueness constraints the sync contract depends on.
+10. **Fix the nightly ingest `KeyError`** and the duplicated `0 2 * * *` cron, so the automation stops red-failing every night.
 
-### Four small changes that would have caught much of this
+### CI changes that would catch the next round of this
 
-- **Lint and type-check `scripts/`.** `ci.yml` scopes ruff to `src tests` and mypy to `src/`. That is why `scripts/step1_extract_vocab.py` calls a method that does not exist and still ships green.
-- **Enforce the marker taxonomy:** `-m "not live"` on push, a `simulation` job on PRs, a `live` job nightly. The markers are declared and never used.
-- **Make `tests/test_taxonomy.py:92-95` fail when the golden fixture is missing** rather than writing it.
-- **Promote the confusion-group check in `src/taxonomy/validator.py:86-88` back from warning to error**, or record the twelve singletons as accepted exceptions with reasons. Silently downgrading a failing check is invariant 7.
+- **Enforce the marker taxonomy:** `-m "not live"` on push, a `simulation` job on PRs to `main`, a `live` job nightly. The markers are declared and still unused.
+- **Raise coverage to the gate or lower the gate.** Measured 84 percent against a configured floor of 85.
+- **Enable ruff rule B018** so a docstring that silently becomes a dead expression statement is caught.
+- **Promote the confusion-group check** in `src/taxonomy/validator.py:86-88` from warning back to error, or record the 12 singletons as accepted exceptions with reasons. Silently downgrading a failing check is invariant 7.
+- **Add a JS toolchain**: `package.json`, `tsc --noEmit` and ESLint in CI, per `CLAUDE.md:181`. Nothing currently checks `web/` or `worker/` at all.
