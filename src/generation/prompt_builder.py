@@ -12,6 +12,13 @@ from src.generation.spec import TopicSpec
 class PromptBuilder:
     """Constructs deterministic, structured prompts for batch item generation."""
 
+    # Minimum length (in characters) either half of a two-part compound must
+    # have to count as a grammar "stem" in ``_compound_leak_match``. All real
+    # stems below are >= 4 characters; this floor exists purely to stop a
+    # hypothetical future one- or two-letter stem from matching almost
+    # anything.
+    _MIN_COMPOUND_STEM_LEN: ClassVar[int] = 3
+
     GRAMMAR_TERMS_BLOCKLIST: ClassVar[set[str]] = {
         "nominativ",
         "akkusativ",
@@ -48,51 +55,118 @@ class PromptBuilder:
         "modalverb",
     }
 
+    # Bare grammatical morphemes that name metalanguage on their own but are
+    # too short/common a substring to blocklist outright (e.g. "form" alone
+    # would flag "Formular"). They serve two purposes:
+    #   1. As substring markers when mining taxonomy topic names for
+    #      additional whole-word blocklist entries (see ``get_grammar_blocklist``).
+    #   2. As one half of a two-part compound leak check (see
+    #      ``_compound_leak_match``): "objekt"/"subjekt" are included
+    #      specifically so "Akkusativobjekt" is caught as
+    #      akkusativ + objekt.
+    METALANGUAGE_STEMS: ClassVar[set[str]] = {
+        "verb",
+        "satz",
+        "form",
+        "endung",
+        "deklination",
+        "konjunktiv",
+        "passiv",
+        "kasus",
+        "komparativ",
+        "superlativ",
+        "partizip",
+        "infinitiv",
+        "negation",
+        "pronomen",
+        "artikel",
+        "präposition",
+        "praeposition",
+        "tempus",
+        "modus",
+        "objekt",
+        "subjekt",
+    }
+
     @classmethod
     def get_grammar_blocklist(cls) -> set[str]:
         """Derive blocklist dynamically from taxonomy grammatical labels."""
         terms = set(cls.GRAMMAR_TERMS_BLOCKLIST)
-        metalanguage_markers = {
-            "verb",
-            "satz",
-            "form",
-            "endung",
-            "deklination",
-            "konjunktiv",
-            "passiv",
-            "kasus",
-            "komparativ",
-            "superlativ",
-            "partizip",
-            "infinitiv",
-            "negation",
-            "pronomen",
-            "artikel",
-            "präposition",
-            "praeposition",
-            "tempus",
-            "modus",
-        }
         try:
             from src.taxonomy.loader import load_taxonomy
 
             for topic in load_taxonomy():
                 for word in re.findall(r"\b[a-zA-ZäöüÄÖÜß]+\b", topic.name_de.lower()):
-                    if any(marker in word for marker in metalanguage_markers):
+                    if any(marker in word for marker in cls.METALANGUAGE_STEMS):
                         terms.add(word)
         except Exception:
             pass
         return terms
 
     @classmethod
+    def _compound_leak_match(cls, word: str, stems: set[str]) -> bool:
+        """True if ``word`` is a direct two-part compound of two grammar stems.
+
+        German compounds freely without spaces or hyphens, so a genuine leak
+        can hide inside a single word that is not itself a listed blocklist
+        entry: "Dativform" (dativ + form), "Akkusativobjekt"
+        (akkusativ + objekt), "Konjunktivsatz" (konjunktiv + satz). This
+        splits ``word`` at every position and requires BOTH halves, taken on
+        their own, to be grammar metalanguage (from ``GRAMMAR_TERMS_BLOCKLIST``
+        or ``METALANGUAGE_STEMS``).
+
+        Requiring *both* halves is the deliberate false-positive guard: an
+        ordinary word that merely contains one grammar-looking substring is
+        let through. "Formular" (form + ular), "verbessert" (verb +
+        essert), "Ersatz" (er + satz), "Unfall" (un + fall), "jedenfalls"
+        (... + falls) all have at most one side that is a real stem -- the
+        other side ("ular", "essert", "er", "un", "falls") is not
+        metalanguage, so none of these trip the compound check. They are
+        ordinary lexical words, not topic leaks.
+
+        Known, accepted gap: this only catches *direct* concatenation with
+        no linking element (Fugenlaut). A compound spelled with a Fugen-s
+        ("Perfekts-form") is not caught. None of the confirmed leak patterns
+        we've seen need one, so that complexity is not added pre-emptively.
+        """
+        n = len(word)
+        min_len = cls._MIN_COMPOUND_STEM_LEN
+        for i in range(min_len, n - min_len + 1):
+            if word[:i] in stems and word[i:] in stems:
+                return True
+        return False
+
+    @classmethod
     def check_for_topic_leaks(cls, text: str) -> list[str]:
-        """Scan a prompt or generated string for forbidden grammatical terminology."""
+        """Scan a prompt or generated string for forbidden grammatical terminology.
+
+        Matching rule: a word counts as a leak if it is EITHER
+          1. a whole word equal to a blocklist term (checked by tokenising
+             the text on word boundaries and comparing whole tokens, not by
+             substring search), OR
+          2. a two-part compound in which both halves are, independently,
+             grammar metalanguage (``_compound_leak_match``).
+
+        We never fall back to plain substring containment. That is the
+        exact defect this function used to have: "verbessert" contains
+        "verb" and "jedenfalls" contains "fall" as raw substrings, so a
+        naive ``term in text`` scan flagged ordinary German sentences as
+        topic leaks. Tokenising first, and requiring an exact whole-word (or
+        whole-compound-half) match, is what lets "Er hat sein Deutsch
+        verbessert" and "Das ist jedenfalls richtig" through while still
+        catching "Setze ins Perfekt" and "Die Dativform ist unregelmäßig".
+        """
         lower_text = text.lower()
-        leaks: list[str] = []
         blocklist = cls.get_grammar_blocklist()
-        for term in blocklist:
-            if re.search(rf"\b{re.escape(term)}\b", lower_text):
-                leaks.append(term)
+        stems = cls.GRAMMAR_TERMS_BLOCKLIST | cls.METALANGUAGE_STEMS
+        words = re.findall(r"[a-zA-ZäöüÄÖÜß]+", lower_text)
+
+        leaks: list[str] = []
+        for word in words:
+            if word in leaks:
+                continue
+            if word in blocklist or cls._compound_leak_match(word, stems):
+                leaks.append(word)
         return leaks
 
     def build_generation_prompt(

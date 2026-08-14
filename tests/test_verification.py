@@ -9,6 +9,7 @@ from src.contracts import BankItem, CandidateItem, Distractor, Topic
 from src.generation.spec import TopicSpec, load_spec
 from src.lexicon.vocabulary import VocabularyStore
 from src.taxonomy.loader import load_taxonomy
+from src.verification.layer1_syntax import Layer1SyntaxValidator
 from src.verification.pipeline import VerificationPipeline
 
 # docs/02-content-pipeline.md stage 4: "for each rejection reason, assert the
@@ -437,6 +438,62 @@ def test_layer1_rejects_vocabulary_ceiling_violations(
     assert not res.passed
     assert res.layer_failed == 1
     assert res.error_type == "vocabulary_ceiling_violation"
+
+
+def _plain_item(prompt: str) -> CandidateItem:
+    """A structurally-clean cloze item carrying the given prompt, isolating
+    Layer 1's topic-leak check from every other Layer 1 rule (gap presence,
+    distractor count/uniqueness, length, register, vocabulary ceiling)."""
+    return CandidateItem(
+        topic_id="dativ_nach_praeposition",
+        type="cloze_free",
+        difficulty=1,
+        prompt=prompt,
+        proposed_answer="dem",
+        distractors=[Distractor(text="den"), Distractor(text="des"), Distractor(text="das")],
+    )
+
+
+@pytest.mark.parametrize(
+    "prompt",
+    [
+        "Er hat sein Deutsch in den letzten Monaten deutlich ___ verbessert.",
+        "Das war jedenfalls nicht meine Schuld, ___ sagte er.",
+        "Er hatte gestern einen Unfall auf ___ Autobahn.",
+        "Ich lese jeden Morgen ___ Zeitung.",
+        "Für den kaputten Toaster gab es ___ Ersatz.",
+        "Bitte fülle ___ Formular vollständig aus.",
+    ],
+)
+def test_layer1_does_not_reject_ordinary_words_containing_grammar_substrings(
+    prompt: str,
+) -> None:
+    """Regression test for the Layer 1 topic-leak substring-match defect.
+
+    ``Layer1SyntaxValidator`` delegates its topic-leak check to
+    ``PromptBuilder.check_for_topic_leaks``. That function used to do a raw
+    ``term in text`` substring scan, which rejected ordinary German
+    sentences purely because a word like "verbessert" or "jedenfalls"
+    happens to contain a blocklist term ("verb", "fall") as a substring.
+    None of these prompts names a grammar topic, so none of them may be
+    rejected as a topic leak. If this regresses, the assertion on
+    ``error_type`` below will start firing.
+    """
+    validator = Layer1SyntaxValidator(vocab_store=None)
+    passed, reason, error_type = validator.validate(_plain_item(prompt))
+    assert error_type != "topic_leak", f"False-positive topic leak for {prompt!r}: {reason}"
+    assert passed, f"Unexpected Layer 1 rejection for {prompt!r}: {reason}"
+
+
+def test_layer1_still_rejects_compound_words_that_leak_the_topic() -> None:
+    """A leak hidden inside a German compound (both halves grammar
+    metalanguage) must still be rejected, not just the bare whole-word form."""
+    validator = Layer1SyntaxValidator(vocab_store=None)
+    passed, reason, error_type = validator.validate(
+        _plain_item("Die ___ Dativform ist hier unregelmäßig.")
+    )
+    assert not passed
+    assert error_type == "topic_leak"
 
 
 def test_layer2_morphosyntactic_validation(
