@@ -1,7 +1,7 @@
 """Shared Pydantic data contracts, core enumerations, and pacing invariants."""
 
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -74,7 +74,8 @@ DORMANCY_DAYS: int = 21  # triggers a recalibration round on return
 RECALIBRATION_ROUND_SIZE: int = 10
 NO_ERROR_ITEM_SHARE: float = 0.22  # share of error-correction items with no error
 VERIFICATION_KILL_GATE_THRESHOLD: float = 0.15
-MIN_STOCK_PER_TIER: int = 5
+MIN_STOCK_PER_TIER: int = 12  # DoD: 12 items/topic, A1-B2, cold-seeded (02-content-pipeline.md)
+MIN_PREREQ_STABILITY: float = 7.0  # days; a prereq below this blocks its dependents
 
 
 # ==============================================================================
@@ -117,6 +118,7 @@ class Topic(BaseModel):
     sibling_group: str | None = None
     confusion_group: str | None = None
     morph_spec: dict[str, Any] | None = None
+    syntax_tags: dict[str, str] = Field(default_factory=dict)
     rule_hint: str | None = None
     rule_de: str | None = None
     worked_examples: list[str] = Field(default_factory=list)
@@ -194,6 +196,23 @@ class BankItem(BaseModel):
             elif isinstance(item, Distractor):
                 parsed.append(item)
         return parsed
+
+    @field_validator("accepted_answers")
+    @classmethod
+    def validate_accepted_answers(cls, v: list[str]) -> list[str]:
+        """Enforce the contract's ``non-empty, deduplicated`` invariant on
+        ``accepted_answers``: reject items with no accepted answer at all, and
+        silently collapse exact duplicates while preserving first-seen order
+        (so ``["dem", "dem"]`` becomes ``["dem"]`` rather than being rejected)."""
+        if not v:
+            raise ValueError("accepted_answers must be non-empty")
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for answer in v:
+            if answer not in seen:
+                seen.add(answer)
+                deduped.append(answer)
+        return deduped
 
 
 class GenerationRequest(BaseModel):
@@ -306,3 +325,40 @@ class BankExport(BaseModel):
     total_items: int = 0
     topic_count: int = 0
     items: list[BankItem] = Field(default_factory=list)
+
+
+class InsertReport(BaseModel):
+    """Outcome summary for a batch insert into the item bank.
+
+    ``duplicates`` counts items whose ``id`` already existed in the bank (the
+    insert was a no-op, not an error). ``rejected`` counts items that failed
+    a bank-level integrity check (e.g. the prompt leaks an accepted answer)
+    and were never written; ``rejection_reasons`` carries one human-readable
+    string per rejected item so the caller knows *why*.
+    """
+
+    model_config = ConfigDict(frozen=True)
+    inserted: int = 0
+    duplicates: int = 0
+    rejected: int = 0
+    rejection_reasons: list[str] = Field(default_factory=list)
+
+
+class Bank(Protocol):
+    """Storage contract for the verified item bank (02-content-pipeline.md stage 5)."""
+
+    def insert(self, items: list[BankItem]) -> InsertReport:
+        """Insert a batch of items, idempotently on ``id``, returning a report."""
+        ...
+
+    def stock(self, tag_id: str, difficulty: Difficulty) -> int:
+        """Count UNSEEN items (no review_logs entry) for a tag at a difficulty tier."""
+        ...
+
+    def export_full(self) -> BankExport:
+        """Export every item currently in the bank."""
+        ...
+
+    def export_delta(self, since_id: str) -> BankExport:
+        """Export only items inserted after ``since_id``."""
+        ...
