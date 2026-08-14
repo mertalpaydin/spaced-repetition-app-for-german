@@ -5,9 +5,10 @@ import time
 import warnings
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import google.genai as genai
 from google.genai import errors as genai_errors
@@ -21,7 +22,27 @@ from src.llm.config import DEFAULT_CONFIG_PATH, load_restrict_user_content_to_pa
 Lane = Literal["free", "paid", "cache"]
 QuotaType = Literal["rpm", "rpd"]
 
-PACIFIC_TZ = ZoneInfo("America/Los_Angeles")
+PACIFIC_TZ_KEY = "America/Los_Angeles"
+
+
+@lru_cache(maxsize=1)
+def pacific_tz() -> ZoneInfo:
+    """Return the Pacific timezone, which is when Gemini's daily quota resets.
+
+    Resolved lazily rather than at import time. Windows ships no system tz
+    database, so ``ZoneInfo`` there depends on the ``tzdata`` package; binding
+    this at module scope meant a missing tzdata broke every import of this
+    module, including code paths that never touch a quota reset. The error is
+    now raised only if the RPD reset is actually computed, and it names the fix.
+    """
+    try:
+        return ZoneInfo(PACIFIC_TZ_KEY)
+    except ZoneInfoNotFoundError as exc:  # pragma: no cover - platform dependent
+        raise ZoneInfoNotFoundError(
+            f"No timezone data for {PACIFIC_TZ_KEY!r}. On Windows the standard "
+            "library has no system tz database; install the 'tzdata' package "
+            "(it is a declared dependency, so `uv sync` should provide it)."
+        ) from exc
 
 
 class BudgetExceeded(Exception):
@@ -190,9 +211,9 @@ class GeminiLlmClient:
 
     def _next_pacific_midnight(self, ref_time: datetime) -> datetime:
         """Return the next Pacific-time midnight strictly after ``ref_time``, in UTC."""
-        local = ref_time.astimezone(PACIFIC_TZ)
+        local = ref_time.astimezone(pacific_tz())
         next_day = local.date() + timedelta(days=1)
-        next_midnight_local = datetime.combine(next_day, datetime.min.time(), tzinfo=PACIFIC_TZ)
+        next_midnight_local = datetime.combine(next_day, datetime.min.time(), tzinfo=pacific_tz())
         return next_midnight_local.astimezone(UTC)
 
     def _refresh_free_lane_state(self, ref_time: datetime) -> None:
