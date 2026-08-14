@@ -2,33 +2,92 @@
 
 import argparse
 import sys
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 from src.bank.exporter import BankExporter
 from src.bank.stats import BankStatsCalculator
 from src.bank.storage import SqliteItemBank
 from src.cli.calibration import CalibrationRunner
+from src.cli.reports import ReportStore
 from src.cli.session import InteractiveSession
-from src.contracts import CEFR, BankItem, Distractor
-from src.engine.fsrs import FSRSEngine
+from src.contracts import Answer, HintLevel
+from src.engine.fsrs import FSRSEngine, FSRSRecord
+from src.engine.hints import HintPolicy
 from src.engine.scheduler import LearningScheduler
 from src.engine.topic_state import TopicStateManager
+from src.engine.typo_grader import ScopedTypoGrader
 from src.taxonomy.loader import load_taxonomy
 
+HINT_COMMANDS = {"hint", "h", "?"}
 
-def cmd_stats(bank: SqliteItemBank) -> None:
-    """Print item bank statistics."""
+
+def cmd_stats(
+    bank: SqliteItemBank,
+    topic_manager: TopicStateManager,
+    now: datetime | None = None,
+) -> None:
+    """Print learner-facing topic progress: acquisition, stability, and retention.
+
+    Round accuracy is deliberately never printed, let alone as a headline:
+    interleaving depresses round-level accuracy by design, and leading with a
+    number that looks bad but isn't is a documented quit trigger. Stability
+    and estimated retention are the metrics that actually describe progress.
+    """
+    ref_time = now or datetime.now(UTC)
+    fsrs_engine = FSRSEngine()
+    states = topic_manager.states
+
+    by_state: dict[str, int] = {}
+    for s in states.values():
+        by_state[s.state] = by_state.get(s.state, 0) + 1
+
+    acquired_stabilities = [s.fsrs_stability for s in states.values() if s.state == "acquired"]
+    avg_stability = (
+        round(sum(acquired_stabilities) / len(acquired_stabilities), 2)
+        if acquired_stabilities
+        else 0.0
+    )
+
+    retrievabilities: list[float] = []
+    for tag_id, s in states.items():
+        if s.fsrs_stability <= 0:
+            continue
+        record = FSRSRecord(
+            card_id=tag_id,
+            state="review",
+            due=s.due_at,
+            stability=s.fsrs_stability,
+            difficulty=s.fsrs_difficulty or None,
+            last_review=s.last_review_at,
+        )
+        retrievabilities.append(fsrs_engine.get_retrievability(record, now=ref_time))
+    avg_retention = (
+        round(sum(retrievabilities) / len(retrievabilities), 3) if retrievabilities else 0.0
+    )
+
+    print("\n=== German Grammar Trainer - Topic Progress ===")
+    print(f"Topics Acquired: {by_state.get('acquired', 0)}")
+    print(f"Topics Learning: {by_state.get('learning', 0)}")
+    print(f"Topics Ready: {by_state.get('ready', 0)}")
+    print(f"Topics Locked: {by_state.get('locked', 0)}")
+    print(f"Topics Unseen: {by_state.get('unseen', 0)}")
+    print(f"Average Stability (acquired topics): {avg_stability} days")
+    print(f"Estimated Retention (avg. retrievability): {avg_retention * 100:.1f}%")
+
+    demoted = sum(
+        1 for s in states.values() if s.acquired_via is None and s.consecutive_failures > 0
+    )
+    print(f"Topics Recently Demoted: {demoted}")
+
+    # Item bank composition is informational context, reported last and never
+    # the headline. It is not a measure of the learner's own progress.
     summary = BankStatsCalculator.compute_summary(bank)
-    print("\n=== German Grammar Trainer - Item Bank Statistics ===")
-    print(f"Total Items: {summary.total_items}")
-    print(f"Topics Covered: {summary.total_topics_covered}")
-    print(f"Average Items/Topic: {summary.avg_items_per_topic}")
-    print("Items per CEFR Level:")
-    for cefr, count in sorted(summary.items_per_cefr.items()):
-        print(f"  [{cefr}]: {count}")
-    print("Items per Difficulty:")
-    for diff, count in sorted(summary.items_per_difficulty.items()):
-        print(f"  Tier {diff}: {count}")
+    print(
+        f"\n(Item bank: {summary.total_items} items across {summary.total_topics_covered} topics.)"
+    )
 
 
 def cmd_topics(topic_manager: TopicStateManager) -> None:
@@ -56,57 +115,91 @@ def cmd_export(bank: SqliteItemBank, out_dir: str) -> None:
     )
 
 
-def cmd_kalibrierung(bank: SqliteItemBank, topic_manager: TopicStateManager) -> None:
-    """Run diagnostic placement test."""
+def cmd_kalibrierung(
+    bank: SqliteItemBank,
+    topic_manager: TopicStateManager,
+    input_fn: Callable[[str], str] = input,
+    interactive: bool | None = None,
+) -> None:
+    """Run the adaptive Kalibrierung diagnostic walk.
+
+    ``input_fn`` is the injected input source (defaults to the builtin ``input``)
+    so tests can feed deterministic responses without monkeypatching ``builtins.input``.
+
+    ``interactive`` overrides auto-detection of an interactive terminal (useful for
+    tests). When left ``None`` it is derived from ``sys.stdin.isatty()``. In a
+    non-interactive session there is no real learner behind the prompt, so items
+    are skipped entirely rather than being auto-answered and recorded as if a
+    learner had answered them: at most a single preview item is shown and the
+    walk stops immediately, since the adaptive item order depends on real answers.
+    """
     print("\n=== Diagnostic Placement Test (Kalibrierung) ===")
-    levels: list[CEFR] = ["A1", "A2", "B1", "B2"]
-    items: list[BankItem] = []
-    for lvl in levels:
-        for t_id, t in topic_manager.topics.items():
-            if t.cefr == lvl:
-                t_items = bank.query_by_topic(t_id, max_count=3)
-                items.extend(t_items)
-                if len(items) >= 12:
-                    break
-        if len(items) >= 12:
-            break
+    runner = CalibrationRunner(bank=bank, topic_manager=topic_manager)
+    is_interactive = sys.stdin.isatty() if interactive is None else interactive
 
-    if not items:
-        # Fallback synthetic probe if bank is empty
-        items = [
-            BankItem(
-                id=f"diag_{i}",
-                topic_id="pronomen_personal_nom",
-                type="cloze_free",
-                difficulty=1,
-                cefr="A1",
-                prompt="___ heiße Max.",
-                accepted_answers=["Ich"],
-                distractors=[Distractor(text="Du"), Distractor(text="Er"), Distractor(text="Wir")],
+    answered: list[Answer] = []
+
+    if not is_interactive:
+        preview = runner.next_item(answered)
+        if preview is not None:
+            print(
+                f"[{preview.cefr}] {preview.prompt} -- übersprungen "
+                "(nicht-interaktive Sitzung, keine Lernereingabe verfügbar)."
             )
-            for i in range(4)
-        ]
+    else:
+        while len(answered) < 35:
+            item = runner.next_item(answered)
+            if item is None:
+                break
+            print(f"[{item.cefr}] {item.prompt}")
+            ans = input_fn("Lösung: ")
+            # An empty or whitespace-only response is a real, incorrect attempt.
+            # It is never substituted with the reference answer.
+            grade = ScopedTypoGrader.grade(ans, item.accepted_answers, item.topic_id)
+            answered.append(
+                Answer(
+                    item_id=item.id,
+                    topic_id=item.topic_id,
+                    user_answer=ans,
+                    is_correct=grade.is_correct,
+                    hint_level=0,
+                )
+            )
 
-    responses: list[tuple[BankItem, str]] = []
-    for it in items:
-        if sys.stdin.isatty():
-            print(f"[{it.cefr}] {it.prompt}")
-            ans = input("Lösung: ").strip() or it.accepted_answers[0]
-        else:
-            ans = it.accepted_answers[0]
-        responses.append((it, ans))
-
-    report = CalibrationRunner.evaluate_diagnostic(responses, topic_manager)
-    print(f"Diagnostic Complete. Assessed Placement: {report.estimated_cefr}")
+    report = runner.finalise(answered)
+    print(f"Diagnostic Complete. Items administered: {report.total_items}")
+    print(f"Estimated band reached: {report.estimated_cefr}")
     print(f"Topics Mastered: {len(report.acquired_topics)}")
+    print(f"Topics In Progress: {len(report.learning_topics)}")
 
 
 def cmd_round(
     bank: SqliteItemBank,
     topic_manager: TopicStateManager,
     round_size: int = 6,
+    input_fn: Callable[[str], str] = input,
+    interactive: bool | None = None,
+    report_store: ReportStore | None = None,
 ) -> None:
-    """Run interactive study round."""
+    """Run interactive study round.
+
+    ``input_fn`` is the injected input source (defaults to the builtin ``input``)
+    so tests can feed deterministic responses without monkeypatching ``builtins.input``.
+
+    ``interactive`` overrides auto-detection of an interactive terminal (useful for
+    tests). When left ``None`` it is derived from ``sys.stdin.isatty()``. In a
+    non-interactive session there is no real learner behind the prompt, so items
+    are skipped entirely: no FSRS update, no topic-state update, no review log
+    entry. Nothing is presented or recorded as if a learner had answered it.
+
+    Typing ``h`` / ``hint`` / ``?`` instead of an answer steps the 4-level hint
+    ladder (``src.engine.hints.HintPolicy``) instead of submitting; the next
+    non-hint input is graded as the actual answer, at whatever hint level was
+    reached. Items previously flagged via ``grammar report`` are excluded.
+    """
+    store = report_store or ReportStore.for_bank(bank)
+    reported_ids = store.reported_item_ids()
+
     scheduler = LearningScheduler(round_size=round_size)
     fsrs_engine = FSRSEngine()
     plan = scheduler.plan_next_round(
@@ -114,6 +207,7 @@ def cmd_round(
         topic_manager=topic_manager,
         fsrs_records={},
     )
+    round_items = [it for it in plan.items if it.id not in reported_ids]
     session = InteractiveSession(
         round_plan=plan,
         topic_manager=topic_manager,
@@ -121,26 +215,48 @@ def cmd_round(
         fsrs_records={},
     )
 
-    print(f"\nStarting Study Round ({len(plan.items)} items):")
-    for idx, item in enumerate(plan.items, start=1):
-        print(f"\n[{idx}/{len(plan.items)}] Stufe: {item.cefr}")
+    is_interactive = sys.stdin.isatty() if interactive is None else interactive
+
+    print(f"\nStarting Study Round ({len(round_items)} items):")
+    for idx, item in enumerate(round_items, start=1):
+        print(f"\n[{idx}/{len(round_items)}] Stufe: {item.cefr}")
         print(f"Satz: {item.prompt}")
         if item.cue:
             print(f"Hinweis: {item.cue}")
 
-        if sys.stdin.isatty():
-            ans = input("Deine Antwort: ").strip() or item.accepted_answers[0]
-        else:
-            ans = item.accepted_answers[0]
+        if not is_interactive:
+            print("Übersprungen (nicht-interaktive Sitzung, keine Lernereingabe verfügbar).")
+            continue
 
-        att = session.process_item_attempt(item, user_answer=ans, hint_level=0)
+        hint_level = 0
+        topic = topic_manager.topics.get(item.topic_id)
+        while True:
+            label = (
+                "Deine Antwort" if hint_level == 0 else f"Deine Antwort (Hinweis {hint_level}/4)"
+            )
+            raw = input_fn(f"{label} (oder 'h' für Hinweis): ")
+            if raw.strip().lower() in HINT_COMMANDS and hint_level < 4:
+                hint_level += 1
+                hint_text = HintPolicy.get_hint(item, cast(HintLevel, hint_level), topic=topic)
+                print(f"Hinweis {hint_level}/4: {hint_text}")
+                continue
+            ans = raw
+            break
+        # An empty or whitespace-only response is a real, incorrect attempt.
+        # It is never substituted with the reference answer.
+
+        att = session.process_item_attempt(
+            item, user_answer=ans, hint_level=cast(HintLevel, hint_level)
+        )
         bank.append_review_log(
             item_id=item.id,
             topic_id=item.topic_id,
             user_answer=ans,
             is_correct=att.is_correct,
-            hint_level=0,
+            hint_level=hint_level,
             fsrs_rating=att.fsrs_rating,
+            mode=plan.mode,
+            facet=item.facet,
         )
         print(f"Ergebnis: {'Richtig' if att.is_correct else 'Falsch'}")
 
@@ -151,13 +267,18 @@ def cmd_round(
     )
 
 
-def cmd_report(bank: SqliteItemBank, item_id: str) -> None:
-    """Report an issue on a specific item."""
+def cmd_report(bank: SqliteItemBank, item_id: str, report_store: ReportStore | None = None) -> None:
+    """Flag an item as broken: persist the report and exclude it from future rounds."""
     item = bank.get_item(item_id)
     if not item:
         print(f"Item '{item_id}' not found in bank.")
         return
-    print(f"\nReport logged for Item '{item_id}' (Topic: {item.topic_id}). Flagged for review.")
+    store = report_store or ReportStore.for_bank(bank)
+    store.add(item_id=item_id, topic_id=item.topic_id)
+    print(
+        f"\nReport logged for Item '{item_id}' (Topic: {item.topic_id}). "
+        "Flagged for review and excluded from future rounds."
+    )
 
 
 def cmd_split(
@@ -213,7 +334,7 @@ def run_cli(args: list[str] | None = None) -> int:
     topic_manager = TopicStateManager(topics)
 
     if parsed.command == "stats":
-        cmd_stats(bank)
+        cmd_stats(bank, topic_manager)
         return 0
     elif parsed.command == "topics":
         cmd_topics(topic_manager)

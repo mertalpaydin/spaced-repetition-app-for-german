@@ -43,7 +43,7 @@ def main() -> None:
     choice = input("Enter choice [1-4] (default 3): ").strip() or "3"
 
     if choice == "1":
-        cmd_stats(bank)
+        cmd_stats(bank, topic_manager)
     elif choice == "2":
         cmd_topics(topic_manager)
     elif choice == "3":
