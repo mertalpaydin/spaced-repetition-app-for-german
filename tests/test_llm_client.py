@@ -1,12 +1,170 @@
-"""Unit tests for the centralized LLM client, spend control, cost logging, and AST scanner."""
+"""Unit tests for the centralized LLM client, spend control, cost logging, and AST scanner.
+
+None of these tests make a network call (CLAUDE.md 158). Two layers are faked:
+
+- ``_call_transport`` itself, for tests that only care about cache/cost-log/lane
+  bookkeeping and not the real SDK call shape (``_fake_transport_ok`` below).
+- ``GeminiLlmClient._get_sdk_client``, substituted with an in-memory fake
+  ``google.genai.Client`` (``_FakeSdkClient`` below), for tests that exercise
+  the real ``_call_transport`` logic: sync vs. batch routing, 429 translation,
+  thinking config, and real token-count extraction from ``usage_metadata``.
+
+Building fake SDK response/error objects requires importing ``google.genai``
+here, which is fine: the AST-scanner test below only forbids that import
+inside ``src/``, not in ``tests/``.
+"""
 
 import ast
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
-from src.llm.client import BudgetExceeded, GeminiLlmClient, QuotaExceededError
+from google.genai import errors as genai_errors
+from google.genai import types as genai_types
+from src.contracts import MODEL_GENERATE, MODEL_VERIFY, THINKING_VERIFY
+from src.llm.client import (
+    BudgetExceeded,
+    GeminiLlmClient,
+    MissingApiKeyError,
+    ModelRejectedError,
+    QuotaExceededError,
+)
+
+
+def _fake_transport_ok(**kwargs: object) -> tuple[str, int, int]:
+    """A deterministic transport double used where the test only cares about
+    cache/cost-log/lane bookkeeping, not the real SDK call shape. Mirrors the
+    old stub's heuristics so byte-for-byte behaviour of the bookkeeping tests
+    is unchanged."""
+    prompt = str(kwargs["prompt"])
+    purpose = str(kwargs["purpose"])
+    lane = str(kwargs["lane"])
+    mode = str(kwargs["mode"])
+    prompt_tokens = len(prompt.split()) * 2
+    completion_tokens = 50
+    return (
+        f"Fake LLM response for {purpose} (lane={lane}, mode={mode})",
+        prompt_tokens,
+        completion_tokens,
+    )
+
+
+def _fake_generate_content_response(
+    text: str,
+    prompt_tokens: int,
+    candidates_tokens: int,
+    thoughts_tokens: int | None = None,
+) -> genai_types.GenerateContentResponse:
+    """Build a real ``GenerateContentResponse`` (not a network response) so
+    tests exercise the client's actual ``usage_metadata``/``.text`` parsing."""
+    return genai_types.GenerateContentResponse(
+        candidates=[
+            genai_types.Candidate(
+                content=genai_types.Content(parts=[genai_types.Part(text=text)], role="model")
+            )
+        ],
+        usage_metadata=genai_types.GenerateContentResponseUsageMetadata(
+            prompt_token_count=prompt_tokens,
+            candidates_token_count=candidates_tokens,
+            thoughts_token_count=thoughts_tokens,
+        ),
+    )
+
+
+def _fake_batch_job(response: genai_types.GenerateContentResponse) -> genai_types.BatchJob:
+    """A ``BatchJob`` that is already terminal (``JOB_STATE_SUCCEEDED``) at
+    creation time, so ``_poll_batch_job`` never needs to call ``batches.get``
+    (and therefore never needs to sleep)."""
+    return genai_types.BatchJob(
+        name="batches/fake-job",
+        state=genai_types.JobState.JOB_STATE_SUCCEEDED,
+        dest=genai_types.BatchJobDestination(
+            inlined_responses=[genai_types.InlinedResponse(response=response)]
+        ),
+    )
+
+
+def _client_error_429(quota_id: str) -> genai_errors.ClientError:
+    """A structured 429 shaped like Google's real error envelope, carrying a
+    ``google.rpc.QuotaFailure`` violation with the given ``quotaId``."""
+    payload = {
+        "error": {
+            "code": 429,
+            "status": "RESOURCE_EXHAUSTED",
+            "message": "Resource has been exhausted.",
+            "details": [
+                {
+                    "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+                    "violations": [{"quotaId": quota_id}],
+                }
+            ],
+        }
+    }
+    return genai_errors.ClientError(429, payload, None)
+
+
+class _FakeModels:
+    """Fake ``client.models``: records every ``generate_content`` call and
+    returns (or raises) whatever the test configured."""
+
+    def __init__(
+        self,
+        response: genai_types.GenerateContentResponse | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        self._response = response
+        self._error = error
+        self.calls: list[dict[str, Any]] = []
+
+    def generate_content(
+        self,
+        *,
+        model: str,
+        contents: object,
+        config: genai_types.GenerateContentConfig | None = None,
+    ) -> genai_types.GenerateContentResponse:
+        self.calls.append({"model": model, "contents": contents, "config": config})
+        if self._error is not None:
+            raise self._error
+        assert self._response is not None
+        return self._response
+
+
+class _FakeBatches:
+    """Fake ``client.batches``: records every ``create`` call. ``get`` raises
+    if reached, since every fake job is already terminal at creation."""
+
+    def __init__(
+        self,
+        job: genai_types.BatchJob | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        self._job = job
+        self._error = error
+        self.create_calls: list[dict[str, Any]] = []
+
+    def create(self, *, model: str, src: object) -> genai_types.BatchJob:
+        self.create_calls.append({"model": model, "src": src})
+        if self._error is not None:
+            raise self._error
+        assert self._job is not None
+        return self._job
+
+    def get(self, *, name: str) -> genai_types.BatchJob:
+        raise AssertionError("polling should not be needed: the fake batch job is already terminal")
+
+
+class _FakeSdkClient:
+    """Fake ``google.genai.Client``: just the two surfaces ``_call_transport`` uses."""
+
+    def __init__(
+        self, models: _FakeModels | None = None, batches: _FakeBatches | None = None
+    ) -> None:
+        self.models = models or _FakeModels()
+        self.batches = batches or _FakeBatches()
 
 
 def test_llm_client_is_the_only_module_importing_the_sdk(repo_root: Path) -> None:
@@ -70,6 +228,7 @@ def test_cost_log_row_written_for_every_call(tmp_path: Path) -> None:
         cost_log_path=log_file,
         cache_dir=tmp_path / "cache",
     )
+    client._call_transport = _fake_transport_ok  # type: ignore[method-assign]
 
     client.generate("Hallo Welt, wie geht es dir?", purpose="unit_test", use_cache=False)
     assert log_file.exists()
@@ -89,6 +248,7 @@ def test_cache_checked_before_transport_and_hit_logs_zero_cost(tmp_path: Path) -
         cost_log_path=log_file,
         cache_dir=cache_dir,
     )
+    client._call_transport = _fake_transport_ok  # type: ignore[method-assign]
 
     # First call - cache miss
     resp1 = client.generate("Erkläre mir den Dativ.", purpose="explain", use_cache=True)
@@ -113,6 +273,7 @@ def test_user_content_routed_to_paid_lane_when_restriction_enabled(tmp_path: Pat
         cache_dir=tmp_path / "cache",
         restrict_user_content_to_paid_lane=True,
     )
+    client._call_transport = _fake_transport_ok  # type: ignore[method-assign]
 
     client.generate(
         "User generated essay", purpose="production_grading", is_user_content=True, use_cache=False
@@ -134,14 +295,13 @@ def test_rpm_429_backs_off_and_stays_on_free_lane(tmp_path: Path) -> None:
         sleep_fn=sleeps.append,
     )
 
-    original_transport = client._call_transport
     call_count = {"n": 0}
 
     def flaky_transport(**kwargs: object) -> tuple[str, int, int]:
         call_count["n"] += 1
         if call_count["n"] == 1:
             raise QuotaExceededError("rpm")
-        return original_transport(**kwargs)  # type: ignore[arg-type]
+        return _fake_transport_ok(**kwargs)
 
     client._call_transport = flaky_transport  # type: ignore[method-assign]
 
@@ -172,14 +332,13 @@ def test_rpd_429_closes_free_lane_until_pacific_midnight(tmp_path: Path) -> None
         clock=lambda: fixed_now,
     )
 
-    original_transport = client._call_transport
     raised = {"once": False}
 
     def flaky_transport(**kwargs: object) -> tuple[str, int, int]:
         if not raised["once"]:
             raised["once"] = True
             raise QuotaExceededError("rpd")
-        return original_transport(**kwargs)  # type: ignore[arg-type]
+        return _fake_transport_ok(**kwargs)
 
     client._call_transport = flaky_transport  # type: ignore[method-assign]
 
@@ -202,7 +361,7 @@ def test_rpd_429_closes_free_lane_until_pacific_midnight(tmp_path: Path) -> None
 
     # Restore the non-raising transport: a further call before the reset must not
     # even attempt the free lane again.
-    client._call_transport = original_transport  # type: ignore[method-assign]
+    client._call_transport = _fake_transport_ok  # type: ignore[method-assign]
     client.generate("Noch eine Anfrage", purpose="unit_test", use_cache=False)
     lines = [
         line.strip() for line in log_file.read_text(encoding="utf-8").splitlines() if line.strip()
@@ -225,11 +384,10 @@ def test_free_lane_never_uses_batch_and_paid_lane_always_does(tmp_path: Path) ->
     client = GeminiLlmClient(cost_log_path=log_file, cache_dir=tmp_path / "cache")
 
     seen_modes: list[str] = []
-    original_transport = client._call_transport
 
     def recording_transport(**kwargs: object) -> tuple[str, int, int]:
         seen_modes.append(str(kwargs["mode"]))
-        return original_transport(**kwargs)  # type: ignore[arg-type]
+        return _fake_transport_ok(**kwargs)
 
     client._call_transport = recording_transport  # type: ignore[method-assign]
 
@@ -278,6 +436,7 @@ def test_directories_not_created_until_first_write(tmp_path: Path) -> None:
     log_file = tmp_path / "nested" / "cost_log.jsonl"
     cache_dir = tmp_path / "nested_cache" / "llm"
     client = GeminiLlmClient(cost_log_path=log_file, cache_dir=cache_dir)
+    client._call_transport = _fake_transport_ok  # type: ignore[method-assign]
 
     assert not log_file.parent.exists()
     assert not cache_dir.exists()
@@ -286,3 +445,267 @@ def test_directories_not_created_until_first_write(tmp_path: Path) -> None:
 
     assert log_file.parent.exists()
     assert cache_dir.exists()
+
+
+# ----------------------------------------------------------------------
+# Real transport: sync path, batch path, thinking config, token counts,
+# 429 translation, missing-key errors. These exercise the real
+# ``_call_transport`` logic by faking ``_get_sdk_client`` instead of
+# ``_call_transport`` itself, so the routing/thinking/token-extraction code
+# is actually under test -- never the network.
+# ----------------------------------------------------------------------
+
+
+def test_sync_generation_call_on_free_lane_uses_generate_content(tmp_path: Path) -> None:
+    """The free lane calls ``client.models.generate_content`` once, synchronously,
+    and returns the SDK response's text."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file, cache_dir=tmp_path / "cache", free_api_key="fake-free-key"
+    )
+    fake_models = _FakeModels(
+        response=_fake_generate_content_response("Guten Tag!", prompt_tokens=8, candidates_tokens=4)
+    )
+    fake_sdk = _FakeSdkClient(models=fake_models)
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    result = client.generate("Sag Guten Tag auf Deutsch", purpose="unit_test", use_cache=False)
+
+    assert result == "Guten Tag!"
+    assert len(fake_models.calls) == 1
+    assert fake_models.calls[0]["model"] == MODEL_GENERATE
+    assert fake_sdk.batches.create_calls == []
+
+    lines = [
+        line.strip() for line in log_file.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    assert '"lane":"free"' in lines[-1]
+
+
+def test_batch_call_on_paid_lane_uses_batches_api(tmp_path: Path) -> None:
+    """The paid lane submits an inlined batch job via ``client.batches.create``
+    and returns the (already-terminal) job's response text."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file, cache_dir=tmp_path / "cache", paid_api_key="fake-paid-key"
+    )
+    client.free_lane_open = False  # force the paid lane
+
+    fake_batches = _FakeBatches(
+        job=_fake_batch_job(
+            _fake_generate_content_response("Batch Antwort", prompt_tokens=20, candidates_tokens=9)
+        )
+    )
+    fake_sdk = _FakeSdkClient(batches=fake_batches)
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    result = client.generate("Bezahlte Anfrage", purpose="unit_test", use_cache=False)
+
+    assert result == "Batch Antwort"
+    assert len(fake_batches.create_calls) == 1
+
+    lines = [
+        line.strip() for line in log_file.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    assert '"lane":"paid"' in lines[-1]
+
+
+def test_paid_lane_non_batch_call_is_rejected_as_a_defect(tmp_path: Path) -> None:
+    """A non-batch call on the paid lane is a defect (CLAUDE.md 9), not something
+    ``_call_transport`` silently coerces into batch mode."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        paid_api_key="fake-paid-key",
+    )
+
+    with pytest.raises(ValueError, match="batch-only"):
+        client._call_transport(
+            model=MODEL_GENERATE, prompt="x", lane="paid", mode="sync", purpose="unit_test"
+        )
+
+
+def test_free_lane_batch_mode_call_is_also_rejected_as_a_defect(tmp_path: Path) -> None:
+    """Symmetrically, the free lane is always synchronous."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+    )
+
+    with pytest.raises(ValueError, match="synchronous"):
+        client._call_transport(
+            model=MODEL_GENERATE, prompt="x", lane="free", mode="batch", purpose="unit_test"
+        )
+
+
+def test_real_token_counts_from_usage_metadata_flow_into_cost_log(tmp_path: Path) -> None:
+    """The cost log must carry the SDK's real ``usage_metadata`` token counts,
+    not a ``len(prompt.split())`` heuristic -- the two disagree for this prompt,
+    which is exactly the point."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file, cache_dir=tmp_path / "cache", free_api_key="fake-free-key"
+    )
+    fake_sdk = _FakeSdkClient(
+        models=_FakeModels(
+            response=_fake_generate_content_response(
+                "kurz", prompt_tokens=123, candidates_tokens=45
+            )
+        )
+    )
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    client.generate(
+        "Ein ganz kurzer Prompt", purpose="unit_test", use_cache=False
+    )  # word-count heuristic would give a very different number
+
+    row = json.loads(log_file.read_text(encoding="utf-8").splitlines()[-1])
+    assert row["prompt_tokens"] == 123
+    assert row["completion_tokens"] == 45
+
+
+def test_thoughts_token_count_added_to_completion_tokens_when_present(tmp_path: Path) -> None:
+    """Thinking tokens bill as output (CLAUDE.md 213): when usage_metadata carries
+    ``thoughts_token_count``, it must be folded into ``completion_tokens``."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file, cache_dir=tmp_path / "cache", free_api_key="fake-free-key"
+    )
+    fake_sdk = _FakeSdkClient(
+        models=_FakeModels(
+            response=_fake_generate_content_response(
+                "Antwort", prompt_tokens=10, candidates_tokens=5, thoughts_tokens=30
+            )
+        )
+    )
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    client.generate("Verifiziere dies", model=MODEL_VERIFY, purpose="verify", use_cache=False)
+
+    row = json.loads(log_file.read_text(encoding="utf-8").splitlines()[-1])
+    assert row["completion_tokens"] == 35  # 5 candidate tokens + 30 thought tokens
+
+
+def test_thinking_disabled_for_generation_model(tmp_path: Path) -> None:
+    """CLAUDE.md 213: generation runs with thinking off."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+    )
+    fake_models = _FakeModels(
+        response=_fake_generate_content_response("ok", prompt_tokens=1, candidates_tokens=1)
+    )
+    client._get_sdk_client = lambda lane: _FakeSdkClient(models=fake_models)  # type: ignore[method-assign]
+
+    client.generate("Prompt", model=MODEL_GENERATE, purpose="unit_test", use_cache=False)
+
+    sent_config = fake_models.calls[0]["config"]
+    assert sent_config.thinking_config.thinking_budget == 0
+    assert sent_config.thinking_config.thinking_level is None
+
+
+def test_thinking_enabled_at_configured_level_for_verify_model(tmp_path: Path) -> None:
+    """Only the verify model (``MODEL_VERIFY``) uses thinking, at ``THINKING_VERIFY``."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+    )
+    fake_models = _FakeModels(
+        response=_fake_generate_content_response("ok", prompt_tokens=1, candidates_tokens=1)
+    )
+    client._get_sdk_client = lambda lane: _FakeSdkClient(models=fake_models)  # type: ignore[method-assign]
+
+    client.generate("Verifiziere", model=MODEL_VERIFY, purpose="verify", use_cache=False)
+
+    sent_config = fake_models.calls[0]["config"]
+    assert sent_config.thinking_config.thinking_level == genai_types.ThinkingLevel(THINKING_VERIFY)
+    assert sent_config.thinking_config.thinking_budget is None
+
+
+def test_missing_free_api_key_raises_clear_actionable_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No key configured for the lane in use must fail loudly and specifically,
+    not with a generic auth error from deep inside the SDK."""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_FREE_API_KEY", raising=False)
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+
+    with pytest.raises(MissingApiKeyError, match="free lane"):
+        client._call_transport(
+            model=MODEL_GENERATE, prompt="x", lane="free", mode="sync", purpose="unit_test"
+        )
+
+
+def test_missing_paid_api_key_raises_clear_actionable_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+
+    with pytest.raises(MissingApiKeyError, match="paid lane"):
+        client._call_transport(
+            model=MODEL_GENERATE, prompt="x", lane="paid", mode="batch", purpose="unit_test"
+        )
+
+
+def test_classify_quota_error_reads_structured_quota_violation(tmp_path: Path) -> None:
+    """RPM vs RPD is read from the structured ``quotaId`` in the error body,
+    not guessed from free text."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+
+    rpd_error = _client_error_429("GenerateRequestsPerDayPerProjectPerModel-FreeTier")
+    rpm_error = _client_error_429("GenerateRequestsPerMinutePerProjectPerModel-FreeTier")
+
+    assert client._classify_quota_error(rpd_error) == "rpd"
+    assert client._classify_quota_error(rpm_error) == "rpm"
+
+
+def test_sync_call_translates_429_into_quota_exceeded_error(tmp_path: Path) -> None:
+    """A structured 429 from ``generate_content`` becomes a ``QuotaExceededError``
+    with the right ``quota_type``, not an uncaught SDK exception."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+    )
+    error = _client_error_429("GenerateRequestsPerMinutePerProjectPerModel-FreeTier")
+    fake_sdk = _FakeSdkClient(models=_FakeModels(error=error))
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    with pytest.raises(QuotaExceededError) as excinfo:
+        client._call_transport(
+            model=MODEL_GENERATE, prompt="x", lane="free", mode="sync", purpose="unit_test"
+        )
+    assert excinfo.value.quota_type == "rpm"
+
+
+def test_sync_call_wraps_non_429_client_error_naming_the_model(tmp_path: Path) -> None:
+    """A rejected model id must fail loudly and name the model, not vanish
+    into a generic SDK exception or (worse) get silently swallowed."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+    )
+    bad_model_error = genai_errors.ClientError(
+        404,
+        {"error": {"code": 404, "message": "model not found", "status": "NOT_FOUND"}},
+        None,
+    )
+    fake_sdk = _FakeSdkClient(models=_FakeModels(error=bad_model_error))
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    with pytest.raises(ModelRejectedError, match=MODEL_GENERATE):
+        client._call_transport(
+            model=MODEL_GENERATE, prompt="x", lane="free", mode="sync", purpose="unit_test"
+        )
