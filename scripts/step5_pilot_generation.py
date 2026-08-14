@@ -8,7 +8,7 @@ describes, which must never run before the gate is passed.
 
 Run this once from a terminal for the standard 100-item pilot:
 
-    .venv2/bin/python -m scripts.step5_pilot_generation --pilot 100
+    .venv/bin/python -m scripts.step5_pilot_generation --pilot 100
 
 It generates at most --pilot items (default 100) spread across a sample of
 topics and CEFR levels, runs them through the full verification chain,
