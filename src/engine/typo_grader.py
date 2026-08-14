@@ -1,8 +1,26 @@
 """Scoped typo grader enforcing strict German case-sensitivity and morpheme boundaries."""
 
 import re
+from collections.abc import Callable
+from functools import lru_cache
 
 from pydantic import BaseModel, ConfigDict
+
+# Number of trailing characters of a token considered part of the (potential)
+# inflectional suffix. German inflection is overwhelmingly suffixal, so an
+# edit that touches this window is treated as a possible morpheme mutation
+# rather than an incidental typo, even when the topic under test carries no
+# `morph_spec` (i.e. we have no better signal to scope with).
+SUFFIX_TOLERANCE_WINDOW = 2
+
+
+@lru_cache(maxsize=1)
+def _load_default_morph_spec_map() -> dict[str, bool]:
+    """Lazily load the taxonomy once and cache topic_id -> "is faceted" (has morph_spec)."""
+    from src.taxonomy.loader import load_taxonomy
+
+    topics = load_taxonomy()
+    return {t.id: bool(t.morph_spec) for t in topics}
 
 
 class TypoGradeResult(BaseModel):
@@ -168,13 +186,79 @@ class ScopedTypoGrader:
             previous_row = current_row
         return previous_row[-1]
 
+    @staticmethod
+    def _common_prefix_len(a: str, b: str) -> int:
+        """Return the length of the longest common prefix of a and b."""
+        n = 0
+        for ca, cb in zip(a, b, strict=False):
+            if ca != cb:
+                break
+            n += 1
+        return n
+
+    @classmethod
+    def _edit_outside_suffix(
+        cls, a: str, b: str, suffix_len: int = SUFFIX_TOLERANCE_WINDOW
+    ) -> bool:
+        """Return True iff a single-edit difference between a and b lies entirely
+        outside the final `suffix_len` characters of the longer token.
+
+        Used only as the fallback tolerance rule for tokens whose topic carries no
+        `morph_spec` (or no topic is known): German inflection is overwhelmingly
+        suffixal, so an edit that reaches into the tail of the word is treated as a
+        possible morpheme mutation, never as an incidental typo.
+        """
+        longer_len = max(len(a), len(b))
+        if longer_len <= suffix_len:
+            return False
+        return cls._common_prefix_len(a, b) < longer_len - suffix_len
+
+    @classmethod
+    def _is_faceted_topic(
+        cls,
+        topic_id: str | None,
+        morph_spec_lookup: Callable[[str], bool] | None,
+    ) -> bool:
+        """Return True iff `topic_id` names a topic with a non-empty `morph_spec`.
+
+        A faceted topic's accepted answer *is* the tested morpheme: there is no
+        peripheral text for a typo to be incidental to, so no edit-distance
+        tolerance may apply to it. `topic_id=None` and unrecognised topic ids are
+        treated as non-faceted (unscoped), which is the conservative choice: it
+        widens tolerance, never narrows it, so an unknown topic can never produce
+        a false FAIL.
+        """
+        if topic_id is None:
+            return False
+        if morph_spec_lookup is not None:
+            return morph_spec_lookup(topic_id)
+        return _load_default_morph_spec_map().get(topic_id, False)
+
     @classmethod
     def grade(
         cls,
         user_input: str,
         accepted_answers: list[str],
+        topic_id: str | None = None,
+        morph_spec_lookup: Callable[[str], bool] | None = None,
     ) -> TypoGradeResult:
-        """Evaluate submission against accepted answers with scoped typo tolerance."""
+        """Evaluate submission against accepted answers with scoped typo tolerance.
+
+        `topic_id` identifies the grammar topic under test. When it names a topic
+        with a non-empty `morph_spec`, the accepted answer *is* the tested
+        morpheme and no edit-distance tolerance applies to it: any residual
+        difference after orthographic normalisation (whitespace, transliteration)
+        is a FAIL. When the topic has an empty `morph_spec`, or `topic_id` is
+        `None`, edit-distance-1 tolerance may still apply, but only to an edit
+        that falls outside the final `SUFFIX_TOLERANCE_WINDOW` characters of the
+        token, since German inflection is overwhelmingly suffixal.
+
+        `morph_spec_lookup`, if given, overrides the default taxonomy-backed
+        lookup (a `Callable[[str], bool]` mapping topic_id -> "has morph_spec").
+        Injecting it keeps this function pure and network/filesystem-free for
+        tests; production callers may omit it and rely on the lazily-loaded
+        default.
+        """
         clean_input = cls.normalize_whitespace(user_input)
         clean_accepted = [cls.normalize_whitespace(a) for a in accepted_answers]
 
@@ -306,16 +390,26 @@ class ScopedTypoGrader:
                 continue
 
             dist = cls._levenshtein_distance(clean_input, ans)
-            if dist == 1 and len(ans) > 3:
-                return TypoGradeResult(
-                    is_correct=True,
-                    is_exact=False,
-                    is_scoped_typo=True,
-                    is_transliteration=False,
-                    is_capitalization_error=False,
-                    feedback_message=f"Richtig (Tippfehler). Schreibweise: '{ans}'",
-                    accepted_answer_matched=ans,
-                )
+            if dist != 1:
+                continue
+
+            # Single-token answer: the whole token is the candidate morpheme.
+            # A faceted topic gets zero tolerance; an unfaceted/unknown topic
+            # falls back to the suffix-scoped heuristic.
+            if cls._is_faceted_topic(topic_id, morph_spec_lookup):
+                continue
+            if not cls._edit_outside_suffix(clean_input, ans):
+                continue
+
+            return TypoGradeResult(
+                is_correct=True,
+                is_exact=False,
+                is_scoped_typo=True,
+                is_transliteration=False,
+                is_capitalization_error=False,
+                feedback_message=f"Richtig (Tippfehler). Schreibweise: '{ans}'",
+                accepted_answer_matched=ans,
+            )
 
         # 5. Incorrect
         return TypoGradeResult(

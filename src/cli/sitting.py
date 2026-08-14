@@ -64,7 +64,7 @@ class InteractiveSitting:
         now: datetime | None = None,
     ) -> AttemptResult:
         """Evaluate user answer with scoped typo tolerance and update FSRS record."""
-        grade_res = ScopedTypoGrader.grade(user_answer, item.accepted_answers)
+        grade_res = ScopedTypoGrader.grade(user_answer, item.accepted_answers, item.topic_id)
         is_correct = grade_res.is_correct
 
         is_unhinted = HintPolicy.is_unhinted_pass(hint_level=hint_level, is_correct=is_correct)
