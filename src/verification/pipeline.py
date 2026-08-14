@@ -1,5 +1,7 @@
 """Verification pipeline orchestrating the quality verification chain and kill gate."""
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.bank.dedup import ItemDeduplicator
@@ -18,16 +20,38 @@ from src.verification.layer2_morphology import Layer2MorphologyValidator
 from src.verification.layer3_solver import Layer3AdversarialSolver
 from src.verification.layer_topic_leak import TopicLeakValidator
 
+GateStatus = Literal["passed", "tripped", "unmeasured"]
+
 
 class BatchVerificationReport(BaseModel):
-    """Aggregated quality report for a batch run."""
+    """Aggregated quality report for a batch run.
+
+    Two distinct quantities are reported and must never be conflated:
+
+    - ``rejection_rate``: the fraction of candidates the chain REJECTED. This is
+      useful operational information (batch yield / drop rate) but says nothing
+      about whether the chain is actually correct, since a chain that rejects
+      every defective candidate scores a "100% rejection rate" on a fully
+      defective batch, which is a *good* outcome, not a failure.
+    - ``post_verifier_error_rate``: the fraction of ACCEPTED items that are
+      still wrong, per docs/00-index.md:32 and docs/02-content-pipeline.md
+      stage 4. This is the quantity the kill gate is actually defined over.
+      The pipeline cannot determine on its own whether an accepted item is
+      defective, so this is only computable when external audit labels are
+      supplied (see ``VerificationPipeline.verify_batch``). When no labels are
+      supplied, this field is ``None`` (never ``0.0``): a missing measurement
+      must never silently read as a pass.
+    """
 
     model_config = ConfigDict(frozen=True)
     total_candidates: int
     passed_count: int
     failed_count: int
-    error_rate: float
-    kill_gate_tripped: bool
+    rejection_rate: float
+    post_verifier_error_rate: float | None = None
+    audited_accepted_count: int = 0
+    kill_gate_tripped: bool | None
+    gate_status: GateStatus
     results: list[VerificationResult] = Field(default_factory=list)
 
 
@@ -61,14 +85,39 @@ class VerificationPipeline:
         topic: Topic | None = None,
         existing_bank_items: list[BankItem] | None = None,
     ) -> VerificationResult:
-        """Run candidate item through all verification layers."""
+        """Run candidate item through all verification layers.
+
+        Canonical layer numbering (this is the numbering reported in
+        ``VerificationResult.layer_failed`` and the one
+        ``data/fixtures/verification/adversarial.jsonl`` is written against;
+        docs/02-content-pipeline.md's 7-row table describes the conceptual
+        stage-4 chain and does not map 1:1 onto these 4 code layers, since
+        schema validation and topic-leak detection are both cheap, free
+        checks that this implementation groups into a single layer 1 pass so
+        that either one short-circuits before any paid layer runs):
+
+        1. Syntax & structural invariants (``layer1_syntax``): gap
+           presence/count, distractor shape, prompt token length, register,
+           vocabulary ceiling (prompt AND accepted answer) -- plus topic-leak
+           detection, both the blocklist check (``layer1_syntax``) and the
+           answer-appears-in-prompt check (``layer1_topic_leak``). Both are
+           free and deterministic, so both run before anything else.
+        2. Morphosyntax & agreement (``layer2_morphology``): case, gender,
+           and subject-verb agreement, driven by ``topic.morph_spec`` /
+           ``topic.syntax_tags``.
+        3. Adversarial solver & ambiguity (``layer3_solver``): distractor
+           collisions and under-constrained gaps.
+        4. Deduplication (``ItemDeduplicator``): only runs once an item has
+           survived 1-3, since it is the one layer that needs the existing
+           bank as input and gains nothing from running earlier.
+        """
         effective_topic = topic or self.topics_map.get(item.topic_id)
         effective_spec = spec
 
         # Layer 1: Syntax, Structural Invariants & Topic Leak
-        ok1, reason1 = self.layer1_syntax.validate(item, spec=effective_spec)
+        ok1, reason1, code1 = self.layer1_syntax.validate(item, spec=effective_spec)
         if not ok1:
-            err_type = ErrorClassifier.classify(layer=1, reason=reason1 or "")
+            err_type = ErrorClassifier.classify(layer=1, reason=reason1 or "", code=code1)
             return VerificationResult(
                 item=item,
                 passed=False,
@@ -78,9 +127,9 @@ class VerificationPipeline:
                 error_type=err_type,
             )
 
-        ok1b, reason1b = self.layer1_topic_leak.validate(item, spec=effective_spec)
+        ok1b, reason1b, code1b = self.layer1_topic_leak.validate(item, spec=effective_spec)
         if not ok1b:
-            err_type = ErrorClassifier.classify(layer=1, reason=reason1b or "")
+            err_type = ErrorClassifier.classify(layer=1, reason=reason1b or "", code=code1b)
             return VerificationResult(
                 item=item,
                 passed=False,
@@ -91,9 +140,9 @@ class VerificationPipeline:
             )
 
         # Layer 2: Morphosyntax & Agreement
-        ok2, reason2 = self.layer2_morphology.validate(item, topic=effective_topic)
+        ok2, reason2, code2 = self.layer2_morphology.validate(item, topic=effective_topic)
         if not ok2:
-            err_type = ErrorClassifier.classify(layer=2, reason=reason2 or "")
+            err_type = ErrorClassifier.classify(layer=2, reason=reason2 or "", code=code2)
             return VerificationResult(
                 item=item,
                 passed=False,
@@ -104,9 +153,9 @@ class VerificationPipeline:
             )
 
         # Layer 3: Adversarial Solver & Ambiguity
-        ok3, reason3 = self.layer3_solver.validate(item)
+        ok3, reason3, code3 = self.layer3_solver.validate(item, topic=effective_topic)
         if not ok3:
-            err_type = ErrorClassifier.classify(layer=3, reason=reason3 or "")
+            err_type = ErrorClassifier.classify(layer=3, reason=reason3 or "", code=code3)
             return VerificationResult(
                 item=item,
                 passed=False,
@@ -144,23 +193,43 @@ class VerificationPipeline:
         topic: Topic | None = None,
         kill_gate_threshold: float = VERIFICATION_KILL_GATE_THRESHOLD,
         existing_bank_items: list[BankItem] | None = None,
+        audit_labels: dict[str, bool] | None = None,
     ) -> BatchVerificationReport:
-        """Run batch of candidates through verification pipeline and evaluate Kill Gate."""
+        """Run batch of candidates through verification pipeline and evaluate the kill gate.
+
+        ``audit_labels`` is an optional mapping of item id (see ``_item_id``) to
+        ``is_defective``, produced by an independent human or cross-vendor audit
+        of a sample of ACCEPTED items (docs/02-content-pipeline.md stage 4, "Kill
+        gate procedure"). The kill gate is driven exclusively by
+        ``post_verifier_error_rate``, computed only over the labelled subset of
+        accepted items, never by the rejection rate: a chain that rejects
+        candidates correctly must never trip its own gate.
+
+        When ``audit_labels`` is omitted, or labels no accepted item, the error
+        rate is genuinely unmeasured: ``post_verifier_error_rate`` is ``None``,
+        ``kill_gate_tripped`` is ``None``, and ``gate_status`` is
+        ``"unmeasured"``. A missing measurement must never read as a pass.
+        """
         if not candidates:
             return BatchVerificationReport(
                 total_candidates=0,
                 passed_count=0,
                 failed_count=0,
-                error_rate=0.0,
-                kill_gate_tripped=False,
+                rejection_rate=0.0,
+                post_verifier_error_rate=None,
+                audited_accepted_count=0,
+                kill_gate_tripped=None,
+                gate_status="unmeasured",
                 results=[],
             )
 
         results: list[VerificationResult] = []
         passed_count = 0
         failed_count = 0
+        audited_accepted_count = 0
+        defective_accepted_count = 0
 
-        for c in candidates:
+        for idx, c in enumerate(candidates):
             item_spec = spec or (specs.get(c.topic_id) if specs else None)
             item_topic = topic or self.topics_map.get(c.topic_id)
             res = self.verify_item(
@@ -172,14 +241,45 @@ class VerificationPipeline:
             else:
                 failed_count += 1
 
-        error_rate = round(failed_count / len(candidates), 4)
-        kill_gate_tripped = error_rate > kill_gate_threshold
+            if audit_labels is not None and res.accepted:
+                item_id = self._item_id(c, idx)
+                if item_id in audit_labels:
+                    audited_accepted_count += 1
+                    if audit_labels[item_id]:
+                        defective_accepted_count += 1
+
+        rejection_rate = round(failed_count / len(candidates), 4)
+
+        post_verifier_error_rate: float | None
+        kill_gate_tripped: bool | None
+        gate_status: GateStatus
+        if audit_labels is not None and audited_accepted_count > 0:
+            post_verifier_error_rate = round(defective_accepted_count / audited_accepted_count, 4)
+            kill_gate_tripped = post_verifier_error_rate > kill_gate_threshold
+            gate_status = "tripped" if kill_gate_tripped else "passed"
+        else:
+            post_verifier_error_rate = None
+            kill_gate_tripped = None
+            gate_status = "unmeasured"
 
         return BatchVerificationReport(
             total_candidates=len(candidates),
             passed_count=passed_count,
             failed_count=failed_count,
-            error_rate=error_rate,
+            rejection_rate=rejection_rate,
+            post_verifier_error_rate=post_verifier_error_rate,
+            audited_accepted_count=audited_accepted_count,
             kill_gate_tripped=kill_gate_tripped,
+            gate_status=gate_status,
             results=results,
         )
+
+    @staticmethod
+    def _item_id(item: CandidateItem, index: int) -> str:
+        """Resolve a stable audit-label key for a candidate: its own ``id`` if
+        the source data carried one (CandidateItem allows extra fields), else
+        its position in the batch."""
+        extra_id = item.model_extra.get("id") if item.model_extra else None
+        if isinstance(extra_id, str) and extra_id:
+            return extra_id
+        return str(index)
