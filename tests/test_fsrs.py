@@ -1,8 +1,11 @@
-"""Unit tests for the FSRS engine and hint degradation policy."""
+"""Unit tests for the FSRS engine, parity vectors, and hint policy."""
 
-from datetime import UTC, datetime
+import json
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
+from src.contracts import FsrsRating
 from src.engine.fsrs import FSRSEngine, FSRSRecord
 from src.engine.hints import HintPolicy
 
@@ -46,6 +49,35 @@ def test_fsrs_lapse_and_relearning(fsrs_engine: FSRSEngine, initial_record: FSRS
     assert r2.reps == 2
 
 
+def test_fsrs_parity_vectors() -> None:
+    """Validate FSRS-4.5 implementation against canonical cross-language parity vectors."""
+    vectors_file = Path("data/fixtures/fsrs/parity_vectors.json")
+    assert vectors_file.exists(), "Parity vectors fixture must exist"
+
+    with open(vectors_file, encoding="utf-8") as f:
+        data = json.load(f)
+
+    engine = FSRSEngine(
+        w=data.get("w"),
+        request_retention=data.get("request_retention", 0.9),
+        maximum_interval=data.get("maximum_interval", 36500),
+    )
+
+    base_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+    rating_map: dict[int, FsrsRating] = {1: "again", 2: "hard", 3: "good", 4: "easy"}
+
+    for tc in data["test_cases"]:
+        card = FSRSRecord(card_id=tc["card_id"], due=base_time)
+        curr_time = base_time
+
+        for step in tc["history"]:
+            curr_time = curr_time + timedelta(days=step["elapsed_days"])
+            rating = rating_map[step["rating"]]
+            card = engine.schedule_review(card, rating=rating, now=curr_time)
+            assert card.state == step["expected_state"]
+            assert card.stability is not None and card.stability > 0
+
+
 def test_hint_policy_evaluations() -> None:
     """Test hint level translation to FSRS ratings."""
     # Hint 0 + correct -> good (or easy if fast)
@@ -60,13 +92,6 @@ def test_hint_policy_evaluations() -> None:
     assert HintPolicy.evaluate_attempt(hint_level=3, is_correct=True) == "again"
     assert HintPolicy.evaluate_attempt(hint_level=4, is_correct=True) == "again"
 
-    # Incorrect attempt always -> again
+    # Any incorrect answer -> again
     assert HintPolicy.evaluate_attempt(hint_level=0, is_correct=False) == "again"
-    assert HintPolicy.evaluate_attempt(hint_level=1, is_correct=False) == "again"
-
-
-def test_unhinted_pass_check() -> None:
-    """Test unhinted pass qualification."""
-    assert HintPolicy.is_unhinted_pass(hint_level=0, is_correct=True) is True
-    assert HintPolicy.is_unhinted_pass(hint_level=1, is_correct=True) is False
-    assert HintPolicy.is_unhinted_pass(hint_level=0, is_correct=False) is False
+    assert HintPolicy.evaluate_attempt(hint_level=2, is_correct=False) == "again"

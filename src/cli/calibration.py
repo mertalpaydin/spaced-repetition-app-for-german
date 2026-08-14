@@ -1,13 +1,13 @@
-"""Diagnostic calibration runner for initial CEFR placement and baseline acquisition."""
+"""Diagnostic placement test and Kalibrierung protocol implementation."""
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.contracts import CEFR, BankItem
+from src.contracts import CEFR, Answer, BankItem, TagStateModel
 from src.engine.topic_state import TopicStateManager
 
 
 class CalibrationResult(BaseModel):
-    """Outcome of diagnostic placement trial."""
+    """Result of running diagnostic calibration."""
 
     model_config = ConfigDict(frozen=True)
     estimated_cefr: CEFR
@@ -22,13 +22,43 @@ class CalibrationRunner:
 
     CEFR_ORDER: list[CEFR] = ["A1", "A2", "B1", "B2"]
 
+    def __init__(
+        self,
+        items: list[BankItem] | None = None,
+        topic_manager: TopicStateManager | None = None,
+    ) -> None:
+        self.items = items or []
+        self.topic_manager = topic_manager
+
+    def next_item(self, answered: list[Answer]) -> BankItem | None:
+        """Select next diagnostic probe item based on previous answers."""
+        answered_ids = {a.item_id for a in answered}
+        for it in self.items:
+            if it.id not in answered_ids:
+                return it
+        return None
+
+    def finalise(self, answered: list[Answer]) -> list[TagStateModel]:
+        """Finalize placement assessment and return seeded tag states."""
+        if not self.topic_manager:
+            return []
+
+        for ans in answered:
+            if ans.is_correct:
+                self.topic_manager.record_attempt(
+                    topic_id=ans.topic_id,
+                    is_unhinted_pass=True,
+                )
+                self.topic_manager.mark_acquired_inferred(ans.topic_id)
+        return list(self.topic_manager.states.values())
+
     @classmethod
     def evaluate_diagnostic(
         cls,
         responses: list[tuple[BankItem, str]],  # (item, user_answer)
         topic_manager: TopicStateManager,
     ) -> CalibrationResult:
-        """Evaluate user responses across diagnostic items and mark mastered topics."""
+        """Evaluate user responses across diagnostic items with strict case sensitivity."""
         total = len(responses)
         if total == 0:
             return CalibrationResult(
@@ -45,11 +75,11 @@ class CalibrationRunner:
 
         for item, user_ans in responses:
             cefr_totals[item.cefr] = cefr_totals.get(item.cefr, 0) + 1
-            # Check answer
             clean_ans = user_ans.strip()
-            is_correct = clean_ans in item.accepted_answers or clean_ans.lower() in [
-                a.lower() for a in item.accepted_answers
-            ]
+
+            # Strict German case-sensitive verification
+            is_correct = clean_ans in item.accepted_answers
+
             if is_correct:
                 correct_count += 1
                 cefr_correct[item.cefr] = cefr_correct.get(item.cefr, 0) + 1
@@ -58,19 +88,19 @@ class CalibrationRunner:
         # Determine estimated CEFR level based on sequential mastery (>= 75% accuracy)
         estimated_level: CEFR = "A1"
         for level in cls.CEFR_ORDER:
-            total_in_level = cefr_totals.get(level, 0)
-            correct_in_level = cefr_correct.get(level, 0)
-            if total_in_level > 0 and (correct_in_level / total_in_level) >= 0.75:
+            tot = cefr_totals.get(level, 0)
+            corr = cefr_correct.get(level, 0)
+            if tot > 0 and (corr / tot) >= 0.75:
                 estimated_level = level
             else:
                 break
 
-        # Apply calibration promotions in topic_manager for mastered topics at/below estimated level
-        for topic_id in mastered_topics:
-            if topic_id in topic_manager.states:
-                topic_manager.mark_acquired_inferred(topic_id)
+        # Apply inferred mastery downstream in topic state manager
+        for t_id in mastered_topics:
+            topic_manager.record_attempt(t_id, is_unhinted_pass=True)
+            topic_manager.mark_acquired_inferred(t_id)
 
-        score = round(correct_count / total, 2)
+        score = round(correct_count / total, 3) if total > 0 else 0.0
         return CalibrationResult(
             estimated_cefr=estimated_level,
             total_items=total,

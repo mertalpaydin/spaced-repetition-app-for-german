@@ -68,6 +68,9 @@ class TaxonomyValidator:
         for t in self.topics:
             if t.intro_card is None:
                 warnings.append(f"Topic '{t.id}' is missing an intro_card.")
+            elif isinstance(t.intro_card, str):
+                if not t.intro_card.strip():
+                    errors.append(f"Topic '{t.id}' intro_card string is empty.")
             else:
                 if not t.intro_card.rule_de.strip():
                     errors.append(f"Topic '{t.id}' intro_card has empty rule_de.")

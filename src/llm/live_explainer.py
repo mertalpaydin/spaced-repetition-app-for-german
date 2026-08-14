@@ -57,5 +57,5 @@ class LiveExplainer:
             user_answer=user_answer,
             correct_answer=item.accepted_answers[0],
             explanation=response_text,
-            rule_summary=item.rule_hint,
+            rule_summary=item.rule_hint or "",
         )

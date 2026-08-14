@@ -1,13 +1,13 @@
-user_input,accepted_answers,expected_is_correct,expected_is_scoped_typo,expected_is_transliteration,expected_is_capitalization_error,comment
-dem,dem,true,false,false,false,exact match
-Dem,dem,false,false,false,true,capitalization error fails in German
-dem mann,dem Mann,false,false,false,true,capitalization on noun fails in German
-dem Mnn,dem Mann,true,true,false,false,peripheral typo on stem passes
-den,dem,false,false,false,false,grammatical morpheme case error fails
-grosser,größer,false,false,false,false,comparative umlaut distinction fails
-groesser,größer,true,false,true,false,umlaut transliteration oe/ue/ae passes
-schoen,schön,true,false,true,false,umlaut transliteration oe passes
-schon,schön,false,false,false,false,meaning changing minimal pair fails
-haette,hätte,true,false,true,false,subjunctive transliteration passes
-hatte,hätte,false,false,false,false,tense/mood minimal pair fails
-"dem   Mann",dem Mann,true,false,false,false,whitespace normalization
+expected,given,topic_id,verdict,reason
+dem,dem,kasus_dativ_artikel,pass,exact
+dem,den,kasus_dativ_artikel,fail,wrong case this is the tested morpheme
+dem Mann,dem Mnn,dativ_nach_praeposition,pass,typo outside the tested morpheme
+dem Mann,den Mann,dativ_nach_praeposition,fail,wrong case despite edit distance 1
+dem Mann,dem mann,dativ_nach_praeposition,fail,capitalisation is grammatical
+dem Mann,"  dem Mann  ",dativ_nach_praeposition,pass,whitespace trimmed
+größer,groesser,adjektiv_komparativ_superlativ,pass,transliteration oe/ue/ae
+größer,grosser,adjektiv_komparativ_superlativ,pass,transliteration ss
+größer,großer,adjektiv_komparativ_superlativ,fail,different word not a transliteration
+ist gefahren,ist gefahren,verb_perfekt_haben_sein,pass,multi-token exact
+ist gefahren,hat gefahren,verb_perfekt_haben_sein,fail,wrong auxiliary is the tested feature
+sie,Sie,pronomen_personal_nom,fail,formal vs third person meaning-bearing

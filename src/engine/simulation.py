@@ -67,9 +67,7 @@ class LearnerSimulationHarness:
             overload_blocked = forecast > self.scheduler.forecast_threshold
 
             # Determine due reviews
-            due_cards = self.fsrs_engine.get_due_items(
-                list(fsrs_records.values()), now=current_time
-            )
+            due_cards = [r for r in fsrs_records.values() if r.due <= current_time]
 
             # Introduce new topics if not overload blocked (up to MAX_NEW_TOPICS_PER_DAY)
             new_topics_today = 0

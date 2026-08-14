@@ -1,5 +1,6 @@
 """FSRS algorithm wrapper for memory state tracking and review interval scheduling."""
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from fsrs import Card, Rating, Scheduler, State
@@ -17,7 +18,7 @@ class FSRSRecord(BaseModel):
     due: datetime = Field(default_factory=lambda: datetime.now(UTC))
     stability: float | None = None
     difficulty: float | None = None
-    step: int = 0
+    step: int | None = 0
     reps: int = 0
     lapses: int = 0
     last_review: datetime | None = None
@@ -45,8 +46,23 @@ class FSRSEngine:
         "relearning": State.Relearning,
     }
 
-    def __init__(self) -> None:
-        self.scheduler = Scheduler()
+    def __init__(
+        self,
+        w: Sequence[float] | None = None,
+        request_retention: float = 0.9,
+        maximum_interval: int = 36500,
+    ) -> None:
+        if w is not None:
+            self.scheduler = Scheduler(
+                parameters=tuple(w),
+                desired_retention=request_retention,
+                maximum_interval=maximum_interval,
+            )
+        else:
+            self.scheduler = Scheduler(
+                desired_retention=request_retention,
+                maximum_interval=maximum_interval,
+            )
 
     def record_to_fsrs_card(self, record: FSRSRecord) -> Card:
         """Convert a serializable FSRSRecord to an fsrs.Card instance."""
@@ -61,15 +77,16 @@ class FSRSEngine:
         return card
 
     def fsrs_card_to_record(
-        self, card_id: str, card: Card, reps: int = 0, lapses: int = 0
+        self, card: Card, card_id: str, reps: int = 0, lapses: int = 0
     ) -> FSRSRecord:
-        """Convert an fsrs.Card back to an immutable FSRSRecord."""
+        """Convert an updated fsrs.Card back to a persistent FSRSRecord."""
+        state_str = self.STATE_STR_MAP.get(card.state, "learning")
         return FSRSRecord(
             card_id=card_id,
-            state=self.STATE_STR_MAP.get(card.state, "learning"),
+            state=state_str,
             due=card.due,
-            stability=round(card.stability, 4) if card.stability is not None else None,
-            difficulty=round(card.difficulty, 4) if card.difficulty is not None else None,
+            stability=card.stability,
+            difficulty=card.difficulty,
             step=card.step or 0,
             reps=reps,
             lapses=lapses,
@@ -82,24 +99,25 @@ class FSRSEngine:
         rating: FsrsRating,
         now: datetime | None = None,
     ) -> FSRSRecord:
-        """Process a review response and return the updated FSRSRecord."""
-        review_time = now or datetime.now(UTC)
-        card = self.record_to_fsrs_card(record)
+        """Process an exercise attempt and compute new stability, difficulty, and due date."""
+        fsrs_card = self.record_to_fsrs_card(record)
         fsrs_rating = self.RATING_MAP[rating]
+        review_time = now or datetime.now(UTC)
 
-        # Review card through FSRS scheduler
-        updated_card, _ = self.scheduler.review_card(card, fsrs_rating, review_time)
+        updated_card, _ = self.scheduler.review_card(fsrs_card, fsrs_rating, review_time)
+        new_reps = record.reps + 1
+        new_lapses = record.lapses + (1 if rating == "again" else 0)
 
-        reps = record.reps + 1
-        lapses = record.lapses + (1 if rating == "again" else 0)
+        return self.fsrs_card_to_record(
+            updated_card, card_id=record.card_id, reps=new_reps, lapses=new_lapses
+        )
 
-        return self.fsrs_card_to_record(record.card_id, updated_card, reps=reps, lapses=lapses)
+    def get_retrievability(self, record: FSRSRecord, now: datetime | None = None) -> float:
+        """Estimate current retrievability probability R in [0.0, 1.0]."""
+        if record.stability is None or record.last_review is None:
+            return 1.0
 
-    def get_due_items(
-        self,
-        records: list[FSRSRecord],
-        now: datetime | None = None,
-    ) -> list[FSRSRecord]:
-        """Filter records that are due for review relative to the current timestamp."""
-        check_time = now or datetime.now(UTC)
-        return [r for r in records if r.due <= check_time]
+        ref_time = now or datetime.now(UTC)
+        fsrs_card = self.record_to_fsrs_card(record)
+        ret = self.scheduler.get_card_retrievability(fsrs_card, ref_time)
+        return float(round(float(ret or 1.0), 4))

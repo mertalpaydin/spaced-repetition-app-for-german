@@ -74,7 +74,7 @@ class SyncClient:
                 due_at=r.due.isoformat(),
                 stability=r.stability,
                 difficulty=r.difficulty,
-                step=r.step,
+                step=r.step or 0,
                 reps=r.reps,
                 lapses=r.lapses,
                 last_review_at=r.last_review.isoformat() if r.last_review else None,

@@ -35,8 +35,8 @@ class Layer2MorphologyValidator:
             prompt_lower = item.prompt.lower()
 
             # Case requirements for articles/pronouns
-            req_case = topic.morph_spec.get("Case")
-            if req_case == "Dat" and topic.id == "dativ_nach_praeposition":
+            case_list = topic.morph_spec.get("Case") or []
+            if "Dat" in case_list and topic.id == "dativ_nach_praeposition":
                 # Detect directional verbs (Wohin? requiring Akkusativ)
                 directional_verbs = {
                     "stellt",
@@ -95,7 +95,7 @@ class Layer2MorphologyValidator:
                         ans = item.proposed_answer
                         return False, f"Proposed answer '{ans}' is not a valid Dativ form."
 
-            if req_case == "Acc" and topic.id == "akkusativ_nach_praeposition":
+            if "Acc" in case_list and topic.id == "akkusativ_nach_praeposition":
                 # Detect static verbs (Wo? requiring Dativ)
                 static_verbs = {
                     "liegt",

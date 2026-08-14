@@ -1,4 +1,4 @@
-"""Round scheduler enforcing interleaving, sibling groups, and forecast caps."""
+"""Round scheduler enforcing interleaving, sibling groups, heavy limits, and forecast caps."""
 
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
@@ -15,8 +15,12 @@ from src.contracts import (
     MAX_NEW_TOPICS_PER_DAY,
     RECALIBRATION_ROUND_SIZE,
     ROUND_SIZE_DEFAULT,
+    SPLIT_ACCURACY_GAP,
+    SPLIT_MIN_ATTEMPTS_PER_FACET,
     BankItem,
+    DayBudget,
     ReviewMode,
+    TagStateModel,
 )
 from src.engine.fsrs import FSRSRecord
 from src.engine.topic_state import TopicStateManager
@@ -33,6 +37,16 @@ class RoundPlan(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class SplitCandidate(BaseModel):
+    """Candidate topic identified for morphological split."""
+
+    model_config = ConfigDict(frozen=True)
+    topic_id: str
+    axis: str
+    facet_accuracies: dict[str, float]
+    gap: float
+
+
 class LearningScheduler:
     """Orchestrates item selection, round size constraints, pacing, and forecast limits."""
 
@@ -40,9 +54,11 @@ class LearningScheduler:
         self,
         round_size: int = ROUND_SIZE_DEFAULT,
         forecast_threshold: int = FORECAST_LOAD_THRESHOLD_DEFAULT,
+        bank: SqliteItemBank | None = None,
     ) -> None:
         self.round_size = round_size
         self.forecast_threshold = forecast_threshold
+        self.bank = bank
 
     def forecast_7day_load(
         self,
@@ -63,6 +79,65 @@ class LearningScheduler:
                 daily_counts[r_date] += 1
 
         return max(daily_counts.values()) if daily_counts else 0
+
+    def forecast(
+        self,
+        states: list[TagStateModel],
+        now: datetime,
+        horizon_days: int = FORECAST_HORIZON_DAYS,
+    ) -> list[int]:
+        """Project daily review counts over horizon days."""
+        daily_counts = [0] * horizon_days
+        for s in states:
+            if s.due_at <= now + timedelta(days=horizon_days):
+                day_offset = (s.due_at.date() - now.date()).days
+                if 0 <= day_offset < horizon_days:
+                    daily_counts[day_offset] += 1
+        return daily_counts
+
+    def day_budget(self, states: list[TagStateModel], now: datetime) -> DayBudget:
+        """Compute the day's due count, ceiling, and allowed new topic introductions."""
+        fc = self.forecast(states, now, FORECAST_HORIZON_DAYS)
+        due_today = sum(1 for s in states if s.due_at.date() <= now.date())
+        overload = max(fc) > self.forecast_threshold if fc else False
+        new_allowed = 0 if overload else MAX_NEW_TOPICS_PER_DAY
+        ceiling = due_today + new_allowed * self.round_size + 6
+
+        return DayBudget(
+            due_count=due_today,
+            ceiling=ceiling,
+            new_topics_allowed=new_allowed,
+            forecast=fc,
+        )
+
+    def build_duel(
+        self,
+        confusion_group: str,
+        now: datetime | None = None,
+        bank: SqliteItemBank | None = None,
+    ) -> list[BankItem]:
+        """Construct a blocked duel round contrasting members of a confusion group."""
+        active_bank = bank or self.bank
+        if not active_bank:
+            return []
+        all_items = active_bank.get_all_items()
+        duel_items = [it for it in all_items if it.confusion_group == confusion_group]
+        if len(duel_items) < DUEL_LENGTH:
+            duel_items.extend([it for it in all_items if it not in duel_items])
+        return self._interleave_items(duel_items[:DUEL_LENGTH])
+
+    def build_recalibration(
+        self,
+        states: list[TagStateModel],
+        now: datetime | None = None,
+        bank: SqliteItemBank | None = None,
+    ) -> list[BankItem]:
+        """Sample high-stability and active learning items to rebuild decayed queue."""
+        active_bank = bank or self.bank
+        if not active_bank:
+            return []
+        all_items = active_bank.get_all_items()
+        return self._interleave_items(all_items[:RECALIBRATION_ROUND_SIZE])
 
     @staticmethod
     def _interleave_items(items: list[BankItem]) -> list[BankItem]:
@@ -141,23 +216,14 @@ class LearningScheduler:
 
         # 3. Handle specific review modes
         if mode == "recalibration":
-            all_items = bank.get_all_items()
-            # Intelligent recalibration sampling: mix of highest stability + learning items
-            raw_items = all_items[:RECALIBRATION_ROUND_SIZE]
-            return RoundPlan(
-                items=self._interleave_items(raw_items), mode="recalibration", notes=notes
+            raw_items = self.build_recalibration(
+                states=list(topic_manager.states.values()), now=ref_time, bank=bank
             )
+            return RoundPlan(items=raw_items, mode="recalibration", notes=notes)
 
         if mode == "duel":
-            all_items = bank.get_all_items()
-            if confusion_group:
-                duel_items = [it for it in all_items if it.confusion_group == confusion_group]
-                if len(duel_items) < DUEL_LENGTH:
-                    duel_items.extend([it for it in all_items if it not in duel_items])
-                raw_items = duel_items[:DUEL_LENGTH]
-            else:
-                raw_items = all_items[:DUEL_LENGTH]
-            return RoundPlan(items=self._interleave_items(raw_items), mode="duel", notes=notes)
+            raw_items = self.build_duel(confusion_group or "", now=ref_time, bank=bank)
+            return RoundPlan(items=raw_items, mode="duel", notes=notes)
 
         # 4. Standard Review Round: prioritize due items ordered by overdue ratio
         planned_items: list[BankItem] = []
@@ -173,8 +239,8 @@ class LearningScheduler:
         for r in due_records:
             item = bank.get_item(r.card_id)
             if item:
-                # Heavy item constraint (max 1 paragraph block / production item per round)
-                is_heavy = item.type == "paragraph_cloze"
+                # Heavy item constraint: paragraph cloze OR production
+                is_heavy = item.type in ("paragraph_cloze", "production")
                 if is_heavy and heavy_count >= MAX_HEAVY_PER_ROUND:
                     continue
                 if is_heavy:
@@ -208,7 +274,7 @@ class LearningScheduler:
             planned_ids = {it.id for it in planned_items}
             for it in all_bank_items:
                 if it.id not in planned_ids:
-                    is_heavy = it.type == "paragraph_cloze"
+                    is_heavy = it.type in ("paragraph_cloze", "production")
                     if is_heavy and heavy_count >= MAX_HEAVY_PER_ROUND:
                         continue
                     if is_heavy:
@@ -227,3 +293,38 @@ class LearningScheduler:
             is_overload_blocked=overload_blocked,
             notes=notes,
         )
+
+    def detect_split_candidates(
+        self,
+        review_history: list[dict[str, str | bool | None]],
+    ) -> list[SplitCandidate]:
+        """Detect topics where facet accuracy spread exceeds SPLIT_ACCURACY_GAP."""
+        facet_stats: dict[str, dict[str, list[bool]]] = defaultdict(lambda: defaultdict(list))
+        for row in review_history:
+            t_id = str(row.get("topic_id"))
+            facet = str(row.get("facet") or "default")
+            is_corr = bool(row.get("is_correct", False))
+            facet_stats[t_id][facet].append(is_corr)
+
+        candidates: list[SplitCandidate] = []
+        for t_id, facets in facet_stats.items():
+            qualifying_facets = {
+                f: results
+                for f, results in facets.items()
+                if len(results) >= SPLIT_MIN_ATTEMPTS_PER_FACET
+            }
+            if len(qualifying_facets) >= 2:
+                accuracies = {f: sum(res) / len(res) for f, res in qualifying_facets.items()}
+                max_acc = max(accuracies.values())
+                min_acc = min(accuracies.values())
+                gap = max_acc - min_acc
+                if gap >= SPLIT_ACCURACY_GAP:
+                    candidates.append(
+                        SplitCandidate(
+                            topic_id=t_id,
+                            axis="Morphology",
+                            facet_accuracies=accuracies,
+                            gap=round(gap, 3),
+                        )
+                    )
+        return candidates

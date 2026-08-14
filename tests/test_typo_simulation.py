@@ -1,4 +1,7 @@
-"""Unit tests for ScopedTypoGrader and 180-day LearnerSimulationHarness."""
+"""Unit tests for ScopedTypoGrader, golden grading table, and LearnerSimulationHarness."""
+
+import csv
+from pathlib import Path
 
 from src.contracts import Topic
 from src.engine.simulation import LearnerSimulationHarness
@@ -45,6 +48,41 @@ def test_typo_grader_scoped_typo_peripheral_vs_grammatical_morpheme() -> None:
 
     res_subj_error = ScopedTypoGrader.grade("hatte", ["hätte"])
     assert res_subj_error.is_correct is False
+
+
+def test_grading_table_golden() -> None:
+    """Verify all rows in the golden grading table fixture."""
+    fixture_path = Path("data/fixtures/grading/grading_table.csv")
+    assert fixture_path.exists()
+
+    with open(fixture_path, encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            expected = row["expected"]
+            given = row["given"]
+            expected_verdict = row["verdict"] == "pass"
+            res = ScopedTypoGrader.grade(given, [expected])
+            assert res.is_correct == expected_verdict, (
+                f"Grading mismatch for '{given}' vs '{expected}' (Topic: {row.get('topic_id')}): "
+                f"expected {expected_verdict}, got {res.is_correct}. Reason: {row.get('reason')}"
+            )
+
+
+def test_typo_tolerance_never_crosses_the_tested_morpheme() -> None:
+    """Property test: Grammatical morpheme minimal pairs must never be tolerated as typos."""
+    minimal_pairs = [
+        ("dem", "den"),
+        ("dem", "des"),
+        ("hatte", "hätte"),
+        ("war", "wäre"),
+        ("großer", "größer"),
+        ("sie", "Sie"),
+    ]
+    for target, wrong in minimal_pairs:
+        res = ScopedTypoGrader.grade(wrong, [target])
+        assert not res.is_correct, (
+            f"Minimal pair error '{wrong}' for target '{target}' must strictly fail"
+        )
 
 
 def test_simulation_harness_180_days() -> None:

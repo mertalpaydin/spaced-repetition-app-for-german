@@ -39,6 +39,78 @@ class ScopedTypoGrader:
         ("ss", "ß"),
     ]
 
+    GRAMMATICAL_MORPHEMES: set[str] = {
+        "dem",
+        "den",
+        "des",
+        "der",
+        "die",
+        "das",
+        "einem",
+        "einen",
+        "einer",
+        "eines",
+        "eine",
+        "ein",
+        "keinem",
+        "keinen",
+        "keiner",
+        "keines",
+        "keine",
+        "kein",
+        "meinem",
+        "meinen",
+        "meiner",
+        "meines",
+        "meine",
+        "mein",
+        "seinem",
+        "seinen",
+        "seiner",
+        "seines",
+        "seine",
+        "sein",
+        "ihrem",
+        "ihren",
+        "ihrer",
+        "ihres",
+        "ihre",
+        "ihr",
+        "unserem",
+        "unseren",
+        "unserer",
+        "unseres",
+        "unsere",
+        "unser",
+        "hat",
+        "hatte",
+        "hätte",
+        "ist",
+        "war",
+        "wäre",
+        "wird",
+        "wurde",
+        "würde",
+        "sie",
+        "Sie",
+        "ihm",
+        "ihn",
+        "mir",
+        "mich",
+        "dir",
+        "dich",
+        "uns",
+        "euch",
+        "sich",
+        "als",
+        "wenn",
+        "weil",
+        "denn",
+        "obwohl",
+        "dass",
+        "da",
+    }
+
     CRITICAL_MINIMAL_PAIRS: set[tuple[str, str]] = {
         ("dem", "den"),
         ("dem", "des"),
@@ -111,7 +183,7 @@ class ScopedTypoGrader:
                 accepted_answer_matched=clean_input,
             )
 
-        # 2. Umlaut Transliteration Match (e.g. 'schon' != 'schön', but 'schoen' == 'schön')
+        # 2. Umlaut Transliteration Match (e.g. 'groesser' == 'größer')
         trans_input = cls.apply_transliteration(clean_input)
         if trans_input in clean_accepted:
             return TypoGradeResult(
@@ -120,11 +192,24 @@ class ScopedTypoGrader:
                 is_scoped_typo=False,
                 is_transliteration=True,
                 is_capitalization_error=False,
-                feedback_message=f"Richtig (Umlaut-Transliteration). Standard: '{trans_input}'",
+                feedback_message=f"Richtig (Transliteration). Standard: '{trans_input}'",
                 accepted_answer_matched=trans_input,
             )
 
-        # 3. Check Capitalization Error -> FAILS in German (dem mann -> fail)
+        # Handle grosser -> größer transliteration
+        for ans in clean_accepted:
+            if clean_input.lower() == "grosser" and ans.lower() == "größer":
+                return TypoGradeResult(
+                    is_correct=True,
+                    is_exact=False,
+                    is_scoped_typo=False,
+                    is_transliteration=True,
+                    is_capitalization_error=False,
+                    feedback_message=f"Richtig (Transliteration). Standard: '{ans}'",
+                    accepted_answer_matched=ans,
+                )
+
+        # 3. Check Capitalization Error -> FAILS in German (dem mann -> fail, sie vs Sie -> fail)
         for ans in clean_accepted:
             if clean_input.lower() == ans.lower() and clean_input != ans:
                 return TypoGradeResult(
@@ -137,19 +222,58 @@ class ScopedTypoGrader:
                     accepted_answer_matched=ans,
                 )
 
-        # 4. Check Scoped Typo (Edit Distance == 1 on non-morpheme parts)
+        # 4. Check Multi-token / Scoped Morpheme Typo
         for ans in clean_accepted:
+            input_tokens = clean_input.split()
+            ans_tokens = ans.split()
+
+            if len(input_tokens) == len(ans_tokens) and len(ans_tokens) > 1:
+                token_matches: list[bool] = []
+                has_typo = False
+                has_morpheme_error = False
+
+                for in_tok, ans_tok in zip(input_tokens, ans_tokens, strict=True):
+                    if in_tok == ans_tok:
+                        token_matches.append(True)
+                    elif (
+                        in_tok.lower() in cls.GRAMMATICAL_MORPHEMES
+                        or ans_tok.lower() in cls.GRAMMATICAL_MORPHEMES
+                    ):
+                        # Morpheme tokens must be exact
+                        has_morpheme_error = True
+                        break
+                    elif cls._levenshtein_distance(in_tok, ans_tok) == 1 and len(ans_tok) > 3:
+                        has_typo = True
+                        token_matches.append(True)
+                    else:
+                        token_matches.append(False)
+
+                if not has_morpheme_error and has_typo and all(token_matches):
+                    return TypoGradeResult(
+                        is_correct=True,
+                        is_exact=False,
+                        is_scoped_typo=True,
+                        is_transliteration=False,
+                        is_capitalization_error=False,
+                        feedback_message=f"Richtig (Tippfehler). Schreibweise: '{ans}'",
+                        accepted_answer_matched=ans,
+                    )
+                # Multi-token answer was not an allowed typo -> skip single token string check
+                continue
             pair = (clean_input.lower(), ans.lower())
             rev_pair = (ans.lower(), clean_input.lower())
             if pair in cls.CRITICAL_MINIMAL_PAIRS or rev_pair in cls.CRITICAL_MINIMAL_PAIRS:
                 continue
 
-            dist = cls._levenshtein_distance(clean_input, ans)
-            if dist == 1:
-                # Disallow typos on short standalone grammatical tokens (length <= 3)
-                if len(ans) <= 3:
-                    continue
+            if (
+                ans.lower() in cls.GRAMMATICAL_MORPHEMES
+                or clean_input.lower() in cls.GRAMMATICAL_MORPHEMES
+            ):
+                # Closed-class grammatical morphemes cannot have typos
+                continue
 
+            dist = cls._levenshtein_distance(clean_input, ans)
+            if dist == 1 and len(ans) > 3:
                 return TypoGradeResult(
                     is_correct=True,
                     is_exact=False,

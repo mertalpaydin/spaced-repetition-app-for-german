@@ -78,6 +78,35 @@ def test_adversarial_suite_catches_all_known_defects(
     assert rejected_count == 30
 
 
+@pytest.mark.golden
+def test_known_good_suite_passes_all_verification_layers(
+    pipeline: VerificationPipeline,
+    data_fixtures_dir: Path,
+) -> None:
+    """Verify that all items in known_good.jsonl pass the complete verification chain."""
+    known_good_path = data_fixtures_dir / "verification" / "known_good.jsonl"
+    assert known_good_path.exists()
+
+    with known_good_path.open("r", encoding="utf-8") as f:
+        lines = [line.strip() for line in f if line.strip()]
+
+    assert len(lines) >= 30, f"Expected at least 30 known good items, found {len(lines)}"
+
+    for line in lines:
+        data = json.loads(line)
+        item = CandidateItem(
+            topic_id=data["topic_id"],
+            type=data["type"],
+            difficulty=data["difficulty"],
+            prompt=data["prompt"],
+            proposed_answer=data["accepted_answers"][0],
+            distractors=[Distractor(text=d["text"]) for d in data.get("distractors", [])],
+            cue=data.get("cue"),
+        )
+        res = pipeline.verify_item(item)
+        assert res.passed, f"Known good item failed: {res.reason} (prompt: '{item.prompt}')"
+
+
 def test_clean_items_pass_all_four_layers(
     pipeline: VerificationPipeline,
     sample_spec: TopicSpec,

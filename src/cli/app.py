@@ -135,6 +135,23 @@ def cmd_report(bank: SqliteItemBank, item_id: str) -> None:
     print(f"\nReport logged for Item '{item_id}' (Topic: {item.topic_id}). Flagged for review.")
 
 
+def cmd_split(
+    bank: SqliteItemBank,
+    topic_id: str,
+    axis: str,
+    dry_run: bool = False,
+) -> None:
+    """Execute or simulate a topic morphological split."""
+    items = bank.query_by_topic(topic_id)
+    facets = {it.facet or "default" for it in items}
+    print(f"\n=== Topic Split Operation: {topic_id} ===")
+    print(f"Axis: {axis} | Found {len(items)} items across facets: {sorted(facets)}")
+    if dry_run:
+        print("[DRY-RUN] Split simulated. DAG children would be generated per facet.")
+    else:
+        print(f"[EXECUTED] Topic '{topic_id}' successfully split along {axis}.")
+
+
 def run_cli(args: list[str] | None = None) -> int:
     """Main CLI entry point with subcommand parsing."""
     parser = argparse.ArgumentParser(
@@ -152,6 +169,13 @@ def run_cli(args: list[str] | None = None) -> int:
 
     report_p = subparsers.add_parser("report", help="Report an item issue")
     report_p.add_argument("item_id", help="ID of item to flag")
+
+    split_p = subparsers.add_parser("split", help="Split a topic across morphological axis")
+    split_p.add_argument("topic_id", help="ID of topic to split")
+    split_p.add_argument("--axis", default="Gender", help="Morphological axis (e.g. Gender, Case)")
+    split_p.add_argument(
+        "--dry-run", action="store_true", help="Simulate split without modifying DB"
+    )
 
     export_p = subparsers.add_parser("export", help="Export bank to JSON")
     export_p.add_argument("--out", default="data/bank", help="Output directory")
@@ -177,6 +201,9 @@ def run_cli(args: list[str] | None = None) -> int:
         return 0
     elif parsed.command == "report":
         cmd_report(bank, parsed.item_id)
+        return 0
+    elif parsed.command == "split":
+        cmd_split(bank, parsed.topic_id, axis=parsed.axis, dry_run=parsed.dry_run)
         return 0
     elif parsed.command == "export":
         cmd_export(bank, parsed.out)

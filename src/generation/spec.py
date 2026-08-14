@@ -70,7 +70,11 @@ def build_spec_for_topic(topic: Topic) -> TopicSpec:
     gold_examples: list[GoldExample] = []
 
     # Derive gold examples from intro_card worked examples where available
-    if topic.intro_card and topic.intro_card.worked_examples:
+    if (
+        topic.intro_card
+        and not isinstance(topic.intro_card, str)
+        and topic.intro_card.worked_examples
+    ):
         for ex in topic.intro_card.worked_examples:
             # Mask the key element to create cloze prompts
             parts = ex.split()
