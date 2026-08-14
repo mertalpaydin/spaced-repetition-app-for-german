@@ -588,7 +588,14 @@ def test_thoughts_token_count_added_to_completion_tokens_when_present(tmp_path: 
 
 
 def test_thinking_disabled_for_generation_model(tmp_path: Path) -> None:
-    """CLAUDE.md 213: generation runs with thinking off."""
+    """CLAUDE.md 213: generation runs with thinking off.
+
+    ``gemini-3.5-flash-lite`` has no thinking capability at all, so "off" is
+    expressed by omitting ``thinking_config`` entirely rather than by sending
+    ``thinking_budget=0``: the live API rejects the latter with
+    INVALID_ARGUMENT on this model (confirmed against the real endpoint), so
+    sending it would break every generation call, not just simulate them.
+    """
     client = GeminiLlmClient(
         cost_log_path=tmp_path / "cost_log.jsonl",
         cache_dir=tmp_path / "cache",
@@ -602,8 +609,7 @@ def test_thinking_disabled_for_generation_model(tmp_path: Path) -> None:
     client.generate("Prompt", model=MODEL_GENERATE, purpose="unit_test", use_cache=False)
 
     sent_config = fake_models.calls[0]["config"]
-    assert sent_config.thinking_config.thinking_budget == 0
-    assert sent_config.thinking_config.thinking_level is None
+    assert sent_config.thinking_config is None
 
 
 def test_thinking_enabled_at_configured_level_for_verify_model(tmp_path: Path) -> None:

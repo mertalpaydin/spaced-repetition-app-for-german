@@ -285,19 +285,26 @@ class GeminiLlmClient:
             return self._paid_client
         raise ValueError(f"_get_sdk_client has no client for lane={lane!r}")
 
-    def _thinking_config_for(self, model: str) -> genai_types.ThinkingConfig:
+    def _thinking_config_for(self, model: str) -> genai_types.ThinkingConfig | None:
         """Thinking is off everywhere except the ``gemini-3.7-flash`` verify workloads.
 
         CLAUDE.md 213: thinking tokens bill as output and can multiply the
         largest cost line severalfold, so generation runs with thinking
-        disabled (``thinking_budget=0``). Only ``MODEL_VERIFY`` uses it, at the
-        level configured in ``THINKING_VERIFY``.
+        disabled. Only ``MODEL_VERIFY`` uses it, at the level configured in
+        ``THINKING_VERIFY``.
+
+        Every other model in the routing table (``gemini-3.5-flash-lite``) has
+        no thinking capability at all, so there is nothing to disable: sending
+        an explicit ``thinking_config`` (even ``thinking_budget=0``) is itself
+        an INVALID_ARGUMENT rejection from the API, confirmed against the live
+        endpoint, not just a no-op. Omitting the field entirely is the correct
+        way to express "thinking off" on those models.
         """
         if model == MODEL_VERIFY:
             return genai_types.ThinkingConfig(
                 thinking_level=genai_types.ThinkingLevel(THINKING_VERIFY)
             )
-        return genai_types.ThinkingConfig(thinking_budget=0)
+        return None
 
     def _classify_quota_error(self, exc: genai_errors.ClientError) -> QuotaType:
         """Distinguish RPM (per-minute) from RPD (per-day) 429s.
