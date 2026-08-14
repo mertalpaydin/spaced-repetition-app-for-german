@@ -860,7 +860,14 @@
   description: "Relative clauses in Nominative and Accusative cases; pronoun matches antecedent in gender/number and clause function in case."
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
-  morph_spec: {Case: NomOrAcc}
+  # "NomOrAcc" was never a valid Universal Dependencies Case value (UD has no
+  # disjunctive case). PronType: Rel is the real, non-disjunctive UD feature
+  # this topic's items share (every answer is a relative pronoun); Case is
+  # deliberately left unfixed, because varying between Nominative and
+  # Accusative *is* what this topic is about -- the pronoun's case comes from
+  # its role inside its own clause. See src/taxonomy/facets.py's "RelPron"
+  # category.
+  morph_spec: {PronType: Rel}
   syntax_tags: {Subordinate: "true"}
   rule_hint: "Relativpronomen entspricht dem Genus des Bezugsworts; Kasus bestimmt die Rolle im Nebensatz (Verb am Ende)."
   intro_card:
@@ -917,7 +924,11 @@
   description: "Genitive relative clauses expressing possession (dessen for m/n, deren for f/pl) without article on following noun."
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
-  morph_spec: {Case: Gen}
+  # PronType: Rel added alongside Case: Gen for the same reason as
+  # relativsatz_nom_akk (see there): this topic's items are genuinely
+  # relative pronouns, not definite articles, and decode against the
+  # dedicated relative-pronoun paradigm (dessen/deren), not the article one.
+  morph_spec: {Case: Gen, PronType: Rel}
   syntax_tags: {Subordinate: "true"}
   rule_hint: "Genitiv-Relativpronomen: dessen (m/n), deren (f/Pl). Das folgende Nomen steht OHNE Artikel!"
   intro_card:
@@ -937,6 +948,22 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Gen}
+  # facet_exempt, not an empty morph_spec: Case: Gen is still a real, useful
+  # stage 4 morphology constraint. But the genitive article paradigm is
+  # syncretic in a way that leaves no two distinct, resolvable Gender/Number
+  # cells: "des" is always Number=Sing with Gender genuinely undecidable
+  # between Masc/Neut (the only two genders "des" ever marks), and "der" is
+  # simultaneously Fem Sing *and* every-gender Plural, so it resolves to
+  # nothing at all rather than a second distinct value. Every gold example
+  # built from real genitive articles therefore lands on the same single
+  # resolvable facet (or on all-Unk); see 01-foundation.md:170.
+  facet_exempt: true
+  facet_exempt_reason: >-
+    Genitive article syncretism ("des" invariantly Sing with Masc/Neut
+    genuinely undecidable; "der" ambiguous between Fem Sing and any-gender
+    Plural) leaves no pair of gold examples that both avoid all-Unk and
+    differ from each other, so the stage 6 facet-variety requirement cannot
+    be satisfied by any real German example for this topic.
   rule_hint: "Genitiv: des + Nomen-(e)s (m/n), der (f/Pl). N-Deklination bei schwachen maskulinen Nomen (des Kollegen)."
   intro_card:
     summary: "Genitivformen der Artikel und Nomen"
@@ -1397,6 +1424,20 @@
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
   morph_spec: {Voice: Pass}
+  # facet_exempt, not an empty morph_spec: Voice: Pass is still a real,
+  # useful stage 4 morphology constraint (generated answers must be passive
+  # forms of "werden"), so it stays. But impersonal passive is DEFINED by
+  # invariant 3rd-person-singular agreement -- there is no real subject to
+  # agree with, so "wird"/"wurde" are the only correct forms. Any other
+  # Person/Number would mean the sentence isn't impersonal passive anymore.
+  # A "vary into a second facet cell" requirement is therefore conceptually
+  # wrong for this topic, not merely hard to satisfy; see 01-foundation.md:170.
+  facet_exempt: true
+  facet_exempt_reason: >-
+    Impersonal passive requires invariant 3rd-person-singular agreement
+    ("wird"/"wurde") because it has no real subject; a second Person/Number
+    cell would stop being impersonal passive, so the stage 6 facet-variety
+    requirement does not apply to this topic.
   rule_hint: "Unpersönliches Passiv: 'Es wird...' auf Position 1 oder entfällt bei Vorfeldbelegung ('Hier wird nicht geraucht')."
   intro_card:
     summary: "Unpersönliches Passiv"
