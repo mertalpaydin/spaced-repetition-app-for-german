@@ -224,6 +224,21 @@ class GeminiLlmClient:
     # lining up exactly with ours -- see ``_SlidingWindowRateLimiter``.
     FREE_LANE_RATE_LIMIT_PER_MINUTE: int = 14
 
+    # Google's inline (non-file) batch submission is documented as suitable
+    # for "smaller batches that keep the total request size under 20MB";
+    # above that (or for "a large number of requests" generally) Google's own
+    # guidance is to switch to file-based batch input instead
+    # (ai.google.dev/gemini-api/docs/batch-mode, verified 2026-08-15). This
+    # client never had that ceiling in mind at all -- ``generate_many`` just
+    # dumped the whole prompt list into one ``src=[...]`` call regardless of
+    # size. 12MB leaves real headroom under the 20MB guidance for the
+    # request's JSON envelope and per-item overhead beyond just prompt text;
+    # 2000 is a defensive count cap for the (undocumented) possibility of a
+    # separate per-request-count ceiling, sized well above any batch this
+    # codebase's own caps (``NIGHTLY_ITEM_CAP``) will ever actually submit.
+    BATCH_INLINE_MAX_BYTES: int = 12_000_000
+    BATCH_INLINE_MAX_COUNT: int = 2000
+
     def __init__(
         self,
         free_api_key: str | None = None,
@@ -699,6 +714,35 @@ class GeminiLlmClient:
                 self._sleep(self.SERVER_ERROR_BACKOFF_SECONDS)
                 continue
 
+    def _chunk_indices_for_inline_batch(
+        self, indices: list[int], prompts: list[str]
+    ) -> list[list[int]]:
+        """Split ``indices`` into groups that respect the inline batch API's
+        real limits (``BATCH_INLINE_MAX_BYTES`` / ``BATCH_INLINE_MAX_COUNT``),
+        so ``generate_many`` submits as FEW real batch jobs as possible (one,
+        for every group small enough) while never risking an oversized
+        request. A single prompt larger than the byte cap on its own still
+        gets its own one-item chunk -- better to attempt it alone than
+        silently drop it.
+        """
+        chunks: list[list[int]] = []
+        current: list[int] = []
+        current_bytes = 0
+        for i in indices:
+            size = len(prompts[i].encode("utf-8"))
+            if current and (
+                current_bytes + size > self.BATCH_INLINE_MAX_BYTES
+                or len(current) >= self.BATCH_INLINE_MAX_COUNT
+            ):
+                chunks.append(current)
+                current = []
+                current_bytes = 0
+            current.append(i)
+            current_bytes += size
+        if current:
+            chunks.append(current)
+        return chunks
+
     def _call_batch(
         self,
         client: genai.Client,
@@ -903,12 +947,17 @@ class GeminiLlmClient:
           correctness. Cost-log writes and cache writes happen on the calling
           thread only, after collecting each worker's result, never inside a
           worker, so no locking is needed around them.
-        - **Paid lane**: all cache-miss prompts are submitted as ONE real
-          multi-item Gemini batch job (``_call_batch_many``) instead of one
+        - **Paid lane**: all cache-miss prompts are submitted as real
+          multi-item Gemini batch jobs (``_call_batch_many``) instead of one
           job per prompt -- the previous per-``generate()``-call loop paid a
           full batch-job's queueing overhead (observed live: 1-3 minutes) for
           every single item, serially, with none of the throughput benefit
-          batching exists for.
+          batching exists for. Chunked by ``_chunk_indices_for_inline_batch``
+          to respect Google's documented ~20MB inline-submission guidance
+          (``BATCH_INLINE_MAX_BYTES``): one job for every group small enough
+          to submit inline (every group this codebase's own item caps
+          produce), more only if a caller ever hands this a genuinely
+          oversized group.
         """
         if not prompts:
             return []
@@ -985,28 +1034,35 @@ class GeminiLlmClient:
             config = genai_types.GenerateContentConfig(
                 thinking_config=self._thinking_config_for(model)
             )
-            batch_prompts = [prompts[i] for i in pending_indices]
-            batch_results = self._call_batch_many_with_retry(
-                client, model=model, prompts=batch_prompts, config=config, purpose=purpose
-            )
-            for i, (text, prompt_tokens, completion_tokens) in zip(
-                pending_indices, batch_results, strict=True
-            ):
-                cost_usd = self._estimate_cost(model, prompt_tokens, completion_tokens, "paid")
-                self._log_cost(
-                    CostLogRow(
-                        timestamp=ref_time,
-                        model=model,
-                        lane="paid",
-                        prompt_tokens=prompt_tokens,
-                        completion_tokens=completion_tokens,
-                        cost_usd=cost_usd,
-                        purpose=purpose,
-                    )
+            # Chunked so each real batch job stays within Google's inline
+            # submission limits (BATCH_INLINE_MAX_BYTES/_COUNT) -- for every
+            # group this codebase actually submits (bounded by
+            # NIGHTLY_ITEM_CAP) this is exactly one chunk, i.e. one job; it
+            # only splits into more than one job if a caller ever hands
+            # ``generate_many`` a genuinely oversized group.
+            for chunk in self._chunk_indices_for_inline_batch(pending_indices, prompts):
+                chunk_prompts = [prompts[i] for i in chunk]
+                batch_results = self._call_batch_many_with_retry(
+                    client, model=model, prompts=chunk_prompts, config=config, purpose=purpose
                 )
-                if use_cache:
-                    self.cache.set(model=model, prompt=prompts[i], response=text)
-                results[i] = text
+                for i, (text, prompt_tokens, completion_tokens) in zip(
+                    chunk, batch_results, strict=True
+                ):
+                    cost_usd = self._estimate_cost(model, prompt_tokens, completion_tokens, "paid")
+                    self._log_cost(
+                        CostLogRow(
+                            timestamp=ref_time,
+                            model=model,
+                            lane="paid",
+                            prompt_tokens=prompt_tokens,
+                            completion_tokens=completion_tokens,
+                            cost_usd=cost_usd,
+                            purpose=purpose,
+                        )
+                    )
+                    if use_cache:
+                        self.cache.set(model=model, prompt=prompts[i], response=text)
+                    results[i] = text
 
         assert all(text is not None for text in results), (
             "generate_many must fill every index before returning"

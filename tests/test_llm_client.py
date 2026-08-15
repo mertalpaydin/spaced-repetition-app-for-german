@@ -757,6 +757,57 @@ def test_generate_many_paid_lane_submits_one_job_for_the_whole_group(tmp_path: P
     assert all('"lane":"paid"' in line for line in lines)
 
 
+def test_chunk_indices_for_inline_batch_respects_byte_cap(tmp_path: Path) -> None:
+    """Pure unit test of the chunking algorithm: Google documents inline
+    batch submission as suitable for keeping total request size under
+    ~20MB (ai.google.dev/gemini-api/docs/batch-mode); this client had no
+    awareness of that limit at all before -- it just dumped the whole
+    prompt list into one ``src=[...]`` call regardless of size."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+    prompts = ["a" * 5, "b" * 5, "c" * 5, "d" * 5]
+    client.BATCH_INLINE_MAX_BYTES = 12  # fits two 5-byte prompts (10) but not three (15)
+
+    chunks = client._chunk_indices_for_inline_batch([0, 1, 2, 3], prompts)
+
+    assert chunks == [[0, 1], [2, 3]]
+
+
+def test_generate_many_paid_lane_splits_into_multiple_jobs_when_oversized(
+    tmp_path: Path,
+) -> None:
+    """A group whose total size exceeds ``BATCH_INLINE_MAX_BYTES`` must
+    submit more than one real batch job, not silently risk an oversized
+    inline request Google's own guidance warns against."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file, cache_dir=tmp_path / "cache", paid_api_key="fake-paid-key"
+    )
+    client.free_lane_open = False  # force the paid lane
+    client.BATCH_INLINE_MAX_BYTES = 1  # tiny cap: forces one item per job
+
+    class _MultiJobFakeBatches:
+        def __init__(self) -> None:
+            self.create_calls: list[dict[str, object]] = []
+
+        def create(self, *, model: str, src: list[object]) -> genai_types.BatchJob:
+            self.create_calls.append({"model": model, "src": src})
+            return _fake_batch_job_many([f"Antwort {len(self.create_calls)}"])
+
+        def get(self, *, name: str) -> genai_types.BatchJob:
+            raise AssertionError("polling should not be needed: fake jobs are already terminal")
+
+    fake_batches = _MultiJobFakeBatches()
+    fake_sdk = _FakeSdkClient(batches=fake_batches)  # type: ignore[arg-type]
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    responses = client.generate_many(["a", "bb", "ccc"], purpose="unit_test", use_cache=False)
+
+    assert len(fake_batches.create_calls) == 3, "tiny byte cap must force one job per item"
+    assert responses == ["Antwort 1", "Antwort 2", "Antwort 3"]
+
+
 def test_generate_many_raises_budget_exceeded_before_any_call(tmp_path: Path) -> None:
     client = GeminiLlmClient(
         cost_log_path=tmp_path / "cost_log.jsonl",
