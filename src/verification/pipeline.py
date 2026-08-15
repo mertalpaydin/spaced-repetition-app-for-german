@@ -104,15 +104,16 @@ class VerificationPipeline:
         This method exists for standalone single-item verification (tests,
         one-off checks) where batching has nothing to batch against.
         """
+        effective_topic = topic or self.topics_map.get(item.topic_id)
         result = self._verify_layers_1_to_4(
-            item, spec=spec, topic=topic, existing_bank_items=existing_bank_items
+            item, spec=spec, topic=effective_topic, existing_bank_items=existing_bank_items
         )
         if result is not None:
             return result
         if self.llm_client is None:
             return VerificationResult(item=item, passed=True, accepted=True)
         semantic = AnswerSetExpander.verify_semantic_validity(item, self.llm_client)
-        return self._finalize_layer5(item, semantic)
+        return self._finalize_layer5(item, semantic, topic=effective_topic, spec=spec)
 
     def _verify_layers_1_to_4(
         self,
@@ -233,14 +234,39 @@ class VerificationPipeline:
         # caller's decision -- see ``verify_item`` and ``verify_batch``.
         return None
 
-    @staticmethod
     def _finalize_layer5(
-        item: CandidateItem, semantic: SemanticVerificationResult
+        self,
+        item: CandidateItem,
+        semantic: SemanticVerificationResult,
+        topic: Topic | None = None,
+        spec: TopicSpec | None = None,
     ) -> VerificationResult:
         """Build the final ``VerificationResult`` for an item that survived
         layers 1-4, given its layer-5 semantic verdict. Shared by
         ``verify_item`` (one item) and ``verify_batch`` (a batched group),
-        so the accept/reject logic itself cannot drift between the two."""
+        so the accept/reject logic itself cannot drift between the two.
+
+        docs/audits/stage-04-pilot-2026-08-15.md fixes 1-4, in the order
+        applied here:
+
+        2. **Constrain expansion to the target form.** An alternative that
+           does not carry ``item.proposed_answer``'s own target-feature form
+           is a different exercise, not a valid alternative -- dropped
+           before it can ever reach the accepted set.
+        4. **Validate expanded alternatives are real, correct words.** Any
+           surviving alternative must pass the same vocabulary-ceiling and
+           morphology checks a generated ``proposed_answer`` does, rather
+           than being trusted because the model returned it. Dropped, not
+           rejected: this is a repair pass.
+        1. **Threshold on distinct forms, not on answer count.** Once the
+           accepted set is built (contraction expansion + the alternatives
+           that survived 2 and 4), reject the whole item as ``ambiguity`` if
+           it still spans more than one distinct form of the topic's target
+           feature.
+        3. **Re-run the distractor check after expansion.** A distractor
+           that collides with the FINAL accepted set means the item was
+           under-constrained to begin with; reject rather than repair.
+        """
         if not semantic.valid:
             return VerificationResult(
                 item=item,
@@ -250,16 +276,78 @@ class VerificationPipeline:
                 reason=semantic.reason or "Semantic or collocation check failed.",
                 error_type="pedagogical_flaw",
             )
+
+        candidate_extras = semantic.additional_accepted_answers
+        if topic is not None and candidate_extras:
+            candidate_extras = AnswerSetExpander.filter_alternatives_by_target_form(
+                candidate_extras, item, topic
+            )
+        candidate_extras = [
+            a for a in candidate_extras if self._alternative_answer_is_valid(a, item, topic, spec)
+        ]
+
         accepted_answers = AnswerSetExpander.expand_answers(item)
-        for extra in semantic.additional_accepted_answers:
+        for extra in candidate_extras:
             if extra not in accepted_answers:
                 accepted_answers.append(extra)
+
+        if topic is not None:
+            ambiguity_reason = AnswerSetExpander.check_ambiguity(accepted_answers, topic)
+            if ambiguity_reason:
+                return VerificationResult(
+                    item=item,
+                    passed=False,
+                    accepted=False,
+                    layer_failed=5,
+                    reason=ambiguity_reason,
+                    error_type="ambiguity",
+                )
+
+        distractor_texts = {d.text.strip().lower() for d in item.distractors}
+        collisions = sorted({a for a in accepted_answers if a.strip().lower() in distractor_texts})
+        if collisions:
+            return VerificationResult(
+                item=item,
+                passed=False,
+                accepted=False,
+                layer_failed=5,
+                reason=(
+                    "Expanded accepted answers collide with a distractor "
+                    f"({', '.join(collisions)}), so the item was under-constrained."
+                ),
+                error_type="structural_malformation",
+            )
+
         return VerificationResult(
             item=item,
             passed=True,
             accepted=True,
             accepted_answers=accepted_answers,
         )
+
+    def _alternative_answer_is_valid(
+        self,
+        alternative: str,
+        item: CandidateItem,
+        topic: Topic | None,
+        spec: TopicSpec | None,
+    ) -> bool:
+        """Fix 4: an alternative the semantic expander proposes must pass the
+        same vocabulary-ceiling and morphology checks a generated
+        ``proposed_answer`` does, not be trusted on the model's word alone.
+        Catches a hallucinated non-word (docs/audits/
+        stage-04-pilot-2026-08-15.md item 20: "paratstünden", not a German
+        word) exactly the same way a generated answer's own vocabulary
+        violation is caught, plus any alternative that fails case, gender,
+        or subject-verb agreement for this specific carrier sentence.
+        """
+        if self.vocab_store is not None and spec is not None:
+            if self.vocab_store.validate_sentence(alternative, spec.vocabulary_ceiling):
+                return False
+
+        synthetic = item.model_copy(update={"proposed_answer": alternative})
+        ok, _reason, _code = self.layer2_morphology.validate(synthetic, topic=topic)
+        return ok
 
     def verify_batch(
         self,
@@ -309,16 +397,21 @@ class VerificationPipeline:
                 results=[],
             )
 
+        # Resolved once, reused by both passes so layer 5 sees the exact same
+        # topic/spec layers 1-4 were checked against.
+        resolved_specs = [spec or (specs.get(c.topic_id) if specs else None) for c in candidates]
+        resolved_topics = [topic or self.topics_map.get(c.topic_id) for c in candidates]
+
         # Pass 1: layers 1-4, per candidate. Either a final (rejected) result,
         # or None meaning "survived, needs layer 5".
         pending: list[VerificationResult | None] = [
             self._verify_layers_1_to_4(
                 c,
-                spec=spec or (specs.get(c.topic_id) if specs else None),
-                topic=topic or self.topics_map.get(c.topic_id),
+                spec=resolved_specs[i],
+                topic=resolved_topics[i],
                 existing_bank_items=existing_bank_items,
             )
-            for c in candidates
+            for i, c in enumerate(candidates)
         ]
         survivor_indices = [i for i, res in enumerate(pending) if res is None]
 
@@ -327,7 +420,9 @@ class VerificationPipeline:
             survivors = [candidates[i] for i in survivor_indices]
             semantics = AnswerSetExpander.verify_semantic_validity_many(survivors, self.llm_client)
             for i, semantic in zip(survivor_indices, semantics, strict=True):
-                pending[i] = self._finalize_layer5(candidates[i], semantic)
+                pending[i] = self._finalize_layer5(
+                    candidates[i], semantic, topic=resolved_topics[i], spec=resolved_specs[i]
+                )
         else:
             for i in survivor_indices:
                 pending[i] = VerificationResult(item=candidates[i], passed=True, accepted=True)

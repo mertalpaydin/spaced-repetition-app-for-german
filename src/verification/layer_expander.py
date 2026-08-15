@@ -25,10 +25,66 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.contracts import MODEL_VERIFY, CandidateItem
+from src.contracts import MODEL_VERIFY, CandidateItem, Topic
 
 if TYPE_CHECKING:
     from src.llm.client import GeminiLlmClient
+
+# Surface forms whose Konjunktiv II reading is unambiguous -- no legitimate
+# Indikativ/Präteritum reading exists for the same spelling (unlike
+# "wollte"/"sollte", which are genuinely ambiguous between preterite
+# indicative and Konjunktiv II for weak-conjugation modals, and are
+# deliberately left out rather than guessed). Used to give a Konjunktiv II
+# form a distinct identity from its own lemma's indicative forms: "würden"
+# (unambiguously subjunctive/conditional) must not be treated as the same
+# "form" as "werden" (indicative) for a topic testing Indikativ Futur I,
+# even though both share the lemma "werden" in
+# ``layer2_morphology.IRREGULAR_VERB_LEMMA``.
+_KONJUNKTIV_II_UNAMBIGUOUS_FORMS: frozenset[str] = frozenset(
+    {
+        "wäre",
+        "wärst",
+        "wären",
+        "wäret",
+        "hätte",
+        "hättest",
+        "hätten",
+        "hättet",
+        "würde",
+        "würdest",
+        "würden",
+        "würdet",
+        "könnte",
+        "könntest",
+        "könnten",
+        "könntet",
+        "müsste",
+        "müsstest",
+        "müssten",
+        "müsstet",
+        "dürfte",
+        "dürftest",
+        "dürften",
+        "dürftet",
+    }
+)
+
+
+def _verb_form_key(answer: str) -> str | None:
+    """The verb "form" ``check_ambiguity``/``filter_alternatives_by_target_form``
+    compare candidates on: the lemma from ``IRREGULAR_VERB_LEMMA``, suffixed
+    ``:Sub`` when the surface form is unambiguously Konjunktiv II. ``None``
+    if the lemma cannot be resolved at all (an unrecognised or regular verb
+    form), the signal this codebase's "skip rather than guess" philosophy
+    treats as "no opinion", not as a mismatch.
+    """
+    from src.verification.layer2_morphology import IRREGULAR_VERB_LEMMA
+
+    lower = answer.strip().lower()
+    lemma = IRREGULAR_VERB_LEMMA.get(lower)
+    if lemma is None:
+        return None
+    return f"{lemma}:Sub" if lower in _KONJUNKTIV_II_UNAMBIGUOUS_FORMS else lemma
 
 
 class SemanticVerificationResult(BaseModel):
@@ -70,6 +126,13 @@ class AnswerSetExpander:
         "zur": ["zu der"],
         "zu der": ["zur"],
     }
+
+    # Fallback for topics whose target feature has no morphological decoder
+    # in this codebase (e.g. comparative/superlative degree) -- see
+    # ``check_ambiguity``. Kept generous enough that it only fires on
+    # genuinely wide answer sets, never on ordinary contraction-expansion
+    # synonyms; topics with a real form decoder never reach this fallback.
+    AMBIGUITY_COUNT_THRESHOLD: int = 5
 
     SYSTEM_PROMPT = (
         "Du bist ein erfahrener Deutschlehrer und prüfst Lückentext-Aufgaben "
@@ -115,6 +178,136 @@ class AnswerSetExpander:
                 accepted.append(capitalized)
 
         return accepted
+
+    @classmethod
+    def check_ambiguity(cls, accepted_answers: list[str], topic: Topic) -> str | None:
+        """Return an ``ambiguity`` rejection reason if ``accepted_answers``
+        spans more than one distinct form of ``topic``'s target feature, or
+        ``None`` if the set is internally consistent (or the form cannot be
+        derived at all, in which case there is nothing to check against).
+
+        docs/audits/stage-04-pilot-2026-08-15.md fix 1 /
+        02-content-pipeline.md: "Threshold on distinct forms, not on answer
+        count." Ten answers are fine when they are ten lexemes carrying one
+        form (``kasus_genitiv_formen``: des, eines, meines... all genitive);
+        two answers are fatal when they are two forms (``futur_i``: 'werden'
+        vs 'können', a future auxiliary vs a modal).
+
+        Two identity signals, each gated on what the topic actually declares
+        itself to be testing -- checking a signal the topic does not care
+        about would reject good items. ``kasus_genitiv_formen`` legitimately
+        spans both definite-article and ein-word genitive forms (it has no
+        ``ArtType`` tag: Case is its only target feature), so the
+        determiner-Definite check below must not fire for it, only for
+        topics that actually declare ``ArtType``:
+
+        - **Verb-category topics** (``morph_spec`` fixes Tense/Mood/Voice/
+          Aspect, or ``syntax_tags['VerbType']`` is set): the target feature
+          is the LEMMA (the specific auxiliary/modal) plus indicative-vs-
+          unambiguously-Konjunktiv-II (``_verb_form_key``), so "würden" does
+          not count as the same form as "werden" just because both are the
+          lemma "werden".
+        - **Determiner-category topics that declare ``syntax_tags['ArtType']``**
+          (definite, indefinite, possessive, negative article topics): the
+          target feature is the specific ArtType (Def/Ind/Neg/Poss), decoded
+          via ``facets.determiner_art_type`` -- WHICH ein-word stem matched,
+          not just whether one did, so a possessive topic accepting a bare
+          indefinite ("Eine" is not a possessive) is caught, not just a
+          definite-vs-everything-else split.
+        - **Degree-based topics** (``morph_spec['Degree']`` set, e.g.
+          comparative/superlative): no morphological decoder for comparison
+          endings exists in this codebase, so this falls back to a plain
+          count threshold (``AMBIGUITY_COUNT_THRESHOLD``) -- the audit's own
+          sanctioned fallback for when "the form cannot be derived".
+        - Every other topic shape has no cheap, reliable form signal in this
+          codebase's closed-class tables, and is left unchecked here rather
+          than guessed -- exactly this module's and facets.py's shared
+          philosophy of skipping over guessing.
+        """
+        if len(accepted_answers) < 2:
+            return None
+
+        morph_spec = topic.morph_spec or {}
+        syntax_tags = topic.syntax_tags or {}
+
+        if any(k in morph_spec for k in ("Tense", "Mood", "Voice", "Aspect")) or syntax_tags.get(
+            "VerbType"
+        ):
+            forms = {key for a in accepted_answers if (key := _verb_form_key(a)) is not None}
+            if len(forms) > 1:
+                return (
+                    "Accepted answers span more than one verb form "
+                    f"({', '.join(sorted(forms))}), so the item does not "
+                    "consistently test its target tense/mood."
+                )
+            return None
+
+        if syntax_tags.get("ArtType"):
+            from src.taxonomy.facets import determiner_art_type
+
+            forms = {determiner_art_type(a) for a in accepted_answers}
+            forms.discard("Unk")
+            if len(forms) > 1:
+                return (
+                    f"Accepted answers span more than one determiner type "
+                    f"({', '.join(sorted(forms))}), so the item does not "
+                    "consistently test one article type."
+                )
+            return None
+
+        if morph_spec.get("Degree") and len(accepted_answers) > cls.AMBIGUITY_COUNT_THRESHOLD:
+            return (
+                f"{len(accepted_answers)} accepted answers exceed the fallback "
+                f"ambiguity threshold ({cls.AMBIGUITY_COUNT_THRESHOLD}) for a "
+                "topic whose degree/comparison form cannot be verified directly."
+            )
+
+        return None
+
+    @classmethod
+    def filter_alternatives_by_target_form(
+        cls, alternatives: list[str], item: CandidateItem, topic: Topic
+    ) -> list[str]:
+        """Drop any semantic-layer-proposed alternative that does not carry
+        ``item.proposed_answer``'s own target-feature form. An alternative
+        that changes what is being tested is not an alternative correct
+        answer, it is a different exercise (docs/audits/
+        stage-04-pilot-2026-08-15.md fix 2 / 02-content-pipeline.md:
+        "Expansion is constrained to the target form").
+
+        Reuses exactly the identity signals ``check_ambiguity`` gates on,
+        applied per-candidate against ``proposed_answer`` as the reference
+        (it already passed layers 1-4, so it is a trustworthy anchor for
+        "what form is this item actually testing") rather than mutual
+        consistency across the whole set. Unresolvable candidates -- and an
+        unresolvable reference -- are kept rather than dropped: this is a
+        repair pass, not a gate, and ``check_ambiguity`` is the backstop
+        that catches whatever slips through here.
+        """
+        if not alternatives:
+            return []
+
+        morph_spec = topic.morph_spec or {}
+        syntax_tags = topic.syntax_tags or {}
+        reference = item.proposed_answer
+
+        if any(k in morph_spec for k in ("Tense", "Mood", "Voice", "Aspect")) or syntax_tags.get(
+            "VerbType"
+        ):
+            ref_key = _verb_form_key(reference)
+            if ref_key is None:
+                return alternatives
+            return [a for a in alternatives if _verb_form_key(a) in (ref_key, None)]
+
+        if syntax_tags.get("ArtType"):
+            from src.taxonomy.facets import determiner_art_type
+
+            ref_form = determiner_art_type(reference)
+            if ref_form == "Unk":
+                return alternatives
+            return [a for a in alternatives if determiner_art_type(a) in (ref_form, "Unk")]
+
+        return alternatives
 
     @classmethod
     def _build_user_prompt(cls, item: CandidateItem) -> str:

@@ -38,6 +38,14 @@ from src.llm.client import BudgetExceeded, GeminiLlmClient
 DEFAULT_STATE_PATH = Path("data/generation_state.json")
 DEFAULT_DB_PATH = Path("data/bank.db")
 DEFAULT_SPECS_DIR = Path("data/specs")
+# Stage 2's lexicon output (01-foundation.md): 11,633 lemmas banded by CEFR
+# level. Despite the path, this is the real vocabulary data, not a test
+# double -- confirmed live: with no VocabularyStore ever constructed here,
+# layer1_syntax's vocabulary-ceiling check AND fix 4's real-word validation
+# of expander alternatives (docs/audits/stage-04-pilot-2026-08-15.md) were
+# both silently inert in every actual pilot/nightly run to date, since both
+# gate on ``self.vocab_store is not None``.
+DEFAULT_VOCAB_LEVELS_PATH = Path("data/fixtures/corpus/vocab_levels.json")
 
 
 class SpecSheetMissingError(RuntimeError):
@@ -538,6 +546,7 @@ def _verify_and_insert_candidates(
     source_batch_id: str,
     specs_dir: Path | str = DEFAULT_SPECS_DIR,
     llm_client: GeminiLlmClient | None = None,
+    vocab_levels_path: Path | str = DEFAULT_VOCAB_LEVELS_PATH,
 ) -> VerifiedIngestResult:
     """Run retrieved candidates through the full verification chain
     (``src.verification.pipeline.VerificationPipeline``) and insert the
@@ -554,6 +563,15 @@ def _verify_and_insert_candidates(
     submit for such a topic (``SpecSheetMissingError``), so this only matters
     for candidates that arrive by some other path (e.g. a hand-fed test).
 
+    ``vocab_levels_path`` is loaded into a real ``VocabularyStore`` and
+    passed to ``VerificationPipeline`` -- previously never wired here at
+    all, which meant layer 1's vocabulary-ceiling check AND fix 4's
+    real-word validation of expander alternatives were both silently inert
+    in every real pilot/nightly run (confirmed live: a hallucinated
+    non-word survived to the accepted set because nothing was ever checking
+    it against real vocabulary). A missing file degrades to ``None``
+    (both checks skip, as they already did) rather than crashing the ingest.
+
     ``llm_client``, when supplied, is passed through to
     ``VerificationPipeline`` to enable its model-backed layer 5 (semantic /
     answer-set expansion, see ``src.verification.layer_expander``). ``None``
@@ -568,14 +586,18 @@ def _verify_and_insert_candidates(
     from scripts.step2_build_item_bank import ingest_items
 
     from src.bank.storage import SqliteItemBank
+    from src.lexicon.vocabulary import VocabularyStore
     from src.taxonomy.loader import load_taxonomy
     from src.verification.layer_expander import AnswerSetExpander
     from src.verification.pipeline import VerificationPipeline
 
     db_path = Path(db_path)
     specs_dir = Path(specs_dir)
+    vocab_levels_path = Path(vocab_levels_path)
     topics = load_taxonomy(taxonomy_path)
     topics_by_id = {t.id: t for t in topics}
+
+    vocab_store = VocabularyStore.load(vocab_levels_path) if vocab_levels_path.exists() else None
 
     specs_by_topic: dict[str, TopicSpec] = {}
     for topic_id in {c.topic_id for c in candidates}:
@@ -585,7 +607,7 @@ def _verify_and_insert_candidates(
 
     bank = SqliteItemBank(db_path)
     existing_items = bank.get_all_items()
-    pipeline = VerificationPipeline(topics=topics, llm_client=llm_client)
+    pipeline = VerificationPipeline(vocab_store=vocab_store, topics=topics, llm_client=llm_client)
 
     verification = pipeline.verify_batch(
         candidates, specs=specs_by_topic, existing_bank_items=existing_items

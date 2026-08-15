@@ -96,38 +96,48 @@ DEFINITE_FORMS: dict[str, dict[str, str]] = {
 # gender is not recognised: any of these is *a* legitimate case-marked form
 # for that case somewhere in the article/pronoun paradigm (definite,
 # indefinite, possessive, negative).
+# Ein-words (indefinite/negative/possessive) and "dieser" (a der-word,
+# declining identically to the definite article) both belong in every case
+# row alongside the definite article itself: they are all legitimate,
+# common answers to a case-marked determiner gap, and omitting any of them
+# is a coverage gap, not a conservative default -- confirmed live via fix 4
+# (docs/audits/stage-04-pilot-2026-08-15.md item 20's validation pass):
+# "diesem" was wrongly dropped as an alternative answer for a Dativ gap
+# because it was absent from this table, not because it is wrong German.
 CASE_FORM_FALLBACK: dict[str, set[str]] = {
-    "Nom": {"der", "die", "das", "ein", "eine", "kein", "keine", "mein", "meine"},
+    "Nom": {
+        "der", "die", "das",
+        "ein", "eine",
+        "kein", "keine",
+        "mein", "meine", "dein", "deine", "sein", "seine",
+        "ihr", "ihre", "unser", "unsere", "euer", "eure",
+        "dieser", "diese", "dieses",
+    },
     "Acc": {
-        "den",
-        "die",
-        "das",
-        "einen",
-        "eine",
-        "ein",
-        "keinen",
-        "keine",
-        "kein",
-        "meinen",
-        "meine",
-        "sein",
+        "den", "die", "das",
+        "einen", "eine", "ein",
+        "keinen", "keine", "kein",
+        "meinen", "meine", "deinen", "deine", "seinen", "seine",
+        "ihren", "ihre", "unseren", "unsere", "euren", "eure",
+        "diesen", "diese", "dieses",
     },
     "Dat": {
-        "dem",
-        "der",
-        "den",
-        "einem",
-        "einer",
-        "keinem",
-        "keiner",
-        "meinem",
-        "meiner",
-        "seinem",
-        "seiner",
-        "ihrem",
+        "dem", "der", "den",
+        "einem", "einer",
+        "keinem", "keiner",
+        "meinem", "meiner", "deinem", "deiner", "seinem", "seiner",
+        "ihrem", "ihrer", "unserem", "unserer", "eurem", "eurer",
+        "diesem", "dieser",
     },
-    "Gen": {"des", "der", "eines", "einer", "keines", "keiner", "meines", "meiner"},
-}  # noqa: RUF012
+    "Gen": {
+        "des", "der",
+        "eines", "einer",
+        "keines", "keiner",
+        "meines", "meiner", "deines", "deiner", "seines", "seiner",
+        "ihres", "ihrer", "unseres", "unserer", "eures", "eurer",
+        "dieses", "dieser",
+    },
+}  # fmt: skip  # noqa: RUF012
 
 # Wechselpräposition (two-way preposition) direction cues. This vocabulary is
 # inherent to German, not to any specific topic; it is gated on
@@ -228,40 +238,70 @@ IRREGULAR_VERB_LEMMA: dict[str, str] = {
     "können": "können",
     "könnt": "können",
     "konnte": "können",
+    "konntest": "können",
+    "konnten": "können",
+    "konntet": "können",
     "könnte": "können",
+    "könntest": "können",
+    "könnten": "können",
+    "könntet": "können",
     "gekonnt": "können",
     "muss": "müssen",
     "musst": "müssen",
     "müssen": "müssen",
     "müsst": "müssen",
     "musste": "müssen",
+    "musstest": "müssen",
+    "mussten": "müssen",
+    "musstet": "müssen",
     "müsste": "müssen",
+    "müsstest": "müssen",
+    "müssten": "müssen",
+    "müsstet": "müssen",
     "gemusst": "müssen",
     "will": "wollen",
     "willst": "wollen",
     "wollen": "wollen",
     "wollt": "wollen",
     "wollte": "wollen",
+    "wolltest": "wollen",
+    "wollten": "wollen",
+    "wolltet": "wollen",
     "gewollt": "wollen",
     "darf": "dürfen",
     "darfst": "dürfen",
     "dürfen": "dürfen",
     "dürft": "dürfen",
     "durfte": "dürfen",
+    "durftest": "dürfen",
+    "durften": "dürfen",
+    "durftet": "dürfen",
     "dürfte": "dürfen",
+    "dürftest": "dürfen",
+    "dürften": "dürfen",
+    "dürftet": "dürfen",
     "gedurft": "dürfen",
     "soll": "sollen",
     "sollst": "sollen",
     "sollen": "sollen",
     "sollt": "sollen",
     "sollte": "sollen",
+    "solltest": "sollen",
+    "sollten": "sollen",
+    "solltet": "sollen",
     "gesollt": "sollen",
     "mag": "mögen",
     "magst": "mögen",
     "mögen": "mögen",
     "mögt": "mögen",
     "mochte": "mögen",
+    "mochtest": "mögen",
+    "mochten": "mögen",
+    "mochtet": "mögen",
     "möchte": "mögen",
+    "möchtest": "mögen",
+    "möchten": "mögen",
+    "möchtet": "mögen",
     "gemocht": "mögen",
 }  # noqa: RUF012
 
@@ -447,44 +487,77 @@ class Layer2MorphologyValidator:
                     )
                 return None
             if topic.confusion_group == "kasus_wechselpraeposition":
-                fem_forms = {"der", "einer", "meiner", "seiner", "ihrer", "unserer"}
-                masc_neut_forms = {
-                    "dem",
-                    "einem",
-                    "meinem",
-                    "seinem",
-                    "ihrem",
-                    "unserem",
-                    "den",
-                    "einen",
-                    "meinen",
-                    "seinen",
-                    "ihren",
-                    "unseren",
-                    "das",
-                }
+                # Same closed-class gap CASE_FORM_FALLBACK had (fix 4,
+                # docs/audits/stage-04-pilot-2026-08-15.md item 20's
+                # validation pass): dein/ihr/unser/euer and the "dieser"
+                # der-word paradigm are legitimate answers here too, not
+                # just definite/mein/kein/sein.
                 if effective_case == "Dat":
                     valid = (
-                        fem_forms
+                        {
+                            "der",
+                            "einer",
+                            "meiner",
+                            "deiner",
+                            "seiner",
+                            "ihrer",
+                            "unserer",
+                            "eurer",
+                            "dieser",
+                        }
                         if gender == "fem"
-                        else masc_neut_forms
-                        & {
+                        else {
                             "dem",
                             "einem",
                             "meinem",
+                            "deinem",
                             "seinem",
                             "ihrem",
                             "unserem",
+                            "eurem",
+                            "diesem",
                         }
                     )
                 else:  # Acc
                     valid = (
-                        {"die", "eine", "keine", "meine", "seine"}
+                        {
+                            "die",
+                            "eine",
+                            "keine",
+                            "meine",
+                            "deine",
+                            "seine",
+                            "ihre",
+                            "unsere",
+                            "eure",
+                            "diese",
+                        }
                         if gender == "fem"
                         else (
-                            {"das", "ein", "kein", "mein", "sein"}
+                            {
+                                "das",
+                                "ein",
+                                "kein",
+                                "mein",
+                                "dein",
+                                "sein",
+                                "ihr",
+                                "unser",
+                                "euer",
+                                "dieses",
+                            }
                             if gender == "neut"
-                            else {"den", "einen", "meinen", "seinen", "ihren", "unseren"}
+                            else {
+                                "den",
+                                "einen",
+                                "meinen",
+                                "deinen",
+                                "seinen",
+                                "ihren",
+                                "unseren",
+                                "euren",
+                                "diesen",
+                            }
                         )
                     )
                 if ans_clean not in valid:

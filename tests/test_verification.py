@@ -10,6 +10,7 @@ from src.generation.spec import TopicSpec, load_spec
 from src.lexicon.vocabulary import VocabularyStore
 from src.taxonomy.loader import load_taxonomy
 from src.verification.layer1_syntax import Layer1SyntaxValidator
+from src.verification.layer_expander import AnswerSetExpander
 from src.verification.pipeline import VerificationPipeline
 
 # docs/02-content-pipeline.md stage 4: "for each rejection reason, assert the
@@ -956,3 +957,281 @@ def test_layer2_accepts_correct_weak_declension(
         item = _adj_item(prompt, answer, bestimmt_topic.id)
         res = pipeline.verify_item(item, topic=bestimmt_topic)
         assert res.passed, f"{answer!r} incorrectly rejected: {res.reason}"
+
+
+# ----------------------------------------------------------------------
+# Second pilot audit fixes 1-4 (docs/audits/stage-04-pilot-2026-08-15.md).
+#
+# fix 1: ambiguity threshold on distinct forms, not answer count.
+# fix 2: expansion constrained to the topic's target form.
+# fix 3: distractor check re-run against the final expanded accepted set.
+# fix 4: expander alternatives validated as real, correctly-agreeing words.
+#
+# All four live in AnswerSetExpander / VerificationPipeline._finalize_layer5.
+# ----------------------------------------------------------------------
+
+
+@pytest.fixture
+def artikel_bestimmt_topic() -> Topic:
+    taxonomy = load_taxonomy()
+    return next(t for t in taxonomy if t.id == "artikel_bestimmt_nom")
+
+
+@pytest.fixture
+def futur_i_topic() -> Topic:
+    taxonomy = load_taxonomy()
+    return next(t for t in taxonomy if t.id == "futur_i")
+
+
+@pytest.fixture
+def adjektiv_komparativ_topic() -> Topic:
+    taxonomy = load_taxonomy()
+    return next(t for t in taxonomy if t.id == "adjektiv_komparativ_superlativ")
+
+
+@pytest.fixture
+def artikel_possessiv_topic() -> Topic:
+    taxonomy = load_taxonomy()
+    return next(t for t in taxonomy if t.id == "artikel_possessiv_nom")
+
+
+@pytest.fixture
+def kasus_genitiv_topic() -> Topic:
+    taxonomy = load_taxonomy()
+    return next(t for t in taxonomy if t.id == "kasus_genitiv_formen")
+
+
+def test_check_ambiguity_rejects_mixed_article_types(artikel_bestimmt_topic: Topic) -> None:
+    """docs/audits/.../item 1: an artikel_bestimmt_nom item accepting
+    'Der, Ein, Mein, Dein, Sein, Ihr, Unser, Euer, Dieser, Kein' does not
+    test the definite article at all -- it accepts any determiner."""
+    answers = ["Der", "Ein", "Mein", "Dein", "Sein", "Ihr", "Unser", "Euer", "Dieser", "Kein"]
+    reason = AnswerSetExpander.check_ambiguity(answers, artikel_bestimmt_topic)
+    assert reason is not None
+    assert "determiner type" in reason.lower()
+
+
+def test_check_ambiguity_rejects_auxiliary_vs_modal(futur_i_topic: Topic) -> None:
+    """docs/audits/.../item 13: 'werden' (future auxiliary) and 'können'
+    (modal) are two different forms, not two lexemes of one form."""
+    answers = ["werden", "können"]
+    reason = AnswerSetExpander.check_ambiguity(answers, futur_i_topic)
+    assert reason is not None
+    assert "verb form" in reason.lower()
+
+
+def test_check_ambiguity_distinguishes_indicative_from_konjunktiv(futur_i_topic: Topic) -> None:
+    """'würden' shares the lemma 'werden' with the indicative Futur I forms
+    but is Konjunktiv II / conditional, a different form for a topic
+    testing Indikativ Futur I."""
+    reason = AnswerSetExpander.check_ambiguity(["werden", "würden"], futur_i_topic)
+    assert reason is not None
+
+
+def test_check_ambiguity_accepts_one_form_many_lexemes(kasus_genitiv_topic: Topic) -> None:
+    """docs/audits/.../item 15: ten genitive determiners of different
+    subtypes (definite, ein-word, possessive) are all ONE tested form
+    (Case=Gen) -- kasus_genitiv_formen has no ArtType tag, so the
+    definite/indefinite distinction is not its target feature."""
+    answers = [
+        "des",
+        "eines",
+        "meines",
+        "deines",
+        "seines",
+        "ihres",
+        "unseres",
+        "eures",
+        "dieses",
+        "jenes",
+    ]
+    assert AnswerSetExpander.check_ambiguity(answers, kasus_genitiv_topic) is None
+
+
+def test_check_ambiguity_distinguishes_possessive_from_bare_indefinite(
+    artikel_possessiv_topic: Topic,
+) -> None:
+    """Regression for a live pilot re-run finding: 'ein/kein' and every
+    possessive (mein/dein/sein/ihr/unser/euer) all share the SAME ein-word
+    ending paradigm, so the coarser Def/Ind check alone cannot tell a bare
+    indefinite article apart from a possessive. An artikel_possessiv_nom
+    item accepting 'Eine' (genuinely indefinite, not possessive) alongside
+    'Meine'/'Deine' does not consistently test the possessive article."""
+    answers = ["Deine", "Meine", "Seine", "Ihre", "Unsere", "Eure", "Eine"]
+    reason = AnswerSetExpander.check_ambiguity(answers, artikel_possessiv_topic)
+    assert reason is not None
+    assert "determiner type" in reason.lower()
+
+
+def test_check_ambiguity_accepts_possessives_across_persons(
+    artikel_possessiv_topic: Topic,
+) -> None:
+    """Every possessive person (mein/dein/sein/ihr/unser/euer) is ONE
+    determiner type (Poss); a set spanning only these must not be flagged."""
+    answers = ["dein", "mein", "sein", "ihr", "unser", "euer"]
+    assert AnswerSetExpander.check_ambiguity(answers, artikel_possessiv_topic) is None
+
+
+def test_check_ambiguity_falls_back_to_count_for_degree_topics(
+    adjektiv_komparativ_topic: Topic,
+) -> None:
+    """docs/audits/.../item 10: no comparative/superlative decoder exists,
+    so a wide answer set for a Degree topic falls back to the audit's own
+    sanctioned count threshold."""
+    answers = ["langsameren", "nächsten", "langsamen", "normalen", "öffentlichen", "ersten"]
+    reason = AnswerSetExpander.check_ambiguity(answers, adjektiv_komparativ_topic)
+    assert reason is not None
+    assert "threshold" in reason.lower()
+
+
+def test_check_ambiguity_ignores_topics_with_no_identity_signal(
+    pipeline: VerificationPipeline,
+) -> None:
+    """A topic with no ArtType, no verb-tense marker and no Degree has no
+    cheap form signal in this codebase's tables, and must not be guessed."""
+    taxonomy = load_taxonomy()
+    topic = next(t for t in taxonomy if t.id == "dativ_nach_praeposition")
+    # A deliberately large, heterogeneous set: if this were mistakenly
+    # treated as checkable, it would be flagged.
+    answers = ["dem", "einem", "meinem", "deinem", "seinem", "ihrem", "unserem", "eurem"]
+    assert AnswerSetExpander.check_ambiguity(answers, topic) is None
+
+
+def test_filter_alternatives_by_target_form_drops_wrong_lemma(futur_i_topic: Topic) -> None:
+    """fix 2: an alternative carrying a different verb lemma than the
+    proposed answer is dropped before it can ever reach accepted_answers."""
+    item = CandidateItem(
+        topic_id="futur_i",
+        type="cloze_free",
+        difficulty=2,
+        prompt="Nächstes Jahr ___ ich nach Spanien reisen.",
+        proposed_answer="werde",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+    alternatives = ["wollen", "möchten", "können", "würden"]
+    filtered = AnswerSetExpander.filter_alternatives_by_target_form(
+        alternatives, item, futur_i_topic
+    )
+    assert filtered == []
+
+
+def test_filter_alternatives_by_target_form_keeps_matching_form(
+    artikel_bestimmt_topic: Topic,
+) -> None:
+    """A same-Definite-value alternative (another definite-article form) is
+    kept; expansion is a repair pass, not a blanket filter."""
+    item = CandidateItem(
+        topic_id="artikel_bestimmt_nom",
+        type="cloze_free",
+        difficulty=1,
+        prompt="___ Hund bellt laut.",
+        proposed_answer="Der",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+    filtered = AnswerSetExpander.filter_alternatives_by_target_form(
+        ["Ein"], item, artikel_bestimmt_topic
+    )
+    assert filtered == [], "'Ein' (indefinite) must be dropped for a definite-article topic"
+
+
+def test_layer5_repairs_item_when_fix2_drops_the_mismatched_alternative(
+    artikel_bestimmt_topic: Topic,
+) -> None:
+    """End-to-end: fix 2 drops an indefinite alternative proposed for a
+    definite-article topic before it ever reaches accepted_answers, so the
+    item is repaired (accepted, without the bad alternative), not rejected."""
+    item = CandidateItem(
+        topic_id="artikel_bestimmt_nom",
+        type="cloze_free",
+        difficulty=1,
+        prompt="___ Hund bellt laut im Hof.",
+        proposed_answer="Der",
+        distractors=[Distractor(text="Den"), Distractor(text="Dem"), Distractor(text="Des")],
+    )
+    fake_llm = _FakeSemanticLlmClient(
+        '{"valid": true, "reason": null, "additional_accepted_answers": ["Ein"]}'
+    )
+    pipeline = VerificationPipeline(
+        llm_client=fake_llm,  # type: ignore[arg-type]
+        topics=[artikel_bestimmt_topic],
+    )
+
+    res = pipeline.verify_item(item, topic=artikel_bestimmt_topic)
+
+    assert res.passed
+    assert "Ein" not in res.accepted_answers
+
+
+def test_layer5_ambiguity_check_is_a_backstop_when_fix2_cannot_filter(
+    artikel_possessiv_topic: Topic,
+) -> None:
+    """fix 2 only filters per-candidate against ``proposed_answer``'s OWN
+    resolved form; when that reference itself does not resolve (here:
+    'Dieser', a demonstrative this taxonomy has no closed-class table for --
+    but a legitimate Nominative possessive-slot answer per
+    ``CASE_FORM_FALLBACK``, so it clears layer 2), fix 2 keeps every
+    alternative unfiltered. fix 1's mutual-consistency check over the final
+    set is what still catches two alternatives that disagree with EACH
+    OTHER in that case."""
+    item = CandidateItem(
+        topic_id="artikel_possessiv_nom",
+        type="cloze_free",
+        difficulty=1,
+        prompt="___ Hund bellt laut im Hof.",
+        proposed_answer="Dieser",
+        distractors=[Distractor(text="Den"), Distractor(text="Dem"), Distractor(text="Des")],
+    )
+    fake_llm = _FakeSemanticLlmClient(
+        '{"valid": true, "reason": null, "additional_accepted_answers": ["Der", "Mein"]}'
+    )
+    pipeline = VerificationPipeline(
+        llm_client=fake_llm,  # type: ignore[arg-type]
+        topics=[artikel_possessiv_topic],
+    )
+
+    res = pipeline.verify_item(item, topic=artikel_possessiv_topic)
+
+    assert not res.passed
+    assert res.layer_failed == 5
+    assert res.error_type == "ambiguity"
+
+
+def test_layer5_drops_hallucinated_alternative_not_real_word(
+    pipeline: VerificationPipeline, sample_spec: TopicSpec
+) -> None:
+    """docs/audits/.../item 20: the expander invented 'paratstünden', not a
+    German word. fix 4 must drop it (repair), not accept it."""
+    fake_llm = _FakeSemanticLlmClient(
+        '{"valid": true, "reason": null, "additional_accepted_answers": ["paratstunden"]}'
+    )
+    pipeline_with_llm = VerificationPipeline(llm_client=fake_llm)  # type: ignore[arg-type]
+
+    res = pipeline_with_llm.verify_item(_semantic_item(), spec=sample_spec)
+
+    assert res.passed
+    assert "paratstunden" not in res.accepted_answers
+
+
+def test_layer5_rejects_on_post_expansion_distractor_collision() -> None:
+    """fix 3: an alternative the semantic layer proposes that happens to
+    equal one of the item's OWN distractors must reject the item (it was
+    under-constrained to begin with), not silently ship a distractor that
+    is also a correct answer (docs/audits/.../items 21, 26, 27, 29)."""
+    item = CandidateItem(
+        topic_id="dativ_nach_praeposition",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Das Buch liegt auf ___ Tisch.",
+        proposed_answer="dem",
+        distractors=[Distractor(text="den"), Distractor(text="des"), Distractor(text="einem")],
+    )
+    fake_llm = _FakeSemanticLlmClient(
+        '{"valid": true, "reason": null, "additional_accepted_answers": ["einem"]}'
+    )
+    pipeline = VerificationPipeline(llm_client=fake_llm)  # type: ignore[arg-type]
+
+    res = pipeline.verify_item(item)
+
+    assert not res.passed
+    assert res.layer_failed == 5
+    assert res.error_type == "structural_malformation"

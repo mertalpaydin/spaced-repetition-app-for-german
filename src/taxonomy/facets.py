@@ -650,6 +650,61 @@ def _decode_article(answer: str, fixed_case: str | None, dims: tuple[str, ...]) 
     return dict.fromkeys(dims, UNK)
 
 
+def determiner_definiteness(answer: str, fixed_case: str | None = None) -> str:
+    """Best-effort Definite/Ind classification for a determiner-shaped
+    ``answer`` (article or ein-word), reusing ``_decode_article``'s own
+    paradigm tables. Returns ``"Def"``, ``"Ind"``, or ``UNK`` if the word
+    matches neither paradigm (e.g. a demonstrative or interrogative
+    determiner like "dieser"/"welcher", for which this taxonomy has no
+    closed-class table).
+
+    Public wrapper for stage 4's answer-set ambiguity check
+    (docs/audits/stage-04-pilot-2026-08-15.md fix 1): a determiner topic
+    that declares ``syntax_tags["ArtType"]`` is testing exactly this
+    distinction, so an accepted-answer set spanning both Def and Ind is
+    evidence the item no longer tests one article type.
+    """
+    resolved = _decode_article(answer.strip().lower(), fixed_case, ("Definite",))
+    return resolved.get("Definite", UNK)
+
+
+def determiner_art_type(answer: str) -> str:
+    """Finer-grained determiner classification than
+    ``determiner_definiteness``'s binary Def/Ind: distinguishes definite
+    (``"Def"``), indefinite (``"Ind"``, bare "ein"), negative (``"Neg"``,
+    "kein"), and possessive (``"Poss"``, mein/dein/sein/ihr/unser/euer) --
+    the actual ``ArtType`` values this taxonomy's topics declare (see
+    ``data/taxonomy.yaml``). ``UNK`` if the word matches neither the
+    definite-article nor the ein-word paradigm (e.g. a demonstrative like
+    "dieser"/"jener", for which this taxonomy has no closed-class table).
+
+    ``determiner_definiteness`` alone is not enough to gate stage 4's
+    answer-set ambiguity check (docs/audits/stage-04-pilot-2026-08-15.md fix
+    1): "ein", "kein" and every possessive all resolve to the SAME coarse
+    "Ind" bucket there (they share the ein-word ending paradigm), so an
+    ``artikel_possessiv_nom`` item (``ArtType: Poss``) accepting "Eine" (a
+    genuine indefinite article, not a possessive) alongside "Meine"/"Deine"
+    would pass the Def/Ind check undetected -- confirmed live in a pilot
+    re-run. This function inspects WHICH ein-word stem matched, not just
+    whether one did, so ``Poss`` and ``Ind`` and ``Neg`` are distinguished.
+    """
+    lower = answer.strip().lower()
+    if any(form == lower for (form, *_rest) in _DEFINITE_ARTICLE_PARADIGM):
+        return "Def"
+    for stem in _EIN_WORD_STEMS:
+        if not lower.startswith(stem):
+            continue
+        ending = lower[len(stem) :]
+        if not any(e == ending for (e, *_rest) in _EIN_ENDING_PARADIGM):
+            continue
+        if stem == "ein":
+            return "Ind"
+        if stem == "kein":
+            return "Neg"
+        return "Poss"
+    return UNK
+
+
 def _decode_relative_pronoun(
     answer: str, fixed_case: str | None, dims: tuple[str, ...]
 ) -> dict[str, str]:

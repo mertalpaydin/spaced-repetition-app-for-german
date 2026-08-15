@@ -57,6 +57,37 @@ class VocabularyStore:
             "lukas",
             "felix",
             "julian",
+            # Country and city names: the same "carries no vocabulary
+            # difficulty of its own" reasoning as a given name -- confirmed
+            # live: "Schweden" (Sweden) was rejected as violating a B1
+            # ceiling for a futur_i item ("...nach Schweden reisen"), a
+            # travel-topic sentence pattern common across every CEFR level.
+            "deutschland",
+            "österreich",
+            "schweiz",
+            "frankreich",
+            "spanien",
+            "italien",
+            "england",
+            "amerika",
+            "schweden",
+            "polen",
+            "türkei",
+            "griechenland",
+            "portugal",
+            "russland",
+            "china",
+            "japan",
+            "berlin",
+            "münchen",
+            "hamburg",
+            "köln",
+            "frankfurt",
+            "wien",
+            "zürich",
+            "europa",
+            "asien",
+            "afrika",
         }
     )
 
