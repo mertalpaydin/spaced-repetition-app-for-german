@@ -204,6 +204,28 @@ class PromptBuilder:
                 f"{spec.forcing_element.note}"
             )
 
+        # docs/audits/stage-04-recovery-plan.md fix D. Parentheses in the
+        # carrier used to be rejected unconditionally by verification layer 1,
+        # so the cue could only live in a separate JSON field the learner may
+        # never see. That ban was a misdiagnosis and is reversed; the inline
+        # bracketed lemma is the standard textbook rendering and is the
+        # cheapest way to make a gap solvable by reasoning.
+        #
+        # Rule 2 forbids naming the grammar TOPIC. A lexeme in brackets names
+        # a lexeme, and "Gestern ___ (gehen) ich nach Hause." never says the
+        # word "Präteritum".
+        if "cloze_cued" in spec.item_types:
+            prohibitions.append(
+                "For a 'cloze_cued' item, write the cue INLINE in the carrier as a "
+                "single bracketed citation form directly before or after the gap, "
+                "e.g. 'Gestern ___ (gehen) ich nach Hause.', AND repeat it in the "
+                "'cue' field. The bracketed word must be the dictionary form the "
+                "learner has to inflect (infinitive for a verb, nominative singular "
+                "for a noun, uninflected stem for an adjective). It must NEVER be "
+                "the target form itself, and it must be the word the gap tests, not "
+                "some other word in the sentence."
+            )
+
         prompt_payload = {
             "instruction": "Generate German grammar training items per spec.",
             "topic_id": spec.topic_id,

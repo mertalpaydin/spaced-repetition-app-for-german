@@ -243,13 +243,48 @@ class VocabularyStore:
         if normalized in self.FUNCTION_WORDS or normalized in self.PROPER_NOUNS:
             return True
 
+        resolved_any = False
         for candidate in lemma_candidates(normalized, context_tokens):
             level = self.vocab.get(candidate)
-            if level is not None and self.LEVEL_RANKS[level] <= self.LEVEL_RANKS[ceiling]:
+            if level is None:
+                continue
+            resolved_any = True
+            if self.LEVEL_RANKS[level] <= self.LEVEL_RANKS[ceiling]:
                 return True
-        # Every candidate either resolved to a level above the ceiling, or
-        # nothing resolved at all -- both are genuine violations.
+
+        # docs/audits/stage-04-recovery-plan.md fix C. This used to return
+        # False here, treating "absent from the wordlist" as identical to
+        # "above the ceiling". It is not. The list holds 11,633 entries and
+        # does not contain "Vorstand", "Projektleiter", "Analyse" or "These",
+        # all of which are ordinary B2 words; every one of them was rejected
+        # as too hard for B2.
+        #
+        # A wordlist is evidence a word is EASY. Its silence is not evidence
+        # that a word is hard, and no scrape will ever be complete enough to
+        # make it so. An unresolved word is unknown, and unknown passes --
+        # counted, via ``unknown_words``, so the list's coverage stays
+        # visible instead of silently punitive.
+        if not resolved_any:
+            return True
         return False
+
+    def unknown_words(self, sentence: str) -> list[str]:
+        """Return tokens that resolve to no level at all.
+
+        Reported by the pilot so wordlist coverage is measurable. A rising
+        unknown rate means the list needs extending; it does not mean the
+        generated items got harder.
+        """
+        tokens = re.findall(r"\b[A-ZÄÖÜa-zäöüß]{3,}\b", sentence)
+        all_tokens = re.findall(r"\b[A-ZÄÖÜa-zäöüß]+\b", sentence)
+        unknown: list[str] = []
+        for token in tokens:
+            normalized = normalise(token)
+            if normalized in self.FUNCTION_WORDS or normalized in self.PROPER_NOUNS:
+                continue
+            if all(self.vocab.get(c) is None for c in lemma_candidates(normalized, all_tokens)):
+                unknown.append(token)
+        return unknown
 
     def validate_sentence(self, sentence: str, ceiling: CEFR) -> list[str]:
         """Return a list of words in the sentence that violate the CEFR ceiling."""

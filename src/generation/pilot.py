@@ -58,18 +58,43 @@ class PilotRunReport(BaseModel):
 
 
 def select_pilot_topics(
-    topics: list[Topic], topics_per_cefr: int = DEFAULT_TOPICS_PER_CEFR
+    topics: list[Topic],
+    topics_per_cefr: int = DEFAULT_TOPICS_PER_CEFR,
+    cefr: str | None = None,
 ) -> list[Topic]:
-    """Sample up to ``topics_per_cefr`` topics from every CEFR band, sorted by
-    id for determinism, so a pilot run spreads across levels instead of
-    concentrating on whichever topics happen to sort first overall."""
+    """Select the topics a pilot run will generate for.
+
+    Two different jobs, distinguished by ``cefr``:
+
+    * ``cefr is None`` (the audit sample): take up to ``topics_per_cefr``
+      topics from every band, sorted by id for determinism, so the run
+      spreads across levels and measures the chain's behaviour over the
+      whole taxonomy.
+    * ``cefr`` set (stocking a level): take EVERY topic in that one band.
+
+    docs/audits/stage-04-recovery-plan.md fix E. The spread was the only
+    available behaviour, and its output was being used as the item bank.
+    Those are different jobs. Spreading 100 items over 12 topics across four
+    bands leaves one to three items per topic after rejection, which is a
+    sample, not a stock, and it cannot support a scheduler test.
+
+    It is also the wrong shape pedagogically: interleaving is a within-level
+    technique. The effect comes from interleaving dative against accusative
+    against genitive, so the learner must first work out which rule applies.
+    Interleaving A1 against B2 is a difficulty cliff, not interleaving.
+    """
     by_cefr: dict[str, list[Topic]] = {}
     for topic in topics:
         by_cefr.setdefault(topic.cefr, []).append(topic)
 
+    if cefr is not None:
+        if cefr not in by_cefr:
+            raise ValueError(f"No topics at CEFR level {cefr!r}. Available: {sorted(by_cefr)}.")
+        return sorted(by_cefr[cefr], key=lambda t: t.id)
+
     selected: list[Topic] = []
-    for cefr in sorted(by_cefr):
-        band = sorted(by_cefr[cefr], key=lambda t: t.id)
+    for band_level in sorted(by_cefr):
+        band = sorted(by_cefr[band_level], key=lambda t: t.id)
         selected.extend(band[:topics_per_cefr])
     return selected
 
@@ -163,6 +188,7 @@ def run_pilot(
     item_cap: int = NIGHTLY_ITEM_CAP,
     llm_client: GeminiLlmClient | None = None,
     batch_client: GeminiBatchClient | MockBatchClient | None = None,
+    cefr: str | None = None,
 ) -> PilotRunReport:
     """Generate a bounded, spread sample, verify it, insert what passes, and
     write the accepted set to ``review_path`` (and every rejected candidate,
@@ -189,7 +215,7 @@ def run_pilot(
     rejected_path = Path(rejected_path)
 
     topics = load_taxonomy(taxonomy_path)
-    pilot_topics = select_pilot_topics(topics, topics_per_cefr=topics_per_cefr)
+    pilot_topics = select_pilot_topics(topics, topics_per_cefr=topics_per_cefr, cefr=cefr)
     requests = build_pilot_requests(pilot_topics, item_count, difficulties=difficulties)
     if not requests:
         raise ValueError("No pilot requests could be built (empty taxonomy or item_count <= 0).")

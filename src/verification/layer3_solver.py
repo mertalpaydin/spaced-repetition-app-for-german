@@ -31,6 +31,11 @@ from src.verification.layer2_morphology import (
     verb_ending,
 )
 
+# The longest legitimate German verbal form is periphrastic and three words:
+# "gewesen sein wird", "gegangen sein könnte". Anything longer is a clause,
+# not a form, and is a real defect.
+MAX_DISTRACTOR_WORDS = 3
+
 # Prepositions that force one specific case: the closed class of a small
 # handful of forms (der/die/das/den/dem/des/... or the ein-paradigm) is the
 # *only* thing that can fill the gap, so a gap immediately governed by one of
@@ -179,11 +184,32 @@ class Layer3AdversarialSolver:
             if d.text.strip().lower() == ans_lower:
                 return False, f"Distractor '{d.text}' matches proposed answer.", "ambiguity"
 
+        # docs/audits/stage-04-recovery-plan.md fix B. This character class
+        # used to omit the space, so every multi-word distractor read as
+        # "non-German": "hat gekauft", "haben geholfen", "bist gefahren",
+        # "gewesen wäre", "am größten", "interessiert an". All are correct
+        # German, and 10 items in batch_51fc18e48f7b died on it.
+        #
+        # Multi-word distractors are not an edge case. Perfekt, Plusquam-
+        # perfekt, Futur, the whole Konjunktiv II system, analytic
+        # superlatives and the verb-preposition topics all need a periphrastic
+        # form as their contrast. Banning the space bans the B1/B2 half of the
+        # taxonomy from having meaningful wrong answers. A word-count bound
+        # replaces it, since runaway distractors were the real underlying
+        # worry and length is what actually measures that.
         for d in item.distractors:
-            if not re.match(r"^[A-ZÄÖÜa-zäöüß\-]+$", d.text.strip()):
+            text = d.text.strip()
+            if not re.match(r"^[A-ZÄÖÜa-zäöüß\-'\s]+$", text):
                 return (
                     False,
                     f"Distractor '{d.text}' contains invalid non-German characters.",
+                    "structural_malformation",
+                )
+            if len(text.split()) > MAX_DISTRACTOR_WORDS:
+                return (
+                    False,
+                    f"Distractor '{d.text}' is {len(text.split())} words, over the "
+                    f"{MAX_DISTRACTOR_WORDS}-word limit for a single verbal form.",
                     "structural_malformation",
                 )
 

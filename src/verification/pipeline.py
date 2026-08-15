@@ -20,6 +20,7 @@ from src.verification.layer2_morphology import Layer2MorphologyValidator
 from src.verification.layer3_solver import Layer3AdversarialSolver
 from src.verification.layer_expander import AnswerSetExpander, SemanticVerificationResult
 from src.verification.layer_topic_leak import TopicLeakValidator
+from src.verification.repair import repair_candidate
 
 if TYPE_CHECKING:
     from src.llm.client import GeminiLlmClient
@@ -105,6 +106,9 @@ class VerificationPipeline:
         one-off checks) where batching has nothing to batch against.
         """
         effective_topic = topic or self.topics_map.get(item.topic_id)
+        # See verify_batch: repair runs at the entry point so the repaired
+        # item is what gets returned, banked, and rendered.
+        item, _ = repair_candidate(item)
         result = self._verify_layers_1_to_4(
             item, spec=spec, topic=effective_topic, existing_bank_items=existing_bank_items
         )
@@ -423,6 +427,16 @@ class VerificationPipeline:
                 gate_status="unmeasured",
                 results=[],
             )
+
+        # Repair before judging. docs/audits/stage-04-recovery-plan.md fix A:
+        # a sloppy distractor list is metadata noise, not a defective item,
+        # and rejecting the carrier sentence to punish it discarded 30 correct
+        # items in batch_51fc18e48f7b. Done HERE rather than inside
+        # ``_verify_layers_1_to_4``, because that method returns ``None`` on
+        # success and so has no way to hand the repaired item back -- the
+        # original, still carrying its answer among its distractors, would be
+        # what reached the bank.
+        candidates = [repair_candidate(c)[0] for c in candidates]
 
         # Resolved once, reused by both passes so layer 5 sees the exact same
         # topic/spec layers 1-4 were checked against.

@@ -117,10 +117,10 @@ IRREGULAR_LEMMAS: dict[str, str] = {
     "kam": "kommen",
     "kamen": "kommen",
     # schließen (to close) / beschließen (to decide, resolve)
-    "schloss": "schließen",
-    "geschlossen": "schließen",
-    "beschloss": "beschließen",
-    "beschlossen": "beschließen",
+    "schloss": "schliessen",
+    "geschlossen": "schliessen",
+    "beschloss": "beschliessen",
+    "beschlossen": "beschliessen",
     # brechen (to break)
     "brach": "brechen",
     "gebrochen": "brechen",
@@ -139,6 +139,162 @@ IRREGULAR_LEMMAS: dict[str, str] = {
     # stehen (to stand)
     "stand": "stehen",
     "gestanden": "stehen",
+    # ------------------------------------------------------------------
+    # docs/audits/stage-04-recovery-plan.md fix C.
+    #
+    # Ablaut is not derivable by suffix-stripping, so a strong verb's
+    # preterite reaches the vocabulary lookup only if it is listed here.
+    # It was not, and the consequence was measurable: "liegen" is A1 in
+    # data/fixtures/corpus/vocab_levels.json but "lag" is separately
+    # tagged B1, so the past tense of an A1 verb failed an A1 ceiling.
+    # The wordlist assigns a level per scraped surface form, so any
+    # inflected form it happens to contain can carry a level unrelated to
+    # its lemma. Mapping the form to its infinitive is what lets the
+    # lemma's level win, which is the behaviour ``is_within_ceiling``
+    # already assumes it has.
+    #
+    # Keys and values are written eszett-normalised ("ss", never "ß")
+    # because ``normalise`` maps them that way before lookup; a value
+    # spelled with "ß" can never match a normalised vocabulary key.
+    # ------------------------------------------------------------------
+    # gehen (to go)
+    "ging": "gehen",
+    "gingen": "gehen",
+    "gegangen": "gehen",
+    # liegen (to lie, be situated)
+    "lag": "liegen",
+    "lagen": "liegen",
+    "gelegen": "liegen",
+    # laufen (to run, walk)
+    "lief": "laufen",
+    "liefen": "laufen",
+    "gelaufen": "laufen",
+    "läuft": "laufen",
+    # sitzen (to sit)
+    "sass": "sitzen",
+    "sassen": "sitzen",
+    "gesessen": "sitzen",
+    # heissen (to be called)
+    "hiess": "heissen",
+    "hiessen": "heissen",
+    "geheissen": "heissen",
+    # lassen (to let, leave)
+    "liess": "lassen",
+    "liessen": "lassen",
+    "gelassen": "lassen",
+    # fallen (to fall)
+    "fiel": "fallen",
+    "fielen": "fallen",
+    "gefallen": "fallen",
+    # halten (to hold, stop)
+    "hielt": "halten",
+    "hielten": "halten",
+    "gehalten": "halten",
+    "hält": "halten",
+    # schlafen (to sleep)
+    "schlief": "schlafen",
+    "schliefen": "schlafen",
+    "geschlafen": "schlafen",
+    "schläft": "schlafen",
+    # tragen (to carry, wear)
+    "trug": "tragen",
+    "trugen": "tragen",
+    "getragen": "tragen",
+    "trägt": "tragen",
+    # schlagen (to hit)
+    "schlug": "schlagen",
+    "schlugen": "schlagen",
+    "geschlagen": "schlagen",
+    # waschen (to wash)
+    "wusch": "waschen",
+    "wuschen": "waschen",
+    "gewaschen": "waschen",
+    # treffen (to meet)
+    "traf": "treffen",
+    "trafen": "treffen",
+    "getroffen": "treffen",
+    "trifft": "treffen",
+    # werfen (to throw)
+    "warf": "werfen",
+    "warfen": "werfen",
+    "geworfen": "werfen",
+    # ziehen (to pull)
+    "zog": "ziehen",
+    "zogen": "ziehen",
+    "gezogen": "ziehen",
+    # fliegen (to fly)
+    "flog": "fliegen",
+    "flogen": "fliegen",
+    "geflogen": "fliegen",
+    # verlieren (to lose)
+    "verlor": "verlieren",
+    "verloren": "verlieren",
+    # gewinnen (to win)
+    "gewann": "gewinnen",
+    "gewannen": "gewinnen",
+    "gewonnen": "gewinnen",
+    # beginnen (to begin)
+    "begann": "beginnen",
+    "begannen": "beginnen",
+    "begonnen": "beginnen",
+    # singen (to sing)
+    "sang": "singen",
+    "sangen": "singen",
+    "gesungen": "singen",
+    # springen (to jump)
+    "sprang": "springen",
+    "sprangen": "springen",
+    "gesprungen": "springen",
+    # schwimmen (to swim)
+    "schwamm": "schwimmen",
+    "schwammen": "schwimmen",
+    "geschwommen": "schwimmen",
+    # steigen (to climb, rise)
+    "stieg": "steigen",
+    "stiegen": "steigen",
+    "gestiegen": "steigen",
+    # scheinen (to shine, seem)
+    "schien": "scheinen",
+    "schienen": "scheinen",
+    "geschienen": "scheinen",
+    # bitten (to ask, request)
+    "bat": "bitten",
+    "baten": "bitten",
+    "gebeten": "bitten",
+    # vergessen (to forget)
+    "vergass": "vergessen",
+    "vergassen": "vergessen",
+    "vergisst": "vergessen",
+    # rufen (to call)
+    "rief": "rufen",
+    "riefen": "rufen",
+    "gerufen": "rufen",
+    # tun (to do)
+    "tat": "tun",
+    "taten": "tun",
+    "getan": "tun",
+    # Mixed verbs: consonant change plus a weak "-te" ending, so suffix
+    # stripping produces a stem the wordlist does not hold either.
+    "brachte": "bringen",
+    "brachten": "bringen",
+    "gebracht": "bringen",
+    "dachte": "denken",
+    "dachten": "denken",
+    "gedacht": "denken",
+    "kannte": "kennen",
+    "kannten": "kennen",
+    "gekannt": "kennen",
+    "nannte": "nennen",
+    "nannten": "nennen",
+    "genannt": "nennen",
+    "wusste": "wissen",
+    "wussten": "wissen",
+    "gewusst": "wissen",
+    "weiss": "wissen",
+    # Existing entries above spell their infinitive with an eszett, which
+    # can never match a normalised vocabulary key. Corrected here.
+    "schliessen": "schliessen",
+    "beschliessen": "beschliessen",
 }
 
 # ---------------------------------------------------------------------------

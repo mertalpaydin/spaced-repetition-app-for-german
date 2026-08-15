@@ -100,6 +100,18 @@ def main() -> int:
         help=f"How many topics to sample from each CEFR band (default {DEFAULT_TOPICS_PER_CEFR}).",
     )
     parser.add_argument(
+        "--cefr",
+        type=str,
+        default=None,
+        choices=["A1", "A2", "B1", "B2"],
+        help=(
+            "Restrict the run to one CEFR band and use EVERY topic in it, instead "
+            "of sampling a few topics from each band. Use this to stock the bank at "
+            "the learner's own level, since interleaving is a within-level "
+            "technique. Omit it for the taxonomy-wide audit sample."
+        ),
+    )
+    parser.add_argument(
         "--difficulties",
         type=str,
         default="1,2,3",
@@ -139,6 +151,7 @@ def main() -> int:
         report = run_pilot(
             item_count=args.count,
             topics_per_cefr=args.topics_per_cefr,
+            cefr=args.cefr,
             difficulties=difficulties,
             db_path=args.db,
             review_path=args.review_file,
