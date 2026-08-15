@@ -1,6 +1,6 @@
 """Verification pipeline orchestrating the quality verification chain and kill gate."""
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -18,7 +18,11 @@ from src.verification.classifier import ErrorClassifier
 from src.verification.layer1_syntax import Layer1SyntaxValidator
 from src.verification.layer2_morphology import Layer2MorphologyValidator
 from src.verification.layer3_solver import Layer3AdversarialSolver
+from src.verification.layer_expander import AnswerSetExpander
 from src.verification.layer_topic_leak import TopicLeakValidator
+
+if TYPE_CHECKING:
+    from src.llm.client import GeminiLlmClient
 
 GateStatus = Literal["passed", "tripped", "unmeasured"]
 
@@ -62,6 +66,7 @@ class VerificationPipeline:
         self,
         vocab_store: VocabularyStore | None = None,
         topics: list[Topic] | None = None,
+        llm_client: "GeminiLlmClient | None" = None,
     ) -> None:
         self.vocab_store = vocab_store
         self.topics_map: dict[str, Topic] = {t.id: t for t in (topics or [])}
@@ -77,6 +82,11 @@ class VerificationPipeline:
         self.layer1_topic_leak = TopicLeakValidator()
         self.layer2_morphology = Layer2MorphologyValidator()
         self.layer3_solver = Layer3AdversarialSolver()
+        # Layer 5 (see verify_item) is model-backed and therefore optional:
+        # ``None`` here (the default, and what every offline/golden test
+        # uses) makes it a no-op rather than a hard dependency on a
+        # configured API key.
+        self.llm_client = llm_client
 
     def verify_item(
         self,
@@ -110,6 +120,16 @@ class VerificationPipeline:
         4. Deduplication (``ItemDeduplicator``): only runs once an item has
            survived 1-3, since it is the one layer that needs the existing
            bank as input and gains nothing from running earlier.
+        5. Semantic & answer-set expansion (``layer_expander.AnswerSetExpander``,
+           model-backed, ``gemini-3.7-flash`` / ``MODEL_VERIFY``): wrong
+           connectors, broken collocations, hallucinated tokens and
+           incoherent carriers -- the defect class docs/audits/
+           stage-04-pilot-2026-08-14.md identified as the largest single
+           gap, and which no earlier, free layer can catch. Runs last,
+           after every free layer including dedup, so an LLM call is never
+           spent on a candidate a cheap check would have rejected anyway.
+           A ``None`` ``self.llm_client`` (the default) makes this a no-op,
+           not a hard dependency on a configured API key -- see ``__init__``.
         """
         effective_topic = topic or self.topics_map.get(item.topic_id)
         effective_spec = spec
@@ -178,6 +198,29 @@ class VerificationPipeline:
                     reason="Duplicate sentence found in existing item bank",
                     error_type="duplicate",
                 )
+
+        # Layer 5: Semantic & Answer-Set Expansion (model-backed, optional)
+        if self.llm_client is not None:
+            semantic = AnswerSetExpander.verify_semantic_validity(item, self.llm_client)
+            if not semantic.valid:
+                return VerificationResult(
+                    item=item,
+                    passed=False,
+                    accepted=False,
+                    layer_failed=5,
+                    reason=semantic.reason or "Semantic or collocation check failed.",
+                    error_type="pedagogical_flaw",
+                )
+            accepted_answers = AnswerSetExpander.expand_answers(item)
+            for extra in semantic.additional_accepted_answers:
+                if extra not in accepted_answers:
+                    accepted_answers.append(extra)
+            return VerificationResult(
+                item=item,
+                passed=True,
+                accepted=True,
+                accepted_answers=accepted_answers,
+            )
 
         return VerificationResult(
             item=item,

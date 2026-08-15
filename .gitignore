@@ -44,6 +44,9 @@ coverage.xml
 dmypy.json
 .ruff_cache/
 
+# Local LLM disk cache & cost log (src/llm/client.py, src/llm/cache.py)
+.cache/
+
 # Environment Variables & Secrets
 .env
 .env.*
@@ -56,11 +59,14 @@ secrets.yaml
 *.db
 *.db-journal
 *.db-wal
+*.db.bak-*
 
 # Generated Bank & Data (unless specifically checked in as golden fixtures)
 data/cache/
 data/raw/
 data/generated/
+data/pilot_review.jsonl
+data/pilot_rejected.jsonl
 
 # Node / Frontend / PWA
 node_modules/

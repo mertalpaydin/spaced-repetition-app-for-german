@@ -26,6 +26,7 @@ from src.generation.batch_client import DEFAULT_DB_PATH
 from src.generation.deficits import NIGHTLY_ITEM_CAP
 from src.generation.pilot import (
     DEFAULT_PILOT_ITEM_COUNT,
+    DEFAULT_REJECTED_PATH,
     DEFAULT_REVIEW_PATH,
     DEFAULT_TOPICS_PER_CEFR,
     PilotRunReport,
@@ -60,6 +61,7 @@ def _print_report(report: PilotRunReport) -> None:
         "(from the cost log, not estimated)"
     )
     print(f"  Review file:           {report.review_file}")
+    print(f"  Rejected file:         {report.rejected_review_file}")
     print()
     print(
         "Next: hand-audit the review file per docs/02-content-pipeline.md stage 4's kill "
@@ -113,6 +115,12 @@ def main() -> int:
         help="Where to write the accepted items for hand audit.",
     )
     parser.add_argument(
+        "--rejected-file",
+        type=str,
+        default=str(DEFAULT_REJECTED_PATH),
+        help="Where to write every rejected candidate, with its layer and reason.",
+    )
+    parser.add_argument(
         "--item-cap",
         type=int,
         default=NIGHTLY_ITEM_CAP,
@@ -134,6 +142,7 @@ def main() -> int:
             difficulties=difficulties,
             db_path=args.db,
             review_path=args.review_file,
+            rejected_path=args.rejected_file,
             item_cap=args.item_cap,
         )
     except (ValueError, BudgetExceeded) as exc:

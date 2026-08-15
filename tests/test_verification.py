@@ -1,4 +1,4 @@
-"""Unit and golden tests for the 4-layer verification chain and kill gate."""
+"""Unit and golden tests for the 5-layer verification chain and kill gate."""
 
 import json
 from collections import defaultdict
@@ -496,6 +496,28 @@ def test_layer1_still_rejects_compound_words_that_leak_the_topic() -> None:
     assert error_type == "topic_leak"
 
 
+def test_layer1_rejects_parenthetical_cue_leaked_into_prompt(
+    pipeline: VerificationPipeline,
+) -> None:
+    """docs/audits/stage-04-pilot-2026-08-14.md item 7: a bracketed authoring
+    cue ('(Katze)') leaking into the visible sentence, instead of the
+    dedicated ``cue`` field, must be rejected -- this item was accepted by
+    every layer, including the new model-backed layer 5, in the pilot re-run
+    that motivated this fix."""
+    item = CandidateItem(
+        topic_id="artikel_unbestimmt_kein_nom",
+        type="cloze_free",
+        difficulty=2,
+        prompt="Weil das Haus so alt ist, wohnt dort ___ (Katze) drin.",
+        proposed_answer="eine",
+        distractors=[Distractor(text="die"), Distractor(text="der"), Distractor(text="das")],
+    )
+    res = pipeline.verify_item(item)
+    assert not res.passed
+    assert res.layer_failed == 1
+    assert res.error_type == "structural_malformation"
+
+
 def test_layer2_morphosyntactic_validation(
     pipeline: VerificationPipeline, sample_spec: TopicSpec
 ) -> None:
@@ -659,3 +681,276 @@ def test_every_error_taxonomy_category_is_reachable_from_a_real_layer_output(
     assert not missing, (
         f"ErrorTaxonomy categories not reachable from a real layer output: {missing}"
     )
+
+
+# ----------------------------------------------------------------------
+# Layer 5: semantic / answer-set expansion (model-backed, optional).
+#
+# docs/audits/stage-04-pilot-2026-08-14.md: "layer_expander.py ... was never
+# wired into pipeline.py ... this is the missing layer, and it is the one
+# that addresses the largest defect class." These tests exercise the wiring
+# with a fake LLM client (no network), never the real Gemini transport.
+# ----------------------------------------------------------------------
+
+
+class _FakeSemanticLlmClient:
+    """Records every prompt and returns a canned response, standing in for
+    ``GeminiLlmClient`` at the one seam ``AnswerSetExpander.verify_semantic_validity``
+    calls (``.generate(prompt, model=..., purpose=...)``)."""
+
+    def __init__(self, response_text: str) -> None:
+        self.response_text = response_text
+        self.calls: list[dict[str, object]] = []
+
+    def generate(self, prompt: str, model: str, purpose: str) -> str:
+        self.calls.append({"prompt": prompt, "model": model, "purpose": purpose})
+        return self.response_text
+
+
+def _semantic_item() -> CandidateItem:
+    return CandidateItem(
+        topic_id="dativ_nach_praeposition",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Das Buch liegt auf ___ Tisch.",
+        proposed_answer="dem",
+        distractors=[Distractor(text="den"), Distractor(text="des"), Distractor(text="das")],
+    )
+
+
+def test_layer5_disabled_when_no_llm_client_configured(
+    pipeline: VerificationPipeline, sample_spec: TopicSpec
+) -> None:
+    """``VerificationPipeline()`` with no ``llm_client`` (every offline/golden
+    test's default) must accept exactly as before layer 5 existed -- the
+    model-backed layer is optional, never a hard dependency."""
+    res = pipeline.verify_item(_semantic_item(), spec=sample_spec)
+    assert res.passed
+    assert res.accepted
+
+
+def test_layer5_rejects_on_semantic_invalidity(sample_spec: TopicSpec) -> None:
+    """A candidate that passes layers 1-4 but that the model judges
+    semantically incoherent (wrong connector / collocation / hallucinated
+    content) is rejected at layer 5 with ``pedagogical_flaw``."""
+    fake_llm = _FakeSemanticLlmClient(
+        '{"valid": false, "reason": "Falsche Kollokation.", "additional_accepted_answers": []}'
+    )
+    pipeline = VerificationPipeline(llm_client=fake_llm)  # type: ignore[arg-type]
+
+    res = pipeline.verify_item(_semantic_item(), spec=sample_spec)
+
+    assert not res.passed
+    assert res.layer_failed == 5
+    assert res.error_type == "pedagogical_flaw"
+    assert res.reason == "Falsche Kollokation."
+    assert len(fake_llm.calls) == 1
+    assert fake_llm.calls[0]["purpose"] == "answer_expansion"
+
+
+def test_layer5_accepts_and_merges_additional_answers(sample_spec: TopicSpec) -> None:
+    """A candidate the model judges valid is accepted, with its
+    ``accepted_answers`` set to the contraction-expanded proposed answer plus
+    whatever additional variants the model reports -- the answer-set
+    expansion half of this layer's name, not just the semantic gate."""
+    fake_llm = _FakeSemanticLlmClient(
+        '{"valid": true, "reason": null, "additional_accepted_answers": ["diesem"]}'
+    )
+    pipeline = VerificationPipeline(llm_client=fake_llm)  # type: ignore[arg-type]
+
+    res = pipeline.verify_item(_semantic_item(), spec=sample_spec)
+
+    assert res.passed
+    assert res.accepted
+    assert "dem" in res.accepted_answers
+    assert "diesem" in res.accepted_answers
+
+
+def test_layer5_strips_markdown_fence_before_parsing(sample_spec: TopicSpec) -> None:
+    """Gemini routinely wraps JSON responses in a ```json fence (no
+    ``response_mime_type`` is set on the request, matching the same live
+    behaviour ``src.generation.batch_client._parse_response`` works around);
+    layer 5 must not treat that fence as a parse failure."""
+    fake_llm = _FakeSemanticLlmClient(
+        '```json\n{"valid": true, "reason": null, "additional_accepted_answers": []}\n```'
+    )
+    pipeline = VerificationPipeline(llm_client=fake_llm)  # type: ignore[arg-type]
+
+    res = pipeline.verify_item(_semantic_item(), spec=sample_spec)
+    assert res.passed
+
+
+def test_layer5_degrades_to_accept_on_budget_exceeded(sample_spec: TopicSpec) -> None:
+    """CLAUDE.md 9: 'Callers handle [BudgetExceeded] by degrading, never by
+    retrying.' Layer 5 is a refinement on top of layers 1-4, not a required
+    gate, so a closed budget skips the check rather than rejecting -- or
+    crashing the whole batch on -- a candidate that already passed every
+    free/cheap layer."""
+    from src.llm.client import BudgetExceeded
+
+    class _BudgetExceededLlmClient:
+        def generate(self, prompt: str, model: str, purpose: str) -> str:
+            raise BudgetExceeded("Monthly spend ceiling reached.")
+
+    pipeline = VerificationPipeline(llm_client=_BudgetExceededLlmClient())  # type: ignore[arg-type]
+
+    res = pipeline.verify_item(_semantic_item(), spec=sample_spec)
+    assert res.passed
+    assert res.accepted
+
+
+def test_layer5_degrades_to_accept_on_server_unavailable(sample_spec: TopicSpec) -> None:
+    """A sustained 5xx overload that survives the transport's own bounded
+    retries (confirmed live: gemini-3.7-flash returning 503 UNAVAILABLE
+    through all of SERVER_ERROR_MAX_RETRIES) must degrade the same way
+    BudgetExceeded does -- infrastructure trouble is not a verdict on the
+    candidate's German, and must never crash the whole pilot batch."""
+    from src.llm.client import ServerUnavailableError
+
+    class _OverloadedLlmClient:
+        def generate(self, prompt: str, model: str, purpose: str) -> str:
+            raise ServerUnavailableError("503 UNAVAILABLE")
+
+    pipeline = VerificationPipeline(llm_client=_OverloadedLlmClient())  # type: ignore[arg-type]
+
+    res = pipeline.verify_item(_semantic_item(), spec=sample_spec)
+    assert res.passed
+    assert res.accepted
+
+
+def test_layer5_runs_after_dedup_never_spending_a_call_on_a_duplicate(
+    sample_spec: TopicSpec,
+) -> None:
+    """Layer 5 is an LLM call; layer 4 (dedup) is free. A duplicate must be
+    rejected at layer 4 without ever reaching the model, so the pilot never
+    spends budget checking a candidate that was going to be dropped anyway."""
+    fake_llm = _FakeSemanticLlmClient('{"valid": true}')
+    pipeline = VerificationPipeline(llm_client=fake_llm)  # type: ignore[arg-type]
+
+    item = _semantic_item()
+    existing = [
+        BankItem(
+            id="existing-1",
+            topic_id=item.topic_id,
+            type=item.type,
+            difficulty=item.difficulty,
+            cefr="A2",
+            prompt=item.prompt,
+            accepted_answers=[item.proposed_answer],
+        )
+    ]
+
+    res = pipeline.verify_item(item, spec=sample_spec, existing_bank_items=existing)
+
+    assert not res.passed
+    assert res.layer_failed == 4
+    assert fake_llm.calls == []
+
+
+# ----------------------------------------------------------------------
+# Layer 2 extension: strong/weak/mixed adjective declension gender
+# agreement, driven by facets.attributive_adjective_gender_candidates.
+#
+# docs/audits/stage-04-pilot-2026-08-14.md items 14 and 15: a masculine and a
+# feminine noun each given a neuter- or masculine-only strong-declension
+# ending, in adjektivdeklination_nullartikel -- a topic layer 2 skipped
+# entirely because its morph_spec is deliberately {} (zero article has no UD
+# FEATS equivalent).
+# ----------------------------------------------------------------------
+
+
+@pytest.fixture
+def nullartikel_topic() -> Topic:
+    taxonomy = load_taxonomy()
+    return next(t for t in taxonomy if t.id == "adjektivdeklination_nullartikel")
+
+
+@pytest.fixture
+def bestimmt_topic() -> Topic:
+    taxonomy = load_taxonomy()
+    return next(t for t in taxonomy if t.id == "adjektivdeklination_bestimmt")
+
+
+def _adj_item(prompt: str, answer: str, topic_id: str) -> CandidateItem:
+    return CandidateItem(
+        topic_id=topic_id,
+        type="cloze_free",
+        difficulty=1,
+        prompt=prompt,
+        proposed_answer=answer,
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+
+
+def test_layer2_catches_strong_declension_gender_mismatch_masculine_noun(
+    pipeline: VerificationPipeline, nullartikel_topic: Topic
+) -> None:
+    """Pilot audit item 14: 'gutes' (neuter-only strong ending) given for
+    masculine 'Kaffee'. morph_spec is {} for this topic, so this can only be
+    caught by the syntax_tags-driven declension check, not the morph_spec
+    Case gate every other layer 2 check runs under."""
+    item = _adj_item(
+        "Obwohl sie oft ___ Kaffee trinkt, schläft sie nachts gut.", "gutes", nullartikel_topic.id
+    )
+    res = pipeline.verify_item(item, topic=nullartikel_topic)
+    assert not res.passed
+    assert res.layer_failed == 2
+    assert res.error_type == "morphosyntactic_error"
+
+
+def test_layer2_catches_strong_declension_gender_mismatch_feminine_noun(
+    pipeline: VerificationPipeline, nullartikel_topic: Topic
+) -> None:
+    """Pilot audit item 15: 'heißen' (masc/neut-only strong ending) given for
+    feminine 'Suppe'."""
+    item = _adj_item(
+        "Wenn wir ___ Suppe essen, wärmen wir uns schnell auf.", "heißen", nullartikel_topic.id
+    )
+    res = pipeline.verify_item(item, topic=nullartikel_topic)
+    assert not res.passed
+    assert res.layer_failed == 2
+    assert res.error_type == "morphosyntactic_error"
+
+
+def test_layer2_accepts_correct_strong_declension(
+    pipeline: VerificationPipeline, nullartikel_topic: Topic
+) -> None:
+    """Every gold example in data/specs/adjektivdeklination_nullartikel.yaml
+    must still pass -- the extension must not reject correct German."""
+    for prompt, answer in [
+        ("___ Kaffee schmeckt sehr gut.", "Heißer"),
+        ("Weil sie ___ Wasser trinkt, fühlt sie sich fit.", "kaltes"),
+        ("Wenn wir ___ Suppe essen, wärmen wir uns schnell auf.", "heiße"),
+    ]:
+        item = _adj_item(prompt, answer, nullartikel_topic.id)
+        res = pipeline.verify_item(item, topic=nullartikel_topic)
+        assert res.passed, f"{answer!r} incorrectly rejected: {res.reason}"
+
+
+def test_layer2_catches_impossible_ending_for_weak_declension(
+    pipeline: VerificationPipeline, bestimmt_topic: Topic
+) -> None:
+    """'-es' never occurs in the weak declension (only the definite article
+    itself carries that signal) -- a defect the paradigm-membership check
+    catches regardless of noun gender."""
+    item = _adj_item(
+        "Weil er Hunger hatte, aß er die ___ Suppe sofort auf.", "heißes", bestimmt_topic.id
+    )
+    res = pipeline.verify_item(item, topic=bestimmt_topic)
+    assert not res.passed
+    assert res.layer_failed == 2
+    assert res.error_type == "morphosyntactic_error"
+
+
+def test_layer2_accepts_correct_weak_declension(
+    pipeline: VerificationPipeline, bestimmt_topic: Topic
+) -> None:
+    """Every gold example in data/specs/adjektivdeklination_bestimmt.yaml
+    must still pass."""
+    for prompt, answer in [
+        ("Der ___ Mann liest die Zeitung.", "alte"),
+        ("Weil er Hunger hatte, aß er die ___ Suppe sofort auf.", "heiße"),
+    ]:
+        item = _adj_item(prompt, answer, bestimmt_topic.id)
+        res = pipeline.verify_item(item, topic=bestimmt_topic)
+        assert res.passed, f"{answer!r} incorrectly rejected: {res.reason}"

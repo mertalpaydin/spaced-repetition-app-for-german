@@ -30,6 +30,7 @@ from src.generation.deficits import NIGHTLY_ITEM_CAP
 from src.llm.client import BudgetExceeded, GeminiLlmClient
 
 DEFAULT_REVIEW_PATH = Path("data/pilot_review.jsonl")
+DEFAULT_REJECTED_PATH = Path("data/pilot_rejected.jsonl")
 DEFAULT_PILOT_ITEM_COUNT = 100
 DEFAULT_TOPICS_PER_CEFR = 3
 DEFAULT_DIFFICULTIES: tuple[Difficulty, ...] = (1, 2, 3)
@@ -52,6 +53,7 @@ class PilotRunReport(BaseModel):
     bank_rejected: int
     cost_usd_incurred: float
     review_file: str
+    rejected_review_file: str
     ran_live: bool
 
 
@@ -133,6 +135,23 @@ def _write_review_file(path: Path, items: list[Any], batch_id: str) -> None:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
+def _write_rejected_file(path: Path, items: list[Any], batch_id: str) -> None:
+    """Write every REJECTED candidate, with its layer/reason, to a JSONL file.
+
+    docs/audits/stage-04-pilot-2026-08-14.md: "The pilot does not persist
+    rejected items, so the cause cannot be diagnosed from this run." This is
+    the fix -- run one pilot and the rejection breakdown (31 of 54
+    ``structural_malformation`` in the 2026-08-14 run) is diagnosable
+    afterwards instead of only countable.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        for item in items:
+            row = item.model_dump(mode="json")
+            row["_pilot_batch_id"] = batch_id
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
 def run_pilot(
     item_count: int = DEFAULT_PILOT_ITEM_COUNT,
     topics_per_cefr: int = DEFAULT_TOPICS_PER_CEFR,
@@ -140,12 +159,14 @@ def run_pilot(
     db_path: Path | str = DEFAULT_DB_PATH,
     taxonomy_path: Path | str | None = None,
     review_path: Path | str = DEFAULT_REVIEW_PATH,
+    rejected_path: Path | str = DEFAULT_REJECTED_PATH,
     item_cap: int = NIGHTLY_ITEM_CAP,
     llm_client: GeminiLlmClient | None = None,
     batch_client: GeminiBatchClient | MockBatchClient | None = None,
 ) -> PilotRunReport:
     """Generate a bounded, spread sample, verify it, insert what passes, and
-    write the accepted set to ``review_path`` for the kill-gate audit.
+    write the accepted set to ``review_path`` (and every rejected candidate,
+    with its reason, to ``rejected_path``) for the kill-gate audit.
 
     Refuses outright, before any model call, if ``item_count`` exceeds
     ``item_cap`` (the nightly item cap by default) or if the monthly spend
@@ -165,6 +186,7 @@ def run_pilot(
 
     db_path = Path(db_path)
     review_path = Path(review_path)
+    rejected_path = Path(rejected_path)
 
     topics = load_taxonomy(taxonomy_path)
     pilot_topics = select_pilot_topics(topics, topics_per_cefr=topics_per_cefr)
@@ -196,13 +218,18 @@ def run_pilot(
     candidates = batch_client.retrieve(batch_id)
 
     result = _verify_and_insert_candidates(
-        candidates, db_path=db_path, taxonomy_path=taxonomy_path, source_batch_id=batch_id
+        candidates,
+        db_path=db_path,
+        taxonomy_path=taxonomy_path,
+        source_batch_id=batch_id,
+        llm_client=llm_client,
     )
 
     cost_after = llm_client.get_month_to_date_spend() if llm_client is not None else 0.0
     cost_incurred = round(cost_after - cost_before, 6)
 
     _write_review_file(review_path, result.accepted_items, batch_id)
+    _write_rejected_file(rejected_path, result.rejected_items, batch_id)
 
     return PilotRunReport(
         requested_item_count=item_count,
@@ -217,5 +244,6 @@ def run_pilot(
         bank_rejected=result.insert_report.rejected,
         cost_usd_incurred=cost_incurred,
         review_file=str(review_path),
+        rejected_review_file=str(rejected_path),
         ran_live=ran_live,
     )

@@ -17,6 +17,7 @@ missed defect is cheaper than a false rejection of a correct item.
 import re
 
 from src.contracts import CandidateItem, ErrorTaxonomy, Topic
+from src.taxonomy.facets import attributive_adjective_gender_candidates
 
 # ---------------------------------------------------------------------------
 # Small, general-purpose morphological tables. These describe the German
@@ -44,6 +45,10 @@ NOUN_GENDER: dict[str, str] = {
     "zug": "masc",
     "fernseher": "masc",
     "computer": "masc",
+    "kaffee": "masc",
+    "tee": "masc",
+    "wein": "masc",
+    "kapitän": "masc",
     # feminine
     "wand": "fem",
     "sonne": "fem",
@@ -59,6 +64,9 @@ NOUN_GENDER: dict[str, str] = {
     "haltestelle": "fem",
     "schwester": "fem",
     "blume": "fem",
+    "suppe": "fem",
+    "milch": "fem",
+    "erfahrung": "fem",
     # neuter
     "haus": "neut",
     "kind": "neut",
@@ -66,7 +74,13 @@ NOUN_GENDER: dict[str, str] = {
     "auto": "neut",
     "fenster": "neut",
     "buch": "neut",
+    "wasser": "neut",
 }  # noqa: RUF012
+
+# UD Gender value for each of this module's lowercase gender codes, used to
+# compare against `src.taxonomy.facets.attributive_adjective_gender_candidates`
+# (which speaks the UD "Masc"/"Fem"/"Neut" vocabulary, not this module's own).
+_UD_GENDER: dict[str, str] = {"masc": "Masc", "fem": "Fem", "neut": "Neut"}  # noqa: RUF012
 
 # Definite-article form per (Case, gender). Dative and Genitive collapse
 # masculine/neuter to the same surface form, which is simply German fact,
@@ -329,6 +343,17 @@ class Layer2MorphologyValidator:
                     "morphosyntactic_error",
                 )
 
+        # Adjective declension (weak/mixed/strong) is gated on
+        # syntax_tags["Declension"], never on morph_spec: adjektivdeklination_nullartikel
+        # deliberately sets morph_spec={} (zero article has no UD FEATS
+        # equivalent, see its taxonomy.yaml entry), so it would otherwise be
+        # skipped entirely by the morph_spec gate above -- exactly the
+        # coverage hole docs/audits/stage-04-pilot-2026-08-14.md identified.
+        if topic:
+            decl_failure = self._check_adjective_declension(item, topic)
+            if decl_failure:
+                return False, decl_failure[0], decl_failure[1]
+
         return True, None, None
 
     @staticmethod
@@ -511,3 +536,67 @@ class Layer2MorphologyValidator:
             f"Subject '{match.group(1)}' requires the '-{expected}' present-tense "
             f"ending, but '{item.proposed_answer}' has '-{actual}'."
         )
+
+    def _check_adjective_declension(
+        self, item: CandidateItem, topic: Topic
+    ) -> tuple[str, ErrorTaxonomy] | None:
+        """Attributive adjective/participle gender agreement for weak, mixed and
+        strong declension topics (``syntax_tags["Declension"]``).
+
+        Reuses ``facets.attributive_adjective_gender_candidates``, which
+        already does the determiner-context paradigm selection for facet
+        derivation -- the "paradigm tables exist; they are just not used for
+        verification" gap in docs/audits/stage-04-pilot-2026-08-14.md. Only
+        checks gender, not case: none of the three declension topics fix
+        ``Case`` in ``morph_spec`` (case is itself a stage 6 facet dimension
+        for all three), so there is no expected case to check against, but a
+        wrong gender ending is unambiguous regardless of which case the
+        sentence actually calls for -- exactly the class of defect the pilot
+        audit's items 14 and 15 were (a masculine and a feminine noun each
+        given a neuter- or masculine-only ending).
+
+        Two independent sub-checks, in order of confidence:
+
+        1. Is the answer's ending a recognised ending *at all* in the
+           declension paradigm the gap's own determiner context selects
+           (weak/mixed/strong)? This needs no noun-gender lookup -- German
+           attributive endings are a closed 5-member set (-e, -en, -er, -es,
+           -em) and each declension paradigm only admits a subset of them in
+           any given cell, so an ending absent from the whole paradigm is a
+           defect regardless of what noun follows (e.g. "-es" never occurs
+           after a definite article under any circumstance; only the article
+           itself carries that signal).
+        2. If the ending *is* a recognised member of the paradigm, does its
+           gender agree with the noun after the gap? This only fires when
+           that noun is in ``NOUN_GENDER``: an unrecognised noun means no
+           known gender to check against, so it is skipped rather than
+           guessed, matching this module's stated philosophy throughout.
+        """
+        declension = topic.syntax_tags.get("Declension") if topic.syntax_tags else None
+        if declension not in ("Weak", "Mixed", "Strong"):
+            return None
+
+        ans_clean = item.proposed_answer.strip().lower()
+        candidate_genders = attributive_adjective_gender_candidates(item.prompt, ans_clean)
+        if not candidate_genders:
+            return (
+                f"'{item.proposed_answer}' is not a valid {declension.lower()}-declension "
+                "adjective ending for this context.",
+                "morphosyntactic_error",
+            )
+
+        next_word = self._next_word_after_gap(item.prompt)
+        if not next_word:
+            return None
+        gender = NOUN_GENDER.get(next_word)
+        if not gender:
+            return None
+
+        ud_gender = _UD_GENDER[gender]
+        if ud_gender not in candidate_genders:
+            return (
+                f"'{next_word.capitalize()}' is {gender}; '{item.proposed_answer}' is not "
+                f"a valid {declension.lower()}-declension ending for that gender.",
+                "morphosyntactic_error",
+            )
+        return None

@@ -464,6 +464,28 @@ def run_submit(
     return 0
 
 
+class RejectedCandidateRecord(BaseModel):
+    """One candidate the verification chain rejected, with enough of the
+    original candidate and the rejection itself to diagnose it later without
+    re-running generation.
+
+    docs/audits/stage-04-pilot-2026-08-14.md: "31 of 54 rejections were
+    structural_malformation... The pilot does not persist rejected items, so
+    the cause cannot be diagnosed from this run." This is that persistence:
+    every rejected candidate, not just the count.
+    """
+
+    model_config = ConfigDict(frozen=True)
+    topic_id: str
+    type: str
+    difficulty: int
+    prompt: str
+    proposed_answer: str
+    layer_failed: int | None
+    error_type: str | None
+    reason: str | None
+
+
 class VerifiedIngestResult(BaseModel):
     """Outcome of running retrieved candidates through the verification chain
     and the bank insert, kept as one object so callers (``run_ingest``, the
@@ -477,6 +499,7 @@ class VerifiedIngestResult(BaseModel):
     rejected_by_reason: dict[str, int] = Field(default_factory=dict)
     insert_report: InsertReport
     accepted_items: list[BankItem] = Field(default_factory=list)
+    rejected_items: list[RejectedCandidateRecord] = Field(default_factory=list)
 
 
 def _candidate_item_id(item: CandidateItem) -> str:
@@ -505,6 +528,7 @@ def _verify_and_insert_candidates(
     taxonomy_path: Path | str | None,
     source_batch_id: str,
     specs_dir: Path | str = DEFAULT_SPECS_DIR,
+    llm_client: GeminiLlmClient | None = None,
 ) -> VerifiedIngestResult:
     """Run retrieved candidates through the full verification chain
     (``src.verification.pipeline.VerificationPipeline``) and insert the
@@ -520,6 +544,13 @@ def _verify_and_insert_candidates(
     instead of crashing the whole ingest -- generation already refuses to
     submit for such a topic (``SpecSheetMissingError``), so this only matters
     for candidates that arrive by some other path (e.g. a hand-fed test).
+
+    ``llm_client``, when supplied, is passed through to
+    ``VerificationPipeline`` to enable its model-backed layer 5 (semantic /
+    answer-set expansion, see ``src.verification.layer_expander``). ``None``
+    (the default) disables that layer only, exactly as
+    ``VerificationPipeline.__init__`` documents -- every other layer still
+    runs.
     """
     # Local imports: this keeps src/generation/batch_client.py importable
     # without pulling in spaCy (src/verification) and the bank/taxonomy
@@ -545,18 +576,32 @@ def _verify_and_insert_candidates(
 
     bank = SqliteItemBank(db_path)
     existing_items = bank.get_all_items()
-    pipeline = VerificationPipeline(topics=topics)
+    pipeline = VerificationPipeline(topics=topics, llm_client=llm_client)
 
     verification = pipeline.verify_batch(
         candidates, specs=specs_by_topic, existing_bank_items=existing_items
     )
 
     rejected_by_reason: dict[str, int] = {}
+    rejected_items: list[RejectedCandidateRecord] = []
     accepted_dicts: list[dict[str, Any]] = []
     for result in verification.results:
         if not result.accepted or result.item is None:
             reason = result.error_type or result.reason or "unknown"
             rejected_by_reason[reason] = rejected_by_reason.get(reason, 0) + 1
+            if result.item is not None:
+                rejected_items.append(
+                    RejectedCandidateRecord(
+                        topic_id=result.item.topic_id,
+                        type=result.item.type,
+                        difficulty=result.item.difficulty,
+                        prompt=result.item.prompt,
+                        proposed_answer=result.item.proposed_answer,
+                        layer_failed=result.layer_failed,
+                        error_type=result.error_type,
+                        reason=result.reason,
+                    )
+                )
             continue
 
         item = result.item
@@ -567,6 +612,18 @@ def _verify_and_insert_candidates(
             # item claiming a topic we cannot resolve here has no honest CEFR
             # to stamp, so it is counted and dropped rather than guessed.
             rejected_by_reason["unknown_topic"] = rejected_by_reason.get("unknown_topic", 0) + 1
+            rejected_items.append(
+                RejectedCandidateRecord(
+                    topic_id=item.topic_id,
+                    type=item.type,
+                    difficulty=item.difficulty,
+                    prompt=item.prompt,
+                    proposed_answer=item.proposed_answer,
+                    layer_failed=None,
+                    error_type="unknown_topic",
+                    reason="Item claims a topic_id outside the loaded taxonomy.",
+                )
+            )
             continue
 
         accepted_answers = result.accepted_answers or AnswerSetExpander.expand_answers(item)
@@ -604,6 +661,7 @@ def _verify_and_insert_candidates(
         rejected_by_reason=rejected_by_reason,
         insert_report=insert_report,
         accepted_items=accepted_items,
+        rejected_items=rejected_items,
     )
 
 
@@ -688,7 +746,11 @@ def run_ingest(
 
     items = batch_client.retrieve(target_batch_id)
     result = _verify_and_insert_candidates(
-        items, db_path=db_path, taxonomy_path=taxonomy_path, source_batch_id=target_batch_id
+        items,
+        db_path=db_path,
+        taxonomy_path=taxonomy_path,
+        source_batch_id=target_batch_id,
+        llm_client=llm_client,
     )
     _print_ingest_summary(result, target_batch_id)
     return 0

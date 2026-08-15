@@ -70,6 +70,21 @@ class Layer1SyntaxValidator:
                 "structural_malformation",
             )
 
+        # 2b. Parenthetical leak check. A natural cloze carrier sentence never
+        # contains a bare bracketed aside -- data/audits/stage-04-pilot-2026-08-14.md
+        # item 7: "...wohnt dort ___ (Katze) drin." leaks the cue word the
+        # generator should have put in the dedicated ``cue`` field into the
+        # visible prompt itself instead. No known-good gold example in
+        # data/specs/*.yaml uses parentheses, so this is unconditional, not
+        # gated on any spec setting.
+        if re.search(r"\([^)]*\)", item.prompt):
+            return (
+                False,
+                "Prompt contains a parenthetical aside, leaking an authoring "
+                "cue into the visible sentence instead of the dedicated cue field.",
+                "structural_malformation",
+            )
+
         # 3. Topic leak check (forbidden grammatical terminology named in the prompt)
         leaks = PromptBuilder.check_for_topic_leaks(item.prompt)
         if leaks:

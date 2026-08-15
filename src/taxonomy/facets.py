@@ -789,6 +789,45 @@ def _decode_attributive_adjective(
     return _resolve(candidates, dims)
 
 
+def attributive_adjective_gender_candidates(
+    prompt: str, answer: str, *, number: str = "Sing"
+) -> set[str]:
+    """Every ``Gender`` an attributive adjective/participle ``answer`` is
+    consistent with, given the declension paradigm selected by the token
+    preceding the ``___`` gap in ``prompt`` -- the exact determiner-context
+    selection ``_decode_attributive_adjective`` uses for facet derivation
+    (weak after a definite article/der-word, mixed after an ein-word, strong
+    with none), reused here for stage 4 morphology verification instead of
+    facet decoding.
+
+    Restricted to ``number`` (default ``"Sing"``) because German's plural
+    endings (-e Nom/Acc, -en Dat, -er Gen) are shared across all three
+    genders and would otherwise swamp any genuine singular gender signal --
+    e.g. the strong-declension "-en" ending is Masc-or-Neut-only in the
+    singular (Acc Masc / Gen Neut) but appears in the Dat plural of every
+    gender. Pass ``number=""`` (or any value matching no row) to consider
+    every number instead.
+
+    Returns an empty set if the ending is not recognised in the selected
+    paradigm at all -- the caller's signal to skip the check rather than
+    guess, exactly like every other closed-class table in this module.
+    """
+    token = _preceding_token(prompt)
+    determiner = _determiner_candidates(token) if token else None
+
+    if determiner is not None:
+        declension, det_candidates = determiner
+        paradigm = _ADJ_ENDING_WEAK if declension == "weak" else _ADJ_ENDING_MIXED
+        ending_candidates = set(_match_adjective_ending(answer, paradigm))
+        combined = [c for c in det_candidates if c in ending_candidates]
+    else:
+        combined = _match_adjective_ending(answer, _ADJ_ENDING_STRONG)
+
+    restricted = [c for c in combined if c[2] == number]
+    relevant = restricted or combined
+    return {g for (_, g, _) in relevant}
+
+
 def derive_facet(item: BankItem, topic: Topic) -> str | None:
     """Derive the stable, canonical facet an ingested item exhibits for ``topic``.
 
