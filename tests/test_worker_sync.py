@@ -13,7 +13,7 @@ from src.engine.fsrs import FSRSRecord
 from src.sync.client import ReviewLogEntry, SyncClient
 
 NODE = shutil.which("node")
-WORKER_ENTRY = (Path(__file__).resolve().parents[1] / "worker" / "src" / "index.js").as_posix()
+WORKER_ENTRY = (Path(__file__).resolve().parents[1] / "worker" / "src" / "index.js").as_uri()
 
 requires_node = pytest.mark.skipif(NODE is None, reason="node is required to exercise the worker")
 
