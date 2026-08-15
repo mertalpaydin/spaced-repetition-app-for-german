@@ -1,9 +1,11 @@
 """Unified Gemini LLM client with cost accounting, budget ceilings, and two-lane execution."""
 
 import os
+import threading
 import time
 import warnings
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -43,6 +45,51 @@ def pacific_tz() -> ZoneInfo:
             "library has no system tz database; install the 'tzdata' package "
             "(it is a declared dependency, so `uv sync` should provide it)."
         ) from exc
+
+
+class _SlidingWindowRateLimiter:
+    """Thread-safe sliding-window rate limiter: blocks the calling thread in
+    ``acquire()`` until issuing another call would keep the count at or below
+    ``max_calls`` within the trailing ``period_seconds``.
+
+    Exists because ``generate_many``'s free-lane path dispatches independent
+    items from multiple threads concurrently. Concurrency alone does not
+    raise the free tier's throughput ceiling (Google enforces 15 RPM
+    regardless of how many requests arrive at once) -- it only changes
+    whether those requests arrive evenly spaced or in a burst. A burst that
+    exceeds the ceiling makes EVERY item in the burst 429 at roughly the same
+    moment; if several of them then retry at roughly the same moment too
+    (their backoffs overlapping), a single item can exhaust its bounded
+    ``RPM_MAX_RETRIES`` and raise, which crashes the *entire* concurrent
+    group via ``future.result()`` -- observed live. Pacing requests here,
+    proactively, before they are ever sent, avoids the 429 in the first
+    place instead of reacting to it after several threads have already
+    collided on the same window.
+
+    Uses ``time.monotonic()`` for the window itself (wall-clock pacing must
+    be real regardless of any injected business clock used for cost-log
+    timestamps or RPD determination), but sleeps via the client's own
+    injectable ``sleep_fn`` so tests can still fake the wait.
+    """
+
+    def __init__(self, max_calls: int, period_seconds: float, sleep_fn: Callable[[float], None]):
+        self._max_calls = max_calls
+        self._period_seconds = period_seconds
+        self._sleep = sleep_fn
+        self._lock = threading.Lock()
+        self._call_times: list[float] = []
+
+    def acquire(self) -> None:
+        while True:
+            with self._lock:
+                now = time.monotonic()
+                self._call_times = [t for t in self._call_times if now - t < self._period_seconds]
+                if len(self._call_times) < self._max_calls:
+                    self._call_times.append(now)
+                    return
+                wait = self._period_seconds - (now - self._call_times[0])
+            if wait > 0:
+                self._sleep(wait)
 
 
 class BudgetExceeded(Exception):
@@ -164,6 +211,19 @@ class GeminiLlmClient:
     SERVER_ERROR_BACKOFF_SECONDS: float = 5.0
     SERVER_ERROR_MAX_RETRIES: int = 3
 
+    # ``generate_many``'s free-lane path fires independent items concurrently
+    # instead of serially -- each is still just one HTTP round-trip, so wall
+    # clock time is bound by the slowest concurrent item, not the sum of all
+    # of them. Throughput is still capped by ``FREE_LANE_RATE_LIMIT_PER_MINUTE``
+    # below regardless of this value; it mainly controls how many requests can
+    # be in flight (and therefore latency-overlapping) at once.
+    FREE_LANE_MAX_CONCURRENCY: int = 8
+
+    # The free tier's real ceiling is 15 RPM. Pacing to slightly under it
+    # (not to 15 itself) leaves headroom against Google's window boundary not
+    # lining up exactly with ours -- see ``_SlidingWindowRateLimiter``.
+    FREE_LANE_RATE_LIMIT_PER_MINUTE: int = 14
+
     def __init__(
         self,
         free_api_key: str | None = None,
@@ -204,6 +264,17 @@ class GeminiLlmClient:
         # instantiating this class never requires an API key.
         self._free_client: genai.Client | None = None
         self._paid_client: genai.Client | None = None
+        # Guards lazy client construction only: ``generate_many``'s free-lane
+        # path can call ``_get_sdk_client`` from multiple threads on first
+        # use. Cost-log writes and cache reads/writes never need this lock --
+        # ``generate_many`` only ever performs those from the calling thread,
+        # after collecting each worker's result, never from inside a worker.
+        self._sdk_client_lock = threading.Lock()
+        self._free_lane_limiter = _SlidingWindowRateLimiter(
+            max_calls=self.FREE_LANE_RATE_LIMIT_PER_MINUTE,
+            period_seconds=60.0,
+            sleep_fn=self._sleep,
+        )
 
     def _load_cost_log(self) -> None:
         if not self.cost_log_path.exists():
@@ -309,29 +380,30 @@ class GeminiLlmClient:
         are separate Google Cloud projects (CLAUDE.md 9), so each gets its own
         client built from its own key.
         """
-        if lane == "free":
-            if self._free_client is None:
-                if not self.free_api_key:
-                    raise MissingApiKeyError(
-                        "The free lane needs an API key from the unbilled Google "
-                        "Cloud project, but none is configured. Set "
-                        "GEMINI_FREE_API_KEY (or GEMINI_API_KEY) in the environment, "
-                        "or pass free_api_key= to GeminiLlmClient."
-                    )
-                self._free_client = genai.Client(api_key=self.free_api_key)
-            return self._free_client
-        if lane == "paid":
-            if self._paid_client is None:
-                if not self.paid_api_key:
-                    raise MissingApiKeyError(
-                        "The paid lane needs an API key from the billed Google "
-                        "Cloud project, but none is configured. Set "
-                        "GEMINI_PAID_API_KEY in the environment, or pass "
-                        "paid_api_key= to GeminiLlmClient."
-                    )
-                self._paid_client = genai.Client(api_key=self.paid_api_key)
-            return self._paid_client
-        raise ValueError(f"_get_sdk_client has no client for lane={lane!r}")
+        with self._sdk_client_lock:
+            if lane == "free":
+                if self._free_client is None:
+                    if not self.free_api_key:
+                        raise MissingApiKeyError(
+                            "The free lane needs an API key from the unbilled Google "
+                            "Cloud project, but none is configured. Set "
+                            "GEMINI_FREE_API_KEY (or GEMINI_API_KEY) in the environment, "
+                            "or pass free_api_key= to GeminiLlmClient."
+                        )
+                    self._free_client = genai.Client(api_key=self.free_api_key)
+                return self._free_client
+            if lane == "paid":
+                if self._paid_client is None:
+                    if not self.paid_api_key:
+                        raise MissingApiKeyError(
+                            "The paid lane needs an API key from the billed Google "
+                            "Cloud project, but none is configured. Set "
+                            "GEMINI_PAID_API_KEY in the environment, or pass "
+                            "paid_api_key= to GeminiLlmClient."
+                        )
+                    self._paid_client = genai.Client(api_key=self.paid_api_key)
+                return self._paid_client
+            raise ValueError(f"_get_sdk_client has no client for lane={lane!r}")
 
     def _thinking_config_for(self, model: str) -> genai_types.ThinkingConfig | None:
         """Thinking is off everywhere except the ``gemini-3.7-flash`` verify workloads.
@@ -521,18 +593,31 @@ class GeminiLlmClient:
             job = client.batches.get(name=job.name)
         return job
 
-    def _call_batch(
+    def _call_batch_many(
         self,
         client: genai.Client,
         *,
         model: str,
-        prompt: str,
+        prompts: list[str],
         config: genai_types.GenerateContentConfig,
         purpose: str,
-    ) -> tuple[str, int, int]:
-        inlined_request = genai_types.InlinedRequest(model=model, contents=prompt, config=config)
+    ) -> list[tuple[str, int, int]]:
+        """Submit MANY prompts as ONE real Gemini batch job and poll it once.
+
+        Submitting one item per job (the original implementation, now
+        ``_call_batch``'s single-prompt case below) pays the batch API's own
+        scheduling/queueing overhead once per item and gets none of the
+        throughput benefit batching exists for -- confirmed live: a pilot run
+        of ~50 paid-lane calls took the better part of an hour, each one
+        individually queueing for 1-3 minutes, serially. Grouping N
+        independent prompts into one job here pays that overhead once for all
+        N, not N times, and is what ``generate_many`` uses for the paid lane.
+        """
+        inlined_requests = [
+            genai_types.InlinedRequest(model=model, contents=p, config=config) for p in prompts
+        ]
         try:
-            job = client.batches.create(model=model, src=[inlined_request])
+            job = client.batches.create(model=model, src=inlined_requests)
         except genai_errors.ServerError as exc:
             raise ServerUnavailableError(str(exc)) from exc
         except genai_errors.ClientError as exc:
@@ -558,23 +643,77 @@ class GeminiLlmClient:
             )
 
         inlined_responses = job.dest.inlined_responses if job.dest is not None else None
-        if not inlined_responses:
+        if not inlined_responses or len(inlined_responses) != len(prompts):
+            got = len(inlined_responses) if inlined_responses else 0
             raise RuntimeError(
-                f"Gemini batch job {job.name!r} for model {model!r} succeeded "
-                "but returned no inlined responses."
+                f"Gemini batch job {job.name!r} for model {model!r} returned "
+                f"{got} responses for {len(prompts)} submitted prompts."
             )
 
-        inlined = inlined_responses[0]
-        if inlined.error is not None:
-            raise RuntimeError(
-                f"Gemini batch request failed for model {model!r} "
-                f"(purpose={purpose!r}): {inlined.error.message}"
-            )
-        if inlined.response is None:
-            raise RuntimeError(
-                f"Gemini batch job {job.name!r} for model {model!r} returned no response body."
-            )
-        return self._extract_text_and_tokens(inlined.response, prompt=prompt)
+        results: list[tuple[str, int, int]] = []
+        for prompt, inlined in zip(prompts, inlined_responses, strict=True):
+            if inlined.error is not None:
+                raise RuntimeError(
+                    f"Gemini batch request failed for model {model!r} "
+                    f"(purpose={purpose!r}): {inlined.error.message}"
+                )
+            if inlined.response is None:
+                raise RuntimeError(
+                    f"Gemini batch job {job.name!r} for model {model!r} returned no response body."
+                )
+            results.append(self._extract_text_and_tokens(inlined.response, prompt=prompt))
+        return results
+
+    def _call_batch_many_with_retry(
+        self,
+        client: genai.Client,
+        *,
+        model: str,
+        prompts: list[str],
+        config: genai_types.GenerateContentConfig,
+        purpose: str,
+    ) -> list[tuple[str, int, int]]:
+        """Transient-retry wrapper around ``_call_batch_many``, scoped to the
+        paid lane's group submission: no RPD lane-switch (there is nowhere
+        further to move from the paid lane), just the same bounded
+        backoff-and-retry ``_call_transport_with_lane_handling`` gives a
+        single free-lane call, applied to the whole group at once.
+        """
+        rpm_attempts = 0
+        server_attempts = 0
+        while True:
+            try:
+                return self._call_batch_many(
+                    client, model=model, prompts=prompts, config=config, purpose=purpose
+                )
+            except QuotaExceededError as exc:
+                if rpm_attempts >= self.RPM_MAX_RETRIES:
+                    raise
+                rpm_attempts += 1
+                self._sleep(exc.retry_delay_seconds or self.RPM_BACKOFF_SECONDS)
+                continue
+            except ServerUnavailableError:
+                if server_attempts >= self.SERVER_ERROR_MAX_RETRIES:
+                    raise
+                server_attempts += 1
+                self._sleep(self.SERVER_ERROR_BACKOFF_SECONDS)
+                continue
+
+    def _call_batch(
+        self,
+        client: genai.Client,
+        *,
+        model: str,
+        prompt: str,
+        config: genai_types.GenerateContentConfig,
+        purpose: str,
+    ) -> tuple[str, int, int]:
+        """Single-prompt case of ``_call_batch_many``, kept for the free
+        lane's per-item fallback path (e.g. an individual call that trips RPD
+        mid-flight) where grouping isn't possible."""
+        return self._call_batch_many(
+            client, model=model, prompts=[prompt], config=config, purpose=purpose
+        )[0]
 
     def _call_transport(
         self,
@@ -611,6 +750,11 @@ class GeminiLlmClient:
         config = genai_types.GenerateContentConfig(thinking_config=self._thinking_config_for(model))
 
         if mode == "sync":
+            # Proactively pace free-lane requests to the real ceiling instead
+            # of reacting to 429s after the fact -- see
+            # ``_SlidingWindowRateLimiter``'s docstring for why this matters
+            # specifically once ``generate_many`` can call this concurrently.
+            self._free_lane_limiter.acquire()
             return self._call_sync(
                 client, model=model, prompt=prompt, config=config, purpose=purpose
             )
@@ -734,6 +878,140 @@ class GeminiLlmClient:
             self.cache.set(model=model, prompt=prompt, response=response_text, **kwargs)
 
         return response_text
+
+    def generate_many(
+        self,
+        prompts: list[str],
+        model: str = MODEL_GENERATE,
+        purpose: str = "generation",
+        use_cache: bool = True,
+        is_user_content: bool = False,
+        now: datetime | None = None,
+    ) -> list[str]:
+        """Execute many independent prompts as one logical call, returning
+        responses in the same order as ``prompts``.
+
+        This is the fix for both the batch-API and the wall-clock problem a
+        loop of ``generate()`` calls has:
+
+        - **Free lane**: every cache-miss prompt is a separate HTTP round-trip
+          regardless, so they are fired concurrently (bounded by
+          ``FREE_LANE_MAX_CONCURRENCY``) instead of one after another. Each
+          item still goes through the exact same per-item
+          ``_call_transport_with_lane_handling`` RPM/RPD/503 handling
+          ``generate()`` uses -- concurrency changes wall-clock time, not
+          correctness. Cost-log writes and cache writes happen on the calling
+          thread only, after collecting each worker's result, never inside a
+          worker, so no locking is needed around them.
+        - **Paid lane**: all cache-miss prompts are submitted as ONE real
+          multi-item Gemini batch job (``_call_batch_many``) instead of one
+          job per prompt -- the previous per-``generate()``-call loop paid a
+          full batch-job's queueing overhead (observed live: 1-3 minutes) for
+          every single item, serially, with none of the throughput benefit
+          batching exists for.
+        """
+        if not prompts:
+            return []
+        ref_time = now or self._clock()
+
+        current_spend = self.get_month_to_date_spend(ref_time)
+        if current_spend >= self.spend_ceiling_usd:
+            raise BudgetExceeded(
+                f"Monthly spend ceiling of ${self.spend_ceiling_usd:.2f} reached "
+                f"(current spend: ${current_spend:.4f})."
+            )
+
+        results: list[str | None] = [None] * len(prompts)
+        pending_indices: list[int] = []
+        for i, prompt in enumerate(prompts):
+            if use_cache:
+                cached = self.cache.get(model=model, prompt=prompt)
+                if cached is not None:
+                    self._log_cost(
+                        CostLogRow(
+                            timestamp=ref_time,
+                            model=model,
+                            lane="cache",
+                            prompt_tokens=len(prompt.split()),
+                            completion_tokens=len(cached.split()),
+                            cost_usd=0.0,
+                            purpose=purpose,
+                        )
+                    )
+                    results[i] = cached
+                    continue
+            pending_indices.append(i)
+
+        if not pending_indices:
+            return [text for text in results if text is not None]
+
+        lane = self._determine_lane(is_user_content, ref_time)
+
+        if lane == "free":
+            with ThreadPoolExecutor(max_workers=self.FREE_LANE_MAX_CONCURRENCY) as pool:
+                future_to_index = {
+                    pool.submit(
+                        self._call_transport_with_lane_handling,
+                        model=model,
+                        prompt=prompts[i],
+                        lane=lane,
+                        purpose=purpose,
+                        ref_time=ref_time,
+                    ): i
+                    for i in pending_indices
+                }
+                for future in as_completed(future_to_index):
+                    i = future_to_index[future]
+                    text, prompt_tokens, completion_tokens, used_lane = future.result()
+                    cost_usd = self._estimate_cost(
+                        model, prompt_tokens, completion_tokens, used_lane
+                    )
+                    self._log_cost(
+                        CostLogRow(
+                            timestamp=ref_time,
+                            model=model,
+                            lane=used_lane,
+                            prompt_tokens=prompt_tokens,
+                            completion_tokens=completion_tokens,
+                            cost_usd=cost_usd,
+                            purpose=purpose,
+                        )
+                    )
+                    if use_cache:
+                        self.cache.set(model=model, prompt=prompts[i], response=text)
+                    results[i] = text
+        else:  # paid
+            client = self._get_sdk_client("paid")
+            config = genai_types.GenerateContentConfig(
+                thinking_config=self._thinking_config_for(model)
+            )
+            batch_prompts = [prompts[i] for i in pending_indices]
+            batch_results = self._call_batch_many_with_retry(
+                client, model=model, prompts=batch_prompts, config=config, purpose=purpose
+            )
+            for i, (text, prompt_tokens, completion_tokens) in zip(
+                pending_indices, batch_results, strict=True
+            ):
+                cost_usd = self._estimate_cost(model, prompt_tokens, completion_tokens, "paid")
+                self._log_cost(
+                    CostLogRow(
+                        timestamp=ref_time,
+                        model=model,
+                        lane="paid",
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        cost_usd=cost_usd,
+                        purpose=purpose,
+                    )
+                )
+                if use_cache:
+                    self.cache.set(model=model, prompt=prompts[i], response=text)
+                results[i] = text
+
+        assert all(text is not None for text in results), (
+            "generate_many must fill every index before returning"
+        )
+        return [text for text in results if text is not None]
 
     def generate_text(
         self,

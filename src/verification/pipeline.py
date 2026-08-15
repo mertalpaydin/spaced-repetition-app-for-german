@@ -18,7 +18,7 @@ from src.verification.classifier import ErrorClassifier
 from src.verification.layer1_syntax import Layer1SyntaxValidator
 from src.verification.layer2_morphology import Layer2MorphologyValidator
 from src.verification.layer3_solver import Layer3AdversarialSolver
-from src.verification.layer_expander import AnswerSetExpander
+from src.verification.layer_expander import AnswerSetExpander, SemanticVerificationResult
 from src.verification.layer_topic_leak import TopicLeakValidator
 
 if TYPE_CHECKING:
@@ -95,7 +95,37 @@ class VerificationPipeline:
         topic: Topic | None = None,
         existing_bank_items: list[BankItem] | None = None,
     ) -> VerificationResult:
-        """Run candidate item through all verification layers.
+        """Run one candidate item through all verification layers.
+
+        A thin single-item wrapper around ``_verify_layers_1_to_4`` +
+        ``AnswerSetExpander.verify_semantic_validity``: ``verify_batch`` does
+        NOT call this method per candidate (see its own docstring for why --
+        it batches layer 5's model calls across the whole group instead).
+        This method exists for standalone single-item verification (tests,
+        one-off checks) where batching has nothing to batch against.
+        """
+        result = self._verify_layers_1_to_4(
+            item, spec=spec, topic=topic, existing_bank_items=existing_bank_items
+        )
+        if result is not None:
+            return result
+        if self.llm_client is None:
+            return VerificationResult(item=item, passed=True, accepted=True)
+        semantic = AnswerSetExpander.verify_semantic_validity(item, self.llm_client)
+        return self._finalize_layer5(item, semantic)
+
+    def _verify_layers_1_to_4(
+        self,
+        item: CandidateItem,
+        spec: TopicSpec | None = None,
+        topic: Topic | None = None,
+        existing_bank_items: list[BankItem] | None = None,
+    ) -> VerificationResult | None:
+        """Run the free, deterministic layers (1-4). Returns a final
+        ``VerificationResult`` if the item is rejected by one of them, or
+        ``None`` if it survives and is ready for layer 5 (the caller decides
+        whether layer 5 runs at all, and whether to batch it across several
+        survivors -- this method never touches ``self.llm_client``).
 
         Canonical layer numbering (this is the numbering reported in
         ``VerificationResult.layer_failed`` and the one
@@ -199,33 +229,36 @@ class VerificationPipeline:
                     error_type="duplicate",
                 )
 
-        # Layer 5: Semantic & Answer-Set Expansion (model-backed, optional)
-        if self.llm_client is not None:
-            semantic = AnswerSetExpander.verify_semantic_validity(item, self.llm_client)
-            if not semantic.valid:
-                return VerificationResult(
-                    item=item,
-                    passed=False,
-                    accepted=False,
-                    layer_failed=5,
-                    reason=semantic.reason or "Semantic or collocation check failed.",
-                    error_type="pedagogical_flaw",
-                )
-            accepted_answers = AnswerSetExpander.expand_answers(item)
-            for extra in semantic.additional_accepted_answers:
-                if extra not in accepted_answers:
-                    accepted_answers.append(extra)
+        # Survived layers 1-4: layer 5 (model-backed, optional) is the
+        # caller's decision -- see ``verify_item`` and ``verify_batch``.
+        return None
+
+    @staticmethod
+    def _finalize_layer5(
+        item: CandidateItem, semantic: SemanticVerificationResult
+    ) -> VerificationResult:
+        """Build the final ``VerificationResult`` for an item that survived
+        layers 1-4, given its layer-5 semantic verdict. Shared by
+        ``verify_item`` (one item) and ``verify_batch`` (a batched group),
+        so the accept/reject logic itself cannot drift between the two."""
+        if not semantic.valid:
             return VerificationResult(
                 item=item,
-                passed=True,
-                accepted=True,
-                accepted_answers=accepted_answers,
+                passed=False,
+                accepted=False,
+                layer_failed=5,
+                reason=semantic.reason or "Semantic or collocation check failed.",
+                error_type="pedagogical_flaw",
             )
-
+        accepted_answers = AnswerSetExpander.expand_answers(item)
+        for extra in semantic.additional_accepted_answers:
+            if extra not in accepted_answers:
+                accepted_answers.append(extra)
         return VerificationResult(
             item=item,
             passed=True,
             accepted=True,
+            accepted_answers=accepted_answers,
         )
 
     def verify_batch(
@@ -239,6 +272,16 @@ class VerificationPipeline:
         audit_labels: dict[str, bool] | None = None,
     ) -> BatchVerificationReport:
         """Run batch of candidates through verification pipeline and evaluate the kill gate.
+
+        Layers 1-4 run per candidate (cheap, no network). Layer 5, when
+        ``self.llm_client`` is configured, is batched ONCE across every
+        candidate that survives layers 1-4 (``AnswerSetExpander
+        .verify_semantic_validity_many``), not called once per candidate in
+        a loop -- this is what lets a whole pilot run's worth of semantic
+        checks become one grouped free-lane dispatch or one paid-lane batch
+        job instead of N serial calls. ``verify_item`` remains the
+        single-item path (used directly by tests and one-off callers) and is
+        NOT what this method calls per candidate.
 
         ``audit_labels`` is an optional mapping of item id (see ``_item_id``) to
         ``is_defective``, produced by an independent human or cross-vendor audit
@@ -266,19 +309,40 @@ class VerificationPipeline:
                 results=[],
             )
 
-        results: list[VerificationResult] = []
+        # Pass 1: layers 1-4, per candidate. Either a final (rejected) result,
+        # or None meaning "survived, needs layer 5".
+        pending: list[VerificationResult | None] = [
+            self._verify_layers_1_to_4(
+                c,
+                spec=spec or (specs.get(c.topic_id) if specs else None),
+                topic=topic or self.topics_map.get(c.topic_id),
+                existing_bank_items=existing_bank_items,
+            )
+            for c in candidates
+        ]
+        survivor_indices = [i for i, res in enumerate(pending) if res is None]
+
+        # Pass 2: layer 5, batched once across every survivor.
+        if survivor_indices and self.llm_client is not None:
+            survivors = [candidates[i] for i in survivor_indices]
+            semantics = AnswerSetExpander.verify_semantic_validity_many(survivors, self.llm_client)
+            for i, semantic in zip(survivor_indices, semantics, strict=True):
+                pending[i] = self._finalize_layer5(candidates[i], semantic)
+        else:
+            for i in survivor_indices:
+                pending[i] = VerificationResult(item=candidates[i], passed=True, accepted=True)
+
+        assert all(res is not None for res in pending), (
+            "every candidate must have a final VerificationResult after layers 1-5"
+        )
+        results: list[VerificationResult] = [res for res in pending if res is not None]
+
         passed_count = 0
         failed_count = 0
         audited_accepted_count = 0
         defective_accepted_count = 0
 
-        for idx, c in enumerate(candidates):
-            item_spec = spec or (specs.get(c.topic_id) if specs else None)
-            item_topic = topic or self.topics_map.get(c.topic_id)
-            res = self.verify_item(
-                c, spec=item_spec, topic=item_topic, existing_bank_items=existing_bank_items
-            )
-            results.append(res)
+        for idx, (c, res) in enumerate(zip(candidates, results, strict=True)):
             if res.passed:
                 passed_count += 1
             else:

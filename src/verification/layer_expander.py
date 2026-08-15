@@ -164,17 +164,23 @@ class AnswerSetExpander:
         )
 
     @classmethod
-    def verify_semantic_validity(
-        cls, item: CandidateItem, llm_client: "GeminiLlmClient"
-    ) -> SemanticVerificationResult:
-        """Run the model-backed semantic/collocation check for one candidate.
+    def verify_semantic_validity_many(
+        cls, items: list[CandidateItem], llm_client: "GeminiLlmClient"
+    ) -> list[SemanticVerificationResult]:
+        """Run the model-backed semantic/collocation check for many candidates
+        as one logical call, returning verdicts in the same order as ``items``.
 
         Every call goes through ``src.llm.client.GeminiLlmClient`` (CLAUDE.md
-        rule 4): cost accounting, the spend ceiling, and the two-lane routing
-        all apply exactly as they do to generation.
+        rule 4) via ``generate_many``: cost accounting, the spend ceiling, and
+        the two-lane routing all apply exactly as they do to generation, and
+        on the free lane items are dispatched concurrently instead of one
+        ``generate()`` call per item in a loop -- the previous per-item loop
+        was, along with generation's own per-item loop, the dominant cost of
+        a slow pilot run (each paid-lane item alone queued for 1-3 minutes).
 
-        Two errors this layer explicitly degrades on rather than propagates,
-        both confirmed live against the real API, not hypothetical:
+        Two errors this layer explicitly degrades the WHOLE group on rather
+        than propagates, both confirmed live against the real API, not
+        hypothetical:
 
         - ``BudgetExceeded`` -- CLAUDE.md 9: "Callers handle it by degrading,
           never by retrying."
@@ -183,19 +189,29 @@ class AnswerSetExpander:
           observed live as a sustained-enough outage on ``gemini-3.7-flash``
           to exhaust them.
 
-        Both are infrastructure trouble, not a verdict on the candidate's
+        Both are infrastructure trouble, not a verdict on any candidate's
         German, and this layer is a refinement on top of layers 1-4, not a
-        required gate: either one skips the check rather than rejecting, or
-        crashing the whole batch on, a candidate that already passed every
-        free/cheap check.
+        required gate: either one skips the check for every item in the
+        group rather than rejecting, or crashing the whole batch on,
+        candidates that already passed every free/cheap check.
         """
+        if not items:
+            return []
         from src.llm.client import BudgetExceeded, ServerUnavailableError
 
-        prompt = f"{cls.SYSTEM_PROMPT}\n\n{cls._build_user_prompt(item)}"
+        prompts = [f"{cls.SYSTEM_PROMPT}\n\n{cls._build_user_prompt(item)}" for item in items]
         try:
-            response_text = llm_client.generate(
-                prompt, model=MODEL_VERIFY, purpose="answer_expansion"
+            response_texts = llm_client.generate_many(
+                prompts, model=MODEL_VERIFY, purpose="answer_expansion"
             )
         except (BudgetExceeded, ServerUnavailableError):
-            return SemanticVerificationResult()
-        return cls._parse_semantic_response(response_text)
+            return [SemanticVerificationResult() for _ in items]
+        return [cls._parse_semantic_response(text) for text in response_texts]
+
+    @classmethod
+    def verify_semantic_validity(
+        cls, item: CandidateItem, llm_client: "GeminiLlmClient"
+    ) -> SemanticVerificationResult:
+        """Single-candidate case of ``verify_semantic_validity_many``, kept
+        for callers verifying exactly one item on its own (e.g. ``verify_item``)."""
+        return cls.verify_semantic_validity_many([item], llm_client)[0]

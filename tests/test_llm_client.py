@@ -16,6 +16,8 @@ inside ``src/``, not in ``tests/``.
 
 import ast
 import json
+import threading
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -612,6 +614,163 @@ def test_batch_call_on_paid_lane_uses_batches_api(tmp_path: Path) -> None:
         line.strip() for line in log_file.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
     assert '"lane":"paid"' in lines[-1]
+
+
+def test_generate_many_returns_empty_list_for_empty_input(tmp_path: Path) -> None:
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+    assert client.generate_many([], purpose="unit_test") == []
+
+
+def test_sliding_window_rate_limiter_paces_bursts_instead_of_letting_them_through(
+    tmp_path: Path,
+) -> None:
+    """Regression test for a live crash: concurrent free-lane dispatch could
+    burst past the real RPM ceiling, and when several of those burst items
+    then retried at roughly the same moment too, one could exhaust its
+    bounded retry budget and raise -- crashing the entire ``generate_many``
+    group via ``future.result()``, losing every other item's completed work.
+    The limiter must block the 3rd call within a 2-call window rather than
+    letting all 3 through immediately."""
+    from src.llm.client import _SlidingWindowRateLimiter
+
+    sleeps: list[float] = []
+    limiter = _SlidingWindowRateLimiter(max_calls=2, period_seconds=0.05, sleep_fn=sleeps.append)
+
+    limiter.acquire()
+    limiter.acquire()
+    limiter.acquire()
+
+    assert sleeps, "the 3rd acquire within the window must have waited, not passed straight through"
+
+
+def test_generate_many_free_lane_dispatches_concurrently_in_order(tmp_path: Path) -> None:
+    """Every prompt is a separate free-lane call (mirroring ``generate()``'s
+    existing per-item transport seam, so RPM/RPD/503 handling is unchanged),
+    but they run concurrently rather than one after another, and results
+    come back in the same order as the input prompts regardless of which
+    finishes first."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file,
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+    )
+
+    call_order: list[str] = []
+    lock = threading.Lock()
+
+    def fake_transport(**kwargs: object) -> tuple[str, int, int]:
+        prompt = str(kwargs["prompt"])
+        with lock:
+            call_order.append(prompt)
+        # Deliberately reverse-order the "slowness" so the fastest-to-finish
+        # is NOT the first prompt -- a real regression here (returning
+        # completion order instead of input order) would fail this test.
+        if prompt == "eins":
+            time.sleep(0.05)
+        return (f"Antwort auf {prompt}", 1, 1)
+
+    client._call_transport = fake_transport  # type: ignore[method-assign]
+
+    responses = client.generate_many(["eins", "zwei", "drei"], purpose="unit_test", use_cache=False)
+
+    assert responses == ["Antwort auf eins", "Antwort auf zwei", "Antwort auf drei"]
+    assert sorted(call_order) == ["drei", "eins", "zwei"]
+
+    lines = [
+        line.strip() for line in log_file.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    assert len(lines) == 3
+
+
+def test_generate_many_skips_cached_prompts_and_only_calls_transport_for_misses(
+    tmp_path: Path,
+) -> None:
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file,
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+    )
+    client.cache.set(model=MODEL_GENERATE, prompt="cached", response="Aus dem Cache")
+
+    called: list[str] = []
+
+    def fake_transport(**kwargs: object) -> tuple[str, int, int]:
+        prompt = str(kwargs["prompt"])
+        called.append(prompt)
+        return (f"Antwort auf {prompt}", 1, 1)
+
+    client._call_transport = fake_transport  # type: ignore[method-assign]
+
+    responses = client.generate_many(["cached", "neu"], purpose="unit_test")
+
+    assert responses == ["Aus dem Cache", "Antwort auf neu"]
+    assert called == ["neu"]
+
+
+def _fake_batch_job_many(texts: list[str]) -> genai_types.BatchJob:
+    """A terminal ``BatchJob`` carrying one inlined response per ``texts`` entry."""
+    return genai_types.BatchJob(
+        name="batches/fake-job-many",
+        state=genai_types.JobState.JOB_STATE_SUCCEEDED,
+        dest=genai_types.BatchJobDestination(
+            inlined_responses=[
+                genai_types.InlinedResponse(
+                    response=_fake_generate_content_response(
+                        t, prompt_tokens=5, candidates_tokens=5
+                    )
+                )
+                for t in texts
+            ]
+        ),
+    )
+
+
+def test_generate_many_paid_lane_submits_one_job_for_the_whole_group(tmp_path: Path) -> None:
+    """The whole point of this seam: N prompts on the paid lane must become
+    ONE ``batches.create`` call carrying N inlined requests, not N separate
+    single-item jobs -- the previous implementation's batch-scheduling
+    overhead was paid once per item; this pays it once per group."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file, cache_dir=tmp_path / "cache", paid_api_key="fake-paid-key"
+    )
+    client.free_lane_open = False  # force the paid lane
+
+    fake_batches = _FakeBatches(job=_fake_batch_job_many(["Antwort A", "Antwort B", "Antwort C"]))
+    fake_sdk = _FakeSdkClient(batches=fake_batches)
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    responses = client.generate_many(["a", "b", "c"], purpose="unit_test", use_cache=False)
+
+    assert responses == ["Antwort A", "Antwort B", "Antwort C"]
+    assert len(fake_batches.create_calls) == 1, "must be exactly one batch job for the group"
+    assert len(fake_batches.create_calls[0]["src"]) == 3
+
+    lines = [
+        line.strip() for line in log_file.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    assert len(lines) == 3
+    assert all('"lane":"paid"' in line for line in lines)
+
+
+def test_generate_many_raises_budget_exceeded_before_any_call(tmp_path: Path) -> None:
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        spend_ceiling_usd=0.0,
+    )
+
+    def must_not_be_called(**kwargs: object) -> tuple[str, int, int]:
+        raise AssertionError("transport must never be called once the ceiling is reached")
+
+    client._call_transport = must_not_be_called  # type: ignore[method-assign]
+
+    with pytest.raises(BudgetExceeded):
+        client.generate_many(["a", "b"], purpose="unit_test")
 
 
 def test_paid_lane_non_batch_call_is_rejected_as_a_defect(tmp_path: Path) -> None:

@@ -694,17 +694,19 @@ def test_every_error_taxonomy_category_is_reachable_from_a_real_layer_output(
 
 
 class _FakeSemanticLlmClient:
-    """Records every prompt and returns a canned response, standing in for
-    ``GeminiLlmClient`` at the one seam ``AnswerSetExpander.verify_semantic_validity``
-    calls (``.generate(prompt, model=..., purpose=...)``)."""
+    """Records every prompt and returns a canned response for each, standing
+    in for ``GeminiLlmClient`` at the seam ``AnswerSetExpander
+    .verify_semantic_validity_many`` calls
+    (``.generate_many(prompts, model=..., purpose=...)``)."""
 
     def __init__(self, response_text: str) -> None:
         self.response_text = response_text
         self.calls: list[dict[str, object]] = []
 
-    def generate(self, prompt: str, model: str, purpose: str) -> str:
-        self.calls.append({"prompt": prompt, "model": model, "purpose": purpose})
-        return self.response_text
+    def generate_many(self, prompts: list[str], model: str, purpose: str) -> list[str]:
+        for prompt in prompts:
+            self.calls.append({"prompt": prompt, "model": model, "purpose": purpose})
+        return [self.response_text for _ in prompts]
 
 
 def _semantic_item() -> CandidateItem:
@@ -789,7 +791,7 @@ def test_layer5_degrades_to_accept_on_budget_exceeded(sample_spec: TopicSpec) ->
     from src.llm.client import BudgetExceeded
 
     class _BudgetExceededLlmClient:
-        def generate(self, prompt: str, model: str, purpose: str) -> str:
+        def generate_many(self, prompts: list[str], model: str, purpose: str) -> list[str]:
             raise BudgetExceeded("Monthly spend ceiling reached.")
 
     pipeline = VerificationPipeline(llm_client=_BudgetExceededLlmClient())  # type: ignore[arg-type]
@@ -808,7 +810,7 @@ def test_layer5_degrades_to_accept_on_server_unavailable(sample_spec: TopicSpec)
     from src.llm.client import ServerUnavailableError
 
     class _OverloadedLlmClient:
-        def generate(self, prompt: str, model: str, purpose: str) -> str:
+        def generate_many(self, prompts: list[str], model: str, purpose: str) -> list[str]:
             raise ServerUnavailableError("503 UNAVAILABLE")
 
     pipeline = VerificationPipeline(llm_client=_OverloadedLlmClient())  # type: ignore[arg-type]

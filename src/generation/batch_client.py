@@ -209,13 +209,11 @@ class GeminiBatchClient:
     every other call in the app.
 
     Used whenever an API key is configured (see ``_build_llm_client_if_configured``);
-    ``MockBatchClient`` is reserved for tests and offline development. The
-    upstream Gemini Batch API transport itself is a stub today (see
-    ``GeminiLlmClient._call_transport``'s docstring; another agent is wiring a
-    real transport in), so this class currently drives one synchronous
-    ``generate()`` call per request rather than a real async batch job -- the
-    seam is here, ready, and does not change when the transport underneath it
-    goes live.
+    ``MockBatchClient`` is reserved for tests and offline development. Every
+    request's prompt is sent through one ``GeminiLlmClient.generate_many``
+    call (not a loop of individual ``generate()`` calls): on the free lane
+    that dispatches requests concurrently, and on the paid lane it submits
+    every request as ONE real multi-item Gemini batch job.
     """
 
     def __init__(
@@ -248,15 +246,26 @@ class GeminiBatchClient:
         # cannot leave 4 partially-billed calls behind it.
         specs = [_load_spec_or_raise(req.topic_id, self.specs_dir) for req in requests]
 
+        # One ``generate_many`` call for every request, not one ``generate()``
+        # call per request in a loop: on the free lane this dispatches them
+        # concurrently instead of serially, and on the paid lane it submits
+        # ONE real multi-item batch job instead of one job per request (see
+        # ``GeminiLlmClient.generate_many``'s docstring for why the latter
+        # matters -- the previous one-job-per-item loop was the dominant cost
+        # of a slow pilot run).
+        prompts = [
+            self._prompt_builder.build_generation_prompt(spec, req.count, req.difficulty)
+            for req, spec in zip(requests, specs, strict=True)
+        ]
+        response_texts = self.llm_client.generate_many(
+            prompts,
+            model=MODEL_GENERATE,
+            purpose="generation",
+            is_user_content=False,
+        )
+
         candidates: list[CandidateItem] = []
-        for req, spec in zip(requests, specs, strict=True):
-            prompt = self._prompt_builder.build_generation_prompt(spec, req.count, req.difficulty)
-            response_text = self.llm_client.generate(
-                prompt,
-                model=MODEL_GENERATE,
-                purpose="generation",
-                is_user_content=False,
-            )
+        for req, response_text in zip(requests, response_texts, strict=True):
             candidates.extend(self._parse_response(response_text, req))
 
         self.submitted_batches[batch_id] = requests
