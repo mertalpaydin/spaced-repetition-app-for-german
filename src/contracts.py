@@ -38,6 +38,11 @@ ErrorTaxonomy = Literal[
     "duplicate",
     "vocabulary_ceiling_violation",
     "pedagogical_flaw",
+    # docs/audits/stage-04-recovery-plan.md fix D: a parenthetical cue that
+    # hands over the answer is its own defect, distinct from a topic leak
+    # (it doesn't name the grammar topic) and from structural_malformation
+    # (the item's shape is fine; it just tests nothing).
+    "answer_leak",
 ]
 
 # ==============================================================================

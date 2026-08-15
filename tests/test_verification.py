@@ -409,14 +409,17 @@ def test_layer1_rejects_missing_gap(pipeline: VerificationPipeline, sample_spec:
 def test_layer1_rejects_wrong_distractor_count(
     pipeline: VerificationPipeline, sample_spec: TopicSpec
 ) -> None:
-    """Layer 1 rejects items with != 3 distractors."""
+    """Layer 1 rejects items with fewer than MIN_DISTRACTORS_AFTER_REPAIR
+    distractors. docs/audits/stage-04-recovery-plan.md fix A lowered the
+    floor from 3 to 2 (a two-way choice is still a real multiple choice),
+    so this must supply only 1 to still exercise the rejection."""
     item = CandidateItem(
         topic_id="dativ_nach_praeposition",
         type="cloze_free",
         difficulty=1,
         prompt="Das Buch liegt auf ___ Tisch.",
         proposed_answer="dem",
-        distractors=[Distractor(text="den"), Distractor(text="des")],
+        distractors=[Distractor(text="den")],
     )
     res = pipeline.verify_item(item, spec=sample_spec)
     assert not res.passed
@@ -426,12 +429,19 @@ def test_layer1_rejects_wrong_distractor_count(
 def test_layer1_rejects_vocabulary_ceiling_violations(
     pipeline: VerificationPipeline, sample_spec: TopicSpec
 ) -> None:
-    """Layer 1 rejects items containing vocabulary beyond CEFR ceiling."""
+    """Layer 1 rejects items containing vocabulary beyond CEFR ceiling.
+
+    docs/audits/stage-04-recovery-plan.md fix C: absence from the wordlist no
+    longer means "too hard" (an incomplete list can only prove a word easy,
+    never that it's hard), so this must use a word the list actually contains
+    ABOVE the ceiling -- "Ablauf" is a real B2 entry -- not an invented
+    compound the list simply doesn't have.
+    """
     item = CandidateItem(
         topic_id="dativ_nach_praeposition",
         type="cloze_free",
         difficulty=1,
-        prompt="Die verfassungswidrige Demonstrationsverbotsverordnung liegt auf ___ Tisch.",
+        prompt="Der Ablauf liegt auf ___ Tisch.",
         proposed_answer="dem",
         distractors=[Distractor(text="den"), Distractor(text="des"), Distractor(text="das")],
     )
@@ -664,9 +674,12 @@ def test_every_error_taxonomy_category_is_reachable_from_a_real_layer_output(
     reached["duplicate"] = res.error_type
 
     # vocabulary_ceiling_violation: layer 1, above-ceiling vocabulary.
+    # "Ablauf" is a real B2 entry in the wordlist; fix C means an absent
+    # (merely unlisted) word no longer counts as a violation, so this must
+    # use a word the list actually contains above the A2 ceiling.
     pipeline_with_vocab = VerificationPipeline(vocab_store=vocab_store)
     res = pipeline_with_vocab.verify_item(
-        _item(prompt="Die verfassungswidrige Verordnung liegt auf ___ Tisch."), spec=sample_spec
+        _item(prompt="Der Ablauf liegt auf ___ Tisch."), spec=sample_spec
     )
     reached["vocabulary_ceiling_violation"] = res.error_type
 
