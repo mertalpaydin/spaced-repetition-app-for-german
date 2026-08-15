@@ -3,9 +3,7 @@ cefr: B2
 target_form: 'Epistemic use of modal verbs expressing varying degrees of probability/certainty:
   muss (100%), dürfte (75%), kann/könnte (50%).'
 item_types:
-- cloze_free
-- cloze_cued
-- transformation
+- paragraph_cloze
 - error_correction
 max_tokens_per_sentence: 24
 vocabulary_ceiling: B2

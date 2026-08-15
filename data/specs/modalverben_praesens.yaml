@@ -3,7 +3,6 @@ cefr: A1
 target_form: Modal verbs (können, müssen, wollen, dürfen, sollen, möchten) with infinitive
   at clause end (Satzklammer).
 item_types:
-- cloze_free
 - cloze_cued
 - transformation
 - error_correction
@@ -23,14 +22,14 @@ gold_examples:
   accepted_answers:
   - kann
   difficulty: 1
-  cue: null
+  cue: können
 - prompt: Weil du krank bist, ___ du heute zu Hause bleiben.
   accepted_answers:
   - musst
   difficulty: 2
-  cue: null
+  cue: müssen
 - prompt: Obwohl die Prüfung schwer ist, ___ die Studierenden meist alle Fragen beantworten.
   accepted_answers:
   - können
   difficulty: 3
-  cue: null
+  cue: können

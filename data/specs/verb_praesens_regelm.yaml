@@ -3,7 +3,6 @@ cefr: A1
 target_form: Regular weak verb conjugation in present tense (-e, -st, -t, -en, -t,
   -en).
 item_types:
-- cloze_free
 - cloze_cued
 - error_correction
 max_tokens_per_sentence: 14
@@ -22,15 +21,15 @@ gold_examples:
   accepted_answers:
   - wohne
   difficulty: 1
-  cue: null
+  cue: wohnen
 - prompt: Wenn die Sonne scheint, ___ die Kinder gern im Garten.
   accepted_answers:
   - spielen
   difficulty: 2
-  cue: null
-- prompt: Obwohl der Bus oft zu spät kommt, ___ meine Kollegin jeden Morgen geduldig an der
-    Haltestelle.
+  cue: spielen
+- prompt: Obwohl der Bus oft zu spät kommt, ___ meine Kollegin jeden Morgen geduldig
+    an der Haltestelle.
   accepted_answers:
   - wartet
   difficulty: 3
-  cue: null
+  cue: warten

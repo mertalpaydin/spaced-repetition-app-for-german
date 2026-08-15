@@ -3,7 +3,6 @@ cefr: A1
 target_form: Strong verbs with stem vowel change in 2nd and 3rd person singular (e->i/ie,
   a->ä, au->äu).
 item_types:
-- cloze_free
 - cloze_cued
 - error_correction
 max_tokens_per_sentence: 14
@@ -22,15 +21,15 @@ gold_examples:
   accepted_answers:
   - liest
   difficulty: 1
-  cue: null
+  cue: lesen
 - prompt: Wenn du Hunger hast, ___ du am besten sofort etwas.
   accepted_answers:
   - isst
   difficulty: 2
-  cue: null
-- prompt: Obwohl ihre Kollegen häufig Überstunden machen, ___ meine Nachbarn abends meist
-    entspannt zu Abend.
+  cue: essen
+- prompt: Obwohl ihre Kollegen häufig Überstunden machen, ___ meine Nachbarn abends
+    meist entspannt zu Abend.
   accepted_answers:
   - essen
   difficulty: 3
-  cue: null
+  cue: essen

@@ -3,7 +3,6 @@ cefr: A1
 target_form: 'Word order in declarative main clauses: conjugated verb occupies position
   2.'
 item_types:
-- cloze_free
 - transformation
 - error_correction
 max_tokens_per_sentence: 14
@@ -18,17 +17,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Heute ___ ich Fußball.
+- prompt: Fußball ist mein Lieblingssport. Heute ___ ich Fußball.
   accepted_answers:
   - spiele
   difficulty: 1
   cue: null
-- prompt: Wenn es regnet, ___ ich zu Hause.
+- prompt: Bei schlechtem Wetter fühle ich mich zu Hause am wohlsten. Wenn es regnet,
+    ___ ich zu Hause.
   accepted_answers:
   - bleibe
   difficulty: 2
   cue: null
-- prompt: Den Vertrag, den der Anwalt geprüft hat, ___ die Firma morgen.
+- prompt: Die Firma möchte den Vertrag bald abschließen. Den Vertrag, den der Anwalt
+    geprüft hat, ___ die Firma morgen.
   accepted_answers:
   - unterschreibt
   difficulty: 3

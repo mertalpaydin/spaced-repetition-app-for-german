@@ -1,11 +1,44 @@
 """Topic generation spec sheet contracts, loader, and generator."""
 
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.contracts import CEFR, Difficulty, ItemType, Topic
+
+# stage-04-pilot-2026-08-15.md D6: a machine-checkable classification of what
+# forces the answer in the carrier. Each kind maps to a specific mechanical
+# (or explicitly-declared-unverifiable) check in
+# ``scripts/check_gold_examples.py`` -- see that module's ``FORCING_ELEMENT_
+# CHECKS`` table for what each kind actually asserts.
+ForcingElementKind = Literal[
+    "temporal_anchor",
+    "motion_or_location_verb",
+    "governing_word",
+    "governing_preposition",
+    "correlative_first_half",
+    "unambiguous_antecedent",
+    "clause_relation",
+    "anteriority_anchor",
+    "subject_person_marker",
+    "discourse_referent",
+]
+
+
+class ForcingElement(BaseModel):
+    """Declares what in the carrier forces the gap's answer, and how to check it.
+
+    ``kind`` selects a mechanical (or explicitly-unverifiable) check; ``note``
+    is a human-readable description used in the generation prompt and, for
+    kinds with a closed set (e.g. ``governing_word``), the string the checker
+    looks for.
+    """
+
+    model_config = ConfigDict(frozen=True)
+    kind: ForcingElementKind
+    note: str
 
 
 class GoldExample(BaseModel):
@@ -43,6 +76,16 @@ class TopicSpec(BaseModel):
             "unnatural or convoluted German phrasing",
         ]
     )
+    # 01-foundation.md's solvability rule / stage-04-pilot-2026-08-15.md D1:
+    # applies to every topic, not only ones that keep cloze_free -- it names
+    # the specific element in the carrier that forces the gap's answer (a
+    # temporal anchor, a governing preposition, an antecedent, the first half
+    # of a two-part connector...), and generation must require it to be
+    # present. ``None`` is still valid for topics where the item type alone
+    # already guarantees solvability (paragraph_cloze/transformation carry
+    # their own forcing context structurally) or where no forcing_element has
+    # been authored for this topic yet.
+    forcing_element: ForcingElement | None = None
     gold_examples: list[GoldExample] = Field(default_factory=list)
 
 

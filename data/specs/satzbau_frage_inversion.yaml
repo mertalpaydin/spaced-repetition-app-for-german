@@ -3,7 +3,6 @@ cefr: A1
 target_form: 'Question structures: W-questions (W-word on 1, Verb on 2) vs Yes/No
   questions (Verb on 1).'
 item_types:
-- cloze_free
 - transformation
 - error_correction
 max_tokens_per_sentence: 14
@@ -18,7 +17,7 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: ___ du Hunger?
+- prompt: Ich habe seit dem Frühstück nichts mehr gegessen. ___ du Hunger?
   accepted_answers:
   - Hast
   difficulty: 1

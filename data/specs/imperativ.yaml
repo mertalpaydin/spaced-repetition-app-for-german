@@ -3,7 +3,6 @@ cefr: A1
 target_form: Imperative forms for informal singular (du), informal plural (ihr), and
   formal (Sie).
 item_types:
-- cloze_free
 - cloze_cued
 - transformation
 - error_correction
@@ -23,14 +22,14 @@ gold_examples:
   accepted_answers:
   - Warte
   difficulty: 1
-  cue: null
+  cue: warten
 - prompt: Kinder, ___ bitte auf eure Mutter!
   accepted_answers:
   - wartet
   difficulty: 2
-  cue: null
+  cue: warten
 - prompt: Bevor der Zug abfährt, ___ Sie bitte noch kurz am Bahnsteig!
   accepted_answers:
   - warten
   difficulty: 3
-  cue: null
+  cue: warten

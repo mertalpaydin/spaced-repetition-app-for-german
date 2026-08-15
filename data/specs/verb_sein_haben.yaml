@@ -2,7 +2,6 @@ topic_id: verb_sein_haben
 cefr: A1
 target_form: Present tense conjugations of auxiliary/copula verbs 'sein' and 'haben'.
 item_types:
-- cloze_free
 - cloze_cued
 - error_correction
 max_tokens_per_sentence: 14
@@ -21,14 +20,15 @@ gold_examples:
   accepted_answers:
   - bin
   difficulty: 1
-  cue: null
+  cue: sein
 - prompt: Weil ihr eine große Familie ___, braucht ihr ein großes Auto.
   accepted_answers:
   - habt
   difficulty: 2
-  cue: null
-- prompt: Obwohl die Nachbarn oft laut streiten, ___ mein Bruder große Geduld mit ihnen.
+  cue: haben
+- prompt: Obwohl die Nachbarn oft laut streiten, ___ mein Bruder große Geduld mit
+    ihnen.
   accepted_answers:
   - hat
   difficulty: 3
-  cue: null
+  cue: haben

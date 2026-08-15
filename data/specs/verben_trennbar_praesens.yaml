@@ -3,7 +3,6 @@ cefr: A1
 target_form: 'Separable verbs: prefix separates and moves to the end of main clause
   in present tense.'
 item_types:
-- cloze_free
 - cloze_cued
 - transformation
 - error_correction
@@ -23,15 +22,15 @@ gold_examples:
   accepted_answers:
   - stehe
   difficulty: 1
-  cue: null
+  cue: aufstehen
 - prompt: Wenn du mich brauchst, ___ du mich einfach an.
   accepted_answers:
   - rufst
   difficulty: 2
-  cue: null
-- prompt: Obwohl die Preise gestiegen sind, ___ viele Familien samstags günstig im Supermarkt
-    ein.
+  cue: anrufen
+- prompt: Obwohl die Preise gestiegen sind, ___ viele Familien samstags günstig im
+    Supermarkt ein.
   accepted_answers:
   - kaufen
   difficulty: 3
-  cue: null
+  cue: einkaufen

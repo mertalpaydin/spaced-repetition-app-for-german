@@ -3,7 +3,6 @@ cefr: B1
 target_form: 'Passive alternatives: ''sein + zu + Infinitiv'' (must/can be done) and
   adjectives with suffix -bar / -lich.'
 item_types:
-- cloze_free
 - transformation
 - error_correction
 max_tokens_per_sentence: 18
@@ -18,18 +17,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Diese Aufgabe ist leicht ___.
+- prompt: Jeder in der Klasse konnte die Aufgabe schnell schaffen. Diese Aufgabe ist
+    leicht ___.
   accepted_answers:
   - zu lösen
   difficulty: 1
   cue: null
-- prompt: Der Vertrag ist nicht ___, weil die Fristen zu kurz sind.
+- prompt: Die Firma prüfte alle Bedingungen des Vertrags genau. Der Vertrag ist nicht
+    ___, weil die Fristen zu kurz sind.
   accepted_answers:
   - erfüllbar
   difficulty: 2
   cue: null
-- prompt: Die Software, die das Unternehmen entwickelt hat, ist auch für Anfänger
-    leicht ___.
+- prompt: Viele Nutzer loben die neue Software. Die Software, die das Unternehmen
+    entwickelt hat, ist auch für Anfänger leicht ___.
   accepted_answers:
   - zu bedienen
   difficulty: 3

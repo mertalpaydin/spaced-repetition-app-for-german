@@ -2,8 +2,7 @@ topic_id: artikel_bestimmt_nom
 cefr: A1
 target_form: Definite articles in the Nominative case (der, die, das, die).
 item_types:
-- cloze_free
-- cloze_cued
+- paragraph_cloze
 - error_correction
 max_tokens_per_sentence: 14
 vocabulary_ceiling: A1
@@ -17,17 +16,18 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: ___ Tisch ist neu.
+- prompt: Wir haben einen Tisch bekommen. ___ Tisch ist neu.
   accepted_answers:
   - Der
   difficulty: 1
   cue: null
-- prompt: Weil es regnet, bleibt ___ Kind heute zu Hause.
+- prompt: Die Familie hat ein Kind. Weil es regnet, bleibt ___ Kind heute zu Hause.
   accepted_answers:
   - das
   difficulty: 2
   cue: null
-- prompt: Obwohl es spät war, blieb ___ Laden noch eine Stunde geöffnet.
+- prompt: Am Markt gibt es einen Laden, den viele Leute mögen. Obwohl es spät war,
+    blieb ___ Laden noch eine Stunde geöffnet.
   accepted_answers:
   - der
   difficulty: 3

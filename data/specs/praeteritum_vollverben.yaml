@@ -3,7 +3,6 @@ cefr: B1
 target_form: 'Simple past of full lexical verbs (weak: -te, -test, -te...; strong:
   ablaut vowel change + -, -st, -, -en, -t, -en).'
 item_types:
-- cloze_free
 - cloze_cued
 - transformation
 - error_correction
@@ -23,15 +22,15 @@ gold_examples:
   accepted_answers:
   - kaufte
   difficulty: 1
-  cue: null
+  cue: kaufen
 - prompt: Du ___ gestern spät nach Hause, weil die Bahn Verspätung hatte.
   accepted_answers:
   - kamst
   difficulty: 2
-  cue: null
-- prompt: Die Ingenieure ___ das Problem erst nach mehreren Wochen intensiver
-    Forschung, obwohl sie zunächst skeptisch gewesen waren.
+  cue: kommen
+- prompt: Die Ingenieure ___ das Problem erst nach mehreren Wochen intensiver Forschung,
+    obwohl sie zunächst skeptisch gewesen waren.
   accepted_answers:
   - lösten
   difficulty: 3
-  cue: null
+  cue: lösen

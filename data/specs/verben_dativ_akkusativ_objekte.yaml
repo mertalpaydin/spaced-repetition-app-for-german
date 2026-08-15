@@ -3,7 +3,6 @@ cefr: A2
 target_form: 'Word order of double objects: Nouns = Dative before Accusative; Pronouns
   = Accusative pronoun before Dative pronoun.'
 item_types:
-- cloze_free
 - transformation
 - error_correction
 max_tokens_per_sentence: 18
@@ -18,17 +17,20 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Die Mutter kauft ___ eine Puppe.
+- prompt: Die Tochter wünscht sich schon lange eine Puppe. Die Mutter kauft ___ eine
+    Puppe.
   accepted_answers:
   - der Tochter
   difficulty: 1
   cue: null
-- prompt: Ich weiß, dass er ___ heute Abend zeigt.
+- prompt: Mein Bruder hat ein neues Spiel gekauft und will es seinem Freund zeigen.
+    Ich weiß, dass er ___ heute Abend zeigt.
   accepted_answers:
   - es ihm
   difficulty: 2
   cue: null
-- prompt: Der Anwalt, der den Auftrag übernommen hat, überreicht ___ die Unterlagen.
+- prompt: Der Klient wartet seit Tagen auf wichtige Unterlagen. Der Anwalt, der den
+    Auftrag übernommen hat, überreicht ___ die Unterlagen.
   accepted_answers:
   - dem Klienten
   difficulty: 3

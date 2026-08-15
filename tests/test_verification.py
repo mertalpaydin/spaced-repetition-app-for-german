@@ -539,7 +539,7 @@ def test_layer2_morphosyntactic_validation(
 def test_layer3_detects_ambiguous_completions(pipeline: VerificationPipeline) -> None:
     """Layer 3 catches under-constrained prompts admitting open alternative completions."""
     item = CandidateItem(
-        topic_id="verb_praesens_regelm",
+        topic_id="konjunktionen_position_0",
         type="cloze_free",
         difficulty=1,
         prompt="Ich trinke ___ Kaffee.",
@@ -636,7 +636,7 @@ def test_every_error_taxonomy_category_is_reachable_from_a_real_layer_output(
     # ambiguity: layer 3, under-constrained gap with no governing anchor.
     res = pipeline.verify_item(
         _item(
-            topic_id="verb_praesens_regelm",
+            topic_id="konjunktionen_position_0",
             prompt="Ich trinke ___ Kaffee.",
             proposed_answer="oft",
             distractors=[
@@ -1142,7 +1142,7 @@ def test_layer5_repairs_item_when_fix2_drops_the_mismatched_alternative(
     item is repaired (accepted, without the bad alternative), not rejected."""
     item = CandidateItem(
         topic_id="artikel_bestimmt_nom",
-        type="cloze_free",
+        type="error_correction",
         difficulty=1,
         prompt="___ Hund bellt laut im Hof.",
         proposed_answer="Der",
@@ -1175,7 +1175,7 @@ def test_layer5_ambiguity_check_is_a_backstop_when_fix2_cannot_filter(
     OTHER in that case."""
     item = CandidateItem(
         topic_id="artikel_possessiv_nom",
-        type="cloze_free",
+        type="error_correction",
         difficulty=1,
         prompt="___ Hund bellt laut im Hof.",
         proposed_answer="Dieser",
@@ -1235,3 +1235,50 @@ def test_layer5_rejects_on_post_expansion_distractor_collision() -> None:
     assert not res.passed
     assert res.layer_failed == 5
     assert res.error_type == "structural_malformation"
+
+
+def test_layer1_rejects_item_type_not_in_topic_eligible_types(
+    pipeline: VerificationPipeline,
+) -> None:
+    """docs/audits/stage-04-pilot-2026-08-15.md fix 5: an item's type must
+    be in its topic's eligible_types. This is the backstop for that rule --
+    generation is instructed to pick only from eligible_types, but this
+    check is what actually enforces it regardless of whether generation
+    complied."""
+    taxonomy = load_taxonomy()
+    topic = next(t for t in taxonomy if t.id == "konjunktiv_i_indirekte_rede")
+    assert "cloze_free" not in topic.eligible_types, (
+        "fixture assumption: this topic must not allow cloze_free"
+    )
+    item = CandidateItem(
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        prompt="Er sagte, er ___ krank.",
+        proposed_answer="sei",
+        distractors=[Distractor(text="ist"), Distractor(text="war"), Distractor(text="wäre")],
+    )
+
+    res = pipeline.verify_item(item, topic=topic)
+
+    assert not res.passed
+    assert res.layer_failed == 1
+    assert res.error_type == "structural_malformation"
+    assert "eligible_types" in (res.reason or "")
+
+
+def test_layer1_accepts_item_type_that_is_in_topic_eligible_types(
+    pipeline: VerificationPipeline, sample_spec: TopicSpec, sample_topic: Topic
+) -> None:
+    """The enforcement must not reject a type the topic genuinely allows."""
+    assert "cloze_free" in sample_topic.eligible_types
+    item = CandidateItem(
+        topic_id=sample_topic.id,
+        type="cloze_free",
+        difficulty=1,
+        prompt="Das Buch liegt auf ___ Tisch.",
+        proposed_answer="dem",
+        distractors=[Distractor(text="den"), Distractor(text="des"), Distractor(text="das")],
+    )
+    res = pipeline.verify_item(item, spec=sample_spec, topic=sample_topic)
+    assert res.passed, f"unexpected rejection: {res.reason}"

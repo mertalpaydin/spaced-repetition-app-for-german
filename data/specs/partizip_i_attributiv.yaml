@@ -3,7 +3,6 @@ cefr: B2
 target_form: Participle I (Infinitiv + -d + Adjektivendung) used attributively to
   express ongoing, active simultaneous action.
 item_types:
-- cloze_free
 - cloze_cued
 - transformation
 - error_correction
@@ -23,16 +22,15 @@ gold_examples:
   accepted_answers:
   - weinende
   difficulty: 1
-  cue: null
+  cue: weinen
 - prompt: Er spricht mit dem ___ Mann, weil er offensichtlich Hilfe braucht.
   accepted_answers:
   - wartenden
   difficulty: 2
-  cue: null
-- prompt: Die Firma unterstützt die ___ Studierenden mit einem
-    zusätzlichen Stipendium, obwohl das Budget in diesem Jahr ohnehin
-    schon sehr knapp bemessen ist.
+  cue: warten
+- prompt: Die Firma unterstützt die ___ Studierenden mit einem zusätzlichen Stipendium,
+    obwohl das Budget in diesem Jahr ohnehin schon sehr knapp bemessen ist.
   accepted_answers:
   - forschenden
   difficulty: 3
-  cue: null
+  cue: forschen

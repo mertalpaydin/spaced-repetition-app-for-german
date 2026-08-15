@@ -3,8 +3,7 @@ cefr: A1
 target_form: Possessive determiners in the Nominative case (mein, dein, sein, ihr,
   unser, euer, ihr, Ihr).
 item_types:
-- cloze_free
-- cloze_cued
+- paragraph_cloze
 - error_correction
 max_tokens_per_sentence: 14
 vocabulary_ceiling: A1
@@ -18,21 +17,19 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: ___ Auto ist blau.
+- prompt: Ich habe ein neues Auto gekauft. ___ Auto ist blau.
   accepted_answers:
   - Mein
-  - Dein
-  - Sein
-  - Ihr
-  - Unser
   difficulty: 1
   cue: null
-- prompt: Weil sie umgezogen ist, gehört ___ Wohnung jetzt niemandem mehr.
+- prompt: Frau Schmidt ist letzte Woche umgezogen. Weil sie umgezogen ist, gehört
+    ___ Wohnung jetzt niemandem mehr.
   accepted_answers:
   - ihre
   difficulty: 2
   cue: null
-- prompt: Obwohl er selten zu Hause ist, kostet ___ Garten trotzdem viel Pflege.
+- prompt: Er ist selten zu Hause. Obwohl er selten zu Hause ist, kostet ___ Garten
+    trotzdem viel Pflege.
   accepted_answers:
   - sein
   difficulty: 3

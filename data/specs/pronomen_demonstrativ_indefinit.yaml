@@ -3,8 +3,7 @@ cefr: A2
 target_form: Demonstrative determiners (dieser/diese/dieses) and indefinite pronouns
   (jeder, alle, man, jemand, niemand).
 item_types:
-- cloze_free
-- cloze_cued
+- paragraph_cloze
 - error_correction
 max_tokens_per_sentence: 18
 vocabulary_ceiling: A2
@@ -18,7 +17,7 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: ___ Mantel gefällt mir sehr gut.
+- prompt: Im Laden hängen viele Mäntel. ___ Mantel gefällt mir sehr gut.
   accepted_answers:
   - Dieser
   difficulty: 1

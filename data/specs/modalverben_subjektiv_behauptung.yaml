@@ -3,9 +3,7 @@ cefr: B2
 target_form: 'Modal verbs expressing reported claims: ''soll'' (rumour/others claim)
   vs ''will'' (the subject claims about themselves).'
 item_types:
-- cloze_free
-- cloze_cued
-- transformation
+- paragraph_cloze
 - error_correction
 max_tokens_per_sentence: 24
 vocabulary_ceiling: B2
@@ -19,7 +17,8 @@ forbidden:
 - the answer appearing elsewhere in the sentence
 - unnatural or convoluted German phrasing
 gold_examples:
-- prompt: Der neue Mitarbeiter ___ früher Profisportler gewesen sein.
+- prompt: Man erzählt sich viele Geschichten über den neuen Kollegen. Der neue Mitarbeiter
+    ___ früher Profisportler gewesen sein.
   accepted_answers:
   - soll
   difficulty: 1

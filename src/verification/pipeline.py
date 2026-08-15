@@ -141,8 +141,11 @@ class VerificationPipeline:
            presence/count, distractor shape, prompt token length, register,
            vocabulary ceiling (prompt AND accepted answer) -- plus topic-leak
            detection, both the blocklist check (``layer1_syntax``) and the
-           answer-appears-in-prompt check (``layer1_topic_leak``). Both are
-           free and deterministic, so both run before anything else.
+           answer-appears-in-prompt check (``layer1_topic_leak``), plus
+           ``item.type in topic.eligible_types`` enforcement (a topic that
+           cannot be honestly tested by a free cloze must not be accepted as
+           one, docs/audits/stage-04-pilot-2026-08-15.md fix 5). All are free
+           and deterministic, so all run before anything else.
         2. Morphosyntax & agreement (``layer2_morphology``): case, gender,
            and subject-verb agreement, driven by ``topic.morph_spec`` /
            ``topic.syntax_tags``.
@@ -164,6 +167,30 @@ class VerificationPipeline:
         """
         effective_topic = topic or self.topics_map.get(item.topic_id)
         effective_spec = spec
+
+        # Layer 1: eligible_types enforcement. Cheapest possible check (list
+        # membership, no parsing), so it runs before even layer1_syntax.
+        # 01-foundation.md's solvability rule / docs/audits/
+        # stage-04-pilot-2026-08-15.md fix 5: "An item's type must be in its
+        # topic's eligible_types... a topic that cannot be honestly tested by
+        # a free cloze must not be generated as one." This is the backstop
+        # for that rule -- generation is instructed to pick only from
+        # eligible_types (see PromptBuilder.build_generation_prompt), but an
+        # instruction is not a guarantee, and this check is what actually
+        # enforces it regardless of whether generation complied.
+        if effective_topic is not None and item.type not in effective_topic.eligible_types:
+            return VerificationResult(
+                item=item,
+                passed=False,
+                accepted=False,
+                layer_failed=1,
+                reason=(
+                    f"Item type {item.type!r} is not in topic "
+                    f"{effective_topic.id!r}'s eligible_types "
+                    f"{effective_topic.eligible_types}."
+                ),
+                error_type="structural_malformation",
+            )
 
         # Layer 1: Syntax, Structural Invariants & Topic Leak
         ok1, reason1, code1 = self.layer1_syntax.validate(item, spec=effective_spec)

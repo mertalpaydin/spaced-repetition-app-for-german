@@ -32,7 +32,7 @@
   prereqs: [pronomen_personal_nom]
   confusion_group: perfekt_hilfsverb
   description: "Present tense conjugations of auxiliary/copula verbs 'sein' and 'haben'."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Tense: Pres}
   syntax_tags: {VerbType: "Aux"}
@@ -51,7 +51,7 @@
   prereqs: [pronomen_personal_nom]
   confusion_group: verb_praesens_stamm
   description: "Regular weak verb conjugation in present tense (-e, -st, -t, -en, -t, -en)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Tense: Pres}
   rule_hint: "Präsens-Endungen: ich -e, du -st, er/sie/es -t, wir -en, ihr -t, sie/Sie -en."
@@ -69,7 +69,7 @@
   prereqs: [verb_praesens_regelm]
   confusion_group: verb_praesens_stamm
   description: "Strong verbs with stem vowel change in 2nd and 3rd person singular (e->i/ie, a->ä, au->äu)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Tense: Pres}
   syntax_tags: {VowelChange: "true"}
@@ -88,7 +88,7 @@
   prereqs: [verb_praesens_regelm]
   confusion_group: wortstellung_verb
   description: "Word order in declarative main clauses: conjugated verb occupies position 2."
-  eligible_types: [cloze_free, transformation, error_correction]
+  eligible_types: [transformation, error_correction]
   requires_context: false
   morph_spec: {}
   rule_hint: "Im Hauptsatz steht das konjugierte Verb immer an Position 2."
@@ -106,7 +106,7 @@
   prereqs: [satzbau_hauptsatz_position2]
   confusion_group: wortstellung_verb
   description: "Question structures: W-questions (W-word on 1, Verb on 2) vs Yes/No questions (Verb on 1)."
-  eligible_types: [cloze_free, transformation, error_correction]
+  eligible_types: [transformation, error_correction]
   requires_context: false
   morph_spec: {}
   rule_hint: "Ja/Nein-Frage: Verb auf Position 1. W-Frage: Fragewort auf 1, Verb auf 2."
@@ -124,8 +124,8 @@
   prereqs: [pronomen_personal_nom]
   confusion_group: artikelwoerter
   description: "Definite articles in the Nominative case (der, die, das, die)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
-  requires_context: false
+  eligible_types: [paragraph_cloze, error_correction]
+  requires_context: true
   morph_spec: {Case: Nom}
   syntax_tags: {ArtType: "Def"}
   rule_hint: "Nominativ bestimmter Artikel: der (maskulin), die (feminin), das (neutral), die (Plural)."
@@ -143,8 +143,8 @@
   prereqs: [artikel_bestimmt_nom]
   confusion_group: artikelwoerter
   description: "Indefinite (ein, eine) and negative (kein, keine) articles in Nominative."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
-  requires_context: false
+  eligible_types: [paragraph_cloze, error_correction]
+  requires_context: true
   morph_spec: {Case: Nom}
   syntax_tags: {ArtType: "IndefOrNeg"}
   rule_hint: "Nominativ: ein/kein (m/n), eine/keine (f), keine (Plural)."
@@ -162,8 +162,8 @@
   prereqs: [artikel_unbestimmt_kein_nom]
   confusion_group: artikelwoerter
   description: "Possessive determiners in the Nominative case (mein, dein, sein, ihr, unser, euer, ihr, Ihr)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
-  requires_context: false
+  eligible_types: [paragraph_cloze, error_correction]
+  requires_context: true
   morph_spec: {Case: Nom}
   syntax_tags: {ArtType: "Poss"}
   rule_hint: "Possessivartikel folgen im Nominativ der Deklination von 'ein/kein' (mein/meine/mein)."
@@ -184,7 +184,7 @@
   # (01-foundation.md:193). See DEFECT 2 report for the full singleton audit.
   confusion_group: null
   description: "Plural formation patterns of German nouns (-e, -(e)n, -er, -s, Umlaut)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Number: Plur}
   rule_hint: "Pluralendungen: -e (mit/ohne Umlaut), -(e)n, -er (mit Umlaut), -s oder keine Endung."
@@ -244,7 +244,7 @@
   # group instead of the old one-member "modalverben_bedeutung".
   confusion_group: subjektive_modalverben
   description: "Modal verbs (können, müssen, wollen, dürfen, sollen, möchten) with infinitive at clause end (Satzklammer)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Tense: Pres}
   syntax_tags: {VerbType: "Modal"}
@@ -267,7 +267,7 @@
   # partner to interleave against (01-foundation.md:193).
   confusion_group: null
   description: "Separable verbs: prefix separates and moves to the end of main clause in present tense."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Tense: Pres}
   syntax_tags: {Separable: "true"}
@@ -291,7 +291,7 @@
   # here would violate CLAUDE.md rule 7.
   confusion_group: null
   description: "Imperative forms for informal singular (du), informal plural (ihr), and formal (Sie)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Mood: Imp}
   rule_hint: "du: Verbstamm (ohne -st/du); ihr: Verbstamm + -t; Sie: Infinitiv + Sie."
@@ -463,7 +463,7 @@
   prereqs: [verb_sein_haben, modalverben_praesens]
   confusion_group: vergangenheit
   description: "Simple past of auxiliary verbs (war, hatte) and modal verbs (konnte, musste, wollte, durfte, sollte)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Tense: Past}
   rule_hint: "Präteritum: war/hatte und konnte/musste/wollte/durfte/sollte (ohne Umlaut!)."
@@ -520,7 +520,7 @@
   # domain, not a lookalike a learner would substitute here.
   confusion_group: null
   description: "Word order of double objects: Nouns = Dative before Accusative; Pronouns = Accusative pronoun before Dative pronoun."
-  eligible_types: [cloze_free, transformation, error_correction]
+  eligible_types: [transformation, error_correction]
   requires_context: false
   morph_spec: {}
   rule_hint: "Nomen: Dativ vor Akkusativ ('dem Mann den Brief'). Pronomen: Akkusativ vor Dativ ('ihn ihm')."
@@ -607,7 +607,7 @@
   # invented, not genuine.
   confusion_group: null
   description: "Comparison of adjectives: Komparativ (-er + als) and Superlativ (am -sten / der -ste) with vowel umlauts."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Degree: CompOrSup}
   rule_hint: "Komparativ: Stamm + -er (schneller als). Superlativ: am ...-sten oder bestimmter Artikel + ...-ste."
@@ -836,8 +836,8 @@
   prereqs: [artikel_bestimmt_nom, kasus_akkusativ_formen, kasus_dativ_formen]
   confusion_group: artikelwoerter
   description: "Demonstrative determiners (dieser/diese/dieses) and indefinite pronouns (jeder, alle, man, jemand, niemand)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
-  requires_context: false
+  eligible_types: [paragraph_cloze, error_correction]
+  requires_context: true
   morph_spec: {}
   syntax_tags: {Pos: "Pron"}
   rule_hint: "dieser/welcher/jeder dekliniert genau wie der bestimmte Artikel (dieser, diese, dieses, diesem, diesen...)."
@@ -1040,7 +1040,7 @@
   prereqs: [praeteritum_sein_haben_modal]
   confusion_group: vergangenheit
   description: "Simple past of full lexical verbs (weak: -te, -test, -te...; strong: ablaut vowel change + -, -st, -, -en, -t, -en)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Tense: Past}
   rule_hint: "Präteritum schwache Verben: Stamm + -te/-test/-te/-ten/-tet/-ten. Starke Verben: Vokalwechsel (ging, schrieb, sah)."
@@ -1058,8 +1058,13 @@
   prereqs: [praeteritum_vollverben, perfekt_haben, perfekt_sein]
   confusion_group: vergangenheit
   description: "Past perfect tense expressing anteriority: hatte/war (Präteritum) + Partizip II at sentence end."
+  # D2 (stage-04-pilot-2026-08-15.md): a single sentence CAN force the
+  # pluperfect (a nachdem/bevor clause, or a second past-tense event the gap
+  # precedes), so requires_context is false; paragraph_cloze stays available
+  # but is no longer required. The carrier constraint lives in
+  # forcing_element (kind: anteriority_anchor) on the spec sheet instead.
   eligible_types: [cloze_free, cloze_cued, paragraph_cloze, error_correction]
-  requires_context: true
+  requires_context: false
   morph_spec: {Tense: PastPerf}
   rule_hint: "Plusquamperfekt: hatte/war im Präteritum + Partizip II am Satzende (drückt Vorzeitigkeit in der Vergangenheit aus)."
   intro_card:
@@ -1310,7 +1315,7 @@
   prereqs: [passiv_modalverben, infinitiv_mit_zu]
   confusion_group: passiversatz
   description: "Passive alternatives: 'sein + zu + Infinitiv' (must/can be done) and adjectives with suffix -bar / -lich."
-  eligible_types: [cloze_free, transformation, error_correction]
+  eligible_types: [transformation, error_correction]
   requires_context: false
   morph_spec: {}
   rule_hint: "sein + zu + Infinitiv = muss / kann getan werden; Adjektive auf -bar/-lich = kann getan werden (machbar, lesbar)."
@@ -1453,8 +1458,8 @@
   prereqs: [modalverben_praesens, konjunktiv_ii_hoeflichkeit]
   confusion_group: subjektive_modalverben
   description: "Epistemic use of modal verbs expressing varying degrees of probability/certainty: muss (100%), dürfte (75%), kann/könnte (50%)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
-  requires_context: false
+  eligible_types: [paragraph_cloze, error_correction]
+  requires_context: true
   morph_spec: {}
   syntax_tags: {VerbType: "ModalEpistemic"}
   rule_hint: "Sicherheit: muss (fast 100%), dürfte (sehr wahrscheinlich ~75%), kann/könnte (möglich ~50%)."
@@ -1472,8 +1477,8 @@
   prereqs: [modalverben_subjektiv_vermutung]
   confusion_group: subjektive_modalverben
   description: "Modal verbs expressing reported claims: 'soll' (rumour/others claim) vs 'will' (the subject claims about themselves)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
-  requires_context: false
+  eligible_types: [paragraph_cloze, error_correction]
+  requires_context: true
   morph_spec: {}
   syntax_tags: {VerbType: "ModalEpistemic"}
   rule_hint: "'soll' = man sagt über ihn (Gerücht); 'will' = er behauptet über sich selbst (Zweifel des Sprechers)."
@@ -1491,7 +1496,7 @@
   prereqs: [verb_praesens_regelm, adjektivdeklination_bestimmt]
   confusion_group: partizipialattribute
   description: "Participle I (Infinitiv + -d + Adjektivendung) used attributively to express ongoing, active simultaneous action."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Aspect: Prog}
   syntax_tags: {Pos: "Adj"}
@@ -1510,7 +1515,7 @@
   prereqs: [perfekt_haben, partizip_i_attributiv, relativsatz_nom_akk]
   confusion_group: partizipialattribute
   description: "Extended participial attributes preceding nouns, condensing relative clauses into compact pre-nominal structures."
-  eligible_types: [cloze_free, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Aspect: Perf}
   syntax_tags: {Pos: "Adj"}
@@ -1643,7 +1648,10 @@
   # speaker attitude) and pairing them would be invented, not genuine.
   confusion_group: null
   description: "Abtönungspartikeln that color tone and attitude in conversation (ja = as you know, doch = urging/contradiction, denn = curiosity)."
-  eligible_types: [paragraph_cloze, cloze_free, cloze_cued, error_correction]
+  # D3 (stage-04-pilot-2026-08-15.md): which particle is right depends on the
+  # conversational situation, not anything in the sentence, and a cue would
+  # have to name the attitude (a topic leak). Bucket 1: context-only.
+  eligible_types: [paragraph_cloze, error_correction]
   requires_context: true
   morph_spec: {}
   syntax_tags: {Pos: "Part"}
@@ -1706,7 +1714,7 @@
   prereqs: [passiversatz_formen_b1, partizip_i_attributiv]
   confusion_group: passiversatz
   description: "Advanced passive substitutes: 'sich lassen + Infinitiv' and gerundive attributes ('zu + Partizip I' = muss getan werden)."
-  eligible_types: [cloze_free, transformation, error_correction]
+  eligible_types: [transformation, error_correction]
   requires_context: false
   morph_spec: {}
   rule_hint: "sich lassen + Infinitiv = kann getan werden (z.B. Das Problem lässt sich lösen); zu + Partizip I = Gerundiv (die zu lösende Aufgabe)."

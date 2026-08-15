@@ -3,7 +3,6 @@ cefr: B2
 target_form: Extended participial attributes preceding nouns, condensing relative
   clauses into compact pre-nominal structures.
 item_types:
-- cloze_free
 - transformation
 - error_correction
 max_tokens_per_sentence: 24
@@ -22,16 +21,16 @@ gold_examples:
   accepted_answers:
   - vom Ministerium veröffentlichte
   difficulty: 1
-  cue: null
-- prompt: Er dankt dem ___ Kollegen für seine Unterstützung, obwohl die
-    Zusammenarbeit anfangs holprig verlief.
+  cue: veröffentlichen
+- prompt: Er dankt dem ___ Kollegen für seine Unterstützung, obwohl die Zusammenarbeit
+    anfangs holprig verlief.
   accepted_answers:
   - vom ganzen Team geschätzten
   difficulty: 2
-  cue: null
-- prompt: Die ___ Gebäude wurden vollständig saniert, obwohl die
-    ursprünglichen Baupläne bereits Jahrzehnte alt waren.
+  cue: schätzen
+- prompt: Die ___ Gebäude wurden vollständig saniert, obwohl die ursprünglichen Baupläne
+    bereits Jahrzehnte alt waren.
   accepted_answers:
   - durch den Sturm schwer beschädigten
   difficulty: 3
-  cue: null
+  cue: beschädigen

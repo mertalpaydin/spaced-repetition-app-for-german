@@ -2,7 +2,6 @@ topic_id: nomen_plural
 cefr: A1
 target_form: Plural formation patterns of German nouns (-e, -(e)n, -er, -s, Umlaut).
 item_types:
-- cloze_free
 - cloze_cued
 - error_correction
 max_tokens_per_sentence: 14
@@ -21,14 +20,14 @@ gold_examples:
   accepted_answers:
   - Tische
   difficulty: 1
-  cue: null
+  cue: Tisch
 - prompt: Sie hat nur eine Katze, aber ihre Nachbarn haben viele ___.
   accepted_answers:
   - Katzen
   difficulty: 2
-  cue: null
+  cue: Katze
 - prompt: Obwohl jedes Kind ein Buch hat, liegen am Ende viele ___ auf dem Boden.
   accepted_answers:
   - Bücher
   difficulty: 3
-  cue: null
+  cue: Buch

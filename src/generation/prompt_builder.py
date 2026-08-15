@@ -184,7 +184,25 @@ class PromptBuilder:
         seed_texts = [s.german_text for s in seeds[:3]]
 
         tier_desc = spec.difficulty_tiers.get(difficulty, "Standard single clause sentence.")
-        types_str = ", ".join(spec.item_types)
+
+        prohibitions = [
+            "NEVER name or hint at grammar rules in the prompt (NO 'Setze ins Dativ').",
+            "Ensure only ONE grammatically correct filler fits the gap.",
+            "Provide exactly 3 distractors per item with implied_topic_id.",
+            # 01-foundation.md's solvability rule / docs/audits/
+            # stage-04-pilot-2026-08-15.md fix 5: eligible_types is a
+            # correctness constraint, not a stylistic preference. The model
+            # must pick per-item from the allowed list, not default to
+            # cloze_free regardless of what the topic actually permits.
+            "Each item's own 'type' field must be EXACTLY one value chosen "
+            "from allowed_item_types below, never a value outside that list.",
+        ]
+        if spec.forcing_element:
+            prohibitions.append(
+                "The carrier sentence MUST include this forcing element, or the "
+                f"gap cannot be solved by reasoning and the item is invalid: "
+                f"{spec.forcing_element.note}"
+            )
 
         prompt_payload = {
             "instruction": "Generate German grammar training items per spec.",
@@ -193,14 +211,11 @@ class PromptBuilder:
             "difficulty_tier": difficulty,
             "difficulty_guidelines": tier_desc,
             "allowed_item_types": spec.item_types,
+            "forcing_element": spec.forcing_element.note if spec.forcing_element else None,
             "count": count,
             "max_tokens_per_sentence": spec.max_tokens_per_sentence,
             "vocabulary_ceiling": spec.vocabulary_ceiling,
-            "prohibitions": [
-                "NEVER name or hint at grammar rules in the prompt (NO 'Setze ins Dativ').",
-                "Ensure only ONE grammatically correct filler fits the gap.",
-                "Provide exactly 3 distractors per item with implied_topic_id.",
-            ],
+            "prohibitions": prohibitions,
             "gold_few_shot_examples": [
                 {
                     "prompt": g.prompt,
@@ -214,7 +229,7 @@ class PromptBuilder:
                 "items": [
                     {
                         "topic_id": spec.topic_id,
-                        "type": types_str,
+                        "type": "one value from allowed_item_types above, chosen per item",
                         "difficulty": difficulty,
                         "prompt": "Natural German sentence with gap marked as ___",
                         "cue": "optional base form or infinitive if cloze_cued",

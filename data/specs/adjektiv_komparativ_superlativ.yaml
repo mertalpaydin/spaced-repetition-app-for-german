@@ -3,7 +3,6 @@ cefr: A2
 target_form: 'Comparison of adjectives: Komparativ (-er + als) and Superlativ (am
   -sten / der -ste) with vowel umlauts.'
 item_types:
-- cloze_free
 - cloze_cued
 - error_correction
 max_tokens_per_sentence: 18
@@ -22,14 +21,14 @@ gold_examples:
   accepted_answers:
   - schnellere
   difficulty: 1
-  cue: null
+  cue: schnell
 - prompt: Er dankt dem ___ Mitarbeiter für seinen Einsatz in diesem Jahr.
   accepted_answers:
   - fleißigsten
   difficulty: 2
-  cue: null
+  cue: fleißig
 - prompt: Wir besuchen die ___ Ausstellung, die dieses Museum je gezeigt hat.
   accepted_answers:
   - größte
   difficulty: 3
-  cue: null
+  cue: groß

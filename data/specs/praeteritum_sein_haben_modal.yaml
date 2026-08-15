@@ -3,7 +3,6 @@ cefr: A2
 target_form: Simple past of auxiliary verbs (war, hatte) and modal verbs (konnte,
   musste, wollte, durfte, sollte).
 item_types:
-- cloze_free
 - cloze_cued
 - transformation
 - error_correction
@@ -23,14 +22,14 @@ gold_examples:
   accepted_answers:
   - hatte
   difficulty: 1
-  cue: null
+  cue: haben
 - prompt: Weil es so kalt war, ___ wir dicke Jacken anziehen.
   accepted_answers:
   - mussten
   difficulty: 2
-  cue: null
+  cue: müssen
 - prompt: Obwohl du krank warst, ___ du unbedingt zur Prüfung kommen.
   accepted_answers:
   - wolltest
   difficulty: 3
-  cue: null
+  cue: wollen
