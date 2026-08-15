@@ -32,3 +32,37 @@ Date of Audit: August 2026
 3. **Hard Caps**:
    - Nightly generation item cap: **120 items maximum**.
    - Monthly spend hard ceiling: **5.00 EUR**. On reaching the ceiling, system gracefully degrades to least-recently-seen bank review.
+
+---
+
+## 4. Pricing correction (verified 2026-08-14)
+
+`src/llm/client.py`'s `PRICING_PER_MILLION` table was re-verified against
+ai.google.dev/gemini-api/docs/pricing and cross-checked against a second
+independent source. The values in place since this file's original August
+2026 audit were stale and **under-estimated real spend by roughly 4-8x**,
+silently weakening the $5/month ceiling in section 3 above (an
+under-estimate means real Google billing could exceed the ceiling before the
+code believes it has been reached).
+
+| Model | Standard, was | Standard, corrected | Batch (50% off, corrected) |
+|---|---|---|---|
+| `gemini-3.5-flash-lite` | $0.075 / $0.30 | **$0.30 / $2.50** | $0.15 / $1.25 |
+| `gemini-3.7-flash` | $0.15 / $0.60 | **$0.75 / $3.75** | $0.375 / $1.875 |
+
+(input / output per 1M tokens)
+
+Both models remain free-tier eligible (Google's free tier still applies to
+both), so this correction only changes cost estimates for paid-lane (batch)
+calls -- free-lane calls are still logged at $0.00, correctly. `gemini-3.7-flash`
+carries 2026 introductory pricing, 50% off its own standard rate through
+2026-12-31; standard pricing ($1.50 / $7.50) takes effect 2027-01-01 and will
+need a further correction then.
+
+No model swap is recommended: `gemini-3.6-flash`, the model named in
+CLAUDE.md's routing table text for the two thinking-enabled workloads, was
+found to carry identical current pricing to `gemini-3.7-flash` (both $0.75 /
+$3.75 standard, $0.375 / $1.875 batch) -- the code's actual choice of the
+newer `gemini-3.7-flash` for `MODEL_VERIFY` costs nothing extra and CLAUDE.md's
+prose is simply out of date relative to `src/contracts.py`, not a pricing
+regression.

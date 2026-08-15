@@ -31,6 +31,7 @@ from src.llm.client import (
     MissingApiKeyError,
     ModelRejectedError,
     QuotaExceededError,
+    ServerUnavailableError,
 )
 
 
@@ -432,6 +433,55 @@ def test_rpd_429_closes_free_lane_until_pacific_midnight(tmp_path: Path) -> None
     assert '"lane":"free"' in lines[-1]
 
 
+def test_server_overload_backs_off_and_retries_same_lane(tmp_path: Path) -> None:
+    """A 5xx server-overload error (confirmed live: 503 UNAVAILABLE, 'This
+    model is currently experiencing high demand') is transient and carries no
+    quota signal: back off and retry the same (free) lane, exactly like RPM,
+    never the RPD lane-closing path."""
+    sleeps: list[float] = []
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        sleep_fn=sleeps.append,
+    )
+
+    call_count = {"n": 0}
+
+    def flaky_transport(**kwargs: object) -> tuple[str, int, int]:
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            raise ServerUnavailableError("503 UNAVAILABLE")
+        return _fake_transport_ok(**kwargs)
+
+    client._call_transport = flaky_transport  # type: ignore[method-assign]
+
+    response = client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
+
+    assert response
+    assert call_count["n"] == 2, "transport must be retried once after the 503"
+    assert sleeps == [GeminiLlmClient.SERVER_ERROR_BACKOFF_SECONDS]
+    assert client.free_lane_open is True
+    assert client.free_lane_closed_until is None
+
+
+def test_server_overload_gives_up_after_max_retries(tmp_path: Path) -> None:
+    """Persistent server overload must eventually propagate, not retry
+    forever and hang a pilot run."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        sleep_fn=lambda _seconds: None,
+    )
+
+    def always_overloaded(**kwargs: object) -> tuple[str, int, int]:
+        raise ServerUnavailableError("503 UNAVAILABLE")
+
+    client._call_transport = always_overloaded  # type: ignore[method-assign]
+
+    with pytest.raises(ServerUnavailableError):
+        client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
+
+
 def test_free_lane_never_uses_batch_and_paid_lane_always_does(tmp_path: Path) -> None:
     """The free lane is always a synchronous call; the paid lane is always batch."""
     log_file = tmp_path / "cost_log.jsonl"
@@ -747,6 +797,28 @@ def test_sync_call_translates_429_into_quota_exceeded_error(tmp_path: Path) -> N
             model=MODEL_GENERATE, prompt="x", lane="free", mode="sync", purpose="unit_test"
         )
     assert excinfo.value.quota_type == "rpm"
+
+
+def test_sync_call_translates_503_into_server_unavailable_error(tmp_path: Path) -> None:
+    """A 5xx ``ServerError`` from ``generate_content`` becomes a
+    ``ServerUnavailableError``, not an uncaught SDK exception -- confirmed
+    live: this is a distinct exception hierarchy from the 4xx ``ClientError``
+    branch above, so it needs its own translation, not just a wider ``except``."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+    )
+    error = genai_errors.ServerError(
+        503, {"error": {"code": 503, "message": "UNAVAILABLE", "status": "UNAVAILABLE"}}, None
+    )
+    fake_sdk = _FakeSdkClient(models=_FakeModels(error=error))
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    with pytest.raises(ServerUnavailableError):
+        client._call_transport(
+            model=MODEL_GENERATE, prompt="x", lane="free", mode="sync", purpose="unit_test"
+        )
 
 
 def test_sync_call_wraps_non_429_client_error_naming_the_model(tmp_path: Path) -> None:

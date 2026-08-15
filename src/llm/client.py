@@ -69,6 +69,19 @@ class QuotaExceededError(Exception):
         super().__init__(message or f"Gemini quota exceeded: {quota_type}")
 
 
+class ServerUnavailableError(Exception):
+    """Raised by the transport when Gemini returns a 5xx (server overload,
+    internal error -- confirmed live as ``503 UNAVAILABLE``, "This model is
+    currently experiencing high demand").
+
+    Deliberately distinct from ``QuotaExceededError``: this carries no quota
+    signal at all, so it must never trigger RPD's lane-closing behaviour --
+    it is transient trouble on Google's side, typically gone within seconds,
+    and the correct response is the same short backoff-and-retry on the same
+    lane that RPM already gets.
+    """
+
+
 class MissingApiKeyError(RuntimeError):
     """Raised when a lane is used but its API key was never configured.
 
@@ -116,10 +129,22 @@ class GeminiLlmClient:
     instead of hitting the network.
     """
 
-    # Pricing per million tokens (USD)
+    # Standard (non-batch) pricing per million tokens (USD, input, output).
+    # ``_estimate_cost`` applies its own 0.5x batch-discount multiplier on top
+    # of these, since Google's batch price for both models is confirmed
+    # exactly half of standard -- these must stay the standard price, not the
+    # already-discounted one.
+    #
+    # Verified 2026-08-14 against ai.google.dev/gemini-api/docs/pricing and
+    # cross-checked against a second independent source; the previous values
+    # here (0.075/0.30 and 0.15/0.60) were stale and under-estimated real
+    # spend by roughly 4-8x, silently weakening the $5/month spend ceiling
+    # this table feeds (docs/audits/stage-00-quota.md, addendum). gemini-3.7-flash
+    # carries 2026 introductory pricing, 50% off standard through
+    # 2026-12-31; standard pricing (1.50/7.50) applies from 2027-01-01.
     PRICING_PER_MILLION: dict[str, tuple[float, float]] = {
-        "gemini-3.5-flash-lite": (0.075, 0.30),
-        "gemini-3.7-flash": (0.15, 0.60),
+        "gemini-3.5-flash-lite": (0.30, 2.50),
+        "gemini-3.7-flash": (0.75, 3.75),
     }
 
     # RPM 429s are transient; retry the same (free) lane after a backoff. This
@@ -130,6 +155,14 @@ class GeminiLlmClient:
     # the same still-exhausted window and fails a pilot run outright.
     RPM_BACKOFF_SECONDS: float = 1.0
     RPM_MAX_RETRIES: int = 2
+
+    # 5xx server overload is transient and carries no structured retry delay
+    # (confirmed live: "503 UNAVAILABLE... currently experiencing high
+    # demand" with a plain-text body, no RetryInfo). A few short retries on
+    # the same lane clears it in practice; this is not a quota signal and
+    # must never touch the RPD lane-closing path.
+    SERVER_ERROR_BACKOFF_SECONDS: float = 5.0
+    SERVER_ERROR_MAX_RETRIES: int = 3
 
     def __init__(
         self,
@@ -211,7 +244,11 @@ class GeminiLlmClient:
             # The free lane is an unbilled Google Cloud project: it genuinely
             # costs nothing. Cost only accrues once work moves to the paid lane.
             return 0.0
-        in_p, out_p = self.PRICING_PER_MILLION.get(model, (0.075, 0.30))
+        # Fallback for a model string absent from the table: the cheapest
+        # known model's price, not the pre-2026-08-14-correction stale
+        # default -- an under-estimate here would silently weaken the spend
+        # ceiling exactly like the bug this table's own values just fixed.
+        in_p, out_p = self.PRICING_PER_MILLION.get(model, (0.30, 2.50))
         # Batch 50% discount applies to paid lane batch requests
         cost = ((prompt_tokens / 1_000_000) * in_p + (completion_tokens / 1_000_000) * out_p) * 0.5
         return round(cost, 6)
@@ -444,6 +481,8 @@ class GeminiLlmClient:
     ) -> tuple[str, int, int]:
         try:
             response = client.models.generate_content(model=model, contents=prompt, config=config)
+        except genai_errors.ServerError as exc:
+            raise ServerUnavailableError(str(exc)) from exc
         except genai_errors.ClientError as exc:
             if exc.code == 429:
                 raise QuotaExceededError(
@@ -494,6 +533,8 @@ class GeminiLlmClient:
         inlined_request = genai_types.InlinedRequest(model=model, contents=prompt, config=config)
         try:
             job = client.batches.create(model=model, src=[inlined_request])
+        except genai_errors.ServerError as exc:
+            raise ServerUnavailableError(str(exc)) from exc
         except genai_errors.ClientError as exc:
             if exc.code == 429:
                 raise QuotaExceededError(
@@ -584,14 +625,20 @@ class GeminiLlmClient:
         purpose: str,
         ref_time: datetime,
     ) -> tuple[str, int, int, Lane]:
-        """Call the transport, handling RPM/RPD 429s per the two-lane rules.
+        """Call the transport, handling RPM/RPD 429s and 5xx server overload
+        per the two-lane rules.
 
         RPM exhaustion: back off and retry on the same (free) lane.
         RPD exhaustion: close the free lane until the next Pacific midnight and
         move the work to the paid lane.
+        5xx server overload: not a quota signal at all -- back off and retry
+        on the same lane, exactly like RPM, but with its own bounded retry
+        count so it can never masquerade as quota exhaustion or trigger the
+        RPD lane-closing path.
         """
         mode: Literal["sync", "batch"] = "batch" if lane == "paid" else "sync"
-        attempts = 0
+        rpm_attempts = 0
+        server_attempts = 0
         while True:
             try:
                 text, p_tok, c_tok = self._call_transport(
@@ -600,15 +647,21 @@ class GeminiLlmClient:
                 return text, p_tok, c_tok, lane
             except QuotaExceededError as exc:
                 if exc.quota_type == "rpm":
-                    if attempts >= self.RPM_MAX_RETRIES:
+                    if rpm_attempts >= self.RPM_MAX_RETRIES:
                         raise
-                    attempts += 1
+                    rpm_attempts += 1
                     self._sleep(exc.retry_delay_seconds or self.RPM_BACKOFF_SECONDS)
                     continue
                 # RPD: close the free lane and move the work to paid.
                 self._close_free_lane_until_pacific_midnight(ref_time)
                 lane = "paid"
                 mode = "batch"
+            except ServerUnavailableError:
+                if server_attempts >= self.SERVER_ERROR_MAX_RETRIES:
+                    raise
+                server_attempts += 1
+                self._sleep(self.SERVER_ERROR_BACKOFF_SECONDS)
+                continue
 
     # ------------------------------------------------------------------
     # Public API
