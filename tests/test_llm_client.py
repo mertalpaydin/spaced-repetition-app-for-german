@@ -505,6 +505,103 @@ def test_free_lane_never_uses_batch_and_paid_lane_always_does(tmp_path: Path) ->
     assert seen_modes[-1] == "batch"
 
 
+def test_generate_many_force_lane_paid_bypasses_auto_routing(tmp_path: Path) -> None:
+    """``force_lane="paid"`` pins ``generate_many`` to the paid lane's real
+    Batch API even though the free lane is open and would otherwise be
+    picked -- the seam ``scripts/step5_pilot_generation.py --batch`` uses to
+    deliberately opt a real stock run into the paid lane."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file,
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+        paid_api_key="fake-paid-key",
+    )
+    assert client.free_lane_open is True  # the default routing would pick "free"
+
+    fake_batches = _FakeBatches(job=_fake_batch_job_many(["Antwort"]))
+    fake_sdk = _FakeSdkClient(batches=fake_batches)
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    responses = client.generate_many(
+        ["eins"], purpose="unit_test", use_cache=False, force_lane="paid"
+    )
+
+    assert responses == ["Antwort"]
+    assert len(fake_batches.create_calls) == 1
+
+    lines = [
+        line.strip() for line in log_file.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    assert '"lane":"paid"' in lines[-1]
+
+
+def test_generate_many_force_lane_free_overrides_closed_free_lane(tmp_path: Path) -> None:
+    """``force_lane="free"`` still picks the free lane even after RPD closed
+    it, confirming ``force_lane`` genuinely bypasses ``_determine_lane``
+    rather than merely nudging its default."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file, cache_dir=tmp_path / "cache", free_api_key="fake-free-key"
+    )
+    client.free_lane_open = False  # would normally force "paid"
+
+    fake_models = _FakeModels(
+        response=_fake_generate_content_response("Antwort", prompt_tokens=4, candidates_tokens=2)
+    )
+    fake_sdk = _FakeSdkClient(models=fake_models)
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    responses = client.generate_many(
+        ["eins"], purpose="unit_test", use_cache=False, force_lane="free"
+    )
+
+    assert responses == ["Antwort"]
+    lines = [
+        line.strip() for line in log_file.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    assert '"lane":"free"' in lines[-1]
+
+
+def test_generate_many_no_force_lane_keeps_auto_routing(tmp_path: Path) -> None:
+    """Omitting ``force_lane`` (the default, ``None``) keeps the normal
+    auto-routed policy: free lane open picks free."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file, cache_dir=tmp_path / "cache", free_api_key="fake-free-key"
+    )
+    client._call_transport = _fake_transport_ok  # type: ignore[method-assign]
+
+    client.generate_many(["eins"], purpose="unit_test", use_cache=False)
+
+    lines = [
+        line.strip() for line in log_file.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    assert '"lane":"free"' in lines[-1]
+
+
+def test_generate_many_force_lane_paid_without_paid_key_raises_actionable_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Forcing the paid lane with no ``GEMINI_PAID_API_KEY`` configured must
+    fail loudly and name the missing key, not silently fall back to free or
+    to the offline mock -- the same actionable error an auto-routed paid call
+    already raises."""
+    # Defensive against a real key leaking into the environment from an
+    # earlier test in the same session (e.g. one that calls load_env_file()),
+    # exactly like test_missing_paid_api_key_raises_clear_actionable_error
+    # already guards against.
+    monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+    )
+
+    with pytest.raises(MissingApiKeyError, match="paid"):
+        client.generate_many(["eins"], purpose="unit_test", use_cache=False, force_lane="paid")
+
+
 def test_restriction_flag_is_read_from_config_not_hardcoded(tmp_path: Path) -> None:
     """The privacy restriction flag comes from config.yaml, not a hardcoded default."""
     config_path = tmp_path / "config.yaml"
