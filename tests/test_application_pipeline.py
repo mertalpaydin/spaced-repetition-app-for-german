@@ -97,6 +97,30 @@ def _topic_leaking_candidate(topic_id: str = "dativ_nach_praeposition") -> Candi
     )
 
 
+def _good_candidate_variant(topic_id: str = "dativ_nach_praeposition") -> CandidateItem:
+    """A second good candidate with genuinely different wording from
+    ``_good_candidate``, same Dat-preposition shape. Needed whenever a test
+    puts two topics' candidates through verification against a bank that
+    already contains the OTHER topic's output (e.g. across chunked pilot
+    submissions): ``_good_candidate`` alone would give both topics byte-identical
+    prompt/answer text, which a cross-topic duplicate check then correctly
+    rejects -- a real pipeline behaviour, not something these tests exist to
+    exercise."""
+    return CandidateItem(
+        topic_id=topic_id,
+        type="cloze_free",
+        difficulty=1,
+        prompt="Er wartet vor ___ Haus auf seinen Freund.",
+        proposed_answer="dem",
+        distractors=[
+            Distractor(text="den", implied_topic_id="kasus_akkusativ_formen"),
+            Distractor(text="des", implied_topic_id="kasus_genitiv_formen"),
+            Distractor(text="das", implied_topic_id="artikel_bestimmt_nom"),
+        ],
+        carrier_lemmas=["warten", "Haus", "Freund"],
+    )
+
+
 def test_deficit_zero_when_stock_exceeds_projected_demand() -> None:
     """When bank stock exceeds ceil(projected_demand * SAFETY_FACTOR), deficit is 0."""
     stock = 50
@@ -586,11 +610,20 @@ def test_run_pilot_respects_item_cap_and_writes_review_file(tmp_path: Path) -> N
     taxonomy_path = tmp_path / "taxonomy.yaml"
     raw_topics = _write_pilot_taxonomy(taxonomy_path)
     topic_ids = [str(t["id"]) for t in raw_topics]
+    assert len(topic_ids) == 2, "this test relies on exactly 2 topics for the good/variant split"
 
     # Every sampled topic yields one good, verifiable item plus one that the
     # chain must reject, so the pilot exercises both outcomes end to end.
+    # Both topics land in the SAME chunk here (well under sync_chunk_size),
+    # so they reach one shared ``verify_batch`` call together -- distinct
+    # wording per topic (``_good_candidate_variant`` for the second, exactly
+    # as ``test_run_pilot_sync_chunk_size_splits_into_multiple_chunks``
+    # already does below) is required so the batch-internal near-duplicate
+    # check does not (correctly) reject the second topic's otherwise-good
+    # candidate as a duplicate of the first's identical carrier text.
+    good_by_topic = {topic_ids[0]: _good_candidate, topic_ids[1]: _good_candidate_variant}
     candidates_by_topic = {
-        topic_id: [_good_candidate(topic_id), _topic_leaking_candidate(topic_id)]
+        topic_id: [good_by_topic[topic_id](topic_id), _topic_leaking_candidate(topic_id)]
         for topic_id in topic_ids
     }
     fake_client = FakeBatchClient(candidates_by_topic)
@@ -666,3 +699,230 @@ def test_run_pilot_reports_cost_from_the_cost_log_not_an_estimate(tmp_path: Path
     # but it must be read from the client's own spend delta, not guessed.
     spend_after = llm_client.get_month_to_date_spend()
     assert report.cost_usd_incurred == round(spend_after, 6)
+
+
+# ==============================================================================
+# NEW: batch-off-by-default pilots (sync chunking, progress, --batch opt-in).
+# ==============================================================================
+
+
+def test_run_pilot_defaults_to_one_chunk_when_requests_fit(tmp_path: Path) -> None:
+    """A pilot small enough to fit in one ``sync_chunk_size`` group (every
+    existing test's shape) behaves exactly as the old, unchunked
+    implementation did: one chunk, one batch id, that id stamped on every
+    row."""
+    taxonomy_path = tmp_path / "taxonomy.yaml"
+    raw_topics = _write_pilot_taxonomy(taxonomy_path)
+    topic_ids = [str(t["id"]) for t in raw_topics]
+    candidates_by_topic = {topic_id: [_good_candidate(topic_id)] for topic_id in topic_ids}
+    fake_client = FakeBatchClient(candidates_by_topic)
+
+    report = run_pilot(
+        item_count=len(topic_ids),
+        topics_per_cefr=1,
+        difficulties=(1,),
+        db_path=tmp_path / "bank.db",
+        taxonomy_path=taxonomy_path,
+        review_path=tmp_path / "review.jsonl",
+        rejected_path=tmp_path / "rejected.jsonl",
+        batch_client=fake_client,
+    )
+
+    assert report.chunks_run == 1
+
+
+def test_run_pilot_sync_chunk_size_splits_into_multiple_chunks(tmp_path: Path) -> None:
+    """A run whose request count exceeds ``sync_chunk_size`` is split into
+    multiple submit/verify/insert rounds, but the totals and the review file
+    end up identical to an unchunked run over the same candidates -- chunking
+    changes wall-clock pacing and progress reporting, not the result -- and
+    every row across every chunk is stamped with the SAME pilot-run id, so
+    the run is one comparable audit unit regardless of how many chunks it
+    took."""
+    from src.bank.storage import SqliteItemBank
+
+    taxonomy_path = tmp_path / "taxonomy.yaml"
+    raw_topics = _write_pilot_taxonomy(taxonomy_path)
+    topic_ids = [str(t["id"]) for t in raw_topics]
+    assert len(topic_ids) == 2, "this test relies on >1 request to exercise chunking"
+
+    # Distinct wording per topic (not the shared _good_candidate text): each
+    # topic lands in its own chunk here, so the second chunk's verification
+    # runs against a bank that already contains the first chunk's inserted
+    # item -- identical text across topics would trip the (correct)
+    # cross-topic duplicate check this test is not about.
+    good_by_topic = {topic_ids[0]: _good_candidate, topic_ids[1]: _good_candidate_variant}
+    candidates_by_topic = {
+        topic_id: [good_by_topic[topic_id](topic_id), _topic_leaking_candidate(topic_id)]
+        for topic_id in topic_ids
+    }
+    fake_client = FakeBatchClient(candidates_by_topic)
+
+    db_path = tmp_path / "bank.db"
+    review_path = tmp_path / "review.jsonl"
+    rejected_path = tmp_path / "rejected.jsonl"
+
+    report = run_pilot(
+        item_count=len(topic_ids),
+        topics_per_cefr=1,
+        difficulties=(1,),
+        db_path=db_path,
+        taxonomy_path=taxonomy_path,
+        review_path=review_path,
+        rejected_path=rejected_path,
+        batch_client=fake_client,
+        sync_chunk_size=1,  # forces one request per chunk -> 2 chunks
+    )
+
+    assert report.chunks_run == 2
+    assert report.accepted == len(topic_ids)
+    assert report.rejected == len(topic_ids)
+    assert report.inserted == len(topic_ids)
+
+    bank = SqliteItemBank(db_path)
+    assert len(bank.get_all_items()) == len(topic_ids)
+
+    review_lines = [json.loads(line) for line in review_path.read_text().splitlines() if line]
+    assert len(review_lines) == len(topic_ids)
+    assert all(row["_pilot_batch_id"] == report.batch_id for row in review_lines)
+
+    rejected_lines = [json.loads(line) for line in rejected_path.read_text().splitlines() if line]
+    assert len(rejected_lines) == len(topic_ids)
+    assert all(row["_pilot_batch_id"] == report.batch_id for row in rejected_lines)
+
+
+def test_run_pilot_reports_progress_per_chunk(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A chunked run prints a progress line after every chunk, so a long
+    sync pilot is not silent until the very end."""
+    taxonomy_path = tmp_path / "taxonomy.yaml"
+    raw_topics = _write_pilot_taxonomy(taxonomy_path)
+    topic_ids = [str(t["id"]) for t in raw_topics]
+    candidates_by_topic = {topic_id: [_good_candidate(topic_id)] for topic_id in topic_ids}
+    fake_client = FakeBatchClient(candidates_by_topic)
+
+    run_pilot(
+        item_count=len(topic_ids),
+        topics_per_cefr=1,
+        difficulties=(1,),
+        db_path=tmp_path / "bank.db",
+        taxonomy_path=taxonomy_path,
+        review_path=tmp_path / "review.jsonl",
+        rejected_path=tmp_path / "rejected.jsonl",
+        batch_client=fake_client,
+        sync_chunk_size=1,
+    )
+
+    out = capsys.readouterr().out
+    assert "chunk 1/2" in out
+    assert "chunk 2/2" in out
+
+
+def test_run_pilot_use_batch_requires_a_live_client(tmp_path: Path) -> None:
+    """``use_batch=True`` (``--batch``) demands a real, key-configured
+    ``GeminiBatchClient`` -- a real stock run makes no sense against the
+    offline mock, so it refuses loudly instead of silently running the mock
+    or silently downgrading to the free lane."""
+    taxonomy_path = tmp_path / "taxonomy.yaml"
+    raw_topics = _write_pilot_taxonomy(taxonomy_path)
+    topic_ids = [str(t["id"]) for t in raw_topics]
+    fake_client = FakeBatchClient({tid: [_good_candidate(tid)] for tid in topic_ids})
+
+    with pytest.raises(ValueError, match="--batch requires a live client"):
+        run_pilot(
+            item_count=len(topic_ids),
+            topics_per_cefr=1,
+            difficulties=(1,),
+            db_path=tmp_path / "bank.db",
+            taxonomy_path=taxonomy_path,
+            review_path=tmp_path / "review.jsonl",
+            batch_client=fake_client,
+            use_batch=True,
+        )
+
+
+def test_run_pilot_use_batch_forces_the_paid_lane(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``use_batch=True`` reaches all the way down to
+    ``GeminiLlmClient.generate_many(force_lane="paid")`` -- not merely
+    accepted as a flag, actually wired to the lane-forcing seam. The default
+    (``use_batch=False``) must NOT force any lane, leaving the normal
+    free-preferred auto-routing in place.
+
+    Uses the real taxonomy (no custom ``taxonomy_path``): ``GeminiBatchClient.submit``
+    loads a real spec sheet per requested topic before ever calling
+    ``generate_many``, and the synthetic pilot taxonomy used elsewhere in this
+    file has no spec sheets on disk."""
+    from src.generation.batch_client import GeminiBatchClient
+
+    llm_client = GeminiLlmClient(
+        free_api_key="test-free-key",
+        paid_api_key="test-paid-key",
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+    )
+
+    captured_force_lanes: list[object] = []
+
+    def fake_generate_many(prompts: list[str], **kwargs: object) -> list[str]:
+        captured_force_lanes.append(kwargs.get("force_lane"))
+        return [json.dumps({"items": []}) for _ in prompts]
+
+    monkeypatch.setattr(llm_client, "generate_many", fake_generate_many)
+
+    run_pilot(
+        item_count=2,
+        topics_per_cefr=1,
+        difficulties=(1,),
+        db_path=tmp_path / "bank.db",
+        review_path=tmp_path / "review.jsonl",
+        llm_client=llm_client,
+        batch_client=GeminiBatchClient(llm_client),
+        use_batch=True,
+    )
+
+    assert captured_force_lanes == ["paid"]
+
+    captured_force_lanes.clear()
+    run_pilot(
+        item_count=2,
+        topics_per_cefr=1,
+        difficulties=(1,),
+        db_path=tmp_path / "bank2.db",
+        review_path=tmp_path / "review2.jsonl",
+        llm_client=llm_client,
+        batch_client=GeminiBatchClient(llm_client),
+        # use_batch omitted: defaults to False
+    )
+
+    assert captured_force_lanes == [None]
+
+
+def test_write_jsonl_rows_append_accumulates_instead_of_overwriting(tmp_path: Path) -> None:
+    """The shared JSONL writer behind the review/rejected files: ``append=False``
+    truncates (a fresh run), ``append=True`` adds to what is already on disk
+    (a later chunk of the same run) -- the mechanism that lets a pilot
+    killed partway through leave every completed chunk's output behind."""
+    from src.generation.pilot import _write_review_file
+
+    path = tmp_path / "review.jsonl"
+    first_chunk = [_good_candidate("topic_a")]
+    second_chunk = [_good_candidate("topic_b")]
+
+    # _good_candidate returns a CandidateItem, which has .model_dump like the
+    # BankItem this function is really fed in production -- shape doesn't
+    # matter here, only that append accumulates rather than truncating.
+    _write_review_file(path, first_chunk, "run_1", append=False)
+    _write_review_file(path, second_chunk, "run_1", append=True)
+
+    lines = [json.loads(line) for line in path.read_text().splitlines() if line]
+    assert len(lines) == 2
+    assert lines[0]["topic_id"] == "topic_a"
+    assert lines[1]["topic_id"] == "topic_b"
+
+    # A fresh (append=False) write truncates rather than accumulating further.
+    _write_review_file(path, first_chunk, "run_2", append=False)
+    lines_after_fresh_write = [json.loads(line) for line in path.read_text().splitlines() if line]
+    assert len(lines_after_fresh_write) == 1

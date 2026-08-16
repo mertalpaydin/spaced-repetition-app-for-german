@@ -30,6 +30,7 @@ from src.generation.pilot import (
     DEFAULT_PILOT_ITEM_COUNT,
     DEFAULT_REJECTED_PATH,
     DEFAULT_REVIEW_PATH,
+    DEFAULT_SYNC_CHUNK_SIZE,
     DEFAULT_TOPICS_PER_CEFR,
     PilotRunReport,
     run_pilot,
@@ -44,6 +45,12 @@ def _print_report(report: PilotRunReport) -> None:
     print("=======================================================")
     live_note = "yes" if report.ran_live else "no (no API key configured; ran the offline mock)"
     print(f"  Live model calls:      {live_note}")
+    lane_note = (
+        "paid lane, real Batch API (--batch)" if report.used_batch else "free lane, synchronous"
+    )
+    print(f"  Lane:                  {lane_note}")
+    print(f"  Chunks run:            {report.chunks_run}")
+    print(f"  Wall clock:            {report.elapsed_seconds:.1f}s")
     topic_preview = ", ".join(report.topics_used[:8])
     if len(report.topics_used) > 8:
         topic_preview += ", ..."
@@ -183,6 +190,29 @@ def main() -> int:
         default=NIGHTLY_ITEM_CAP,
         help="Hard ceiling this run refuses to exceed (default the nightly item cap).",
     )
+    parser.add_argument(
+        "--batch",
+        action="store_true",
+        help=(
+            "Route this run through the paid lane's real Batch API instead of "
+            "the default synchronous free lane. The project owner's own call: "
+            "batch is too slow to iterate against, so it is now opt-in, "
+            "reserved for a deliberate real stock run, not a pilot. Requires a "
+            "configured GEMINI_PAID_API_KEY; refuses outright without one "
+            "rather than silently falling back to the offline mock or the "
+            "free lane."
+        ),
+    )
+    parser.add_argument(
+        "--sync-chunk-size",
+        type=int,
+        default=DEFAULT_SYNC_CHUNK_SIZE,
+        help=(
+            "How many generation requests (topic x difficulty cells, NOT "
+            "items) to submit per round-trip, sync or batch. A long run "
+            f"reports progress after each chunk (default {DEFAULT_SYNC_CHUNK_SIZE})."
+        ),
+    )
     args = parser.parse_args()
 
     # The two lane keys live in a gitignored .env per docs/01-foundation.md, and
@@ -205,6 +235,8 @@ def main() -> int:
             review_path=args.review_file,
             rejected_path=args.rejected_file,
             item_cap=args.item_cap,
+            use_batch=args.batch,
+            sync_chunk_size=args.sync_chunk_size,
         )
     except (ValueError, BudgetExceeded) as exc:
         print(f"Pilot run refused: {exc}")

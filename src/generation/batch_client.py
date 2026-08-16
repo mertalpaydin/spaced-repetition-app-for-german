@@ -7,11 +7,12 @@ invoked by ``.github/workflows/generate-submit.yml`` and ``generate-ingest.yml``
 import hashlib
 import json
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -55,6 +56,41 @@ class SpecSheetMissingError(RuntimeError):
     spec sheet carries the gold examples, the grammar-terminology blocklist
     context, the vocabulary ceiling and the target form, none of which have
     any safe default."""
+
+
+_UNDERSCORE_RUN_RE = re.compile(r"_{3,}")
+
+
+def _normalize_underscore_runs(text: str) -> str:
+    """Collapse any run of three or more underscores to exactly three.
+
+    A pilot candidate whose prompt used four underscores (``"____"``) passed
+    the gap-count check outright, because Python's ``str.count`` matches
+    non-overlapping occurrences left to right: ``"____".count("___")`` is 1,
+    with the fourth underscore simply left over and uncounted, so the check
+    reads it as one well-formed gap. That is structurally wrong the moment
+    anything downstream assumes the gap is exactly three characters wide
+    (e.g. replacing only the first three and leaving a stray underscore
+    stuck to the filled answer). Normalising every run of 3+ underscores
+    down to exactly ``"___"`` here -- at ``_parse_response``, the point a
+    model's raw text first becomes a ``CandidateItem``, and again at
+    ``_verify_and_insert_candidates``'s entry, the point ANY candidate
+    (model-generated, hand-fed, or from another pipeline) reaches
+    verification -- means every later check and every consumer sees an
+    exact, canonical three-underscore gap regardless of what actually
+    produced the prompt.
+    """
+    return _UNDERSCORE_RUN_RE.sub("___", text)
+
+
+def _normalize_candidate_prompt(item: CandidateItem) -> CandidateItem:
+    """Return ``item`` with its prompt's underscore runs normalised, or
+    ``item`` itself unchanged if there was nothing to normalise (``CandidateItem``
+    is frozen, so a copy is only made when the prompt actually changes)."""
+    normalized_prompt = _normalize_underscore_runs(item.prompt)
+    if normalized_prompt == item.prompt:
+        return item
+    return item.model_copy(update={"prompt": normalized_prompt})
 
 
 @dataclass
@@ -241,10 +277,22 @@ class GeminiBatchClient:
         serialized = json.dumps([r.model_dump() for r in requests], sort_keys=True)
         return f"batch_{hashlib.sha256(serialized.encode('utf-8')).hexdigest()[:12]}"
 
-    def submit(self, requests: list[GenerationRequest]) -> BatchId:
+    def submit(
+        self,
+        requests: list[GenerationRequest],
+        force_lane: Literal["free", "paid"] | None = None,
+    ) -> BatchId:
         """Build a spec-anchored prompt per request and send it. Idempotent:
         resubmitting the same request set returns the existing batch id and
-        makes no second model call."""
+        makes no second model call.
+
+        ``force_lane`` is threaded straight through to
+        ``GeminiLlmClient.generate_many``: ``None`` (the default) leaves the
+        normal free-unless-closed-or-restricted policy in place, which is
+        what every pilot run uses unless it deliberately opts into a real
+        stock run on the paid lane's actual Batch API
+        (``scripts/step5_pilot_generation.py --batch``).
+        """
         batch_id = self._batch_id_for(requests)
         if batch_id in self.submitted_batches:
             return batch_id
@@ -270,6 +318,7 @@ class GeminiBatchClient:
             model=MODEL_GENERATE,
             purpose="generation",
             is_user_content=False,
+            force_lane=force_lane,
         )
 
         candidates: list[CandidateItem] = []
@@ -328,10 +377,13 @@ class GeminiBatchClient:
         for raw in raw_items:
             if not isinstance(raw, dict):
                 continue
+            normalized = dict(raw)
+            if isinstance(normalized.get("prompt"), str):
+                normalized["prompt"] = _normalize_underscore_runs(normalized["prompt"])
             try:
                 items.append(
                     CandidateItem.model_validate(
-                        {**raw, "topic_id": req.topic_id, "difficulty": req.difficulty}
+                        {**normalized, "topic_id": req.topic_id, "difficulty": req.difficulty}
                     )
                 )
             except ValidationError:
@@ -590,6 +642,14 @@ def _verify_and_insert_candidates(
     from src.taxonomy.loader import load_taxonomy
     from src.verification.layer_expander import AnswerSetExpander
     from src.verification.pipeline import VerificationPipeline
+
+    # Every candidate, regardless of where it came from (a model's raw JSON
+    # via _parse_response, a hand-fed test double, or -- once cycle 3 wires
+    # it up -- the generate-then-blank pipeline), is normalised here before
+    # ANY verification-chain check runs. _parse_response already normalises
+    # the LLM-direct pipeline's prompts at parse time; this is the second,
+    # unconditional gate that catches everything else too.
+    candidates = [_normalize_candidate_prompt(c) for c in candidates]
 
     db_path = Path(db_path)
     specs_dir = Path(specs_dir)

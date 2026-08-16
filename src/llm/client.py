@@ -931,6 +931,7 @@ class GeminiLlmClient:
         use_cache: bool = True,
         is_user_content: bool = False,
         now: datetime | None = None,
+        force_lane: Literal["free", "paid"] | None = None,
     ) -> list[str]:
         """Execute many independent prompts as one logical call, returning
         responses in the same order as ``prompts``.
@@ -958,6 +959,19 @@ class GeminiLlmClient:
           to submit inline (every group this codebase's own item caps
           produce), more only if a caller ever hands this a genuinely
           oversized group.
+
+        ``force_lane`` bypasses ``_determine_lane`` entirely and pins the
+        call to the given lane instead. Deliberately narrow: the normal
+        "free unless closed or restricted" policy is a global two-lane
+        invariant (CLAUDE.md 9) and stays the default for every caller that
+        does not pass this. It exists for one deliberate opt-in case --
+        ``scripts/step5_pilot_generation.py --batch``, which asks for a real
+        stock run through the paid lane's actual Batch API on purpose, not a
+        fast, cheap dev-iteration pilot. A forced ``"paid"`` lane with no
+        ``paid_api_key`` configured still raises ``MissingApiKeyError`` from
+        ``_get_sdk_client`` exactly as an auto-routed paid call would; this
+        parameter changes lane selection, not the paid lane's own key
+        requirement.
         """
         if not prompts:
             return []
@@ -994,7 +1008,7 @@ class GeminiLlmClient:
         if not pending_indices:
             return [text for text in results if text is not None]
 
-        lane = self._determine_lane(is_user_content, ref_time)
+        lane: Lane = force_lane or self._determine_lane(is_user_content, ref_time)
 
         if lane == "free":
             with ThreadPoolExecutor(max_workers=self.FREE_LANE_MAX_CONCURRENCY) as pool:
