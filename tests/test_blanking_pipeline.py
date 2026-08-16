@@ -11,8 +11,17 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def test_topic_ids_covers_all_fifteen_in_scope_topics() -> None:
+def test_topic_ids_covers_every_cycle_2_and_cycle_3_topic() -> None:
+    """Cycle 2 built the 15 article/adjective-declension topics; cycle 3
+    (docs/audits/generation-track-plan.md) extends coverage to every
+    remaining ``verification_class: computable`` topic in
+    ``data/taxonomy.yaml`` that this cycle's report judged tractable --
+    49 of the 52 computable topics in total. The three left out
+    (``imperativ``, ``passiv_unpersoenlich``, ``relativsatz_was_wo``) are
+    each documented with a concrete, tagger-level reason in that report
+    rather than silently missing."""
     expected = {
+        # Cycle 2.
         "artikel_bestimmt_nom",
         "artikel_unbestimmt_kein_nom",
         "artikel_possessiv_nom",
@@ -28,6 +37,46 @@ def test_topic_ids_covers_all_fifteen_in_scope_topics() -> None:
         "praepositionen_dativ",
         "praepositionen_genitiv",
         "adjektiv_komparativ_superlativ",
+        # Cycle 3: pronouns.
+        "pronomen_personal_nom",
+        "pronomen_personal_akk",
+        "pronomen_personal_dat",
+        "verben_reflexiv_akk",
+        "verben_reflexiv_dat",
+        "relativsatz_nom_akk",
+        "relativsatz_dativ",
+        "relativsatz_genitiv",
+        # Cycle 3: verb conjugation.
+        "verb_sein_haben",
+        "verb_praesens_regelm",
+        "verb_praesens_vokalwechsel",
+        "modalverben_praesens",
+        "verben_trennbar_praesens",
+        "praeteritum_sein_haben_modal",
+        "praeteritum_vollverben",
+        "nomen_plural",
+        # Cycle 3: compound tenses, passive, Konjunktiv II.
+        "perfekt_haben",
+        "perfekt_sein",
+        "plusquamperfekt",
+        "konjunktiv_ii_hoeflichkeit",
+        "konjunktiv_ii_irreal_gegenwart",
+        "konjunktiv_ii_vergangenheit",
+        "passiv_praesens",
+        "passiv_praeteritum",
+        "passiv_modalverben",
+        "zustandspassiv",
+        "zustandspassiv_zeiten",
+        "futur_i",
+        "futur_ii",
+        # Cycle 3: infinitive/participle constructions and one more
+        # closed-list preposition topic (shares _determiner_selector with
+        # cycle 2's praepositionen_genitiv).
+        "infinitiv_mit_zu",
+        "infinitiv_um_zu",
+        "partizip_i_attributiv",
+        "partizip_ii_attributiv_erweitert",
+        "praepositionen_genitiv_gehoben",
     }
     assert set(TOPIC_IDS) == expected
 

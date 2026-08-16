@@ -38,6 +38,9 @@ this exact gap.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
+
 from src.taxonomy.facets import (
     _ADJ_ENDING_MIXED,
     _ADJ_ENDING_STRONG,
@@ -45,7 +48,11 @@ from src.taxonomy.facets import (
     _DEFINITE_ARTICLE_PARADIGM,
     _EIN_ENDING_PARADIGM,
     _EIN_WORD_STEMS,
+    _PERSONAL_PRONOUN_PARADIGM,
+    _REFLEXIVE_PARADIGM,
+    _RELATIVE_PRONOUN_PARADIGM,
 )
+from src.taxonomy.facets import UNK as _FACETS_UNK
 
 # A grammatical cell: (Case, Gender, Number), using the exact UD FEATS
 # vocabulary spaCy's German pipeline emits and ``facets.py`` already keys its
@@ -163,3 +170,604 @@ def adjective_family_forms(declension: Declension, stem: str) -> dict[Cell, str]
     (weak/mixed/strong) -- used to generate near-miss distractors (the same
     stem, a different, equally valid cell in the same declension paradigm)."""
     return {cell: stem + ending for cell, ending in ADJ_ENDING_BY_CELL[declension].items()}
+
+
+# ==============================================================================
+# Cycle 3: personal / reflexive / relative pronoun paradigms.
+#
+# Reused from ``src.taxonomy.facets`` exactly like the article/adjective
+# tables above -- no new pronoun facts are declared here, only reversed
+# lookups over the tables that module already carries and
+# ``tests/test_taxonomy.py`` already exercises.
+# ==============================================================================
+
+PersonCell = tuple[str, str, str]  # (Case, Person, Number)
+
+
+def _reverse_personal_pronoun() -> dict[tuple[str, str, str, str], str]:
+    reverse: dict[tuple[str, str, str, str], str] = {}
+    for form, case, person, number, gender in _PERSONAL_PRONOUN_PARADIGM:
+        reverse[(case, person, number, gender)] = form
+    return reverse
+
+
+PERSONAL_PRONOUN_BY_CELL: dict[tuple[str, str, str, str], str] = _reverse_personal_pronoun()
+
+
+def personal_pronoun_form(case: str, person: str, number: str, gender: str) -> str | None:
+    """The personal-pronoun form for ``(Case, Person, Number)``, resolving
+    Gender only where German itself marks it (3rd person singular: "er" vs
+    "sie" vs "es"). Every other cell is keyed on ``facets.UNK`` for gender in
+    the source table -- German genuinely does not mark gender there (1st/2nd
+    person, or any person in the plural), so falling back to the ``UNK`` row
+    is not a guess, it is the only candidate that table ever had for that
+    cell. Returns ``None`` for a cell the paradigm has no row for at all."""
+    exact = PERSONAL_PRONOUN_BY_CELL.get((case, person, number, gender))
+    if exact is not None:
+        return exact
+    return PERSONAL_PRONOUN_BY_CELL.get((case, person, number, _FACETS_UNK))
+
+
+def personal_pronoun_family_forms(person: str, number: str, gender: str) -> dict[str, str]:
+    """Every ``Case -> form`` pair for one ``(Person, Number, Gender)`` --
+    used for near-miss distractors within the same person/number (e.g. "ich"
+    blanked as Nominative, distractors "mich"/"mir", never "du"/"er")."""
+    out: dict[str, str] = {}
+    for case in ("Nom", "Acc", "Dat"):
+        form = personal_pronoun_form(case, person, number, gender)
+        if form is not None:
+            out[case] = form
+    return out
+
+
+def _reverse_reflexive() -> dict[tuple[str, str, str], str]:
+    reverse: dict[tuple[str, str, str], str] = {}
+    for form, case, person, number in _REFLEXIVE_PARADIGM:
+        reverse[(case, person, number)] = form
+    return reverse
+
+
+REFLEXIVE_BY_CELL: dict[tuple[str, str, str], str] = _reverse_reflexive()
+
+
+def reflexive_form(case: str, person: str, number: str) -> str | None:
+    """The reflexive-pronoun form for ``(Case, Person, Number)``, or
+    ``None`` if the paradigm has no row (it always does for a valid triple,
+    but callers still treat ``None`` as a reject, never a guess)."""
+    return REFLEXIVE_BY_CELL.get((case, person, number))
+
+
+def reflexive_family_forms(person: str, number: str) -> dict[str, str]:
+    """Every ``Case -> form`` pair for one ``(Person, Number)`` -- the
+    Accusative/Dative pair for that person, used for near-miss distractors."""
+    out: dict[str, str] = {}
+    for case in ("Acc", "Dat"):
+        form = reflexive_form(case, person, number)
+        if form is not None:
+            out[case] = form
+    return out
+
+
+RelCell = tuple[str, str, str]  # (Case, Gender, Number) -- Gender may be facets.UNK
+
+
+def _reverse_relative_pronoun() -> dict[RelCell, str]:
+    reverse: dict[RelCell, str] = {}
+    for form, case, gender, number in _RELATIVE_PRONOUN_PARADIGM:
+        reverse[(case, gender, number)] = form
+    return reverse
+
+
+RELATIVE_PRONOUN_BY_CELL: dict[RelCell, str] = _reverse_relative_pronoun()
+
+
+def relative_pronoun_form(case: str, gender: str, number: str) -> str | None:
+    """The relative-pronoun form for ``(Case, Gender, Number)``. Plural
+    relative pronouns carry no gender in German at all (see
+    ``facets._RELATIVE_PRONOUN_PARADIGM``'s own docstring), so a Plural cell
+    falls back to the table's single ``UNK``-gender plural row -- not a
+    guess, the only row that cell was ever going to have."""
+    exact = RELATIVE_PRONOUN_BY_CELL.get((case, gender, number))
+    if exact is not None:
+        return exact
+    if number == "Plur":
+        return RELATIVE_PRONOUN_BY_CELL.get((case, _FACETS_UNK, "Plur"))
+    return None
+
+
+def relative_pronoun_family_forms(gender: str, number: str) -> dict[str, str]:
+    """Every ``Case -> form`` pair for one ``(Gender, Number)`` -- used for
+    near-miss distractors (same referent, a different case/role)."""
+    out: dict[str, str] = {}
+    for case in ("Nom", "Acc", "Dat", "Gen"):
+        form = relative_pronoun_form(case, gender, number)
+        if form is not None:
+            out[case] = form
+    return out
+
+
+# ==============================================================================
+# Cycle 3: verb conjugation.
+#
+# Two kinds of fact, kept structurally separate per the module's "do not
+# invent paradigm data" standard:
+#
+# * REGULAR formation is a RULE (endings, epenthesis) applied to a lemma's
+#   own stem -- computed, not tabulated, exactly like a weak verb actually
+#   works in German.
+# * IRREGULAR stems/forms (ablaut preterites, participles, sein/haben/werden/
+#   the modals, Konjunktiv II) are lexical facts no rule derives. They are
+#   hand-verified, standard textbook forms held in small, closed,
+#   documented tables below -- the same posture ``facets._IRREGULAR_VERB_FORMS``
+#   already takes for the handful of forms it covers, extended here to a
+#   fuller (but still explicitly finite, still A1-B2-relevant) verb list.
+#
+# Every reconstruction, regular or irregular, is still cross-checked against
+# the actual token text by ``blanker.py`` before an item is built (see its
+# module docstring) -- a wrong table entry or a formula that does not apply
+# to some lemma produces a skip, never a wrong accept.
+# ==============================================================================
+
+VerbCell = tuple[str, str]  # (Person, Number)
+
+_FINITE_CELLS: tuple[VerbCell, ...] = (
+    ("1", "Sing"),
+    ("2", "Sing"),
+    ("3", "Sing"),
+    ("1", "Plur"),
+    ("2", "Plur"),
+    ("3", "Plur"),
+)
+
+_PRAESENS_ENDINGS: dict[VerbCell, str] = {
+    ("1", "Sing"): "e",
+    ("2", "Sing"): "st",
+    ("3", "Sing"): "t",
+    ("1", "Plur"): "en",
+    ("2", "Plur"): "t",
+    ("3", "Plur"): "en",
+}
+_PRAETERITUM_WEAK_ENDINGS: dict[VerbCell, str] = {
+    ("1", "Sing"): "te",
+    ("2", "Sing"): "test",
+    ("3", "Sing"): "te",
+    ("1", "Plur"): "ten",
+    ("2", "Plur"): "tet",
+    ("3", "Plur"): "ten",
+}
+_PRAETERITUM_STRONG_ENDINGS: dict[VerbCell, str] = {
+    ("1", "Sing"): "",
+    ("2", "Sing"): "st",
+    ("3", "Sing"): "",
+    ("1", "Plur"): "en",
+    ("2", "Plur"): "t",
+    ("3", "Plur"): "en",
+}
+
+# A stem ending in a dental (d/t) needs an epenthetic -e- before a
+# consonant-initial ending ("arbeiten" -> "du arbeitest", not "arbeitst") --
+# standard German epenthesis, not a per-verb fact.
+_EPENTHESIS_STEMS: tuple[str, ...] = ("d", "t")
+# A stem ending in a sibilant loses the -s- of a following -st (2sg only):
+# "reisen" -> "du reist", not "du reisst".
+_SIBILANT_STEMS: tuple[str, ...] = ("s", "ss", "z", "x")
+
+
+def _weak_stem(lemma: str) -> str | None:
+    """``lemma`` minus its infinitive ending, or ``None`` if ``lemma`` does
+    not end like an infinitive at all (too short, or no -n)."""
+    if lemma.endswith("en") and len(lemma) > 3:
+        return lemma[:-2]
+    if lemma.endswith("n") and len(lemma) > 2:
+        return lemma[:-1]
+    return None
+
+
+def regular_praesens_form(lemma: str, person: str, number: str) -> str | None:
+    """Present tense of a regular weak verb, by rule. Callers gate this to
+    lemmas NOT in ``VOKALWECHSEL_PRAESENS``/``STRONG_VERBS``/``MIXED_VERBS``/
+    the irregular-finite table (see ``selectors.py``); a mismatch against the
+    real token is still the final safety net regardless."""
+    stem = _weak_stem(lemma)
+    if stem is None:
+        return None
+    cell = (person, number)
+    if cell not in _PRAESENS_ENDINGS:
+        return None
+    if cell == ("2", "Sing") and stem.endswith(_SIBILANT_STEMS):
+        return stem + "t"
+    if cell in (("2", "Sing"), ("2", "Plur"), ("3", "Sing")) and stem.endswith(_EPENTHESIS_STEMS):
+        return stem + ("est" if cell == ("2", "Sing") else "et")
+    return stem + _PRAESENS_ENDINGS[cell]
+
+
+def regular_praeteritum_form(lemma: str, person: str, number: str) -> str | None:
+    """Präteritum of a regular weak verb, by rule (stem + -te/-test/...,
+    with the same dental epenthesis as the present tense)."""
+    stem = _weak_stem(lemma)
+    if stem is None:
+        return None
+    cell = (person, number)
+    ending = _PRAETERITUM_WEAK_ENDINGS.get(cell)
+    if ending is None:
+        return None
+    if stem.endswith(_EPENTHESIS_STEMS):
+        return stem + "e" + ending
+    return stem + ending
+
+
+@dataclass(frozen=True)
+class _StrongVerb:
+    """One irregular verb's principal parts beyond the infinitive: the
+    Präteritum stem (before personal endings are applied) and the Partizip
+    II. Both are hand-verified standard forms, not derived."""
+
+    praeteritum_stem: str
+    partizip_ii: str
+
+
+# Strong (ablaut) verbs: Präteritum takes the STRONG endings above (zero
+# ending in 1st/3rd singular), never the weak -te family.
+STRONG_VERBS: dict[str, _StrongVerb] = {
+    "sprechen": _StrongVerb("sprach", "gesprochen"),
+    "geben": _StrongVerb("gab", "gegeben"),
+    "nehmen": _StrongVerb("nahm", "genommen"),
+    "lesen": _StrongVerb("las", "gelesen"),
+    "sehen": _StrongVerb("sah", "gesehen"),
+    "helfen": _StrongVerb("half", "geholfen"),
+    "bleiben": _StrongVerb("blieb", "geblieben"),
+    "fahren": _StrongVerb("fuhr", "gefahren"),
+    "kommen": _StrongVerb("kam", "gekommen"),
+    "schliessen": _StrongVerb("schloss", "geschlossen"),
+    "brechen": _StrongVerb("brach", "gebrochen"),
+    "essen": _StrongVerb("ass", "gegessen"),
+    "trinken": _StrongVerb("trank", "getrunken"),
+    "finden": _StrongVerb("fand", "gefunden"),
+    "schreiben": _StrongVerb("schrieb", "geschrieben"),
+    "stehen": _StrongVerb("stand", "gestanden"),
+    "gehen": _StrongVerb("ging", "gegangen"),
+    "liegen": _StrongVerb("lag", "gelegen"),
+    "laufen": _StrongVerb("lief", "gelaufen"),
+    "sitzen": _StrongVerb("sass", "gesessen"),
+    "heissen": _StrongVerb("hiess", "geheissen"),
+    "lassen": _StrongVerb("liess", "gelassen"),
+    "fallen": _StrongVerb("fiel", "gefallen"),
+    "halten": _StrongVerb("hielt", "gehalten"),
+    "schlafen": _StrongVerb("schlief", "geschlafen"),
+    "tragen": _StrongVerb("trug", "getragen"),
+    "schlagen": _StrongVerb("schlug", "geschlagen"),
+    "waschen": _StrongVerb("wusch", "gewaschen"),
+    "treffen": _StrongVerb("traf", "getroffen"),
+    "werfen": _StrongVerb("warf", "geworfen"),
+    "ziehen": _StrongVerb("zog", "gezogen"),
+    "fliegen": _StrongVerb("flog", "geflogen"),
+    "verlieren": _StrongVerb("verlor", "verloren"),
+    "gewinnen": _StrongVerb("gewann", "gewonnen"),
+    "beginnen": _StrongVerb("begann", "begonnen"),
+    "singen": _StrongVerb("sang", "gesungen"),
+    "springen": _StrongVerb("sprang", "gesprungen"),
+    "schwimmen": _StrongVerb("schwamm", "geschwommen"),
+    "steigen": _StrongVerb("stieg", "gestiegen"),
+    "scheinen": _StrongVerb("schien", "geschienen"),
+    "bitten": _StrongVerb("bat", "gebeten"),
+    "vergessen": _StrongVerb("vergass", "vergessen"),
+    "rufen": _StrongVerb("rief", "gerufen"),
+    "tun": _StrongVerb("tat", "getan"),
+    "sterben": _StrongVerb("starb", "gestorben"),
+    "wachsen": _StrongVerb("wuchs", "gewachsen"),
+}
+
+# Mixed verbs: consonant-changed stem, but the WEAK personal endings
+# (-te/-test/...) -- "brachte", never "brach" with a zero ending.
+MIXED_VERBS: dict[str, _StrongVerb] = {
+    "bringen": _StrongVerb("brach", "gebracht"),
+    "denken": _StrongVerb("dach", "gedacht"),
+    "kennen": _StrongVerb("kann", "gekannt"),
+    "nennen": _StrongVerb("nann", "genannt"),
+    "wissen": _StrongVerb("wuss", "gewusst"),
+}
+
+# Present-tense stem-vowel change (e->i/ie, a->ä, au->äu), 2nd/3rd person
+# singular only -- a SEPARATE fact from the Präteritum table above: several
+# of these verbs (fahren, laufen, lesen, sehen...) also happen to be
+# ablauting in the Präteritum, but several strong-Präteritum verbs
+# (gehen, kommen, schreiben, bleiben, fliegen...) do NOT change vowel in the
+# present at all, so the two tables are kept independent rather than
+# derived from one another.
+VOKALWECHSEL_PRAESENS: dict[str, tuple[str, str]] = {
+    # lemma -> (du-form, er/sie/es-form)
+    "geben": ("gibst", "gibt"),
+    "essen": ("isst", "isst"),
+    "nehmen": ("nimmst", "nimmt"),
+    "sprechen": ("sprichst", "spricht"),
+    "helfen": ("hilfst", "hilft"),
+    "treffen": ("triffst", "trifft"),
+    "werfen": ("wirfst", "wirft"),
+    "sterben": ("stirbst", "stirbt"),
+    "brechen": ("brichst", "bricht"),
+    "vergessen": ("vergisst", "vergisst"),
+    "lesen": ("liest", "liest"),
+    "sehen": ("siehst", "sieht"),
+    "fahren": ("fährst", "fährt"),
+    "schlafen": ("schläfst", "schläft"),
+    "tragen": ("trägst", "trägt"),
+    "waschen": ("wäschst", "wäscht"),
+    "halten": ("hältst", "hält"),
+    "lassen": ("lässt", "lässt"),
+    "fallen": ("fällst", "fällt"),
+    "laufen": ("läufst", "läuft"),
+    "wachsen": ("wächst", "wächst"),
+    "schlagen": ("schlägst", "schlägt"),
+    "raten": ("rätst", "rät"),
+    "empfehlen": ("empfiehlst", "empfiehlt"),
+}
+
+
+def strong_praeteritum_form(lemma: str, person: str, number: str) -> str | None:
+    entry = STRONG_VERBS.get(lemma)
+    if entry is None:
+        return None
+    stem = entry.praeteritum_stem
+    cell = (person, number)
+    if cell == ("2", "Sing") and stem.endswith(_EPENTHESIS_STEMS + _SIBILANT_STEMS):
+        return stem + "est"
+    if cell == ("2", "Plur") and stem.endswith(_EPENTHESIS_STEMS):
+        return stem + "et"
+    ending = _PRAETERITUM_STRONG_ENDINGS.get(cell)
+    return None if ending is None else stem + ending
+
+
+def mixed_praeteritum_form(lemma: str, person: str, number: str) -> str | None:
+    entry = MIXED_VERBS.get(lemma)
+    if entry is None:
+        return None
+    ending = _PRAETERITUM_WEAK_ENDINGS.get((person, number))
+    return None if ending is None else entry.praeteritum_stem + ending
+
+
+def vokalwechsel_praesens_form(lemma: str, person: str, number: str) -> str | None:
+    entry = VOKALWECHSEL_PRAESENS.get(lemma)
+    if entry is None:
+        return None
+    du, er = entry
+    if (person, number) == ("2", "Sing"):
+        return du
+    if (person, number) == ("3", "Sing"):
+        return er
+    return regular_praesens_form(lemma, person, number)
+
+
+VerbResolver = Callable[[str, str, str], "str | None"]
+
+VERB_FAMILY_RESOLVERS: dict[str, VerbResolver] = {
+    "regular_praesens": regular_praesens_form,
+    "regular_praeteritum": regular_praeteritum_form,
+    "vokalwechsel_praesens": vokalwechsel_praesens_form,
+    "strong_praeteritum": strong_praeteritum_form,
+    "mixed_praeteritum": mixed_praeteritum_form,
+}
+
+
+def verb_family_form(family: str, lemma: str, person: str, number: str) -> str | None:
+    """Reconstruct one finite form for ``family`` (one of
+    ``VERB_FAMILY_RESOLVERS``' keys), or ``None`` if ``family`` is unknown or
+    the resolver itself returns ``None`` (lemma not in that family's table,
+    or the cell is uncovered)."""
+    resolver = VERB_FAMILY_RESOLVERS.get(family)
+    if resolver is None:
+        return None
+    return resolver(lemma, person, number)
+
+
+def verb_family_forms(family: str, lemma: str) -> dict[VerbCell, str]:
+    """Every ``(Person, Number) -> form`` pair ``family`` resolves for
+    ``lemma`` -- used for near-miss distractors (same lemma, a different
+    person/number in the same family)."""
+    out: dict[VerbCell, str] = {}
+    for cell in _FINITE_CELLS:
+        form = verb_family_form(family, lemma, cell[0], cell[1])
+        if form is not None:
+            out[cell] = form
+    return out
+
+
+# ==============================================================================
+# Irregular finite paradigms: sein, haben, werden, and the modals, across
+# every tense/mood this cycle's topics need (Präsens, Präteritum, Konjunktiv
+# II). Hand-verified standard forms -- the same four Konjunktiv II lemmas
+# named in ``konjunktiv_ii_hoeflichkeit``'s own ``rule_hint`` in
+# ``data/taxonomy.yaml`` (würde, könnte, hätte, wäre); no other modal's
+# Konjunktiv II is tabulated because "sollte"/"wollte" are surface-identical
+# to their OWN Präteritum Indikativ (a genuine, unresolvable ambiguity --
+# see the top-level report), so they are deliberately left out rather than
+# guessed at.
+# ==============================================================================
+
+
+def _finite_table(forms: tuple[str, str, str, str, str, str]) -> dict[VerbCell, str]:
+    return dict(zip(_FINITE_CELLS, forms, strict=True))
+
+
+IRREGULAR_FINITE: dict[str, dict[str, dict[VerbCell, str]]] = {
+    "sein": {
+        "Pres": _finite_table(("bin", "bist", "ist", "sind", "seid", "sind")),
+        "Past": _finite_table(("war", "warst", "war", "waren", "wart", "waren")),
+        "SubjII": _finite_table(("wäre", "wärst", "wäre", "wären", "wärt", "wären")),
+    },
+    "haben": {
+        "Pres": _finite_table(("habe", "hast", "hat", "haben", "habt", "haben")),
+        "Past": _finite_table(("hatte", "hattest", "hatte", "hatten", "hattet", "hatten")),
+        "SubjII": _finite_table(("hätte", "hättest", "hätte", "hätten", "hättet", "hätten")),
+    },
+    "werden": {
+        "Pres": _finite_table(("werde", "wirst", "wird", "werden", "werdet", "werden")),
+        "Past": _finite_table(("wurde", "wurdest", "wurde", "wurden", "wurdet", "wurden")),
+        "SubjII": _finite_table(("würde", "würdest", "würde", "würden", "würdet", "würden")),
+    },
+    "können": {
+        "Pres": _finite_table(("kann", "kannst", "kann", "können", "könnt", "können")),
+        "Past": _finite_table(("konnte", "konntest", "konnte", "konnten", "konntet", "konnten")),
+        "SubjII": _finite_table(("könnte", "könntest", "könnte", "könnten", "könntet", "könnten")),
+    },
+    "müssen": {
+        "Pres": _finite_table(("muss", "musst", "muss", "müssen", "müsst", "müssen")),
+        "Past": _finite_table(("musste", "musstest", "musste", "mussten", "musstet", "mussten")),
+    },
+    "wollen": {
+        "Pres": _finite_table(("will", "willst", "will", "wollen", "wollt", "wollen")),
+        "Past": _finite_table(("wollte", "wolltest", "wollte", "wollten", "wolltet", "wollten")),
+    },
+    "dürfen": {
+        "Pres": _finite_table(("darf", "darfst", "darf", "dürfen", "dürft", "dürfen")),
+        "Past": _finite_table(("durfte", "durftest", "durfte", "durften", "durftet", "durften")),
+    },
+    "sollen": {
+        "Pres": _finite_table(("soll", "sollst", "soll", "sollen", "sollt", "sollen")),
+        "Past": _finite_table(("sollte", "solltest", "sollte", "sollten", "solltet", "sollten")),
+    },
+}
+
+# The five modals named in modalverben_praesens's own rule_hint, "möchten"
+# treated as its own frozen lemma (its Konjunktiv-II-derived form no longer
+# alternates with a separate indicative "mögen" present in ordinary use, and
+# spaCy's lemmatiser already returns "möchten" as its lemma, never "mögen").
+MODAL_LEMMAS: frozenset[str] = frozenset({"können", "müssen", "wollen", "dürfen", "sollen"})
+IRREGULAR_FINITE["möchten"] = {
+    "Pres": _finite_table(("möchte", "möchtest", "möchte", "möchten", "möchtet", "möchten")),
+}
+
+
+def irregular_finite_form(lemma: str, tense_mood: str, person: str, number: str) -> str | None:
+    table = IRREGULAR_FINITE.get(lemma, {}).get(tense_mood)
+    return None if table is None else table.get((person, number))
+
+
+def irregular_finite_family_forms(lemma: str, tense_mood: str) -> dict[VerbCell, str] | None:
+    """All six cells for one ``(lemma, tense_mood)``, or ``None`` if this
+    cycle's tables do not cover that combination at all (never a partial,
+    silently-incomplete dict)."""
+    table = IRREGULAR_FINITE.get(lemma, {}).get(tense_mood)
+    return None if table is None else dict(table)
+
+
+# ==============================================================================
+# Aux-selection and transitivity: lexical facts, not rules. Perfekt/
+# Plusquamperfekt choose "haben" or "sein" by VERB, not by any morphological
+# marker; Zustandspassiv is only well-formed from a transitive verb's
+# participle. The two sets below are disjoint BY CONSTRUCTION (a verb is
+# either the "sein + motion/change-of-state" kind or the "can be passivised"
+# kind, never modelled as both here) -- that disjointness is exactly what
+# lets ``selectors.py`` tell a Perfekt-mit-sein "ist gegangen" apart from a
+# Zustandspassiv "ist repariert" using the SAME surface shape (sein + VVPP),
+# see the top-level report's cautions.
+#
+# Separable-prefixed verbs (aufstehen, ankommen...) are mostly excluded:
+# spaCy's lemmatiser does not RELIABLY reduce a separable verb's participle
+# to its own infinitive (confirmed empirically: "aufgestanden" lemmatises to
+# the nonsense "aufgestehen", not "aufstehen"), so a lemma lookup against a
+# separable verb's base form is not trustworthy enough to key a lexical fact
+# on IN GENERAL. It is not uniformly wrong, though -- "angekommen" ->
+# "ankommen", "umgezogen" -> "umziehen", "weggegangen" -> "weggehen" and
+# "aufgewacht" -> "aufwachen" were all confirmed to lemmatise correctly in
+# testing, so those four are included by name (each individually verified,
+# not assumed from the pattern); "aufstehen" is the one common motion/
+# change-of-state separable verb confirmed to lemmatise WRONG and is
+# deliberately left out. Any other separable verb's Perfekt/Zustandspassiv
+# candidate simply fails this lookup and is skipped -- lower recall, never a
+# wrong classification.
+# ==============================================================================
+
+AUX_SEIN_LEMMAS: frozenset[str] = frozenset(
+    {
+        "gehen",
+        "kommen",
+        "fahren",
+        "fliegen",
+        "laufen",
+        "steigen",
+        "fallen",
+        "sterben",
+        "bleiben",
+        "werden",
+        "wachsen",
+        "reisen",
+        "passieren",
+        "geschehen",
+        "gelingen",
+        "ankommen",
+        "umziehen",
+        "weggehen",
+        "aufwachen",
+    }
+)
+
+TRANSITIVE_LEMMAS: frozenset[str] = frozenset(
+    {
+        "schliessen",
+        "öffnen",
+        "kochen",
+        "schreiben",
+        "reparieren",
+        "verkaufen",
+        "kaufen",
+        "bauen",
+        "lesen",
+        "essen",
+        "trinken",
+        "waschen",
+        "machen",
+        "geben",
+        "nehmen",
+        "sehen",
+        "planen",
+        "organisieren",
+        "renovieren",
+        "gründen",
+        "bitten",
+        "rufen",
+        "finden",
+        "vergessen",
+        "tragen",
+        "werfen",
+        "ziehen",
+        "singen",
+        "malen",
+        "bestellen",
+        "beenden",
+    }
+)
+
+# Closed list of attributive participle SURFACE forms recognised by
+# partizip_ii_attributiv_erweitert -- see selectors.py for why this cannot
+# be a lemma check (an ADJA-tagged participle's own lemma is already the
+# bare participle form, not the infinitive, so there is nothing further to
+# reduce it to) and why it is closed-list rather than a "starts with ge-" or
+# "ends in -t" heuristic (both would false-positive on genuine adjectives:
+# "gerade", "geheim", "gemein", "gewiss" all start with "ge-"; "gut", "alt",
+# "bekannt" all end in "-t").
+KNOWN_PARTICIPLE_FORMS: frozenset[str] = frozenset(
+    {v.partizip_ii for v in STRONG_VERBS.values()}
+    | {v.partizip_ii for v in MIXED_VERBS.values()}
+    | {
+        "repariert",
+        "gebaut",
+        "gekauft",
+        "gekocht",
+        "geplant",
+        "geöffnet",
+        "organisiert",
+        "produziert",
+        "renoviert",
+        "entwickelt",
+        "gemacht",
+        "gefragt",
+        "gesucht",
+        "gegründet",
+        "fotografiert",
+        "informiert",
+        "verkauft",
+        "bestellt",
+        "gemalt",
+        "beendet",
+    }
+)

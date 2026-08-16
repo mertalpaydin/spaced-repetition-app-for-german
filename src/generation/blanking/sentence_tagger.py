@@ -9,15 +9,26 @@ for that shape, and this package may only create new files (an existing
 file's private ``_load_model`` could be reached into, but a second, focused
 loader here is clearer than depending on another module's private state).
 
-The loader below mirrors ``src.taxonomy.tagger._load_model`` exactly (same
-model name, same excluded pipeline components -- this module only ever reads
-``token.pos_``/``token.tag_``/``token.morph``, never the dependency tree,
-lemma, or named entities) and the same never-crash degrade contract: no
-``spacy.load(...)`` at import time, ``None`` (or an empty result) whenever
-the model is missing, never an exception. ``analysis_available`` delegates to
+The loader below mirrors ``src.taxonomy.tagger._load_model`` in every other
+respect (same model name, same never-crash degrade contract: no
+``spacy.load(...)`` at import time, ``None``/an empty result whenever the
+model is missing, never an exception) but deliberately does NOT exclude the
+``lemmatizer`` pipe. Cycle 2's selectors (articles, adjective declension)
+never needed a lemma -- every closed-class form was looked up by its own
+surface text. Cycle 3's verb-conjugation selectors cannot do that: a finite
+verb's correct form is a function of its *lemma* plus (Person, Number,
+Tense), and "gibst"/"gab"/"gegeben" share no recoverable surface stem without
+one. Confirmed empirically before this change: with ``lemmatizer`` excluded,
+``token.lemma_`` is the empty string for every token; with it included,
+``de_core_news_sm``'s lemmatizer correctly reduces inflected and even
+separable-prefixed forms to their infinitive ("spricht" -> "sprechen",
+"gesprochen" -> "sprechen") at negligible added cost (~2.5ms/sentence
+measured locally). This module still never reads the dependency tree or
+named entities -- only ``token.pos_``/``token.tag_``/``token.morph``/
+``token.lemma_``. ``analysis_available`` delegates to
 ``src.taxonomy.tagger.analysis_available`` rather than re-implementing the
-availability check, since the two loaders share the exact same failure
-conditions (same model name, same install).
+availability check, since both loaders fail under the same condition (model
+not installed) regardless of which pipes each one excludes.
 """
 
 from __future__ import annotations
@@ -46,6 +57,7 @@ class Token:
     tag: str
     morph: dict[str, str]
     whitespace: str
+    lemma: str
 
 
 @dataclass(frozen=True)
@@ -71,16 +83,17 @@ class TaggedSentence:
 def _load_model() -> Language | None:
     """Load ``de_core_news_sm`` once per process, or return ``None``.
 
-    Same exclusions as ``src.taxonomy.tagger._load_model``: this module never
-    reads the dependency tree, named entities, or lemma, only
-    ``token.pos_``/``token.tag_``/``token.morph``.
+    Unlike ``src.taxonomy.tagger._load_model``, ``lemmatizer`` is kept (see
+    module docstring): this module needs ``token.lemma_`` for verb-paradigm
+    lookups. The dependency tree, named entities and sentence segmentation
+    are still excluded -- nothing here reads them.
     """
     try:
         import spacy
     except ImportError:
         return None
     try:
-        return spacy.load(MODEL_NAME, exclude=["parser", "ner", "lemmatizer", "senter"])
+        return spacy.load(MODEL_NAME, exclude=["parser", "ner", "senter"])
     except OSError:
         return None
 
@@ -119,6 +132,7 @@ def tag_sentence(text: str) -> TaggedSentence | None:
             tag=tok.tag_,
             morph=dict(tok.morph.to_dict()),
             whitespace=tok.whitespace_,
+            lemma=tok.lemma_,
         )
         for tok in doc
     )

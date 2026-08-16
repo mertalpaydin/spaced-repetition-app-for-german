@@ -89,3 +89,184 @@ def test_adjective_family_forms_stays_within_the_same_stem_and_declension() -> N
     assert family[("Acc", "Masc", "Sing")] == "kalten"
     assert family[("Nom", "Fem", "Sing")] == "kalte"
     assert all(form.startswith("kalt") for form in family.values())
+
+
+# ==============================================================================
+# Cycle 3. Personal, reflexive, and relative pronoun paradigms.
+# ==============================================================================
+
+
+def test_personal_pronoun_form_resolves_all_three_cases() -> None:
+    assert paradigms.personal_pronoun_form("Nom", "3", "Sing", "Masc") == "er"
+    assert paradigms.personal_pronoun_form("Acc", "3", "Sing", "Masc") == "ihn"
+    assert paradigms.personal_pronoun_form("Dat", "1", "Plur", "UNK") == "uns"
+
+
+def test_personal_pronoun_family_forms_stays_within_the_same_person_number_gender() -> None:
+    family = paradigms.personal_pronoun_family_forms("3", "Sing", "Masc")
+    assert family == {"Nom": "er", "Acc": "ihn", "Dat": "ihm"}
+
+
+def test_reflexive_form_is_invariant_across_persons_for_sich_only() -> None:
+    assert paradigms.reflexive_form("Acc", "1", "Sing") == "mich"
+    assert paradigms.reflexive_form("Dat", "1", "Sing") == "mir"
+    assert paradigms.reflexive_form("Acc", "3", "Plur") == "sich"
+    assert paradigms.reflexive_form("Dat", "3", "Plur") == "sich"
+
+
+def test_reflexive_family_forms_covers_both_cases() -> None:
+    assert paradigms.reflexive_family_forms("3", "Sing") == {"Acc": "sich", "Dat": "sich"}
+    assert paradigms.reflexive_family_forms("1", "Sing") == {"Acc": "mich", "Dat": "mir"}
+
+
+def test_relative_pronoun_form_covers_all_four_cases() -> None:
+    assert paradigms.relative_pronoun_form("Nom", "Masc", "Sing") == "der"
+    assert paradigms.relative_pronoun_form("Acc", "Masc", "Sing") == "den"
+    assert paradigms.relative_pronoun_form("Dat", "Masc", "Sing") == "dem"
+    assert paradigms.relative_pronoun_form("Gen", "Fem", "Sing") == "deren"
+
+
+def test_relative_pronoun_family_forms_stays_within_the_same_gender_and_number() -> None:
+    family = paradigms.relative_pronoun_family_forms("Masc", "Sing")
+    assert family == {"Nom": "der", "Acc": "den", "Dat": "dem", "Gen": "dessen"}
+
+
+# ==============================================================================
+# Cycle 3. Verb conjugation: regular, mixed, strong, vowel-changing present.
+# ==============================================================================
+
+
+def test_regular_praesens_form_conjugates_a_weak_verb() -> None:
+    assert paradigms.regular_praesens_form("machen", "1", "Sing") == "mache"
+    assert paradigms.regular_praesens_form("machen", "2", "Sing") == "machst"
+    assert paradigms.regular_praesens_form("machen", "3", "Plur") == "machen"
+
+
+def test_regular_praesens_form_handles_epenthesis_for_d_and_t_stems() -> None:
+    """ "arbeiten" (stem ends "t") needs an epenthetic "e" before consonantal
+    endings ("arbeitest", not "arbeitst")."""
+    assert paradigms.regular_praesens_form("arbeiten", "2", "Sing") == "arbeitest"
+    assert paradigms.regular_praesens_form("arbeiten", "3", "Sing") == "arbeitet"
+
+
+def test_regular_praesens_form_handles_the_sibilant_stem_2sg_exception() -> None:
+    """ "heißen"'s stem already ends in a sibilant, so the 2sg ending drops
+    its own "-s" ("heißt", not "heißst")."""
+    assert paradigms.regular_praesens_form("reisen", "2", "Sing") == "reist"
+
+
+def test_regular_praeteritum_form_conjugates_a_weak_verb() -> None:
+    assert paradigms.regular_praeteritum_form("machen", "1", "Sing") == "machte"
+    assert paradigms.regular_praeteritum_form("machen", "3", "Plur") == "machten"
+
+
+def test_strong_praeteritum_form_uses_the_hand_verified_stem_table() -> None:
+    assert paradigms.strong_praeteritum_form("sprechen", "3", "Sing") == "sprach"
+    assert paradigms.strong_praeteritum_form("gehen", "1", "Sing") == "ging"
+
+
+def test_mixed_praeteritum_form_uses_weak_endings_with_an_irregular_stem() -> None:
+    assert paradigms.mixed_praeteritum_form("bringen", "1", "Sing") == "brachte"
+    assert paradigms.mixed_praeteritum_form("wissen", "3", "Sing") == "wusste"
+
+
+def test_vokalwechsel_praesens_form_only_changes_the_du_and_er_forms() -> None:
+    assert paradigms.vokalwechsel_praesens_form("fahren", "3", "Sing") == "fährt"
+    assert paradigms.vokalwechsel_praesens_form("fahren", "2", "Sing") == "fährst"
+    # 1st person singular and every plural form are unaffected by the
+    # vowel change -- this is exactly the ambiguity that makes the vowel
+    # change worth testing at all.
+    assert paradigms.vokalwechsel_praesens_form("fahren", "1", "Sing") == "fahre"
+    assert paradigms.vokalwechsel_praesens_form("fahren", "1", "Plur") == "fahren"
+
+
+def test_verb_family_form_dispatches_by_family_name() -> None:
+    assert paradigms.verb_family_form("regular_praesens", "machen", "1", "Sing") == "mache"
+    assert paradigms.verb_family_form("strong_praeteritum", "gehen", "1", "Sing") == "ging"
+    assert paradigms.verb_family_form("vokalwechsel_praesens", "fahren", "3", "Sing") == "fährt"
+
+
+def test_verb_family_forms_covers_all_six_finite_cells() -> None:
+    family = paradigms.verb_family_forms("regular_praesens", "machen")
+    assert family[("1", "Sing")] == "mache"
+    assert family[("2", "Sing")] == "machst"
+    assert family[("3", "Sing")] == "macht"
+    assert family[("1", "Plur")] == "machen"
+    assert family[("2", "Plur")] == "macht"
+    assert family[("3", "Plur")] == "machen"
+
+
+# ==============================================================================
+# Cycle 3. Irregular finite paradigms (sein/haben/werden/modals).
+# ==============================================================================
+
+
+def test_irregular_finite_form_covers_sein_present_and_past() -> None:
+    assert paradigms.irregular_finite_form("sein", "Pres", "1", "Sing") == "bin"
+    assert paradigms.irregular_finite_form("sein", "Past", "1", "Sing") == "war"
+
+
+def test_irregular_finite_form_covers_a_modal() -> None:
+    assert paradigms.irregular_finite_form("können", "Pres", "1", "Sing") == "kann"
+    assert paradigms.irregular_finite_form("müssen", "Past", "3", "Plur") == "mussten"
+
+
+def test_irregular_finite_form_returns_none_for_an_uncovered_lemma_or_tense() -> None:
+    assert paradigms.irregular_finite_form("machen", "Pres", "1", "Sing") is None
+    # "sollte"/"wollte" are surface-identical to their own Präteritum
+    # Indikativ, so SubjII was deliberately not added for these two modals
+    # (see IRREGULAR_FINITE's module-level comment) -- reconstructing from a
+    # SubjII table for them would be fabricating a distinction the language
+    # itself does not mark.
+    assert paradigms.irregular_finite_form("sollen", "SubjII", "1", "Sing") is None
+
+
+def test_irregular_finite_family_forms_covers_all_six_cells() -> None:
+    family = paradigms.irregular_finite_family_forms("sein", "Pres")
+    assert family is not None
+    assert family == {
+        ("1", "Sing"): "bin",
+        ("2", "Sing"): "bist",
+        ("3", "Sing"): "ist",
+        ("1", "Plur"): "sind",
+        ("2", "Plur"): "seid",
+        ("3", "Plur"): "sind",
+    }
+
+
+# ==============================================================================
+# Cycle 3. Aux-selection and transitivity as lexical facts (AUX_SEIN_LEMMAS,
+# TRANSITIVE_LEMMAS) -- deliberately disjoint sets used to disambiguate
+# structurally identical "sein + past participle" constructions (Perfekt
+# with sein vs Zustandspassiv).
+# ==============================================================================
+
+
+def test_aux_sein_lemmas_and_transitive_lemmas_are_disjoint() -> None:
+    """A verb cannot both take "sein" as its Perfekt auxiliary (intransitive
+    motion/change-of-state) and be passivizable with "werden"/"sein" (needs
+    a direct object) -- if the two sets ever overlapped, the aux/participle
+    consistency check the selectors rely on would stop being able to tell
+    Perfekt-mit-sein and Zustandspassiv apart."""
+    assert paradigms.AUX_SEIN_LEMMAS.isdisjoint(paradigms.TRANSITIVE_LEMMAS)
+
+
+def test_aux_sein_lemmas_contains_verified_motion_and_change_of_state_verbs() -> None:
+    assert "fahren" in paradigms.AUX_SEIN_LEMMAS
+    assert "kommen" in paradigms.AUX_SEIN_LEMMAS
+    assert "machen" not in paradigms.AUX_SEIN_LEMMAS
+
+
+def test_aux_sein_lemmas_excludes_an_individually_unverified_separable_verb() -> None:
+    """ "aufstehen"'s Partizip II lemma is unreliably lemmatised by
+    de_core_news_sm ("aufgestanden" -> "aufgestehen", not "aufstehen") --
+    deliberately excluded rather than guessed, unlike "aufwachen",
+    "ankommen", "umziehen", and "weggehen", each of which was individually
+    verified to lemmatise correctly."""
+    assert "aufstehen" not in paradigms.AUX_SEIN_LEMMAS
+    assert "aufwachen" in paradigms.AUX_SEIN_LEMMAS
+
+
+def test_transitive_lemmas_contains_verified_passivizable_verbs() -> None:
+    assert "reparieren" in paradigms.TRANSITIVE_LEMMAS
+    assert "kaufen" in paradigms.TRANSITIVE_LEMMAS

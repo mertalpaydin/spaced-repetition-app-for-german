@@ -163,6 +163,272 @@ def _degree_outcome(
     )
 
 
+def _personal_pronoun_outcome(
+    topic_id: str,
+    sentence: TaggedSentence,
+    candidate: Candidate,
+    difficulty: Difficulty,
+) -> BlankOutcome:
+    assert candidate.person is not None and candidate.number is not None
+    token = sentence.tokens[candidate.token_index]
+    gender = candidate.gender or "Unk"
+    # The candidate's own Case is not carried on Candidate for this kind (it
+    # is implied by which topic's selector produced it, and is fixed per
+    # topic), so re-read it from the token itself -- the same source the
+    # selector used to select it in the first place.
+    case = token.morph.get("Case")
+    if case is None:
+        return BlankOutcome(None, "pronoun_case_unresolved")
+    reconstructed = paradigms.personal_pronoun_form(
+        case, candidate.person, candidate.number, gender
+    )
+    if reconstructed is None:
+        return BlankOutcome(None, "personal_pronoun_cell_uncovered_by_paradigm")
+    if reconstructed.lower() != token.text.lower():
+        return BlankOutcome(None, "personal_pronoun_paradigm_mismatch")
+
+    family = paradigms.personal_pronoun_family_forms(candidate.person, candidate.number, gender)
+    distractor_forms = sorted(
+        {form for c, form in family.items() if c != case and form.lower() != token.text.lower()}
+    )[:MAX_DISTRACTORS]
+    distractors = [Distractor(text=_match_case(token.text, form)) for form in distractor_forms]
+
+    return BlankOutcome(
+        CandidateItem(
+            topic_id=topic_id,
+            type="cloze_free",
+            difficulty=difficulty,
+            prompt=_render_prompt(sentence, candidate.token_index),
+            proposed_answer=token.text,
+            distractors=distractors,
+            source_sentence_id=_source_sentence_id(sentence),
+        ),
+        None,
+    )
+
+
+def _reflexive_pronoun_outcome(
+    topic_id: str,
+    sentence: TaggedSentence,
+    candidate: Candidate,
+    difficulty: Difficulty,
+) -> BlankOutcome:
+    assert candidate.person is not None and candidate.number is not None
+    token = sentence.tokens[candidate.token_index]
+    case = token.morph.get("Case")
+    if case is None:
+        return BlankOutcome(None, "reflexive_case_unresolved")
+    reconstructed = paradigms.reflexive_form(case, candidate.person, candidate.number)
+    if reconstructed is None:
+        return BlankOutcome(None, "reflexive_cell_uncovered_by_paradigm")
+    if reconstructed.lower() != token.text.lower():
+        return BlankOutcome(None, "reflexive_paradigm_mismatch")
+
+    family = paradigms.reflexive_family_forms(candidate.person, candidate.number)
+    distractor_forms = sorted(
+        {form for c, form in family.items() if c != case and form.lower() != token.text.lower()}
+    )[:MAX_DISTRACTORS]
+    distractors = [Distractor(text=_match_case(token.text, form)) for form in distractor_forms]
+
+    return BlankOutcome(
+        CandidateItem(
+            topic_id=topic_id,
+            type="cloze_free",
+            difficulty=difficulty,
+            prompt=_render_prompt(sentence, candidate.token_index),
+            proposed_answer=token.text,
+            distractors=distractors,
+            source_sentence_id=_source_sentence_id(sentence),
+        ),
+        None,
+    )
+
+
+def _relative_pronoun_outcome(
+    topic_id: str,
+    sentence: TaggedSentence,
+    candidate: Candidate,
+    difficulty: Difficulty,
+) -> BlankOutcome:
+    assert candidate.cell is not None
+    case, gender, number = candidate.cell
+    token = sentence.tokens[candidate.token_index]
+    reconstructed = paradigms.relative_pronoun_form(case, gender, number)
+    if reconstructed is None:
+        return BlankOutcome(None, "relative_pronoun_cell_uncovered_by_paradigm")
+    if reconstructed.lower() != token.text.lower():
+        return BlankOutcome(None, "relative_pronoun_paradigm_mismatch")
+
+    family = paradigms.relative_pronoun_family_forms(gender, number)
+    distractor_forms = sorted(
+        {form for c, form in family.items() if c != case and form.lower() != token.text.lower()}
+    )[:MAX_DISTRACTORS]
+    distractors = [Distractor(text=_match_case(token.text, form)) for form in distractor_forms]
+
+    return BlankOutcome(
+        CandidateItem(
+            topic_id=topic_id,
+            type="cloze_free",
+            difficulty=difficulty,
+            prompt=_render_prompt(sentence, candidate.token_index),
+            proposed_answer=token.text,
+            distractors=distractors,
+            source_sentence_id=_source_sentence_id(sentence),
+        ),
+        None,
+    )
+
+
+def _verb_form_outcome(
+    topic_id: str,
+    sentence: TaggedSentence,
+    candidate: Candidate,
+    difficulty: Difficulty,
+) -> BlankOutcome:
+    """Regular/vowel-change/strong/mixed finite verb forms -- reconstructed
+    by rule or by the closed strong/mixed stem tables in ``paradigms.py``,
+    cross-checked against the actual token exactly like every other outcome
+    builder in this module."""
+    assert (
+        candidate.lemma is not None
+        and candidate.person is not None
+        and candidate.number is not None
+        and candidate.verb_family is not None
+    )
+    token = sentence.tokens[candidate.token_index]
+    reconstructed = paradigms.verb_family_form(
+        candidate.verb_family, candidate.lemma, candidate.person, candidate.number
+    )
+    if reconstructed is None:
+        return BlankOutcome(None, "verb_form_uncovered_by_paradigm")
+    if reconstructed.lower() != token.text.lower():
+        return BlankOutcome(None, "verb_form_paradigm_mismatch")
+
+    family = paradigms.verb_family_forms(candidate.verb_family, candidate.lemma)
+    distractor_forms = sorted(
+        {
+            form
+            for cell, form in family.items()
+            if cell != (candidate.person, candidate.number) and form.lower() != token.text.lower()
+        }
+    )[:MAX_DISTRACTORS]
+    distractors = [Distractor(text=_match_case(token.text, form)) for form in distractor_forms]
+
+    return BlankOutcome(
+        CandidateItem(
+            topic_id=topic_id,
+            type="cloze_free",
+            difficulty=difficulty,
+            prompt=_render_prompt(sentence, candidate.token_index),
+            proposed_answer=token.text,
+            distractors=distractors,
+            source_sentence_id=_source_sentence_id(sentence),
+        ),
+        None,
+    )
+
+
+def _irregular_aux_outcome(
+    topic_id: str,
+    sentence: TaggedSentence,
+    candidate: Candidate,
+    difficulty: Difficulty,
+) -> BlankOutcome:
+    """sein/haben/werden/modal finite forms, in whichever (Tense, Mood)
+    combination the selector already decided (``candidate.tense_mood``) --
+    Präsens, Präteritum, or Konjunktiv II. Covers perfekt/plusquamperfekt/
+    passive/Futur/Konjunktiv-II, all of which blank an auxiliary or modal
+    rather than the lexical verb itself."""
+    assert (
+        candidate.lemma is not None
+        and candidate.person is not None
+        and candidate.number is not None
+        and candidate.tense_mood is not None
+    )
+    token = sentence.tokens[candidate.token_index]
+    family = paradigms.irregular_finite_family_forms(candidate.lemma, candidate.tense_mood)
+    if family is None:
+        return BlankOutcome(None, "irregular_aux_lemma_unrecognised")
+    reconstructed = family.get((candidate.person, candidate.number))
+    if reconstructed is None:
+        return BlankOutcome(None, "irregular_aux_cell_uncovered_by_paradigm")
+    if reconstructed.lower() != token.text.lower():
+        return BlankOutcome(None, "irregular_aux_paradigm_mismatch")
+
+    distractor_forms = sorted(
+        {
+            form
+            for cell, form in family.items()
+            if cell != (candidate.person, candidate.number) and form.lower() != token.text.lower()
+        }
+    )[:MAX_DISTRACTORS]
+    distractors = [Distractor(text=_match_case(token.text, form)) for form in distractor_forms]
+
+    return BlankOutcome(
+        CandidateItem(
+            topic_id=topic_id,
+            type="cloze_free",
+            difficulty=difficulty,
+            prompt=_render_prompt(sentence, candidate.token_index),
+            proposed_answer=token.text,
+            distractors=distractors,
+            source_sentence_id=_source_sentence_id(sentence),
+        ),
+        None,
+    )
+
+
+def _fixed_particle_outcome(
+    topic_id: str,
+    sentence: TaggedSentence,
+    candidate: Candidate,
+    difficulty: Difficulty,
+) -> BlankOutcome:
+    """A single, invariant closed-class word (``zu``, ``gewesen``): the
+    selector has already confirmed it structurally, so there is nothing left
+    to reconstruct -- trusted like the token itself, same posture as
+    ``_degree_outcome`` above, no distractors because there is no
+    alternation to draw one from."""
+    token = sentence.tokens[candidate.token_index]
+    return BlankOutcome(
+        CandidateItem(
+            topic_id=topic_id,
+            type="cloze_free",
+            difficulty=difficulty,
+            prompt=_render_prompt(sentence, candidate.token_index),
+            proposed_answer=token.text,
+            distractors=[],
+            source_sentence_id=_source_sentence_id(sentence),
+        ),
+        None,
+    )
+
+
+def _plural_noun_outcome(
+    topic_id: str,
+    sentence: TaggedSentence,
+    candidate: Candidate,
+    difficulty: Difficulty,
+) -> BlankOutcome:
+    """A plural noun, trusted as its own correct answer -- German plural
+    formation has no single computable rule (see ``selectors.py``'s own
+    docstring on this topic), so distractors are left empty rather than
+    guessed, matching ``_degree_outcome``'s precedent for the same reason."""
+    token = sentence.tokens[candidate.token_index]
+    return BlankOutcome(
+        CandidateItem(
+            topic_id=topic_id,
+            type="cloze_free",
+            difficulty=difficulty,
+            prompt=_render_prompt(sentence, candidate.token_index),
+            proposed_answer=token.text,
+            distractors=[],
+            source_sentence_id=_source_sentence_id(sentence),
+        ),
+        None,
+    )
+
+
 def blank_candidate(
     topic_id: str,
     sentence: TaggedSentence,
@@ -175,4 +441,18 @@ def blank_candidate(
         return _determiner_outcome(topic_id, sentence, candidate, difficulty)
     if candidate.kind == "adjective":
         return _adjective_outcome(topic_id, sentence, candidate, difficulty)
-    return _degree_outcome(topic_id, sentence, candidate, difficulty)
+    if candidate.kind == "degree":
+        return _degree_outcome(topic_id, sentence, candidate, difficulty)
+    if candidate.kind == "personal_pronoun":
+        return _personal_pronoun_outcome(topic_id, sentence, candidate, difficulty)
+    if candidate.kind == "reflexive_pronoun":
+        return _reflexive_pronoun_outcome(topic_id, sentence, candidate, difficulty)
+    if candidate.kind == "relative_pronoun":
+        return _relative_pronoun_outcome(topic_id, sentence, candidate, difficulty)
+    if candidate.kind == "verb_form":
+        return _verb_form_outcome(topic_id, sentence, candidate, difficulty)
+    if candidate.kind == "irregular_aux":
+        return _irregular_aux_outcome(topic_id, sentence, candidate, difficulty)
+    if candidate.kind == "plural_noun":
+        return _plural_noun_outcome(topic_id, sentence, candidate, difficulty)
+    return _fixed_particle_outcome(topic_id, sentence, candidate, difficulty)

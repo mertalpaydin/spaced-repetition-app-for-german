@@ -335,6 +335,540 @@ def test_komparativ_superlativ_ignores_the_attributive_declined_superlative() ->
 
 
 # ==============================================================================
+# Cycle 3. pronomen_personal_nom / _akk / _dat -- personal pronoun by case.
+# ==============================================================================
+
+
+def test_pronomen_personal_nom_finds_subject_pronouns() -> None:
+    er = _blank("pronomen_personal_nom", "Er kommt morgen aus Berlin.")
+    assert er.prompt == "___ kommt morgen aus Berlin."
+    assert er.proposed_answer == "Er"
+    sie = _blank("pronomen_personal_nom", "Sie sind sehr müde.")
+    assert sie.proposed_answer == "Sie"
+
+
+def test_pronomen_personal_akk_finds_object_pronouns() -> None:
+    item = _blank("pronomen_personal_akk", "Ich sehe ihn jeden Tag.")
+    assert item.prompt == "Ich sehe ___ jeden Tag."
+    assert item.proposed_answer == "ihn"
+
+
+def test_pronomen_personal_akk_fires_on_a_non_reflexive_mich_because_the_subject_differs() -> None:
+    """ "mich" is ambiguous between a plain accusative object pronoun and a
+    reflexive -- the subject here is "Er" (3rd person), which cannot be the
+    antecedent of a 1st-person "mich", so this cannot be reflexive and the
+    plain-pronoun topic may safely fire."""
+    item = _blank("pronomen_personal_akk", "Er sieht mich nicht.")
+    assert item.proposed_answer == "mich"
+
+
+def test_pronomen_personal_akk_rejects_mich_when_the_subject_could_make_it_reflexive() -> None:
+    """ "Ich sehe mich im Spiegel." -- subject and "mich" agree in person and
+    number, so this token could be the reflexive object of "sehen", not a
+    plain personal pronoun; the topic must not guess which reading is meant
+    and produces nothing."""
+    _, candidates = _select("pronomen_personal_akk", "Ich sehe mich im Spiegel.")
+    assert candidates == []
+
+
+def test_pronomen_personal_dat_finds_indirect_object_pronouns() -> None:
+    item = _blank("pronomen_personal_dat", "Ich helfe ihm gern.")
+    assert item.proposed_answer == "ihm"
+    assert _blank("pronomen_personal_dat", "Er gibt ihr das Buch.").proposed_answer == "ihr"
+
+
+# ==============================================================================
+# Cycle 3. verben_reflexiv_akk / _dat -- reflexive pronoun case, derived
+# structurally rather than trusted from tagger Case morphology (see
+# ``_reflexive_case``'s docstring for why the tagger cannot be trusted here).
+# ==============================================================================
+
+
+def test_verben_reflexiv_akk_finds_an_unambiguous_accusative_reflexive_form() -> None:
+    item = _blank("verben_reflexiv_akk", "Ich freue mich auf die Ferien.")
+    assert item.prompt == "Ich freue ___ auf die Ferien."
+    assert item.proposed_answer == "mich"
+
+
+def test_verben_reflexiv_dat_finds_an_unambiguous_dative_reflexive_form() -> None:
+    item = _blank("verben_reflexiv_dat", "Ich kaufe mir einen neuen Laptop.")
+    assert item.proposed_answer == "mir"
+
+
+def test_verben_reflexiv_akk_resolves_ambiguous_sich_via_absence_of_a_bare_object() -> None:
+    """ "sich" itself carries no case marking; "schämen" takes no further
+    object, so the absence of any other bare accusative elsewhere in the
+    clause (the temporal "jeden Morgen" is exempted, "für sein Verhalten"
+    is prepositionally governed) is what forces the Accusative reading."""
+    item = _blank("verben_reflexiv_akk", "Er schämt sich jeden Morgen für sein Verhalten.")
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select(
+        "verben_reflexiv_dat", "Er schämt sich jeden Morgen für sein Verhalten."
+    )
+    assert dat_candidates == []
+
+
+def test_verben_reflexiv_dat_resolves_ambiguous_sich_via_a_bare_accusative_object() -> None:
+    """Regression pin for a real defect found while building this selector:
+    spaCy tags the ENTIRE object NP "ein neues Auto" as ``Case=Nom``
+    (subject-shaped), not ``Acc``, so the Case-based bare-object check alone
+    finds nothing and would silently default to the wrong (Accusative)
+    reading. Word order -- an explicit-determiner NP immediately after
+    "sich" with nothing between -- is the independent structural signal that
+    catches this; see ``_immediately_followed_by_object_np``'s docstring."""
+    item = _blank("verben_reflexiv_dat", "Er kauft sich ein neues Auto.")
+    assert item.proposed_answer == "sich"
+    _, akk_candidates = _select("verben_reflexiv_akk", "Er kauft sich ein neues Auto.")
+    assert akk_candidates == []
+
+
+def test_verben_reflexiv_dat_finds_sich_before_a_bare_noun_object_with_no_determiner() -> None:
+    item = _blank("verben_reflexiv_dat", "Sie wäscht sich die Hände.")
+    assert item.proposed_answer == "sich"
+    _, akk_candidates = _select("verben_reflexiv_akk", "Sie wäscht sich die Hände.")
+    assert akk_candidates == []
+
+
+def test_verben_reflexiv_akk_rejects_sich_followed_by_a_prepositional_phrase() -> None:
+    """ "für Musik" is governed by "für", not a bare object -- must not be
+    mistaken for the accusative-object evidence that would force Dative."""
+    item = _blank("verben_reflexiv_akk", "Er interessiert sich sehr für Musik.")
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select("verben_reflexiv_dat", "Er interessiert sich sehr für Musik.")
+    assert dat_candidates == []
+
+
+# ==============================================================================
+# Cycle 3. relativsatz_nom_akk / _dativ / _genitiv -- relative pronoun by case.
+# ==============================================================================
+
+
+def test_relativsatz_nom_akk_finds_nominative_and_accusative_relative_pronouns() -> None:
+    nom = _blank("relativsatz_nom_akk", "Der Mann, der dort steht, ist mein Onkel.")
+    assert nom.prompt == "Der Mann, ___ dort steht, ist mein Onkel."
+    assert nom.proposed_answer == "der"
+    akk = _blank("relativsatz_nom_akk", "Das Buch, das ich lese, ist spannend.")
+    assert akk.proposed_answer == "das"
+
+
+def test_relativsatz_dativ_finds_dative_relative_pronouns() -> None:
+    item = _blank("relativsatz_dativ", "Der Mann, dem ich geholfen habe, ist mein Nachbar.")
+    assert item.prompt == "Der Mann, ___ ich geholfen habe, ist mein Nachbar."
+    assert item.proposed_answer == "dem"
+    plural = _blank("relativsatz_dativ", "Die Kinder, denen wir geholfen haben, sind glücklich.")
+    assert plural.proposed_answer == "denen"
+
+
+def test_relativsatz_genitiv_finds_dessen_and_deren() -> None:
+    item = _blank("relativsatz_genitiv", "Der Mann, dessen Auto kaputt ist, wartet hier.")
+    assert item.prompt == "Der Mann, ___ Auto kaputt ist, wartet hier."
+    assert item.proposed_answer == "dessen"
+
+
+# ==============================================================================
+# Cycle 3. verb_sein_haben / verb_praesens_regelm / verb_praesens_vokalwechsel
+# / modalverben_praesens / verben_trennbar_praesens -- present tense, split by
+# conjugation family, each family disjoint from the others by lemma set.
+# ==============================================================================
+
+
+def test_verb_sein_haben_finds_present_tense_sein_and_haben() -> None:
+    bin_ = _blank("verb_sein_haben", "Ich bin heute müde.")
+    assert bin_.prompt == "Ich ___ heute müde."
+    assert bin_.proposed_answer == "bin"
+    haben = _blank("verb_sein_haben", "Wir haben ein neues Auto.")
+    assert haben.proposed_answer == "haben"
+
+
+def test_verb_praesens_regelm_finds_a_regular_present_tense_verb() -> None:
+    item = _blank("verb_praesens_regelm", "Ich mache heute meine Hausaufgaben.")
+    assert item.prompt == "Ich ___ heute meine Hausaufgaben."
+    assert item.proposed_answer == "mache"
+
+
+def test_verb_praesens_regelm_excludes_a_vowel_change_verb() -> None:
+    """ "fährt" (fahren, a-to-ä stem change) belongs to
+    verb_praesens_vokalwechsel, not the plain-regular topic, even though its
+    endings are otherwise regular."""
+    _, candidates = _select("verb_praesens_regelm", "Er fährt jeden Tag mit dem Bus.")
+    assert candidates == []
+
+
+def test_verb_praesens_vokalwechsel_finds_stem_changing_present_tense_verbs() -> None:
+    item = _blank("verb_praesens_vokalwechsel", "Er fährt jeden Tag mit dem Bus.")
+    assert item.proposed_answer == "fährt"
+    assert (
+        _blank("verb_praesens_vokalwechsel", "Sie liest ein spannendes Buch.").proposed_answer
+        == "liest"
+    )
+
+
+def test_verb_praesens_vokalwechsel_excludes_a_plain_regular_verb() -> None:
+    _, candidates = _select("verb_praesens_vokalwechsel", "Ich mache heute meine Hausaufgaben.")
+    assert candidates == []
+
+
+def test_modalverben_praesens_finds_present_tense_modals() -> None:
+    item = _blank("modalverben_praesens", "Ich kann gut schwimmen.")
+    assert item.proposed_answer == "kann"
+    assert _blank("modalverben_praesens", "Wir müssen jetzt gehen.").proposed_answer == "müssen"
+
+
+def test_verben_trennbar_praesens_finds_the_finite_verb_of_a_separable_verb() -> None:
+    """The blank is the finite verb ("steht"), not the stranded particle
+    ("auf") -- the particle stays in the prompt as the evidence that this is
+    a separable verb at all."""
+    item = _blank("verben_trennbar_praesens", "Er steht jeden Morgen früh auf.")
+    assert item.prompt == "Er ___ jeden Morgen früh auf."
+    assert item.proposed_answer == "steht"
+
+
+def test_verben_trennbar_praesens_rejects_an_ordinary_preposition_after_the_verb() -> None:
+    """ "aus Berlin" is a prepositional phrase, not a stranded separable
+    particle -- there is no PTKVZ token here, so this must not fire."""
+    _, candidates = _select("verben_trennbar_praesens", "Er kommt heute aus Berlin.")
+    assert candidates == []
+
+
+# ==============================================================================
+# Cycle 3. praeteritum_sein_haben_modal / praeteritum_vollverben -- simple
+# past, split the same way as the present-tense topics above.
+# ==============================================================================
+
+
+def test_praeteritum_sein_haben_modal_finds_war_hatte_and_a_modal() -> None:
+    war = _blank("praeteritum_sein_haben_modal", "Ich war gestern krank.")
+    assert war.proposed_answer == "war"
+    hatten = _blank("praeteritum_sein_haben_modal", "Wir hatten keine Zeit.")
+    assert hatten.proposed_answer == "hatten"
+    konnte = _blank("praeteritum_sein_haben_modal", "Er konnte nicht kommen.")
+    assert konnte.proposed_answer == "konnte"
+
+
+def test_praeteritum_vollverben_finds_weak_and_strong_simple_past() -> None:
+    weak = _blank("praeteritum_vollverben", "Er spielte gestern Fußball.")
+    assert weak.prompt == "Er ___ gestern Fußball."
+    assert weak.proposed_answer == "spielte"
+    strong = _blank("praeteritum_vollverben", "Sie sprach lange mit ihm.")
+    assert strong.proposed_answer == "sprach"
+    irregular_stem = _blank("praeteritum_vollverben", "Ich ging langsam nach Hause.")
+    assert irregular_stem.proposed_answer == "ging"
+
+
+# ==============================================================================
+# Cycle 3. nomen_plural -- trusted directly from the tagger with zero
+# distractors, matching the precedent set by adjektiv_komparativ_superlativ
+# (no German plural-formation rule/table exists to reconstruct from, so
+# there is nothing to cross-check against and no safe way to generate a
+# wrong-but-plausible distractor).
+# ==============================================================================
+
+
+def test_nomen_plural_finds_a_plural_noun_with_no_distractors() -> None:
+    item = _blank("nomen_plural", "Die Kinder spielen im Garten.")
+    assert item.prompt == "Die ___ spielen im Garten."
+    assert item.proposed_answer == "Kinder"
+    assert item.distractors == []
+
+
+# ==============================================================================
+# Cycle 3. perfekt_haben / perfekt_sein / plusquamperfekt -- compound past
+# tenses. The aux/participle lemma consistency check (via AUX_SEIN_LEMMAS)
+# and the anteriority-marker guard (nachdem/bevor) are what keep Perfekt and
+# Plusquamperfekt from ever both accepting the same sentence -- this is the
+# exact "Gestern ___ wir nach Berlin gefahren" defect named in the task brief.
+# ==============================================================================
+
+
+def test_perfekt_haben_finds_the_haben_auxiliary() -> None:
+    item = _blank("perfekt_haben", "Ich habe das Buch gelesen.")
+    assert item.prompt == "Ich ___ das Buch gelesen."
+    assert item.proposed_answer == "habe"
+
+
+def test_perfekt_sein_finds_the_sein_auxiliary_with_a_motion_verb() -> None:
+    item = _blank("perfekt_sein", "Wir sind nach Berlin gefahren.")
+    assert item.proposed_answer == "sind"
+
+
+def test_perfekt_haben_and_perfekt_sein_are_disjoint_by_aux_participle_consistency() -> None:
+    """ "gefahren" (fahren, a sein-verb) never pairs with "haben", and
+    "gelesen" (lesen, a haben-verb) never pairs with "sein" -- each topic
+    must reject the other's sentence outright, not merely fail to prefer it."""
+    _, haben_candidates = _select("perfekt_haben", "Wir sind nach Berlin gefahren.")
+    assert haben_candidates == []
+    _, sein_candidates = _select("perfekt_sein", "Ich habe das Buch gelesen.")
+    assert sein_candidates == []
+
+
+def test_perfekt_sein_fires_on_the_named_perfekt_plusquamperfekt_ambiguity_sentence() -> None:
+    """The exact sentence named in this cycle's brief as a real, previously
+    audited defect: "Gestern ___ wir nach Berlin gefahren" wrongly accepted
+    both "sind" (Perfekt) and "waren" (Plusquamperfekt). With a fronted
+    temporal adverb and no anteriority marker (nachdem/bevor), this can only
+    be Perfekt -- plusquamperfekt must reject it outright (see the next
+    test), not merely decline to prefer it."""
+    item = _blank("perfekt_sein", "Gestern sind wir nach Berlin gefahren.")
+    assert item.prompt == "Gestern ___ wir nach Berlin gefahren."
+    assert item.proposed_answer == "sind"
+
+
+def test_plusquamperfekt_rejects_the_same_sentence_shape_without_an_anteriority_marker() -> None:
+    """ "Gestern waren wir nach Berlin gefahren." is the Plusquamperfekt
+    surface form, but with no "nachdem"/"bevor" anywhere in the sentence
+    there is nothing distinguishing it from an isolated, contextless simple
+    past reading -- the selector must not guess and produces nothing,
+    exactly mirroring the previous audit's finding for this construction."""
+    _, plusquamperfekt_candidates = _select(
+        "plusquamperfekt", "Gestern waren wir nach Berlin gefahren."
+    )
+    assert plusquamperfekt_candidates == []
+    _, perfekt_sein_candidates = _select("perfekt_sein", "Gestern waren wir nach Berlin gefahren.")
+    assert perfekt_sein_candidates == []  # "waren" is not a Perfekt auxiliary form either
+
+
+def test_plusquamperfekt_fires_with_an_explicit_anteriority_marker() -> None:
+    """ "nachdem" makes the anteriority explicit, and licenses the
+    Plusquamperfekt reading even in the verb-final subordinate-clause word
+    order, where the participle precedes rather than follows its auxiliary."""
+    item = _blank("plusquamperfekt", "Nachdem wir gegessen hatten, gingen wir spazieren.")
+    assert item.prompt == "Nachdem wir gegessen ___, gingen wir spazieren."
+    assert item.proposed_answer == "hatten"
+
+
+# ==============================================================================
+# Cycle 3. konjunktiv_ii_hoeflichkeit / _irreal_gegenwart / _vergangenheit --
+# Konjunktiv II, split by clause shape (a polite question, a wenn-clause
+# describing the present, a wenn-clause describing the past).
+# ==============================================================================
+
+
+def test_konjunktiv_ii_hoeflichkeit_finds_a_polite_question() -> None:
+    item = _blank("konjunktiv_ii_hoeflichkeit", "Könnten Sie mir bitte helfen?")
+    assert item.prompt == "___ Sie mir bitte helfen?"
+    assert item.proposed_answer == "Könnten"
+
+
+def test_konjunktiv_ii_hoeflichkeit_does_not_fire_on_a_wenn_clause() -> None:
+    _, candidates = _select("konjunktiv_ii_hoeflichkeit", "Wenn ich Zeit hätte, würde ich kommen.")
+    assert candidates == []
+
+
+def test_konjunktiv_ii_irreal_gegenwart_finds_both_the_haette_and_the_wuerde() -> None:
+    tagged, candidates = _select(
+        "konjunktiv_ii_irreal_gegenwart", "Wenn ich Zeit hätte, würde ich kommen."
+    )
+    assert len(candidates) == 2
+    first = blank_candidate("konjunktiv_ii_irreal_gegenwart", tagged, candidates[0]).item
+    assert first is not None
+    assert first.proposed_answer == "hätte"
+    second = blank_candidate("konjunktiv_ii_irreal_gegenwart", tagged, candidates[1]).item
+    assert second is not None
+    assert second.proposed_answer == "würde"
+
+
+def test_konjunktiv_ii_irreal_gegenwart_does_not_fire_without_a_wenn_clause() -> None:
+    _, candidates = _select("konjunktiv_ii_irreal_gegenwart", "Könnten Sie mir bitte helfen?")
+    assert candidates == []
+
+
+def test_konjunktiv_ii_vergangenheit_finds_a_past_counterfactual() -> None:
+    item = _blank(
+        "konjunktiv_ii_vergangenheit", "Wenn ich das gewusst hätte, wäre ich nicht gekommen."
+    )
+    assert item.proposed_answer == "wäre"
+
+
+# ==============================================================================
+# Cycle 3. passiv_praesens / passiv_praeteritum / passiv_modalverben /
+# zustandspassiv / zustandspassiv_zeiten -- Vorgangspassiv (werden) vs
+# Zustandspassiv (sein), split further by tense; both gated on the
+# participle's lemma being in TRANSITIVE_LEMMAS so an intransitive verb
+# ("gefahren") is never mistaken for a passive participle.
+# ==============================================================================
+
+
+def test_passiv_praesens_finds_present_tense_vorgangspassiv() -> None:
+    item = _blank("passiv_praesens", "Das Auto wird repariert.")
+    assert item.prompt == "Das Auto ___ repariert."
+    assert item.proposed_answer == "wird"
+
+
+def test_passiv_praeteritum_finds_past_tense_vorgangspassiv() -> None:
+    item = _blank("passiv_praeteritum", "Das Auto wurde repariert.")
+    assert item.proposed_answer == "wurde"
+
+
+def test_passiv_modalverben_finds_a_modal_plus_passive_infinitive() -> None:
+    item = _blank("passiv_modalverben", "Das Auto kann repariert werden.")
+    assert item.prompt == "Das Auto ___ repariert werden."
+    assert item.proposed_answer == "kann"
+
+
+def test_passiv_modalverben_skips_a_known_tagger_gap_on_muss() -> None:
+    """Confirmed empirically: in exactly this construction ("muss" + past
+    participle + "werden"), de_core_news_sm sometimes tags "muss" with
+    almost no morphology at all (only ``{'Degree': 'Pos'}``, no
+    VerbForm/Tense/Person/Number), which is not enough for the selector to
+    place it in any conjugation cell. Other modals and other persons of
+    "müssen" tag correctly in the same construction (see
+    passiv_modalverben's positive test above and
+    test_modalverben_praesens_finds_present_tense_modals); this is a narrow,
+    documented gap in this one 3sg-present surface form, not a design flaw,
+    and producing nothing here is the correct, safe behaviour."""
+    _, candidates = _select("passiv_modalverben", "Das Auto muss repariert werden.")
+    assert candidates == []
+
+
+def test_zustandspassiv_finds_present_tense_sein_plus_participle() -> None:
+    item = _blank("zustandspassiv", "Das Auto ist repariert.")
+    assert item.proposed_answer == "ist"
+
+
+def test_zustandspassiv_and_passiv_praesens_are_disjoint_by_auxiliary() -> None:
+    _, zustandspassiv_candidates = _select("zustandspassiv", "Das Auto wird repariert.")
+    assert zustandspassiv_candidates == []
+    _, passiv_candidates = _select("passiv_praesens", "Das Auto ist repariert.")
+    assert passiv_candidates == []
+
+
+def test_zustandspassiv_zeiten_finds_past_tense_zustandspassiv() -> None:
+    item = _blank("zustandspassiv_zeiten", "Das Auto war repariert.")
+    assert item.proposed_answer == "war"
+
+
+def test_zustandspassiv_zeiten_blanks_gewesen_for_the_perfekt_shaped_variant() -> None:
+    """ "ist repariert gewesen" blanks the fixed word "gewesen", not "ist" --
+    blanking "ist" here would be indistinguishable from plain present-tense
+    Zustandspassiv ("Das Auto ist repariert.")."""
+    item = _blank("zustandspassiv_zeiten", "Das Auto ist repariert gewesen.")
+    assert item.prompt == "Das Auto ist repariert ___."
+    assert item.proposed_answer == "gewesen"
+    assert item.distractors == []
+
+
+# ==============================================================================
+# Cycle 3. futur_i / futur_ii -- werden + infinitive vs werden + participle
+# + haben/sein infinitive, disjoint by the presence of a participle.
+# ==============================================================================
+
+
+def test_futur_i_finds_werden_plus_a_bare_infinitive() -> None:
+    item = _blank("futur_i", "Ich werde morgen kommen.")
+    assert item.prompt == "Ich ___ morgen kommen."
+    assert item.proposed_answer == "werde"
+
+
+def test_futur_i_does_not_fire_when_a_participle_follows() -> None:
+    """That shape belongs to futur_ii, not futur_i."""
+    _, candidates = _select("futur_i", "Er wird das Buch gelesen haben.")
+    assert candidates == []
+
+
+def test_futur_ii_finds_werden_plus_participle_plus_haben() -> None:
+    item = _blank("futur_ii", "Er wird das Buch gelesen haben.")
+    assert item.proposed_answer == "wird"
+
+
+# ==============================================================================
+# Cycle 3. infinitiv_mit_zu / infinitiv_um_zu -- "zu" before an infinitive,
+# split by whether "um" precedes it in the same clause.
+# ==============================================================================
+
+
+def test_infinitiv_mit_zu_finds_a_plain_zu_infinitive() -> None:
+    item = _blank("infinitiv_mit_zu", "Er hat vergessen, das Fenster zu schließen.")
+    assert item.prompt == "Er hat vergessen, das Fenster ___ schließen."
+    assert item.proposed_answer == "zu"
+    assert item.distractors == []
+
+
+def test_infinitiv_mit_zu_does_not_fire_when_um_precedes_it() -> None:
+    _, candidates = _select("infinitiv_mit_zu", "Sie lernt Deutsch, um in Berlin zu studieren.")
+    assert candidates == []
+
+
+def test_infinitiv_um_zu_finds_a_zu_infinitive_preceded_by_um() -> None:
+    item = _blank("infinitiv_um_zu", "Sie lernt Deutsch, um in Berlin zu studieren.")
+    assert item.prompt == "Sie lernt Deutsch, um in Berlin ___ studieren."
+    assert item.proposed_answer == "zu"
+
+
+# ==============================================================================
+# Cycle 3. partizip_i_attributiv -- attributive present participle
+# ("schlafende"), gated on a closed, hand-verified list of infinitives whose
+# Partizip I is a plausible, testable adjective (not a "lemma ends in -d"
+# heuristic, which would false-positive on genuine adjectives like "rund",
+# "gesund", "fremd", "blind" -- see ``_PARTIZIP_I_VERBS``'s docstring).
+# ==============================================================================
+
+
+def test_partizip_i_attributiv_finds_an_attributive_present_participle() -> None:
+    item = _blank("partizip_i_attributiv", "Das schlafende Kind liegt im Bett.")
+    assert item.prompt == "Das ___ Kind liegt im Bett."
+    assert item.proposed_answer == "schlafende"
+
+
+def test_partizip_i_attributiv_does_not_fire_on_a_genuine_d_final_adjective() -> None:
+    """ "gesund" is a plain adjective, not any verb's Partizip I -- it must
+    not be guessed into this topic just because it ends in "d"."""
+    _, candidates = _select("partizip_i_attributiv", "Das gesunde Kind spielt draußen.")
+    assert candidates == []
+
+
+# ==============================================================================
+# Cycle 3. partizip_ii_attributiv_erweitert -- extended attributive participle
+# ("das von Experten entwickelte Programm"), gated on a closed list of known
+# participle forms and requiring an ADP inside the span as the evidence of
+# actual extension (a bare attributive participle with no extension is
+# already adjektivdeklination_bestimmt's territory, not this topic's).
+# ==============================================================================
+
+
+def test_partizip_ii_attributiv_erweitert_finds_an_extended_participle() -> None:
+    item = _blank(
+        "partizip_ii_attributiv_erweitert", "Das von Experten entwickelte Programm ist erfolgreich."
+    )
+    assert item.prompt == "Das von Experten ___ Programm ist erfolgreich."
+    assert item.proposed_answer == "entwickelte"
+
+
+def test_partizip_ii_attributiv_erweitert_does_not_fire_without_an_extension() -> None:
+    """No preposition inside the span ("gut" is a plain adverb) -- this is
+    not evidence of a genuine extended-participle construction."""
+    _, candidates = _select(
+        "partizip_ii_attributiv_erweitert", "Der gut geplante Ausflug war ein Erfolg."
+    )
+    assert candidates == []
+
+
+def test_partizip_ii_attributiv_erweitert_does_not_fire_on_a_bare_participle() -> None:
+    """No extension at all -- belongs to adjektivdeklination_bestimmt."""
+    _, candidates = _select(
+        "partizip_ii_attributiv_erweitert", "Das entwickelte Programm ist erfolgreich."
+    )
+    assert candidates == []
+
+
+# ==============================================================================
+# Cycle 3. praepositionen_genitiv_gehoben -- gehobene (elevated-register)
+# genitive prepositions, reusing the same ``_determiner_selector`` factory as
+# cycle 2's praepositionen_genitiv, just with a different preposition set.
+# ==============================================================================
+
+
+def test_praepositionen_genitiv_gehoben_finds_anhand_and_mangels() -> None:
+    anhand = _blank(
+        "praepositionen_genitiv_gehoben", "Anhand der Beweise konnte er die Tat rekonstruieren."
+    )
+    assert anhand.proposed_answer == "der"
+    mangels = _blank(
+        "praepositionen_genitiv_gehoben", "Mangels eines Beweises wurde er freigesprochen."
+    )
+    assert mangels.proposed_answer == "eines"
+
+
+# ==============================================================================
 # One sentence can yield items for several different topics, but the
 # selectors themselves never double-count within one topic.
 # ==============================================================================
