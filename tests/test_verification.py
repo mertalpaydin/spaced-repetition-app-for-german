@@ -1328,6 +1328,413 @@ def test_layer5_rejects_on_post_expansion_distractor_collision() -> None:
     assert res.error_type == "structural_malformation"
 
 
+# ----------------------------------------------------------------------
+# docs/audits/stage-04-a2-pilot-audit.md's four fixes:
+#   1. filter the WHOLE accepted set by target form, not only the extras
+#   2. cue consistency (accepted answers must be forms of the item's cue)
+#   3. Unk-facet honesty (reject as under-constrained, don't silently accept)
+#   4. relativsatz_dativ's missing PronType: Rel (tested in test_taxonomy.py)
+#
+# 11 of the audit's 17 defective items shared the fix-1 root cause; the six
+# concrete real-world defects the audit named are reproduced below as
+# end-to-end regression fixtures through the real pipeline (real taxonomy
+# topics, a fake layer-5 LLM client standing in for the model, exactly the
+# additional_accepted_answers the audit found the chain had accepted).
+# ----------------------------------------------------------------------
+
+
+@pytest.fixture
+def nebensatz_indirekte_frage_topic() -> Topic:
+    taxonomy = load_taxonomy()
+    return next(t for t in taxonomy if t.id == "nebensatz_indirekte_frage")
+
+
+@pytest.fixture
+def nebensatz_wenn_topic() -> Topic:
+    taxonomy = load_taxonomy()
+    return next(t for t in taxonomy if t.id == "nebensatz_wenn")
+
+
+@pytest.fixture
+def verben_reflexiv_akk_topic() -> Topic:
+    taxonomy = load_taxonomy()
+    return next(t for t in taxonomy if t.id == "verben_reflexiv_akk")
+
+
+def _extras_llm(extras: list[str]) -> _FakeSemanticLlmClient:
+    return _FakeSemanticLlmClient(
+        json.dumps({"valid": True, "reason": None, "additional_accepted_answers": extras})
+    )
+
+
+def test_a2_audit_item_37_drops_second_tense_for_cued_verb(
+    nebensatz_indirekte_frage_topic: Topic,
+) -> None:
+    """'Weißt du, wo er ___ (wohnen)?' accepted BOTH 'wohnt' and 'wohnte' --
+    nothing in the sentence forces past tense, and the topic's own
+    morph_spec is deliberately empty (it tests verb-final word order, not
+    tense), so only the widened, cue-independent verb-form check (fix 1)
+    catches this."""
+    item = CandidateItem(
+        topic_id="nebensatz_indirekte_frage",
+        type="cloze_cued",
+        difficulty=2,
+        prompt="Weißt du, wo er ___?",
+        proposed_answer="wohnt",
+        distractors=[
+            Distractor(text="wohnst"),
+            Distractor(text="wohnen"),
+            Distractor(text="wohnst"),
+        ],
+        cue="wohnen",
+    )
+    pipeline = VerificationPipeline(llm_client=_extras_llm(["wohnte"]))  # type: ignore[arg-type]
+
+    res = pipeline.verify_item(item, topic=nebensatz_indirekte_frage_topic)
+
+    assert res.passed, f"unexpected rejection: {res.reason}"
+    assert res.accepted_answers == ["wohnt"]
+
+
+def test_a2_audit_item_38_drops_future_and_past_alternatives(
+    nebensatz_indirekte_frage_topic: Topic,
+) -> None:
+    """'Sie möchte wissen, wann das Konzert ___ (beginnen).' accepted
+    'beginnt', 'beginnen wird', and 'begann' -- three tenses for one cue."""
+    item = CandidateItem(
+        topic_id="nebensatz_indirekte_frage",
+        type="cloze_cued",
+        difficulty=2,
+        prompt="Sie möchte wissen, wann das Konzert ___.",
+        proposed_answer="beginnt",
+        distractors=[
+            Distractor(text="endet"),
+            Distractor(text="dauert"),
+            Distractor(text="startet"),
+        ],
+        cue="beginnen",
+    )
+    pipeline = VerificationPipeline(  # type: ignore[arg-type]
+        llm_client=_extras_llm(["beginnen wird", "begann"])
+    )
+
+    res = pipeline.verify_item(item, topic=nebensatz_indirekte_frage_topic)
+
+    assert res.passed, f"unexpected rejection: {res.reason}"
+    assert res.accepted_answers == ["beginnt"]
+
+
+def test_a2_audit_item_41_drops_wrong_lexeme_and_konjunktiv_ii(
+    nebensatz_wenn_topic: Topic,
+) -> None:
+    """'Wenn du Zeit ___, helfen wir dir.' accepted 'hast' (indicative,
+    correct), 'findest' (a different lexeme entirely), and 'hättest'
+    (Konjunktiv II, which needs a subjunctive main clause this one is not).
+    No cue on this item -- the widened verb check must fire from the
+    reference answer's own tagged POS alone, not from a cue."""
+    item = CandidateItem(
+        topic_id="nebensatz_wenn",
+        type="cloze_free",
+        difficulty=2,
+        prompt="Wenn du Zeit ___, helfen wir dir.",
+        proposed_answer="hast",
+        distractors=[Distractor(text="habe"), Distractor(text="habt"), Distractor(text="haben")],
+    )
+    pipeline = VerificationPipeline(llm_client=_extras_llm(["findest", "hättest"]))  # type: ignore[arg-type]
+
+    res = pipeline.verify_item(item, topic=nebensatz_wenn_topic)
+
+    assert res.passed, f"unexpected rejection: {res.reason}"
+    assert res.accepted_answers == ["hast"]
+
+
+def test_a2_audit_item_42_cue_consistency_drops_every_wrong_lexeme(
+    nebensatz_wenn_topic: Topic,
+) -> None:
+    """'Wenn er Hunger hat, ___ er sich eine Suppe.' cue 'kochen', accepted
+    'kocht' plus 'macht', 'bestellt', 'holt', 'kauft', 'gönnt' -- a cued
+    item whose answer set ignores its own cue is self-contradictory (fix
+    2); every wrong-lexeme extra must be dropped."""
+    item = CandidateItem(
+        topic_id="nebensatz_wenn",
+        type="cloze_cued",
+        difficulty=2,
+        prompt="Wenn er Hunger hat, ___ er sich eine Suppe.",
+        proposed_answer="kocht",
+        distractors=[Distractor(text="isst"), Distractor(text="trinkt"), Distractor(text="backt")],
+        cue="kochen",
+    )
+    pipeline = VerificationPipeline(  # type: ignore[arg-type]
+        llm_client=_extras_llm(["macht", "bestellt", "holt", "kauft", "gönnt"])
+    )
+
+    res = pipeline.verify_item(item, topic=nebensatz_wenn_topic)
+
+    assert res.passed, f"unexpected rejection: {res.reason}"
+    assert res.accepted_answers == ["kocht"]
+
+
+def test_a2_audit_item_50_drops_non_reflexive_noun_phrases(
+    verben_reflexiv_akk_topic: Topic,
+) -> None:
+    """'Ich wasche ___ jeden Morgen mit kaltem Wasser.' accepted 'mich' plus
+    'mein Gesicht' and 'meine Haare' -- only 'mich' is reflexive, the rest
+    are ordinary direct objects that stop the item testing its own topic."""
+    item = CandidateItem(
+        topic_id="verben_reflexiv_akk",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Ich wasche ___ jeden Morgen mit kaltem Wasser.",
+        proposed_answer="mich",
+        distractors=[Distractor(text="dich"), Distractor(text="euch"), Distractor(text="sich")],
+    )
+    pipeline = VerificationPipeline(  # type: ignore[arg-type]
+        llm_client=_extras_llm(["mein Gesicht", "meine Haare"])
+    )
+
+    res = pipeline.verify_item(item, topic=verben_reflexiv_akk_topic)
+
+    assert res.passed, f"unexpected rejection: {res.reason}"
+    assert res.accepted_answers == ["mich"]
+
+
+def test_a2_audit_item_9_drops_adverbs_and_article_keeps_adjectives(
+    nullartikel_topic: Topic,
+) -> None:
+    """'Weil er ___ Milch trinkt, bleibt er gesund.' accepted 'frische' plus
+    'immer', 'gerne' (adverbs -- do not decline at all) and 'keine' (a
+    negative article, not an adjective). 'warme'/'kalte' are genuine
+    same-form adjective alternatives and must survive (ten answers are fine
+    when they carry one form)."""
+    item = CandidateItem(
+        topic_id="adjektivdeklination_nullartikel",
+        type="cloze_free",
+        difficulty=2,
+        prompt="Weil er ___ Milch trinkt, bleibt er gesund.",
+        proposed_answer="frische",
+        distractors=[
+            Distractor(text="frischer"),
+            Distractor(text="frisches"),
+            Distractor(text="frischen"),
+        ],
+    )
+    pipeline = VerificationPipeline(  # type: ignore[arg-type]
+        llm_client=_extras_llm(["immer", "gerne", "keine", "warme", "kalte"])
+    )
+
+    res = pipeline.verify_item(item, topic=nullartikel_topic)
+
+    assert res.passed, f"unexpected rejection: {res.reason}"
+    assert set(res.accepted_answers) == {"frische", "warme", "kalte"}
+    assert "immer" not in res.accepted_answers
+    assert "gerne" not in res.accepted_answers
+    assert "keine" not in res.accepted_answers
+
+
+# ----------------------------------------------------------------------
+# Fix 2 (cue consistency) and fix 3 (Unk-facet honesty), unit-tested
+# directly against AnswerSetExpander.
+# ----------------------------------------------------------------------
+
+
+def test_filter_by_cue_consistency_noop_without_cue() -> None:
+    """No cue at all is a no-op: the answers pass through unchanged."""
+    item = CandidateItem(
+        topic_id="nebensatz_wenn",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Wenn du Zeit ___, helfen wir dir.",
+        proposed_answer="hast",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+    answers, reason = AnswerSetExpander.filter_by_cue_consistency(["hast", "findest"], item)
+    assert reason is None
+    assert answers == ["hast", "findest"]
+
+
+def test_filter_by_cue_consistency_drops_wrong_lexeme() -> None:
+    """A cued item's accepted set is filtered to forms of the cue's own
+    lemma; a same-tense, different-lexeme alternative is dropped."""
+    item = CandidateItem(
+        topic_id="nebensatz_wenn",
+        type="cloze_cued",
+        difficulty=2,
+        prompt="Wenn er Hunger hat, ___ er sich eine Suppe.",
+        proposed_answer="kocht",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+        cue="kochen",
+    )
+    answers, reason = AnswerSetExpander.filter_by_cue_consistency(
+        ["kocht", "macht", "bestellt"], item
+    )
+    assert reason is None
+    assert answers == ["kocht"]
+
+
+def test_filter_by_cue_consistency_rejects_outright_when_primary_contradicts_cue() -> None:
+    """If the PRIMARY answer itself is not a form of the item's own cue,
+    the item is self-contradictory and must be rejected outright, not
+    merely repaired down to an empty set."""
+    item = CandidateItem(
+        topic_id="nebensatz_wenn",
+        type="cloze_cued",
+        difficulty=2,
+        prompt="Wenn er Hunger hat, ___ er sich eine Suppe.",
+        proposed_answer="macht",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+        cue="kochen",
+    )
+    answers, reason = AnswerSetExpander.filter_by_cue_consistency(["macht"], item)
+    assert answers == []
+    assert reason is not None
+    assert "self-contradictory" in reason
+
+
+def test_check_facet_derivability_rejects_when_facet_is_all_unk(
+    monkeypatch: pytest.MonkeyPatch, artikel_bestimmt_topic: Topic
+) -> None:
+    """docs/audits/stage-04-a2-pilot-audit.md rule 2: an unresolvable facet
+    with more than one accepted answer is under-constrained, not silently
+    accepted. Wired via a monkeypatched ``derive_facet`` so this test
+    exercises the wiring itself, independent of whether any real sentence
+    in this codebase's tables currently produces an all-Unk facet (the
+    tagger rewrite this cycle made that genuinely rare)."""
+    monkeypatch.setattr("src.taxonomy.facets.facet_space", lambda topic: ("Gender", "Number"))
+    monkeypatch.setattr(
+        "src.taxonomy.facets.derive_facet", lambda item, topic: "Gender=Unk|Number=Unk"
+    )
+    item = CandidateItem(
+        topic_id="artikel_bestimmt_nom",
+        type="cloze_free",
+        difficulty=1,
+        prompt="___ Hund bellt laut.",
+        proposed_answer="Der",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+    reason = AnswerSetExpander.check_facet_derivability(
+        ["Der", "Ein"], item, artikel_bestimmt_topic
+    )
+    assert reason is not None
+    assert "could not be derived" in reason
+
+
+def test_check_facet_derivability_guards_against_mass_rejection_without_tagger(
+    monkeypatch: pytest.MonkeyPatch, artikel_bestimmt_topic: Topic
+) -> None:
+    """When the spaCy model is unavailable (``analysis_available() is
+    False``), this rule must be a no-op rather than a mass-rejection
+    engine, even for a facet that WOULD resolve to all-Unk -- several of
+    facets.py's closed-class categories defer entire dimensions to the
+    tagger with no fallback of their own."""
+    monkeypatch.setattr("src.taxonomy.tagger.analysis_available", lambda: False)
+    monkeypatch.setattr(
+        "src.taxonomy.facets.derive_facet", lambda item, topic: "Gender=Unk|Number=Unk"
+    )
+    item = CandidateItem(
+        topic_id="artikel_bestimmt_nom",
+        type="cloze_free",
+        difficulty=1,
+        prompt="___ Hund bellt laut.",
+        proposed_answer="Der",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+    reason = AnswerSetExpander.check_facet_derivability(
+        ["Der", "Ein"], item, artikel_bestimmt_topic
+    )
+    assert reason is None
+
+
+def test_check_facet_derivability_ignores_topics_with_no_facet_space(
+    nebensatz_wenn_topic: Topic,
+) -> None:
+    """A topic with an empty facet space (nebensatz_wenn: structural, tests
+    word order, not any morphological feature) has NO facet to derive by
+    design -- this must never be treated as "unresolvable" and rejected."""
+    item = CandidateItem(
+        topic_id="nebensatz_wenn",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Wenn du Zeit ___, helfen wir dir.",
+        proposed_answer="hast",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+    reason = AnswerSetExpander.check_facet_derivability(
+        ["hast", "habt"], item, nebensatz_wenn_topic
+    )
+    assert reason is None
+
+
+def test_check_facet_derivability_ignores_single_answer_sets(
+    artikel_bestimmt_topic: Topic,
+) -> None:
+    """Fewer than two accepted answers means there is nothing to be
+    ambiguous about, regardless of facet resolvability."""
+    item = CandidateItem(
+        topic_id="artikel_bestimmt_nom",
+        type="cloze_free",
+        difficulty=1,
+        prompt="___ Hund bellt laut.",
+        proposed_answer="Der",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+    reason = AnswerSetExpander.check_facet_derivability(["Der"], item, artikel_bestimmt_topic)
+    assert reason is None
+
+
+def test_check_ambiguity_widens_verb_check_via_tagger_when_item_given(
+    nebensatz_wenn_topic: Topic,
+) -> None:
+    """nebensatz_wenn declares no Tense/Mood/Voice/Aspect at all (it tests
+    verb-final word order, not tense), so the pre-fix gate never entered
+    the verb branch for it. With ``item`` supplied, the reference answer's
+    own tagged POS is enough to widen the check."""
+    item = CandidateItem(
+        topic_id="nebensatz_wenn",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Wenn du Zeit ___, helfen wir dir.",
+        proposed_answer="hast",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+    reason = AnswerSetExpander.check_ambiguity(["hast", "findest"], nebensatz_wenn_topic, item=item)
+    assert reason is not None
+    assert "verb form" in reason.lower()
+
+
+def test_check_ambiguity_without_item_keeps_old_narrow_behaviour(
+    nebensatz_wenn_topic: Topic,
+) -> None:
+    """Every direct caller that predates the widening (every other
+    ``check_ambiguity`` test in this file) must see EXACTLY the old
+    behaviour: with no ``item``, a topic with no declared Tense/Mood/Voice/
+    Aspect and no VerbType tag has no identity signal, full stop."""
+    reason = AnswerSetExpander.check_ambiguity(["hast", "findest"], nebensatz_wenn_topic)
+    assert reason is None
+
+
+def test_filter_alternatives_by_target_form_pos_fallback_drops_wrong_word_class(
+    nullartikel_topic: Topic,
+) -> None:
+    """docs/audits/stage-04-a2-pilot-audit.md item 9: an adverb ('immer')
+    and a negative article ('keine') are not adjective forms of 'frische'
+    at all -- dropped by the general part-of-speech fallback, independent
+    of the Verb/ArtType branches above it (this topic's own ArtType tag is
+    the "Zero" sentinel, which must NOT be treated as a real determiner
+    identity signal)."""
+    item = CandidateItem(
+        topic_id="adjektivdeklination_nullartikel",
+        type="cloze_free",
+        difficulty=2,
+        prompt="Weil er ___ Milch trinkt, bleibt er gesund.",
+        proposed_answer="frische",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+    filtered = AnswerSetExpander.filter_alternatives_by_target_form(
+        ["immer", "gerne", "keine", "warme"], item, nullartikel_topic
+    )
+    assert filtered == ["warme"]
+
+
 def test_layer1_rejects_item_type_not_in_topic_eligible_types(
     pipeline: VerificationPipeline,
 ) -> None:

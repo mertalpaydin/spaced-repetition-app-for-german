@@ -277,8 +277,9 @@ class VerificationPipeline:
         ``verify_item`` (one item) and ``verify_batch`` (a batched group),
         so the accept/reject logic itself cannot drift between the two.
 
-        docs/audits/stage-04-pilot-2026-08-15.md fixes 1-4, in the order
-        applied here:
+        docs/audits/stage-04-pilot-2026-08-15.md fixes 1-4, and
+        docs/audits/stage-04-a2-pilot-audit.md's four follow-on fixes, in
+        the order applied here:
 
         2. **Constrain expansion to the target form.** An alternative that
            does not carry ``item.proposed_answer``'s own target-feature form
@@ -289,11 +290,29 @@ class VerificationPipeline:
            morphology checks a generated ``proposed_answer`` does, rather
            than being trusted because the model returned it. Dropped, not
            rejected: this is a repair pass.
+        A. **Cue consistency** (a2-pilot-audit "rules that need to hold" 1):
+           a cued item's WHOLE accepted set, not just the semantic layer's
+           extras, must be forms of the cue's own lemma. A primary answer
+           that itself contradicts its own cue is rejected outright as
+           self-contradictory, before anything else runs.
+        B. **Filter the WHOLE accepted set by target form, not only the
+           extras** (a2-pilot-audit's dominant finding, 11 of 17 audited
+           defects: "the chain carefully vets the answers it adds, and
+           waves through the ones it was handed" -- the generator's own
+           base ``accepted_answers`` was never filtered at all). The primary
+           answer is re-inserted unconditionally afterwards so this can
+           never empty the set.
+        C. **Unk-facet honesty** (a2-pilot-audit rule 2): if the topic's own
+           target facet cannot be derived for this item's answer at all,
+           and the set still has more than one member, reject as
+           under-constrained rather than silently accept -- this is what
+           actually catches "wohnt"/"wohnte" once B's tagger-based verb
+           comparison still could not pin down a shared Tense.
         1. **Threshold on distinct forms, not on answer count.** Once the
            accepted set is built (contraction expansion + the alternatives
-           that survived 2 and 4), reject the whole item as ``ambiguity`` if
-           it still spans more than one distinct form of the topic's target
-           feature.
+           that survived 2, 4, A, B, C), reject the whole item as
+           ``ambiguity`` if it still spans more than one distinct form of
+           the topic's target feature.
         3. **Re-run the distractor check after expansion.** A distractor
            that collides with the FINAL accepted set means the item was
            under-constrained to begin with; reject rather than repair.
@@ -322,8 +341,50 @@ class VerificationPipeline:
             if extra not in accepted_answers:
                 accepted_answers.append(extra)
 
+        # Fix A: cue consistency, applied to the whole set. Reject outright
+        # if the primary answer itself contradicts its own cue.
+        if item.cue is not None:
+            accepted_answers, cue_reason = AnswerSetExpander.filter_by_cue_consistency(
+                accepted_answers, item
+            )
+            if cue_reason is not None:
+                return VerificationResult(
+                    item=item,
+                    passed=False,
+                    accepted=False,
+                    layer_failed=5,
+                    reason=cue_reason,
+                    error_type="pedagogical_flaw",
+                )
+
+        # Fix B: filter the WHOLE accepted set by target form (docs/audits/
+        # stage-04-a2-pilot-audit.md's dominant defect), not only the
+        # extras as fix 2 above already does. The primary answer is kept
+        # unconditionally so this can never empty the set.
         if topic is not None:
-            ambiguity_reason = AnswerSetExpander.check_ambiguity(accepted_answers, topic)
+            accepted_answers = AnswerSetExpander.filter_alternatives_by_target_form(
+                accepted_answers, item, topic
+            )
+            if item.proposed_answer not in accepted_answers:
+                accepted_answers.insert(0, item.proposed_answer)
+
+        # Fix C: Unk-facet honesty -- reject as under-constrained rather
+        # than silently accept when the topic's own facet cannot be
+        # resolved for this answer at all and the set still has >1 member.
+        if topic is not None:
+            facet_reason = AnswerSetExpander.check_facet_derivability(accepted_answers, item, topic)
+            if facet_reason is not None:
+                return VerificationResult(
+                    item=item,
+                    passed=False,
+                    accepted=False,
+                    layer_failed=5,
+                    reason=facet_reason,
+                    error_type="ambiguity",
+                )
+
+        if topic is not None:
+            ambiguity_reason = AnswerSetExpander.check_ambiguity(accepted_answers, topic, item=item)
             if ambiguity_reason:
                 return VerificationResult(
                     item=item,

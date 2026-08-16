@@ -930,7 +930,13 @@
   description: "Relative clauses with Dative relative pronouns (dem, der, dem, denen)."
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
-  morph_spec: {Case: Dat}
+  # PronType: Rel added alongside Case: Dat for the same reason as
+  # relativsatz_genitiv (see there): this topic's items are genuinely
+  # relative pronouns, not definite articles, and decode against the
+  # dedicated relative-pronoun paradigm, not the article one. Without it,
+  # this topic misrouted to the article decoder (src/taxonomy/facets.py's
+  # "Nominal"/"Det" category) instead of "RelPron".
+  morph_spec: {Case: Dat, PronType: Rel}
   verification_class: computable
   syntax_tags: {Subordinate: "true"}
   rule_hint: "Relativpronomen im Dativ: dem (m/n), der (f), denen (Plural!)."

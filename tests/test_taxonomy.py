@@ -931,3 +931,72 @@ def test_derive_facet_gender_cross_checked_against_layer2_noun_gender(
     facet = derive_facet(item, topic)
     assert facet is not None
     assert "Gender=Unk" in facet
+
+
+# ----------------------------------------------------------------------
+# relativsatz_dativ's missing PronType: Rel (docs/audits/
+# stage-04-a2-pilot-audit.md task 4, found by the tagger agent): it fixed
+# Case: Dat but omitted PronType: Rel, unlike its sibling
+# relativsatz_genitiv -- misrouting it to the article/"Nominal" decoder
+# instead of the dedicated relative-pronoun decoder.
+# ----------------------------------------------------------------------
+
+
+def test_relativsatz_dativ_declares_prontype_rel_like_its_siblings(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """relativsatz_genitiv and relativsatz_nom_akk both fix PronType: Rel
+    alongside whatever Case they fix (or leave Case unfixed entirely); the
+    sibling topic that fixes Case: Dat must declare the same feature, for
+    the same reason given at each of those two topics' own definitions in
+    data/taxonomy.yaml."""
+    topics = {t.id: t for t in taxonomy_topics}
+    dativ = topics["relativsatz_dativ"]
+    genitiv = topics["relativsatz_genitiv"]
+    nom_akk = topics["relativsatz_nom_akk"]
+
+    assert dativ.morph_spec is not None
+    assert dativ.morph_spec.get("PronType") == "Rel"
+    assert dativ.morph_spec.get("Case") == "Dat"
+    assert genitiv.morph_spec is not None and genitiv.morph_spec.get("PronType") == "Rel"
+    assert nom_akk.morph_spec is not None and nom_akk.morph_spec.get("PronType") == "Rel"
+
+
+def test_relativsatz_dativ_facet_space_matches_relpron_category(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """With PronType: Rel present, relativsatz_dativ's facet space must be
+    the RelPron category's (Gender, Number -- Case is fixed), the same
+    dimensions relativsatz_genitiv exposes, NOT the "Nominal" category's
+    dimensions it fell into before the fix."""
+    topics = {t.id: t for t in taxonomy_topics}
+    dativ = topics["relativsatz_dativ"]
+    genitiv = topics["relativsatz_genitiv"]
+    assert facet_space(dativ) == facet_space(genitiv) == ("Gender", "Number")
+
+
+def test_relativsatz_dativ_decodes_plural_via_relative_pronoun_paradigm_not_article(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """The real, observable consequence of the misrouting: "denen" is the
+    Dative plural RELATIVE PRONOUN, and German marks no gender on it
+    (Gender=Unk is the paradigm's own, deliberate value -- see
+    ``test_derive_facet_never_invents_gender_for_plural_relative_pronoun``
+    above for the identical check on relativsatz_nom_akk). Routed through
+    the ARTICLE decoder instead (the pre-fix bug: "denen" is not a real
+    definite-article surface form at all), the closed-class table would
+    have zero candidates and defer entirely to the tagger, which is exactly
+    the failure mode that lets a spurious concrete Gender through.
+    """
+    topic = {t.id: t for t in taxonomy_topics}["relativsatz_dativ"]
+    item = BankItem(
+        id="rel-dativ-plural",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=2,
+        cefr=topic.cefr,
+        prompt="Das sind die Kollegen, ___ ich geholfen habe.",
+        accepted_answers=["denen"],
+    )
+    facet = derive_facet(item, topic)
+    assert facet == "Gender=Unk|Number=Plur"

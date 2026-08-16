@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.contracts import MODEL_VERIFY, CandidateItem, Topic
+from src.contracts import MODEL_VERIFY, BankItem, CandidateItem, Topic
 
 if TYPE_CHECKING:
     from src.llm.client import GeminiLlmClient
@@ -70,21 +70,136 @@ _KONJUNKTIV_II_UNAMBIGUOUS_FORMS: frozenset[str] = frozenset(
 )
 
 
-def _verb_form_key(answer: str) -> str | None:
+# Universal Dependencies feature keys that mark a topic as testing a verb's
+# inflectional category. Shared by ``check_ambiguity`` and
+# ``filter_alternatives_by_target_form`` -- factored out once rather than
+# repeated as an inline tuple literal in both places.
+_VERB_MORPH_KEYS: tuple[str, ...] = ("Tense", "Mood", "Voice", "Aspect")
+
+# ``IRREGULAR_VERB_LEMMA`` (src/verification/layer2_morphology.py) omits
+# "hättest" -- every other Konjunktiv II form in
+# _KONJUNKTIV_II_UNAMBIGUOUS_FORMS above resolves through it, this one form
+# does not (docs/audits/stage-04-a2-pilot-audit.md item 41: "hättest" was
+# one of three accepted answers for "Wenn du Zeit ___, helfen wir dir.",
+# alongside the indicative "hast" and "findest" -- a genuine mood mismatch
+# the chain could not see because the lemma lookup itself failed first).
+# Not layer2_morphology.py's file to fix here (outside this fix's
+# ownership); patched locally instead.
+_SUPPLEMENTARY_VERB_LEMMA: dict[str, str] = {"hättest": "haben"}
+
+# Minimum acceptable UNK marker string, matching facets.py's own "Unk" so a
+# reason string built from either module reads consistently.
+_UNK = "Unk"
+
+
+def _lemma_guess(word: str) -> str | None:
+    """Best-effort canonical lemma for ``word``, using
+    ``src.lexicon.lemmatizer.lemma_candidates`` -- the shortest candidate
+    that looks like an infinitive (ends ``-en``, at least 4 characters).
+    Used only to compare whether two REGULAR verb forms (outside the closed
+    ``IRREGULAR_VERB_LEMMA`` table, which every function in this module
+    checks first) share a lemma, so exact canonical correctness does not
+    matter, only that the same lexeme produces the same guess and a
+    different lexeme does not collide with it -- the shortest reconstructed
+    infinitive is the one least likely to carry a stray suffix fragment that
+    would make two forms of the SAME verb disagree with each other (see the
+    fix's own notes: "wohnt"/"wohnte" must land on the same guess).
+    Returns ``None`` if no such candidate exists at all.
+    """
+    from src.lexicon.lemmatizer import lemma_candidates
+
+    infinitive_shaped = [c for c in lemma_candidates(word) if c.endswith("en") and len(c) >= 4]
+    return min(infinitive_shaped, key=len) if infinitive_shaped else None
+
+
+def _answer_first_token(answer: str) -> str:
+    """The first whitespace-separated token of ``answer``, or ``answer``
+    itself if it is already a single token (or empty). Multi-word answers
+    ("beginnen wird", "mein Gesicht") carry their inflectional signal on
+    their first word; ``tagger.tag_answer`` already aligns to the same first
+    token internally (see its own docstring), so every helper in this module
+    that needs a single word to look up mirrors that choice."""
+    stripped = answer.strip()
+    return stripped.split()[0] if stripped else stripped
+
+
+def _answer_is_verb(answer: str, prompt: str) -> bool:
+    """Whether ``answer`` is a finite verb or auxiliary in ``prompt``'s
+    context, per the spaCy tagger. Used to widen the verb-identity check
+    (below) to topics whose ``morph_spec`` does not declare
+    Tense/Mood/Voice/Aspect at all -- structural topics like
+    ``nebensatz_wenn``/``nebensatz_indirekte_frage`` deliberately leave
+    ``morph_spec`` empty because they test subordinate-clause verb-FINAL
+    word order, not tense (see ``data/taxonomy.yaml``) -- but an
+    accepted-answer set that silently spans multiple tenses/moods for the
+    SAME verb slot is still a defect regardless of what the topic declares
+    itself to test (docs/audits/stage-04-a2-pilot-audit.md items 37, 38, 41).
+    ``False`` (not just unresolved) whenever the tagger has nothing to say,
+    so this never widens a check the tagger cannot support."""
+    from src.taxonomy import tagger as _tagger
+
+    tagged = _tagger.tag_answer(prompt, answer)
+    return tagged is not None and tagged.pos in ("VERB", "AUX")
+
+
+def _answer_pos(answer: str, prompt: str) -> str | None:
+    """The spaCy coarse POS tag for ``answer`` in ``prompt``'s context, or
+    ``None`` if the tagger has nothing to say (no model, no gap, no
+    alignment) -- callers must treat ``None`` as "cannot compare", never as
+    a mismatch."""
+    from src.taxonomy import tagger as _tagger
+
+    tagged = _tagger.tag_answer(prompt, answer)
+    return tagged.pos if tagged is not None else None
+
+
+def _verb_form_key(answer: str, prompt: str | None = None) -> str | None:
     """The verb "form" ``check_ambiguity``/``filter_alternatives_by_target_form``
-    compare candidates on: the lemma from ``IRREGULAR_VERB_LEMMA``, suffixed
-    ``:Sub`` when the surface form is unambiguously Konjunktiv II. ``None``
-    if the lemma cannot be resolved at all (an unrecognised or regular verb
-    form), the signal this codebase's "skip rather than guess" philosophy
-    treats as "no opinion", not as a mismatch.
+    compare candidates on: the lemma from ``IRREGULAR_VERB_LEMMA`` (plus the
+    small local ``_SUPPLEMENTARY_VERB_LEMMA`` patch), suffixed ``:Sub`` when
+    the surface form is unambiguously Konjunktiv II. ``None`` if the lemma
+    cannot be resolved at all through that closed table AND no ``prompt`` is
+    given to fall back on -- the signal this codebase's "skip rather than
+    guess" philosophy treats as "no opinion", not as a mismatch.
+
+    When ``prompt`` IS given and the closed table misses (a regular verb --
+    "wohnen", "kochen", "finden" have no irregular stem and are never in
+    that table), this falls back to a tagger-and-lemmatizer-derived key:
+    ``{lemma_guess}:Sub`` if the tagger reports Konjunktiv II, else
+    ``{lemma_guess}:{Tense}`` (``Tense`` itself ``"Unk"`` if the tagger
+    cannot resolve it, or reports nothing for a non-finite form -- e.g. the
+    infinitive half of a periphrastic future like "beginnen wird", which
+    legitimately differs in Tense identity from a finite present-tense
+    reference). The lemma guess does not require the tagger to have
+    correctly recognised the word as a verb at all (docs/audits/
+    stage-04-a2-pilot-audit.md item 41: the small spaCy model mis-tags
+    "findest" as an adverb in isolation) -- once the caller has already
+    established via ``_answer_is_verb`` that this IS a verb-form comparison
+    (checked once, against the reference answer, not per-candidate), a
+    candidate that fails to independently re-confirm as a verb should still
+    be compared on its lemma, not silently exempted from the check.
     """
     from src.verification.layer2_morphology import IRREGULAR_VERB_LEMMA
 
     lower = answer.strip().lower()
-    lemma = IRREGULAR_VERB_LEMMA.get(lower)
-    if lemma is None:
+    lemma = IRREGULAR_VERB_LEMMA.get(lower) or _SUPPLEMENTARY_VERB_LEMMA.get(lower)
+    if lemma is not None:
+        return f"{lemma}:Sub" if lower in _KONJUNKTIV_II_UNAMBIGUOUS_FORMS else lemma
+
+    if prompt is None:
         return None
-    return f"{lemma}:Sub" if lower in _KONJUNKTIV_II_UNAMBIGUOUS_FORMS else lemma
+
+    lemma_guess = _lemma_guess(_answer_first_token(answer))
+    if lemma_guess is None:
+        return None
+
+    from src.taxonomy import tagger as _tagger
+
+    tagged = _tagger.tag_answer(prompt, answer)
+    if tagged is not None and tagged.feats.get("Mood") == "Sub":
+        return f"{lemma_guess}:Sub"
+    tense = tagged.feats.get("Tense", _UNK) if tagged is not None else _UNK
+    return f"{lemma_guess}:{tense}"
 
 
 class SemanticVerificationResult(BaseModel):
@@ -180,7 +295,12 @@ class AnswerSetExpander:
         return accepted
 
     @classmethod
-    def check_ambiguity(cls, accepted_answers: list[str], topic: Topic) -> str | None:
+    def check_ambiguity(
+        cls,
+        accepted_answers: list[str],
+        topic: Topic,
+        item: CandidateItem | None = None,
+    ) -> str | None:
         """Return an ``ambiguity`` rejection reason if ``accepted_answers``
         spans more than one distinct form of ``topic``'s target feature, or
         ``None`` if the set is internally consistent (or the form cannot be
@@ -193,25 +313,41 @@ class AnswerSetExpander:
         two answers are fatal when they are two forms (``futur_i``: 'werden'
         vs 'können', a future auxiliary vs a modal).
 
-        Two identity signals, each gated on what the topic actually declares
-        itself to be testing -- checking a signal the topic does not care
-        about would reject good items. ``kasus_genitiv_formen`` legitimately
-        spans both definite-article and ein-word genitive forms (it has no
-        ``ArtType`` tag: Case is its only target feature), so the
+        ``item`` is optional and used only to widen the verb-identity signal
+        below to topics that do not declare Tense/Mood/Voice/Aspect at all
+        (see ``_answer_is_verb``); every caller that omits it (every direct
+        unit test of this method, predating that widening) gets exactly the
+        original, narrower behaviour.
+
+        Three identity signals, each gated on what the topic actually
+        declares itself to be testing -- checking a signal the topic does
+        not care about would reject good items. ``kasus_genitiv_formen``
+        legitimately spans both definite-article and ein-word genitive forms
+        (it has no ``ArtType`` tag: Case is its only target feature), so the
         determiner-Definite check below must not fire for it, only for
         topics that actually declare ``ArtType``:
 
         - **Verb-category topics** (``morph_spec`` fixes Tense/Mood/Voice/
-          Aspect, or ``syntax_tags['VerbType']`` is set): the target feature
-          is the LEMMA (the specific auxiliary/modal) plus indicative-vs-
-          unambiguously-Konjunktiv-II (``_verb_form_key``), so "würden" does
-          not count as the same form as "werden" just because both are the
-          lemma "werden".
-        - **Determiner-category topics that declare ``syntax_tags['ArtType']``**
-          (definite, indefinite, possessive, negative article topics): the
-          target feature is the specific ArtType (Def/Ind/Neg/Poss), decoded
-          via ``facets.determiner_art_type`` -- WHICH ein-word stem matched,
-          not just whether one did, so a possessive topic accepting a bare
+          Aspect, ``syntax_tags['VerbType']`` is set, OR -- docs/audits/
+          stage-04-a2-pilot-audit.md items 37, 38, 41 -- ``item`` is given
+          and its own proposed answer is independently recognised as a verb
+          by the tagger, which is how a structural topic like
+          ``nebensatz_wenn`` that deliberately declares no verb morph_spec
+          still gets its verb slot checked): the target feature is the
+          LEMMA (the specific auxiliary/modal/verb) plus indicative-vs-
+          unambiguously-Konjunktiv-II and, for the tagger fallback, Tense
+          (``_verb_form_key``), so "würden" does not count as the same form
+          as "werden" just because both are the lemma "werden", and
+          "wohnt"/"wohnte" (same lemma, Präsens vs Präteritum) do not count
+          as the same form either.
+        - **Determiner-category topics that declare a real
+          ``syntax_tags['ArtType']``** (definite, indefinite, possessive,
+          negative article topics -- excluding the ``"Zero"`` sentinel,
+          which marks a topic about the ADJECTIVE ending that appears with
+          NO article, not about a determiner at all): the target feature is
+          the specific ArtType (Def/Ind/Neg/Poss), decoded via
+          ``facets.determiner_art_type`` -- WHICH ein-word stem matched, not
+          just whether one did, so a possessive topic accepting a bare
           indefinite ("Eine" is not a possessive) is caught, not just a
           definite-vs-everything-else split.
         - **Degree-based topics** (``morph_spec['Degree']`` set, e.g.
@@ -229,11 +365,18 @@ class AnswerSetExpander:
 
         morph_spec = topic.morph_spec or {}
         syntax_tags = topic.syntax_tags or {}
+        prompt = item.prompt if item is not None else None
 
-        if any(k in morph_spec for k in ("Tense", "Mood", "Voice", "Aspect")) or syntax_tags.get(
-            "VerbType"
-        ):
-            forms = {key for a in accepted_answers if (key := _verb_form_key(a)) is not None}
+        verb_topic = bool(
+            any(k in morph_spec for k in _VERB_MORPH_KEYS) or syntax_tags.get("VerbType")
+        )
+        if not verb_topic and item is not None:
+            verb_topic = _answer_is_verb(item.proposed_answer, item.prompt)
+
+        if verb_topic:
+            forms = {
+                key for a in accepted_answers if (key := _verb_form_key(a, prompt)) is not None
+            }
             if len(forms) > 1:
                 return (
                     "Accepted answers span more than one verb form "
@@ -242,7 +385,8 @@ class AnswerSetExpander:
                 )
             return None
 
-        if syntax_tags.get("ArtType"):
+        art_type = syntax_tags.get("ArtType")
+        if art_type and art_type != "Zero":
             from src.taxonomy.facets import determiner_art_type
 
             forms = {determiner_art_type(a) for a in accepted_answers}
@@ -268,12 +412,22 @@ class AnswerSetExpander:
     def filter_alternatives_by_target_form(
         cls, alternatives: list[str], item: CandidateItem, topic: Topic
     ) -> list[str]:
-        """Drop any semantic-layer-proposed alternative that does not carry
-        ``item.proposed_answer``'s own target-feature form. An alternative
-        that changes what is being tested is not an alternative correct
-        answer, it is a different exercise (docs/audits/
-        stage-04-pilot-2026-08-15.md fix 2 / 02-content-pipeline.md:
-        "Expansion is constrained to the target form").
+        """Drop any accepted answer that does not carry ``item.
+        proposed_answer``'s own target-feature form. An alternative that
+        changes what is being tested is not an alternative correct answer,
+        it is a different exercise (docs/audits/stage-04-pilot-2026-08-15.md
+        fix 2 / 02-content-pipeline.md: "Expansion is constrained to the
+        target form").
+
+        Originally applied only to the semantic layer's proposed
+        alternatives; docs/audits/stage-04-a2-pilot-audit.md's dominant
+        finding was that the item's OWN generator-produced base answer set
+        was never filtered at all, so 11 of 17 audited defects (mixed
+        tense/mood, a cued verb ignoring its own cue, a reflexive slot
+        accepting ordinary noun phrases, an adjective slot accepting
+        adverbs and an article) reached acceptance unchecked. The fix is
+        this method's OWN callers now passing the WHOLE accepted-answer set
+        here, not a change to this method's per-candidate logic.
 
         Reuses exactly the identity signals ``check_ambiguity`` gates on,
         applied per-candidate against ``proposed_answer`` as the reference
@@ -291,15 +445,20 @@ class AnswerSetExpander:
         syntax_tags = topic.syntax_tags or {}
         reference = item.proposed_answer
 
-        if any(k in morph_spec for k in ("Tense", "Mood", "Voice", "Aspect")) or syntax_tags.get(
-            "VerbType"
-        ):
-            ref_key = _verb_form_key(reference)
+        verb_topic = bool(
+            any(k in morph_spec for k in _VERB_MORPH_KEYS) or syntax_tags.get("VerbType")
+        )
+        if not verb_topic:
+            verb_topic = _answer_is_verb(reference, item.prompt)
+
+        if verb_topic:
+            ref_key = _verb_form_key(reference, item.prompt)
             if ref_key is None:
                 return alternatives
-            return [a for a in alternatives if _verb_form_key(a) in (ref_key, None)]
+            return [a for a in alternatives if _verb_form_key(a, item.prompt) in (ref_key, None)]
 
-        if syntax_tags.get("ArtType"):
+        art_type = syntax_tags.get("ArtType")
+        if art_type and art_type != "Zero":
             from src.taxonomy.facets import determiner_art_type
 
             ref_form = determiner_art_type(reference)
@@ -307,7 +466,137 @@ class AnswerSetExpander:
                 return alternatives
             return [a for a in alternatives if determiner_art_type(a) in (ref_form, "Unk")]
 
-        return alternatives
+        # General part-of-speech consistency fallback (docs/audits/
+        # stage-04-a2-pilot-audit.md items 9 and 50): an alternative that is
+        # not even the same part of speech as the reference is never a
+        # valid "alternative form" of it, regardless of whether the topic
+        # declares a more specific identity signal above. "keine" (a
+        # determiner) and "immer"/"gerne" (adverbs) are not adjective forms
+        # of "frische"; "mein Gesicht" (a possessive-determiner-headed noun
+        # phrase) is not a reflexive-pronoun form of "mich". Fails open --
+        # keeps every alternative unfiltered -- whenever the tagger cannot
+        # resolve the reference's own POS (no model, no gap, no alignment),
+        # exactly like every other tagger-backed check in this module.
+        ref_pos = _answer_pos(reference, item.prompt)
+        if ref_pos is None:
+            return alternatives
+        return [a for a in alternatives if _answer_pos(a, item.prompt) in (ref_pos, None)]
+
+    @classmethod
+    def filter_by_cue_consistency(
+        cls, accepted_answers: list[str], item: CandidateItem
+    ) -> tuple[list[str], str | None]:
+        """Cue consistency (docs/audits/stage-04-a2-pilot-audit.md, "Two
+        rules that need to hold"): if ``item.cue`` is set, every accepted
+        answer must be a form of that cue's own lemma, checked via
+        ``src.lexicon.lemmatizer.lemma_candidates`` membership -- a cued
+        item names the lemma the learner is meant to inflect, so an
+        accepted answer of a DIFFERENT lemma is not a correct alternative,
+        it silently drops the exercise's own instruction (item 42: cue
+        "kochen" alongside accepted "macht", "bestellt", "holt", "kauft",
+        "gönnt").
+
+        Returns ``(filtered_answers, rejection_reason)``. When the PRIMARY
+        answer (``item.proposed_answer``, always first in an
+        already-expanded accepted-answer list) itself is not a form of the
+        cue, the item is self-contradictory and ``rejection_reason`` is
+        non-``None``; callers must reject the whole item, not merely drop
+        the primary. When ``item.cue`` is ``None`` this is a no-op --
+        ``accepted_answers`` returned unchanged, ``None`` reason.
+
+        Uses set-membership between two answers' OWN candidate lists rather
+        than picking one "the" canonical lemma for either side, exactly
+        because ``lemma_candidates`` makes no claim to return a single
+        correct lemma (see its own module docstring) -- two forms of the
+        same verb reliably share at least one candidate in common even when
+        neither list agrees on which candidate is "the" infinitive.
+        """
+        if item.cue is None:
+            return accepted_answers, None
+
+        from src.lexicon.lemmatizer import lemma_candidates
+
+        cue_lemmas = set(lemma_candidates(item.cue.strip()))
+
+        def _matches_cue(answer: str) -> bool:
+            return bool(set(lemma_candidates(_answer_first_token(answer))) & cue_lemmas)
+
+        if not _matches_cue(item.proposed_answer):
+            return [], (
+                f"Proposed answer {item.proposed_answer!r} is not a form of "
+                f"the item's own cue {item.cue!r}: the item is "
+                "self-contradictory."
+            )
+        return [a for a in accepted_answers if _matches_cue(a)], None
+
+    @classmethod
+    def check_facet_derivability(
+        cls, accepted_answers: list[str], item: CandidateItem, topic: Topic
+    ) -> str | None:
+        """Unk-facet honesty (docs/audits/stage-04-a2-pilot-audit.md, "Two
+        rules that need to hold", rule 2): when ``topic``'s own target
+        facet cannot be derived for this item's answer AT ALL, and the
+        accepted-answer set still has more than one member, the chain
+        cannot verify internal consistency -- "the filter cannot compare
+        two things it cannot analyse" -- so the honest default is to reject
+        as under-constrained, not to silently accept.
+
+        Deliberately narrower than "some dimension is Unk": a topic with an
+        empty ``facet_space`` (e.g. ``nebensatz_wenn``, tested via
+        ``_answer_is_verb`` above instead) has NO facet to derive by
+        design (01-foundation.md:170) and must not be penalised for that --
+        ``facet_space(topic)`` empty short-circuits to no rejection here,
+        exactly as ``facets.derive_facet`` itself returns ``None`` rather
+        than a facet string in that case. Only a topic that DOES declare a
+        facet space, whose derivation nonetheless comes back ``"Unk"`` on
+        EVERY single dimension, counts.
+
+        Guarded on ``tagger.analysis_available()``: several of
+        ``facets.py``'s closed-class categories (documented in its own
+        module docstring, e.g. noun Case) defer a dimension to the spaCy
+        tagger with NO closed-class fallback of their own. Without that
+        guard, an environment where the spaCy model failed to install would
+        turn this rule into a mass-rejection engine on every such category
+        instead of the rare backstop it is meant to be -- the tagger
+        rewrite this cycle (commit 94b25e8) is what makes an all-Unk facet
+        rare enough to BE a meaningful signal in the first place.
+        """
+        if len(accepted_answers) < 2:
+            return None
+
+        from src.taxonomy import tagger as _tagger
+
+        if not _tagger.analysis_available():
+            return None
+
+        from src.taxonomy.facets import derive_facet, facet_space
+
+        dims = facet_space(topic)
+        if not dims:
+            return None
+
+        synthetic = BankItem(
+            id="facet-derivability-check",
+            topic_id=topic.id,
+            type=item.type,
+            difficulty=item.difficulty,
+            cefr=topic.cefr,
+            prompt=item.prompt,
+            accepted_answers=[item.proposed_answer],
+        )
+        facet = derive_facet(synthetic, topic)
+        if facet is None:
+            return None
+
+        values = [segment.split("=", 1)[1] for segment in facet.split("|")]
+        if values and all(v == _UNK for v in values):
+            return (
+                "The topic's target facet could not be derived for "
+                f"proposed answer {item.proposed_answer!r} ({facet}), and "
+                "the accepted-answer set has more than one member: the "
+                "item is under-constrained."
+            )
+        return None
 
     @classmethod
     def _build_user_prompt(cls, item: CandidateItem) -> str:
