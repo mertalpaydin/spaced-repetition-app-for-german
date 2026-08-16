@@ -451,6 +451,84 @@ def test_layer1_rejects_vocabulary_ceiling_violations(
     assert res.error_type == "vocabulary_ceiling_violation"
 
 
+def test_layer1_permits_two_content_words_one_band_above_ceiling(
+    pipeline: VerificationPipeline, sample_spec: TopicSpec
+) -> None:
+    """docs/audits/stage-04-a2-pilot-audit.md, 'On the vocabulary ceiling':
+    zero tolerance was stricter than any graded reader and was the largest
+    single A2 pilot rejection category. Two B1 content words in an A2-ceiling
+    item ("Tatsache", "Sturm", both real B1 wordlist entries) are exactly one
+    band over and must be forgiven, not rejected -- and the forgiveness must
+    be visible on the result rather than silent.
+    """
+    item = CandidateItem(
+        topic_id="dativ_nach_praeposition",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Die Tatsache und der Sturm liegen auf ___ Tisch.",
+        proposed_answer="dem",
+        distractors=[Distractor(text="den"), Distractor(text="des"), Distractor(text="das")],
+    )
+    res = pipeline.verify_item(item, spec=sample_spec)
+    assert res.passed
+    assert res.error_type != "vocabulary_ceiling_violation"
+
+    validator = Layer1SyntaxValidator(vocab_store=pipeline.vocab_store)
+    passed, reason, error_type = validator.validate(item, spec=sample_spec)
+    assert passed
+    assert error_type is None
+    assert reason is not None
+    assert "Tatsache" in reason
+    assert "Sturm" in reason
+
+
+def test_layer1_rejects_three_content_words_one_band_above_ceiling(
+    pipeline: VerificationPipeline, sample_spec: TopicSpec
+) -> None:
+    """A third one-band-over content word ("Vokabeln", real B1 entry)
+    exhausts the two-word budget, so the item is rejected exactly as
+    zero-tolerance would have rejected it before."""
+    item = CandidateItem(
+        topic_id="dativ_nach_praeposition",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Die Tatsache, der Sturm und die Vokabeln liegen auf ___ Tisch.",
+        proposed_answer="dem",
+        distractors=[Distractor(text="den"), Distractor(text="des"), Distractor(text="das")],
+    )
+    res = pipeline.verify_item(item, spec=sample_spec)
+    assert not res.passed
+    assert res.layer_failed == 1
+    assert res.error_type == "vocabulary_ceiling_violation"
+    assert res.reason is not None
+    assert "Tatsache" in res.reason
+    assert "Sturm" in res.reason
+    assert "Vokabeln" in res.reason
+
+
+def test_layer1_length_fallback_permits_up_to_thirty_tokens_without_a_spec() -> None:
+    """docs/audits/stage-04-a2-pilot-audit.md: the A2 prompt-length limit of
+    18 tokens (set per-topic in data/specs/*.yaml, not owned by this module)
+    rejected four otherwise-good items at 20 to 25 tokens. This module owns
+    only the fallback used when no ``TopicSpec`` is supplied, raised from 35
+    to 30; a 24-token prompt with no spec must still pass Layer 1's length
+    check under that raised default.
+    """
+    validator = Layer1SyntaxValidator(vocab_store=None)
+    twenty_four_tokens = " ".join(f"wort{i}" for i in range(22)) + " ___ Ende."
+    item = CandidateItem(
+        topic_id="dativ_nach_praeposition",
+        type="cloze_free",
+        difficulty=1,
+        prompt=twenty_four_tokens,
+        proposed_answer="dem",
+        distractors=[Distractor(text="den"), Distractor(text="des"), Distractor(text="das")],
+    )
+    passed, reason, error_type = validator.validate(item)
+    assert passed, f"Unexpected Layer 1 rejection: {reason}"
+    assert error_type is None
+
+
 def _plain_item(prompt: str) -> CandidateItem:
     """A structurally-clean cloze item carrying the given prompt, isolating
     Layer 1's topic-leak check from every other Layer 1 rule (gap presence,

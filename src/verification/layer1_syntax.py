@@ -118,7 +118,17 @@ class Layer1SyntaxValidator:
         # structure (the gap, distractors, and punctuation are all fine) --
         # it is a difficulty/readability mismatch for the target tier, i.e. a
         # pedagogical defect.
-        max_tokens = spec.max_tokens_per_sentence if spec else 35
+        #
+        # docs/audits/stage-04-a2-pilot-audit.md: the A2 limit of 18 tokens
+        # (set per-topic in data/specs/*.yaml, not owned by this module)
+        # rejected four otherwise-good items at 20 to 25 tokens, and several
+        # of the best items in the audited clean set ran past 18. That limit
+        # lives in the spec files, which this module does not own and does
+        # not edit. What this module does own is the fallback used when no
+        # spec is supplied at all -- raised to 30 so a spec-less caller (a
+        # direct ``validate()`` call with no ``TopicSpec``) reflects the same
+        # "graded reader, not zero tolerance" judgment the audit argues for.
+        max_tokens = spec.max_tokens_per_sentence if spec else 30
         tokens = re.findall(r"\b\w+\b", item.prompt)
         if len(tokens) > max_tokens and item.type != "paragraph_cloze":
             return (
@@ -157,18 +167,46 @@ class Layer1SyntaxValidator:
         # used to reject. A1 and A2 keep the hard gate, which is where a
         # ceiling earns its keep and where the wordlist is actually dense
         # (3460 A1 and 2947 A2 lemmas, against 808 for B2).
+        #
+        # docs/audits/stage-04-a2-pilot-audit.md, "On the vocabulary
+        # ceiling": zero tolerance ("every word at or below the ceiling")
+        # was stricter than any graded reader and was the single largest
+        # rejection category in the A2 pilot (20 of 48). ``check_ceiling_
+        # budget`` replaces it with a budget: up to two content words one
+        # CEFR band above the ceiling are tolerated (ordinary i+1), while
+        # anything two or more bands above -- or a third one-band-over word
+        # -- still fails outright. ``over_budget`` lists which words the
+        # budget was spent on; when the item otherwise passes, that spend is
+        # recorded in the returned reason instead of disappearing silently.
         if self.vocab_store and spec:
-            violations = self.vocab_store.validate_sentence(item.prompt, spec.vocabulary_ceiling)
-            answer_violations = self.vocab_store.validate_sentence(
+            prompt_result = self.vocab_store.check_ceiling_budget(
+                item.prompt, spec.vocabulary_ceiling
+            )
+            answer_result = self.vocab_store.check_ceiling_budget(
                 item.proposed_answer, spec.vocabulary_ceiling
             )
-            all_violations = violations + [v for v in answer_violations if v not in violations]
+            all_violations = prompt_result.violations + [
+                v for v in answer_result.violations if v not in prompt_result.violations
+            ]
             if all_violations and spec.vocabulary_ceiling in ("A1", "A2"):
                 return (
                     False,
                     f"Vocabulary ceiling ({spec.vocabulary_ceiling}) exceeded by: "
                     f"{all_violations}.",
                     "vocabulary_ceiling_violation",
+                )
+
+            over_budget_words = prompt_result.over_budget + [
+                w for w in answer_result.over_budget if w not in prompt_result.over_budget
+            ]
+            if over_budget_words:
+                return (
+                    True,
+                    f"Vocabulary ceiling ({spec.vocabulary_ceiling}) budget spent on "
+                    f"content word(s) one band above ceiling, forgiven within the "
+                    f"{self.vocab_store.CEILING_BUDGET_MAX_ONE_BAND_WORDS}-word allowance: "
+                    f"{over_budget_words}.",
+                    None,
                 )
 
         return True, None, None

@@ -172,3 +172,135 @@ def test_proper_nouns_are_whitelisted_not_added_as_vocabulary() -> None:
     assert store.is_within_ceiling("Lisa", "A1")
     assert "anna" not in store.vocab
     assert "lisa" not in store.vocab
+
+
+# ---------------------------------------------------------------------------
+# Vocabulary ceiling budget
+#
+# docs/audits/stage-04-a2-pilot-audit.md, "On the vocabulary ceiling":
+# vocabulary_ceiling_violation was the single largest A2 pilot rejection
+# category (20 of 48), and zero tolerance -- every word at or below the
+# ceiling -- is stricter than any graded reader. The fix: up to two content
+# words exactly one CEFR band above the ceiling are tolerated (ordinary
+# i+1); a third one-band-over word, or any word two or more bands above,
+# still fails. These use invented lemmas with a small hand-built vocab so
+# the band distance from the ceiling is exact and unambiguous, independent
+# of the real scraped wordlist.
+# ---------------------------------------------------------------------------
+
+
+def test_ceiling_budget_permits_two_one_band_over_content_words() -> None:
+    """Two content words exactly one CEFR band above the ceiling (B1 words
+    against an A2 ceiling) must be forgiven, not rejected."""
+    store = VocabularyStore({"buchara": "B1", "dorimon": "B1"})
+    result = store.check_ceiling_budget("Die Buchara und der Dorimon sind alt.", "A2")
+    assert result.violations == []
+    assert sorted(result.over_budget) == ["Buchara", "Dorimon"]
+
+
+def test_ceiling_budget_rejects_three_one_band_over_content_words() -> None:
+    """A third content word exactly one band above the ceiling exhausts the
+    two-word budget, so the item fails and all three are reported."""
+    store = VocabularyStore({"buchara": "B1", "dorimon": "B1", "fenrike": "B1"})
+    result = store.check_ceiling_budget("Die Buchara, der Dorimon und die Fenrike sind alt.", "A2")
+    assert sorted(result.violations) == ["Buchara", "Dorimon", "Fenrike"]
+
+
+def test_ceiling_budget_rejects_a_single_two_band_over_word_outright() -> None:
+    """A word two or more CEFR bands above the ceiling (B2 against A2) fails
+    outright -- the budget only ever forgives a ONE-band gap, never two."""
+    store = VocabularyStore({"zelinor": "B2"})
+    result = store.check_ceiling_budget("Der Zelinor ist alt.", "A2")
+    assert result.violations == ["Zelinor"]
+    assert result.over_budget == []
+
+
+def test_validate_sentence_matches_check_ceiling_budget_violations() -> None:
+    """``validate_sentence`` is the budget-aware check's ``violations`` list,
+    not a separate zero-tolerance rule living alongside it."""
+    store = VocabularyStore({"buchara": "B1", "dorimon": "B1", "zelinor": "B2"})
+    sentence = "Die Buchara, der Dorimon und der Zelinor sind alt."
+    assert (
+        store.validate_sentence(sentence, "A2")
+        == store.check_ceiling_budget(sentence, "A2").violations
+    )
+
+
+# ---------------------------------------------------------------------------
+# Closed-class function words
+#
+# docs/audits/stage-04-a2-pilot-audit.md: Bevor, Sobald, Trotz, weshalb and
+# the rest of the closed subordinating-conjunction / interrogative-adverb /
+# preposition class were rejected as too-hard-for-A2 VOCABULARY despite
+# being present in vocab_levels.json at B1 or B2, because a conjunction
+# failing a vocabulary ceiling is a category mistake, not a vocabulary gap.
+# Each word below is deliberately tagged B2 in the store so the test proves
+# the FUNCTION_WORDS membership check short-circuits before the (wrong,
+# too-high) wordlist level is ever consulted.
+# ---------------------------------------------------------------------------
+
+NEWLY_ADDED_CLOSED_CLASS_WORDS = [
+    "bevor",
+    "sobald",
+    "nachdem",
+    "während",
+    "bis",
+    "damit",
+    "seitdem",
+    "falls",
+    "sodass",
+    "indem",
+    "solange",
+    "sooft",
+    "weshalb",
+    "weswegen",
+    "wobei",
+    "worauf",
+    "woran",
+    "wodurch",
+    "trotz",
+    "wegen",
+    "statt",
+    "anstatt",
+    "innerhalb",
+    "außerhalb",
+    "aufgrund",
+    "mithilfe",
+    "laut",
+    "gemäß",
+    "entlang",
+    "gegenüber",
+    "jedoch",
+    "dennoch",
+    "allerdings",
+    "folglich",
+    "deswegen",
+    "darum",
+    "daher",
+    "zwar",
+    "sondern",
+    "entweder",
+    "weder",
+    "sowohl",
+]
+
+
+@pytest.mark.parametrize("word", NEWLY_ADDED_CLOSED_CLASS_WORDS)
+def test_closed_class_function_word_passes_a1_ceiling_despite_wordlist_tagging_it_b2(
+    word: str,
+) -> None:
+    store = VocabularyStore({word: "B2", word.capitalize(): "B2"})
+    assert store.is_within_ceiling(word, "A1"), f"{word!r} (lowercase) failed an A1 ceiling"
+    assert store.is_within_ceiling(word.capitalize(), "A1"), (
+        f"{word!r} (sentence-initial capitalised) failed an A1 ceiling"
+    )
+    assert store.get_level(word) == "A1"
+
+
+def test_closed_class_conjunction_sentence_passes_a1_ceiling() -> None:
+    """End-to-end version of the parametrized check above: a full A1
+    sentence built around a newly-whitelisted subordinator, where the
+    wordlist mistags the conjunction itself as B2, has zero violations."""
+    store = VocabularyStore({"bevor": "B2", "sobald": "B2", "haus": "A1", "gehen": "A1"})
+    assert store.validate_sentence("Bevor du gehst, räum dein Haus auf.", "A1") == []
+    assert store.validate_sentence("Sobald ich zu Hause bin, rufe ich an.", "A1") == []
