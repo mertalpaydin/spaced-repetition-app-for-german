@@ -14,11 +14,13 @@ This module has two responsibilities:
    (which part of speech the topic targets, restricting which dimensions are
    even meaningful for that word class).
 2. ``derive_facet(item, topic)`` -- the concrete facet string an ingested
-   item exhibits, decoded deterministically from
-   ``item.accepted_answers[0]`` using small, explicit lookup tables of closed
-   German word classes (articles, personal/reflexive pronouns, common finite
-   verb endings). No spaCy, no guessing: a dimension we cannot pin down from
-   the closed-class table is encoded literally as ``"Unk"``.
+   item exhibits, decoded from ``item.accepted_answers[0]`` using small,
+   explicit lookup tables of closed German word classes (articles,
+   personal/reflexive pronouns, common finite verb endings), cross-checked
+   against ``src/taxonomy/tagger.py``'s spaCy-based morphological analysis of
+   the answer in its sentence's context where that analysis is available. A
+   dimension neither source can pin down, or that the two sources disagree
+   on, is encoded literally as ``"Unk"`` -- never guessed.
 
 ### The German-relevant UD feature universe
 
@@ -81,15 +83,49 @@ applies instead of emptying ``morph_spec``.
 is independent of iteration order. It returns ``None`` if and only if
 ``facet_space(topic)`` is empty.
 
-### Honesty limits
+### Honesty limits, and where the spaCy tagger is trusted to help
 
 The decoding tables below are deliberately small and closed-class. Where a
 dimension genuinely cannot be pinned down from the answer surface form alone
 (a classic case: German "die" is simultaneously Nom/Akk feminine singular
-*and* Nom/Akk plural for every gender), the table records every candidate and
-the resolver emits ``"Unk"`` for any dimension the candidates disagree on,
-rather than guessing. Noun gender is lexical, not inflectional, so it is only
-resolved for a small fixed list of common nouns; everything else is ``Unk``.
+*and* Nom/Akk plural for every gender), the table records every candidate.
+``_resolve`` (further down) is where those candidates turn into a value, and
+it is also where ``src/taxonomy/tagger.py``'s per-item spaCy analysis gets
+folded in, subject to three rules that between them decide when the tagger is
+trusted and when it is not:
+
+1. **Genuine ambiguity among real candidates -- trust the tagger, but only
+   to pick one of *those* candidates.** "Auf dem Tisch" is Dat Masc Sg or Dat
+   Neut Sg from ``dem`` alone; the tagger sees "Tisch" is masculine and picks
+   the first. If the tagger's value is not even one of the table's own
+   candidates, it is discarded, not adopted -- the table still bounds what a
+   plausible answer is.
+2. **A dimension that is genuinely unmarked for the matched cell -- never
+   trust the tagger.** German does not mark gender on a plural relative
+   pronoun ("denen", "deren"); the table encodes that as the *only* candidate
+   for that cell being ``Unk`` (see ``_RELATIVE_PRONOUN_PARADIGM``'s
+   ``UNK``-gender plural rows), not as an absence of candidates. spaCy's
+   tagger nonetheless sometimes emits a concrete ``Gender`` for these forms
+   (an artefact of its training data, not a real distinction) -- trusting it
+   would assert a distinction German itself does not make, so it is ignored.
+   The difference from rule 1 is exactly "candidates disagree" (real
+   ambiguity, resolve it) versus "the one candidate says Unk" (no ambiguity,
+   there is nothing to resolve).
+3. **No candidate at all -- table found nothing, defer entirely to the
+   tagger.** Some closed classes are only partially tabulated (der-words like
+   "dieser"/"jener" have no paradigm table here at all). Where the table has
+   *zero* candidates for the answer, cross-checking is moot -- there is
+   nothing to check the tagger against -- so its analysis is used outright if
+   present, else the dimension stays ``Unk`` exactly as before this module
+   used a tagger at all.
+
+An unambiguous table value that flatly disagrees with the tagger (case 1
+degenerating to a single candidate) is also not resolved by picking a side:
+it becomes ``Unk``, per the module-level requirement that a confident wrong
+answer is worse than an admitted unknown. Noun gender is additionally lexical,
+not inflectional: the closed-class table only knows a short fixed list of
+common nouns, everything else defers to the tagger under rule 3, or to
+``Unk`` if the tagger is unavailable too.
 
 ### Adjective and participle endings: context, not guessing
 
@@ -114,12 +150,29 @@ the ``___`` gap in ``item.prompt``:
   table, e.g. strong ``-er`` alone still spans Nom Masc Sg, Dat Fem Sg, Gen
   Fem Sg and Gen Plur).
 
-This is still a small, closed-class, deterministic lookup -- no spaCy, no
-guessing -- it is just scoped to the gap's immediate left context instead of
-the answer alone. Where the determiner and ending genuinely leave a cell
-ambiguous (most famously the ``-en`` ending, which is syncretic across nearly
-every case/gender/number combination in all three declensions), the result
-is honestly ``"Unk"`` for that dimension rather than a guess.
+This closed-class lookup is scoped to the gap's immediate left context
+instead of the answer alone, and its *own* result then goes through the same
+tagger cross-check as every other category (see "Honesty limits" above) --
+with one deliberate exception. When the determiner positively selects a
+declension paradigm (weak or mixed) and the answer's ending is not a member
+of it at all, or shares no cell with the determiner's own candidates, that is
+a genuine contradiction between two agreeing markers within the sentence
+itself ("der alter Mann" -- a definite article demanding weak declension,
+paired with an ending that only exists in the strong/mixed paradigms), not a
+gap in this table's coverage. spaCy tags each token independently and does
+not verify agreement, so it will confidently tag "alter" as though the
+sentence were correct; that confidence is not evidence the combination is
+possible, so this specific case stays a hard ``Unk`` without consulting the
+tagger at all, rather than falling through to rule 3 above. Every other
+disagreement in this module reads a lack of hand-rolled candidates as "the
+table has nothing to say"; this one reads it as "the sentence contradicts
+itself", and the two call for different defaults.
+
+Where the determiner and ending genuinely leave a cell ambiguous (most
+famously the ``-en`` ending, which is syncretic across nearly every
+case/gender/number combination in all three declensions), the result is
+honestly ``"Unk"`` for that dimension unless the tagger resolves it under
+rule 1.
 """
 
 from __future__ import annotations
@@ -127,6 +180,7 @@ from __future__ import annotations
 import re
 
 from src.contracts import BankItem, Topic
+from src.taxonomy import tagger
 
 # ==============================================================================
 # The German-relevant UD feature universe
@@ -608,29 +662,130 @@ _GAP_MARKER = "___"
 def _resolve(
     candidates: list[dict[str, str]],
     dims: tuple[str, ...],
+    tagger_feats: dict[str, str] | None = None,
 ) -> dict[str, str]:
-    """Commit to a value for each of ``dims`` only where every candidate agrees."""
+    """Commit to a value for each of ``dims``, folding in the spaCy tagger's
+    own reading of the answer (``tagger_feats``, from
+    ``tagger.tag_answer(...).feats``) where it is safe to trust.
+
+    See the module docstring's "Honesty limits" section for the full
+    rationale; per dimension:
+
+    * Exactly one non-``Unk`` candidate value: the closed-class table already
+      resolved it. If the tagger reports a *different* value for that
+      dimension, the two sources disagree and neither is picked -- ``Unk``,
+      per the module's confident-wrong-answer-is-worse-than-Unk rule. If the
+      tagger agrees, is silent, or ``tagger_feats`` is ``None`` (no tagger
+      available), the table's value stands -- identical to this function's
+      pre-tagger behaviour.
+    * Two or more distinct non-``Unk`` candidate values: genuine syncretism.
+      The tagger's value is adopted only if it is itself one of those
+      candidates (never a value the table itself ruled out); otherwise
+      ``Unk``, exactly as before a tagger existed.
+    * No non-``Unk`` candidate value, but ``candidates`` itself is non-empty:
+      every matching cell for this answer marks the dimension unmarked in
+      German (e.g. gender on a plural relative pronoun). The tagger is not
+      consulted -- it cannot know a distinction the language does not make,
+      and any concrete value it reports here is an artefact, not a fact.
+    * ``candidates`` is empty (the table has no closed-class entry for this
+      answer at all): there is nothing to cross-check, so the tagger's value
+      is used outright if present, else ``Unk`` -- the original behaviour.
+    """
     result: dict[str, str] = {}
     for dim in dims:
-        values = {c[dim] for c in candidates if dim in c}
-        values.discard(UNK)
-        if len(values) == 1:
-            result[dim] = next(iter(values))
+        raw = [c[dim] for c in candidates if dim in c]
+        concrete = {v for v in raw if v != UNK}
+        tagger_value = tagger_feats.get(dim) if tagger_feats else None
+
+        if len(concrete) == 1:
+            hand_value = next(iter(concrete))
+            if tagger_value is not None and tagger_value != hand_value:
+                result[dim] = UNK
+            else:
+                result[dim] = hand_value
+        elif len(concrete) >= 2:
+            result[dim] = tagger_value if tagger_value in concrete else UNK
+        elif not candidates:
+            result[dim] = tagger_value if tagger_value is not None else UNK
         else:
             result[dim] = UNK
     return result
 
 
-def _decode_article(answer: str, fixed_case: str | None, dims: tuple[str, ...]) -> dict[str, str]:
+_UD_GENDER_FROM_LAYER2: dict[str, str] = {"masc": "Masc", "fem": "Fem", "neut": "Neut"}
+
+
+def _next_word_after_gap(prompt: str) -> str | None:
+    """The word immediately after the ``___`` gap, lowercased, or ``None``."""
+    match = re.search(r"___\s+([A-Za-zÀ-ÖØ-öø-ÿ]+)", prompt)
+    return match.group(1).lower() if match else None
+
+
+def _layer2_gender_for_next_word(prompt: str) -> str | None:
+    """The Gender of the noun following the gap, per
+    ``src.verification.layer2_morphology.NOUN_GENDER`` -- an independently
+    authored lexicon (built for case-agreement verification, not for facet
+    derivation), used here purely as a second, unrelated source to
+    cross-check the tagger against. ``None`` if the noun after the gap is not
+    in that lexicon.
+
+    Imported lazily, not at module scope: ``layer2_morphology`` imports
+    ``attributive_adjective_gender_candidates`` from this module, so a
+    top-level import here would be circular.
+    """
+    from src.verification.layer2_morphology import NOUN_GENDER
+
+    word = _next_word_after_gap(prompt)
+    if word is None:
+        return None
+    gender = NOUN_GENDER.get(word)
+    return _UD_GENDER_FROM_LAYER2.get(gender) if gender else None
+
+
+def _cross_check_gender_with_layer2(
+    prompt: str, tagger_feats: dict[str, str] | None, values: dict[str, str]
+) -> dict[str, str]:
+    """Downgrade a resolved ``Gender`` to ``Unk`` if the tagger's own Gender
+    reading for the answer conflicts with ``layer2_morphology.NOUN_GENDER``'s
+    independent lookup of the noun after the gap.
+
+    This is requirement 4's cross-check made concrete for the one dimension
+    both sources can independently determine: the tagger reads it off the
+    determiner/adjective token itself, layer2's lexicon reads it off the
+    following noun by name. The two normally agree (they describe the same
+    grammatical fact); when they do not, something is wrong with at least one
+    of them, so neither is trusted for this item.
+    """
+    if "Gender" not in values or not tagger_feats:
+        return values
+    tagger_gender = tagger_feats.get("Gender")
+    if tagger_gender is None:
+        return values
+    layer2_gender = _layer2_gender_for_next_word(prompt)
+    if layer2_gender is not None and layer2_gender != tagger_gender:
+        values = dict(values)
+        values["Gender"] = UNK
+    return values
+
+
+def _decode_article(
+    answer: str,
+    fixed_case: str | None,
+    dims: tuple[str, ...],
+    prompt: str | None = None,
+    tagger_feats: dict[str, str] | None = None,
+) -> dict[str, str]:
     candidates: list[dict[str, str]] = [
         {"Case": c, "Gender": g, "Number": n}
         for (form, c, g, n) in _DEFINITE_ARTICLE_PARADIGM
         if form == answer and (fixed_case is None or c == fixed_case)
     ]
     if candidates:
-        resolved = _resolve(candidates, dims)
+        resolved = _resolve(candidates, dims, tagger_feats)
         if "Definite" in dims:
             resolved["Definite"] = "Def"
+        if prompt is not None:
+            resolved = _cross_check_gender_with_layer2(prompt, tagger_feats, resolved)
         return resolved
 
     for stem in _EIN_WORD_STEMS:
@@ -642,12 +797,17 @@ def _decode_article(answer: str, fixed_case: str | None, dims: tuple[str, ...]) 
                 if e == ending and (fixed_case is None or c == fixed_case)
             ]
             if ein_candidates:
-                resolved = _resolve(ein_candidates, dims)
+                resolved = _resolve(ein_candidates, dims, tagger_feats)
                 if "Definite" in dims:
                     resolved["Definite"] = "Ind"
+                if prompt is not None:
+                    resolved = _cross_check_gender_with_layer2(prompt, tagger_feats, resolved)
                 return resolved
 
-    return dict.fromkeys(dims, UNK)
+    # Nothing in either paradigm matches at all (e.g. a der-word like
+    # "dieser"/"jener" this taxonomy has no table for): defer entirely to
+    # the tagger via _resolve's empty-candidates branch.
+    return _resolve([], dims, tagger_feats)
 
 
 def determiner_definiteness(answer: str, fixed_case: str | None = None) -> str:
@@ -706,60 +866,87 @@ def determiner_art_type(answer: str) -> str:
 
 
 def _decode_relative_pronoun(
-    answer: str, fixed_case: str | None, dims: tuple[str, ...]
+    answer: str,
+    fixed_case: str | None,
+    dims: tuple[str, ...],
+    tagger_feats: dict[str, str] | None = None,
 ) -> dict[str, str]:
     candidates: list[dict[str, str]] = [
         {"Case": c, "Gender": g, "Number": n}
         for (form, c, g, n) in _RELATIVE_PRONOUN_PARADIGM
         if form == answer and (fixed_case is None or c == fixed_case)
     ]
-    if not candidates:
-        return dict.fromkeys(dims, UNK)
-    return _resolve(candidates, dims)
+    return _resolve(candidates, dims, tagger_feats)
 
 
 def _decode_personal_pronoun(
-    answer: str, fixed_case: str | None, dims: tuple[str, ...]
+    answer: str,
+    fixed_case: str | None,
+    dims: tuple[str, ...],
+    tagger_feats: dict[str, str] | None = None,
 ) -> dict[str, str]:
     candidates = [
         {"Case": c, "Person": p, "Number": n, "Gender": g}
         for (form, c, p, n, g) in _PERSONAL_PRONOUN_PARADIGM
         if form == answer and (fixed_case is None or c == fixed_case)
     ]
-    if not candidates:
-        return dict.fromkeys(dims, UNK)
-    return _resolve(candidates, dims)
+    return _resolve(candidates, dims, tagger_feats)
 
 
 def _decode_reflexive_pronoun(
-    answer: str, fixed_case: str | None, dims: tuple[str, ...]
+    answer: str,
+    fixed_case: str | None,
+    dims: tuple[str, ...],
+    tagger_feats: dict[str, str] | None = None,
 ) -> dict[str, str]:
     candidates = [
         {"Case": c, "Person": p, "Number": n}
         for (form, c, p, n) in _REFLEXIVE_PARADIGM
         if form == answer and (fixed_case is None or c == fixed_case)
     ]
-    if not candidates:
-        return dict.fromkeys(dims, UNK)
-    return _resolve(candidates, dims)
+    return _resolve(candidates, dims, tagger_feats)
 
 
-def _decode_verb(answer: str, dims: tuple[str, ...]) -> dict[str, str]:
+def _decode_verb(
+    answer: str, dims: tuple[str, ...], tagger_feats: dict[str, str] | None = None
+) -> dict[str, str]:
     pairs = _IRREGULAR_VERB_FORMS.get(answer)
     if pairs is None:
         for suffix, ending_pairs in _REGULAR_VERB_ENDINGS:
             if answer.endswith(suffix) and len(answer) > len(suffix):
                 pairs = ending_pairs
                 break
-    if pairs is None:
-        return dict.fromkeys(dims, UNK)
-    candidates = [{"Person": p, "Number": n} for (p, n) in pairs]
-    return _resolve(candidates, dims)
+    candidates = [{"Person": p, "Number": n} for (p, n) in pairs] if pairs is not None else []
+    return _resolve(candidates, dims, tagger_feats)
 
 
-def _decode_noun(answer: str, dims: tuple[str, ...]) -> dict[str, str]:
+def _decode_noun(
+    answer: str,
+    dims: tuple[str, ...],
+    tagger_feats: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Noun gender is lexical (small closed list); noun Case has no
+    closed-class mechanism here at all (a bare plural noun's surface form
+    does not carry it) -- so Case defers fully to the tagger, which sees the
+    whole sentence including the governing article, exactly like
+    ``_resolve``'s empty-candidates branch defers for any other
+    unrecognised form.
+
+    Not cross-checked against ``layer2_morphology.NOUN_GENDER`` the way
+    ``_decode_article`` and ``_decode_attributive_adjective`` are: that
+    lookup reads the noun *following* the gap, which is the right word for a
+    determiner or adjective's gap, but for this category the gap **is** the
+    noun -- there is no separate noun to look up.
+    """
     gender = _PLURAL_NOUN_GENDER.get(answer, UNK)
-    return {dim: (gender if dim == "Gender" else UNK) for dim in dims}
+    values: dict[str, str] = {}
+    for dim in dims:
+        tagger_value = tagger_feats.get(dim) if tagger_feats else None
+        if dim == "Gender" and gender != UNK:
+            values[dim] = UNK if (tagger_value is not None and tagger_value != gender) else gender
+        else:
+            values[dim] = tagger_value if tagger_value is not None else UNK
+    return values
 
 
 def _preceding_token(prompt: str) -> str | None:
@@ -817,7 +1004,10 @@ def _match_adjective_ending(
 
 
 def _decode_attributive_adjective(
-    prompt: str, answer: str, dims: tuple[str, ...]
+    prompt: str,
+    answer: str,
+    dims: tuple[str, ...],
+    tagger_feats: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Decode an attributive adjective/participle ending using its gap's left context.
 
@@ -835,13 +1025,22 @@ def _decode_attributive_adjective(
         paradigm = _ADJ_ENDING_WEAK if declension == "weak" else _ADJ_ENDING_MIXED
         ending_candidates = set(_match_adjective_ending(answer, paradigm))
         combined = [c for c in det_candidates if c in ending_candidates]
+        if not combined:
+            # The determiner positively selects a declension paradigm; an
+            # ending absent from it (or sharing no cell with the
+            # determiner's own candidates) is a genuine contradiction
+            # between two agreeing markers in the sentence, not a coverage
+            # gap. The tagger tags each token independently and would not
+            # notice the contradiction, so it is not consulted here -- see
+            # the module docstring's "Adjective and participle endings"
+            # section.
+            return dict.fromkeys(dims, UNK)
     else:
         combined = _match_adjective_ending(answer, _ADJ_ENDING_STRONG)
 
-    if not combined:
-        return dict.fromkeys(dims, UNK)
     candidates = [{"Case": c, "Gender": g, "Number": n} for (c, g, n) in combined]
-    return _resolve(candidates, dims)
+    resolved = _resolve(candidates, dims, tagger_feats)
+    return _cross_check_gender_with_layer2(prompt, tagger_feats, resolved)
 
 
 def attributive_adjective_gender_candidates(
@@ -883,38 +1082,64 @@ def attributive_adjective_gender_candidates(
     return {g for (_, g, _) in relevant}
 
 
+def _safe_tag_answer(prompt: str, answer: str) -> tagger.TaggedAnswer | None:
+    """``tagger.tag_answer`` wrapped in a broad guard.
+
+    ``tag_answer`` already degrades to ``None`` for the failure modes it
+    anticipates (no model installed, no gap, no aligning token). This module
+    is called unconditionally from the generation and verification chain, so
+    anything unanticipated -- a spaCy-internal error on some pathological
+    prompt, say -- must degrade the exact same way rather than propagate out
+    of what every caller treats as a pure function. Requirement 2 ("never
+    crash a pilot run") applies here just as much as inside the tagger
+    itself.
+    """
+    try:
+        return tagger.tag_answer(prompt, answer)
+    except Exception:  # noqa: BLE001 -- deliberately broad, see docstring above
+        return None
+
+
 def derive_facet(item: BankItem, topic: Topic) -> str | None:
     """Derive the stable, canonical facet an ingested item exhibits for ``topic``.
 
     Deterministic and pure: same ``item`` plus same ``topic`` always yields
-    the same string. Returns ``None`` if and only if ``facet_space(topic)``
-    is empty. Values are decoded from ``item.accepted_answers[0]`` alone,
-    using the closed-class tables above; a dimension the tables cannot pin
-    down is encoded as ``"Unk"``, never guessed or dropped.
+    the same string (``tagger.tag_answer`` re-parses the same sentence the
+    same way every call; nothing here depends on process state). Returns
+    ``None`` if and only if ``facet_space(topic)`` is empty. Values are
+    decoded from ``item.accepted_answers[0]``, cross-checked against a
+    spaCy analysis of that answer in ``item.prompt``'s sentence context where
+    one is available (see the module docstring's "Honesty limits" section);
+    a dimension neither source can pin down, or that the two disagree on, is
+    encoded as ``"Unk"``, never guessed or dropped.
     """
     dims = facet_space(topic)
     if not dims:
         return None
 
-    answer = item.accepted_answers[0].strip().lower() if item.accepted_answers else ""
+    raw_answer = item.accepted_answers[0].strip() if item.accepted_answers else ""
+    answer = raw_answer.lower()
     fixed_case = (topic.morph_spec or {}).get("Case")
     fixed_case = fixed_case if isinstance(fixed_case, str) else None
     category = _pos_category(topic)
 
+    tagged = _safe_tag_answer(item.prompt, raw_answer)
+    tagger_feats = tagged.feats if tagged is not None else None
+
     if category in ("Prep", "Det", "Nominal"):
-        values = _decode_article(answer, fixed_case, dims)
+        values = _decode_article(answer, fixed_case, dims, item.prompt, tagger_feats)
     elif category == "RelPron":
-        values = _decode_relative_pronoun(answer, fixed_case, dims)
+        values = _decode_relative_pronoun(answer, fixed_case, dims, tagger_feats)
     elif category == "Pron":
-        values = _decode_personal_pronoun(answer, fixed_case, dims)
+        values = _decode_personal_pronoun(answer, fixed_case, dims, tagger_feats)
     elif category == "ReflVerb":
-        values = _decode_reflexive_pronoun(answer, fixed_case, dims)
+        values = _decode_reflexive_pronoun(answer, fixed_case, dims, tagger_feats)
     elif category == "Verb":
-        values = _decode_verb(answer, dims)
+        values = _decode_verb(answer, dims, tagger_feats)
     elif category == "Noun":
-        values = _decode_noun(answer, dims)
+        values = _decode_noun(answer, dims, tagger_feats)
     elif category in ("Adj", "AdjDecl"):
-        values = _decode_attributive_adjective(item.prompt, answer, dims)
+        values = _decode_attributive_adjective(item.prompt, answer, dims, tagger_feats)
     else:
         # Any unclassified bucket falls back to explicit Unk rather than
         # guessing.
