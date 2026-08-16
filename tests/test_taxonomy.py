@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from src.contracts import CEFR, BankItem, Topic
+from src.taxonomy import facets
 from src.taxonomy.facets import (
     GERMAN_UD_FEATURE_UNIVERSE,
     VALUE_CARDINALITY,
@@ -13,6 +14,7 @@ from src.taxonomy.facets import (
     facet_space,
 )
 from src.taxonomy.loader import load_taxonomy
+from src.taxonomy.tagger import TaggedAnswer
 from src.taxonomy.validator import TaxonomyValidator
 
 
@@ -104,6 +106,156 @@ def test_expected_topic_ids_golden(taxonomy_topics: list[Topic], data_fixtures_d
         f"Taxonomy topic IDs have drifted from golden fixture {golden_file}!\n"
         f"Diff: added={set(current_ids) - set(expected_ids)}, "
         f"removed={set(expected_ids) - set(current_ids)}"
+    )
+
+
+# ==============================================================================
+# verification_class (docs/audits/generation-track-plan.md "Topic triage")
+# ==============================================================================
+
+VALID_VERIFICATION_CLASSES = {"computable", "lexical_table", "structural", "semantic"}
+
+
+def test_every_topic_has_a_valid_verification_class(taxonomy_topics: list[Topic]) -> None:
+    """Every topic in data/taxonomy.yaml must declare one of the four
+    verification classes from docs/audits/generation-track-plan.md 'Topic
+    triage'. The pilot's --classes filter (src/generation/pilot.py) and the
+    stage-4 kill gate both depend on this being set for every topic, not just
+    most of them: a topic silently missing it would silently fall out of
+    every class-filtered pilot run."""
+    for t in taxonomy_topics:
+        assert t.verification_class is not None, f"Topic '{t.id}' has no verification_class"
+        assert t.verification_class in VALID_VERIFICATION_CLASSES, (
+            f"Topic '{t.id}' has invalid verification_class {t.verification_class!r}; "
+            f"must be one of {sorted(VALID_VERIFICATION_CLASSES)}"
+        )
+
+
+def test_verification_class_distribution_matches_the_revised_topic_triage(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """Coarse sanity check against docs/audits/generation-track-plan.md's
+    'Topic triage' estimates (~47 computable, ~10 lexical_table, ~12
+    structural, ~8 semantic out of 87). The estimates were explicitly rough
+    ("roughly"), so this only guards against gross misclassification (e.g. an
+    entire CEFR band accidentally landing in the wrong bucket), not exact
+    counts -- the per-topic judgment calls are recorded in the taxonomy PR/
+    commit, not re-derived here.
+    """
+    counts: dict[str, int] = dict.fromkeys(VALID_VERIFICATION_CLASSES, 0)
+    for t in taxonomy_topics:
+        assert t.verification_class is not None
+        counts[t.verification_class] += 1
+
+    assert 40 <= counts["computable"] <= 60
+    assert 5 <= counts["lexical_table"] <= 16
+    assert 6 <= counts["structural"] <= 18
+    assert 4 <= counts["semantic"] <= 16
+    assert sum(counts.values()) == len(taxonomy_topics)
+
+
+def test_computable_topics_carry_morph_spec_or_are_a_named_exception(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """'computable' means the answer is derivable from a closed morphological
+    paradigm, which in practice means a non-empty morph_spec -- except for a
+    short, explicitly named list of topics whose morph_spec is deliberately
+    left empty for reasons unrelated to computability (see the comments on
+    those entries in data/taxonomy.yaml) but which are still paradigm-driven.
+    """
+    named_empty_morph_spec_exceptions = {
+        "infinitiv_mit_zu",
+        "infinitiv_um_zu",
+        "adjektivdeklination_nullartikel",
+        "relativsatz_was_wo",
+    }
+    for t in taxonomy_topics:
+        if t.verification_class != "computable":
+            continue
+        if t.id in named_empty_morph_spec_exceptions:
+            continue
+        assert t.morph_spec, (
+            f"Topic '{t.id}' is classified computable but has an empty morph_spec "
+            "and is not in the named exception list"
+        )
+
+
+def test_lexical_table_topics_are_the_closed_list_families(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """'lexical_table' topics are governed-preposition/connector lookups, not
+    open-ended semantic judgment calls; spot-check the families the plan
+    names explicitly (docs/audits/generation-track-plan.md 'Topic triage')."""
+    by_id = {t.id: t for t in taxonomy_topics}
+    expected_lexical_table = {
+        "verben_feste_praepositionen",
+        "nomen_feste_praepositionen",
+        "adjektiv_feste_praepositionen",
+        "konnektoren_zweiteilig_adversativ",
+        "konnektoren_zweiteilig_kopulativ",
+        "konnektoren_je_desto",
+        "pronominaladverbien_da_wo",
+        "funktionsverbgefuege",
+    }
+    for topic_id in expected_lexical_table:
+        assert by_id[topic_id].verification_class == "lexical_table", (
+            f"Topic '{topic_id}' expected lexical_table, got {by_id[topic_id].verification_class!r}"
+        )
+
+
+def test_named_semantic_topics_are_classified_semantic(taxonomy_topics: list[Topic]) -> None:
+    """Spot-check the topics docs/audits/generation-track-plan.md 'Topic
+    triage' names explicitly as having no mechanically checkable answer."""
+    by_id = {t.id: t for t in taxonomy_topics}
+    expected_semantic = {
+        "modalpartikeln",
+        "modalverben_subjektiv_behauptung",
+        "modalverben_subjektiv_vermutung",
+        "konjunktiv_i_indirekte_rede",
+        "konjunktiv_i_ersatzformen",
+        "diskurs_adverbialanschluss",
+    }
+    for topic_id in expected_semantic:
+        assert by_id[topic_id].verification_class == "semantic", (
+            f"Topic '{topic_id}' expected semantic, got {by_id[topic_id].verification_class!r}"
+        )
+
+
+def test_nebensatz_family_splits_between_structural_and_semantic(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """The nebensatz_* family does not classify uniformly: topics whose gap
+    tests verb-final placement (the connector is given, or every candidate
+    connector forces the same clause shape) are structural; topics whose gap
+    IS the connector choice among near-synonyms that occupy the identical
+    syntactic slot are semantic. See data/specs/nebensatz_*.yaml gold examples
+    for the evidence behind each classification."""
+    by_id = {t.id: t for t in taxonomy_topics}
+    expected_structural = {
+        "nebensatz_weil_da",
+        "nebensatz_dass",
+        "nebensatz_wenn",
+        "nebensatz_indirekte_frage",
+        "nebensatz_obwohl_trotzdem",
+        "nebensatz_sodass_deshalb",
+    }
+    expected_semantic = {
+        "nebensatz_als_wenn",
+        "nebensatz_temporal_erweitert",
+        "nebensatz_damit_um_zu",
+    }
+    for topic_id in expected_structural:
+        assert by_id[topic_id].verification_class == "structural", (
+            f"Topic '{topic_id}' expected structural, got {by_id[topic_id].verification_class!r}"
+        )
+    for topic_id in expected_semantic:
+        assert by_id[topic_id].verification_class == "semantic", (
+            f"Topic '{topic_id}' expected semantic, got {by_id[topic_id].verification_class!r}"
+        )
+    all_nebensatz = {t.id for t in taxonomy_topics if t.id.startswith("nebensatz_")}
+    assert all_nebensatz == expected_structural | expected_semantic, (
+        f"nebensatz_* topics not accounted for: "
+        f"{all_nebensatz - expected_structural - expected_semantic}"
     )
 
 
@@ -605,3 +757,177 @@ def test_derive_facet_is_deterministic_for_context_aware_adjective_decoding(
     results = {derive_facet(item, topic) for _ in range(5)}
     assert len(results) == 1
     assert next(iter(results)) == "Case=Nom|Gender=Masc|Number=Sing"
+
+
+# ==============================================================================
+# spaCy tagger cross-check: derive_facet resolving previously-Unk dimensions,
+# and refusing to guess when the tagger and the closed-class tables disagree.
+# ==============================================================================
+
+
+def test_derive_facet_resolves_syncretic_gender_via_tagger(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """'dem' alone is Dat Masc Sg or Dat Neut Sg -- genuinely ambiguous from
+    the closed-class table alone. Before the tagger this collapsed to
+    Gender=Unk; the full sentence ("... auf ___ Tisch.") disambiguates it,
+    and the tagger reads the full sentence.
+    """
+    topic = {t.id: t for t in taxonomy_topics}["dativ_nach_praeposition"]
+    item = BankItem(
+        id="dat-tisch",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr=topic.cefr,
+        prompt="Das Buch liegt auf ___ Tisch.",
+        accepted_answers=["dem"],
+    )
+    facet = derive_facet(item, topic)
+    assert facet == "Definite=Def|Gender=Masc|Number=Sing"
+
+
+def test_derive_facet_never_invents_gender_for_plural_relative_pronoun(
+    taxonomy_topics: list[Topic],
+) -> None:
+    """German does not mark gender on a plural relative pronoun ('denen',
+    'deren'). spaCy's tagger nonetheless sometimes emits a concrete Gender
+    for these forms (confirmed directly: "denen" in a real sentence tags as
+    Gender=Fem) -- an artefact of training data, not a real distinction.
+    ``_RELATIVE_PRONOUN_PARADIGM`` records exactly one candidate for this
+    cell and that candidate is already Gender=Unk, so the tagger must never
+    be allowed to override it -- while Case and Number, which the paradigm
+    *does* commit to for "denen", must still come through correctly.
+    """
+    topic = {t.id: t for t in taxonomy_topics}["relativsatz_nom_akk"]
+    item = BankItem(
+        id="rel-plural-dat",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=2,
+        cefr=topic.cefr,
+        prompt="Ich kenne die Leute, ___ du geholfen hast.",
+        accepted_answers=["denen"],
+    )
+    facet = derive_facet(item, topic)
+    assert facet == "Case=Dat|Gender=Unk|Number=Plur"
+
+
+def test_derive_facet_falls_back_to_closed_class_when_tagger_unavailable(
+    taxonomy_topics: list[Topic], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With ``tagger.tag_answer`` degraded to "no analysis" (the Windows-
+    owner-has-no-model scenario), ``derive_facet`` must reproduce exactly
+    the pre-tagger closed-class result: 'dem' alone stays Gender=Unk.
+    """
+    monkeypatch.setattr(facets.tagger, "tag_answer", lambda prompt, answer: None)
+    topic = {t.id: t for t in taxonomy_topics}["dativ_nach_praeposition"]
+    item = BankItem(
+        id="dat-tisch-no-tagger",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr=topic.cefr,
+        prompt="Das Buch liegt auf ___ Tisch.",
+        accepted_answers=["dem"],
+    )
+    facet = derive_facet(item, topic)
+    assert facet == "Definite=Def|Gender=Unk|Number=Sing"
+
+
+def test_derive_facet_disagreement_between_table_and_tagger_yields_unk(
+    taxonomy_topics: list[Topic], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """'mich' is unambiguously Acc/1/Sing in ``_REFLEXIVE_PARADIGM`` -- the
+    closed-class table alone already commits to Person=1. A tagger that
+    disagrees (mocked here so the test does not depend on real spaCy's
+    behaviour on this sentence) must not be trusted over the table either:
+    the module's rule is disagreement -> Unk, never pick a winner.
+    """
+    monkeypatch.setattr(
+        facets.tagger,
+        "tag_answer",
+        lambda prompt, answer: TaggedAnswer(text=answer, pos="PRON", feats={"Person": "3"}),
+    )
+    topic = {t.id: t for t in taxonomy_topics}["verben_reflexiv_akk"]
+    item = BankItem(
+        id="reflexive-disagreement",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr=topic.cefr,
+        prompt="Ich wasche ___ jeden Morgen.",
+        accepted_answers=["mich"],
+    )
+    facet = derive_facet(item, topic)
+    assert facet == "Number=Sing|Person=Unk"
+
+
+def test_derive_facet_ignores_tagger_on_genuine_paradigm_contradiction(
+    taxonomy_topics: list[Topic], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Even a tagger confidently agreeing with itself must not rescue a
+    determiner/ending combination the closed-class paradigm proves
+    impossible ('der' + '-er', see
+    ``test_adjective_facet_derivation_never_guesses_on_contradictory_context``).
+    Mocking the tagger to return a concrete, internally-consistent analysis
+    makes this invariant independent of what any particular spaCy model
+    version happens to guess for this sentence.
+    """
+    monkeypatch.setattr(
+        facets.tagger,
+        "tag_answer",
+        lambda prompt, answer: TaggedAnswer(
+            text=answer,
+            pos="ADJ",
+            feats={"Case": "Nom", "Gender": "Masc", "Number": "Sing"},
+        ),
+    )
+    topic = {t.id: t for t in taxonomy_topics}["adjektivdeklination_bestimmt"]
+    dims = facet_space(topic)
+    item = BankItem(
+        id="contradictory-with-mocked-tagger",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr=topic.cefr,
+        prompt="Der ___ Mann liest.",
+        accepted_answers=["alter"],
+    )
+    facet = derive_facet(item, topic)
+    assert _all_unk_facet(facet, dims)
+
+
+def test_derive_facet_gender_cross_checked_against_layer2_noun_gender(
+    taxonomy_topics: list[Topic], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Requirement: cross-check the tagger against
+    ``src.verification.layer2_morphology``'s independent paradigm tables,
+    not just against this module's own. 'Tisch' is masculine in
+    ``layer2_morphology.NOUN_GENDER``; a (mocked) tagger claiming the
+    determiner in front of it is feminine is a direct conflict between two
+    independent sources, so the dimension must go to Unk rather than trust
+    either one.
+    """
+    monkeypatch.setattr(
+        facets.tagger,
+        "tag_answer",
+        lambda prompt, answer: TaggedAnswer(
+            text=answer,
+            pos="DET",
+            feats={"Case": "Dat", "Gender": "Fem", "Number": "Sing"},
+        ),
+    )
+    topic = {t.id: t for t in taxonomy_topics}["dativ_nach_praeposition"]
+    item = BankItem(
+        id="layer2-gender-conflict",
+        topic_id=topic.id,
+        type="cloze_free",
+        difficulty=1,
+        cefr=topic.cefr,
+        prompt="Das Buch liegt auf ___ Tisch.",
+        accepted_answers=["dem"],
+    )
+    facet = derive_facet(item, topic)
+    assert facet is not None
+    assert "Gender=Unk" in facet

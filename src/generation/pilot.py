@@ -13,12 +13,13 @@ Entry point for humans: ``scripts/step5_pilot_generation.py``.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.contracts import Difficulty, GenerationRequest, Topic
+from src.contracts import Difficulty, GenerationRequest, Topic, VerificationClass
 from src.generation.batch_client import (
     DEFAULT_DB_PATH,
     GeminiBatchClient,
@@ -34,6 +35,22 @@ DEFAULT_REJECTED_PATH = Path("data/pilot_rejected.jsonl")
 DEFAULT_PILOT_ITEM_COUNT = 100
 DEFAULT_TOPICS_PER_CEFR = 3
 DEFAULT_DIFFICULTIES: tuple[Difficulty, ...] = (1, 2, 3)
+
+# docs/audits/generation-track-plan.md "Topic triage": every verification
+# class the taxonomy assigns, and the subset a pilot run draws from by
+# default. "semantic" topics have no mechanically checkable answer, so they
+# are excluded unless a caller opts in explicitly via --classes.
+ALL_VERIFICATION_CLASSES: tuple[VerificationClass, ...] = (
+    "computable",
+    "lexical_table",
+    "structural",
+    "semantic",
+)
+DEFAULT_PILOT_CLASSES: tuple[VerificationClass, ...] = (
+    "computable",
+    "lexical_table",
+    "structural",
+)
 
 
 class PilotRunReport(BaseModel):
@@ -61,6 +78,7 @@ def select_pilot_topics(
     topics: list[Topic],
     topics_per_cefr: int = DEFAULT_TOPICS_PER_CEFR,
     cefr: str | None = None,
+    classes: Iterable[str] | None = DEFAULT_PILOT_CLASSES,
 ) -> list[Topic]:
     """Select the topics a pilot run will generate for.
 
@@ -82,14 +100,30 @@ def select_pilot_topics(
     technique. The effect comes from interleaving dative against accusative
     against genitive, so the learner must first work out which rule applies.
     Interleaving A1 against B2 is a difficulty cliff, not interleaving.
+
+    ``classes`` restricts the pool to topics whose ``verification_class`` is
+    one of the given values (docs/audits/generation-track-plan.md "Topic
+    triage"), applied before the CEFR selection above so the two filters
+    compose: a ``--cefr B1 --classes computable`` run only ever sees B1
+    topics that are also computable. ``None`` disables the filter entirely
+    (every verification class, including ``semantic``); the default is
+    ``DEFAULT_PILOT_CLASSES``, which excludes ``semantic``.
     """
+    if classes is not None:
+        allowed_classes = set(classes)
+        topics = [t for t in topics if t.verification_class in allowed_classes]
+
     by_cefr: dict[str, list[Topic]] = {}
     for topic in topics:
         by_cefr.setdefault(topic.cefr, []).append(topic)
 
     if cefr is not None:
         if cefr not in by_cefr:
-            raise ValueError(f"No topics at CEFR level {cefr!r}. Available: {sorted(by_cefr)}.")
+            raise ValueError(
+                f"No topics at CEFR level {cefr!r} with verification_class in "
+                f"{sorted(classes) if classes is not None else 'any'!r}. "
+                f"Available CEFR levels after class filtering: {sorted(by_cefr)}."
+            )
         return sorted(by_cefr[cefr], key=lambda t: t.id)
 
     selected: list[Topic] = []
@@ -189,6 +223,7 @@ def run_pilot(
     llm_client: GeminiLlmClient | None = None,
     batch_client: GeminiBatchClient | MockBatchClient | None = None,
     cefr: str | None = None,
+    classes: Iterable[str] | None = DEFAULT_PILOT_CLASSES,
 ) -> PilotRunReport:
     """Generate a bounded, spread sample, verify it, insert what passes, and
     write the accepted set to ``review_path`` (and every rejected candidate,
@@ -215,7 +250,9 @@ def run_pilot(
     rejected_path = Path(rejected_path)
 
     topics = load_taxonomy(taxonomy_path)
-    pilot_topics = select_pilot_topics(topics, topics_per_cefr=topics_per_cefr, cefr=cefr)
+    pilot_topics = select_pilot_topics(
+        topics, topics_per_cefr=topics_per_cefr, cefr=cefr, classes=classes
+    )
     requests = build_pilot_requests(pilot_topics, item_count, difficulties=difficulties)
     if not requests:
         raise ValueError("No pilot requests could be built (empty taxonomy or item_count <= 0).")

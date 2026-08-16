@@ -16,6 +16,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Nom}
+  verification_class: computable
   syntax_tags: {Pos: "Pron"}
   rule_hint: "Nominativ als Subjekt: ich, du, er, sie, es, wir, ihr, sie, Sie."
   intro_card:
@@ -35,6 +36,7 @@
   eligible_types: [cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Tense: Pres}
+  verification_class: computable
   syntax_tags: {VerbType: "Aux"}
   rule_hint: "Konjugation: bin/bist/ist/sind/seid/sind und habe/hast/hat/haben/habt/haben."
   intro_card:
@@ -54,6 +56,7 @@
   eligible_types: [cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Tense: Pres}
+  verification_class: computable
   rule_hint: "Präsens-Endungen: ich -e, du -st, er/sie/es -t, wir -en, ihr -t, sie/Sie -en."
   intro_card:
     summary: "Regelmäßige Verben im Präsens"
@@ -72,6 +75,7 @@
   eligible_types: [cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Tense: Pres}
+  verification_class: computable
   syntax_tags: {VowelChange: "true"}
   rule_hint: "Vokalwechsel nur bei du und er/sie/es (z.B. geben -> du gibst, fahren -> er fährt)."
   intro_card:
@@ -91,6 +95,7 @@
   eligible_types: [transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: structural
   rule_hint: "Im Hauptsatz steht das konjugierte Verb immer an Position 2."
   intro_card:
     summary: "Hauptsatz: Verb auf Position 2"
@@ -109,6 +114,7 @@
   eligible_types: [transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: structural
   rule_hint: "Ja/Nein-Frage: Verb auf Position 1. W-Frage: Fragewort auf 1, Verb auf 2."
   intro_card:
     summary: "Fragesätze im Deutschen"
@@ -127,6 +133,7 @@
   eligible_types: [paragraph_cloze, error_correction]
   requires_context: true
   morph_spec: {Case: Nom}
+  verification_class: computable
   syntax_tags: {ArtType: "Def"}
   rule_hint: "Nominativ bestimmter Artikel: der (maskulin), die (feminin), das (neutral), die (Plural)."
   intro_card:
@@ -146,6 +153,7 @@
   eligible_types: [paragraph_cloze, error_correction]
   requires_context: true
   morph_spec: {Case: Nom}
+  verification_class: computable
   syntax_tags: {ArtType: "IndefOrNeg"}
   rule_hint: "Nominativ: ein/kein (m/n), eine/keine (f), keine (Plural)."
   intro_card:
@@ -165,6 +173,7 @@
   eligible_types: [paragraph_cloze, error_correction]
   requires_context: true
   morph_spec: {Case: Nom}
+  verification_class: computable
   syntax_tags: {ArtType: "Poss"}
   rule_hint: "Possessivartikel folgen im Nominativ der Deklination von 'ein/kein' (mein/meine/mein)."
   intro_card:
@@ -187,6 +196,7 @@
   eligible_types: [cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Number: Plur}
+  verification_class: computable
   rule_hint: "Pluralendungen: -e (mit/ohne Umlaut), -(e)n, -er (mit Umlaut), -s oder keine Endung."
   intro_card:
     summary: "Pluralformen der Nomen"
@@ -205,6 +215,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Acc}
+  verification_class: computable
   rule_hint: "Im Akkusativ ändert sich nur Maskulinum: der -> den, ein -> einen, kein -> keinen."
   intro_card:
     summary: "Akkusativ: Artikelformen"
@@ -223,6 +234,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Acc}
+  verification_class: computable
   syntax_tags: {Pos: "Pron"}
   rule_hint: "Akkusativ Pronomen: mich, dich, ihn, sie, es, uns, euch, sie, Sie."
   intro_card:
@@ -247,6 +259,7 @@
   eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Tense: Pres}
+  verification_class: computable
   syntax_tags: {VerbType: "Modal"}
   rule_hint: "Modalverb konjugiert auf Position 2, Vollverb im Infinitiv am Satzende."
   intro_card:
@@ -270,6 +283,7 @@
   eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Tense: Pres}
+  verification_class: computable
   syntax_tags: {Separable: "true"}
   rule_hint: "Präfix trennt sich im Hauptsatz ab und steht am Satzende (z.B. aufstehen -> ich stehe auf)."
   intro_card:
@@ -294,6 +308,7 @@
   eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Mood: Imp}
+  verification_class: computable
   rule_hint: "du: Verbstamm (ohne -st/du); ihr: Verbstamm + -t; Sie: Infinitiv + Sie."
   intro_card:
     summary: "Imperativ (Befehlsform)"
@@ -312,6 +327,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Acc}
+  verification_class: computable
   syntax_tags: {Pos: "Prep"}
   rule_hint: "Akkusativ-Präpositionen: durch, für, gegen, ohne, um, bis."
   intro_card:
@@ -331,6 +347,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Dat}
+  verification_class: computable
   rule_hint: "Dativ Artikel: dem (m/n), der (f), den + Nomen-(e)n (Plural)."
   intro_card:
     summary: "Dativ: Artikelformen"
@@ -349,6 +366,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Dat}
+  verification_class: computable
   syntax_tags: {Pos: "Pron"}
   rule_hint: "Dativ Pronomen: mir, dir, ihm, ihr, ihm, uns, euch, ihnen, Ihnen."
   intro_card:
@@ -368,6 +386,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Dat}
+  verification_class: computable
   syntax_tags: {Pos: "Prep"}
   rule_hint: "Dativ-Präpositionen: aus, bei, mit, nach, seit, von, zu, gegenüber."
   intro_card:
@@ -387,6 +406,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Tense: Past, Aspect: Perf}
+  verification_class: computable
   syntax_tags: {VerbType: "AuxHaben"}
   rule_hint: "Perfekt mit haben: konjugiertes haben auf Position 2, Partizip II am Satzende."
   intro_card:
@@ -406,6 +426,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Tense: Past, Aspect: Perf}
+  verification_class: computable
   syntax_tags: {VerbType: "AuxSein"}
   rule_hint: "Perfekt mit sein: Verben der Ortsveränderung (gehen, fahren), Zustandsänderung (aufwachen, sterben) sowie sein und bleiben."
   intro_card:
@@ -428,6 +449,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Dat}
+  verification_class: computable
   syntax_tags: {Pos: "Prep"}
   rule_hint: "Wechselpräposition + Dativ bei Ortsangabe (Wo? statische Position)."
   intro_card:
@@ -447,6 +469,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Acc}
+  verification_class: computable
   syntax_tags: {Pos: "Prep"}
   rule_hint: "Wechselpräposition + Akkusativ bei Richtungsangabe (Wohin? dynamische Bewegung)."
   intro_card:
@@ -466,6 +489,7 @@
   eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Tense: Past}
+  verification_class: computable
   rule_hint: "Präteritum: war/hatte und konnte/musste/wollte/durfte/sollte (ohne Umlaut!)."
   intro_card:
     summary: "Präteritum von 'sein', 'haben' und Modalverben"
@@ -484,6 +508,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Acc, Reflex: true}
+  verification_class: computable
   rule_hint: "Reflexivpronomen im Akkusativ: mich, dich, sich, uns, euch, sich."
   intro_card:
     summary: "Reflexive Verben mit Akkusativ"
@@ -502,6 +527,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Dat, Reflex: true}
+  verification_class: computable
   rule_hint: "Wenn bereits ein Akkusativobjekt im Satz steht, steht das Reflexivpronomen im Dativ: mir, dir, sich, uns, euch, sich."
   intro_card:
     summary: "Reflexivpronomen im Dativ"
@@ -523,6 +549,7 @@
   eligible_types: [transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: structural
   rule_hint: "Nomen: Dativ vor Akkusativ ('dem Mann den Brief'). Pronomen: Akkusativ vor Dativ ('ihn ihm')."
   intro_card:
     summary: "Wortstellung bei Dativ- und Akkusativobjekt"
@@ -541,6 +568,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Definite: Def}
+  verification_class: computable
   syntax_tags: {Declension: "Weak"}
   rule_hint: "Nach bestimmtem Artikel: Endung -e im Nominativ Singular (und Akk f/n); überall sonst -en!"
   intro_card:
@@ -560,6 +588,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Definite: Ind}
+  verification_class: computable
   syntax_tags: {Declension: "Mixed"}
   rule_hint: "Nach ein/kein/mein: Adjektiv zeigt Signalendung (-er für maskulin, -es für neutral, -e für feminin), im Dativ/Plural immer -en."
   intro_card:
@@ -587,6 +616,7 @@
   # 01-foundation.md:170. Declension: Strong stays in syntax_tags: it is a
   # consequence of (missing) definiteness, not an independent UD feature.
   morph_spec: {}
+  verification_class: computable
   syntax_tags: {ArtType: "Zero", Declension: "Strong"}
   rule_hint: "Ohne Artikel: Adjektiv übernimmt die Endungen des bestimmten Artikels (z.B. frischER Kaffee, kaltES Wasser, heißEM Tee)."
   intro_card:
@@ -610,6 +640,7 @@
   eligible_types: [cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Degree: CompOrSup}
+  verification_class: computable
   rule_hint: "Komparativ: Stamm + -er (schneller als). Superlativ: am ...-sten oder bestimmter Artikel + ...-ste."
   intro_card:
     summary: "Steigerung der Adjektive (Komparativ und Superlativ)"
@@ -628,6 +659,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: structural
   syntax_tags: {Subordinate: "true"}
   rule_hint: "Nach 'weil' und 'da' steht das konjugierte Verb ganz am Ende des Nebensatzes."
   intro_card:
@@ -647,6 +679,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: structural
   syntax_tags: {Subordinate: "true"}
   rule_hint: "Nach 'dass' steht das konjugierte Verb ganz am Satzende."
   intro_card:
@@ -666,6 +699,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: structural
   syntax_tags: {Subordinate: "true"}
   rule_hint: "Nach 'wenn' steht das konjugierte Verb am Ende des Nebensatzes."
   intro_card:
@@ -685,6 +719,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: structural
   syntax_tags: {Subordinate: "true"}
   rule_hint: "Indirekte Frage: 'ob' (bei Ja/Nein-Fragen) oder Fragewort + Verb am Ende."
   intro_card:
@@ -704,6 +739,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: semantic
   rule_hint: "ADUSO (aber, denn, und, sondern, oder) steht auf Position 0. Danach folgt normale Hauptsatz-Wortstellung (Subjekt + Verb auf 2)."
   intro_card:
     summary: "Koordinierende Konjunktionen auf Position 0 (ADUSO)"
@@ -722,6 +758,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Mood: SubjII}
+  verification_class: computable
   rule_hint: "Höflicher Konjunktiv II: Ich würde gern..., Könnten Sie mir helfen?, Hätten Sie Zeit?, Wären Sie so nett?"
   intro_card:
     summary: "Konjunktiv II der Höflichkeit"
@@ -740,6 +777,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Voice: Pass, Tense: Pres}
+  verification_class: computable
   rule_hint: "Vorgangspassiv Präsens: konjugiertes 'werden' + Partizip II am Satzende (z.B. Das Auto wird repariert)."
   intro_card:
     summary: "Vorgangspassiv im Präsens"
@@ -758,6 +796,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: computable
   rule_hint: "Infinitiv mit zu steht am Satzende. Bei trennbaren Verben: zwischen Vorsilbe und Stamm (z.B. einzukaufen)."
   intro_card:
     summary: "Infinitiv mit 'zu'"
@@ -776,6 +815,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: computable
   rule_hint: "'um ... zu + Infinitiv' drückt ein Ziel/eine Absicht aus (gleiches Subjekt wie im Hauptsatz)."
   intro_card:
     summary: "Finalsätze mit 'um...zu'"
@@ -801,6 +841,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: lexical_table
   syntax_tags: {Pos: "Prep"}
   rule_hint: "um (Uhrzeit), am (Tage/Tageszeiten), im (Monate/Jahreszeiten), seit (Dativ, dauert an), vor (Dativ, vergangen)."
   intro_card:
@@ -820,6 +861,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: lexical_table
   syntax_tags: {Pos: "Prep"}
   rule_hint: "nach + Städte/Länder ohne Artikel; in + Länder mit Artikel / Gebäude; zu + Personen/Gebäude; aus + Herkunft."
   intro_card:
@@ -839,6 +881,7 @@
   eligible_types: [paragraph_cloze, error_correction]
   requires_context: true
   morph_spec: {}
+  verification_class: semantic
   syntax_tags: {Pos: "Pron"}
   rule_hint: "dieser/welcher/jeder dekliniert genau wie der bestimmte Artikel (dieser, diese, dieses, diesem, diesen...)."
   intro_card:
@@ -868,6 +911,7 @@
   # its role inside its own clause. See src/taxonomy/facets.py's "RelPron"
   # category.
   morph_spec: {PronType: Rel}
+  verification_class: computable
   syntax_tags: {Subordinate: "true"}
   rule_hint: "Relativpronomen entspricht dem Genus des Bezugsworts; Kasus bestimmt die Rolle im Nebensatz (Verb am Ende)."
   intro_card:
@@ -887,6 +931,7 @@
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
   morph_spec: {Case: Dat}
+  verification_class: computable
   syntax_tags: {Subordinate: "true"}
   rule_hint: "Relativpronomen im Dativ: dem (m/n), der (f), denen (Plural!)."
   intro_card:
@@ -906,6 +951,7 @@
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: lexical_table
   syntax_tags: {Subordinate: "true"}
   rule_hint: "Die Präposition steht vor dem Relativpronomen und bestimmt dessen Kasus (z.B. das Haus, in dem ich wohne)."
   intro_card:
@@ -929,6 +975,7 @@
   # relative pronouns, not definite articles, and decode against the
   # dedicated relative-pronoun paradigm (dessen/deren), not the article one.
   morph_spec: {Case: Gen, PronType: Rel}
+  verification_class: computable
   syntax_tags: {Subordinate: "true"}
   rule_hint: "Genitiv-Relativpronomen: dessen (m/n), deren (f/Pl). Das folgende Nomen steht OHNE Artikel!"
   intro_card:
@@ -948,6 +995,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Gen}
+  verification_class: computable
   # facet_exempt, not an empty morph_spec: Case: Gen is still a real, useful
   # stage 4 morphology constraint. But the genitive article paradigm is
   # syncretic in a way that leaves no two distinct, resolvable Gender/Number
@@ -982,6 +1030,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Gen}
+  verification_class: computable
   syntax_tags: {Pos: "Prep"}
   rule_hint: "Genitiv-Präpositionen: wegen, während, trotz, statt, innerhalb, außerhalb + Genitiv."
   intro_card:
@@ -1001,6 +1050,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: lexical_table
   rule_hint: "Lerne Verb + Präposition + Kasus als feste Einheit (z.B. warten auf + Akk, sich interessieren für + Akk, teilnehmen an + Dat)."
   intro_card:
     summary: "Verben mit festen Präpositionen"
@@ -1024,6 +1074,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: lexical_table
   syntax_tags: {Pos: "Adv"}
   rule_hint: "da(r)- + Präposition für Sachen/Sachverhalte (damit, darüber). Bei Personen: Präposition + Pronomen (mit ihm, über sie)."
   intro_card:
@@ -1043,6 +1094,7 @@
   eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Tense: Past}
+  verification_class: computable
   rule_hint: "Präteritum schwache Verben: Stamm + -te/-test/-te/-ten/-tet/-ten. Starke Verben: Vokalwechsel (ging, schrieb, sah)."
   intro_card:
     summary: "Präteritum der Vollverben (Schriftsprache / Erzählung)"
@@ -1066,6 +1118,7 @@
   eligible_types: [cloze_free, cloze_cued, paragraph_cloze, error_correction]
   requires_context: false
   morph_spec: {Tense: PastPerf}
+  verification_class: computable
   rule_hint: "Plusquamperfekt: hatte/war im Präteritum + Partizip II am Satzende (drückt Vorzeitigkeit in der Vergangenheit aus)."
   intro_card:
     summary: "Plusquamperfekt (Vorvergangenheit)"
@@ -1087,6 +1140,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: semantic
   syntax_tags: {Subordinate: "true"}
   rule_hint: "'als' = einmalig in der Vergangenheit. 'wenn' = wiederholt in der Vergangenheit (immer wenn) oder Gegenwart/Zukunft."
   intro_card:
@@ -1111,6 +1165,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: semantic
   syntax_tags: {Subordinate: "true"}
   rule_hint: "während (Gleichzeitigkeit), nachdem (Vorzeitigkeit), bevor (Nachzeitigkeit), seitdem (Beginn), bis (Endpunkt) + Verb am Ende."
   intro_card:
@@ -1130,6 +1185,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: structural
   rule_hint: "'obwohl' = Nebensatz (Verb am Ende). 'trotzdem' = Hauptsatz-Adverb (Position 1, danach direkt Verb auf 2)."
   intro_card:
     summary: "Konzessive Verknüpfung: 'obwohl' vs. 'trotzdem'"
@@ -1148,6 +1204,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: structural
   rule_hint: "'sodass' = Nebensatz (Verb am Ende). 'deshalb/deswegen' = Hauptsatz (Position 1, Verb auf 2)."
   intro_card:
     summary: "Konsekutive Verknüpfung: 'sodass' vs. 'deshalb / deswegen'"
@@ -1172,6 +1229,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: semantic
   syntax_tags: {Subordinate: "true"}
   rule_hint: "'damit' + Nebensatz (bei verschiedenen oder gleichen Subjekten). 'um ... zu' (NUR bei gleichem Subjekt!)."
   intro_card:
@@ -1191,6 +1249,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: lexical_table
   rule_hint: "sowohl A als auch B (beides positiv); nicht nur A sondern auch B (Steigerung); weder A noch B (doppelte Verneinung ohne 'nicht')."
   intro_card:
     summary: "Zweiteilige Konnektoren (Kopulativ)"
@@ -1209,6 +1268,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: lexical_table
   rule_hint: "entweder A oder B (Alternative); zwar A, aber B (Einschränkung); einerseits A, andererseits B (zwei Perspektiven)."
   intro_card:
     summary: "Zweiteilige Konnektoren (Alternativ & Adversativ)"
@@ -1227,6 +1287,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: lexical_table
   rule_hint: "je + Komparativ ... (Verb am Ende), desto/umso + Komparativ + Verb auf Position 2."
   intro_card:
     summary: "Proportionalsätze mit 'je ... desto / umso'"
@@ -1245,6 +1306,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Mood: SubjII, Tense: Pres}
+  verification_class: computable
   rule_hint: "Irrealer Konjunktiv II Gegenwart: Wenn ich reich wäre, würde ich eine Weltreise machen."
   intro_card:
     summary: "Konjunktiv II: Irreale Gegenwart & Wünsche"
@@ -1263,6 +1325,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Mood: SubjII, Tense: Past}
+  verification_class: computable
   rule_hint: "Irrealer Konjunktiv II Vergangenheit: wäre / hätte + Partizip II (z.B. Wenn ich das gewusst hätte, wäre ich gekommen)."
   intro_card:
     summary: "Konjunktiv II der Vergangenheit"
@@ -1281,6 +1344,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Voice: Pass, Tense: Past}
+  verification_class: computable
   rule_hint: "Vorgangspassiv Präteritum: wurde / wurden + Partizip II am Satzende."
   intro_card:
     summary: "Vorgangspassiv im Präteritum"
@@ -1299,6 +1363,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Voice: Pass}
+  verification_class: computable
   syntax_tags: {VerbType: "Modal"}
   rule_hint: "Passiv mit Modalverb: Modalverb konjugiert auf Position 2, am Satzende: Partizip II + werden (Infinitiv)."
   intro_card:
@@ -1318,6 +1383,7 @@
   eligible_types: [transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: structural
   rule_hint: "sein + zu + Infinitiv = muss / kann getan werden; Adjektive auf -bar/-lich = kann getan werden (machbar, lesbar)."
   intro_card:
     summary: "Passiversatzformen (B1)"
@@ -1336,6 +1402,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Tense: FutI}
+  verification_class: computable
   rule_hint: "Futur I: konjugiertes 'werden' + Infinitiv am Satzende (z.B. Er wird morgen ankommen / Er wird wohl krank sein)."
   intro_card:
     summary: "Futur I (Zukunft und Vermutung)"
@@ -1357,6 +1424,7 @@
   eligible_types: [paragraph_cloze, error_correction]
   requires_context: true
   morph_spec: {Mood: SubjI}
+  verification_class: semantic
   rule_hint: "Konjunktiv I: Verbstamm + -e, -est, -e, -en, -et, -en (z.B. er habe, er sei, er wisse, er komme)."
   intro_card:
     summary: "Konjunktiv I: Indirekte Rede"
@@ -1375,6 +1443,7 @@
   eligible_types: [paragraph_cloze, error_correction]
   requires_context: true
   morph_spec: {Mood: SubjIErsatz}
+  verification_class: semantic
   rule_hint: "Wenn Konjunktiv I gleich Indikativ ist (z.B. 1. Sg / 1. & 3. Plural), verwende Konjunktiv II oder würde-Form."
   intro_card:
     summary: "Ersatzformen der indirekten Rede"
@@ -1393,6 +1462,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Voice: PassStat}
+  verification_class: computable
   rule_hint: "Zustandspassiv: konjugiertes 'sein' + Partizip II (beschreibt den fertigen Zustand / das Ergebnis)."
   intro_card:
     summary: "Zustandspassiv ('sein' + Partizip II)"
@@ -1411,6 +1481,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Voice: PassStat}
+  verification_class: computable
   rule_hint: "Präteritum Zustandspassiv: war + Partizip II. Perfekt: ist + Partizip II + gewesen."
   intro_card:
     summary: "Zustandspassiv in Vergangenheit und Zukunft"
@@ -1429,6 +1500,7 @@
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
   morph_spec: {Voice: Pass}
+  verification_class: computable
   # facet_exempt, not an empty morph_spec: Voice: Pass is still a real,
   # useful stage 4 morphology constraint (generated answers must be passive
   # forms of "werden"), so it stays. But impersonal passive is DEFINED by
@@ -1461,6 +1533,7 @@
   eligible_types: [paragraph_cloze, error_correction]
   requires_context: true
   morph_spec: {}
+  verification_class: semantic
   syntax_tags: {VerbType: "ModalEpistemic"}
   rule_hint: "Sicherheit: muss (fast 100%), dürfte (sehr wahrscheinlich ~75%), kann/könnte (möglich ~50%)."
   intro_card:
@@ -1480,6 +1553,7 @@
   eligible_types: [paragraph_cloze, error_correction]
   requires_context: true
   morph_spec: {}
+  verification_class: semantic
   syntax_tags: {VerbType: "ModalEpistemic"}
   rule_hint: "'soll' = man sagt über ihn (Gerücht); 'will' = er behauptet über sich selbst (Zweifel des Sprechers)."
   intro_card:
@@ -1499,6 +1573,7 @@
   eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Aspect: Prog}
+  verification_class: computable
   syntax_tags: {Pos: "Adj"}
   rule_hint: "Partizip I: Infinitiv + d + Adjektivendung (z.B. das spielende Kind, die lachenden Gäste)."
   intro_card:
@@ -1518,6 +1593,7 @@
   eligible_types: [cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Aspect: Perf}
+  verification_class: computable
   syntax_tags: {Pos: "Adj"}
   rule_hint: "Erweitertes Partizip: Artikel ... Angaben ... Partizip + Endung + Nomen (z.B. das [von Experten entwickelte] Programm)."
   intro_card:
@@ -1537,6 +1613,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: lexical_table
   rule_hint: "Feste Fügung aus Nomen + Präposition + Verb (z.B. zur Verfügung stehen = verfügbar sein; in Betracht ziehen = berücksichtigen)."
   intro_card:
     summary: "Funktionsverbgefüge (Nomen-Verb-Verbindungen)"
@@ -1555,6 +1632,7 @@
   eligible_types: [paragraph_cloze, transformation, error_correction]
   requires_context: true
   morph_spec: {}
+  verification_class: structural
   rule_hint: "Verbal: Weil es regnete... <-> Nominal: Wegen des Regens...; Verbal: Obwohl er krank war... <-> Nominal: Trotz seiner Krankheit..."
   intro_card:
     summary: "Nominalstil vs. Verbalstil"
@@ -1573,6 +1651,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {Case: Gen}
+  verification_class: computable
   syntax_tags: {Pos: "Prep"}
   rule_hint: "Gehobene Genitiv-Präpositionen: anhand, anlässlich, infolge, zugunsten, bezüglich, gemäß, mangels + Genitiv."
   intro_card:
@@ -1592,6 +1671,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: lexical_table
   rule_hint: "Lerne Nomen + Präposition + Kasus: das Interesse an (+ Dat), die Freude über/auf (+ Akk), die Angst vor (+ Dat)."
   intro_card:
     summary: "Nomen mit festen Präpositionen"
@@ -1610,6 +1690,7 @@
   eligible_types: [cloze_free, cloze_cued, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: lexical_table
   rule_hint: "Lerne Adjektiv + Präposition: stolz auf (+ Akk), zufrieden mit (+ Dat), interessiert an (+ Dat), verantwortlich für (+ Akk)."
   intro_card:
     summary: "Adjektive mit festen Präpositionen"
@@ -1628,6 +1709,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: semantic
   rule_hint: "ohne ... zu + Infinitiv (ohne dass etwas geschieht); anstatt ... zu + Infinitiv (Alternative, die nicht gewählt wurde)."
   intro_card:
     summary: "Infinitivkonstruktionen mit 'ohne...zu' und 'anstatt...zu'"
@@ -1654,6 +1736,7 @@
   eligible_types: [paragraph_cloze, error_correction]
   requires_context: true
   morph_spec: {}
+  verification_class: semantic
   syntax_tags: {Pos: "Part"}
   rule_hint: "Modalpartikeln verändern die Nuance: 'ja' (Bekanntes), 'doch' (Widerspruch/Erinnerung), 'denn' (Interesse), 'mal' (Höflichkeit)."
   intro_card:
@@ -1673,6 +1756,7 @@
   eligible_types: [cloze_free, transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: computable
   syntax_tags: {Subordinate: "true"}
   rule_hint: "'was' nach Indefinitpronomen (alles, nichts, etwas, vieles) und nominalisierten Superlativen (das Beste, was...). 'wo/wohin' nach Orten."
   intro_card:
@@ -1698,6 +1782,7 @@
   eligible_types: [paragraph_cloze, transformation, error_correction]
   requires_context: true
   morph_spec: {}
+  verification_class: semantic
   syntax_tags: {Pos: "Adv"}
   rule_hint: "Konnektivadverbien verbinden Sätze logisch: allerdings (Einschränkung), dennoch (Gegensatz), folglich (Schlussfolgerung)."
   intro_card:
@@ -1717,6 +1802,7 @@
   eligible_types: [transformation, error_correction]
   requires_context: false
   morph_spec: {}
+  verification_class: structural
   rule_hint: "sich lassen + Infinitiv = kann getan werden (z.B. Das Problem lässt sich lösen); zu + Partizip I = Gerundiv (die zu lösende Aufgabe)."
   intro_card:
     summary: "Erweiterte Passiversatzformen (B2)"
@@ -1735,6 +1821,7 @@
   eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
   requires_context: false
   morph_spec: {Tense: FutII}
+  verification_class: computable
   rule_hint: "Futur II: werden + Partizip II + haben/sein (z.B. Er wird wohl angekommen sein / Bis morgen werde ich es geschafft haben)."
   intro_card:
     summary: "Futur II (Vollendete Zukunft / Vermutung über Vergangenes)"

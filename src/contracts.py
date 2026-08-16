@@ -22,6 +22,12 @@ ItemType = Literal[
     "production",
 ]
 Difficulty = Literal[1, 2, 3]
+# docs/audits/generation-track-plan.md "Topic triage": which of the four
+# verification strategies a topic's gap admits. "computable" answers are
+# derivable from a closed morphological paradigm; "lexical_table" answers are
+# a finite dictionary lookup; "structural" answers are a checkable word
+# position; "semantic" topics have no mechanically checkable answer at all.
+VerificationClass = Literal["computable", "lexical_table", "structural", "semantic"]
 HintLevel = Literal[0, 1, 2, 3, 4]  # 0: none, 1: shape, 2: options, 3: rule stated, 4: revealed
 FsrsRating = Literal["again", "hard", "good", "easy"]
 ReviewMode = Literal["review", "duel", "challenge", "recalibration"]
@@ -123,6 +129,11 @@ class Topic(BaseModel):
     sibling_group: str | None = None
     confusion_group: str | None = None
     morph_spec: dict[str, Any] | None = None
+    # Optional (not required on the model) so that Topic instances built ad
+    # hoc in unrelated tests/fixtures keep working; data/taxonomy.yaml itself
+    # is expected to set this on every entry, and
+    # tests/test_taxonomy.py enforces that as a data invariant.
+    verification_class: VerificationClass | None = None
     syntax_tags: dict[str, str] = Field(default_factory=dict)
     rule_hint: str | None = None
     rule_de: str | None = None

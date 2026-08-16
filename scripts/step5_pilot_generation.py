@@ -21,10 +21,12 @@ ceiling is reached.
 import argparse
 import sys
 
-from src.contracts import Difficulty
+from src.contracts import Difficulty, VerificationClass
 from src.generation.batch_client import DEFAULT_DB_PATH
 from src.generation.deficits import NIGHTLY_ITEM_CAP
 from src.generation.pilot import (
+    ALL_VERIFICATION_CLASSES,
+    DEFAULT_PILOT_CLASSES,
     DEFAULT_PILOT_ITEM_COUNT,
     DEFAULT_REJECTED_PATH,
     DEFAULT_REVIEW_PATH,
@@ -68,6 +70,23 @@ def _print_report(report: PilotRunReport) -> None:
         "gate procedure (100 items, per-defect breakdown, stop above ~15% post-verifier "
         "error rate) before running any full top-up."
     )
+
+
+def _parse_classes(raw: str) -> tuple[VerificationClass, ...]:
+    """Parse a comma-separated ``--classes`` argument into a tuple of valid
+    verification classes, rejecting anything outside
+    ``ALL_VERIFICATION_CLASSES`` loudly rather than passing an unvalidated
+    string through to the contract, mirroring ``_parse_difficulties``."""
+    values: list[VerificationClass] = []
+    for part in raw.split(","):
+        value = part.strip()
+        if value not in ALL_VERIFICATION_CLASSES:
+            raise SystemExit(
+                f"Invalid --classes value '{value}': must be one of "
+                f"{', '.join(ALL_VERIFICATION_CLASSES)}."
+            )
+        values.append(value)  # type: ignore[arg-type]
+    return tuple(values)
 
 
 def _parse_difficulties(raw: str) -> tuple[Difficulty, ...]:
@@ -118,6 +137,19 @@ def main() -> int:
         help="Comma-separated difficulty tiers to spread across (default 1,2,3).",
     )
     parser.add_argument(
+        "--classes",
+        type=str,
+        default=",".join(DEFAULT_PILOT_CLASSES),
+        help=(
+            "Comma-separated verification classes to restrict the run to, from "
+            f"{', '.join(ALL_VERIFICATION_CLASSES)} (default "
+            f"{','.join(DEFAULT_PILOT_CLASSES)}, i.e. 'semantic' excluded because "
+            "it has no mechanically checkable answer; see "
+            "docs/audits/generation-track-plan.md 'Topic triage'). Composes with "
+            "--cefr: both filters apply together."
+        ),
+    )
+    parser.add_argument(
         "--db", type=str, default=str(DEFAULT_DB_PATH), help="Path to the SQLite item bank."
     )
     parser.add_argument(
@@ -146,12 +178,14 @@ def main() -> int:
     load_env_file()
 
     difficulties = _parse_difficulties(args.difficulties)
+    classes = _parse_classes(args.classes)
 
     try:
         report = run_pilot(
             item_count=args.count,
             topics_per_cefr=args.topics_per_cefr,
             cefr=args.cefr,
+            classes=classes,
             difficulties=difficulties,
             db_path=args.db,
             review_path=args.review_file,

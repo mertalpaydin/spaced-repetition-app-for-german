@@ -13,7 +13,13 @@ from src.generation.deficits import (
     compute_deficit,
     compute_topic_deficits,
 )
-from src.generation.pilot import build_pilot_requests, run_pilot, select_pilot_topics
+from src.generation.pilot import (
+    ALL_VERIFICATION_CLASSES,
+    DEFAULT_PILOT_CLASSES,
+    build_pilot_requests,
+    run_pilot,
+    select_pilot_topics,
+)
 from src.llm.client import CostLogRow, GeminiLlmClient
 from src.llm.minimal_pairs import MinimalPairGenerator
 from src.llm.production_grader import ProductionGrader
@@ -355,6 +361,80 @@ def test_select_pilot_topics_spreads_across_cefr_bands() -> None:
         assert count_selected == min(2, count_available)
 
 
+def test_select_pilot_topics_default_classes_excludes_semantic() -> None:
+    """By default (no ``--classes`` override) a pilot never draws a 'semantic'
+    topic: docs/audits/generation-track-plan.md 'Topic triage' establishes
+    that class has no mechanically checkable answer, so it must be an opt-in,
+    not something a plain pilot run stumbles into."""
+    topics = load_taxonomy()
+    assert any(t.verification_class == "semantic" for t in topics), (
+        "expected at least one semantic topic in the real taxonomy for this test to be meaningful"
+    )
+
+    selected = select_pilot_topics(topics, topics_per_cefr=100)  # every topic per band
+
+    assert selected, "expected a non-empty selection"
+    assert all(t.verification_class != "semantic" for t in selected)
+    assert all(t.verification_class in DEFAULT_PILOT_CLASSES for t in selected)
+
+
+def test_select_pilot_topics_classes_filter_selects_only_requested_classes() -> None:
+    """``classes`` restricts the pool to exactly the requested
+    ``verification_class`` values, nothing else."""
+    topics = load_taxonomy()
+
+    selected = select_pilot_topics(topics, topics_per_cefr=100, classes=("lexical_table",))
+
+    assert selected, "expected at least one lexical_table topic"
+    assert all(t.verification_class == "lexical_table" for t in selected)
+
+
+def test_select_pilot_topics_classes_none_includes_semantic() -> None:
+    """``classes=None`` disables the class filter entirely, so a caller can
+    still explicitly opt into every verification class including 'semantic'."""
+    topics = load_taxonomy()
+
+    selected = select_pilot_topics(topics, topics_per_cefr=100, classes=None)
+
+    assert any(t.verification_class == "semantic" for t in selected)
+    assert {t.verification_class for t in selected} <= set(ALL_VERIFICATION_CLASSES)
+
+
+def test_select_pilot_topics_classes_composes_with_cefr() -> None:
+    """The ``classes`` and ``cefr`` filters compose: a run scoped to one CEFR
+    band and one verification class only ever returns topics matching BOTH."""
+    topics = load_taxonomy()
+
+    selected = select_pilot_topics(topics, cefr="B2", classes=("semantic",))
+
+    assert selected, "expected at least one B2 semantic topic (e.g. modalpartikeln)"
+    assert all(t.cefr == "B2" and t.verification_class == "semantic" for t in selected)
+
+    # And the same class filter against a band with no matching topics raises,
+    # rather than silently returning an empty (and useless) pilot run.
+    all_a1_classes = {t.verification_class for t in topics if t.cefr == "A1"}
+    assert "semantic" not in all_a1_classes, (
+        "expected A1 to have no semantic topics for this test to be meaningful"
+    )
+    with pytest.raises(ValueError, match="No topics at CEFR level"):
+        select_pilot_topics(topics, cefr="A1", classes=("semantic",))
+
+
+def test_step5_parse_classes_accepts_the_default_and_rejects_garbage() -> None:
+    """scripts/step5_pilot_generation.py's --classes parser mirrors
+    --difficulties: valid comma-separated verification classes parse to a
+    tuple, and anything outside the allowed set exits loudly instead of being
+    passed through unvalidated."""
+    from scripts.step5_pilot_generation import _parse_classes
+
+    assert _parse_classes(",".join(DEFAULT_PILOT_CLASSES)) == DEFAULT_PILOT_CLASSES
+    assert _parse_classes("semantic") == ("semantic",)
+    assert _parse_classes("computable, structural") == ("computable", "structural")
+
+    with pytest.raises(SystemExit, match="Invalid --classes value"):
+        _parse_classes("not_a_real_class")
+
+
 def test_build_pilot_requests_spreads_across_topics_not_one_topic() -> None:
     """A pilot request set must not concentrate every item on a single topic:
     every sampled topic contributes at least one request."""
@@ -410,6 +490,7 @@ def _write_pilot_taxonomy(path: Path) -> list[dict[str, object]]:
             "eligible_types": ["cloze_free"],
             "requires_context": False,
             "morph_spec": {"Case": "Dat"},
+            "verification_class": "computable",
             "syntax_tags": {"Pos": "Prep"},
         },
         {
@@ -421,6 +502,7 @@ def _write_pilot_taxonomy(path: Path) -> list[dict[str, object]]:
             "eligible_types": ["cloze_free"],
             "requires_context": False,
             "morph_spec": {"Case": "Dat"},
+            "verification_class": "computable",
             "syntax_tags": {"Pos": "Prep"},
         },
     ]
