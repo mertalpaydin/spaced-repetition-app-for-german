@@ -5,7 +5,6 @@ target_form: Two-way prepositions governing Dative when expressing static locati
 item_types:
 - cloze_free
 - cloze_cued
-- error_correction
 max_tokens_per_sentence: 18
 vocabulary_ceiling: A2
 difficulty_tiers:

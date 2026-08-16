@@ -4,7 +4,6 @@ target_form: 'Question structures: W-questions (W-word on 1, Verb on 2) vs Yes/N
   questions (Verb on 1).'
 item_types:
 - transformation
-- error_correction
 max_tokens_per_sentence: 14
 vocabulary_ceiling: A1
 difficulty_tiers:

@@ -1092,6 +1092,12 @@ def kasus_genitiv_topic() -> Topic:
     return next(t for t in taxonomy if t.id == "kasus_genitiv_formen")
 
 
+@pytest.fixture
+def artikel_unbestimmt_kein_topic() -> Topic:
+    taxonomy = load_taxonomy()
+    return next(t for t in taxonomy if t.id == "artikel_unbestimmt_kein_nom")
+
+
 def test_check_ambiguity_rejects_mixed_article_types(artikel_bestimmt_topic: Topic) -> None:
     """docs/audits/.../item 1: an artikel_bestimmt_nom item accepting
     'Der, Ein, Mein, Dein, Sein, Ihr, Unser, Euer, Dieser, Kein' does not
@@ -1188,6 +1194,58 @@ def test_check_ambiguity_ignores_topics_with_no_identity_signal(
     assert AnswerSetExpander.check_ambiguity(answers, topic) is None
 
 
+def test_determiner_art_type_recognizes_demonstratives() -> None:
+    """Regression: 'dieser'/'jener' and their declined forms had no
+    closed-class table at all, so ``determiner_art_type`` returned "Unk" for
+    every demonstrative -- and "Unk" reads to every consumer of this
+    function as "no opinion, do not block". Demonstratives now get their own
+    "Dem" bucket, distinct from Def/Ind/Neg/Poss."""
+    from src.taxonomy.facets import determiner_art_type
+
+    for form in ("dieser", "diese", "dieses", "diesen", "diesem"):
+        assert determiner_art_type(form) == "Dem", form
+    for form in ("jener", "jene", "jenes", "jenen", "jenem"):
+        assert determiner_art_type(form) == "Dem", form
+    # Case-insensitive, matching every other lookup in this module.
+    assert determiner_art_type("Diese") == "Dem"
+    # Still unrelated to the other buckets.
+    assert determiner_art_type("der") == "Def"
+    assert determiner_art_type("mein") == "Poss"
+
+
+def test_check_ambiguity_rejects_definite_vs_demonstrative(artikel_bestimmt_topic: Topic) -> None:
+    """Real pilot defect: 'Wir sehen eine Katze. ___ Katze schläft.'
+    accepted both 'Die' (Def) and 'Diese' (Dem) -- a demonstrative is not an
+    interchangeable alternative to the definite article, it asserts
+    something the definite article does not (contrastive/deictic
+    selection)."""
+    reason = AnswerSetExpander.check_ambiguity(["Die", "Diese"], artikel_bestimmt_topic)
+    assert reason is not None
+    assert "determiner type" in reason.lower()
+
+
+def test_check_ambiguity_rejects_negative_vs_demonstrative(
+    artikel_unbestimmt_kein_topic: Topic,
+) -> None:
+    """Real pilot defect: 'Da draußen im Regen steht ___ Mann, der...'
+    accepted both 'kein' (Neg) and 'dieser' (Dem) -- opposite meanings
+    ("no man" vs. "this man"), both passing unflagged before demonstratives
+    had their own determiner type."""
+    reason = AnswerSetExpander.check_ambiguity(["kein", "dieser"], artikel_unbestimmt_kein_topic)
+    assert reason is not None
+    assert "determiner type" in reason.lower()
+
+
+def test_check_ambiguity_rejects_indefinite_vs_demonstrative(
+    artikel_unbestimmt_kein_topic: Topic,
+) -> None:
+    """Real pilot defect: 'Der Tisch ist neu. Dort steht ___ Lampe.'
+    accepted both 'eine' (Ind) and 'diese' (Dem)."""
+    reason = AnswerSetExpander.check_ambiguity(["eine", "diese"], artikel_unbestimmt_kein_topic)
+    assert reason is not None
+    assert "determiner type" in reason.lower()
+
+
 def test_filter_alternatives_by_target_form_drops_wrong_lemma(futur_i_topic: Topic) -> None:
     """fix 2: an alternative carrying a different verb lemma than the
     proposed answer is dropped before it can ever reach accepted_answers."""
@@ -1230,10 +1288,19 @@ def test_layer5_repairs_item_when_fix2_drops_the_mismatched_alternative(
 ) -> None:
     """End-to-end: fix 2 drops an indefinite alternative proposed for a
     definite-article topic before it ever reaches accepted_answers, so the
-    item is repaired (accepted, without the bad alternative), not rejected."""
+    item is repaired (accepted, without the bad alternative), not rejected.
+
+    ``type`` is ``paragraph_cloze``, not ``error_correction``: fix
+    (5-fix-set) "error_correction has no gap, by design" withdrew
+    ``error_correction`` from every topic's ``eligible_types`` in
+    ``data/taxonomy.yaml`` (it was never actually implemented -- the
+    generator does not produce it correctly and nothing verifies it), so
+    ``artikel_bestimmt_nom``'s own eligible types are now just
+    ``paragraph_cloze``, which this topic's ``requires_context: true``
+    already called for."""
     item = CandidateItem(
         topic_id="artikel_bestimmt_nom",
-        type="error_correction",
+        type="paragraph_cloze",
         difficulty=1,
         prompt="___ Hund bellt laut im Hof.",
         proposed_answer="Der",
@@ -1253,20 +1320,32 @@ def test_layer5_repairs_item_when_fix2_drops_the_mismatched_alternative(
     assert "Ein" not in res.accepted_answers
 
 
-def test_layer5_ambiguity_check_is_a_backstop_when_fix2_cannot_filter(
+def test_layer5_fix2_now_resolves_demonstrative_references_directly(
     artikel_possessiv_topic: Topic,
 ) -> None:
-    """fix 2 only filters per-candidate against ``proposed_answer``'s OWN
-    resolved form; when that reference itself does not resolve (here:
-    'Dieser', a demonstrative this taxonomy has no closed-class table for --
-    but a legitimate Nominative possessive-slot answer per
-    ``CASE_FORM_FALLBACK``, so it clears layer 2), fix 2 keeps every
-    alternative unfiltered. fix 1's mutual-consistency check over the final
-    set is what still catches two alternatives that disagree with EACH
-    OTHER in that case."""
+    """Superseded regression: this test used to be named
+    ``..._is_a_backstop_when_fix2_cannot_filter`` and demonstrated that fix
+    2 (``filter_alternatives_by_target_form``) could NOT resolve 'Dieser'
+    (no closed-class table had a demonstrative entry, so
+    ``determiner_art_type`` returned "Unk" and fix 2 passed every
+    alternative through unfiltered), leaving fix 1's mutual-consistency
+    check (``check_ambiguity``) as the only thing that still caught 'Der'
+    and 'Mein' disagreeing with each other.
+
+    The largest defect class found by a later audit was exactly this hole:
+    a demonstrative reads as compatible with every other determiner type
+    because it has no type of its own. Now that ``determiner_art_type``
+    recognises demonstratives as their own ``"Dem"`` bucket, fix 2 resolves
+    'Dieser' directly and drops 'Der' (Def) and 'Mein' (Poss) itself before
+    the mutual-consistency backstop is ever needed -- the item is repaired
+    down to its own reference answer, not rejected. Kept as a positive
+    regression (rather than deleted) precisely because it used to encode the
+    now-fixed permissive behaviour: CLAUDE.md 7 requires this be explained,
+    not silently dropped.
+    """
     item = CandidateItem(
         topic_id="artikel_possessiv_nom",
-        type="error_correction",
+        type="paragraph_cloze",
         difficulty=1,
         prompt="___ Hund bellt laut im Hof.",
         proposed_answer="Dieser",
@@ -1282,9 +1361,8 @@ def test_layer5_ambiguity_check_is_a_backstop_when_fix2_cannot_filter(
 
     res = pipeline.verify_item(item, topic=artikel_possessiv_topic)
 
-    assert not res.passed
-    assert res.layer_failed == 5
-    assert res.error_type == "ambiguity"
+    assert res.passed, f"unexpected rejection: {res.reason}"
+    assert res.accepted_answers == ["Dieser"]
 
 
 def test_layer5_drops_hallucinated_alternative_not_real_word(
@@ -1588,6 +1666,247 @@ def test_filter_by_cue_consistency_rejects_outright_when_primary_contradicts_cue
     assert answers == []
     assert reason is not None
     assert "self-contradictory" in reason
+
+
+def test_filter_by_cue_consistency_noop_with_empty_string_cue() -> None:
+    """Regression: the model routinely emits ``cue: ""`` for an item with no
+    real cue, rather than omitting the field. A prior fix only special-cased
+    ``cue=None`` and left the empty string falling through to the "cue is
+    set" branch, so ``lemma_candidates("")`` never matched anything and
+    every such item was rejected outright as self-contradictory (36
+    rejections in one pilot) even though it never had a cue to begin with.
+    Whitespace-only must be treated the same way."""
+    item = CandidateItem(
+        topic_id="nebensatz_wenn",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Wenn du Zeit hast, helfen wir ___.",
+        proposed_answer="das",
+        distractors=[Distractor(text="dir"), Distractor(text="dich"), Distractor(text="dem")],
+        cue="",
+    )
+    answers, reason = AnswerSetExpander.filter_by_cue_consistency(["das"], item)
+    assert reason is None
+    assert answers == ["das"]
+
+    whitespace_item = item.model_copy(update={"cue": "   "})
+    answers, reason = AnswerSetExpander.filter_by_cue_consistency(["das"], whitespace_item)
+    assert reason is None
+    assert answers == ["das"]
+
+
+# ----------------------------------------------------------------------
+# Fix 5 (cue degree consistency), unit-tested directly against
+# AnswerSetExpander, plus one end-to-end pipeline test.
+# ----------------------------------------------------------------------
+
+
+def _degree_cued_item(proposed_answer: str) -> CandidateItem:
+    return CandidateItem(
+        topic_id="adjektiv_komparativ_superlativ",
+        type="cloze_cued",
+        difficulty=2,
+        prompt="Das ist das ___ (groß) Fenster im ganzen Haus.",
+        proposed_answer=proposed_answer,
+        distractors=[Distractor(text="kleine"), Distractor(text="alte"), Distractor(text="neue")],
+        cue="groß",
+    )
+
+
+def test_filter_by_cue_degree_noop_without_cue() -> None:
+    """No cue at all is a no-op: the answers pass through unchanged."""
+    item = _degree_cued_item("große").model_copy(update={"cue": None})
+    answers, reason = AnswerSetExpander.filter_by_cue_degree(["große", "größte"], item)
+    assert reason is None
+    assert answers == ["große", "größte"]
+
+
+def test_filter_by_cue_degree_drops_superlative_when_cue_is_positive() -> None:
+    """Real pilot defect: 'das ___ (groß) Fenster' cue 'groß' (positive)
+    accepted both 'große' (Pos, correct) and 'größte' (Sup, wrong) -- the
+    cue names the citation form the learner inflects, not a licence to
+    switch the degree of comparison."""
+    item = _degree_cued_item("große")
+    answers, reason = AnswerSetExpander.filter_by_cue_degree(["große", "größte"], item)
+    assert reason is None
+    assert answers == ["große"]
+
+
+def test_filter_by_cue_degree_rejects_outright_when_primary_is_wrong_degree() -> None:
+    """If the PRIMARY answer itself is the wrong degree for its own cue, the
+    item is self-contradictory and must be rejected outright."""
+    item = _degree_cued_item("größte")
+    answers, reason = AnswerSetExpander.filter_by_cue_degree(["größte"], item)
+    assert answers == []
+    assert reason is not None
+    assert "self-contradictory" in reason
+
+
+def test_filter_by_cue_degree_noop_for_a_non_degree_cue() -> None:
+    """A verb cue (e.g. 'kochen') has no Degree at all -- the tagger simply
+    never marks Degree on a verb, so this must fail open rather than reject
+    on a dimension the cue was never claiming in the first place."""
+    item = CandidateItem(
+        topic_id="nebensatz_wenn",
+        type="cloze_cued",
+        difficulty=2,
+        prompt="Wenn er Hunger hat, ___ er sich eine Suppe.",
+        proposed_answer="kocht",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+        cue="kochen",
+    )
+    answers, reason = AnswerSetExpander.filter_by_cue_degree(["kocht"], item)
+    assert reason is None
+    assert answers == ["kocht"]
+
+
+def test_layer5_fix5_drops_superlative_alternative_for_a_positive_cue(
+    adjektiv_komparativ_topic: Topic,
+) -> None:
+    """End-to-end: the semantic layer proposes 'größte' as an additional
+    accepted answer for a cue-'groß' item; fix 5 drops it before it ever
+    reaches ``accepted_answers``, repairing the item rather than rejecting
+    it."""
+    item = _degree_cued_item("große")
+    pipeline = VerificationPipeline(llm_client=_extras_llm(["größte"]))  # type: ignore[arg-type]
+
+    res = pipeline.verify_item(item, topic=adjektiv_komparativ_topic)
+
+    assert res.passed, f"unexpected rejection: {res.reason}"
+    assert res.accepted_answers == ["große"]
+
+
+# ----------------------------------------------------------------------
+# Fix 4 (possessive person agreement), unit-tested directly against
+# AnswerSetExpander, plus one end-to-end pipeline test.
+# ----------------------------------------------------------------------
+
+
+def _possessive_item(prompt: str, proposed_answer: str) -> CandidateItem:
+    return CandidateItem(
+        topic_id="artikel_possessiv_nom",
+        type="paragraph_cloze",
+        difficulty=1,
+        prompt=prompt,
+        proposed_answer=proposed_answer,
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+
+
+def test_check_possessive_person_agreement_noop_for_non_possessive_topic(
+    artikel_bestimmt_topic: Topic,
+) -> None:
+    """A no-op for any topic that is not a possessive-article topic."""
+    item = _possessive_item("Anna kocht gern, weil ___ Küche sehr groß ist.", "die").model_copy(
+        update={"topic_id": "artikel_bestimmt_nom"}
+    )
+    answers, reason = AnswerSetExpander.check_possessive_person_agreement(
+        ["die"], item, artikel_bestimmt_topic
+    )
+    assert reason is None
+    assert answers == ["die"]
+
+
+def test_check_possessive_person_agreement_drops_wrong_persons(
+    artikel_possessiv_topic: Topic,
+) -> None:
+    """Real pilot defect: 'Anna kocht gern, weil ___ Küche sehr groß ist.'
+    accepted 'ihre' (Anna, 3rd singular -- correct), 'diese' (a
+    demonstrative, caught separately by fix 3), 'unsere' (1st plural) and
+    'meine' (1st singular). Beyond the demonstrative, three different
+    persons were accepted with nothing in the sentence choosing between
+    them; only 'ihre' agrees with the established possessor 'Anna'."""
+    item = _possessive_item("Anna kocht gern, weil ___ Küche sehr groß ist.", "ihre")
+    answers, reason = AnswerSetExpander.check_possessive_person_agreement(
+        ["ihre", "unsere", "meine"], item, artikel_possessiv_topic
+    )
+    assert reason is None
+    assert answers == ["ihre"]
+
+
+def test_check_possessive_person_agreement_rejects_outright_when_primary_disagrees(
+    artikel_possessiv_topic: Topic,
+) -> None:
+    """If the PRIMARY answer itself does not agree with the established
+    possessor, the item is self-contradictory and must be rejected
+    outright, not merely repaired down to an empty set."""
+    item = _possessive_item("Anna kocht gern, weil ___ Küche sehr groß ist.", "unsere")
+    answers, reason = AnswerSetExpander.check_possessive_person_agreement(
+        ["unsere"], item, artikel_possessiv_topic
+    )
+    assert answers == []
+    assert reason is not None
+    assert "self-contradictory" in reason
+
+
+def test_check_possessive_person_agreement_rejects_when_no_possessor_established(
+    artikel_possessiv_topic: Topic,
+) -> None:
+    """A bare, contextless carrier with no pronoun or proper noun anywhere
+    in the sentence establishes no possessor at all; a possessive-topic item
+    that cannot be resolved this way is under-constrained, not silently
+    accepted on whichever person the generator happened to propose."""
+    item = _possessive_item("___ Buch liegt auf dem Tisch.", "mein")
+    answers, reason = AnswerSetExpander.check_possessive_person_agreement(
+        ["mein", "dein"], item, artikel_possessiv_topic
+    )
+    assert answers == []
+    assert reason is not None
+    assert "under-constrained" in reason
+
+
+def test_check_possessive_person_agreement_noop_when_no_possessive_answer_survives(
+    artikel_possessiv_topic: Topic,
+) -> None:
+    """If an earlier stage already narrowed the accepted set down to
+    non-possessive-form answers only (e.g. a demonstrative fix 3 alone
+    would resolve), there is nothing left for THIS check to validate a
+    possessor against, even with no possessor established in the carrier --
+    it must not manufacture a rejection out of an empty carrier a different
+    check already made moot."""
+    item = _possessive_item("___ Hund bellt laut im Hof.", "Dieser")
+    answers, reason = AnswerSetExpander.check_possessive_person_agreement(
+        ["Dieser"], item, artikel_possessiv_topic
+    )
+    assert reason is None
+    assert answers == ["Dieser"]
+
+
+def test_layer5_fix4_drops_wrong_person_possessives(artikel_possessiv_topic: Topic) -> None:
+    """End-to-end: the semantic layer proposes 'unsere' and 'meine' as
+    additional accepted answers for a possessive item whose carrier
+    establishes 'Anna' (3rd singular) as the possessor; fix 4 drops both
+    before they ever reach ``accepted_answers``."""
+    item = _possessive_item("Anna kocht gern, weil ___ Küche sehr groß ist.", "ihre")
+    pipeline = VerificationPipeline(  # type: ignore[arg-type]
+        llm_client=_extras_llm(["unsere", "meine"])
+    )
+
+    res = pipeline.verify_item(item, topic=artikel_possessiv_topic)
+
+    assert res.passed, f"unexpected rejection: {res.reason}"
+    assert res.accepted_answers == ["ihre"]
+
+
+def test_layer5_fix3_and_fix4_together_reproduce_the_full_audit_example(
+    artikel_possessiv_topic: Topic,
+) -> None:
+    """The literal combined audit example: 'Anna kocht gern, weil ___ Küche
+    sehr groß ist.' accepted 'ihre', 'diese', 'unsere' and 'meine' all at
+    once. Fix 3 (Dem determiner type) drops 'diese' via fix 2's
+    target-form filter; fix 4 (possessive person agreement) drops 'unsere'
+    and 'meine'. Only the correct 'ihre' survives -- fixes 3 and 4 acting
+    together, exactly as a real pilot run would exercise them, not each in
+    isolation."""
+    item = _possessive_item("Anna kocht gern, weil ___ Küche sehr groß ist.", "ihre")
+    pipeline = VerificationPipeline(  # type: ignore[arg-type]
+        llm_client=_extras_llm(["diese", "unsere", "meine"])
+    )
+
+    res = pipeline.verify_item(item, topic=artikel_possessiv_topic)
+
+    assert res.passed, f"unexpected rejection: {res.reason}"
+    assert res.accepted_answers == ["ihre"]
 
 
 def test_check_facet_derivability_rejects_when_facet_is_all_unk(

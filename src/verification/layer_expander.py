@@ -91,6 +91,41 @@ _SUPPLEMENTARY_VERB_LEMMA: dict[str, str] = {"hättest": "haben"}
 # reason string built from either module reads consistently.
 _UNK = "Unk"
 
+# Possessive determiner stems (see ``src.taxonomy.facets._EIN_WORD_STEMS``,
+# the same closed word class) and the (Person, Number) pair(s) of possessor
+# each one asserts. "ihr" is genuinely ambiguous on its own (both "her" --
+# a single 3rd-person possessor -- and "their" -- a plural 3rd-person
+# possessor -- share the surface form), so it carries both candidate pairs;
+# every other stem is unambiguous. Longest-stem-first order matters: "euer"
+# must be tried before its own contracted stem "eur" (both map to the same
+# pair here, so the order is for correctness of the general pattern, not
+# because the two answers differ).
+_POSSESSIVE_STEM_PERSON_NUMBER: dict[str, frozenset[tuple[str, str]]] = {
+    "unser": frozenset({("1", "Plur")}),
+    "euer": frozenset({("2", "Plur")}),
+    "mein": frozenset({("1", "Sing")}),
+    "dein": frozenset({("2", "Sing")}),
+    "sein": frozenset({("3", "Sing")}),
+    "ihr": frozenset({("3", "Sing"), ("3", "Plur")}),
+    "eur": frozenset({("2", "Plur")}),
+}
+_POSSESSIVE_STEMS_LONGEST_FIRST: tuple[str, ...] = tuple(
+    sorted(_POSSESSIVE_STEM_PERSON_NUMBER, key=len, reverse=True)
+)
+
+
+def _possessive_person_number(answer: str) -> frozenset[tuple[str, str]] | None:
+    """The set of (Person, Number) pairs ``answer`` asserts about its
+    possessor, if ``answer`` is a recognisable possessive-determiner form,
+    else ``None`` (not a possessive at all, e.g. a demonstrative or definite
+    article -- callers must treat this the same as "no opinion", not as a
+    mismatch)."""
+    lower = answer.strip().lower()
+    for stem in _POSSESSIVE_STEMS_LONGEST_FIRST:
+        if lower.startswith(stem):
+            return _POSSESSIVE_STEM_PERSON_NUMBER[stem]
+    return None
+
 
 def _lemma_guess(word: str) -> str | None:
     """Best-effort canonical lemma for ``word``, using
@@ -501,17 +536,17 @@ class AnswerSetExpander:
         already-expanded accepted-answer list) itself is not a form of the
         cue, the item is self-contradictory and ``rejection_reason`` is
         non-``None``; callers must reject the whole item, not merely drop
-        the primary. When ``item.cue`` is ``None`` this is a no-op --
-        ``accepted_answers`` returned unchanged, ``None`` reason.
-
-        Uses set-membership between two answers' OWN candidate lists rather
-        than picking one "the" canonical lemma for either side, exactly
-        because ``lemma_candidates`` makes no claim to return a single
-        correct lemma (see its own module docstring) -- two forms of the
-        same verb reliably share at least one candidate in common even when
-        neither list agrees on which candidate is "the" infinitive.
+        the primary. When ``item.cue`` is absent this is a no-op --
+        ``accepted_answers`` returned unchanged, ``None`` reason. "Absent"
+        means ``None`` OR empty/whitespace-only: the model routinely emits
+        ``cue: ""`` for an uncued item rather than omitting the field, and a
+        truthiness/``is None`` check alone treats that empty string as a
+        real cue whose own lemma is the empty string, which
+        ``lemma_candidates("")`` never matches -- every item the model
+        submits with an empty cue was rejected outright as
+        "self-contradictory" (36 in one pilot) despite having no cue at all.
         """
-        if item.cue is None:
+        if item.cue is None or not item.cue.strip():
             return accepted_answers, None
 
         from src.lexicon.lemmatizer import lemma_candidates
@@ -528,6 +563,154 @@ class AnswerSetExpander:
                 "self-contradictory."
             )
         return [a for a in accepted_answers if _matches_cue(a)], None
+
+    @classmethod
+    def filter_by_cue_degree(
+        cls, accepted_answers: list[str], item: CandidateItem
+    ) -> tuple[list[str], str | None]:
+        """Cue degree consistency: a cue names the adjective's citation
+        (positive) form, e.g. "(groß)" for "das ___ (groß) Fenster" -- the
+        learner is meant to inflect that word, not switch it for a
+        different degree of comparison. "große" (Degree=Pos) is the correct
+        inflection; "größte" (Degree=Sup) is a different word that happens
+        to share a stem, exactly the same category of defect
+        ``filter_by_cue_consistency`` catches for a different lexeme
+        entirely -- both accepted for one cloze_cued item ("das ___ (groß)
+        Fenster") is the concrete pilot defect this guards against.
+
+        Uses ``src.taxonomy.tagger.tag_answer`` to read ``Degree`` off both
+        the cue (filled into the gap in ``item.proposed_answer``'s place, so
+        it parses in a complete sentence) and each candidate answer. Only
+        acts when BOTH the cue's own Degree and a candidate's Degree can be
+        resolved: no tagger, no gap, or a cue/answer the tagger does not
+        mark for Degree at all (this check no-ops entirely for a verb or
+        noun cue, which legitimately has no Degree) all fail open --
+        "skip rather than guess", the same posture every other tagger-backed
+        check in this module takes. Mirrors ``filter_by_cue_consistency``'s
+        return shape: ``(filtered_answers, rejection_reason)``, the PRIMARY
+        answer's own mismatch rejecting the whole item outright rather than
+        merely dropping it.
+        """
+        if item.cue is None or not item.cue.strip():
+            return accepted_answers, None
+
+        from src.taxonomy import tagger as _tagger
+
+        cue_tag = _tagger.tag_answer(item.prompt, item.cue.strip())
+        if cue_tag is None:
+            return accepted_answers, None
+        required_degree = cue_tag.feats.get("Degree")
+        if required_degree is None:
+            return accepted_answers, None
+
+        def _degree_ok(answer: str) -> bool:
+            tag = _tagger.tag_answer(item.prompt, answer)
+            if tag is None:
+                return True
+            degree = tag.feats.get("Degree")
+            if degree is None:
+                return True
+            return degree == required_degree
+
+        if not _degree_ok(item.proposed_answer):
+            return [], (
+                f"Proposed answer {item.proposed_answer!r} does not match "
+                f"the item's own cue {item.cue!r}'s degree "
+                f"({required_degree!r}): the item is self-contradictory."
+            )
+        return [a for a in accepted_answers if _degree_ok(a)], None
+
+    @classmethod
+    def check_possessive_person_agreement(
+        cls, accepted_answers: list[str], item: CandidateItem, topic: Topic
+    ) -> tuple[list[str], str | None]:
+        """For a possessive-determiner topic (``syntax_tags['ArtType'] ==
+        'Poss'``), every accepted answer must agree in person and number
+        with the possessor established in the carrier sentence -- "Anna
+        kocht gern, weil ___ Küche sehr groß ist." accepting 'ihre' (Anna,
+        3rd singular -- correct) alongside 'unsere' (1st plural) and 'meine'
+        (1st singular) does not consistently test one possessor; nothing in
+        the sentence chooses between three different people.
+
+        A possessive determiner's own surface form carries no Person
+        feature in spaCy's German pipeline (``sein``/``ihre`` are tagged
+        with the Case/Gender/Number of the noun they agree with, never the
+        person of the possessor -- verified directly), so the possessor's
+        person/number has to come from elsewhere in the sentence:
+        ``src.taxonomy.tagger.tag_context`` tags every OTHER token, and a
+        personal pronoun (``PronType=Prs``, giving Person and Number
+        directly) or a proper noun (``PROPN``, giving Number; Person is
+        always 3rd for a named referent) elsewhere in the carrier is taken
+        as the possessor. Each recognised possessive stem's own set of
+        legitimate (Person, Number) pairs lives in
+        ``_POSSESSIVE_STEM_PERSON_NUMBER``.
+
+        Exactly one distinct (Person, Number) candidate in the carrier is
+        "established"; zero, or more than one DISTINCT pair (e.g. both a
+        1st-person subject and a 3rd-person proper noun, with nothing to
+        say which one the gap's possessive refers to), means no possessor
+        is reliably established, so the item is rejected outright as
+        under-constrained -- the same "skip rather than guess" posture
+        every other check in this module takes, applied here to rejection
+        rather than to silently accepting.
+
+        No-ops (returns ``accepted_answers`` unchanged) when: the topic is
+        not a possessive-article topic at all (``ArtType != "Poss"``), the
+        accepted set (after fix B's target-form filtering already ran)
+        contains no recognisable possessive-stem form at all -- nothing
+        left to validate a possessor against, most often because it was
+        already narrowed to a single non-possessive determinerlike answer
+        by an earlier stage -- or the tagger is unavailable
+        (``analysis_available() is False``), the same guard
+        ``check_facet_derivability`` uses, since without a model this check
+        has no basis to reject anything.
+        """
+        if (topic.syntax_tags or {}).get("ArtType") != "Poss":
+            return accepted_answers, None
+
+        if not any(_possessive_person_number(a) is not None for a in accepted_answers):
+            return accepted_answers, None
+
+        from src.taxonomy import tagger as _tagger
+
+        if not _tagger.analysis_available():
+            return accepted_answers, None
+
+        context = _tagger.tag_context(item.prompt, item.proposed_answer)
+        if context is None:
+            return accepted_answers, None
+
+        candidates: set[tuple[str, str]] = set()
+        for tok in context:
+            if tok.feats.get("PronType") == "Prs":
+                person = tok.feats.get("Person")
+                number = tok.feats.get("Number")
+                if person is not None and number is not None:
+                    candidates.add((person, number))
+            elif tok.pos == "PROPN":
+                candidates.add(("3", tok.feats.get("Number", "Sing")))
+
+        if len(candidates) != 1:
+            return [], (
+                "No single possessor is established in the carrier for this "
+                f"possessive-determiner item (found {len(candidates)} distinct "
+                "person/number candidates among its pronouns and proper "
+                "nouns): the item is under-constrained."
+            )
+        established = next(iter(candidates))
+
+        def _agrees(answer: str) -> bool:
+            pairs = _possessive_person_number(answer)
+            return pairs is None or established in pairs
+
+        if not _agrees(item.proposed_answer):
+            return [], (
+                f"Proposed answer {item.proposed_answer!r} does not agree in "
+                f"person/number ({established[0]}, {established[1]}) with the "
+                "possessor established in the carrier: the item is "
+                "self-contradictory."
+            )
+        return [a for a in accepted_answers if _agrees(a)], None
 
     @classmethod
     def check_facet_derivability(

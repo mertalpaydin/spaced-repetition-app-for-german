@@ -4,7 +4,6 @@ target_form: Possessive determiners in the Nominative case (mein, dein, sein, ih
   unser, euer, ihr, Ihr).
 item_types:
 - paragraph_cloze
-- error_correction
 max_tokens_per_sentence: 14
 vocabulary_ceiling: A1
 difficulty_tiers:

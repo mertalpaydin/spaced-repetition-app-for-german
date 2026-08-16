@@ -79,16 +79,19 @@ def select_pilot_topics(
     topics_per_cefr: int = DEFAULT_TOPICS_PER_CEFR,
     cefr: str | None = None,
     classes: Iterable[str] | None = DEFAULT_PILOT_CLASSES,
+    all_topics: bool = False,
 ) -> list[Topic]:
     """Select the topics a pilot run will generate for.
 
     Two different jobs, distinguished by ``cefr``:
 
     * ``cefr is None`` (the audit sample): take up to ``topics_per_cefr``
-      topics from every band, sorted by id for determinism, so the run
-      spreads across levels and measures the chain's behaviour over the
-      whole taxonomy.
-    * ``cefr`` set (stocking a level): take EVERY topic in that one band.
+      topics from every band (or, with ``all_topics=True``, EVERY topic in
+      every band), sorted by id for determinism, so the run spreads across
+      levels and measures the chain's behaviour over the whole taxonomy.
+    * ``cefr`` set (stocking a level): take EVERY topic in that one band --
+      already what ``all_topics`` would ask for, so the two compose without
+      conflict; ``all_topics`` simply has nothing further to add here.
 
     docs/audits/stage-04-recovery-plan.md fix E. The spread was the only
     available behaviour, and its output was being used as the item bank.
@@ -108,6 +111,15 @@ def select_pilot_topics(
     topics that are also computable. ``None`` disables the filter entirely
     (every verification class, including ``semantic``); the default is
     ``DEFAULT_PILOT_CLASSES``, which excludes ``semantic``.
+
+    ``all_topics`` widens the audit sample (``cefr is None``) from
+    ``topics_per_cefr`` topics per band to every topic per band: the default
+    ``--topics-per-cefr`` of 3 means a ``--pilot 300`` run only ever
+    exercises 12 topics (3 per band x 4 bands) out of the whole taxonomy, so
+    a run meant to measure the chain's behaviour broadly was instead
+    measuring 12 topics repeatedly. Composes with ``classes`` (already
+    applied above, before this parameter is even read) exactly like
+    ``topics_per_cefr`` does.
     """
     if classes is not None:
         allowed_classes = set(classes)
@@ -129,7 +141,7 @@ def select_pilot_topics(
     selected: list[Topic] = []
     for band_level in sorted(by_cefr):
         band = sorted(by_cefr[band_level], key=lambda t: t.id)
-        selected.extend(band[:topics_per_cefr])
+        selected.extend(band if all_topics else band[:topics_per_cefr])
     return selected
 
 
@@ -224,6 +236,7 @@ def run_pilot(
     batch_client: GeminiBatchClient | MockBatchClient | None = None,
     cefr: str | None = None,
     classes: Iterable[str] | None = DEFAULT_PILOT_CLASSES,
+    all_topics: bool = False,
 ) -> PilotRunReport:
     """Generate a bounded, spread sample, verify it, insert what passes, and
     write the accepted set to ``review_path`` (and every rejected candidate,
@@ -234,6 +247,11 @@ def run_pilot(
     ceiling is already reached -- the same two guardrails the nightly
     automation already respects (``src.generation.deficits.NIGHTLY_ITEM_CAP``,
     ``GeminiLlmClient.spend_ceiling_usd``).
+
+    ``all_topics`` is threaded straight through to ``select_pilot_topics``:
+    with the default ``topics_per_cefr`` sampling, a ``--pilot 300`` run
+    only ever covers 12 topics (3 per CEFR band); this widens the topic
+    pool to every topic passing the ``classes``/``cefr`` filters.
     """
     from src.taxonomy.loader import load_taxonomy
 
@@ -251,7 +269,11 @@ def run_pilot(
 
     topics = load_taxonomy(taxonomy_path)
     pilot_topics = select_pilot_topics(
-        topics, topics_per_cefr=topics_per_cefr, cefr=cefr, classes=classes
+        topics,
+        topics_per_cefr=topics_per_cefr,
+        cefr=cefr,
+        classes=classes,
+        all_topics=all_topics,
     )
     requests = build_pilot_requests(pilot_topics, item_count, difficulties=difficulties)
     if not requests:

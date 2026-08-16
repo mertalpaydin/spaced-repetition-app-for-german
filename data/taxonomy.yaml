@@ -3,6 +3,19 @@
 # ==============================================================================
 # Built from Goethe-Institut Prüfungsziele (A1, A2, B1, B2) & BAMF Rahmencurriculum
 # Prerequisite graph forms an acyclic DAG.
+#
+# `error_correction` is WITHDRAWN from every topic's `eligible_types` below,
+# pending implementation, not deleted: it remains a valid `ItemType` enum
+# value in src/contracts.py. It was never actually implemented anywhere in
+# this pipeline -- the generator does not produce a genuine "fix the
+# mistake" item for it, no verification layer checks it as its own type
+# (Layer 1's gap-presence check used to reject every real error_correction
+# item outright, since that type correctly has no `___` gap by design), and
+# a later audit found four accepted items typed `error_correction` that
+# were in fact ordinary gap fills, two of which leaked the German
+# instruction "Korrgiere den Fehler:" into the learner-visible prompt. Do
+# not re-add it to `eligible_types` until a real error_correction generator
+# and verifier exist.
 
 # ------------------------------------------------------------------------------
 # A1 LEVEL (21 Topics)
@@ -13,7 +26,7 @@
   prereqs: []
   confusion_group: personalpronomen_kasus
   description: "Personal pronouns acting as subject in the Nominative case (ich, du, er, sie, es, wir, ihr, sie, Sie)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Nom}
   verification_class: computable
@@ -33,7 +46,7 @@
   prereqs: [pronomen_personal_nom]
   confusion_group: perfekt_hilfsverb
   description: "Present tense conjugations of auxiliary/copula verbs 'sein' and 'haben'."
-  eligible_types: [cloze_cued, error_correction]
+  eligible_types: [cloze_cued]
   requires_context: false
   morph_spec: {Tense: Pres}
   verification_class: computable
@@ -53,7 +66,7 @@
   prereqs: [pronomen_personal_nom]
   confusion_group: verb_praesens_stamm
   description: "Regular weak verb conjugation in present tense (-e, -st, -t, -en, -t, -en)."
-  eligible_types: [cloze_cued, error_correction]
+  eligible_types: [cloze_cued]
   requires_context: false
   morph_spec: {Tense: Pres}
   verification_class: computable
@@ -72,7 +85,7 @@
   prereqs: [verb_praesens_regelm]
   confusion_group: verb_praesens_stamm
   description: "Strong verbs with stem vowel change in 2nd and 3rd person singular (e->i/ie, a->ä, au->äu)."
-  eligible_types: [cloze_cued, error_correction]
+  eligible_types: [cloze_cued]
   requires_context: false
   morph_spec: {Tense: Pres}
   verification_class: computable
@@ -92,7 +105,7 @@
   prereqs: [verb_praesens_regelm]
   confusion_group: wortstellung_verb
   description: "Word order in declarative main clauses: conjugated verb occupies position 2."
-  eligible_types: [transformation, error_correction]
+  eligible_types: [transformation]
   requires_context: false
   morph_spec: {}
   verification_class: structural
@@ -111,7 +124,7 @@
   prereqs: [satzbau_hauptsatz_position2]
   confusion_group: wortstellung_verb
   description: "Question structures: W-questions (W-word on 1, Verb on 2) vs Yes/No questions (Verb on 1)."
-  eligible_types: [transformation, error_correction]
+  eligible_types: [transformation]
   requires_context: false
   morph_spec: {}
   verification_class: structural
@@ -130,7 +143,7 @@
   prereqs: [pronomen_personal_nom]
   confusion_group: artikelwoerter
   description: "Definite articles in the Nominative case (der, die, das, die)."
-  eligible_types: [paragraph_cloze, error_correction]
+  eligible_types: [paragraph_cloze]
   requires_context: true
   morph_spec: {Case: Nom}
   verification_class: computable
@@ -150,7 +163,7 @@
   prereqs: [artikel_bestimmt_nom]
   confusion_group: artikelwoerter
   description: "Indefinite (ein, eine) and negative (kein, keine) articles in Nominative."
-  eligible_types: [paragraph_cloze, error_correction]
+  eligible_types: [paragraph_cloze]
   requires_context: true
   morph_spec: {Case: Nom}
   verification_class: computable
@@ -170,7 +183,7 @@
   prereqs: [artikel_unbestimmt_kein_nom]
   confusion_group: artikelwoerter
   description: "Possessive determiners in the Nominative case (mein, dein, sein, ihr, unser, euer, ihr, Ihr)."
-  eligible_types: [paragraph_cloze, error_correction]
+  eligible_types: [paragraph_cloze]
   requires_context: true
   morph_spec: {Case: Nom}
   verification_class: computable
@@ -193,7 +206,7 @@
   # (01-foundation.md:193). See DEFECT 2 report for the full singleton audit.
   confusion_group: null
   description: "Plural formation patterns of German nouns (-e, -(e)n, -er, -s, Umlaut)."
-  eligible_types: [cloze_cued, error_correction]
+  eligible_types: [cloze_cued]
   requires_context: false
   morph_spec: {Number: Plur}
   verification_class: computable
@@ -212,7 +225,7 @@
   prereqs: [artikel_bestimmt_nom, artikel_unbestimmt_kein_nom]
   confusion_group: kasus_formen
   description: "Accusative articles for direct objects: only masculine changes (den, einen, keinen), others remain."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Acc}
   verification_class: computable
@@ -231,7 +244,7 @@
   prereqs: [pronomen_personal_nom, kasus_akkusativ_formen]
   confusion_group: personalpronomen_kasus
   description: "Personal pronouns in the Accusative case (mich, dich, ihn, sie, es, uns, euch, sie, Sie)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Acc}
   verification_class: computable
@@ -256,7 +269,7 @@
   # group instead of the old one-member "modalverben_bedeutung".
   confusion_group: subjektive_modalverben
   description: "Modal verbs (können, müssen, wollen, dürfen, sollen, möchten) with infinitive at clause end (Satzklammer)."
-  eligible_types: [cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation]
   requires_context: false
   morph_spec: {Tense: Pres}
   verification_class: computable
@@ -280,7 +293,7 @@
   # partner to interleave against (01-foundation.md:193).
   confusion_group: null
   description: "Separable verbs: prefix separates and moves to the end of main clause in present tense."
-  eligible_types: [cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation]
   requires_context: false
   morph_spec: {Tense: Pres}
   verification_class: computable
@@ -305,7 +318,7 @@
   # here would violate CLAUDE.md rule 7.
   confusion_group: null
   description: "Imperative forms for informal singular (du), informal plural (ihr), and formal (Sie)."
-  eligible_types: [cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation]
   requires_context: false
   morph_spec: {Mood: Imp}
   verification_class: computable
@@ -324,7 +337,7 @@
   prereqs: [kasus_akkusativ_formen]
   confusion_group: praepositionen_kasus_fest
   description: "Prepositions that strictly govern the Accusative case: bis, durch, für, gegen, ohne, um."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Acc}
   verification_class: computable
@@ -344,7 +357,7 @@
   prereqs: [artikel_bestimmt_nom, artikel_unbestimmt_kein_nom]
   confusion_group: kasus_formen
   description: "Dative case articles: dem / einem (m, n), der / einer (f), den ...-n / keinen ...-n (Plural)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Dat}
   verification_class: computable
@@ -363,7 +376,7 @@
   prereqs: [pronomen_personal_nom, kasus_dativ_formen]
   confusion_group: personalpronomen_kasus
   description: "Personal pronouns in the Dative case (mir, dir, ihm, ihr, ihm, uns, euch, ihnen, Ihnen)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Dat}
   verification_class: computable
@@ -383,7 +396,7 @@
   prereqs: [kasus_dativ_formen]
   confusion_group: praepositionen_kasus_fest
   description: "Prepositions that strictly govern Dative: aus, bei, mit, nach, seit, von, zu, gegenüber."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Dat}
   verification_class: computable
@@ -403,7 +416,7 @@
   prereqs: [verb_sein_haben, satzbau_hauptsatz_position2]
   confusion_group: perfekt_hilfsverb
   description: "Past compound tense (Perfekt) formed with auxiliary 'haben' + Partizip II at sentence end."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {Tense: Past, Aspect: Perf}
   verification_class: computable
@@ -423,7 +436,7 @@
   prereqs: [verb_sein_haben, satzbau_hauptsatz_position2]
   confusion_group: perfekt_hilfsverb
   description: "Past compound tense (Perfekt) formed with auxiliary 'sein' (movement, change of state, sein/bleiben)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {Tense: Past, Aspect: Perf}
   verification_class: computable
@@ -446,7 +459,7 @@
   prereqs: [kasus_dativ_formen, artikel_bestimmt_nom]
   confusion_group: kasus_wechselpraeposition
   description: "Two-way prepositions governing Dative when expressing static location or state (answers 'Wo?')."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Dat}
   verification_class: computable
@@ -466,7 +479,7 @@
   prereqs: [kasus_akkusativ_formen, artikel_bestimmt_nom]
   confusion_group: kasus_wechselpraeposition
   description: "Two-way prepositions governing Accusative when expressing direction or movement towards a goal (answers 'Wohin?')."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Acc}
   verification_class: computable
@@ -486,7 +499,7 @@
   prereqs: [verb_sein_haben, modalverben_praesens]
   confusion_group: vergangenheit
   description: "Simple past of auxiliary verbs (war, hatte) and modal verbs (konnte, musste, wollte, durfte, sollte)."
-  eligible_types: [cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation]
   requires_context: false
   morph_spec: {Tense: Past}
   verification_class: computable
@@ -505,7 +518,7 @@
   prereqs: [pronomen_personal_akk, verb_praesens_regelm]
   confusion_group: reflexivpronomen_kasus
   description: "Reflexive verbs governing Accusative reflexive pronouns (mich, dich, sich, uns, euch, sich)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Acc, Reflex: true}
   verification_class: computable
@@ -524,7 +537,7 @@
   prereqs: [pronomen_personal_dat, verben_reflexiv_akk]
   confusion_group: reflexivpronomen_kasus
   description: "Reflexive verbs with Dative reflexive pronouns when an explicit Accusative object is present (mir, dir, sich...)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Dat, Reflex: true}
   verification_class: computable
@@ -546,7 +559,7 @@
   # domain, not a lookalike a learner would substitute here.
   confusion_group: null
   description: "Word order of double objects: Nouns = Dative before Accusative; Pronouns = Accusative pronoun before Dative pronoun."
-  eligible_types: [transformation, error_correction]
+  eligible_types: [transformation]
   requires_context: false
   morph_spec: {}
   verification_class: structural
@@ -565,7 +578,7 @@
   prereqs: [artikel_bestimmt_nom, kasus_akkusativ_formen, kasus_dativ_formen]
   confusion_group: adjektivendungen_typ
   description: "Weak adjective endings after definite articles: only -e (Nom Sg, Acc Fem/Neut) and -en everywhere else."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Definite: Def}
   verification_class: computable
@@ -585,7 +598,7 @@
   prereqs: [artikel_unbestimmt_kein_nom, adjektivdeklination_bestimmt]
   confusion_group: adjektivendungen_typ
   description: "Mixed adjective endings after ein/kein/mein: adjective carries signal ending when article lacks it (-er, -e, -es), else -en."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Definite: Ind}
   verification_class: computable
@@ -605,7 +618,7 @@
   prereqs: [adjektivdeklination_unbestimmt]
   confusion_group: adjektivendungen_typ
   description: "Strong adjective endings with zero article: adjective carries definite article endings (-er, -e, -es, -en, -em, etc.)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   # morph_spec is deliberately {}: "zero article" has no Universal Dependencies
   # FEATS equivalent. UD expresses a bare noun phrase by the absence of a Det,
@@ -637,7 +650,7 @@
   # invented, not genuine.
   confusion_group: null
   description: "Comparison of adjectives: Komparativ (-er + als) and Superlativ (am -sten / der -ste) with vowel umlauts."
-  eligible_types: [cloze_cued, error_correction]
+  eligible_types: [cloze_cued]
   requires_context: false
   morph_spec: {Degree: CompOrSup}
   verification_class: computable
@@ -656,7 +669,7 @@
   prereqs: [satzbau_hauptsatz_position2]
   confusion_group: nebensatz_konnektoren
   description: "Causal subordinate clauses with 'weil' and 'da': conjugated verb moves to the end of the subclause."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: structural
@@ -676,7 +689,7 @@
   prereqs: [satzbau_hauptsatz_position2]
   confusion_group: nebensatz_konnektoren
   description: "Complement clauses introduced by conjunction 'dass' with verb-final word order."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: structural
@@ -696,7 +709,7 @@
   prereqs: [satzbau_hauptsatz_position2]
   confusion_group: nebensatz_konnektoren
   description: "Conditional/temporal clauses with 'wenn' with verb-final word order."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: structural
@@ -716,7 +729,7 @@
   prereqs: [satzbau_frage_inversion, nebensatz_dass]
   confusion_group: nebensatz_konnektoren
   description: "Indirect questions: Ja/Nein questions become 'ob'-clauses; W-questions use W-word as conjunction. Verb moves to end."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: structural
@@ -736,7 +749,7 @@
   prereqs: [satzbau_hauptsatz_position2]
   confusion_group: nebensatz_konnektoren
   description: "Coordinating conjunctions (aber, denn, und, sondern, oder) that occupy position 0 without altering word order."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {}
   verification_class: semantic
@@ -755,7 +768,7 @@
   prereqs: [praeteritum_sein_haben_modal]
   confusion_group: konjunktiv
   description: "Polite requests, wishes and questions using 'würde + Infinitiv', 'könnte', 'hätte', 'wäre'."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {Mood: SubjII}
   verification_class: computable
@@ -774,7 +787,7 @@
   prereqs: [verb_praesens_regelm, perfekt_haben]
   confusion_group: passiv_vorgang_zustand
   description: "Present tense passive voice: werden (conjugated on pos 2) + Partizip II at sentence end."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {Voice: Pass, Tense: Pres}
   verification_class: computable
@@ -793,7 +806,7 @@
   prereqs: [satzbau_hauptsatz_position2]
   confusion_group: infinitiv_konstruktionen
   description: "Infinitive clauses with 'zu': placed before final verb (or infixed in separable verbs: 'aufzustehen')."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: computable
@@ -812,7 +825,7 @@
   prereqs: [infinitiv_mit_zu]
   confusion_group: infinitiv_konstruktionen
   description: "Purpose clause 'um...zu' + infinitive when subjects of main and subclause are identical."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: computable
@@ -838,7 +851,7 @@
   # Renamed from the old one-member "temporal_praep".
   confusion_group: temporal_ausdruecke
   description: "Time prepositions governing Dative/Accusative (um + Uhrzeit, am + Tag, im + Monat/Jahreszeit, seit/vor + Dativ, bis + Akkusativ)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {}
   verification_class: lexical_table
@@ -858,7 +871,7 @@
   prereqs: [kasus_dativ_formen, kasus_akkusativ_formen]
   confusion_group: praepositionen_kasus_fest
   description: "Directional prepositions: nach (cities/countries without article), in (places/countries with article), zu (persons/specific destinations), aus/von (origin)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {}
   verification_class: lexical_table
@@ -878,7 +891,7 @@
   prereqs: [artikel_bestimmt_nom, kasus_akkusativ_formen, kasus_dativ_formen]
   confusion_group: artikelwoerter
   description: "Demonstrative determiners (dieser/diese/dieses) and indefinite pronouns (jeder, alle, man, jemand, niemand)."
-  eligible_types: [paragraph_cloze, error_correction]
+  eligible_types: [paragraph_cloze]
   requires_context: true
   morph_spec: {}
   verification_class: semantic
@@ -901,7 +914,7 @@
   prereqs: [artikel_bestimmt_nom, kasus_akkusativ_formen, satzbau_hauptsatz_position2]
   confusion_group: relativpronomen
   description: "Relative clauses in Nominative and Accusative cases; pronoun matches antecedent in gender/number and clause function in case."
-  eligible_types: [cloze_free, transformation, error_correction]
+  eligible_types: [cloze_free, transformation]
   requires_context: false
   # "NomOrAcc" was never a valid Universal Dependencies Case value (UD has no
   # disjunctive case). PronType: Rel is the real, non-disjunctive UD feature
@@ -928,7 +941,7 @@
   prereqs: [kasus_dativ_formen, relativsatz_nom_akk]
   confusion_group: relativpronomen
   description: "Relative clauses with Dative relative pronouns (dem, der, dem, denen)."
-  eligible_types: [cloze_free, transformation, error_correction]
+  eligible_types: [cloze_free, transformation]
   requires_context: false
   # PronType: Rel added alongside Case: Dat for the same reason as
   # relativsatz_genitiv (see there): this topic's items are genuinely
@@ -954,7 +967,7 @@
   prereqs: [relativsatz_nom_akk, relativsatz_dativ, praepositionen_dativ, praepositionen_akkusativ]
   confusion_group: relativpronomen
   description: "Relative clauses governed by prepositions: preposition precedes relative pronoun (in dem, mit der, über die, auf denen)."
-  eligible_types: [cloze_free, transformation, error_correction]
+  eligible_types: [cloze_free, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: lexical_table
@@ -974,7 +987,7 @@
   prereqs: [relativsatz_nom_akk]
   confusion_group: relativpronomen
   description: "Genitive relative clauses expressing possession (dessen for m/n, deren for f/pl) without article on following noun."
-  eligible_types: [cloze_free, transformation, error_correction]
+  eligible_types: [cloze_free, transformation]
   requires_context: false
   # PronType: Rel added alongside Case: Gen for the same reason as
   # relativsatz_nom_akk (see there): this topic's items are genuinely
@@ -998,7 +1011,7 @@
   prereqs: [kasus_dativ_formen, kasus_akkusativ_formen]
   confusion_group: kasus_formen
   description: "Genitive case: des ...-(e)s (m/n), der (f/pl), and masculine weak nouns (n-Deklination: des Kunden, des Studenten)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Gen}
   verification_class: computable
@@ -1033,7 +1046,7 @@
   prereqs: [kasus_genitiv_formen]
   confusion_group: praepositionen_kasus_fest
   description: "Prepositions that govern the Genitive case: wegen, während, trotz, (an)statt, innerhalb, außerhalb."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Gen}
   verification_class: computable
@@ -1053,7 +1066,7 @@
   prereqs: [kasus_dativ_formen, kasus_akkusativ_formen]
   confusion_group: praepositionen_kasus_fest
   description: "Verbs with fixed prepositions and their governed case (warten auf + Akk, denken an + Akk, abhängen von + Dat, träumen von + Dat)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {}
   verification_class: lexical_table
@@ -1077,7 +1090,7 @@
   # anaphora choice.
   confusion_group: null
   description: "Pronominal adverbs referring to objects/concepts (damit, dafür, darüber, womit, worüber); inserted -r- before vowels."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: lexical_table
@@ -1097,7 +1110,7 @@
   prereqs: [praeteritum_sein_haben_modal]
   confusion_group: vergangenheit
   description: "Simple past of full lexical verbs (weak: -te, -test, -te...; strong: ablaut vowel change + -, -st, -, -en, -t, -en)."
-  eligible_types: [cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation]
   requires_context: false
   morph_spec: {Tense: Past}
   verification_class: computable
@@ -1121,7 +1134,7 @@
   # precedes), so requires_context is false; paragraph_cloze stays available
   # but is no longer required. The carrier constraint lives in
   # forcing_element (kind: anteriority_anchor) on the spec sheet instead.
-  eligible_types: [cloze_free, cloze_cued, paragraph_cloze, error_correction]
+  eligible_types: [cloze_free, cloze_cued, paragraph_cloze]
   requires_context: false
   morph_spec: {Tense: PastPerf}
   verification_class: computable
@@ -1143,7 +1156,7 @@
   # is the real source of confusion, not just the internal als/wenn split.
   confusion_group: temporal_ausdruecke
   description: "Temporal contrast: 'als' for one-time past event vs 'wenn' for repeated past events or present/future conditions."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {}
   verification_class: semantic
@@ -1168,7 +1181,7 @@
   # nebensatz_konnektoren.
   confusion_group: temporal_ausdruecke
   description: "Temporal subclauses expressing simultaneity (während, solange), anteriority (nachdem), posteriority (bevor, ehe), and boundary (seitdem, bis)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: semantic
@@ -1188,7 +1201,7 @@
   prereqs: [nebensatz_weil_da, satzbau_hauptsatz_position2]
   confusion_group: nebensatz_konnektoren
   description: "Concessive connection: 'obwohl' (subclause, verb at end) vs 'trotzdem' (adverbial connector, verb on position 2)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: structural
@@ -1207,7 +1220,7 @@
   prereqs: [nebensatz_weil_da, satzbau_hauptsatz_position2]
   confusion_group: nebensatz_konnektoren
   description: "Consecutive connection: 'sodass / so...dass' (subclause, verb at end) vs 'deshalb / deswegen' (adverbial on pos 1, verb on pos 2)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: structural
@@ -1232,7 +1245,7 @@
   # there instead of the old one-member "finale_konnektoren".
   confusion_group: infinitiv_konstruktionen
   description: "Purpose clauses: 'um...zu' requires identical subject in both clauses; 'damit' is used for different subjects (or identical)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: semantic
@@ -1252,7 +1265,7 @@
   prereqs: [konjunktionen_position_0]
   confusion_group: zweiteilige_konnektoren
   description: "Copulative two-part connectors: 'sowohl...als auch' (positive addition), 'nicht nur...sondern auch' (emphatic), 'weder...noch' (double negation)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: lexical_table
@@ -1271,7 +1284,7 @@
   prereqs: [konnektoren_zweiteilig_kopulativ]
   confusion_group: zweiteilige_konnektoren
   description: "Alternative and adversative two-part connectors: 'entweder...oder' (exclusive or), 'zwar...aber' (concession), 'einerseits...andererseits'."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: lexical_table
@@ -1290,7 +1303,7 @@
   prereqs: [adjektiv_komparativ_superlativ, nebensatz_weil_da]
   confusion_group: zweiteilige_konnektoren
   description: "Proportional connector: 'je + Komparativ' in subclause (verb-final) + 'desto/umso + Komparativ' in main clause (verb directly follows)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: lexical_table
@@ -1309,7 +1322,7 @@
   prereqs: [konjunktiv_ii_hoeflichkeit, nebensatz_wenn]
   confusion_group: konjunktiv
   description: "Unreal conditional clauses and wishes in the present: wenn + Konjunktiv II (wäre, hätte, würde + Infinitiv)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {Mood: SubjII, Tense: Pres}
   verification_class: computable
@@ -1328,7 +1341,7 @@
   prereqs: [konjunktiv_ii_irreal_gegenwart, plusquamperfekt]
   confusion_group: konjunktiv
   description: "Unreal conditions in the past: wäre/hätte + Partizip II expressing what could have happened but did not."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {Mood: SubjII, Tense: Past}
   verification_class: computable
@@ -1347,7 +1360,7 @@
   prereqs: [passiv_praesens, praeteritum_vollverben]
   confusion_group: passiv_vorgang_zustand
   description: "Past passive voice: wurde / wurden (conjugated pos 2) + Partizip II at sentence end."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {Voice: Pass, Tense: Past}
   verification_class: computable
@@ -1366,7 +1379,7 @@
   prereqs: [passiv_praesens, modalverben_praesens]
   confusion_group: passiv_vorgang_zustand
   description: "Passive with modal verbs: Modalverb on pos 2 + Partizip II + werden (Infinitiv) at sentence end."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {Voice: Pass}
   verification_class: computable
@@ -1386,7 +1399,7 @@
   prereqs: [passiv_modalverben, infinitiv_mit_zu]
   confusion_group: passiversatz
   description: "Passive alternatives: 'sein + zu + Infinitiv' (must/can be done) and adjectives with suffix -bar / -lich."
-  eligible_types: [transformation, error_correction]
+  eligible_types: [transformation]
   requires_context: false
   morph_spec: {}
   verification_class: structural
@@ -1405,7 +1418,7 @@
   prereqs: [verb_praesens_regelm, satzbau_hauptsatz_position2]
   confusion_group: verb_zeiten
   description: "Future I: werden (conjugated pos 2) + Infinitiv at sentence end; expresses future intentions or present assumptions."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {Tense: FutI}
   verification_class: computable
@@ -1427,7 +1440,7 @@
   prereqs: [verb_praesens_regelm, nebensatz_dass]
   confusion_group: konjunktiv
   description: "Subjunctive I for indirect reporting in journalism and formal registers; distinct forms derived from present stem."
-  eligible_types: [paragraph_cloze, error_correction]
+  eligible_types: [paragraph_cloze]
   requires_context: true
   morph_spec: {Mood: SubjI}
   verification_class: semantic
@@ -1446,7 +1459,7 @@
   prereqs: [konjunktiv_i_indirekte_rede, konjunktiv_ii_irreal_gegenwart]
   confusion_group: konjunktiv
   description: "Replacement hierarchy in reported speech: when Konjunktiv I is identical to Indikativ, replace with Konjunktiv II or 'würde + Inf'."
-  eligible_types: [paragraph_cloze, error_correction]
+  eligible_types: [paragraph_cloze]
   requires_context: true
   morph_spec: {Mood: SubjIErsatz}
   verification_class: semantic
@@ -1465,7 +1478,7 @@
   prereqs: [passiv_praesens, passiv_praeteritum]
   confusion_group: passiv_vorgang_zustand
   description: "Stative passive expressing completed result or state: sein + Partizip II."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {Voice: PassStat}
   verification_class: computable
@@ -1484,7 +1497,7 @@
   prereqs: [zustandspassiv, praeteritum_vollverben]
   confusion_group: passiv_vorgang_zustand
   description: "Stative passive across tenses: war + Partizip II (Präteritum), ist + Partizip II + gewesen (Perfekt)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {Voice: PassStat}
   verification_class: computable
@@ -1503,7 +1516,7 @@
   prereqs: [passiv_praesens]
   confusion_group: passiv_vorgang_zustand
   description: "Impersonal passive of intransitive verbs without subject: 'Es wird getanzt' / 'Hier wird gearbeitet'."
-  eligible_types: [cloze_free, transformation, error_correction]
+  eligible_types: [cloze_free, transformation]
   requires_context: false
   morph_spec: {Voice: Pass}
   verification_class: computable
@@ -1536,7 +1549,7 @@
   prereqs: [modalverben_praesens, konjunktiv_ii_hoeflichkeit]
   confusion_group: subjektive_modalverben
   description: "Epistemic use of modal verbs expressing varying degrees of probability/certainty: muss (100%), dürfte (75%), kann/könnte (50%)."
-  eligible_types: [paragraph_cloze, error_correction]
+  eligible_types: [paragraph_cloze]
   requires_context: true
   morph_spec: {}
   verification_class: semantic
@@ -1556,7 +1569,7 @@
   prereqs: [modalverben_subjektiv_vermutung]
   confusion_group: subjektive_modalverben
   description: "Modal verbs expressing reported claims: 'soll' (rumour/others claim) vs 'will' (the subject claims about themselves)."
-  eligible_types: [paragraph_cloze, error_correction]
+  eligible_types: [paragraph_cloze]
   requires_context: true
   morph_spec: {}
   verification_class: semantic
@@ -1576,7 +1589,7 @@
   prereqs: [verb_praesens_regelm, adjektivdeklination_bestimmt]
   confusion_group: partizipialattribute
   description: "Participle I (Infinitiv + -d + Adjektivendung) used attributively to express ongoing, active simultaneous action."
-  eligible_types: [cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation]
   requires_context: false
   morph_spec: {Aspect: Prog}
   verification_class: computable
@@ -1596,7 +1609,7 @@
   prereqs: [perfekt_haben, partizip_i_attributiv, relativsatz_nom_akk]
   confusion_group: partizipialattribute
   description: "Extended participial attributes preceding nouns, condensing relative clauses into compact pre-nominal structures."
-  eligible_types: [cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_cued, transformation]
   requires_context: false
   morph_spec: {Aspect: Perf}
   verification_class: computable
@@ -1616,7 +1629,7 @@
   prereqs: [kasus_akkusativ_formen, kasus_dativ_formen]
   confusion_group: stilistik_register
   description: "Fixed noun-verb collocations (FVG) in formal register (zur Verfügung stehen, in Frage kommen, eine Entscheidung treffen)."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: lexical_table
@@ -1635,7 +1648,7 @@
   prereqs: [praepositionen_genitiv, nebensatz_weil_da]
   confusion_group: stilistik_register
   description: "Transformation between verbal clauses (Nebensätze mit Konjunktionen) and nominal structures (Präpositionalgefüge mit Genitiv/Dativ)."
-  eligible_types: [paragraph_cloze, transformation, error_correction]
+  eligible_types: [paragraph_cloze, transformation]
   requires_context: true
   morph_spec: {}
   verification_class: structural
@@ -1654,7 +1667,7 @@
   prereqs: [praepositionen_genitiv]
   confusion_group: praepositionen_kasus_fest
   description: "Complex and formal Genitive prepositions in academic/formal registers (anhand, anlässlich, infolge, zugunsten, bezüglich, mittels)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {Case: Gen}
   verification_class: computable
@@ -1674,7 +1687,7 @@
   prereqs: [verben_feste_praepositionen, kasus_genitiv_formen]
   confusion_group: praepositionen_kasus_fest
   description: "Nouns that take fixed prepositions with specific cases (das Interesse an + Dat, die Hoffnung auf + Akk, die Angst vor + Dat)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {}
   verification_class: lexical_table
@@ -1693,7 +1706,7 @@
   prereqs: [verben_feste_praepositionen]
   confusion_group: praepositionen_kasus_fest
   description: "Adjectives that take fixed prepositions with specific cases (stolz auf + Akk, zufrieden mit + Dat, bereit zu + Dat, fähig zu + Dat)."
-  eligible_types: [cloze_free, cloze_cued, error_correction]
+  eligible_types: [cloze_free, cloze_cued]
   requires_context: false
   morph_spec: {}
   verification_class: lexical_table
@@ -1712,7 +1725,7 @@
   prereqs: [infinitiv_um_zu]
   confusion_group: infinitiv_konstruktionen
   description: "Modal infinitive clauses expressing absence ('ohne...zu') or substitution ('anstatt...zu') with identical subject."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: semantic
@@ -1739,7 +1752,7 @@
   # D3 (stage-04-pilot-2026-08-15.md): which particle is right depends on the
   # conversational situation, not anything in the sentence, and a cue would
   # have to name the attitude (a topic leak). Bucket 1: context-only.
-  eligible_types: [paragraph_cloze, error_correction]
+  eligible_types: [paragraph_cloze]
   requires_context: true
   morph_spec: {}
   verification_class: semantic
@@ -1759,7 +1772,7 @@
   prereqs: [relativsatz_nom_akk, pronominaladverbien_da_wo]
   confusion_group: relativpronomen
   description: "Relative clauses with generalized relative pronouns ('was' after alles/nichts/etwas/Superlativ; 'wo/wohin' after place names)."
-  eligible_types: [cloze_free, transformation, error_correction]
+  eligible_types: [cloze_free, transformation]
   requires_context: false
   morph_spec: {}
   verification_class: computable
@@ -1785,7 +1798,7 @@
   # old one-member "diskurs_konnektoren".
   confusion_group: nebensatz_konnektoren
   description: "Connective discourse adverbs linking paragraphs and arguments: allerdings, dennoch, folglich, insofern, demnach."
-  eligible_types: [paragraph_cloze, transformation, error_correction]
+  eligible_types: [paragraph_cloze, transformation]
   requires_context: true
   morph_spec: {}
   verification_class: semantic
@@ -1805,7 +1818,7 @@
   prereqs: [passiversatz_formen_b1, partizip_i_attributiv]
   confusion_group: passiversatz
   description: "Advanced passive substitutes: 'sich lassen + Infinitiv' and gerundive attributes ('zu + Partizip I' = muss getan werden)."
-  eligible_types: [transformation, error_correction]
+  eligible_types: [transformation]
   requires_context: false
   morph_spec: {}
   verification_class: structural
@@ -1824,7 +1837,7 @@
   prereqs: [futur_i, perfekt_haben, perfekt_sein]
   confusion_group: verb_zeiten
   description: "Future II: werden (pos 2) + Partizip II + haben/sein (Infinitiv) at end; expresses completed action in future or past assumption."
-  eligible_types: [cloze_free, cloze_cued, transformation, error_correction]
+  eligible_types: [cloze_free, cloze_cued, transformation]
   requires_context: false
   morph_spec: {Tense: FutII}
   verification_class: computable

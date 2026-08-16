@@ -4,7 +4,6 @@ target_form: 'Word order in declarative main clauses: conjugated verb occupies p
   2.'
 item_types:
 - transformation
-- error_correction
 max_tokens_per_sentence: 14
 vocabulary_ceiling: A1
 difficulty_tiers:

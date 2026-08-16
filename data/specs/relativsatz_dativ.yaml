@@ -4,7 +4,6 @@ target_form: Relative clauses with Dative relative pronouns (dem, der, dem, dene
 item_types:
 - cloze_free
 - transformation
-- error_correction
 max_tokens_per_sentence: 18
 vocabulary_ceiling: B1
 difficulty_tiers:

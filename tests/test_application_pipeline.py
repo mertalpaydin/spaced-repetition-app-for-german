@@ -1,6 +1,7 @@
 """Unit and system tests for Stage 10 automation deficits, caps, and Stage 11 live LLM features."""
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -418,6 +419,72 @@ def test_select_pilot_topics_classes_composes_with_cefr() -> None:
     )
     with pytest.raises(ValueError, match="No topics at CEFR level"):
         select_pilot_topics(topics, cefr="A1", classes=("semantic",))
+
+
+def test_select_pilot_topics_all_topics_ignores_topics_per_cefr() -> None:
+    """``--topics-per-cefr`` defaults to 3, so a plain pilot run only ever
+    covers 12 topics (3 per band x 4 bands) out of the whole taxonomy.
+    ``all_topics=True`` selects EVERY topic passing the class filter in
+    every band, regardless of ``topics_per_cefr``."""
+    topics = load_taxonomy()
+
+    selected = select_pilot_topics(topics, topics_per_cefr=3, all_topics=True)
+
+    expected = [t for t in topics if t.verification_class in DEFAULT_PILOT_CLASSES]
+    assert {t.id for t in selected} == {t.id for t in expected}
+    assert len(selected) > 12, "expected far more than the topics_per_cefr=3 sample size"
+
+    for cefr in {t.cefr for t in expected}:
+        count_available = len([t for t in expected if t.cefr == cefr])
+        count_selected = len([t for t in selected if t.cefr == cefr])
+        assert count_selected == count_available
+
+
+def test_select_pilot_topics_all_topics_composes_with_classes() -> None:
+    """``all_topics`` composes with ``classes``: it widens the topics-per-band
+    sampling, not the class filter, which still applies first."""
+    topics = load_taxonomy()
+
+    selected = select_pilot_topics(topics, classes=("lexical_table",), all_topics=True)
+
+    assert selected, "expected at least one lexical_table topic"
+    assert all(t.verification_class == "lexical_table" for t in selected)
+    expected = [t for t in topics if t.verification_class == "lexical_table"]
+    assert {t.id for t in selected} == {t.id for t in expected}
+
+
+def test_select_pilot_topics_all_topics_composes_with_cefr() -> None:
+    """When ``cefr`` is also given, ``all_topics`` has nothing further to add:
+    a CEFR-scoped run already selects every topic in that one band."""
+    topics = load_taxonomy()
+
+    without_all_topics = select_pilot_topics(topics, cefr="B1")
+    with_all_topics = select_pilot_topics(topics, cefr="B1", all_topics=True)
+
+    assert [t.id for t in with_all_topics] == [t.id for t in without_all_topics]
+
+
+def test_step5_all_topics_flag_is_wired_to_select_pilot_topics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``scripts/step5_pilot_generation.py --all-topics`` must actually reach
+    ``select_pilot_topics``, not just parse -- assert on the real argument
+    passed through ``run_pilot``, not on the parser alone."""
+    import scripts.step5_pilot_generation as step5
+
+    captured: dict[str, object] = {}
+
+    def fake_run_pilot(**kwargs: object) -> object:
+        captured.update(kwargs)
+        raise SystemExit(0)
+
+    monkeypatch.setattr(step5, "run_pilot", fake_run_pilot)
+    monkeypatch.setattr(sys, "argv", ["step5_pilot_generation.py", "--all-topics"])
+
+    with pytest.raises(SystemExit):
+        step5.main()
+
+    assert captured.get("all_topics") is True
 
 
 def test_step5_parse_classes_accepts_the_default_and_rejects_garbage() -> None:

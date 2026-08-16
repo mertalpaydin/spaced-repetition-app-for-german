@@ -4,7 +4,6 @@ target_form: 'Advanced passive substitutes: ''sich lassen + Infinitiv'' and geru
   attributes (''zu + Partizip I'' = muss getan werden).'
 item_types:
 - transformation
-- error_correction
 max_tokens_per_sentence: 24
 vocabulary_ceiling: B2
 difficulty_tiers:

@@ -828,15 +828,39 @@ def determiner_definiteness(answer: str, fixed_case: str | None = None) -> str:
     return resolved.get("Definite", UNK)
 
 
+# Demonstrative determiners ("dieser"/"jener" and their declined forms):
+# closed enough a word list to enumerate directly, unlike the Case/Gender/
+# Number paradigm _decode_article resolves for articles and ein-words, which
+# still defers "dieser"/"jener" entirely to the tagger (see this module's
+# docstring, cross-check rule 3) -- ``determiner_art_type`` only needs to
+# recognise a demonstrative AS a demonstrative, not decode its full paradigm.
+_DEMONSTRATIVE_FORMS: frozenset[str] = frozenset(
+    {
+        "dieser",
+        "diese",
+        "dieses",
+        "diesen",
+        "diesem",
+        "jener",
+        "jene",
+        "jenes",
+        "jenen",
+        "jenem",
+    }
+)
+
+
 def determiner_art_type(answer: str) -> str:
     """Finer-grained determiner classification than
     ``determiner_definiteness``'s binary Def/Ind: distinguishes definite
     (``"Def"``), indefinite (``"Ind"``, bare "ein"), negative (``"Neg"``,
-    "kein"), and possessive (``"Poss"``, mein/dein/sein/ihr/unser/euer) --
-    the actual ``ArtType`` values this taxonomy's topics declare (see
-    ``data/taxonomy.yaml``). ``UNK`` if the word matches neither the
-    definite-article nor the ein-word paradigm (e.g. a demonstrative like
-    "dieser"/"jener", for which this taxonomy has no closed-class table).
+    "kein"), possessive (``"Poss"``, mein/dein/sein/ihr/unser/euer), and
+    demonstrative (``"Dem"``, dieser/jener and their declined forms) -- the
+    actual ``ArtType`` values this taxonomy's topics declare (see
+    ``data/taxonomy.yaml``), plus the demonstrative paradigm no topic
+    currently declares ``ArtType`` for but which must not be silently
+    compatible with every OTHER paradigm either. ``UNK`` if the word matches
+    none of these closed-class tables at all.
 
     ``determiner_definiteness`` alone is not enough to gate stage 4's
     answer-set ambiguity check (docs/audits/stage-04-pilot-2026-08-15.md fix
@@ -847,10 +871,24 @@ def determiner_art_type(answer: str) -> str:
     would pass the Def/Ind check undetected -- confirmed live in a pilot
     re-run. This function inspects WHICH ein-word stem matched, not just
     whether one did, so ``Poss`` and ``Ind`` and ``Neg`` are distinguished.
+
+    Demonstratives were the largest single defect class in a later audit:
+    with no ``Dem`` bucket, "dieser"/"diese"/... fell all the way through to
+    ``UNK``, and every ambiguity/target-form check in this module treats
+    ``UNK`` as "no opinion, do not block" -- so a demonstrative silently read
+    as compatible with a definite article, a negative article, or an
+    indefinite article, e.g. "Wir sehen eine Katze. ___ Katze schläft."
+    accepting both "Die" (Def) and "Diese" (Dem), or "Da draußen im Regen
+    steht ___ Mann..." accepting both "kein" (Neg) and "dieser" (Dem) --
+    opposite meanings, both passing unflagged. Giving demonstratives their
+    own bucket closes that gap the same way the Poss/Ind/Neg split above
+    closed the coarser one.
     """
     lower = answer.strip().lower()
     if any(form == lower for (form, *_rest) in _DEFINITE_ARTICLE_PARADIGM):
         return "Def"
+    if lower in _DEMONSTRATIVE_FORMS:
+        return "Dem"
     for stem in _EIN_WORD_STEMS:
         if not lower.startswith(stem):
             continue

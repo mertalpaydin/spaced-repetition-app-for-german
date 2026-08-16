@@ -5,7 +5,6 @@ target_form: Complex and formal Genitive prepositions in academic/formal registe
 item_types:
 - cloze_free
 - cloze_cued
-- error_correction
 max_tokens_per_sentence: 24
 vocabulary_ceiling: B2
 difficulty_tiers:

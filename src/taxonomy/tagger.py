@@ -184,3 +184,44 @@ def tag_answer(prompt: str, answer: str) -> TaggedAnswer | None:
         pos=token.pos_,
         feats=dict(token.morph.to_dict()),
     )
+
+
+def tag_context(prompt: str, answer: str) -> list[TaggedAnswer] | None:
+    """Morphologically tag every token of the filled sentence OTHER than the
+    gap's own answer span -- the complement of :func:`tag_answer`, which
+    returns only the answer's own token.
+
+    Some checks need to look at the REST of the sentence around the gap, not
+    the answer itself: a possessive determiner's own surface form ("mein",
+    "ihre") carries no Person feature in spaCy's German pipeline (it marks
+    only the Case/Gender/Number of the noun it agrees with, not the person
+    of the possessor), so which person a possessive answer is even claiming
+    to be can only be checked against a pronoun or proper noun ELSEWHERE in
+    the carrier that establishes the possessor. Fills the gap with
+    ``answer`` (its own content is otherwise irrelevant here) purely so the
+    rest of the sentence parses in a complete, grammatical context, then
+    returns every token whose span does not overlap the answer's own
+    position.
+
+    Returns ``None`` under the same conditions :func:`tag_answer` does: no
+    model, no gap, or an empty ``answer``. Every caller must treat ``None``
+    as "no analysis available", never as "the sentence has no other
+    tokens".
+    """
+    answer = answer.strip()
+    if not answer:
+        return None
+    nlp = _load_model()
+    if nlp is None:
+        return None
+    filled = _fill_gap(prompt, answer)
+    if filled is None:
+        return None
+    text, start, end = filled
+
+    doc = nlp(text)
+    return [
+        TaggedAnswer(text=tok.text, pos=tok.pos_, feats=dict(tok.morph.to_dict()))
+        for tok in doc
+        if not (tok.idx < end and (tok.idx + len(tok.text)) > start)
+    ]

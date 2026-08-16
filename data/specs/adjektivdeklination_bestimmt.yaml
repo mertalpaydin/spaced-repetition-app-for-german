@@ -5,7 +5,6 @@ target_form: 'Weak adjective endings after definite articles: only -e (Nom Sg, A
 item_types:
 - cloze_free
 - cloze_cued
-- error_correction
 max_tokens_per_sentence: 18
 vocabulary_ceiling: A2
 difficulty_tiers:

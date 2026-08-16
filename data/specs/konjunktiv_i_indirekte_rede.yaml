@@ -4,7 +4,6 @@ target_form: Subjunctive I for indirect reporting in journalism and formal regis
   distinct forms derived from present stem.
 item_types:
 - paragraph_cloze
-- error_correction
 max_tokens_per_sentence: 24
 vocabulary_ceiling: B2
 difficulty_tiers:

@@ -116,7 +116,20 @@ def main() -> int:
         "--topics-per-cefr",
         type=int,
         default=DEFAULT_TOPICS_PER_CEFR,
-        help=f"How many topics to sample from each CEFR band (default {DEFAULT_TOPICS_PER_CEFR}).",
+        help=f"How many topics to sample from each CEFR band (default {DEFAULT_TOPICS_PER_CEFR}). "
+        "Ignored when --all-topics is set.",
+    )
+    parser.add_argument(
+        "--all-topics",
+        action="store_true",
+        help=(
+            "Select EVERY topic passing --classes and --cefr, instead of "
+            "sampling --topics-per-cefr topics per band. The default "
+            "--topics-per-cefr of 3 means a --pilot 300 run only ever covers "
+            "12 topics (3 per band x 4 bands); this widens the pilot's topic "
+            "coverage to the whole filtered taxonomy. Composes with --classes "
+            "and --cefr exactly like --topics-per-cefr does."
+        ),
     )
     parser.add_argument(
         "--cefr",
@@ -186,6 +199,7 @@ def main() -> int:
             topics_per_cefr=args.topics_per_cefr,
             cefr=args.cefr,
             classes=classes,
+            all_topics=args.all_topics,
             difficulties=difficulties,
             db_path=args.db,
             review_path=args.review_file,

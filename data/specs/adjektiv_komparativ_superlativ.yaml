@@ -4,7 +4,6 @@ target_form: 'Comparison of adjectives: Komparativ (-er + als) and Superlativ (a
   -sten / der -ste) with vowel umlauts.'
 item_types:
 - cloze_cued
-- error_correction
 max_tokens_per_sentence: 18
 vocabulary_ceiling: A2
 difficulty_tiers:

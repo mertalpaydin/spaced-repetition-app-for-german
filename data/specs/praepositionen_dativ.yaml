@@ -5,7 +5,6 @@ target_form: 'Prepositions that strictly govern Dative: aus, bei, mit, nach, sei
 item_types:
 - cloze_free
 - cloze_cued
-- error_correction
 max_tokens_per_sentence: 14
 vocabulary_ceiling: A1
 difficulty_tiers:

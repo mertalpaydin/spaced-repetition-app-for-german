@@ -5,7 +5,6 @@ target_form: 'Simple past of full lexical verbs (weak: -te, -test, -te...; stron
 item_types:
 - cloze_cued
 - transformation
-- error_correction
 max_tokens_per_sentence: 18
 vocabulary_ceiling: B1
 difficulty_tiers:

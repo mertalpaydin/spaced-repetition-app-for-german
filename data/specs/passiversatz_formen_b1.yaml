@@ -4,7 +4,6 @@ target_form: 'Passive alternatives: ''sein + zu + Infinitiv'' (must/can be done)
   adjectives with suffix -bar / -lich.'
 item_types:
 - transformation
-- error_correction
 max_tokens_per_sentence: 18
 vocabulary_ceiling: B1
 difficulty_tiers:

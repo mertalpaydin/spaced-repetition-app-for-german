@@ -5,7 +5,6 @@ target_form: Genitive relative clauses expressing possession (dessen for m/n, de
 item_types:
 - cloze_free
 - transformation
-- error_correction
 max_tokens_per_sentence: 18
 vocabulary_ceiling: B1
 difficulty_tiers:

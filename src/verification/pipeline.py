@@ -295,6 +295,12 @@ class VerificationPipeline:
            extras, must be forms of the cue's own lemma. A primary answer
            that itself contradicts its own cue is rejected outright as
            self-contradictory, before anything else runs.
+        D. **Cue degree consistency.** A cue names the adjective's positive
+           (citation) form; an accepted answer of a DIFFERENT degree
+           (comparative/superlative) is a different word, the same category
+           of defect as A applied to Degree instead of lexeme --
+           "das ___ (groß) Fenster" accepting both "große" (Pos, correct)
+           and "größte" (Sup, wrong) is the concrete pilot defect.
         B. **Filter the WHOLE accepted set by target form, not only the
            extras** (a2-pilot-audit's dominant finding, 11 of 17 audited
            defects: "the chain carefully vets the answers it adds, and
@@ -302,6 +308,14 @@ class VerificationPipeline:
            base ``accepted_answers`` was never filtered at all). The primary
            answer is re-inserted unconditionally afterwards so this can
            never empty the set.
+        E. **Possessive person agreement.** For a possessive-article topic,
+           every accepted answer must agree in person/number with the
+           possessor established in the carrier sentence -- "Anna kocht
+           gern, weil ___ Küche sehr groß ist." accepting "ihre" (correct,
+           Anna is 3rd singular) alongside "unsere" (1st plural) and "meine"
+           (1st singular) tests three different possessors at once. Rejects
+           outright as under-constrained when no single possessor can be
+           established at all.
         C. **Unk-facet honesty** (a2-pilot-audit rule 2): if the topic's own
            target facet cannot be derived for this item's answer at all,
            and the set still has more than one member, reject as
@@ -310,9 +324,11 @@ class VerificationPipeline:
            comparison still could not pin down a shared Tense.
         1. **Threshold on distinct forms, not on answer count.** Once the
            accepted set is built (contraction expansion + the alternatives
-           that survived 2, 4, A, B, C), reject the whole item as
+           that survived 2, 4, A, D, B, E, C), reject the whole item as
            ``ambiguity`` if it still spans more than one distinct form of
-           the topic's target feature.
+           the topic's target feature -- including a demonstrative form
+           ("Dem") now distinguished from Def/Ind/Neg/Poss, closing the gap
+           where a demonstrative read as compatible with everything.
         3. **Re-run the distractor check after expansion.** A distractor
            that collides with the FINAL accepted set means the item was
            under-constrained to begin with; reject rather than repair.
@@ -357,6 +373,23 @@ class VerificationPipeline:
                     error_type="pedagogical_flaw",
                 )
 
+        # Fix D: cue DEGREE consistency -- a cue's positive form and a
+        # superlative/comparative accepted answer are different words, not
+        # alternative inflections of the same one.
+        if item.cue is not None:
+            accepted_answers, degree_reason = AnswerSetExpander.filter_by_cue_degree(
+                accepted_answers, item
+            )
+            if degree_reason is not None:
+                return VerificationResult(
+                    item=item,
+                    passed=False,
+                    accepted=False,
+                    layer_failed=5,
+                    reason=degree_reason,
+                    error_type="pedagogical_flaw",
+                )
+
         # Fix B: filter the WHOLE accepted set by target form (docs/audits/
         # stage-04-a2-pilot-audit.md's dominant defect), not only the
         # extras as fix 2 above already does. The primary answer is kept
@@ -367,6 +400,22 @@ class VerificationPipeline:
             )
             if item.proposed_answer not in accepted_answers:
                 accepted_answers.insert(0, item.proposed_answer)
+
+        # Fix E: possessive person/number agreement -- a no-op for every
+        # topic that is not a possessive-article topic.
+        if topic is not None:
+            accepted_answers, person_reason = AnswerSetExpander.check_possessive_person_agreement(
+                accepted_answers, item, topic
+            )
+            if person_reason is not None:
+                return VerificationResult(
+                    item=item,
+                    passed=False,
+                    accepted=False,
+                    layer_failed=5,
+                    reason=person_reason,
+                    error_type="ambiguity",
+                )
 
         # Fix C: Unk-facet honesty -- reject as under-constrained rather
         # than silently accept when the topic's own facet cannot be

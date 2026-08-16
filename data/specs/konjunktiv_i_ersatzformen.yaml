@@ -4,7 +4,6 @@ target_form: 'Replacement hierarchy in reported speech: when Konjunktiv I is ide
   to Indikativ, replace with Konjunktiv II or ''würde + Inf''.'
 item_types:
 - paragraph_cloze
-- error_correction
 max_tokens_per_sentence: 24
 vocabulary_ceiling: B2
 difficulty_tiers:

@@ -3,7 +3,6 @@ cefr: A1
 target_form: Definite articles in the Nominative case (der, die, das, die).
 item_types:
 - paragraph_cloze
-- error_correction
 max_tokens_per_sentence: 14
 vocabulary_ceiling: A1
 difficulty_tiers:

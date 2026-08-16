@@ -4,7 +4,6 @@ target_form: Extended participial attributes preceding nouns, condensing relativ
   clauses into compact pre-nominal structures.
 item_types:
 - transformation
-- error_correction
 max_tokens_per_sentence: 24
 vocabulary_ceiling: B2
 difficulty_tiers:

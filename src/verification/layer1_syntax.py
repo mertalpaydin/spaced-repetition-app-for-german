@@ -38,17 +38,29 @@ class Layer1SyntaxValidator:
         self, item: CandidateItem, spec: TopicSpec | None = None
     ) -> tuple[bool, str | None, ErrorTaxonomy | None]:
         """Validate candidate item against Layer 1 deterministic rules."""
-        # 1. Gap presence
-        if "___" not in item.prompt and not re.search(r"___\d+___", item.prompt):
-            return False, "Missing gap placeholder '___' in prompt.", "structural_malformation"
+        # 1. Gap presence. An ``error_correction`` item presents an already
+        # INCORRECT sentence for the learner to fix and correctly has no
+        # gap at all -- "Ich sehe ein Mann auf der Straße. Der Mann liest
+        # ein Buch." with answer "Der Mann liest" is not malformed, it is
+        # exactly the shape this type is meant to have. Requiring "___"
+        # unconditionally treated that as a defect (24 rejections in one
+        # pilot). Both the presence check and the multiple-gaps check below
+        # are about the SAME "___" convention, so both are skipped together.
+        if item.type != "error_correction":
+            if "___" not in item.prompt and not re.search(r"___\d+___", item.prompt):
+                return (
+                    False,
+                    "Missing gap placeholder '___' in prompt.",
+                    "structural_malformation",
+                )
 
-        # Multiple single gaps in non-paragraph cloze
-        if item.type != "paragraph_cloze" and item.prompt.count("___") > 1:
-            return (
-                False,
-                "Multiple gap placeholders in single-sentence item.",
-                "structural_malformation",
-            )
+            # Multiple single gaps in non-paragraph cloze
+            if item.type != "paragraph_cloze" and item.prompt.count("___") > 1:
+                return (
+                    False,
+                    "Multiple gap placeholders in single-sentence item.",
+                    "structural_malformation",
+                )
 
         # 2. Distractor count. Duplicate and answer-colliding distractors are
         # REPAIRED before this layer runs (src/verification/repair.py), not

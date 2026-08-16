@@ -4,7 +4,6 @@ target_form: 'Word order of double objects: Nouns = Dative before Accusative; Pr
   = Accusative pronoun before Dative pronoun.'
 item_types:
 - transformation
-- error_correction
 max_tokens_per_sentence: 18
 vocabulary_ceiling: A2
 difficulty_tiers:
