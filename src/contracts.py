@@ -157,6 +157,19 @@ class CandidateItem(BaseModel):
     domain: str | None = "general"
     carrier_lemmas: list[str] = Field(default_factory=list)
     source_sentence_id: str | None = None
+    # docs/audits/generation-track-plan.md Cycle 3, and CLAUDE.md rule 2's
+    # gloss-not-label resolution: a natural English translation of the
+    # COMPLETE carrier sentence with the gap filled by the intended answer.
+    # Disambiguates gaps no preposition/verb/determiner in the German
+    # sentence narrows to one lexeme (the "Weisst du, wo er ___ (wohnen)?"
+    # case), without naming the grammar topic the way a category label
+    # would. Optional here; whether it is REQUIRED for a given item is a
+    # verification-time decision (see src/generation/gloss_validation.py),
+    # not a contract-level constraint, so this stays purely additive.
+    # For the narrow fallback list (English marks no distinction at all,
+    # e.g. du vs Sie), this field instead carries a short category tag from
+    # gloss_validation's controlled vocabulary -- see that module.
+    gloss_en: str | None = None
 
     @field_validator("distractors", mode="before")
     @classmethod
@@ -197,6 +210,10 @@ class BankItem(BaseModel):
     domain: str | None = "general"
     carrier_lemmas: list[str] = Field(default_factory=list)
     source_sentence_id: str | None = None
+    # See CandidateItem.gloss_en's docstring comment: carried through
+    # unchanged from the verified candidate into the bank item so it can be
+    # rendered alongside the item for the learner.
+    gloss_en: str | None = None
 
     @field_validator("distractors", mode="before")
     @classmethod
@@ -253,6 +270,16 @@ class VerificationResult(BaseModel):
     layer_failed: int | None = None
     reason: str | None = None
     error_type: str | None = None
+    # docs/audits/generation-track-plan.md Cycle 3: how many of THIS item's
+    # gloss dimensions (tense, person) src.generation.gloss_validation could
+    # neither confirm nor contradict -- "no evidence" is not "consistent",
+    # and must never be silently folded into ``passed``. Set only when the
+    # item actually carried a ``gloss_en`` and that gloss did not already
+    # fail outright (a failing gloss is a rejection, not an unverified
+    # count). Purely additive, defaults to 0 like ``gloss_en`` itself, so
+    # every existing caller/test that builds a ``VerificationResult`` with
+    # no opinion on gloss validation is unaffected.
+    gloss_unverified_count: int = 0
 
 
 class Answer(BaseModel):

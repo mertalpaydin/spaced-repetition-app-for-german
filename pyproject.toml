@@ -16,6 +16,15 @@ dependencies = [
     # extra, which relies on pip's now-deprecated direct-URL "egg" hack) so a
     # fresh `uv sync` fetches it with no manual `spacy download` step.
     "de-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl",
+    # English morphological tagging model for
+    # src/generation/gloss_validation.py's mechanical gloss-consistency
+    # check (docs/audits/generation-track-plan.md Cycle 3). Pinned the same
+    # way as de-core-news-sm above, same reason: without this, a fresh
+    # checkout silently falls back to gloss_validation's closed-list
+    # heuristic (it logs a warning when that happens, but nothing forces
+    # anyone to read the log), which under-detects a wrong gloss instead of
+    # failing loudly.
+    "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
     "rich>=13.7.1",
     "typer>=0.12.3",
     "pypdf>=6.16.0",

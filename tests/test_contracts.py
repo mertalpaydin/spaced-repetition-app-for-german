@@ -151,6 +151,59 @@ def test_bank_item_and_export_contract() -> None:
     assert export.items[0].id == "item_001"
 
 
+def test_candidate_item_gloss_en_defaults_to_none_and_is_purely_additive() -> None:
+    """docs/audits/generation-track-plan.md Cycle 3: ``gloss_en`` is a new,
+    OPTIONAL field on ``CandidateItem``. An item built with no ``gloss_en``
+    at all (every existing caller, before this change) must keep working
+    unchanged, and the field must round-trip when supplied."""
+    bare = CandidateItem(
+        topic_id="praeteritum_vollverben",
+        type="cloze_cued",
+        difficulty=1,
+        prompt="Weisst du, wo er ___ (wohnen)?",
+        proposed_answer="wohnte",
+    )
+    assert bare.gloss_en is None
+
+    glossed = CandidateItem(
+        topic_id="praeteritum_vollverben",
+        type="cloze_cued",
+        difficulty=1,
+        prompt="Weisst du, wo er ___ (wohnen)?",
+        proposed_answer="wohnte",
+        gloss_en="Do you know where he lived?",
+    )
+    assert glossed.gloss_en == "Do you know where he lived?"
+
+
+def test_bank_item_gloss_en_defaults_to_none_and_is_purely_additive() -> None:
+    """Same additive guarantee as ``CandidateItem.gloss_en``, for the bank's
+    own item model -- the field must carry through from a verified
+    candidate without breaking any existing bare ``BankItem`` construction."""
+    bare = BankItem(
+        id="item_002",
+        tag_id="praeteritum_vollverben",
+        type="cloze_cued",
+        cefr="A2",
+        difficulty=1,
+        prompt="Weisst du, wo er ___ (wohnen)?",
+        accepted_answers=["wohnte"],
+    )
+    assert bare.gloss_en is None
+
+    glossed = BankItem(
+        id="item_003",
+        tag_id="praeteritum_vollverben",
+        type="cloze_cued",
+        cefr="A2",
+        difficulty=1,
+        prompt="Weisst du, wo er ___ (wohnen)?",
+        accepted_answers=["wohnte"],
+        gloss_en="Do you know where he lived?",
+    )
+    assert glossed.gloss_en == "Do you know where he lived?"
+
+
 def test_learning_engine_models() -> None:
     """Verify TagStateModel, DayBudget, and ReviewLogEntry."""
     now = datetime(2026, 8, 13, 12, 0, 0, tzinfo=UTC)

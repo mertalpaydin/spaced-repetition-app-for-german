@@ -196,6 +196,18 @@ class PromptBuilder:
             # cloze_free regardless of what the topic actually permits.
             "Each item's own 'type' field must be EXACTLY one value chosen "
             "from allowed_item_types below, never a value outside that list.",
+            # docs/audits/generation-track-plan.md Cycle 3: the gloss
+            # disambiguates a gap nothing else in the German sentence
+            # narrows to one lexeme (a tense choice, most often), and does
+            # so WITHOUT naming the grammar topic the way a category label
+            # would -- see CLAUDE.md rule 2 and this project's product plan.
+            # It must translate MEANING only.
+            "For 'gloss_en', give a natural English translation of the "
+            "COMPLETE sentence with the gap filled by the intended answer. "
+            "Translate meaning only: NEVER a grammar hint, NEVER a rule "
+            "statement, NEVER a category name like 'past tense' or "
+            "'Perfekt'. Just what the finished German sentence says, in "
+            "natural English.",
         ]
         if spec.forcing_element:
             prohibitions.append(
@@ -256,6 +268,11 @@ class PromptBuilder:
                         "prompt": "Natural German sentence with gap marked as ___",
                         "cue": "optional base form or infinitive if cloze_cued",
                         "proposed_answer": "exact target form",
+                        "gloss_en": (
+                            "natural English translation of the complete "
+                            "sentence with the gap filled by proposed_answer; "
+                            "meaning only, never a grammar hint"
+                        ),
                         "distractors": [
                             {"text": "distractor1", "implied_topic_id": "alternate_topic_id"},
                             {"text": "distractor2", "implied_topic_id": "alternate_topic_id"},
