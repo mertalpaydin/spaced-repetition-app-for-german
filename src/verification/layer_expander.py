@@ -114,6 +114,65 @@ _POSSESSIVE_STEMS_LONGEST_FIRST: tuple[str, ...] = tuple(
 )
 
 
+# Pronoun-class closed tables for ``check_pronoun_class_consistency`` (Task
+# 5, cycle-2 report). Deliberately LOCAL to this module rather than reused
+# from ``src.taxonomy.facets.determiner_art_type``: that function resolves
+# "der"/"die"/"das" as DEFINITE ARTICLES (correct for a determiner-choice
+# topic, where they precede a noun), while this table resolves the SAME
+# surface forms as DEMONSTRATIVE PRONOUNS (correct for a pronoun topic,
+# where they stand in for a noun) -- two different grammatical facts about
+# one spelling, and conflating them would misfire on every article-choice
+# topic. Personal-pronoun forms include the oblique (Akk/Dat) cases too,
+# since a pronoun topic's accepted set is answered in whichever case that
+# topic tests, not only Nominative.
+_INTERROGATIVE_PRONOUN_FORMS: frozenset[str] = frozenset({"wer", "wen", "wem", "wessen", "was"})
+
+_PERSONAL_PRONOUN_FORMS: frozenset[str] = frozenset(
+    {
+        "ich", "mich", "mir",
+        "du", "dich", "dir",
+        "er", "ihn", "ihm",
+        "sie", "ihr", "ihnen",
+        "es",
+        "wir", "uns",
+        "euch",
+    }
+)  # fmt: skip
+
+# "der"/"die"/"das" and the demonstrative-declension forms, used
+# PRONOMINALLY (standing in for a noun, e.g. "___ ist mein Freund.", not
+# preceding one, e.g. "___ Mann ist mein Freund."). See this section's own
+# comment above on why this duplicates rather than reuses
+# ``facets._DEMONSTRATIVE_FORMS``/``determiner_art_type``'s article table.
+_DEMONSTRATIVE_PRONOUN_FORMS: frozenset[str] = frozenset(
+    {
+        "der", "die", "das", "den", "dem", "dessen", "deren", "denen",
+        "dieser", "diese", "dieses", "diesen", "diesem",
+        "jener", "jene", "jenes", "jenen", "jenem",
+    }
+)  # fmt: skip
+
+
+def _pronoun_class(answer: str) -> str | None:
+    """Coarse Personal/Demonstrative/Interrogative pronoun class for
+    ``answer``, or ``None`` if it matches none of these closed tables (e.g.
+    an indefinite pronoun like "jemand", or a word that is not
+    pronoun-shaped at all) -- "no opinion", the same "skip rather than
+    guess" posture as every other closed-class lookup in this module.
+    Checked in Interrogative, Personal, Demonstrative order; the three
+    tables above are mutually disjoint by construction, so order does not
+    change the result, only readability.
+    """
+    lower = answer.strip().lower()
+    if lower in _INTERROGATIVE_PRONOUN_FORMS:
+        return "Interrog"
+    if lower in _PERSONAL_PRONOUN_FORMS:
+        return "Prs"
+    if lower in _DEMONSTRATIVE_PRONOUN_FORMS:
+        return "Dem"
+    return None
+
+
 def _possessive_person_number(answer: str) -> frozenset[tuple[str, str]] | None:
     """The set of (Person, Number) pairs ``answer`` asserts about its
     possessor, if ``answer`` is a recognisable possessive-determiner form,
@@ -188,6 +247,46 @@ def _answer_pos(answer: str, prompt: str) -> str | None:
     return tagged.pos if tagged is not None else None
 
 
+# Auxiliary/copula lemmas (Task 3, cycle-2 report): the closed-table lemma
+# lookup below collapses EVERY finite form of "sein"/"haben"/"werden" onto
+# one bare lemma key regardless of Tense/Mood/Person/Number, which is right
+# for a lexeme-identity check (is this the same VERB) but wrong for these
+# three specifically, because they are exactly the verbs a topic is most
+# likely to test tense/mood/person/number ON: "sei"/"seid" (2sg/2pl
+# imperative), "sind"/"waren" (Perfekt- vs Plusquamperfekt-tense auxiliary)
+# and "ist"/"war" (present- vs past-tense copula/passive auxiliary) all
+# share the bare lemma "sein" and so, before this fix, all compared equal.
+_AUX_COPULA_LEMMAS: frozenset[str] = frozenset({"sein", "haben", "werden"})
+
+
+def _aux_copula_form_key(answer: str, prompt: str, lemma: str) -> str | None:
+    """Explicit Tense/Mood/Person/Number identity for an auxiliary or
+    copula answer, read off ``src.taxonomy.tagger.tag_answer`` rather than
+    the derived facet string (facets.py decodes ``accepted_answers[0]``
+    alone and was never meant to compare two candidate answers against each
+    other -- see its own module docstring). This is what actually
+    distinguishes "Sei" (2sg imperative) from "Seid" (2pl imperative),
+    "sind" (Perfekt, Tense=Pres) from "waren" (Plusquamperfekt, Tense=Past),
+    and "ist" (Tense=Pres) from "war" (Tense=Past), none of which the bare
+    lemma key below can tell apart.
+
+    Returns ``None`` when the tagger has nothing to say (no model, no gap,
+    no alignment): the caller falls back to the plain lemma key, the same
+    fail-open "skip rather than guess" posture as every other tagger-backed
+    check in this module.
+    """
+    from src.taxonomy import tagger as _tagger
+
+    tagged = _tagger.tag_answer(prompt, answer)
+    if tagged is None:
+        return None
+    tense = tagged.feats.get("Tense", _UNK)
+    mood = tagged.feats.get("Mood", _UNK)
+    person = tagged.feats.get("Person", _UNK)
+    number = tagged.feats.get("Number", _UNK)
+    return f"{lemma}:{tense}:{mood}:{person}:{number}"
+
+
 def _verb_form_key(answer: str, prompt: str | None = None) -> str | None:
     """The verb "form" ``check_ambiguity``/``filter_alternatives_by_target_form``
     compare candidates on: the lemma from ``IRREGULAR_VERB_LEMMA`` (plus the
@@ -196,6 +295,15 @@ def _verb_form_key(answer: str, prompt: str | None = None) -> str | None:
     cannot be resolved at all through that closed table AND no ``prompt`` is
     given to fall back on -- the signal this codebase's "skip rather than
     guess" philosophy treats as "no opinion", not as a mismatch.
+
+    Task 3 (cycle-2 report): when the resolved lemma is an auxiliary or
+    copula (``sein``/``haben``/``werden``) AND ``prompt`` is available, the
+    bare lemma is not the whole identity -- ``_aux_copula_form_key`` reads
+    Tense/Mood/Person/Number directly off the tagger first, and only the
+    plain lemma (below) is used when the tagger cannot resolve anything at
+    all (no model, no gap) or ``prompt`` was not given, exactly the
+    fail-open behaviour this module's Konjunktiv-unambiguous-forms special
+    case already relied on for the no-tagger case.
 
     When ``prompt`` IS given and the closed table misses (a regular verb --
     "wohnen", "kochen", "finden" have no irregular stem and are never in
@@ -219,6 +327,10 @@ def _verb_form_key(answer: str, prompt: str | None = None) -> str | None:
     lower = answer.strip().lower()
     lemma = IRREGULAR_VERB_LEMMA.get(lower) or _SUPPLEMENTARY_VERB_LEMMA.get(lower)
     if lemma is not None:
+        if lemma in _AUX_COPULA_LEMMAS and prompt is not None:
+            tag_key = _aux_copula_form_key(answer, prompt, lemma)
+            if tag_key is not None:
+                return tag_key
         return f"{lemma}:Sub" if lower in _KONJUNKTIV_II_UNAMBIGUOUS_FORMS else lemma
 
     if prompt is None:
@@ -434,6 +546,37 @@ class AnswerSetExpander:
                 )
             return None
 
+        # Task 2 (cycle-2 report): derive the determiner type from the
+        # ANSWERS themselves rather than staying silent just because the
+        # topic never declared ``ArtType`` at all -- "kaufen wir ___ Apfel
+        # auf dem Markt" accepted einen/den/diesen/keinen (indefinite,
+        # definite, demonstrative, negative) and the check above never
+        # fired because its topic has no ``ArtType`` tag. But a topic whose
+        # ``morph_spec`` fixes ``Case`` (the ``kasus_*_formen`` /
+        # ``*_nach_praeposition`` family) is legitimately testing case
+        # agreement, not article choice, and a set spanning several article
+        # types at the SAME case/gender/number cell is correct there --
+        # "Ich helfe ___ Kind" accepting dem/einem/keinem/meinem/deinem/
+        # seinem/ihrem/unserem (all Dat Neut Sing) is eight equally correct
+        # answers to a case question, not an ambiguous item. Only a topic
+        # that neither declares ``ArtType`` NOR fixes ``Case`` reaches this
+        # branch, and even then only rejects if the answers themselves
+        # resolve to more than one determiner type -- if they resolve to
+        # zero or one (e.g. a Degree topic's adjective endings, which are
+        # never determiner-shaped), this falls through to the Degree
+        # fallback below exactly as before.
+        if not morph_spec.get("Case"):
+            from src.taxonomy.facets import determiner_art_type
+
+            forms = {determiner_art_type(a) for a in accepted_answers}
+            forms.discard("Unk")
+            if len(forms) > 1:
+                return (
+                    "Accepted answers span more than one determiner type "
+                    f"({', '.join(sorted(forms))}), so the item does not "
+                    "consistently test one article type."
+                )
+
         if morph_spec.get("Degree") and len(accepted_answers) > cls.AMBIGUITY_COUNT_THRESHOLD:
             return (
                 f"{len(accepted_answers)} accepted answers exceed the fallback "
@@ -442,6 +585,119 @@ class AnswerSetExpander:
             )
 
         return None
+
+    @classmethod
+    def check_pronoun_class_consistency(
+        cls, accepted_answers: list[str], topic: Topic
+    ) -> str | None:
+        """Task 5 (cycle-2 report): reject when a pronoun topic's accepted
+        set spans more than one PRONOUN CLASS (personal, demonstrative,
+        interrogative). Real defect: "___ ist mein guter Freund." accepted
+        "Er" (personal), "Das"/"Dieser"/"Der" (demonstrative) AND "Wer"
+        (interrogative) -- "Wer" is not an alternative correct answer, it
+        turns the declarative sentence into a question.
+
+        Gated to topics that are actually about pronouns
+        (``syntax_tags['Pos'] == 'Pron'``, e.g. ``pronomen_personal_nom``,
+        or ``morph_spec['PronType']`` set, e.g. the ``relativsatz_*``
+        family) -- this check's closed-class tables recognise "der"/"die"/
+        "das" as demonstrative-PRONOUN forms, which are lexically identical
+        to (but grammatically distinct from) their use as definite
+        ARTICLES, so running this unconditionally on every topic would
+        misclassify an ordinary article-choice item. Further gated OFF for
+        relative-pronoun topics specifically (``morph_spec['PronType'] ==
+        'Rel'``): "der"/"die"/"das"/"den"/"dem"/"deren"/"dessen" are the
+        RELATIVE pronoun paradigm there, the topic's own single legitimate
+        target form, not a mix of personal/demonstrative/interrogative
+        pronouns.
+
+        Returns ``None`` (no opinion) when the topic is not a pronoun
+        topic, is a relative-pronoun topic, has fewer than two accepted
+        answers, or none/only-one of the answers are classifiable into
+        these three closed tables at all (e.g. an indefinite pronoun like
+        "jemand", which this function does not attempt to classify --
+        "skip rather than guess", the same posture every other closed-class
+        check in this module takes).
+        """
+        if len(accepted_answers) < 2:
+            return None
+
+        morph_spec = topic.morph_spec or {}
+        syntax_tags = topic.syntax_tags or {}
+
+        if morph_spec.get("PronType") == "Rel":
+            return None
+
+        is_pronoun_topic = syntax_tags.get("Pos") == "Pron" or bool(morph_spec.get("PronType"))
+        if not is_pronoun_topic:
+            return None
+
+        classes = {c for a in accepted_answers if (c := _pronoun_class(a)) is not None}
+        if len(classes) > 1:
+            return (
+                "Accepted answers span more than one pronoun class "
+                f"({', '.join(sorted(classes))}), so the item does not "
+                "consistently test one kind of pronoun."
+            )
+        return None
+
+    @classmethod
+    def get_computed_accepted_answers(cls, item: CandidateItem) -> list[str] | None:
+        """Task 1 (cycle-2 report): read a pre-verified, AUTHORITATIVE
+        accepted-answer set off ``item``, if the candidate carries one.
+
+        ``src/generation/blanking/`` (the generate-then-blank pipeline)
+        removes a token from an already-tagged, already-parsed sentence, so
+        its answer is OBSERVED (the literal text that was there) rather
+        than proposed by a model, and is cross-checked against the closed
+        paradigm table for the token's own (art_type/declension, cell)
+        before the item is even built (see
+        ``src.generation.blanking.blanker``'s own module docstring). That
+        is categorically stronger evidence than ``proposed_answer`` from
+        the LLM-direct pipeline, which the heuristic expansion/widening
+        below (``expand_answers`` and every filter after it) exists to
+        interrogate. If a blanked item's answer reaches that machinery
+        anyway, its computed set is silently discarded and replaced by the
+        SAME heuristic widening that produced the 34%/17% post-verifier
+        defect rates this chain exists to keep under 15% -- exactly the
+        regression this accessor exists to prevent.
+
+        ``CandidateItem`` (src/contracts.py) is ``frozen`` with
+        ``extra="allow"`` and does not declare a first-class field for
+        this; contracts.py belongs to another agent this cycle, so no
+        field was added there (flagged in this cycle's report as a
+        possible follow-up for a future cycle, not done here). The
+        convention adopted instead: a producer that has already computed
+        and verified its own accepted set attaches it as the extra keyword
+        ``computed_accepted_answers`` (a list of strings) when constructing
+        the ``CandidateItem``, e.g. ``CandidateItem(...,
+        computed_accepted_answers=["den"])``. Every consumer in this
+        pipeline goes through this accessor rather than reading
+        ``item.model_extra`` directly, so the convention is documented
+        exactly once.
+
+        Returns ``None`` when the item carries nothing usable here (no
+        such extra field, not a list, or a list with no non-empty string
+        entries) -- callers must then run the ordinary heuristic-expansion
+        chain exactly as before, so a candidate that never opted into this
+        mechanism is completely unaffected. Otherwise returns a
+        deduplicated (first-seen order preserved) list of the entries as
+        given: this is a TRUST boundary, not a re-verification -- the
+        producer is asserting these answers are already correct, and this
+        method's only job is to recognise that assertion, not to
+        second-guess it.
+        """
+        extra = item.model_extra or {}
+        raw = extra.get("computed_accepted_answers")
+        if not isinstance(raw, list) or not raw:
+            return None
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for candidate in raw:
+            if isinstance(candidate, str) and candidate.strip() and candidate not in seen:
+                seen.add(candidate)
+                deduped.append(candidate)
+        return deduped or None
 
     @classmethod
     def filter_alternatives_by_target_form(

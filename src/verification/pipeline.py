@@ -12,6 +12,7 @@ from src.contracts import (
     Topic,
     VerificationResult,
 )
+from src.generation.gloss_validation import validate_gloss_consistency
 from src.generation.spec import TopicSpec
 from src.lexicon.vocabulary import VocabularyStore
 from src.verification.classifier import ErrorClassifier
@@ -26,6 +27,107 @@ if TYPE_CHECKING:
     from src.llm.client import GeminiLlmClient
 
 GateStatus = Literal["passed", "tripped", "unmeasured"]
+
+# Task 4 (cycle-2 report): near-duplicate detection on the carrier.
+# ``ItemDeduplicator.is_duplicate`` (src/bank/dedup.py, not owned by this
+# module) computes whole-prompt Jaccard token similarity at a 0.85
+# threshold, which is right for near-paraphrases but blind to the actual
+# defect found: "Ungeachtet ___ schlechten Wetters gingen die Kinder im
+# Park spielen." and "Ungeachtet ___ schlechten Wetters unternahmen die
+# Wanderer eine lange Tour." share the entire fixed carrier phrase around
+# the gap verbatim and then diverge completely -- whole-sentence Jaccard on
+# that pair is ~0.33 (5 shared tokens of a 15-token union), nowhere near
+# 0.85, because the divergent tail dominates the bag-of-words comparison.
+# The signal that actually matters is not "how much of the whole sentence
+# matches" but "is the phrase immediately surrounding the blank a reused
+# template" -- so this check measures the longest run of identical
+# normalized tokens that CONTAINS the gap marker itself, independent of how
+# the rest of the sentence reads.
+#
+# Threshold chosen: 4 tokens, including the gap marker itself (so at least
+# 3 tokens of real surrounding text must match verbatim). Justification:
+# German's free word order and productive compounding make a coincidental
+# 3+ word verbatim run immediately around an independently-chosen blank
+# position vanishingly unlikely across two independently generated
+# sentences; in practice it only happens when the same fixed
+# collocation/idiom was reused as the carrier, which is exactly the
+# defect. A lower threshold (2, matching a bare subject-verb opener like
+# "Er ging") risks flagging two genuinely distinct items that merely open
+# the same common way, which the task explicitly warns against -- but this
+# check is anchored on the GAP's own neighbourhood, not the sentence
+# opening in general, which already rules out most "shares a common
+# opening but the gap is elsewhere" false positives on its own; the run
+# length is the second line of defence for the (rarer) case where the gap
+# itself happens to sit inside a shared opening.
+_CARRIER_NEAR_DUPLICATE_MIN_RUN = 4
+
+
+def _shared_gap_anchored_run(prompt_a: str, prompt_b: str) -> int:
+    """Longest run of identical ``ItemDeduplicator.normalize_prompt``
+    tokens shared between ``prompt_a`` and ``prompt_b`` that includes the
+    gap marker itself, or ``0`` if either prompt has no gap.
+
+    Anchoring on the gap position (rather than, say, the longest common
+    substring anywhere in the two prompts) is deliberate: it is
+    specifically the phrase immediately surrounding the BLANK -- the
+    "carrier" -- that matters for this check, not any other part of the
+    sentence the two items might coincidentally share.
+    """
+    tokens_a = ItemDeduplicator.normalize_prompt(prompt_a).split()
+    tokens_b = ItemDeduplicator.normalize_prompt(prompt_b).split()
+    # ``ItemDeduplicator.normalize_prompt`` lowercases the prompt BEFORE
+    # substituting the gap marker, so the marker itself survives as the
+    # uppercase literal "_GAP_", not "_gap_" -- matching its exact casing
+    # here rather than re-deriving it keeps this function a pure consumer
+    # of that module's own normalization, never a second implementation of it.
+    gap_marker = "_GAP_"
+    if gap_marker not in tokens_a or gap_marker not in tokens_b:
+        return 0
+    idx_a = tokens_a.index(gap_marker)
+    idx_b = tokens_b.index(gap_marker)
+
+    left = 0
+    while (
+        idx_a - left - 1 >= 0
+        and idx_b - left - 1 >= 0
+        and tokens_a[idx_a - left - 1] == tokens_b[idx_b - left - 1]
+    ):
+        left += 1
+
+    right = 0
+    while (
+        idx_a + right + 1 < len(tokens_a)
+        and idx_b + right + 1 < len(tokens_b)
+        and tokens_a[idx_a + right + 1] == tokens_b[idx_b + right + 1]
+    ):
+        right += 1
+
+    return left + right + 1
+
+
+def _batch_internal_duplicate_reason(prompt: str, seen_prompts: list[str]) -> str | None:
+    """Batch-internal counterpart of the existing-bank duplicate checks
+    ``_verify_layers_1_to_4`` runs (exact/near-duplicate whole-prompt
+    Jaccard via ``ItemDeduplicator.is_duplicate``, plus the gap-anchored
+    carrier run via ``_shared_gap_anchored_run``): is ``prompt`` an exact or
+    near duplicate of a prompt that has ALREADY been accepted earlier in
+    the SAME batch. Two candidates minted together are both absent from the
+    bank, so the existing-bank check alone never sees this case. Returns a
+    human-readable reason, or ``None`` if ``prompt`` is distinct from
+    everything in ``seen_prompts``.
+    """
+    is_dup, reason = ItemDeduplicator.is_duplicate(prompt, seen_prompts)
+    if is_dup:
+        return reason
+    for other in seen_prompts:
+        run = _shared_gap_anchored_run(prompt, other)
+        if run >= _CARRIER_NEAR_DUPLICATE_MIN_RUN:
+            return (
+                f"Near-duplicate carrier: shares a {run}-token phrase around "
+                f"the gap with another candidate already accepted earlier in "
+                f"this batch ('{other}')."
+            )
+    return None
 
 
 class BatchVerificationReport(BaseModel):
@@ -46,6 +148,17 @@ class BatchVerificationReport(BaseModel):
       supplied (see ``VerificationPipeline.verify_batch``). When no labels are
       supplied, this field is ``None`` (never ``0.0``): a missing measurement
       must never silently read as a pass.
+
+    A third quantity, ``gloss_unverified_count``, is a different kind of
+    honesty problem from either of the above: it is not a rate over
+    candidates at all, but the sum, across every candidate whose gloss was
+    checked, of dimensions (tense, person) ``src.generation.
+    gloss_validation`` could neither confirm nor contradict. This project
+    has already had to correct one report that read "87 pass" when 14 of
+    those had never actually been checked (docs/audits/
+    generation-track-plan.md Cycle 3) -- this field exists so an
+    UNVERIFIED gloss dimension is always visible as its own number, never
+    folded into ``passed_count`` where it would read as a clean pass.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -58,6 +171,7 @@ class BatchVerificationReport(BaseModel):
     kill_gate_tripped: bool | None
     gate_status: GateStatus
     results: list[VerificationResult] = Field(default_factory=list)
+    gloss_unverified_count: int = 0
 
 
 class VerificationPipeline:
@@ -89,6 +203,79 @@ class VerificationPipeline:
         # configured API key.
         self.llm_client = llm_client
 
+    def _gloss_check(
+        self, item: CandidateItem, topic: Topic | None
+    ) -> tuple[VerificationResult | None, int]:
+        """Cycle 3 (docs/audits/generation-track-plan.md): mechanically
+        validate ``item.gloss_en`` against the German answer's own computed
+        tense/person features, via ``gloss_validation.
+        validate_gloss_consistency``, whenever a gloss is actually present.
+
+        Returns ``(rejection_or_None, unverified_dimension_count)``. Free
+        and deterministic (no network, no morphology-heavy parsing beyond
+        what the gloss module itself already does), so callers run it
+        before the layers 1-4 chain, matching "cheap rejects happen first".
+
+        A gloss that CONTRADICTS the answer's tense or person is a
+        REJECTION, never a warning: a wrong gloss actively teaches the
+        wrong thing, which is worse than no gloss at all (this exact
+        wording is the task's own). A gloss that leaks grammar terminology
+        or the bare answer token is rejected the same way, as a leak, not
+        a consistency failure -- ``validate_gloss_consistency`` already
+        distinguishes the two in its own ``reason`` text, matched here to
+        pick the more specific ``error_type``.
+
+        Whether a gloss is REQUIRED for this item at all
+        (``gloss_validation.check_requirement``) is a separate, broader
+        policy question this method does not enforce -- only a gloss that
+        IS present gets validated. Enforcing the requirement would reject
+        every existing tense/person-selecting-topic candidate that has no
+        gloss at all, which is a real gap but a materially bigger, riskier
+        change than "validate what's there"; left for a follow-up rather
+        than folded in silently here.
+
+        The second element of the return value is returned even when the
+        item is NOT rejected, so the caller can attach it to whatever the
+        item's eventual final ``VerificationResult`` turns out to be
+        (``_with_gloss_unverified``), regardless of which later layer
+        produces it -- an unverified dimension must never quietly vanish
+        just because the item went on to pass everything else.
+        """
+        if item.gloss_en is None or not item.gloss_en.strip():
+            return None, 0
+
+        result = validate_gloss_consistency(item.prompt, item.proposed_answer, item.gloss_en, topic)
+        if not result.consistent:
+            reason = result.reason or "Gloss is inconsistent with the answer."
+            if "bare answer token" in reason:
+                error_type = "answer_leak"
+            elif "leaks grammar terminology" in reason:
+                error_type = "topic_leak"
+            else:
+                error_type = "pedagogical_flaw"
+            return (
+                VerificationResult(
+                    item=item,
+                    passed=False,
+                    accepted=False,
+                    layer_failed=1,
+                    reason=f"Gloss validation failed: {reason}",
+                    error_type=error_type,
+                ),
+                0,
+            )
+        return None, len(result.unverified_dimensions)
+
+    @staticmethod
+    def _with_gloss_unverified(result: VerificationResult, count: int) -> VerificationResult:
+        """Attach ``count`` (from ``_gloss_check``) to an already-finalized
+        ``VerificationResult`` without disturbing anything else about it.
+        A no-op copy when ``count`` is 0, which is both the common case and
+        harmless either way (``VerificationResult`` is frozen)."""
+        if count == 0:
+            return result
+        return result.model_copy(update={"gloss_unverified_count": count})
+
     def verify_item(
         self,
         item: CandidateItem,
@@ -109,15 +296,40 @@ class VerificationPipeline:
         # See verify_batch: repair runs at the entry point so the repaired
         # item is what gets returned, banked, and rendered.
         item, _ = repair_candidate(item)
+
+        gloss_rejection, gloss_unverified = self._gloss_check(item, effective_topic)
+        if gloss_rejection is not None:
+            return gloss_rejection
+
         result = self._verify_layers_1_to_4(
             item, spec=spec, topic=effective_topic, existing_bank_items=existing_bank_items
         )
         if result is not None:
-            return result
+            return self._with_gloss_unverified(result, gloss_unverified)
         if self.llm_client is None:
-            return VerificationResult(item=item, passed=True, accepted=True)
+            # Task 1: a candidate carrying its own pre-computed accepted
+            # set (see ``AnswerSetExpander.get_computed_accepted_answers``)
+            # must still go through ``_finalize_layer5`` even with no LLM
+            # configured, so its computed set is finalized (ambiguity,
+            # pronoun-class and distractor-collision checks still run)
+            # rather than silently dropped -- an ordinary candidate with no
+            # computed set is completely unaffected by this branch and
+            # keeps the original bare fast path.
+            if AnswerSetExpander.get_computed_accepted_answers(item) is not None:
+                return self._with_gloss_unverified(
+                    self._finalize_layer5(
+                        item, SemanticVerificationResult(), topic=effective_topic, spec=spec
+                    ),
+                    gloss_unverified,
+                )
+            return VerificationResult(
+                item=item, passed=True, accepted=True, gloss_unverified_count=gloss_unverified
+            )
         semantic = AnswerSetExpander.verify_semantic_validity(item, self.llm_client)
-        return self._finalize_layer5(item, semantic, topic=effective_topic, spec=spec)
+        return self._with_gloss_unverified(
+            self._finalize_layer5(item, semantic, topic=effective_topic, spec=spec),
+            gloss_unverified,
+        )
 
     def _verify_layers_1_to_4(
         self,
@@ -261,6 +473,24 @@ class VerificationPipeline:
                     error_type="duplicate",
                 )
 
+            # Task 4: near-duplicate on the carrier -- see
+            # ``_shared_gap_anchored_run``'s module-level docstring for the
+            # defect this catches and the threshold's justification.
+            for existing_prompt in existing_prompts:
+                run = _shared_gap_anchored_run(item.prompt, existing_prompt)
+                if run >= _CARRIER_NEAR_DUPLICATE_MIN_RUN:
+                    return VerificationResult(
+                        item=item,
+                        passed=False,
+                        accepted=False,
+                        layer_failed=4,
+                        reason=(
+                            f"Near-duplicate carrier: shares a {run}-token phrase "
+                            f"around the gap with an existing prompt ('{existing_prompt}')."
+                        ),
+                        error_type="duplicate",
+                    )
+
         # Survived layers 1-4: layer 5 (model-backed, optional) is the
         # caller's decision -- see ``verify_item`` and ``verify_batch``.
         return None
@@ -332,6 +562,15 @@ class VerificationPipeline:
         3. **Re-run the distractor check after expansion.** A distractor
            that collides with the FINAL accepted set means the item was
            under-constrained to begin with; reject rather than repair.
+
+        Task 1 (cycle-2 report): a candidate carrying its own pre-computed,
+        AUTHORITATIVE accepted set (``AnswerSetExpander.
+        get_computed_accepted_answers``, e.g. every item the generate-then-
+        blank pipeline produces) skips every fix above -- ``expand_answers``,
+        A, D, B, E, C and the semantic layer's own
+        ``additional_accepted_answers`` all exist to build or repair a
+        HEURISTIC set from a single model-proposed answer, which is not
+        what this is. See ``_finalize_computed_answer_set``.
         """
         if not semantic.valid:
             return VerificationResult(
@@ -342,6 +581,10 @@ class VerificationPipeline:
                 reason=semantic.reason or "Semantic or collocation check failed.",
                 error_type="pedagogical_flaw",
             )
+
+        computed_answers = AnswerSetExpander.get_computed_accepted_answers(item)
+        if computed_answers is not None:
+            return self._finalize_computed_answer_set(item, computed_answers, topic)
 
         candidate_extras = semantic.additional_accepted_answers
         if topic is not None and candidate_extras:
@@ -432,6 +675,23 @@ class VerificationPipeline:
                     error_type="ambiguity",
                 )
 
+        # Task 5: a pronoun answer set must not span pronoun classes
+        # (personal/demonstrative/interrogative) -- a no-op for every topic
+        # that is not a pronoun topic.
+        if topic is not None:
+            pronoun_reason = AnswerSetExpander.check_pronoun_class_consistency(
+                accepted_answers, topic
+            )
+            if pronoun_reason:
+                return VerificationResult(
+                    item=item,
+                    passed=False,
+                    accepted=False,
+                    layer_failed=5,
+                    reason=pronoun_reason,
+                    error_type="ambiguity",
+                )
+
         if topic is not None:
             ambiguity_reason = AnswerSetExpander.check_ambiguity(accepted_answers, topic, item=item)
             if ambiguity_reason:
@@ -454,6 +714,80 @@ class VerificationPipeline:
                 layer_failed=5,
                 reason=(
                     "Expanded accepted answers collide with a distractor "
+                    f"({', '.join(collisions)}), so the item was under-constrained."
+                ),
+                error_type="structural_malformation",
+            )
+
+        return VerificationResult(
+            item=item,
+            passed=True,
+            accepted=True,
+            accepted_answers=accepted_answers,
+        )
+
+    def _finalize_computed_answer_set(
+        self,
+        item: CandidateItem,
+        accepted_answers: list[str],
+        topic: Topic | None,
+    ) -> VerificationResult:
+        """Task 1 (cycle-2 report): finalize a candidate that carries its
+        own pre-computed, authoritative accepted-answer set (see
+        ``AnswerSetExpander.get_computed_accepted_answers``) -- the
+        generate-then-blank pipeline's whole reason for existing is that
+        its answer is OBSERVED and its accepted set is COMPUTED from a
+        closed paradigm, not proposed by a model and heuristically
+        widened. This finalizer therefore runs NONE of
+        ``_finalize_layer5``'s expansion/widening machinery (contraction
+        expansion, cue/degree/target-form filtering, possessive person
+        agreement, Unk-facet honesty, or the semantic layer's
+        model-proposed ``additional_accepted_answers``) -- every one of
+        those exists to repair or gate a set this method's caller never
+        built in the first place.
+
+        What DOES still run, per this cycle's task: pronoun-class and
+        form-identity ambiguity, and distractor collision. Dedup and
+        vocabulary are already enforced earlier, in
+        ``_verify_layers_1_to_4``, before this method is ever reached.
+        """
+        accepted_answers = list(accepted_answers)
+
+        if topic is not None:
+            pronoun_reason = AnswerSetExpander.check_pronoun_class_consistency(
+                accepted_answers, topic
+            )
+            if pronoun_reason:
+                return VerificationResult(
+                    item=item,
+                    passed=False,
+                    accepted=False,
+                    layer_failed=5,
+                    reason=pronoun_reason,
+                    error_type="ambiguity",
+                )
+
+            ambiguity_reason = AnswerSetExpander.check_ambiguity(accepted_answers, topic, item=item)
+            if ambiguity_reason:
+                return VerificationResult(
+                    item=item,
+                    passed=False,
+                    accepted=False,
+                    layer_failed=5,
+                    reason=ambiguity_reason,
+                    error_type="ambiguity",
+                )
+
+        distractor_texts = {d.text.strip().lower() for d in item.distractors}
+        collisions = sorted({a for a in accepted_answers if a.strip().lower() in distractor_texts})
+        if collisions:
+            return VerificationResult(
+                item=item,
+                passed=False,
+                accepted=False,
+                layer_failed=5,
+                reason=(
+                    "Computed accepted answers collide with a distractor "
                     f"({', '.join(collisions)}), so the item was under-constrained."
                 ),
                 error_type="structural_malformation",
@@ -536,6 +870,7 @@ class VerificationPipeline:
                 kill_gate_tripped=None,
                 gate_status="unmeasured",
                 results=[],
+                gloss_unverified_count=0,
             )
 
         # Repair before judging. docs/audits/stage-04-recovery-plan.md fix A:
@@ -553,10 +888,22 @@ class VerificationPipeline:
         resolved_specs = [spec or (specs.get(c.topic_id) if specs else None) for c in candidates]
         resolved_topics = [topic or self.topics_map.get(c.topic_id) for c in candidates]
 
+        # Pass 0: gloss validation, per candidate -- free and deterministic
+        # (see ``_gloss_check``), so it runs before layers 1-4 spend any
+        # more effort. A rejection here is final immediately; a survivor's
+        # unverified-dimension count is carried forward and attached to
+        # whatever its eventual VerificationResult turns out to be, however
+        # many further layers it passes through.
+        gloss_checks = [self._gloss_check(c, resolved_topics[i]) for i, c in enumerate(candidates)]
+        gloss_unverified_counts = [count for _rejection, count in gloss_checks]
+
         # Pass 1: layers 1-4, per candidate. Either a final (rejected) result,
-        # or None meaning "survived, needs layer 5".
+        # or None meaning "survived, needs layer 5". A candidate the gloss
+        # check already rejected skips layers 1-4 entirely.
         pending: list[VerificationResult | None] = [
-            self._verify_layers_1_to_4(
+            gloss_checks[i][0]
+            if gloss_checks[i][0] is not None
+            else self._verify_layers_1_to_4(
                 c,
                 spec=resolved_specs[i],
                 topic=resolved_topics[i],
@@ -565,6 +912,38 @@ class VerificationPipeline:
             for i, c in enumerate(candidates)
         ]
         survivor_indices = [i for i, res in enumerate(pending) if res is None]
+
+        # Pass 1.5: batch-internal near-duplicate detection. The layer-4
+        # dedup check inside ``_verify_layers_1_to_4`` only ever compares a
+        # candidate against ``existing_bank_items`` -- items already
+        # committed to the bank from a PRIOR run. Two candidates minted in
+        # the SAME batch are invisible to each other there, so a generation
+        # run that (by model repetition, or two topics drawing the same
+        # carrier) produces the same exercise twice in one batch previously
+        # sailed both copies through untouched. First-survives-wins, in
+        # batch order: the earliest candidate to reach this point is
+        # trusted, and every later one that is an exact or near duplicate
+        # of it (same two checks ``_verify_layers_1_to_4`` runs against the
+        # bank: whole-prompt Jaccard via ``ItemDeduplicator.is_duplicate``,
+        # and the gap-anchored carrier run via ``_shared_gap_anchored_run``)
+        # is rejected here, before layer 5 ever sees it.
+        seen_prompts: list[str] = []
+        kept_survivor_indices: list[int] = []
+        for i in survivor_indices:
+            dup_reason = _batch_internal_duplicate_reason(candidates[i].prompt, seen_prompts)
+            if dup_reason is not None:
+                pending[i] = VerificationResult(
+                    item=candidates[i],
+                    passed=False,
+                    accepted=False,
+                    layer_failed=4,
+                    reason=dup_reason,
+                    error_type="duplicate",
+                )
+            else:
+                seen_prompts.append(candidates[i].prompt)
+                kept_survivor_indices.append(i)
+        survivor_indices = kept_survivor_indices
 
         # Pass 2: layer 5, batched once across every survivor.
         if survivor_indices and self.llm_client is not None:
@@ -576,17 +955,36 @@ class VerificationPipeline:
                 )
         else:
             for i in survivor_indices:
-                pending[i] = VerificationResult(item=candidates[i], passed=True, accepted=True)
+                # Task 1: even with no LLM configured, a candidate carrying
+                # its own pre-computed accepted set must still be finalized
+                # through ``_finalize_layer5`` (ambiguity, pronoun-class and
+                # distractor-collision checks), not waved through bare --
+                # see ``verify_item``'s identical branch for the same
+                # reasoning.
+                if AnswerSetExpander.get_computed_accepted_answers(candidates[i]) is not None:
+                    pending[i] = self._finalize_layer5(
+                        candidates[i],
+                        SemanticVerificationResult(),
+                        topic=resolved_topics[i],
+                        spec=resolved_specs[i],
+                    )
+                else:
+                    pending[i] = VerificationResult(item=candidates[i], passed=True, accepted=True)
 
         assert all(res is not None for res in pending), (
             "every candidate must have a final VerificationResult after layers 1-5"
         )
-        results: list[VerificationResult] = [res for res in pending if res is not None]
+        results: list[VerificationResult] = [
+            self._with_gloss_unverified(res, gloss_unverified_counts[i])
+            for i, res in enumerate(pending)
+            if res is not None
+        ]
 
         passed_count = 0
         failed_count = 0
         audited_accepted_count = 0
         defective_accepted_count = 0
+        gloss_unverified_total = sum(gloss_unverified_counts)
 
         for idx, (c, res) in enumerate(zip(candidates, results, strict=True)):
             if res.passed:
@@ -625,6 +1023,7 @@ class VerificationPipeline:
             kill_gate_tripped=kill_gate_tripped,
             gate_status=gate_status,
             results=results,
+            gloss_unverified_count=gloss_unverified_total,
         )
 
     @staticmethod

@@ -18,7 +18,16 @@ structural property of the sentence, never on its literal text:
    is the gap, and more than one candidate subject agrees with the given
    verb).
 
-No spaCy dependency: this module only uses small, general German word lists.
+This module's own logic uses only small, general German word lists, no
+spaCy. One exception: when the "open lexical slot" signal above is about to
+reject, it consults ``src.generation.gloss_validation.
+gloss_resolves_lexical_ambiguity`` (imported locally, only on that path) to
+ask whether a validated ``gloss_en`` and the German lemma tagger together
+show the flagged distractor is really a tense/person form of the SAME verb
+rather than a different one -- see that function's own docstring, and
+docs/audits/generation-track-plan.md Cycle 3, for why this is conservative
+by construction (a gloss confirms tense/person, which English marks; it is
+never trusted to resolve a genuine lexeme choice).
 """
 
 import re
@@ -370,6 +379,28 @@ class Layer3AdversarialSolver:
             d.text for d in item.distractors if not _same_lexeme(item.proposed_answer, d.text)
         ]
         if heterogeneous:
+            # docs/audits/generation-track-plan.md Cycle 3: this exact
+            # message was the largest single rejection bucket in the prior
+            # pilot (26 items). Most of it is a tense/person-selecting topic
+            # (morph_spec fixes Tense or Person) whose "heterogeneous"
+            # distractor is really another tense/person form of the SAME
+            # verb that ``_same_lexeme``'s prefix heuristic missed (no table
+            # anywhere in this codebase records strong-verb ablaut for a
+            # non-auxiliary, non-modal verb). A validated gloss supplies
+            # exactly the missing constraint there -- but only for tense and
+            # person, which English marks; it never resolves a genuine
+            # LEXEME choice, so this delegates the whole decision (both the
+            # "gloss genuinely confirms this dimension" gate and the
+            # "distractor really is the same verb, not a different one"
+            # check via the German lemma tagger) to
+            # ``gloss_validation.gloss_resolves_lexical_ambiguity`` rather
+            # than approximating either half here. Imported locally so this
+            # module's own dependency surface stays free/deterministic
+            # unless an item actually reaches this branch.
+            from src.generation.gloss_validation import gloss_resolves_lexical_ambiguity
+
+            if gloss_resolves_lexical_ambiguity(item, topic, heterogeneous, gap_pos):
+                return None
             return (
                 "Prompt provides no governing preposition, verb, or determiner "
                 f"that narrows the gap to one lexeme: {heterogeneous} would also "

@@ -6,10 +6,12 @@ from pathlib import Path
 
 import pytest
 from src.contracts import BankItem, CandidateItem, Distractor, Topic
+from src.generation.blanking import sentence_tagger
 from src.generation.spec import TopicSpec, load_spec
 from src.lexicon.vocabulary import VocabularyStore
 from src.taxonomy.loader import load_taxonomy
 from src.verification.layer1_syntax import Layer1SyntaxValidator
+from src.verification.layer3_solver import Layer3AdversarialSolver
 from src.verification.layer_expander import AnswerSetExpander
 from src.verification.pipeline import VerificationPipeline
 
@@ -248,12 +250,45 @@ def test_clean_items_pass_all_four_layers(
     assert res.error_type is None
 
 
-def _build_batch(n_clean: int, n_bad: int) -> list[CandidateItem]:
-    clean_item = CandidateItem(
+# Task 4 (cycle-4 report): batch-internal near-duplicate detection means a
+# batch of otherwise-identical "clean" candidates can no longer all survive
+# together -- the second one onward would (correctly) be flagged as a
+# duplicate of the first, well before the kill-gate/rejection-rate math these
+# tests actually exercise ever runs. Every A1 adverb below is a real
+# A1-band entry (data/fixtures/corpus/vocab_levels.json), well under the
+# A2 vocabulary ceiling dativ_nach_praeposition's own spec sheet declares,
+# so distinctness costs nothing these tests were relying on: none of them
+# assert anything about the clean items' shared TEXT, only about pass/fail
+# counts and kill-gate arithmetic.
+_CLEAN_BATCH_ADVERBS: tuple[str, ...] = (
+    "heute",
+    "morgen",
+    "jetzt",
+    "dort",
+    "hier",
+    "gleich",
+    "sofort",
+    "schon",
+    "noch",
+    "dann",
+    "oft",
+    "immer",
+    "manchmal",
+    "still",
+    "wieder",
+)
+
+
+def _clean_batch_item(index: int) -> CandidateItem:
+    """One structurally-clean candidate, textually distinct from every other
+    ``index`` (see ``_CLEAN_BATCH_ADVERBS`` above) so a batch of several
+    doesn't trip the batch-internal near-duplicate check on its own."""
+    adverb = _CLEAN_BATCH_ADVERBS[index % len(_CLEAN_BATCH_ADVERBS)]
+    return CandidateItem(
         topic_id="dativ_nach_praeposition",
         type="cloze_free",
         difficulty=1,
-        prompt="Das Buch liegt auf ___ Tisch.",
+        prompt=f"Das Buch liegt {adverb} auf ___ Tisch.",
         proposed_answer="dem",
         distractors=[
             Distractor(text="den", implied_topic_id="kasus_akkusativ_formen"),
@@ -261,6 +296,13 @@ def _build_batch(n_clean: int, n_bad: int) -> list[CandidateItem]:
             Distractor(text="das", implied_topic_id="artikel_bestimmt_nom"),
         ],
     )
+
+
+def _build_batch(n_clean: int, n_bad: int) -> list[CandidateItem]:
+    assert n_clean <= len(_CLEAN_BATCH_ADVERBS), (
+        "add more adverbs to _CLEAN_BATCH_ADVERBS to keep every clean item distinct"
+    )
+    clean_items = [_clean_batch_item(i) for i in range(n_clean)]
     bad_item = CandidateItem(
         topic_id="dativ_nach_praeposition",
         type="cloze_free",
@@ -273,7 +315,7 @@ def _build_batch(n_clean: int, n_bad: int) -> list[CandidateItem]:
             Distractor(text="das"),
         ],
     )
-    return [clean_item] * n_clean + [bad_item] * n_bad
+    return clean_items + [bad_item] * n_bad
 
 
 def test_verify_batch_reports_rejection_rate_separately_from_kill_gate(
@@ -638,6 +680,122 @@ def test_layer3_detects_ambiguous_completions(pipeline: VerificationPipeline) ->
     assert not res.passed
     assert res.layer_failed == 3
     assert res.error_type == "ambiguity"
+
+
+# ----------------------------------------------------------------------
+# Cycle 3: a validated gloss relieves layer3's "open lexical slot"
+# rejection, but ONLY for the tense/person ambiguity it genuinely
+# constrains, never for a free lexeme choice. docs/audits/
+# generation-track-plan.md: this was the largest single rejection bucket
+# in the prior pilot (26 items).
+# ----------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def konjunktiv_topic() -> Topic:
+    taxonomy = load_taxonomy()
+    return next(t for t in taxonomy if t.id == "konjunktiv_ii_irreal_gegenwart")
+
+
+def _konjunktiv_item(distractor_texts: list[str], gloss_en: str | None) -> CandidateItem:
+    """A cloze_free (uncued) Konjunktiv II item whose carrier has no other
+    agreement anchor before the gap ("sofort", an adverb, not a subject
+    pronoun or preposition) and no auxiliary/modal elsewhere in the prompt,
+    so it reaches layer3's bottom "open lexical slot" check rather than
+    being exempted or caught by an earlier signal."""
+    return CandidateItem(
+        topic_id="konjunktiv_ii_irreal_gegenwart",
+        type="cloze_free",
+        difficulty=2,
+        prompt="Meine Schwester sagte, dass sie sofort ___.",
+        proposed_answer="käme",
+        distractors=[Distractor(text=t) for t in distractor_texts],
+        gloss_en=gloss_en,
+    )
+
+
+def test_layer3_open_lexical_slot_rejects_without_a_gloss(konjunktiv_topic: Topic) -> None:
+    """Baseline: no gloss at all, the rejection fires exactly as before."""
+    solver = Layer3AdversarialSolver()
+    item = _konjunktiv_item(["kommt"], gloss_en=None)
+    passed, reason, error_type = solver.validate(item, topic=konjunktiv_topic)
+    assert not passed
+    assert error_type == "ambiguity"
+    assert "kommt" in (reason or "")
+
+
+@pytest.mark.skipif(
+    not sentence_tagger.analysis_available(),
+    reason="requires the German lemma tagger (de_core_news_sm) to confirm same-verb identity",
+)
+def test_layer3_open_lexical_slot_suppressed_when_gloss_validates_and_distractor_is_same_verb(
+    konjunktiv_topic: Topic,
+) -> None:
+    """ "kommt" is a different TENSE/MOOD form of the same verb ("kommen") as
+    the answer "käme" -- ``_same_lexeme``'s prefix heuristic does not
+    recognise that (no ablaut table exists for a non-auxiliary verb), but a
+    gloss that mechanically validates against the answer's own Konjunktiv II
+    features, confirmed via the German lemma tagger to be the same verb,
+    resolves exactly this ambiguity."""
+    solver = Layer3AdversarialSolver()
+    item = _konjunktiv_item(["kommt"], gloss_en="My sister said that she would come immediately.")
+    passed, reason, error_type = solver.validate(item, topic=konjunktiv_topic)
+    assert passed, f"Unexpected rejection: {reason}"
+    assert error_type is None
+
+
+def test_layer3_open_lexical_slot_still_rejects_a_genuinely_different_lexeme_distractor(
+    konjunktiv_topic: Topic,
+) -> None:
+    """ "ginge" (from "gehen") is a genuinely different VERB from the answer
+    "käme" (from "kommen"), not a tense/person form of the same one. A gloss
+    can confirm tense/person, which English marks; it never resolves which
+    verb was meant (this module does not align gloss words to the German
+    answer), so the rejection must still fire even with the same validating
+    gloss that relieved the same-verb case above."""
+    solver = Layer3AdversarialSolver()
+    item = _konjunktiv_item(["ginge"], gloss_en="My sister said that she would come immediately.")
+    passed, reason, error_type = solver.validate(item, topic=konjunktiv_topic)
+    assert not passed
+    assert error_type == "ambiguity"
+    assert "ginge" in (reason or "")
+
+
+def test_layer3_open_lexical_slot_still_rejects_when_gloss_contradicts_the_answer(
+    konjunktiv_topic: Topic,
+) -> None:
+    """A gloss that fails its OWN mechanical consistency check (here: no
+    conditional marker at all, contradicting Konjunktiv II) must never be
+    trusted to resolve anything -- the rejection fires exactly as if no
+    gloss were present."""
+    solver = Layer3AdversarialSolver()
+    item = _konjunktiv_item(["kommt"], gloss_en="My sister said that she comes immediately.")
+    passed, reason, error_type = solver.validate(item, topic=konjunktiv_topic)
+    assert not passed
+    assert error_type == "ambiguity"
+
+
+def test_layer3_open_lexical_slot_still_rejects_for_a_non_tense_selecting_topic(
+    sample_topic: Topic,
+) -> None:
+    """A topic whose ``morph_spec`` fixes neither Tense nor Person (here,
+    the Dativ-preposition fixture topic) is not tense/person-selecting at
+    all -- per ``gloss_required``'s own topic-level rule -- so a gloss must
+    never suppress this rejection for it, however well the gloss happens to
+    read."""
+    solver = Layer3AdversarialSolver()
+    item = CandidateItem(
+        topic_id=sample_topic.id,
+        type="cloze_free",
+        difficulty=1,
+        prompt="Mein Kollege meinte, dass er lieber ___.",
+        proposed_answer="bliebe",
+        distractors=[Distractor(text="geht")],
+        gloss_en="My colleague said that he would rather stay.",
+    )
+    passed, reason, error_type = solver.validate(item, topic=sample_topic)
+    assert not passed
+    assert error_type == "ambiguity"
 
 
 def test_every_error_taxonomy_category_is_reachable_from_a_real_layer_output(
@@ -2099,3 +2257,390 @@ def test_layer1_accepts_item_type_that_is_in_topic_eligible_types(
     )
     res = pipeline.verify_item(item, spec=sample_spec, topic=sample_topic)
     assert res.passed, f"unexpected rejection: {res.reason}"
+
+
+# ----------------------------------------------------------------------
+# Cycle-2 report, tasks 1-5.
+# ----------------------------------------------------------------------
+#
+# Task 1: the blanking pipeline's computed answers must survive the chain.
+#
+# ``src/generation/blanking/`` removes a token from an already-tagged
+# sentence, so its answer is OBSERVED and its accepted set is COMPUTED from
+# a closed paradigm, not proposed and heuristically widened. A candidate
+# opts into this by carrying the extra field ``computed_accepted_answers``
+# (a list of strings) -- ``CandidateItem`` is ``frozen``/``extra="allow"``
+# and not owned by this module, so this is a documented convention rather
+# than a first-class field; see ``AnswerSetExpander
+# .get_computed_accepted_answers``'s own docstring.
+# ----------------------------------------------------------------------
+
+
+def test_computed_accepted_answers_survive_with_exactly_one_member_no_llm_client() -> None:
+    """A blanked item's computed set of exactly one answer must come out
+    the other side with EXACTLY that one answer -- not widened by the
+    cheap contraction-expansion heuristic (``AnswerSetExpander
+    .expand_answers`` would turn 'im' into ['im', 'in dem']) and not
+    replaced by anything else, even with no LLM client configured (the
+    common case: most verification runs are offline)."""
+    pipeline = VerificationPipeline(vocab_store=VocabularyStore({}))
+    item = CandidateItem(
+        topic_id="does_not_matter_for_this_test",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Er wohnt ___ Zentrum der Stadt.",
+        proposed_answer="im",
+        distractors=[Distractor(text="x"), Distractor(text="y")],
+        computed_accepted_answers=["im"],
+    )
+
+    res = pipeline.verify_item(item, topic=None, spec=None)
+
+    assert res.passed, f"unexpected rejection: {res.reason}"
+    assert res.accepted_answers == ["im"]
+
+
+def test_computed_accepted_answers_survive_in_verify_batch_no_llm_client() -> None:
+    """The same guarantee holds through ``verify_batch``'s (not just
+    ``verify_item``'s) no-llm-client survivor path."""
+    pipeline = VerificationPipeline(vocab_store=VocabularyStore({}))
+    item = CandidateItem(
+        topic_id="does_not_matter_for_this_test",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Er wohnt ___ Zentrum der Stadt.",
+        proposed_answer="im",
+        distractors=[Distractor(text="x"), Distractor(text="y")],
+        computed_accepted_answers=["im"],
+    )
+
+    report = pipeline.verify_batch([item])
+
+    assert report.passed_count == 1
+    assert report.results[0].accepted_answers == ["im"]
+
+
+def test_computed_accepted_answers_ignore_model_proposed_additions() -> None:
+    """Even with a real (faked) LLM client configured and returning
+    ``additional_accepted_answers``, a computed set is FINAL: no
+    model-proposed addition is merged in."""
+    fake_llm = _FakeSemanticLlmClient(
+        '{"valid": true, "reason": null, "additional_accepted_answers": ["dem"]}'
+    )
+    pipeline = VerificationPipeline(
+        vocab_store=VocabularyStore({}),
+        llm_client=fake_llm,  # type: ignore[arg-type]
+    )
+    item = CandidateItem(
+        topic_id="does_not_matter_for_this_test",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Er wohnt ___ Zentrum der Stadt.",
+        proposed_answer="im",
+        distractors=[Distractor(text="x"), Distractor(text="y")],
+        computed_accepted_answers=["im"],
+    )
+
+    res = pipeline.verify_item(item, topic=None, spec=None)
+
+    assert res.passed, f"unexpected rejection: {res.reason}"
+    assert res.accepted_answers == ["im"]
+
+
+def test_computed_accepted_answers_absent_falls_back_to_ordinary_chain(
+    pipeline: VerificationPipeline, sample_spec: TopicSpec, sample_topic: Topic
+) -> None:
+    """A candidate that never opted into ``computed_accepted_answers`` is
+    completely unaffected -- this is exactly ``test_layer5_disabled_when_no
+    _llm_client_configured``'s existing, unchanged behaviour (no LLM client
+    configured means layer 5 is a bare no-op, per that test's own
+    docstring), asserted again here as the control case for the two
+    computed-set tests above it."""
+    item = CandidateItem(
+        topic_id="dativ_nach_praeposition",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Das Buch liegt auf ___ Tisch.",
+        proposed_answer="dem",
+        distractors=[Distractor(text="den"), Distractor(text="des"), Distractor(text="das")],
+    )
+    res = pipeline.verify_item(item, spec=sample_spec, topic=sample_topic)
+    assert res.passed
+
+
+def test_computed_accepted_answers_still_run_ambiguity_and_distractor_checks() -> None:
+    """A computed set is trusted as CORRECT, not as immune to the other
+    checks the task calls out: ambiguity and distractor collision must
+    still run. Here the computed set's second member collides with the
+    item's own distractor, so it is rejected as under-constrained rather
+    than shipped. ``type="cloze_cued"`` (rather than ``cloze_free``) keeps
+    layer 3's own under-constrained-prompt heuristic (a check for a
+    plausible governing preposition/verb/determiner, unrelated to this
+    test) from firing first on the deliberately minimal 'y' filler
+    distractor, so this test isolates layer 5's collision check."""
+    pipeline = VerificationPipeline(vocab_store=VocabularyStore({}))
+    item = CandidateItem(
+        topic_id="does_not_matter_for_this_test",
+        type="cloze_cued",
+        difficulty=1,
+        prompt="Der Film ___ sehr spannend.",
+        proposed_answer="ist",
+        distractors=[Distractor(text="war"), Distractor(text="y")],
+        computed_accepted_answers=["ist", "war"],
+    )
+
+    res = pipeline.verify_item(item, topic=None, spec=None)
+
+    assert not res.passed
+    assert res.layer_failed == 5
+    assert res.error_type == "structural_malformation"
+    assert "war" in (res.reason or "")
+
+
+# ----------------------------------------------------------------------
+# Task 2: determiner-type spanning, derived from the answers themselves,
+# not gated on the topic declaring ``ArtType``.
+# ----------------------------------------------------------------------
+
+
+def test_check_ambiguity_rejects_determiner_type_span_with_no_declared_identity_signal() -> None:
+    """'kaufen wir ___ Apfel auf dem Markt' accepted einen (Ind), den
+    (Def), diesen (Dem) AND keinen (Neg) -- four different determiner
+    types -- and the check that exists specifically to catch this never
+    fired because it is gated on the topic declaring ``ArtType``, which a
+    topic with no morph_spec/syntax_tags identity signal at all never
+    does. The determiner type must be derived from the ANSWERS themselves
+    for a topic that has no other reason (like testing Case) to accept
+    several types."""
+    topic = Topic(
+        id="test_no_declared_identity_signal",
+        name_de="Test",
+        cefr="A2",
+        description="No morph_spec/syntax_tags identity signal declared.",
+    )
+    answers = ["einen", "den", "diesen", "keinen"]
+
+    reason = AnswerSetExpander.check_ambiguity(answers, topic)
+
+    assert reason is not None
+    assert "determiner type" in reason.lower()
+
+
+def test_check_ambiguity_accepts_determiner_type_span_when_topic_tests_case() -> None:
+    """The legitimate exception: 'Ich helfe ___ Kind' accepts eight
+    determiners (dem, einem, keinem, meinem, deinem, seinem, ihrem,
+    unserem) spanning Def/Ind/Neg/Poss, all Dat Neut Sing. For a
+    ``kasus_*_formen`` topic the tested feature is CASE, not article type,
+    so this must NOT be rejected even though the new Task 2 check now
+    looks at topics without a declared ``ArtType`` too."""
+    taxonomy = load_taxonomy()
+    topic = next(t for t in taxonomy if t.id == "kasus_dativ_formen")
+    assert (topic.syntax_tags or {}).get("ArtType") is None, (
+        "fixture assumption: kasus_dativ_formen must not declare ArtType"
+    )
+    answers = ["dem", "einem", "keinem", "meinem", "deinem", "seinem", "ihrem", "unserem"]
+
+    assert AnswerSetExpander.check_ambiguity(answers, topic) is None
+
+
+# ----------------------------------------------------------------------
+# Task 3: auxiliary and copula forms need explicit Tense/Mood/Person/Number
+# comparison via the tagger, not the coarse lemma-only facet.
+# ----------------------------------------------------------------------
+
+
+def test_check_ambiguity_rejects_imperative_2sg_vs_2pl_of_sein() -> None:
+    """'___ (sein) bitte ruhig!' accepted 'Sei' (2sg) and 'Seid' (2pl) --
+    both resolve to the bare lemma 'sein', which is not enough: they
+    address a different NUMBER of people."""
+    taxonomy = load_taxonomy()
+    topic = next(t for t in taxonomy if t.id == "imperativ")
+    item = CandidateItem(
+        topic_id="imperativ",
+        type="cloze_cued",
+        difficulty=1,
+        prompt="___ bitte ruhig!",
+        proposed_answer="Sei",
+        cue="sein",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+
+    reason = AnswerSetExpander.check_ambiguity(["Sei", "Seid"], topic, item=item)
+
+    assert reason is not None
+    assert "verb form" in reason.lower()
+
+
+def test_check_ambiguity_rejects_perfekt_vs_plusquamperfekt_sein() -> None:
+    """'Gestern ___ wir nach Berlin gefahren.' accepted 'sind' (Perfekt,
+    Tense=Pres auxiliary) and 'waren' (Plusquamperfekt, Tense=Past
+    auxiliary) -- two different tenses sharing the bare lemma 'sein'."""
+    taxonomy = load_taxonomy()
+    topic = next(t for t in taxonomy if t.id == "perfekt_sein")
+    item = CandidateItem(
+        topic_id="perfekt_sein",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Gestern ___ wir nach Berlin gefahren.",
+        proposed_answer="sind",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+
+    reason = AnswerSetExpander.check_ambiguity(["sind", "waren"], topic, item=item)
+
+    assert reason is not None
+    assert "verb form" in reason.lower()
+
+
+def test_check_ambiguity_rejects_present_vs_past_copula() -> None:
+    """'Das Fenster ___ geöffnet.' accepted 'ist' (present) and 'war'
+    (past) -- two different tenses sharing the bare lemma 'sein'."""
+    taxonomy = load_taxonomy()
+    topic = next(t for t in taxonomy if t.id == "zustandspassiv_zeiten")
+    item = CandidateItem(
+        topic_id="zustandspassiv_zeiten",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Das Fenster ___ geöffnet.",
+        proposed_answer="ist",
+        distractors=[Distractor(text="x"), Distractor(text="y"), Distractor(text="z")],
+    )
+
+    reason = AnswerSetExpander.check_ambiguity(["ist", "war"], topic, item=item)
+
+    assert reason is not None
+    assert "verb form" in reason.lower()
+
+
+# ----------------------------------------------------------------------
+# Task 4: near-duplicate detection on the carrier (the phrase immediately
+# surrounding the gap), not just whole-prompt exact/Jaccard matching.
+# ----------------------------------------------------------------------
+
+
+def test_verify_item_rejects_near_duplicate_carrier_with_different_tail() -> None:
+    """'Ungeachtet ___ schlechten Wetters gingen die Kinder im Park
+    spielen.' and '...unternahmen die Wanderer eine lange Tour.' share the
+    entire fixed carrier phrase around the gap and then diverge completely
+    -- whole-prompt Jaccard similarity on this pair is ~0.33, nowhere near
+    ``ItemDeduplicator``'s 0.85 threshold, so exact-match/whole-sentence
+    dedup misses it. The carrier-anchored check must catch it."""
+    pipeline = VerificationPipeline(vocab_store=VocabularyStore({}))
+    existing = BankItem(
+        id="existing_1",
+        topic_id="praepositionen_genitiv",
+        type="cloze_free",
+        difficulty=2,
+        cefr="B1",
+        prompt="Ungeachtet ___ schlechten Wetters gingen die Kinder im Park spielen.",
+        accepted_answers=["des"],
+    )
+    candidate = CandidateItem(
+        topic_id="praepositionen_genitiv",
+        type="cloze_free",
+        difficulty=2,
+        prompt="Ungeachtet ___ schlechten Wetters unternahmen die Wanderer eine lange Tour.",
+        proposed_answer="des",
+        distractors=[Distractor(text="x"), Distractor(text="y")],
+    )
+
+    res = pipeline.verify_item(candidate, topic=None, spec=None, existing_bank_items=[existing])
+
+    assert not res.passed
+    assert res.layer_failed == 4
+    assert res.error_type == "duplicate"
+    assert "carrier" in (res.reason or "").lower()
+
+
+def test_verify_item_accepts_items_that_merely_share_a_common_opening(
+    pipeline: VerificationPipeline, sample_spec: TopicSpec, sample_topic: Topic
+) -> None:
+    """Two genuinely distinct items must not be rejected just because they
+    open with the same two words ("Das Buch") when the GAP itself sits
+    somewhere else entirely -- the carrier-anchored check is anchored on
+    the gap's own neighbourhood specifically to avoid this false positive.
+    ``candidate`` here is the exact fixture
+    ``test_clean_items_pass_all_four_layers`` already proves passes every
+    layer on its own, so a rejection can only come from the near-duplicate
+    check this test exists to exonerate."""
+    existing = BankItem(
+        id="existing_2",
+        topic_id="dativ_nach_praeposition",
+        type="cloze_free",
+        difficulty=2,
+        cefr="A2",
+        prompt="Das Buch war so spannend, dass ich es in einer Nacht ___ gelesen habe.",
+        accepted_answers=["ganz"],
+    )
+    candidate = CandidateItem(
+        topic_id="dativ_nach_praeposition",
+        type="cloze_free",
+        difficulty=1,
+        prompt="Das Buch liegt auf ___ Tisch.",
+        proposed_answer="dem",
+        distractors=[Distractor(text="den"), Distractor(text="des"), Distractor(text="das")],
+    )
+
+    res = pipeline.verify_item(
+        candidate, spec=sample_spec, topic=sample_topic, existing_bank_items=[existing]
+    )
+
+    assert res.passed, f"unexpectedly rejected as a near-duplicate: {res.reason}"
+
+
+# ----------------------------------------------------------------------
+# Task 5: a pronoun answer set must not span pronoun classes (personal,
+# demonstrative, interrogative).
+# ----------------------------------------------------------------------
+
+
+def test_check_pronoun_class_consistency_rejects_mixed_classes() -> None:
+    """'___ ist mein guter Freund.' accepted 'Er' (personal), 'Das'/
+    'Dieser'/'Der' (demonstrative) AND 'Wer' (interrogative) -- 'Wer'
+    turns the declarative statement into a question, not an alternative
+    correct answer."""
+    taxonomy = load_taxonomy()
+    topic = next(t for t in taxonomy if t.id == "pronomen_personal_nom")
+    answers = ["Er", "Das", "Dieser", "Der", "Wer"]
+
+    reason = AnswerSetExpander.check_pronoun_class_consistency(answers, topic)
+
+    assert reason is not None
+    assert "pronoun class" in reason.lower()
+
+
+def test_check_pronoun_class_consistency_accepts_one_class() -> None:
+    """A set spanning only personal-pronoun forms (three different
+    persons, but ONE class) must not be flagged."""
+    taxonomy = load_taxonomy()
+    topic = next(t for t in taxonomy if t.id == "pronomen_personal_nom")
+
+    assert AnswerSetExpander.check_pronoun_class_consistency(["er", "sie", "es"], topic) is None
+
+
+def test_check_pronoun_class_consistency_ignores_non_pronoun_topics() -> None:
+    """The check is scoped to pronoun topics (``syntax_tags['Pos'] ==
+    'Pron'`` or ``morph_spec['PronType']`` set): 'der'/'die'/'das' are
+    lexically identical to demonstrative-pronoun forms but are legitimately
+    DEFINITE ARTICLES for an article-choice topic, which must not be
+    misclassified as a pronoun-class span."""
+    taxonomy = load_taxonomy()
+    topic = next(t for t in taxonomy if t.id == "artikel_bestimmt_nom")
+    assert (topic.syntax_tags or {}).get("Pos") != "Pron"
+
+    answers = ["der", "die", "das"]
+
+    assert AnswerSetExpander.check_pronoun_class_consistency(answers, topic) is None
+
+
+def test_check_pronoun_class_consistency_ignores_relative_pronoun_topics() -> None:
+    """'der'/'die'/'das'/'den'/'dem' are the RELATIVE pronoun paradigm for
+    a ``PronType: Rel`` topic -- the topic's own single legitimate target
+    form, not a mix of personal/demonstrative/interrogative pronouns."""
+    taxonomy = load_taxonomy()
+    topic = next(t for t in taxonomy if t.id == "relativsatz_nom_akk")
+    assert (topic.morph_spec or {}).get("PronType") == "Rel"
+
+    answers = ["der", "die", "das", "den"]
+
+    assert AnswerSetExpander.check_pronoun_class_consistency(answers, topic) is None
