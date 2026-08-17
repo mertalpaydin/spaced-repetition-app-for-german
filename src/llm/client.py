@@ -201,7 +201,7 @@ class GeminiLlmClient:
     # window is tens of seconds, not one, and a fixed 1s backoff retries into
     # the same still-exhausted window and fails a pilot run outright.
     RPM_BACKOFF_SECONDS: float = 1.0
-    RPM_MAX_RETRIES: int = 2
+    RPM_MAX_RETRIES: int = 5
 
     # 5xx server overload is transient and carries no structured retry delay
     # (confirmed live: "503 UNAVAILABLE... currently experiencing high
@@ -217,12 +217,11 @@ class GeminiLlmClient:
     # of them. Throughput is still capped by ``FREE_LANE_RATE_LIMIT_PER_MINUTE``
     # below regardless of this value; it mainly controls how many requests can
     # be in flight (and therefore latency-overlapping) at once.
-    FREE_LANE_MAX_CONCURRENCY: int = 8
+    FREE_LANE_MAX_CONCURRENCY: int = 4
 
-    # The free tier's real ceiling is 15 RPM. Pacing to slightly under it
-    # (not to 15 itself) leaves headroom against Google's window boundary not
-    # lining up exactly with ours -- see ``_SlidingWindowRateLimiter``.
-    FREE_LANE_RATE_LIMIT_PER_MINUTE: int = 14
+    # The free tier's ceiling for flash models is 5-15 RPM. Pacing defensively
+    # leaves headroom against Google's window boundary.
+    FREE_LANE_RATE_LIMIT_PER_MINUTE: int = 5
 
     # Google's inline (non-file) batch submission is documented as suitable
     # for "smaller batches that keep the total request size under 20MB";
