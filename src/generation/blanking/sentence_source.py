@@ -161,13 +161,19 @@ def client_from_env() -> GeminiLlmClient | None:
     configured in the environment; ``None`` otherwise. Mirrors
     ``src.generation.batch_client._build_llm_client_if_configured`` exactly
     -- kept as its own small copy here rather than importing that private
-    helper, so this module stays self-contained within the new package."""
+    helper, so this module stays self-contained within the new package.
+
+    Built with ``forbid_paid_lane=True``: this is a pilot script
+    (``scripts/step6_blank_pilot.py``) with no ``--batch`` opt-in at all, so
+    unlike the nightly automation there is no scenario where this client
+    should ever fall through to the real paid Batch API. If the free lane's
+    daily quota is exhausted, the run must fail loudly, not spend silently."""
     if (
         os.getenv("GEMINI_FREE_API_KEY")
         or os.getenv("GEMINI_PAID_API_KEY")
         or os.getenv("GEMINI_API_KEY")
     ):
-        return GeminiLlmClient()
+        return GeminiLlmClient(forbid_paid_lane=True)
     return None
 
 

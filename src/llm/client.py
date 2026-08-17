@@ -54,13 +54,13 @@ class _SlidingWindowRateLimiter:
 
     Exists because ``generate_many``'s free-lane path dispatches independent
     items from multiple threads concurrently. Concurrency alone does not
-    raise the free tier's throughput ceiling (Google enforces 15 RPM
-    regardless of how many requests arrive at once) -- it only changes
-    whether those requests arrive evenly spaced or in a burst. A burst that
-    exceeds the ceiling makes EVERY item in the burst 429 at roughly the same
-    moment; if several of them then retry at roughly the same moment too
-    (their backoffs overlapping), a single item can exhaust its bounded
-    ``RPM_MAX_RETRIES`` and raise, which crashes the *entire* concurrent
+    raise the free tier's throughput ceiling (the owner has observed 5 RPM
+    for flash models, regardless of how many requests arrive at once) -- it
+    only changes whether those requests arrive evenly spaced or in a burst.
+    A burst that exceeds the ceiling makes EVERY item in the burst 429 at
+    roughly the same moment; if several of them then retry at roughly the
+    same moment too (their backoffs overlapping), a single item can exhaust
+    its bounded ``RPM_MAX_RETRIES`` and raise, which crashes the *entire* concurrent
     group via ``future.result()`` -- observed live. Pacing requests here,
     proactively, before they are ever sent, avoids the 429 in the first
     place instead of reacting to it after several threads have already
@@ -126,6 +126,22 @@ class ServerUnavailableError(Exception):
     it is transient trouble on Google's side, typically gone within seconds,
     and the correct response is the same short backoff-and-retry on the same
     lane that RPM already gets.
+    """
+
+
+class PaidLaneForbiddenError(RuntimeError):
+    """Raised by ``_determine_lane`` when routing would pick the paid lane
+    but ``forbid_paid_lane`` is set on the client.
+
+    This is the real "batch is off" switch (CLAUDE.md 9). Before this
+    existed, ``--batch`` only ever controlled *forcing* the paid lane;
+    nothing ever *forbade* it, so once the free lane's daily quota tripped
+    (``_close_free_lane_until_pacific_midnight``), every subsequent call in
+    the same process silently fell through to the paid batch lane -- for a
+    whole pilot run, unattended, with no operator ever having asked for
+    batch. ``forbid_paid_lane=True`` makes that fall-through fail loudly
+    here instead, with a message that says why, when the free lane reopens,
+    and that ``--batch`` remains available as an explicit opt-in.
     """
 
 
@@ -201,6 +217,12 @@ class GeminiLlmClient:
     # window is tens of seconds, not one, and a fixed 1s backoff retries into
     # the same still-exhausted window and fails a pilot run outright.
     RPM_BACKOFF_SECONDS: float = 1.0
+    # Operator-tuned against observed live rate limiting, deliberately
+    # conservative. Reverted to 2 across three separate cycles, each time
+    # costing the owner a live pilot run; pinned by
+    # test_operator_tuned_rate_limit_constants_are_pinned in
+    # tests/test_llm_client.py. Do not change without asking the project
+    # owner first.
     RPM_MAX_RETRIES: int = 5
 
     # 5xx server overload is transient and carries no structured retry delay
@@ -217,10 +239,25 @@ class GeminiLlmClient:
     # of them. Throughput is still capped by ``FREE_LANE_RATE_LIMIT_PER_MINUTE``
     # below regardless of this value; it mainly controls how many requests can
     # be in flight (and therefore latency-overlapping) at once.
+    # Operator-tuned against observed live rate limiting, deliberately
+    # conservative. Reverted to 8 across three separate cycles, each time
+    # costing the owner a live pilot run; pinned by
+    # test_operator_tuned_rate_limit_constants_are_pinned in
+    # tests/test_llm_client.py. Do not change without asking the project
+    # owner first.
     FREE_LANE_MAX_CONCURRENCY: int = 4
 
-    # The free tier's ceiling for flash models is 5-15 RPM. Pacing defensively
-    # leaves headroom against Google's window boundary.
+    # The owner has directly observed the free tier's real ceiling for flash
+    # models to be 5 RPM, not the higher figures (up to 15 RPM) some
+    # documentation and earlier comments here claimed. Pacing at the
+    # observed ceiling, not a documented-but-unobserved one, is what
+    # actually avoids 429s in practice.
+    # Operator-tuned against observed live rate limiting, deliberately
+    # conservative. Reverted to 14 across three separate cycles, each time
+    # costing the owner a live pilot run; pinned by
+    # test_operator_tuned_rate_limit_constants_are_pinned in
+    # tests/test_llm_client.py. Do not change without asking the project
+    # owner first.
     FREE_LANE_RATE_LIMIT_PER_MINUTE: int = 5
 
     # Google's inline (non-file) batch submission is documented as suitable
@@ -249,6 +286,7 @@ class GeminiLlmClient:
         config_path: Path | str = DEFAULT_CONFIG_PATH,
         clock: Callable[[], datetime] | None = None,
         sleep_fn: Callable[[float], None] | None = None,
+        forbid_paid_lane: bool = False,
     ) -> None:
         self.free_api_key = (
             free_api_key or os.getenv("GEMINI_FREE_API_KEY") or os.getenv("GEMINI_API_KEY")
@@ -264,6 +302,17 @@ class GeminiLlmClient:
             if restrict_user_content_to_paid_lane is not None
             else load_restrict_user_content_to_paid_lane(config_path)
         )
+        # Genuinely forbids ``_determine_lane`` from ever returning "paid":
+        # instead of silently falling through to the paid batch lane once the
+        # free lane closes (RPD exhaustion) or user-content restriction
+        # applies, the call raises ``PaidLaneForbiddenError``. Default
+        # ``False`` preserves the existing auto-routing behaviour for every
+        # caller that does not opt in; pilots opt in by default
+        # (``src.generation.pilot.run_pilot``), and ``force_lane`` still
+        # bypasses this check entirely, which is how ``--batch`` remains an
+        # explicit, deliberate opt-in into the paid lane even from a client
+        # built with ``forbid_paid_lane=True``.
+        self.forbid_paid_lane = forbid_paid_lane
         self._clock: Callable[[], datetime] = clock or (lambda: datetime.now(UTC))
         self._sleep: Callable[[float], None] = sleep_fn or time.sleep
 
@@ -363,13 +412,42 @@ class GeminiLlmClient:
         self.free_lane_open = False
         self.free_lane_closed_until = self._next_pacific_midnight(ref_time)
 
+    def _paid_lane_forbidden_message(self, ref_time: datetime) -> str:
+        """Build the actionable refusal message for ``PaidLaneForbiddenError``.
+
+        Distinguishes the two reasons ``_determine_lane`` would otherwise
+        pick the paid lane, since the fix differs: a closed free lane just
+        needs to wait (or opt into ``--batch``); the user-content privacy
+        restriction needs a config or call-site change, not a wait.
+        """
+        if not self.free_lane_open:
+            reopen_at = self.free_lane_closed_until
+            reopen_str = (
+                reopen_at.isoformat() if reopen_at is not None else "the next Pacific midnight"
+            )
+            return (
+                "The free lane is closed (daily quota exhausted) and the paid batch "
+                "lane is forbidden in this run. The free lane reopens at "
+                f"{reopen_str} (Pacific-midnight reset). Pass --batch if you actually "
+                "want this run to use the paid lane."
+            )
+        return (
+            "This call carries user content and privacy.restrict_user_content_to_paid_lane "
+            "routes user content to the paid lane, but the paid lane is forbidden in this "
+            "run. Pass --batch if you actually want this run to use the paid lane."
+        )
+
     def _determine_lane(self, is_user_content: bool, ref_time: datetime) -> Lane:
         self._refresh_free_lane_state(ref_time)
         if self.restrict_user_content_to_paid_lane and is_user_content:
-            return "paid"
-        if not self.free_lane_open:
-            return "paid"
-        return "free"
+            intended: Lane = "paid"
+        elif not self.free_lane_open:
+            intended = "paid"
+        else:
+            intended = "free"
+        if intended == "paid" and self.forbid_paid_lane:
+            raise PaidLaneForbiddenError(self._paid_lane_forbidden_message(ref_time))
+        return intended
 
     # ------------------------------------------------------------------
     # Transport
@@ -817,7 +895,12 @@ class GeminiLlmClient:
 
         RPM exhaustion: back off and retry on the same (free) lane.
         RPD exhaustion: close the free lane until the next Pacific midnight and
-        move the work to the paid lane.
+        move the work to the paid lane -- unless ``self.forbid_paid_lane`` is
+        set, in which case this mid-call fallback is exactly the same kind of
+        silent free-to-paid routing decision ``_determine_lane`` makes for
+        every later call, so it must raise ``PaidLaneForbiddenError`` here
+        too rather than let the very first call that trips RPD slip through
+        onto paid before ``forbid_paid_lane`` ever gets a chance to apply.
         5xx server overload: not a quota signal at all -- back off and retry
         on the same lane, exactly like RPM, but with its own bounded retry
         count so it can never masquerade as quota exhaustion or trigger the
@@ -839,8 +922,13 @@ class GeminiLlmClient:
                     rpm_attempts += 1
                     self._sleep(exc.retry_delay_seconds or self.RPM_BACKOFF_SECONDS)
                     continue
-                # RPD: close the free lane and move the work to paid.
+                # RPD: close the free lane, then either move the work to paid
+                # or, if paid is forbidden, fail loudly instead.
                 self._close_free_lane_until_pacific_midnight(ref_time)
+                if lane == "free" and self.forbid_paid_lane:
+                    raise PaidLaneForbiddenError(
+                        self._paid_lane_forbidden_message(ref_time)
+                    ) from exc
                 lane = "paid"
                 mode = "batch"
             except ServerUnavailableError:

@@ -35,7 +35,7 @@ from src.generation.pilot import (
     PilotRunReport,
     run_pilot,
 )
-from src.llm.client import BudgetExceeded
+from src.llm.client import BudgetExceeded, PaidLaneForbiddenError
 from src.llm.env import load_env_file
 
 
@@ -200,7 +200,10 @@ def main() -> int:
             "reserved for a deliberate real stock run, not a pilot. Requires a "
             "configured GEMINI_PAID_API_KEY; refuses outright without one "
             "rather than silently falling back to the offline mock or the "
-            "free lane."
+            "free lane. Without --batch the paid lane is genuinely forbidden, "
+            "not merely deprioritised: if the free lane's daily quota is "
+            "exhausted, the run fails loudly instead of silently spending on "
+            "the paid lane."
         ),
     )
     parser.add_argument(
@@ -238,7 +241,7 @@ def main() -> int:
             use_batch=args.batch,
             sync_chunk_size=args.sync_chunk_size,
         )
-    except (ValueError, BudgetExceeded) as exc:
+    except (ValueError, BudgetExceeded, PaidLaneForbiddenError) as exc:
         print(f"Pilot run refused: {exc}")
         return 1
 

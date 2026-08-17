@@ -308,9 +308,17 @@ def run_pilot(
     ``use_batch`` (default ``False``): route every request through the free
     lane's synchronous path, paced by ``GeminiLlmClient``'s own rate limiter
     -- fast, cheap, dev-iteration generation, which is what a pilot is for.
-    Set it ``True`` only for a deliberate real stock run through the paid
-    lane's actual Batch API (``scripts/step5_pilot_generation.py --batch``);
-    it requires a live ``GeminiBatchClient`` (a configured
+    When ``False`` and an ``llm_client`` is auto-built here (i.e. the caller
+    did not pass one in), that client is constructed with
+    ``forbid_paid_lane=True``: the paid lane is genuinely off, not merely
+    deprioritised, so if the free lane's daily quota is already exhausted
+    (or closes mid-run), the call raises ``PaidLaneForbiddenError`` instead
+    of silently spending on the paid batch lane -- this is what actually
+    caught last cycle's regression, where "sync by default" alone still let
+    every call fall through to paid once the free lane closed.
+    Set ``use_batch=True`` only for a deliberate real stock run through the
+    paid lane's actual Batch API (``scripts/step5_pilot_generation.py
+    --batch``); it requires a live ``GeminiBatchClient`` (a configured
     ``GEMINI_PAID_API_KEY``), since there is nothing for an offline mock run
     to batch. The request set is still split into ``sync_chunk_size``-sized
     groups either way, each submitted, verified, and inserted before the
@@ -348,7 +356,14 @@ def run_pilot(
     ran_live = False
     if batch_client is None:
         if llm_client is None:
-            llm_client = _build_llm_client_if_configured()
+            # Pilots are genuinely off the paid lane by default (the project
+            # owner's instruction, twice): a client built here for a
+            # non-``--batch`` run forbids ``_determine_lane`` from ever
+            # falling through to paid, so a closed free lane fails loudly
+            # instead of silently routing to the real Batch API. ``--batch``
+            # (``use_batch=True``) is the deliberate opt-in and gets a client
+            # with the ordinary auto-routing policy instead.
+            llm_client = _build_llm_client_if_configured(forbid_paid_lane=not use_batch)
         if llm_client is not None:
             spend = llm_client.get_month_to_date_spend()
             if spend >= llm_client.spend_ceiling_usd:

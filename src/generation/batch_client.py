@@ -396,16 +396,24 @@ class GeminiBatchClient:
 # ==============================================================================
 
 
-def _build_llm_client_if_configured() -> GeminiLlmClient | None:
+def _build_llm_client_if_configured(*, forbid_paid_lane: bool = False) -> GeminiLlmClient | None:
     """Route real cost accounting and the spend ceiling through the single client
     in src/llm/client.py (CLAUDE.md rule 4) whenever an API key is configured.
-    Falls back to None (no ceiling check possible, offline dev) otherwise."""
+    Falls back to None (no ceiling check possible, offline dev) otherwise.
+
+    ``forbid_paid_lane`` defaults to ``False`` here, which preserves the
+    existing nightly-automation behaviour (``run_submit``/``run_ingest``):
+    overflow is meant to accumulate and ship as one real batch job (CLAUDE.md
+    9, "Overflow accumulates, it does not fail over per request"). Pilot
+    generation (``src.generation.pilot.run_pilot``) passes
+    ``forbid_paid_lane=True`` explicitly instead, since batch must be
+    genuinely off for a pilot run by default."""
     if (
         os.getenv("GEMINI_FREE_API_KEY")
         or os.getenv("GEMINI_PAID_API_KEY")
         or os.getenv("GEMINI_API_KEY")
     ):
-        return GeminiLlmClient()
+        return GeminiLlmClient(forbid_paid_lane=forbid_paid_lane)
     return None
 
 

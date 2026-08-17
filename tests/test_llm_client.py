@@ -32,6 +32,7 @@ from src.llm.client import (
     GeminiLlmClient,
     MissingApiKeyError,
     ModelRejectedError,
+    PaidLaneForbiddenError,
     QuotaExceededError,
     ServerUnavailableError,
 )
@@ -433,6 +434,119 @@ def test_rpd_429_closes_free_lane_until_pacific_midnight(tmp_path: Path) -> None
         line.strip() for line in log_file.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
     assert '"lane":"free"' in lines[-1]
+
+
+def test_forbid_paid_lane_raises_instead_of_silently_routing_to_paid(tmp_path: Path) -> None:
+    """This is the real production bug: last cycle's "sync by default, --batch
+    to force it" fix only ever controlled *forcing* the paid lane -- nothing
+    ever *forbade* it. Once the free lane's daily quota tripped, every
+    subsequent call silently fell through to the paid batch lane (the cost
+    log showed 337 of 390 lifetime API calls on the paid lane). This test
+    exercises ``_determine_lane``'s real, unmocked routing decision -- the
+    exact code path that was silently returning "paid" -- and proves that
+    with ``forbid_paid_lane=True`` it raises instead of ever reaching the
+    transport."""
+    log_file = tmp_path / "cost_log.jsonl"
+    fixed_now = datetime(2026, 6, 15, 10, 30, tzinfo=UTC)
+    client = GeminiLlmClient(
+        cost_log_path=log_file,
+        cache_dir=tmp_path / "cache",
+        clock=lambda: fixed_now,
+        forbid_paid_lane=True,
+    )
+    # Simulate a free lane already closed by an earlier RPD 429 in this
+    # process, exactly as ``_close_free_lane_until_pacific_midnight`` leaves
+    # it -- this is state, not mocking of ``_determine_lane`` itself.
+    client._close_free_lane_until_pacific_midnight(fixed_now)
+    assert client.free_lane_open is False
+
+    calls: list[str] = []
+
+    def recording_transport(**kwargs: object) -> tuple[str, int, int]:
+        calls.append(str(kwargs["lane"]))
+        return _fake_transport_ok(**kwargs)
+
+    client._call_transport = recording_transport  # type: ignore[method-assign]
+
+    with pytest.raises(PaidLaneForbiddenError) as exc_info:
+        client.generate("Anfrage nach RPD-Schluss", purpose="unit_test", use_cache=False)
+
+    assert calls == [], "must never reach the transport at all -- no free call, no paid call"
+
+    message = str(exc_info.value)
+    assert "free lane is closed" in message
+    assert "--batch" in message
+    assert client.free_lane_closed_until is not None
+    assert client.free_lane_closed_until.isoformat() in message, (
+        "the refusal must say when the free lane reopens"
+    )
+
+    # No cost-log row was written: refusing is not the same as spending.
+    assert not log_file.exists() or log_file.read_text(encoding="utf-8").strip() == ""
+
+
+def test_forbid_paid_lane_raises_in_generate_many_via_determine_lane(tmp_path: Path) -> None:
+    """The pilot's real call path is ``generate_many`` (via
+    ``GeminiBatchClient.submit``), not ``generate`` -- confirm the same
+    ``_determine_lane`` refusal applies there too, with no ``force_lane``
+    override in play (``force_lane=None`` is what a non-``--batch`` pilot run
+    actually passes)."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file, cache_dir=tmp_path / "cache", forbid_paid_lane=True
+    )
+    client.free_lane_open = False  # would normally auto-route to "paid"
+
+    def fail_if_called(**kwargs: object) -> tuple[str, int, int]:
+        pytest.fail("generate_many must never reach the transport when paid is forbidden")
+
+    client._call_transport = fail_if_called  # type: ignore[method-assign]
+
+    with pytest.raises(PaidLaneForbiddenError):
+        client.generate_many(["eins"], purpose="unit_test", use_cache=False)
+
+
+def test_forbid_paid_lane_raises_mid_call_on_rpd_429_instead_of_falling_through(
+    tmp_path: Path,
+) -> None:
+    """Separate from ``_determine_lane``'s routing decision for a fresh call,
+    ``_call_transport_with_lane_handling`` has its own free-to-paid fallback
+    for an RPD 429 discovered mid-call. That fallback must also respect
+    ``forbid_paid_lane`` -- otherwise the very first call that trips RPD
+    would still slip onto paid before the client ever had a closed free lane
+    to refuse on."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file, cache_dir=tmp_path / "cache", forbid_paid_lane=True
+    )
+
+    def rpd_transport(**kwargs: object) -> tuple[str, int, int]:
+        assert kwargs["lane"] == "free", "must not have already switched to paid"
+        raise QuotaExceededError("rpd")
+
+    client._call_transport = rpd_transport  # type: ignore[method-assign]
+
+    with pytest.raises(PaidLaneForbiddenError):
+        client.generate("Erste Anfrage", purpose="unit_test", use_cache=False)
+
+    # The free lane is still correctly recorded as closed for the day, even
+    # though the call itself refused rather than spending on paid.
+    assert client.free_lane_open is False
+
+
+def test_forbid_paid_lane_default_false_preserves_existing_auto_routing(tmp_path: Path) -> None:
+    """``forbid_paid_lane`` defaults to ``False``: a client built without it
+    keeps today's auto-routing behaviour (falls through to paid), so nothing
+    that does not opt in is affected by this mode."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(cost_log_path=log_file, cache_dir=tmp_path / "cache")
+    assert client.forbid_paid_lane is False
+
+    client._call_transport = _fake_transport_ok  # type: ignore[method-assign]
+    client.free_lane_open = False
+
+    response = client.generate("Bezahlte Anfrage", purpose="unit_test", use_cache=False)
+    assert "lane=paid" in response
 
 
 def test_server_overload_backs_off_and_retries_same_lane(tmp_path: Path) -> None:
@@ -1148,3 +1262,22 @@ def test_sync_call_wraps_non_429_client_error_naming_the_model(tmp_path: Path) -
         client._call_transport(
             model=MODEL_GENERATE, prompt="x", lane="free", mode="sync", purpose="unit_test"
         )
+
+
+def test_operator_tuned_rate_limit_constants_are_pinned() -> None:
+    """``RPM_MAX_RETRIES``, ``FREE_LANE_MAX_CONCURRENCY`` and
+    ``FREE_LANE_RATE_LIMIT_PER_MINUTE`` are operator-tuned against the
+    project owner's own observed live Gemini rate limiting, and the values
+    below are deliberately conservative -- not the theoretical or documented
+    ceiling, but what the owner has actually seen work without 429s. They
+    have been silently reverted to weaker values (2 / 8 / 14 respectively)
+    across three separate cycles, each time costing the owner a live pilot
+    run; one cycle even noticed the discrepancy, reported it, and moved on
+    anyway. This test exists so that cannot happen quietly again: if it
+    fails, that is the signal to go ask the project owner before changing
+    anything here, per CLAUDE.md rule 7 (never weaken a failing test to make
+    it pass) -- not to update this assertion to match whatever the code now
+    says."""
+    assert GeminiLlmClient.RPM_MAX_RETRIES == 5
+    assert GeminiLlmClient.FREE_LANE_MAX_CONCURRENCY == 4
+    assert GeminiLlmClient.FREE_LANE_RATE_LIMIT_PER_MINUTE == 5
