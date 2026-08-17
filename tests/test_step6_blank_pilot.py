@@ -16,11 +16,14 @@ from scripts.step6_blank_pilot import (
     _blank_pilot_run_id,
     _blank_sentences_with_skip_detail,
     _DetailedSkip,
+    _print_report,
     _to_bank_item,
     _to_rejected_record,
 )
 from src.contracts import BankItem
 from src.generation.batch_client import RejectedCandidateRecord
+from src.generation.blanking import sentence_source
+from src.generation.blanking.pipeline import DroppedItem, blank_sentences
 from src.taxonomy.loader import load_taxonomy
 
 _SENTENCES = [
@@ -173,3 +176,167 @@ def test_main_writes_review_and_rejected_files_offline(
     for row in rejected_rows:
         assert set(row) == expected_rejected_keys
         assert row["reason"]
+
+
+class _FixedSentenceGenerator:
+    """A ``sentence_source.SentenceGenerator`` that always returns the same
+    fixed list, regardless of theme/person/tense/register/structure --
+    lets a test pin exactly which raw sentences ``generate_sentence_pool``
+    has to work with, including a deliberately ungrammatical one, without
+    depending on the offline mock pool's own (unrelated) content."""
+
+    def __init__(self, sentences: list[str]) -> None:
+        self._sentences = sentences
+
+    def generate(
+        self,
+        cefr: str,
+        theme: str,
+        count: int,
+        *,
+        person: str | None = None,
+        tense: str | None = None,
+        register: str | None = None,
+        structure: str | None = None,
+    ) -> list[str]:
+        return list(self._sentences)
+
+
+def test_main_uses_generate_sentence_pool_not_a_single_flat_request(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The pilot must draw from ``sentence_source.generate_sentence_pool``
+    (many small, varied batches), never a single ``generator.generate(...)``
+    call for the whole requested count -- the ~60-uniform-sentence pilot
+    skew this script existed to fix (module docstring)."""
+    calls: list[dict[str, object]] = []
+    real_pool_fn = sentence_source.generate_sentence_pool
+
+    def _spy_generate_sentence_pool(
+        generator: object, cefr: str, total: int, **kwargs: object
+    ) -> object:
+        calls.append({"cefr": cefr, "total": total, **kwargs})
+        return real_pool_fn(generator, cefr, total, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(step6, "load_env_file", lambda *a, **k: {})
+    monkeypatch.setattr(sentence_source, "generate_sentence_pool", _spy_generate_sentence_pool)
+    monkeypatch.delenv("GEMINI_FREE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "step6_blank_pilot.py",
+            "--sentences",
+            "10",
+            "--review-file",
+            str(tmp_path / "review.jsonl"),
+            "--rejected-file",
+            str(tmp_path / "rejected.jsonl"),
+        ],
+    )
+
+    exit_code = step6.main()
+
+    assert exit_code == 0
+    assert len(calls) == 1, "exactly one generate_sentence_pool call, not one per sentence"
+    assert calls[0]["total"] == 10
+
+
+def test_main_gates_a_carrier_invalid_sentence_before_it_reaches_a_selector(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An ungrammatical generated sentence ("kauft ich" -- subject/verb
+    disagreement, carrier_validation's own worked example) must never
+    produce or contribute to an item: the pilot report's carrier-rejection
+    count must include it, and no accepted item's prompt may contain its
+    text."""
+    bad_sentence = "Auf dem Weg kauft ich im Supermarkt frisches Gemüse und Milch ein."
+    good_sentence = "Der Hund läuft schnell durch den Park."
+    fixed_generator = _FixedSentenceGenerator([bad_sentence, good_sentence])
+
+    monkeypatch.setattr(step6, "load_env_file", lambda *a, **k: {})
+    monkeypatch.setattr(sentence_source, "build_sentence_generator", lambda client: fixed_generator)
+    monkeypatch.delenv("GEMINI_FREE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    review_path = tmp_path / "review.jsonl"
+    rejected_path = tmp_path / "rejected.jsonl"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "step6_blank_pilot.py",
+            "--sentences",
+            "2",
+            "--review-file",
+            str(review_path),
+            "--rejected-file",
+            str(rejected_path),
+        ],
+    )
+
+    exit_code = step6.main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "Rejected by carrier validation:   1" in captured.out
+    assert "subject_verb_disagreement" in captured.out
+
+    review_rows = [json.loads(line) for line in review_path.read_text().splitlines() if line]
+    for row in review_rows:
+        assert "kauft ich" not in row["prompt"]
+
+
+def test_print_report_shows_pool_and_cap_and_dedup_sections_distinctly(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The printed report must surface every category task 4 asks for, and
+    keep balance-driven drops (caps, cross-topic duplicates) visibly
+    separate from quality-driven skips -- a silent cap is exactly the "quiet
+    truncation" this project has been bitten by before."""
+    report = blank_sentences(["Ich stehe jeden Morgen um sechs Uhr auf."])
+    pool = sentence_source.SentencePool(
+        sentences=["Ich stehe jeden Morgen um sechs Uhr auf."],
+        requested=5,
+        raw_generated=6,
+        duplicates_skipped=1,
+        batches_run=1,
+    )
+    pool.rejected_by_reason["subject_verb_disagreement"] = 4
+
+    _print_report(report, pool, ran_live=False)
+    out = capsys.readouterr().out
+
+    assert "Rejected by carrier validation:   4" in out
+    assert "subject_verb_disagreement: 4" in out
+    assert "Items dropped as cross-topic duplicates" in out
+    assert "verb_praesens_regelm: 1" in out
+    assert "Items dropped to the per-topic cap" in out
+    assert "Items dropped to the per-source-sentence cap" in out
+    assert "Skips by reason" in out
+
+
+def test_dropped_items_to_skips_preserves_reason_and_answer() -> None:
+    dropped = [
+        DroppedItem(
+            topic_id="verb_praesens_regelm",
+            prompt="Ich ___ jeden Morgen auf.",
+            proposed_answer="stehe",
+            reason="cross_topic_duplicate",
+            kept_topic_id="verben_trennbar_praesens",
+        )
+    ]
+    skips = step6._dropped_items_to_skips(dropped)
+
+    assert len(skips) == 1
+    assert skips[0].topic_id == "verb_praesens_regelm"
+    assert skips[0].sentence == "Ich ___ jeden Morgen auf."
+    assert skips[0].reason == "cross_topic_duplicate"
+    assert skips[0].proposed_answer == "stehe"
+
+    record = _to_rejected_record(skips[0])
+    assert record.proposed_answer == "stehe"
+    assert record.reason == "cross_topic_duplicate"
