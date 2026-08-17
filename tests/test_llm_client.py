@@ -978,7 +978,7 @@ def test_generate_many_paid_lane_threads_purpose_into_thinking_config(tmp_path: 
     """``generate_many``'s paid-lane branch builds its ``GenerateContentConfig``
     once for the whole group, so it must also pass ``purpose`` through to
     ``_thinking_config_for`` -- otherwise a sentence-generation batch that
-    fell over to the paid lane would silently lose its minimal-thinking
+    fell over to the paid lane would silently lose its low-thinking
     config that the free lane grants it."""
     log_file = tmp_path / "cost_log.jsonl"
     client = GeminiLlmClient(
@@ -1147,7 +1147,7 @@ def test_thoughts_token_count_added_to_completion_tokens_when_present(tmp_path: 
 def test_thinking_disabled_for_generation_model_on_other_purposes(tmp_path: Path) -> None:
     """CLAUDE.md 213: most ``gemini-3.5-flash-lite`` calls run with thinking
     off -- everything on this model EXCEPT the sentence-generation purpose
-    (see ``test_thinking_minimal_for_sentence_generation_purpose`` below).
+    (see ``test_thinking_low_for_sentence_generation_purpose`` below).
     ``MODEL_LIVE`` and ``MODEL_GENERATE`` are literally the same model
     string, so this must be tested with a purpose OTHER than
     ``PURPOSE_SENTENCE_GENERATION`` -- this is exactly what stands in for
@@ -1170,13 +1170,16 @@ def test_thinking_disabled_for_generation_model_on_other_purposes(tmp_path: Path
     assert sent_config.thinking_config is None
 
 
-def test_thinking_minimal_for_sentence_generation_purpose(tmp_path: Path) -> None:
+def test_thinking_low_for_sentence_generation_purpose(tmp_path: Path) -> None:
     """The one deliberate exception: ``purpose=PURPOSE_SENTENCE_GENERATION``
     (what ``LiveSentenceGenerator.generate`` sends, in
     ``src.generation.blanking.sentence_source``) runs at ``THINKING_GENERATE``
-    ("minimal"), added after an accepted carrier sentence turned out to carry
+    ("low"), added after an accepted carrier sentence turned out to carry
     an A1 subject-verb agreement error the model could not have fixed without
-    any planning step at all."""
+    any planning step at all. "low", not "minimal", because the project
+    owner confirmed "minimal" is this model line's own default thinking
+    level -- setting it explicitly bought nothing over leaving thinking
+    unset."""
     client = GeminiLlmClient(
         cost_log_path=tmp_path / "cost_log.jsonl",
         cache_dir=tmp_path / "cache",

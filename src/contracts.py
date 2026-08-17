@@ -84,13 +84,16 @@ THINKING_VERIFY: str = "low"
 # agreement defect: a fronted adverbial forces V2 inversion, and an
 # autoregressive model with no planning step can commit to a high-probability
 # verb form before it has chosen the subject that has to agree with it) is
-# the reason to spend the smallest available thinking budget on this
-# workload, not zero. Named for, and used only by, the sentence-generation
-# purpose below -- MODEL_LIVE and MODEL_GENERATE are the SAME model string,
-# so this cannot be gated on model id alone without also turning thinking on
-# for explanations, production grading, and the weekly report narrative,
-# none of which this change is about.
-THINKING_GENERATE: str = "minimal"
+# the reason to spend a thinking budget on this workload at all. The level is
+# "low", not "minimal": the project owner confirmed "minimal" is this line's
+# own default, so setting it explicitly bought nothing over leaving thinking
+# unset -- "low" is the smallest level that is actually a step up from doing
+# nothing. Named for, and used only by, the sentence-generation purpose below
+# -- MODEL_LIVE and MODEL_GENERATE are the SAME model string, so this cannot
+# be gated on model id alone without also turning thinking on for
+# explanations, production grading, and the weekly report narrative, none of
+# which this change is about.
+THINKING_GENERATE: str = "low"
 # The ``purpose=`` value ``LiveSentenceGenerator.generate`` (src/generation/
 # blanking/sentence_source.py) passes to ``GeminiLlmClient.generate``. Shared
 # as one constant, imported by both that call site and

@@ -507,7 +507,7 @@ class GeminiLlmClient:
     def _thinking_config_for(self, model: str, purpose: str) -> genai_types.ThinkingConfig | None:
         """Thinking is off everywhere except the ``gemini-3.7-flash`` verify
         workload and the sentence-generation workload, which now runs at the
-        ``THINKING_GENERATE`` ("minimal") level.
+        ``THINKING_GENERATE`` ("low") level.
 
         CLAUDE.md 213: thinking tokens bill as output and can multiply the
         largest cost line severalfold, so most generation runs with thinking
@@ -520,9 +520,17 @@ class GeminiLlmClient:
         adverbial puts the finite verb before the subject, and an
         autoregressive model with no planning step can already have committed
         to the (statistically far more common) third-person verb form before
-        it writes a first-person subject that no longer agrees with it. Even
-        a minimal thinking budget gives the model a chance to plan the
-        sentence's subject before committing to the verb's agreement.
+        it writes a first-person subject that no longer agrees with it. A
+        thinking budget gives the model a chance to plan the sentence's
+        subject before committing to the verb's agreement.
+
+        The level is ``THINKING_GENERATE`` ("low"), not "minimal": the
+        project owner confirmed "minimal" is this Flash-Lite line's own
+        default thinking level, so setting it explicitly, as this code used
+        to do, was a no-op -- it bought no planning step over leaving
+        thinking unset, which is exactly the failure this change exists to
+        avoid. "low" is the smallest level that is actually a step up from
+        the model's default.
 
         This is gated on ``purpose``, not on ``model`` alone, because
         ``MODEL_LIVE`` and ``MODEL_GENERATE`` are literally the same model
@@ -538,22 +546,21 @@ class GeminiLlmClient:
         claim is now known to be stale: Google's current documentation states
         the Flash-Lite line supports thinking levels ``minimal``, ``low``,
         ``medium``, and ``high`` (``minimal`` is the documented default for
-        this line, so setting it explicitly here may be a no-op for actual
-        model behaviour -- it is still made explicit so the level is a
-        readable, tunable config value rather than an unstated assumption).
-        A single live probe call (gemini-3.5-flash-lite, thinking_config with
-        thinking_level=MINIMAL) was attempted to re-confirm this directly
-        against the live endpoint, per the one-call budget for this change,
-        but the sandboxed environment's egress proxy refused the connection
-        to generativelanguage.googleapis.com outright (403, an organisational
-        policy denial reported by the proxy itself, not a response from
-        Gemini) -- so the call never reached Google's API at all, and this
-        specific claim could not be re-verified live in this environment.
-        The change is made on the strength of the project owner's own
-        reading of Google's current documentation, cited above, not on a live
-        confirmation; whoever next has real network access to the Gemini API
-        should make that one call and update this note with the actual
-        result before this ships to production traffic.
+        this line -- which is exactly why generation now asks for ``low``
+        instead: an explicit ``minimal`` would only restate the default and
+        buy nothing). A single live probe call (gemini-3.5-flash-lite,
+        thinking_config with thinking_level=LOW) was attempted to re-confirm
+        this directly against the live endpoint, per the one-call budget for
+        this change, but the sandboxed environment's egress proxy refused the
+        connection to generativelanguage.googleapis.com outright (403, an
+        organisational policy denial reported by the proxy itself, not a
+        response from Gemini) -- so the call never reached Google's API at
+        all, and this specific claim could not be re-verified live in this
+        environment. The change is made on the strength of the project
+        owner's own reading of Google's current documentation, cited above,
+        not on a live confirmation; whoever next has real network access to
+        the Gemini API should make that one call and update this note with
+        the actual result before this ships to production traffic.
         """
         if model == MODEL_VERIFY:
             return genai_types.ThinkingConfig(
