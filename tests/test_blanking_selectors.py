@@ -438,6 +438,20 @@ def test_verben_reflexiv_akk_rejects_sich_followed_by_a_prepositional_phrase() -
     assert dat_candidates == []
 
 
+def test_verben_reflexiv_dat_rejects_a_reflexive_capable_form_governed_by_a_preposition() -> None:
+    """Live-pilot defect: "zu mir" in "Ich lade meine besten Freunde zu mir
+    nach Hause ein." is an ordinary prepositional phrase ("to my place"),
+    not a reflexive dative object of "einladen" -- it does not corefer with
+    the subject as an ARGUMENT of the verb, it is governed by "zu". The
+    unrelated accusative object "meine besten Freunde" elsewhere in the
+    clause was previously enough to satisfy verben_reflexiv_dat's own
+    accusative-object requirement and wrongly select "mir" anyway."""
+    _, candidates = _select(
+        "verben_reflexiv_dat", "Ich lade meine besten Freunde zu mir nach Hause ein."
+    )
+    assert candidates == []
+
+
 # ==============================================================================
 # Cycle 3. relativsatz_nom_akk / _dativ / _genitiv -- relative pronoun by case.
 # ==============================================================================
@@ -508,6 +522,27 @@ def test_verb_praesens_vokalwechsel_excludes_a_plain_regular_verb() -> None:
     assert candidates == []
 
 
+def test_verb_praesens_regelm_excludes_an_inseparable_prefixed_vowel_change_verb() -> None:
+    """Live-pilot defect: "verlasse" (1st singular of "verlassen") is not a
+    direct key in VOKALWECHSEL_PRAESENS ("lassen" is), so it fell through to
+    verb_praesens_regelm by default even though "verlassen" is strong
+    ("du verlässt"), belonging to verb_praesens_vokalwechsel instead."""
+    _, candidates = _select(
+        "verb_praesens_regelm", "Um acht Uhr verlasse ich das Haus und gehe zur Bushaltestelle."
+    )
+    assert candidates == []
+
+
+def test_verb_praesens_vokalwechsel_finds_an_inseparable_prefixed_verb() -> None:
+    """ "verlassen" inherits "lassen"'s own stem-vowel change unchanged --
+    "du verlässt" exactly like "du lässt"."""
+    item = _blank(
+        "verb_praesens_vokalwechsel",
+        "Um acht Uhr verlasse ich das Haus und gehe zur Bushaltestelle.",
+    )
+    assert item.proposed_answer == "verlasse"
+
+
 def test_modalverben_praesens_finds_present_tense_modals() -> None:
     item = _blank("modalverben_praesens", "Ich kann gut schwimmen.")
     assert item.proposed_answer == "kann"
@@ -527,6 +562,19 @@ def test_verben_trennbar_praesens_rejects_an_ordinary_preposition_after_the_verb
     """ "aus Berlin" is a prepositional phrase, not a stranded separable
     particle -- there is no PTKVZ token here, so this must not fire."""
     _, candidates = _select("verben_trennbar_praesens", "Er kommt heute aus Berlin.")
+    assert candidates == []
+
+
+def test_verben_trennbar_praesens_rejects_a_particle_stranded_in_a_later_clause() -> None:
+    """Live-pilot defect: the "ein" in "... und schlafe schnell ein." belongs
+    to the SECOND clause's own verb ("schlafe" -> "einschlafen"), not to the
+    first clause's "gehe" -- "gehen" is not itself separable, and the old
+    unbounded "any PTKVZ later in the sentence" check crossed the "und"
+    clause boundary to find one anyway."""
+    _, candidates = _select(
+        "verben_trennbar_praesens",
+        "Um zehn Uhr müde gehe ich ins Schlafzimmer und schlafe schnell ein.",
+    )
     assert candidates == []
 
 
@@ -555,6 +603,22 @@ def test_praeteritum_vollverben_finds_weak_and_strong_simple_past() -> None:
     assert irregular_stem.proposed_answer == "ging"
 
 
+def test_praeteritum_vollverben_rejects_the_mislemmatised_schalte() -> None:
+    """Live-pilot defect: "schalte" is the genuine PRESENT-tense 1st
+    singular of "schalten"/"einschalten", but de_core_news_sm mislemmatises
+    it to the unrelated verb "schalen" and mistags its own Tense as Past --
+    reproduced even on the bare "Ich schalte den Computer ein." (see
+    selectors.py). Rebuilding a weak Präteritum from the wrong lemma
+    "schalen" reconstructs "schalte" exactly, so this cannot be caught by
+    the reconstruction-vs-token check in blanker.py either; the selector
+    itself must exclude the lemma."""
+    _, candidates = _select(
+        "praeteritum_vollverben",
+        "Im Büro angekommen schalte ich zuerst meinen Computer ein.",
+    )
+    assert candidates == []
+
+
 # ==============================================================================
 # Cycle 3. nomen_plural -- trusted directly from the tagger with zero
 # distractors, matching the precedent set by adjektiv_komparativ_superlativ
@@ -569,6 +633,18 @@ def test_nomen_plural_finds_a_plural_noun_with_no_distractors() -> None:
     assert item.prompt == "Die ___ spielen im Garten."
     assert item.proposed_answer == "Kinder"
     assert item.distractors == []
+
+
+def test_nomen_plural_rejects_a_singular_noun_mistagged_plural_after_eine() -> None:
+    """Live-pilot defect: de_core_news_sm tags "Tasse" (unambiguously
+    singular here, governed by "eine") as ``Number=Plur`` in this exact
+    sentence, even though "eine" right next to it is correctly tagged
+    ``Number=Sing`` -- the noun's own morphology cannot be trusted alone."""
+    _, candidates = _select(
+        "nomen_plural",
+        "Zum Frühstück trinke ich meistens eine Tasse Kaffee und esse ein Brötchen mit Butter.",
+    )
+    assert candidates == []
 
 
 # ==============================================================================

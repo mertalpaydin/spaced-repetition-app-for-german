@@ -525,15 +525,59 @@ def mixed_praeteritum_form(lemma: str, person: str, number: str) -> str | None:
     return None if ending is None else entry.praeteritum_stem + ending
 
 
+# An inseparable-prefixed verb ALWAYS inherits its base verb's own present-
+# tense conjugation class unchanged -- "verlassen" changes its stem vowel
+# exactly like "lassen" ("du verlässt"/"du lässt"), "entsprechen" exactly
+# like "sprechen" ("er entspricht"/"er spricht"), and so on. This is a real,
+# categorical German derivational fact (unlike a SEPARABLE prefix -- "auf-",
+# "an-", ... -- which detaches from the finite verb entirely and is handled
+# by ``verben_trennbar_praesens`` separately), not a guess: composing it
+# from the closed ``VOKALWECHSEL_PRAESENS`` table is the same "closed
+# paradigm, not invented" posture as every other lookup in this module,
+# applied compositionally instead of by direct entry. Confirmed the gap this
+# closes: "verlasse" (present, 1st singular of "verlassen") was previously
+# invisible to this table (only "lassen" is a direct key), so
+# ``verb_praesens_regelm`` wrongly treated it as a regular verb -- see
+# ``selectors.py``'s own exclusion list, which now defers to
+# ``is_vokalwechsel_praesens_lemma`` instead of a bare membership check.
+_INSEPARABLE_PREFIXES: tuple[str, ...] = ("be", "emp", "ent", "er", "ge", "miss", "ver", "zer")
+
+
+def _vokalwechsel_base_and_prefix(lemma: str) -> tuple[str, str] | None:
+    """``(prefix, base)`` if ``lemma`` is a direct ``VOKALWECHSEL_PRAESENS``
+    entry (``prefix=""``) or an inseparable-prefixed derivative of one, else
+    ``None``. Checked longest-prefix-first so a lemma is never split on a
+    shorter prefix when a longer one in the tuple also matches."""
+    if lemma in VOKALWECHSEL_PRAESENS:
+        return "", lemma
+    for prefix in sorted(_INSEPARABLE_PREFIXES, key=len, reverse=True):
+        if lemma.startswith(prefix):
+            base = lemma[len(prefix) :]
+            if base in VOKALWECHSEL_PRAESENS:
+                return prefix, base
+    return None
+
+
+def is_vokalwechsel_praesens_lemma(lemma: str) -> bool:
+    """Whether ``lemma``, directly or as an inseparable-prefixed derivative,
+    belongs to the present-tense stem-vowel-change family -- the single
+    check both ``verb_praesens_regelm`` (excludes on this) and
+    ``verb_praesens_vokalwechsel`` (includes on this) share, so the two
+    topics stay disjoint by construction rather than by two independently
+    maintained conditions that could drift apart."""
+    return _vokalwechsel_base_and_prefix(lemma) is not None
+
+
 def vokalwechsel_praesens_form(lemma: str, person: str, number: str) -> str | None:
-    entry = VOKALWECHSEL_PRAESENS.get(lemma)
-    if entry is None:
+    found = _vokalwechsel_base_and_prefix(lemma)
+    if found is None:
         return None
-    du, er = entry
+    prefix, base = found
+    du, er = VOKALWECHSEL_PRAESENS[base]
     if (person, number) == ("2", "Sing"):
-        return du
+        return prefix + du
     if (person, number) == ("3", "Sing"):
-        return er
+        return prefix + er
     return regular_praesens_form(lemma, person, number)
 
 

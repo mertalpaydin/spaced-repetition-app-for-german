@@ -580,6 +580,18 @@ def _reflexive_selector(fixed_case: str, *, require_accusative_object: bool) -> 
             lower = token.text.lower()
             if lower not in _REFLEXIVE_CAPABLE_FORMS:
                 continue
+            if _governed_by_adposition(sentence, token.i):
+                # A genuine reflexive is a bare clause argument of the verb,
+                # never the object of a preposition. Confirmed on "Ich lade
+                # meine besten Freunde zu mir nach Hause ein.": "zu mir" is
+                # an ordinary prepositional phrase ("to my place"), not a
+                # reflexive dative object of "einladen" -- it does not
+                # corefer with the subject as an ARGUMENT, it is governed by
+                # "zu". Without this check, the (unrelated) accusative
+                # object "meine besten Freunde" elsewhere in the clause was
+                # enough to satisfy ``require_accusative_object`` and
+                # wrongly select "mir" for verben_reflexiv_dat anyway.
+                continue
             subject = _finite_verb_person_number(sentence)
             if subject is None:
                 continue
@@ -640,15 +652,13 @@ def _relative_pronoun_selector(fixed_cases: frozenset[str]) -> Selector:
 # selectors further down.
 # ==============================================================================
 
-# Present-tense lemmas that are NOT formed by the regular rule --
-# verb_praesens_regelm must exclude exactly these (a verb irregular only in
-# the Präteritum, e.g. "gehen"/"kommen", is still perfectly regular in the
-# present and stays eligible).
+# Present-tense lemmas that are NOT formed by the regular rule and are not
+# already covered by ``is_vokalwechsel_praesens_lemma`` -- verb_praesens_regelm
+# must exclude these too (a verb irregular only in the Präteritum, e.g.
+# "gehen"/"kommen", is still perfectly regular in the present and stays
+# eligible).
 _IRREGULAR_PRAESENS_LEMMAS: frozenset[str] = (
-    frozenset(paradigms.VOKALWECHSEL_PRAESENS)
-    | frozenset({"sein", "haben", "werden"})
-    | paradigms.MODAL_LEMMAS
-    | frozenset({"möchten"})
+    frozenset({"sein", "haben", "werden"}) | paradigms.MODAL_LEMMAS | frozenset({"möchten"})
 )
 
 
@@ -661,6 +671,15 @@ def _select_verb_praesens_regelm(sentence: TaggedSentence) -> list[Candidate]:
             continue
         lemma = token.lemma.lower()
         if not lemma or lemma in _IRREGULAR_PRAESENS_LEMMAS:
+            continue
+        if paradigms.is_vokalwechsel_praesens_lemma(lemma):
+            # Belongs to verb_praesens_vokalwechsel instead -- includes
+            # inseparable-prefixed derivatives like "verlassen" ("du
+            # verlässt"), not just the bare base verbs in
+            # VOKALWECHSEL_PRAESENS itself. Confirmed on "Um acht Uhr
+            # verlasse ich das Haus...": "verlassen" is strong (not a
+            # direct table key), so the old bare-membership check let it
+            # fall through to this topic by default.
             continue
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
@@ -686,7 +705,7 @@ def _select_verb_praesens_vokalwechsel(sentence: TaggedSentence) -> list[Candida
         if token.morph.get("Tense") != "Pres" or token.morph.get("Mood") != "Ind":
             continue
         lemma = token.lemma.lower()
-        if lemma not in paradigms.VOKALWECHSEL_PRAESENS:
+        if not paradigms.is_vokalwechsel_praesens_lemma(lemma):
             continue
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
@@ -704,6 +723,37 @@ def _select_verb_praesens_vokalwechsel(sentence: TaggedSentence) -> list[Candida
     return out
 
 
+# Tags that end a clause for the purposes of ``_own_clause_particle`` below:
+# any OTHER finite verb (a second, coordinated or subordinate clause has its
+# own finite verb, and any ``PTKVZ`` beyond it belongs to that clause, not
+# the candidate) or a coordinating conjunction (the clause boundary itself,
+# reached before that clause's own verb).
+_CLAUSE_BOUNDARY_TAGS: frozenset[str] = frozenset({"VVFIN", "VAFIN", "VMFIN", "KON"})
+
+
+def _own_clause_particle(sentence: TaggedSentence, index: int) -> Token | None:
+    """The ``PTKVZ`` token that actually belongs to the finite verb at
+    ``index`` -- the first one found scanning forward, PROVIDED no clause
+    boundary (another finite verb, or a coordinating conjunction) is crossed
+    first. ``sentence_tagger`` excludes spaCy's dependency parser (see its
+    own module docstring: neither of Cycle 2's selectors needed it, and it
+    is the most expensive pipe to run), so there is no ``token.head``/
+    ``token.dep_`` available here to check particle attachment directly;
+    this is a structural proxy for it instead, using clause boundaries as
+    the substitute signal. Confirmed necessary, not just theoretical: "Um
+    zehn Uhr müde ___ ich ins Schlafzimmer und schlafe schnell ein." has a
+    ``PTKVZ`` ("ein") that belongs to the SECOND clause's own verb
+    ("schlafe"), reached only after crossing "und" -- the old unbounded
+    "any PTKVZ later in the sentence" check mis-attributed it to the first
+    clause's "gehe" instead."""
+    for token in sentence.tokens[index + 1 :]:
+        if token.tag == "PTKVZ":
+            return token
+        if token.tag in _CLAUSE_BOUNDARY_TAGS:
+            return None
+    return None
+
+
 def _select_verben_trennbar_praesens(sentence: TaggedSentence) -> list[Candidate]:
     """Present-tense separable verb: the finite stem, with its own prefix
     detached and moved to the end of the clause. Gated on spaCy's own
@@ -711,22 +761,23 @@ def _select_verben_trennbar_praesens(sentence: TaggedSentence) -> list[Candidate
     than the finite verb -- confirmed empirically to be a reliable signal
     distinct from an ordinary preposition/adverb (``auf``/``ein``/``mit``/
     ``an``/``vor``/``zu`` all tag ``PTKVZ`` specifically when detached from a
-    separable verb, never when used as an independent adposition)."""
+    separable verb, never when used as an independent adposition) -- AND
+    that the particle is not stranded across a clause boundary into a
+    different clause's own verb (see ``_own_clause_particle``)."""
     out: list[Candidate] = []
     for token in sentence.tokens:
         if token.tag != "VVFIN":
             continue
         if token.morph.get("Tense") != "Pres" or token.morph.get("Mood") != "Ind":
             continue
-        has_particle_after = any(t.tag == "PTKVZ" and t.i > token.i for t in sentence.tokens)
-        if not has_particle_after:
+        if _own_clause_particle(sentence, token.i) is None:
             continue
         lemma = token.lemma.lower()
         if not lemma:
             continue
         family = (
             "vokalwechsel_praesens"
-            if lemma in paradigms.VOKALWECHSEL_PRAESENS
+            if paradigms.is_vokalwechsel_praesens_lemma(lemma)
             else "regular_praesens"
         )
         person, number = token.morph.get("Person"), token.morph.get("Number")
@@ -745,12 +796,33 @@ def _select_verben_trennbar_praesens(sentence: TaggedSentence) -> list[Candidate
     return out
 
 
+# Confirmed empirically, independent of sentence context (reproduced on the
+# bare "Ich schalte den Computer ein."): de_core_news_sm mislemmatises the
+# genuine PRESENT-tense 1st-singular "schalte" (of "schalten"/"einschalten")
+# to the unrelated, much rarer verb "schalen", AND simultaneously mistags
+# its own Tense as Past -- both wrong, and self-consistently so: rebuilding
+# a weak Präteritum from lemma "schalen" (stem "schal" + "te") reconstructs
+# "schalte" exactly, so the ``blanker.py`` reconstruction-vs-token check
+# cannot catch this either, it only re-derives the same wrong answer the
+# tagger already committed to. Every OTHER finite form of "schalten" tested
+# ("schaltest", "schaltet", "schalten", "schaltete") tags correctly, so this
+# is a targeted exclusion of the one broken lemma, not a guess about the
+# whole verb family.
+_MISLEMMATIZED_PRAETERITUM_LEMMAS: frozenset[str] = frozenset({"schalen"})
+
+
 def _select_praeteritum_vollverben(sentence: TaggedSentence) -> list[Candidate]:
     """Simple past of a full lexical verb -- weak (by rule), strong or mixed
     (from the closed tables in ``paradigms.py``). Excludes sein/haben/modals
-    (``praeteritum_sein_haben_modal``'s own scope) and ``werden`` (the
-    passive/Futur auxiliary topics' scope)."""
-    excluded = frozenset({"sein", "haben", "werden"}) | paradigms.MODAL_LEMMAS | {"möchten"}
+    (``praeteritum_sein_haben_modal``'s own scope), ``werden`` (the
+    passive/Futur auxiliary topics' scope), and the confirmed-mislemmatised
+    lemmas above."""
+    excluded = (
+        frozenset({"sein", "haben", "werden"})
+        | paradigms.MODAL_LEMMAS
+        | {"möchten"}
+        | _MISLEMMATIZED_PRAETERITUM_LEMMAS
+    )
     out: list[Candidate] = []
     for token in sentence.tokens:
         if token.tag != "VVFIN":
@@ -782,18 +854,51 @@ def _select_praeteritum_vollverben(sentence: TaggedSentence) -> list[Candidate]:
     return out
 
 
+def _governing_determiner_number(sentence: TaggedSentence, index: int) -> str | None:
+    """The ``Number`` of the determiner governing the noun at ``index``,
+    walking back over any attributive adjectives first, or ``None`` if no
+    determiner immediately governs it (or that determiner's own ``Number``
+    could not be resolved).
+
+    A determiner tagged ``Number=Sing`` can never govern a genuinely plural
+    noun -- German determiner/noun number agreement is categorical, and the
+    ein-word paradigm does not even have a Nominative/Accusative plural row
+    at all (see ``paradigms.py``'s module docstring) -- so this is a hard
+    grammatical fact, not a guess, and it is checked on the DETERMINER, not
+    the noun itself: confirmed empirically that ``de_core_news_sm``
+    mistags the noun's own ``Number`` outright in context (in "... trinke
+    ich meistens eine Tasse Kaffee ...", "Tasse" -- unambiguously singular,
+    governed by "eine" -- is itself tagged ``Number=Plur``, wrongly, while
+    "eine" right next to it is correctly tagged ``Number=Sing``), so the
+    noun's own morphology cannot be trusted as the sole signal here."""
+    j = index - 1
+    while j >= 0 and sentence.tokens[j].tag == "ADJA":
+        j -= 1
+    if j < 0:
+        return None
+    prev = sentence.tokens[j]
+    if prev.tag not in _DETERMINER_TAGS:
+        return None
+    return prev.morph.get("Number")
+
+
 def _select_nomen_plural(sentence: TaggedSentence) -> list[Candidate]:
     """A plural common noun, trusted as its own correct answer exactly like
     ``adjektiv_komparativ_superlativ`` trusts a comparative form -- German
     plural formation has no single rule to reconstruct or cross-check
     against (the module docstring's "do not invent paradigm data" standard),
     so distractors are left empty rather than guessed (see
-    ``blanker.py``)."""
+    ``blanker.py``). The noun's own ``Number=Plur`` tag is additionally
+    cross-checked against any governing determiner's ``Number`` -- see
+    ``_governing_determiner_number`` for the confirmed tagger failure this
+    guards against."""
     out: list[Candidate] = []
     for token in sentence.tokens:
         if token.tag != "NN":
             continue
         if token.morph.get("Number") != "Plur":
+            continue
+        if _governing_determiner_number(sentence, token.i) == "Sing":
             continue
         out.append(Candidate(token_index=token.i, kind="plural_noun"))
     return out
