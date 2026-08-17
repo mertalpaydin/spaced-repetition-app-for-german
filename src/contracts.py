@@ -78,6 +78,25 @@ MODEL_LIVE: str = "gemini-3.5-flash-lite"
 MODEL_GENERATE: str = "gemini-3.5-flash-lite"
 MODEL_VERIFY: str = "gemini-3.7-flash"
 THINKING_VERIFY: str = "low"
+# Gemini 3.5 Flash-Lite supports thinking levels ("minimal", "low", "medium",
+# "high"), superseding the earlier assumption that this model line had no
+# thinking capability at all. Generation quality (the "kauft ich" A1
+# agreement defect: a fronted adverbial forces V2 inversion, and an
+# autoregressive model with no planning step can commit to a high-probability
+# verb form before it has chosen the subject that has to agree with it) is
+# the reason to spend the smallest available thinking budget on this
+# workload, not zero. Named for, and used only by, the sentence-generation
+# purpose below -- MODEL_LIVE and MODEL_GENERATE are the SAME model string,
+# so this cannot be gated on model id alone without also turning thinking on
+# for explanations, production grading, and the weekly report narrative,
+# none of which this change is about.
+THINKING_GENERATE: str = "minimal"
+# The ``purpose=`` value ``LiveSentenceGenerator.generate`` (src/generation/
+# blanking/sentence_source.py) passes to ``GeminiLlmClient.generate``. Shared
+# as one constant, imported by both that call site and
+# ``GeminiLlmClient._thinking_config_for``, so the two can never drift out of
+# sync the way two independently hand-typed string literals could.
+PURPOSE_SENTENCE_GENERATION: str = "sentence_generation"
 
 DUEL_LENGTH: int = 8  # items per duel, range 6-8
 DUEL_MIN_ATTEMPTS_TO_SUGGEST: int = 15  # per confusion group, before ranking it

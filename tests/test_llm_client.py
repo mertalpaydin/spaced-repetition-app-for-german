@@ -26,7 +26,13 @@ from zoneinfo import ZoneInfo
 import pytest
 from google.genai import errors as genai_errors
 from google.genai import types as genai_types
-from src.contracts import MODEL_GENERATE, MODEL_VERIFY, THINKING_VERIFY
+from src.contracts import (
+    MODEL_GENERATE,
+    MODEL_VERIFY,
+    PURPOSE_SENTENCE_GENERATION,
+    THINKING_GENERATE,
+    THINKING_VERIFY,
+)
 from src.llm.client import (
     BudgetExceeded,
     GeminiLlmClient,
@@ -968,6 +974,32 @@ def test_generate_many_paid_lane_submits_one_job_for_the_whole_group(tmp_path: P
     assert all('"lane":"paid"' in line for line in lines)
 
 
+def test_generate_many_paid_lane_threads_purpose_into_thinking_config(tmp_path: Path) -> None:
+    """``generate_many``'s paid-lane branch builds its ``GenerateContentConfig``
+    once for the whole group, so it must also pass ``purpose`` through to
+    ``_thinking_config_for`` -- otherwise a sentence-generation batch that
+    fell over to the paid lane would silently lose its minimal-thinking
+    config that the free lane grants it."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file, cache_dir=tmp_path / "cache", paid_api_key="fake-paid-key"
+    )
+    client.free_lane_open = False  # force the paid lane
+
+    fake_batches = _FakeBatches(job=_fake_batch_job_many(["Antwort A"]))
+    fake_sdk = _FakeSdkClient(batches=fake_batches)
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    client.generate_many(
+        ["a"], model=MODEL_GENERATE, purpose=PURPOSE_SENTENCE_GENERATION, use_cache=False
+    )
+
+    sent_request = fake_batches.create_calls[0]["src"][0]
+    assert sent_request.config.thinking_config.thinking_level == genai_types.ThinkingLevel(
+        THINKING_GENERATE
+    )
+
+
 def test_chunk_indices_for_inline_batch_respects_byte_cap(tmp_path: Path) -> None:
     """Pure unit test of the chunking algorithm: Google documents inline
     batch submission as suitable for keeping total request size under
@@ -1112,14 +1144,15 @@ def test_thoughts_token_count_added_to_completion_tokens_when_present(tmp_path: 
     assert row["completion_tokens"] == 35  # 5 candidate tokens + 30 thought tokens
 
 
-def test_thinking_disabled_for_generation_model(tmp_path: Path) -> None:
-    """CLAUDE.md 213: generation runs with thinking off.
-
-    ``gemini-3.5-flash-lite`` has no thinking capability at all, so "off" is
-    expressed by omitting ``thinking_config`` entirely rather than by sending
-    ``thinking_budget=0``: the live API rejects the latter with
-    INVALID_ARGUMENT on this model (confirmed against the real endpoint), so
-    sending it would break every generation call, not just simulate them.
+def test_thinking_disabled_for_generation_model_on_other_purposes(tmp_path: Path) -> None:
+    """CLAUDE.md 213: most ``gemini-3.5-flash-lite`` calls run with thinking
+    off -- everything on this model EXCEPT the sentence-generation purpose
+    (see ``test_thinking_minimal_for_sentence_generation_purpose`` below).
+    ``MODEL_LIVE`` and ``MODEL_GENERATE`` are literally the same model
+    string, so this must be tested with a purpose OTHER than
+    ``PURPOSE_SENTENCE_GENERATION`` -- this is exactly what stands in for
+    explanations, production grading, and the weekly report narrative, all of
+    which share this model id and must stay thinking-off.
     """
     client = GeminiLlmClient(
         cost_log_path=tmp_path / "cost_log.jsonl",
@@ -1135,6 +1168,34 @@ def test_thinking_disabled_for_generation_model(tmp_path: Path) -> None:
 
     sent_config = fake_models.calls[0]["config"]
     assert sent_config.thinking_config is None
+
+
+def test_thinking_minimal_for_sentence_generation_purpose(tmp_path: Path) -> None:
+    """The one deliberate exception: ``purpose=PURPOSE_SENTENCE_GENERATION``
+    (what ``LiveSentenceGenerator.generate`` sends, in
+    ``src.generation.blanking.sentence_source``) runs at ``THINKING_GENERATE``
+    ("minimal"), added after an accepted carrier sentence turned out to carry
+    an A1 subject-verb agreement error the model could not have fixed without
+    any planning step at all."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+    )
+    fake_models = _FakeModels(
+        response=_fake_generate_content_response("ok", prompt_tokens=1, candidates_tokens=1)
+    )
+    client._get_sdk_client = lambda lane: _FakeSdkClient(models=fake_models)  # type: ignore[method-assign]
+
+    client.generate(
+        "Prompt", model=MODEL_GENERATE, purpose=PURPOSE_SENTENCE_GENERATION, use_cache=False
+    )
+
+    sent_config = fake_models.calls[0]["config"]
+    assert sent_config.thinking_config.thinking_level == genai_types.ThinkingLevel(
+        THINKING_GENERATE
+    )
+    assert sent_config.thinking_config.thinking_budget is None
 
 
 def test_thinking_enabled_at_configured_level_for_verify_model(tmp_path: Path) -> None:

@@ -53,7 +53,45 @@ from src.contracts import CEFR, MODEL_GENERATE
 from src.generation.blanking import carrier_validation
 from src.llm.client import GeminiLlmClient
 
-_INSTRUCTION = (
+# ---------------------------------------------------------------------------
+# TASK 1: the generation instruction, maintained in TWO languages.
+#
+# ``_INSTRUCTION_EN_REFERENCE_ONLY`` is documentation. It exists so the
+# project owner (and any future reader) can read, in English, what this
+# module actually asks the model for, without also having to read German.
+# It is NEVER passed to ``build_prompt``'s output and NEVER sent to the API
+# -- nothing in this module even imports it into a live code path. Its only
+# consumer is a human, and the test suite (which checks it stays non-empty
+# and stays a faithful structural mirror of the live text, not that a human
+# has kept translating it -- see the module docstring's honesty note below).
+#
+# ``_INSTRUCTION_DE_LIVE`` is the OPERATIVE prompt text: the one actually
+# sent to the model, in ``build_prompt``. It is German because the model is
+# asked to produce German output, and an instruction written in the same
+# language as the requested output keeps the whole prompt in one linguistic
+# register instead of asking the model to switch languages the instant
+# generation starts -- the same reason a German textbook's own exercise
+# instructions are written in German, not translated instructions bolted on
+# from an English original.
+#
+# The English text below is NOT a mechanical, sentence-by-sentence
+# translation of the German (or vice versa): each is independently phrased,
+# idiomatic prose in its own language that says the same four things --
+# write natural correct German prose, no gaps/blanks/underscores/questions,
+# no grammar terminology, respond with exactly this JSON shape and nothing
+# else. Keeping them saying "the same thing" is a human, editorial
+# responsibility this test suite cannot fully discharge: automated tests
+# CANNOT verify semantic equivalence between two natural-language texts in
+# two different languages, and this module makes no attempt to pretend
+# otherwise. What the tests below actually assert, and no more, is: (1) both
+# texts exist and are non-empty, (2) ``build_prompt`` uses the German text,
+# never the English one, and (3) both texts independently satisfy the
+# structural invariants that must hold in either language -- forbidding
+# gaps/underscores, and demanding the same literal JSON shape. A future edit
+# that changes what one language asks for, without updating the other to
+# match, will NOT be caught by these tests; it can only be caught by a human
+# reviewer reading both languages side by side.
+_INSTRUCTION_EN_REFERENCE_ONLY = (
     "Write natural, grammatically correct German sentences for a language "
     "learner. Each sentence must be a complete, plain statement -- no gaps, "
     "no blanks, no underscores, no questions to the reader. Do not mention "
@@ -62,6 +100,73 @@ _INSTRUCTION = (
     "textbook would use as reading material. Respond with ONLY a JSON "
     'object of the exact shape {"sentences": ["...", "..."]} and nothing '
     "else -- no commentary, no markdown fence."
+)
+
+# THE LIVE PROMPT TEXT. ``build_prompt`` sends exactly this, not the English
+# text above -- see ``test_build_prompt_uses_the_german_instruction_not_the_english_one``.
+_INSTRUCTION_DE_LIVE = (
+    "Schreibe natürliche, grammatisch korrekte deutsche Sätze für "
+    "Deutschlernende. Jeder Satz muss eine vollständige, einfache Aussage "
+    "sein: keine Lücken, keine Leerstellen, keine Unterstriche, keine Fragen "
+    "an die Leserin oder den Leser. Nenne in der Ausgabe an keiner Stelle "
+    "grammatische Fachbegriffe oder Regeln; schreibe einfach gewöhnliche "
+    "deutsche Sätze, wie sie in einem Lehrbuch als Lesetext stehen könnten. "
+    "Antworte ausschließlich mit einem JSON-Objekt der exakten Form "
+    '{"sentences": ["...", "..."]} und mit nichts sonst -- kein Kommentar, '
+    "kein Markdown-Codeblock."
+)
+
+
+# ---------------------------------------------------------------------------
+# TASK 2: few-shot examples.
+#
+# ``src.generation.prompt_builder.PromptBuilder`` (the older, still-live
+# item-generation path) primes its prompt with ``gold_few_shot_examples``
+# drawn from a topic's spec sheet; this "generate, then blank" path lost that
+# entirely -- ``build_prompt`` had zero German exemplars for the model to
+# anchor its output on. These six are hand-written (not model output,
+# deliberately re-checked by a human against the rules they demonstrate) and
+# chosen for two specific reasons, not as a token gesture:
+#
+# 1. At least one directly repairs the exact structure that produced the
+#    "kauft ich" defect this whole task exists to fix: a fronted adverbial
+#    forces V2 word order (finite verb before the subject), and the model
+#    needs a worked example of getting subject-verb agreement right across
+#    that inversion, not just an abstract instruction to "be grammatical".
+#    Sentence 1 below is that exact carrier shape, corrected, with a
+#    THIRD-person subject (not first) so the model sees the inverted-order
+#    pattern with the subject the buggy sentence actually needed.
+# 2. Separable verbs were also implicated (the buggy sentence's own verb,
+#    "einkaufen", splits into "kauft ... ein"): several examples below use a
+#    separable verb ("einkaufen", "aufstehen", "einladen", "einschlafen",
+#    "aufräumen"), including one in a subordinate clause, where the prefix
+#    stays attached to the verb instead of splitting -- a second common
+#    source of error this set gives the model a worked example against.
+#
+# Deliberately varied across all six grammatical persons (not just
+# first-person singular, which is what produced the pilot's original topic
+# skew per the module docstring above) so the model has no single person to
+# anchor on regardless of which example it happens to weight most heavily.
+_FEW_SHOT_EXAMPLES_DE: tuple[str, ...] = (
+    # 3rd person singular, fronted adverbial + V2 inversion, separable verb
+    # ("einkaufen") -- the direct repair of the audited "kauft ich" defect,
+    # same carrier shape, correct agreement.
+    "Auf dem Weg kauft sie ein paar frische Brötchen ein.",
+    # 1st person singular, fronted adverbial + V2 inversion, separable verb
+    # ("aufstehen").
+    "Morgens stehe ich meistens um sechs Uhr auf.",
+    # 1st person plural, fronted adverbial + V2 inversion, separable verb
+    # ("einladen").
+    "Am Wochenende laden wir gern Freunde zum Essen ein.",
+    # 2nd person singular informal, subordinate clause (separable verb
+    # "einschlafen" stays attached inside "bevor ...").
+    "Du liest jeden Abend ein spannendes Buch, bevor du einschläfst.",
+    # 2nd person plural informal, fronted adverbial + V2 inversion, separable
+    # verb ("aufräumen").
+    "Später räumt ihr sicher noch die Küche auf.",
+    # 3rd person plural, fronted adverbial + V2 inversion (verb before a
+    # single plural subject).
+    "Heute Abend kommen unsere Nachbarn zu Besuch.",
 )
 
 
@@ -75,17 +180,20 @@ def build_prompt(
     register: str | None = None,
     structure: str | None = None,
 ) -> str:
-    """The full generation prompt: CEFR level and theme are the only
-    grammar-adjacent-looking inputs when the four optional hints are left at
-    their default of ``None`` -- unchanged from before ``generate_sentence_pool``
-    existed, byte for byte, so every existing caller's prompt is identical.
+    """The full generation prompt, built from the LIVE German instruction
+    (``_INSTRUCTION_DE_LIVE``, task 1) plus the hand-written few-shot
+    examples (``_FEW_SHOT_EXAMPLES_DE``, task 2): CEFR level and theme are
+    the only grammar-adjacent-looking inputs when the four optional hints
+    are left at their default of ``None``.
 
     The four keyword-only hints are how ``generate_sentence_pool`` steers
     person, tense, register, and sentence structure without ever naming a
     grammar topic (see the module docstring): each is a plain-language
     nudge ("write about yesterday", "address a close friend directly"), not
     a grammar instruction ("use the Perfekt", "use the Dativ")."""
-    lines = [_INSTRUCTION, "", f"CEFR level: {cefr}", f"Theme: {theme}"]
+    lines = [_INSTRUCTION_DE_LIVE, "", "Beispiele für richtige, natürliche Sätze:"]
+    lines.extend(f"- {example}" for example in _FEW_SHOT_EXAMPLES_DE)
+    lines += ["", f"CEFR level: {cefr}", f"Theme: {theme}"]
     if person is not None:
         lines.append(f"Perspective: {person}")
     if tense is not None:
@@ -548,7 +656,32 @@ DEFAULT_THEMES: tuple[str, ...] = (
 # and uniformity of the pool that produced the 44-item/1-item topic skew
 # this module exists to fix.
 DEFAULT_POOL_SIZE = 300
-DEFAULT_BATCH_SIZE = 10
+
+# TASK 3: fewer sentences per call, so the model juggles fewer simultaneous
+# constraints (JSON validity, a count, a theme, a CEFR level, and German
+# grammar) for less of its output before quality starts to decay. The
+# audited pilot asked for ~60 sentences in ONE call; lowered here from this
+# module's own prior default of 10 to 6 -- a substantial cut from the
+# original defect (90% fewer sentences per call than the audited pilot) and
+# still a real cut from where this module already stood (40% fewer than 10),
+# not a token gesture in either direction.
+#
+# The tradeoff is wall clock, not quality, and it is real: at
+# ``DEFAULT_POOL_SIZE`` (300) this raises the number of
+# ``generate_sentence_pool`` calls from ceil(300/10)=30 to ceil(300/6)=50.
+# The free lane's ceiling (``GeminiLlmClient.FREE_LANE_RATE_LIMIT_PER_MINUTE``,
+# operator-tuned and pinned, NOT changed here) is 5 requests/minute
+# regardless of how many of those requests are in flight at once
+# (``FREE_LANE_MAX_CONCURRENCY`` only affects how evenly they arrive, not how
+# many clear per minute) -- so a full pool build goes from roughly 30/5 = 6
+# minutes of wall clock to roughly 50/5 = 10 minutes. Choosing 6 over an even
+# smaller batch size (e.g. 3, which would roughly double the call count
+# again to ~17 minutes) is the point at which this trade stops paying for
+# itself: each further halving of batch size buys a shrinking reduction in
+# per-call complexity for a full doubling of wall clock, and 6 sentences is
+# already a small enough list that late-list decay is unlikely to be the
+# dominant source of error the way it plausibly was at 60.
+DEFAULT_BATCH_SIZE = 6
 
 
 @dataclass

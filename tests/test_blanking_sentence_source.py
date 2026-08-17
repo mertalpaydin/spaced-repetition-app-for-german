@@ -13,6 +13,9 @@ import pytest
 from src.contracts import CEFR
 from src.generation.blanking import carrier_validation as cv
 from src.generation.blanking.sentence_source import (
+    _FEW_SHOT_EXAMPLES_DE,
+    _INSTRUCTION_DE_LIVE,
+    _INSTRUCTION_EN_REFERENCE_ONLY,
     _MOCK_SENTENCE_POOL,
     DEFAULT_BATCH_SIZE,
     DEFAULT_POOL_SIZE,
@@ -74,23 +77,146 @@ def test_build_prompt_never_names_a_grammar_topic() -> None:
     assert "A2" in prompt
 
 
-def test_build_prompt_with_no_hints_is_unchanged_from_before_the_hints_existed() -> None:
+def test_build_prompt_with_no_hints_has_the_documented_structure() -> None:
     """``generate_sentence_pool``'s four keyword-only hints must be a strictly
-    additive change: every existing caller passes only three positional
-    arguments, and its prompt must come out byte-for-byte identical to what
-    ``build_prompt`` produced before this task."""
+    additive change: with all four left at their default of ``None``, no hint
+    line appears at all.
+
+    This test used to pin ``build_prompt``'s ENTIRE output byte-for-byte
+    against a hardcoded English string. That pin is deliberately gone: task 1
+    (German is now the live instruction, English is a documentation-only
+    reference) and task 2 (few-shot examples were added) both intentionally
+    changed what ``build_prompt`` outputs, on purpose, per CLAUDE.md 7 --
+    this is not the failing-test-silently-weakened case that rule warns
+    about, it is the sanctioned behaviour change the rest of this test file's
+    new tests (below) exist to pin instead. What still deserves a literal
+    pin here is the STRUCTURE: the live instruction, then the few-shot
+    examples verbatim, then the CEFR/theme/count lines, in that order, with
+    no hint lines when hints are omitted."""
     prompt = build_prompt("A2", "Reisen", 10)
-    assert prompt == (
-        "Write natural, grammatically correct German sentences for a language "
-        "learner. Each sentence must be a complete, plain statement -- no gaps, "
-        "no blanks, no underscores, no questions to the reader. Do not mention "
-        "grammar, cases, articles, tenses, or any linguistic terminology "
-        "anywhere in your output; just write ordinary German sentences a "
-        "textbook would use as reading material. Respond with ONLY a JSON "
-        'object of the exact shape {"sentences": ["...", "..."]} and nothing '
-        "else -- no commentary, no markdown fence.\n\n"
-        "CEFR level: A2\nTheme: Reisen\nNumber of sentences: 10\n"
+    expected_lines = [_INSTRUCTION_DE_LIVE, "", "Beispiele für richtige, natürliche Sätze:"]
+    expected_lines += [f"- {example}" for example in _FEW_SHOT_EXAMPLES_DE]
+    expected_lines += ["", "CEFR level: A2", "Theme: Reisen", "Number of sentences: 10"]
+    assert prompt == "\n".join(expected_lines) + "\n"
+    assert "Perspective:" not in prompt
+    assert "Time frame:" not in prompt
+    assert "Register:" not in prompt
+    assert "Sentence shape:" not in prompt
+
+
+# -- TASK 1: two instructions, English reference + German live -------------
+
+
+def test_both_instruction_languages_exist_and_are_nonempty() -> None:
+    assert _INSTRUCTION_EN_REFERENCE_ONLY.strip() != ""
+    assert _INSTRUCTION_DE_LIVE.strip() != ""
+    # They must not be the same text -- if they were, one of the two edits
+    # this task requires (an actual German operative prompt) never happened.
+    assert _INSTRUCTION_EN_REFERENCE_ONLY != _INSTRUCTION_DE_LIVE
+
+
+def test_build_prompt_uses_the_german_instruction_not_the_english_one() -> None:
+    """The one thing this whole task is FOR: the live prompt must be the
+    German text, never the English reference-only text."""
+    prompt = build_prompt("A2", "Reisen", 10)
+    assert _INSTRUCTION_DE_LIVE in prompt
+    assert _INSTRUCTION_EN_REFERENCE_ONLY not in prompt
+
+
+def test_both_instruction_languages_forbid_gaps_and_underscores() -> None:
+    """Cannot test semantic equivalence between two natural-language texts in
+    two different languages (see the module docstring's own honesty note on
+    this) -- what CAN be tested is that both independently state the
+    structural "no gap" invariant this whole architecture depends on, each
+    in its own language."""
+    assert "no gaps" in _INSTRUCTION_EN_REFERENCE_ONLY
+    assert "underscores" in _INSTRUCTION_EN_REFERENCE_ONLY
+    assert "Lücken" in _INSTRUCTION_DE_LIVE
+    assert "Unterstriche" in _INSTRUCTION_DE_LIVE
+    assert "___" not in _INSTRUCTION_EN_REFERENCE_ONLY
+    assert "___" not in _INSTRUCTION_DE_LIVE
+
+
+def test_both_instruction_languages_demand_the_same_json_shape() -> None:
+    """The one piece of literal, language-independent content both texts
+    must share exactly: the JSON envelope shape, since that shape is parsed
+    by ``_parse_sentences`` regardless of which language asked for it."""
+    json_shape = '{"sentences": ["...", "..."]}'
+    assert json_shape in _INSTRUCTION_EN_REFERENCE_ONLY
+    assert json_shape in _INSTRUCTION_DE_LIVE
+
+
+def test_german_live_instruction_avoids_grammar_terminology_itself() -> None:
+    """The German instruction tells the model not to use grammar
+    terminology; it must not do so by NAMING the forbidden terms (e.g.
+    "Kasus", "Artikel", "Perfekt") inside that very prohibition, which is
+    what ``_contains_forbidden_word`` (used across this whole file) already
+    checks for the full prompt -- this test isolates that same check to the
+    instruction text alone, so a future edit that reintroduces a named term
+    here fails immediately rather than only downstream."""
+    assert _contains_forbidden_word(_INSTRUCTION_DE_LIVE) is None
+
+
+# -- TASK 2: few-shot examples -----------------------------------------------
+
+
+def test_few_shot_examples_are_nonempty_and_appear_in_the_prompt() -> None:
+    assert len(_FEW_SHOT_EXAMPLES_DE) >= 3
+    prompt = build_prompt("A2", "Reisen", 10)
+    for example in _FEW_SHOT_EXAMPLES_DE:
+        assert example in prompt
+
+
+def test_few_shot_examples_include_a_fronted_adverbial_with_v2_inversion() -> None:
+    """The exact structure that produced the audited "kauft ich" defect:
+    fronted adverbial, finite verb before the subject."""
+    fronted_adverbials = ("Auf dem Weg", "Morgens", "Am Wochenende", "Später", "Heute Abend")
+    assert any(
+        example.startswith(adv) for example in _FEW_SHOT_EXAMPLES_DE for adv in fronted_adverbials
     )
+
+
+def test_few_shot_examples_include_a_separable_verb() -> None:
+    """Several examples end in a bare separated prefix ("ein"/"auf") standing
+    apart from its verb earlier in the sentence -- the exact shape of a
+    separable verb like "einkaufen" or "aufstehen" split across a main
+    clause, the other structure implicated in the audited defect."""
+    last_words = [example.rstrip(".").split()[-1] for example in _FEW_SHOT_EXAMPLES_DE]
+    assert any(word in ("ein", "auf") for word in last_words)
+
+
+def test_few_shot_examples_are_not_all_first_person_singular() -> None:
+    """Task 2's explicit ask: varied person, so the model does not anchor on
+    first-person singular the way the audited pilot's source text did."""
+    first_person_singular_markers = (" ich ", "Ich ")
+    non_first_person = [
+        example
+        for example in _FEW_SHOT_EXAMPLES_DE
+        if not any(marker in f" {example} " for marker in first_person_singular_markers)
+    ]
+    assert len(non_first_person) >= 3
+
+
+def test_few_shot_examples_avoid_grammar_terminology_and_gaps() -> None:
+    for example in _FEW_SHOT_EXAMPLES_DE:
+        assert _contains_forbidden_word(example) is None
+
+
+@pytest.mark.skipif(
+    not cv.analysis_available(),
+    reason="spaCy de_core_news_sm is not installed in this environment",
+)
+def test_few_shot_examples_all_pass_carrier_validation() -> None:
+    """The whole point of hand-writing these: they must themselves be sound
+    carriers, or they would be teaching the model the exact class of defect
+    this task exists to fix."""
+    failures = [
+        (example, result.reason)
+        for example in _FEW_SHOT_EXAMPLES_DE
+        for result in [cv.validate_carrier(example)]
+        if not result.accepted
+    ]
+    assert failures == []
 
 
 def test_build_prompt_with_hints_includes_them_and_still_avoids_grammar_terms() -> None:

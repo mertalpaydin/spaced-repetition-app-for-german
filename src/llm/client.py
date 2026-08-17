@@ -17,7 +17,14 @@ from google.genai import errors as genai_errors
 from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from src.contracts import MODEL_GENERATE, MODEL_LIVE, MODEL_VERIFY, THINKING_VERIFY
+from src.contracts import (
+    MODEL_GENERATE,
+    MODEL_LIVE,
+    MODEL_VERIFY,
+    PURPOSE_SENTENCE_GENERATION,
+    THINKING_GENERATE,
+    THINKING_VERIFY,
+)
 from src.llm.cache import LlmCache
 from src.llm.config import DEFAULT_CONFIG_PATH, load_restrict_user_content_to_paid_lane
 
@@ -497,24 +504,64 @@ class GeminiLlmClient:
                 return self._paid_client
             raise ValueError(f"_get_sdk_client has no client for lane={lane!r}")
 
-    def _thinking_config_for(self, model: str) -> genai_types.ThinkingConfig | None:
-        """Thinking is off everywhere except the ``gemini-3.7-flash`` verify workloads.
+    def _thinking_config_for(self, model: str, purpose: str) -> genai_types.ThinkingConfig | None:
+        """Thinking is off everywhere except the ``gemini-3.7-flash`` verify
+        workload and the sentence-generation workload, which now runs at the
+        ``THINKING_GENERATE`` ("minimal") level.
 
         CLAUDE.md 213: thinking tokens bill as output and can multiply the
-        largest cost line severalfold, so generation runs with thinking
-        disabled. Only ``MODEL_VERIFY`` uses it, at the level configured in
-        ``THINKING_VERIFY``.
+        largest cost line severalfold, so most generation runs with thinking
+        disabled. ``MODEL_VERIFY`` uses ``THINKING_VERIFY``; the sentence
+        carrier generator (``purpose=PURPOSE_SENTENCE_GENERATION``, see
+        ``src.generation.blanking.sentence_source.LiveSentenceGenerator``) now
+        uses ``THINKING_GENERATE``, added deliberately after an accepted
+        carrier ("Auf dem Weg kauft ich ... ein.") turned out to have an A1
+        subject-verb agreement error: German V2 inversion after a fronted
+        adverbial puts the finite verb before the subject, and an
+        autoregressive model with no planning step can already have committed
+        to the (statistically far more common) third-person verb form before
+        it writes a first-person subject that no longer agrees with it. Even
+        a minimal thinking budget gives the model a chance to plan the
+        sentence's subject before committing to the verb's agreement.
 
-        Every other model in the routing table (``gemini-3.5-flash-lite``) has
-        no thinking capability at all, so there is nothing to disable: sending
-        an explicit ``thinking_config`` (even ``thinking_budget=0``) is itself
-        an INVALID_ARGUMENT rejection from the API, confirmed against the live
-        endpoint, not just a no-op. Omitting the field entirely is the correct
-        way to express "thinking off" on those models.
+        This is gated on ``purpose``, not on ``model`` alone, because
+        ``MODEL_LIVE`` and ``MODEL_GENERATE`` are literally the same model
+        string ("gemini-3.5-flash-lite") -- gating on model id alone would
+        also turn thinking on for explanations, production grading, and the
+        weekly report narrative, none of which this change is about and all
+        of which CLAUDE.md's routing table still lists as thinking "off".
+
+        Historical note, corrected: this docstring used to claim that
+        ``gemini-3.5-flash-lite`` "has no thinking capability at all" and that
+        sending any ``thinking_config`` to it was "an INVALID_ARGUMENT
+        rejection from the API, confirmed against the live endpoint". That
+        claim is now known to be stale: Google's current documentation states
+        the Flash-Lite line supports thinking levels ``minimal``, ``low``,
+        ``medium``, and ``high`` (``minimal`` is the documented default for
+        this line, so setting it explicitly here may be a no-op for actual
+        model behaviour -- it is still made explicit so the level is a
+        readable, tunable config value rather than an unstated assumption).
+        A single live probe call (gemini-3.5-flash-lite, thinking_config with
+        thinking_level=MINIMAL) was attempted to re-confirm this directly
+        against the live endpoint, per the one-call budget for this change,
+        but the sandboxed environment's egress proxy refused the connection
+        to generativelanguage.googleapis.com outright (403, an organisational
+        policy denial reported by the proxy itself, not a response from
+        Gemini) -- so the call never reached Google's API at all, and this
+        specific claim could not be re-verified live in this environment.
+        The change is made on the strength of the project owner's own
+        reading of Google's current documentation, cited above, not on a live
+        confirmation; whoever next has real network access to the Gemini API
+        should make that one call and update this note with the actual
+        result before this ships to production traffic.
         """
         if model == MODEL_VERIFY:
             return genai_types.ThinkingConfig(
                 thinking_level=genai_types.ThinkingLevel(THINKING_VERIFY)
+            )
+        if model == MODEL_GENERATE and purpose == PURPOSE_SENTENCE_GENERATION:
+            return genai_types.ThinkingConfig(
+                thinking_level=genai_types.ThinkingLevel(THINKING_GENERATE)
             )
         return None
 
@@ -868,7 +915,9 @@ class GeminiLlmClient:
             )
 
         client = self._get_sdk_client(lane)
-        config = genai_types.GenerateContentConfig(thinking_config=self._thinking_config_for(model))
+        config = genai_types.GenerateContentConfig(
+            thinking_config=self._thinking_config_for(model, purpose)
+        )
 
         if mode == "sync":
             # Proactively pace free-lane requests to the real ceiling instead
@@ -1133,7 +1182,7 @@ class GeminiLlmClient:
         else:  # paid
             client = self._get_sdk_client("paid")
             config = genai_types.GenerateContentConfig(
-                thinking_config=self._thinking_config_for(model)
+                thinking_config=self._thinking_config_for(model, purpose)
             )
             # Chunked so each real batch job stays within Google's inline
             # submission limits (BATCH_INLINE_MAX_BYTES/_COUNT) -- for every
