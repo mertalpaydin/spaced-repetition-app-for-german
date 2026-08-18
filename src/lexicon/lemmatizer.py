@@ -453,3 +453,76 @@ def lemma_candidates(surface: str, context_tokens: list[str] | None = None) -> l
                     candidates.insert(1, sep)
 
     return candidates
+
+
+# ---------------------------------------------------------------------------
+# Compound-noun splitting
+#
+# Frequency banding (src.lexicon.frequency.FrequencyBander) can only assign
+# a level to a lemma it has actually seen ranked in a corpus. German
+# compounding is fully productive, so a legitimate, ordinary word --
+# "Projektleiter" ("Projekt" + "Leiter") is the example that motivated this
+# -- can be entirely absent from even a 50,000-word frequency corpus while
+# both of its parts are common, already-leveled vocabulary. No frequency
+# list will ever be complete for the same reason no CEFR wordlist scrape
+# ever was (docs/audits/stage-04-recovery-plan.md fix C): a *part-level*
+# fallback closes exactly this gap without inventing any new data, because
+# it composes CEFR levels that are themselves either official-wordlist- or
+# frequency-derived.
+# ---------------------------------------------------------------------------
+
+#: Common German linking elements ("Fugenelemente") that can appear between
+#: the two parts of a compound noun, e.g. "Verkehr" + "s" + "mittel". Tried
+#: longest-first so an unambiguous strip is preferred over a shorter,
+#: coincidental one; the unstripped head is always tried too (a compound
+#: like "Projekt" + "leiter" has no linking element at all).
+_FUGENELEMENTE = ("es", "en", "ns", "e", "n", "s")
+
+#: Minimum length, in characters, either half of a compound split must have.
+#: Higher than ``_MIN_STEM_LEN`` deliberately: a compound split asks two
+#: independent vocabulary lookups to both resolve, so a low floor multiplies
+#: the coincidental-match risk ``lemma_candidates`` already accepts for a
+#: single stem. Four characters still admits real short compound parts
+#: ("Zeit", "Werk", "Rat") while cutting the two- and three-letter noise a
+#: length-3 floor would let through on both sides at once.
+_MIN_COMPOUND_PART_LEN = 4
+
+
+def compound_split_candidates(
+    word: str, min_part_len: int = _MIN_COMPOUND_PART_LEN
+) -> list[tuple[str, str]]:
+    """Return plausible two-part ``(head, tail)`` splits of ``word``.
+
+    Tries every split position with at least ``min_part_len`` characters on
+    each side, and at each position tries the head both as-is and with a
+    trailing Fugenelement stripped. This never claims a single "correct"
+    split -- the same philosophy as ``lemma_candidates``: a caller resolves
+    each candidate pair against a vocabulary and uses the first pair where
+    *both* halves resolve. An unresolvable pair (most of them, for any
+    non-compound input) is simply discarded by the caller; this function
+    does no vocabulary lookups itself and is not vocabulary-aware.
+
+    Deliberately two-way only, not recursive into deeper compounds
+    ("Bundesverfassungsgericht" has three meaningful parts and is not
+    reachable this way). That is a stated scope limit, not an oversight:
+    going deeper multiplies the false-split risk for a case this project
+    has not yet needed.
+    """
+    key = normalise(word)
+    candidates: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add(head: str, tail: str) -> None:
+        pair = (head, tail)
+        if len(head) >= min_part_len and len(tail) >= min_part_len and pair not in seen:
+            seen.add(pair)
+            candidates.append(pair)
+
+    for split in range(min_part_len, len(key) - min_part_len + 1):
+        head, tail = key[:split], key[split:]
+        for fugen in _FUGENELEMENTE:
+            if head.endswith(fugen) and len(head) - len(fugen) >= min_part_len:
+                add(head[: -len(fugen)], tail)
+        add(head, tail)
+
+    return candidates

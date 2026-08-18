@@ -29,7 +29,31 @@ class WordlistPdfExtractor:
         self.raw_dir = Path(raw_dir)
 
     def extract_all(self) -> dict[str, CEFR]:
-        """Extract vocabulary mapping {lemma: lowest_cefr_level} across all available PDFs."""
+        """Extract vocabulary mapping {lemma: lowest_cefr_level} from the A1,
+        A2 and B1 PDFs (Goethe's official wordlists, current only through
+        B1, plus the matching "Einfach" course-book supplements).
+
+        Deliberately extracts no B2. This method used to also scrape
+        "Einfach_besser_400/500_Wortschatzliste_Englisch.pdf" for B2, on the
+        reasoning that *some* B2 signal beats none. Two faults made that
+        worse than none: (1) there is no official Goethe B2 wordlist to
+        scrape in the first place, so the 808 lemmas it produced were never
+        more than an unofficial course glossary's contents, not a
+        representative B2 vocabulary; (2) that glossary's PDF is bilingual
+        (its own filename says "Englisch"), and this extractor's
+        token-grabbing regex, unlike its behaviour on the other bilingual
+        source PDFs, picked up English translation-column words alongside
+        the German headwords for this one -- "accompany", "administer",
+        "advertisement" and dozens more English words were tagged as German
+        B2 vocabulary. Both faults are specific to this one source and this
+        one level; A1, A2 and B1 are unaffected (checked directly against
+        the extracted output) and stay exactly as scraped.
+        See ``src.lexicon.frequency.FrequencyBander.derive_b2_vocab`` and
+        ``scripts/step1_extract_vocab.py`` for B2's replacement: a
+        frequency-derived band built from a public, licence-documented
+        corpus (``data/fixtures/corpus/frequency/PROVENANCE.md``) instead of
+        this scrape.
+        """
         vocab: dict[str, CEFR] = {}
 
         level_priority: dict[CEFR, int] = {"A1": 1, "A2": 2, "B1": 3, "B2": 4}
@@ -68,16 +92,7 @@ class WordlistPdfExtractor:
                     if word not in vocab:
                         vocab[word] = "B1"
 
-        # 4. Parse B2 wordlists (Einfach besser 400 & 500)
-        b2_files = [
-            self.raw_dir / "Einfach_besser_400_Wortschatzliste_Englisch.pdf",
-            self.raw_dir / "Einfach_besser_500_Wortschatzliste_Englisch.pdf",
-        ]
-        for f in b2_files:
-            if f.exists():
-                for word in self._extract_words_from_pdf(f):
-                    if word not in vocab:
-                        vocab[word] = "B2"
+        # No step 4: see the docstring above for why B2 is not scraped here.
 
         return vocab
 

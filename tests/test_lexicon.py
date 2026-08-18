@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from src.lexicon.extractor import WordlistPdfExtractor
 from src.lexicon.frequency import FrequencyBander
-from src.lexicon.lemmatizer import lemma_candidates, normalise
+from src.lexicon.lemmatizer import compound_split_candidates, lemma_candidates, normalise
 from src.lexicon.vocabulary import VocabularyStore
 
 
@@ -304,3 +304,173 @@ def test_closed_class_conjunction_sentence_passes_a1_ceiling() -> None:
     store = VocabularyStore({"bevor": "B2", "sobald": "B2", "haus": "A1", "gehen": "A1"})
     assert store.validate_sentence("Bevor du gehst, räum dein Haus auf.", "A1") == []
     assert store.validate_sentence("Sobald ich zu Hause bin, rufe ich an.", "A1") == []
+
+
+# ---------------------------------------------------------------------------
+# Frequency-derived B2 banding
+#
+# Above B1 there is no official Goethe wordlist to scrape, so B2 is derived
+# from a public word-frequency corpus instead of a scrape (see
+# data/fixtures/corpus/frequency/PROVENANCE.md for what corpus, its licence,
+# and how it is combined). These tests exercise the pure banding logic
+# against small synthetic inputs -- no network, no dependency on the size of
+# the vendored fixture files -- plus a handful of regression checks against
+# the real, regenerated data/fixtures/corpus/vocab_levels.json.
+# ---------------------------------------------------------------------------
+
+
+def test_derive_b2_band_takes_next_ranked_words_excluding_known() -> None:
+    """Words already resolving to A1/A2/B1 (directly or via a candidate
+    lemma) are skipped; the band is the next ``band_size`` survivors, in
+    rank order, that also pass the dictionary filter."""
+    ranked = ["haus", "vorstand", "xyznotaword", "analyse", "buch", "these"]
+    dictionary_filter = {"haus", "vorstand", "analyse", "buch", "these"}  # no "xyznotaword"
+    known = {"haus", "buch"}  # already A1 elsewhere
+    band = FrequencyBander.derive_b2_band(ranked, dictionary_filter, known, band_size=2)
+    assert band == ["vorstand", "analyse"]  # rank order, "these" cut off by band_size=2
+
+
+def test_derive_b2_band_excludes_words_resolving_via_lemma_candidate() -> None:
+    """A frequency-ranked inflected form whose *lemma* is already known
+    (e.g. a plural of an A1 noun) is excluded, not just an exact-string
+    match -- otherwise frequency banding would re-promote an A1 word's own
+    inflected forms to B2 just because the scraped list only ever printed
+    the singular."""
+    ranked = ["häuser"]  # plural of "Haus", reduces to "haus" via lemma_candidates
+    dictionary_filter = {"häuser"}
+    known = {"haus"}
+    assert FrequencyBander.derive_b2_band(ranked, dictionary_filter, known, band_size=10) == []
+
+
+def test_derive_b2_band_never_exceeds_band_size() -> None:
+    ranked = [f"wort{i}" for i in range(50)]
+    dictionary_filter = set(ranked)
+    band = FrequencyBander.derive_b2_band(
+        ranked, dictionary_filter, known_lemmas=set(), band_size=5
+    )
+    assert len(band) == 5
+    assert band == ranked[:5]
+
+
+def test_derive_b2_vocab_labels_every_band_word_b2() -> None:
+    ranked = ["vorstand", "analyse"]
+    vocab = FrequencyBander.derive_b2_vocab(
+        ranked, dictionary_filter=set(ranked), known_lemmas=set()
+    )
+    assert vocab == {"vorstand": "B2", "analyse": "B2"}
+
+
+def test_load_ranked_words_parses_word_count_pairs_most_frequent_first(tmp_path: Path) -> None:
+    freq_file = tmp_path / "freq.txt"
+    freq_file.write_text("ich 500\ndu 400\nhaus 12\nnot a valid line\n123 99\n", encoding="utf-8")
+    ranked = FrequencyBander.load_ranked_words(freq_file)
+    assert ranked == ["ich", "du", "haus"]  # numeral-only and malformed lines dropped
+
+
+def test_load_ranked_words_deduplicates_via_normalise(tmp_path: Path) -> None:
+    freq_file = tmp_path / "freq.txt"
+    freq_file.write_text("Straße 500\nstrasse 400\nSTRASSE 300\n", encoding="utf-8")
+    ranked = FrequencyBander.load_ranked_words(freq_file)
+    assert ranked == [normalise("Straße")]  # first occurrence's rank wins, not re-added
+
+
+def test_load_dictionary_filter_normalises_and_skips_blank_lines(tmp_path: Path) -> None:
+    dict_file = tmp_path / "dict.txt"
+    dict_file.write_text("Haus\n\nStraße\n  \n", encoding="utf-8")
+    loaded = FrequencyBander.load_dictionary_filter(dict_file)
+    assert loaded == {"haus", normalise("Straße")}
+
+
+@pytest.mark.parametrize("word", ["Vorstand", "Projektleiter", "Analyse", "These"])
+def test_previously_rejected_b2_words_now_resolve_at_or_below_b2(
+    vocab_store: VocabularyStore, word: str
+) -> None:
+    """The four words named in the earlier pilot as falsely rejected for
+    exceeding a B2 vocabulary ceiling ("Vorstand", "Projektleiter",
+    "Analyse", "These" -- all ordinary B2 words) now resolve to a genuine,
+    evidenced level at or below B2, not merely "unknown, so it happens to
+    pass"."""
+    level = vocab_store.get_level(word)
+    assert level is not None, f"{word!r} should resolve to a level, not stay unknown"
+    assert VocabularyStore.LEVEL_RANKS[level] <= VocabularyStore.LEVEL_RANKS["B2"]
+    assert vocab_store.is_within_ceiling(word, "B2")
+
+
+@pytest.mark.parametrize(
+    "word",
+    [
+        "Bundesverfassungsgerichtsurteil",
+        "Kernspintomographie",
+        "Immatrikulationsbescheinigung",
+        "Approbationsordnung",
+        "Streitwertfestsetzung",
+    ],
+)
+def test_genuinely_rare_specialist_words_are_not_mislabeled_b2(
+    vocab_store: VocabularyStore, word: str
+) -> None:
+    """Extending B2 by frequency must not sweep up genuinely rare or
+    specialist vocabulary that the frequency corpus never saw. These stay
+    unresolved ("unknown"), the same honest state absence has always meant
+    in this store -- not a false B2 label."""
+    assert vocab_store.get_level(word) is None
+
+
+def test_extractor_no_longer_produces_english_contaminated_b2() -> None:
+    """WordlistPdfExtractor.extract_all used to scrape B2 from a bilingual
+    course glossary and, for that one source only, pick up English
+    translation-column words alongside the German headwords ("accompany",
+    "administer", "advertisement" were all tagged as German B2 vocabulary).
+    extract_all no longer extracts B2 at all (see its docstring), so no
+    English contamination and no B2 level can come from it any more."""
+    raw_dir = Path(__file__).parent.parent / "data" / "raw"
+    if not raw_dir.exists() or not list(raw_dir.glob("*.pdf")):
+        pytest.skip("data/raw PDFs not present in this environment")
+    extractor = WordlistPdfExtractor(raw_dir)
+    vocab = extractor.extract_all()
+    assert "B2" not in vocab.values()
+    assert "accompany" not in vocab
+
+
+def test_compound_split_candidates_finds_projekt_leiter() -> None:
+    assert ("projekt", "leiter") in compound_split_candidates("Projektleiter")
+
+
+def test_compound_resolution_uses_harder_of_two_known_parts() -> None:
+    """ "Projektleiter" ("Projekt" A2 + "Leiter" B1) is not in the frequency
+    corpus at all (subtitle dialogue rarely says the word), but both parts
+    are already-leveled ordinary vocabulary, so the compound resolves to
+    the harder part, B1, not the easier one."""
+    store = VocabularyStore({"projekt": "A2", "leiter": "B1"})
+    assert store.get_level("Projektleiter") == "B1"
+    assert store.is_within_ceiling("Projektleiter", "B1")
+    assert not store.is_within_ceiling("Projektleiter", "A2")
+
+
+def test_compound_fallback_does_not_override_a_direct_hit() -> None:
+    """A word that already resolves directly (or via ``lemma_candidates``)
+    must be scored on that resolution, never re-scored by a coincidental
+    compound split -- "Vorstand" (real B2 word) must not pass an A2 ceiling
+    just because some substring split of it happens to resolve two
+    unrelated short words. Regression test for a bug caught while building
+    the compound-split fallback: it was being consulted unconditionally
+    instead of only when nothing else resolved at all."""
+    # "vorstand" spuriously splits as "vors" + "tand"; make both resolve to
+    # something easy, and confirm the *direct* B2 hit still wins.
+    store = VocabularyStore({"vorstand": "B2", "vor": "A1", "tand": "A2"})
+    assert store.get_level("Vorstand") == "B2"
+    assert not store.is_within_ceiling("Vorstand", "A2")
+    assert store.is_within_ceiling("Vorstand", "B2")
+
+
+def test_compound_resolution_requires_direct_hits_not_fuzzy_stems() -> None:
+    """Compound parts are resolved via a direct vocabulary/function-word
+    hit only, never through ``lemma_candidates``' inflectional-suffix
+    reduction -- chaining two fuzzy single-word resolutions was measurably
+    worse than one. A compound whose halves only resolve via suffix
+    stripping (not as an exact stem) must not resolve at all."""
+    # "leitung" reduces to "leit" only via suffix stripping; "projekt" is a
+    # direct hit. Without the direct-hit restriction this would coincide
+    # with an unintended split and falsely resolve.
+    store = VocabularyStore({"projekt": "A2"})  # deliberately no "leiter"/"leitung"/"leit" entry
+    assert store.get_level("Projektleitung") is None
