@@ -98,8 +98,43 @@ one accepted answer among several equally grammatical ones.
   ``nomen_plural`` candidate genuinely unrescuable and skipped exactly as
   before this cue mechanism existed.
 
+* ``verb_form`` -- **ambiguous, UNLESS the candidate carries a cue, in
+  which case it passes.** docs/audits/cycle-05-report.md: exactly the
+  ``plural_noun`` defect one part of speech over, and strictly worse -- a
+  full lexical verb (``verb_praesens_regelm``, ``verb_praesens_
+  vokalwechsel``, ``verben_trennbar_praesens``, ``praeteritum_vollverben``;
+  every OTHER topic that resolves through a finite verb -- Perfekt, Passiv,
+  Futur, Konjunktiv II -- blanks the closed-class auxiliary/modal instead,
+  which is ``irregular_aux``, not this kind) is an OPEN class: with no cue,
+  an ordinary sentence's finite-verb slot is nearly always satisfied by more
+  than one semantically distinct verb ("Unser Chef ___ ein großes
+  Sommerfest" -- plant/organisiert/veranstaltet/feiert all fit equally; the
+  report's own contrast in the same pilot run: ``verb_sein_haben``,
+  ``praeteritum_sein_haben_modal`` and ``perfekt_haben`` were clean at 20/20
+  each because the construction itself forces sein/haben/werden, while
+  ``verb_praesens_regelm`` and ``praeteritum_vollverben`` were defective at
+  20/20 each because any verb fits).
+
+  ``Candidate.cue`` is the derived infinitive citation form ("___ (gehen)."
+  -> "ging"), supplying the one fact the bare slot does not: which verb. As
+  with the modal/plural-noun cases, only an actually-supplied cue rescues
+  the candidate (``None`` still falls through to the always-ambiguous skip)
+  -- see ``selectors._lexical_verb_lemma_trustworthy`` for the cases the
+  tagger's own lemma cannot be trusted for (not infinitive-shaped, or a
+  lemma confirmed mislemmatised for this exact model -- "schalen" for
+  "schalte", where even the ROUND-TRIP reconstruction check earlier in
+  ``blanker.py`` cannot catch the error because it regenerates the same
+  wrong answer the tagger already committed to), which still leave a
+  ``verb_form`` candidate genuinely unrescuable and skipped exactly as
+  before this cue mechanism existed. Not extended to ``personal_pronoun``
+  above on the strength of this precedent: a cue supplies the LEXEME a free
+  choice among verbs (or among plural nouns, or among modals) is missing,
+  and a personal pronoun's ambiguity is never over which lexeme -- see that
+  kind's own paragraph above for why a cue is not a coherent idea there at
+  all, not merely withheld.
+
 * Every other kind (``determiner``, ``adjective``, ``degree``,
-  ``reflexive_pronoun``, ``relative_pronoun``, ``verb_form``,
+  ``reflexive_pronoun``, ``relative_pronoun``,
   ``irregular_aux`` for sein/haben/werden, ``fixed_particle``) -- **passes
   unaffected.** Their own paradigm cell (Case/Gender/Number, or Person/Number
   for a reflexive/relative pronoun) is forced by agreement with a governing
@@ -219,5 +254,18 @@ def check_uniqueness(sentence: TaggedSentence, candidate: Candidate) -> Uniquene
         if candidate.cue:
             return UniquenessOutcome(True, None)
         return UniquenessOutcome(False, "plural_noun_open_class")
+
+    if candidate.kind == "verb_form":
+        # docs/audits/cycle-05-report.md: exactly the ``plural_noun`` defect
+        # one part of speech over, and strictly worse -- a full lexical verb
+        # is an open class too, and an ordinary sentence's finite-verb slot
+        # is nearly always satisfied by more than one semantically distinct
+        # verb ("Unser Chef ___ ein großes Sommerfest" -- plant/organisiert/
+        # veranstaltet/feiert all fit equally). Same cue rescue as the
+        # modal/plural-noun cases above and for the same reason: a cue names
+        # the lexeme (the infinitive) a free choice among verbs is missing.
+        if candidate.cue:
+            return UniquenessOutcome(True, None)
+        return UniquenessOutcome(False, "verb_lexical_open_class")
 
     return UniquenessOutcome(True, None)

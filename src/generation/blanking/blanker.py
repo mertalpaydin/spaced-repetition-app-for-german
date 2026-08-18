@@ -16,19 +16,53 @@ reject, not a lower-confidence accept.
 ``Candidate.cue`` (a bracketed citation-form cue -- see that field's own
 docstring) is set by the selector, not derived here, but it has to reach the
 ``CandidateItem`` for ``uniqueness.py``'s cue rescue
-(docs/audits/cycle-04-report.md recommendation 5) to mean anything: a cue
-that is computed and then discarded rescues nothing. The two outcome
-builders that can receive one (``_irregular_aux_outcome`` for a modal,
-``_plural_noun_outcome``) copy it onto ``CandidateItem.cue`` unchanged, and
-set ``type="cloze_cued"`` instead of the ``"cloze_free"`` every other
-outcome builder still hard-codes -- ``data/taxonomy.yaml`` declares
-``nomen_plural`` and ``modalverben_praesens`` as ``cloze_cued``-only topics,
-so an item built from either without this would not even be a valid item
-type, regardless of the uniqueness question. ``_cue_equals_answer`` is a
+(docs/audits/cycle-04-report.md recommendation 5, extended by
+docs/audits/cycle-05-report.md to every open-class lexical-verb topic, and
+again by docs/audits/cycle-06-modal-leak.md to the comparative/superlative
+degree topic and both attributive-participle topics) to mean anything: a
+cue that is computed and then discarded rescues nothing. The five outcome
+builders that can receive one (``_irregular_aux_outcome`` for a modal or
+sein/haben, ``_plural_noun_outcome``, ``_verb_form_outcome`` for a lexical
+verb, ``_degree_outcome`` for a comparative/superlative, and
+``_adjective_outcome`` for the two attributive-participle topics) copy it
+onto ``CandidateItem.cue`` unchanged via ``_cued_item_type``, which resolves
+to ``type="cloze_cued"`` instead of the ``"cloze_free"`` every cue-less
+outcome builder still hard-codes -- ``data/taxonomy.yaml``'s
+``eligible_types`` for ``nomen_plural``, ``verb_praesens_regelm``/
+``verb_praesens_vokalwechsel``, ``verb_sein_haben`` and
+``adjektiv_komparativ_superlativ`` is ``[cloze_cued]`` alone, and for
+``modalverben_praesens``/``verben_trennbar_praesens``/``praeteritum_
+vollverben``/``praeteritum_sein_haben_modal``/``partizip_i_attributiv``/
+``partizip_ii_attributiv_erweitert`` is ``[cloze_cued, transformation]`` --
+``cloze_free`` is not in ANY of these ten topics' own declared types, so an
+item built from any of them without this would not even be a valid item
+type, regardless of the uniqueness question. (Before docs/audits/
+cycle-05-report.md's fix, ``_verb_form_outcome`` hard-coded
+``type="cloze_free"`` unconditionally -- confirmed a live contract
+violation for the four lexical-verb topics, independent of and in addition
+to the uniqueness defect the cue itself fixes; docs/audits/
+cycle-06-modal-leak.md found the same live violation, unfixed, on eight
+more topics including these five.) ``_cue_equals_answer`` is a
 second, independent check of the same invariant ``selectors._citation_cue``
 already enforces at derivation time (a cue must never equal the answer it
 cues) -- reject the item outright if it is ever true, rather than trust a
 single guard for something this severe.
+
+## The one topic no cue mechanism can rescue: ``artikel_bestimmt_nom`` and
+## its two siblings
+
+``artikel_bestimmt_nom``, ``artikel_unbestimmt_kein_nom`` and
+``artikel_possessiv_nom`` all declare ``eligible_types: [paragraph_cloze]``
+in ``data/taxonomy.yaml`` -- definiteness, indefiniteness and possession are
+discourse properties (docs/audits/stage-04-pilot-2026-08-15.md's bucket 1),
+never forced by anything a single bare sentence can contain, so a citation
+cue is not a coherent fix here the way it is for a lexeme choice (a cue
+names a WORD; there is no word that forces "the" over "a"). ``pipeline.py``'s
+own eligible-types assertion is what actually keeps these three honest: it
+skips every item ``_determiner_outcome`` builds for one of them (always
+``type="cloze_free"``, never eligible) rather than emit it. This is a
+deliberate architectural choice, not an oversight -- see that module's own
+docstring.
 """
 
 from __future__ import annotations
@@ -153,6 +187,17 @@ def _adjective_outcome(
     candidate: Candidate,
     difficulty: Difficulty,
 ) -> BlankOutcome:
+    """Shared by the three plain adjective-declension topics (no cue,
+    ``candidate.cue`` is always ``None`` for those) and by
+    ``partizip_i_attributiv``/``partizip_ii_attributiv_erweitert`` (cued with
+    the underlying verb's own infinitive -- docs/audits/
+    cycle-06-modal-leak.md's cue extension, see ``selectors.py``'s own two
+    participle selectors for where the cue is derived). ``_cued_item_type``
+    and the ``_cue_equals_answer`` guard are exactly the same treatment
+    ``_verb_form_outcome``/``_irregular_aux_outcome`` already give a cue --
+    ``data/taxonomy.yaml``'s ``eligible_types`` for both participle topics is
+    ``[cloze_cued, transformation]``, so an item built from either without
+    this would not even be a valid item type."""
     assert candidate.declension is not None and candidate.cell is not None
     token = sentence.tokens[candidate.token_index]
     ending = paradigms.adjective_ending(candidate.declension, candidate.cell)
@@ -162,6 +207,8 @@ def _adjective_outcome(
     if not lower.endswith(ending) or len(token.text) <= len(ending):
         return BlankOutcome(None, "adjective_ending_mismatch")
     stem = token.text[: len(token.text) - len(ending)]
+    if _cue_equals_answer(candidate.cue, token.text):
+        return BlankOutcome(None, "cue_equals_answer")
 
     family = paradigms.adjective_family_forms(candidate.declension, stem)
     distractor_forms = sorted(
@@ -172,11 +219,12 @@ def _adjective_outcome(
     return BlankOutcome(
         CandidateItem(
             topic_id=topic_id,
-            type="cloze_free",
+            type=_cued_item_type(candidate.cue),
             difficulty=difficulty,
             prompt=_render_prompt(sentence, candidate.token_index),
             proposed_answer=token.text,
             distractors=distractors,
+            cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
         ),
         None,
@@ -194,16 +242,25 @@ def _degree_outcome(
     frequently irregular (gut/besser/best-, viel/mehr/meist-) and this cycle
     has no comparison table to reuse or compute it from, so distractors are
     left empty rather than guessed. See the top-level report for this
-    decision spelled out."""
+    decision spelled out.
+
+    ``cue`` is the positive-form citation cue (docs/audits/
+    cycle-06-modal-leak.md's cue extension; see ``selectors._degree_cue``):
+    without one, any comparative/superlative fits the slot, which is exactly
+    why ``adjektiv_komparativ_superlativ``'s own ``eligible_types`` in
+    ``data/taxonomy.yaml`` is ``[cloze_cued]`` and never ``cloze_free``."""
     token = sentence.tokens[candidate.token_index]
+    if _cue_equals_answer(candidate.cue, token.text):
+        return BlankOutcome(None, "cue_equals_answer")
     return BlankOutcome(
         CandidateItem(
             topic_id=topic_id,
-            type="cloze_free",
+            type=_cued_item_type(candidate.cue),
             difficulty=difficulty,
             prompt=_render_prompt(sentence, candidate.token_index),
             proposed_answer=token.text,
             distractors=[],
+            cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
         ),
         None,
@@ -350,6 +407,8 @@ def _verb_form_outcome(
         return BlankOutcome(None, "verb_form_uncovered_by_paradigm")
     if reconstructed.lower() != token.text.lower():
         return BlankOutcome(None, "verb_form_paradigm_mismatch")
+    if _cue_equals_answer(candidate.cue, token.text):
+        return BlankOutcome(None, "cue_equals_answer")
 
     family = paradigms.verb_family_forms(candidate.verb_family, candidate.lemma)
     distractor_forms = sorted(
@@ -364,11 +423,12 @@ def _verb_form_outcome(
     return BlankOutcome(
         CandidateItem(
             topic_id=topic_id,
-            type="cloze_free",
+            type=_cued_item_type(candidate.cue),
             difficulty=difficulty,
             prompt=_render_prompt(sentence, candidate.token_index),
             proposed_answer=token.text,
             distractors=distractors,
+            cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
         ),
         None,

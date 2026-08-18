@@ -141,15 +141,21 @@ class Candidate:
     # form -- nominative singular for a noun, infinitive for a verb) that
     # rescues a closed-class slot the uniqueness gate (``uniqueness.py`)
     # would otherwise always skip as interchangeable, e.g. "meine ___
-    # (Zahn)" for "Zähne", "___ (müssen) er noch arbeiten" for "muss". Set
-    # only by the selectors for the topics the report names (``nomen_plural``,
-    # ``modalverben_praesens``, ``passiv_modalverben``); ``None`` everywhere
-    # else, including every candidate a topic's own selector could not
-    # derive a *reliable* cue for -- see ``_citation_cue`` and
-    # ``_plural_noun_cue``'s own docstrings for exactly what "reliable"
-    # means per part of speech. Additive: nothing downstream is required to
-    # read this field, and every existing candidate kind keeps emitting
-    # ``cue=None`` exactly as before.
+    # (Zahn)" for "Zähne", "___ (müssen) er noch arbeiten" for "muss".
+    # docs/audits/cycle-05-report.md extends this to every OPEN-class
+    # lexical-verb topic (``verb_praesens_regelm``, ``verb_praesens_
+    # vokalwechsel``, ``verben_trennbar_praesens``, ``praeteritum_
+    # vollverben``): a full verb is a strictly worse case of the same
+    # defect a plural noun has, since essentially any semantically
+    # plausible verb fits an ordinary sentence's finite-verb slot. Set only
+    # by the selectors for the topics the two reports name; ``None``
+    # everywhere else, including every candidate a topic's own selector
+    # could not derive a *reliable* cue for -- see ``_citation_cue``,
+    # ``_plural_noun_cue`` and ``_lexical_verb_lemma_trustworthy``'s own
+    # docstrings for exactly what "reliable" means per part of speech.
+    # Additive: nothing downstream is required to read this field, and
+    # every existing candidate kind keeps emitting ``cue=None`` exactly as
+    # before.
     cue: str | None = None
 
 
@@ -333,6 +339,24 @@ def _adjective_selector(declension: Literal["weak", "mixed", "strong"]) -> Selec
                 continue
             prev = sentence.token_before(token.i)
             trigger = _preceding_declension_trigger(prev)
+            if trigger is None:
+                # No determiner immediately adjacent -- but one may still
+                # govern this adjective through an intervening phrase
+                # ("das [von einem Maler] ___ Arbeitszimmer": "das" governs
+                # weak declension, defeated by "von einem Maler" sitting in
+                # between). Reuses the same bounded backward scan built for
+                # ``partizip_ii_attributiv_erweitert`` after that exact trap,
+                # gated the same way that selector gates it: only trusted
+                # when an ``ADP`` genuinely sits in the intervening span, so
+                # a plain, non-extended zero-article reading ("frische
+                # Milch") is never second-guessed by an unrelated determiner
+                # several tokens further back.
+                found = _find_governing_declension_trigger(sentence, token.i)
+                if found is not None:
+                    determiner_index, far_trigger = found
+                    span = sentence.tokens[determiner_index + 1 : token.i]
+                    if any(t.pos == "ADP" for t in span):
+                        trigger = far_trigger
             if declension in ("weak", "mixed"):
                 if trigger != declension:
                     continue
@@ -351,6 +375,46 @@ def _adjective_selector(declension: Literal["weak", "mixed", "strong"]) -> Selec
 # Comparative / superlative.
 # ==============================================================================
 
+# Adjective lemmas confirmed, by direct testing against this exact model,
+# to mislemmatise a comparative/superlative ADJD back to something other
+# than the true positive form -- the same "self-consistent tagger bug" class
+# as ``_MISLEMMATIZED_VERB_LEMMAS``, found the same way (each entry
+# individually confirmed, never guessed at in bulk; a live, LLM-generated
+# corpus is unbounded and a future audit may find more). Two distinct
+# failure shapes, both real:
+#
+# * "lieb" (from "lieber"/"liebsten") -- not a lemmatiser artefact at all,
+#   but a genuinely WRONG citation form: "gern - lieber - am liebsten" is a
+#   suppletive comparison (the positive form is a different word, "gern",
+#   not a comparative/superlative of "lieb"), and de_core_news_sm resolves
+#   the comparative/superlative surface to the unrelated, real adjective
+#   "lieb" ("dear") instead. Cueing "(lieb)" would point the learner at the
+#   wrong word entirely, not a spelling variant of the right one.
+# * "kält"/"kälte"/"wärm"/"jüng" (from "kälter"/"kälteste"/"wärmste"/
+#   "jüngste") -- unreduced or wrongly-reduced UMLAUT stems the lemmatiser
+#   fails to map back to their true positive ("kalt"/"warm"/"jung"); none of
+#   these are real German words, and none equal the surface form either, so
+#   ``_citation_cue``'s own equals-the-answer guard does not catch them.
+_MISLEMMATIZED_ADJEKTIV_DEGREE_LEMMAS: frozenset[str] = frozenset(
+    {"lieb", "kält", "kälte", "wärm", "jüng"}
+)
+
+
+def _degree_cue(token: Token) -> str | None:
+    """The base (positive) citation form for a blanked comparative/
+    superlative -- docs/audits/cycle-06-modal-leak.md's cue extension:
+    without one, any comparative/superlative fits the slot equally well
+    ("er läuft ___ als sein Bruder" admits schneller/langsamer/besser
+    alike). Trusted only when it clears the same two-part reliability
+    standard as ``_lexical_verb_lemma_trustworthy``/``_plural_noun_cue``:
+    differs from the surface form (delegated to ``_citation_cue``, and this
+    doubles as the "genuinely invariant" guard) and is not one of the
+    lemmas confirmed mislemmatised for this exact model above."""
+    lemma = token.lemma
+    if not lemma or lemma.lower() in _MISLEMMATIZED_ADJEKTIV_DEGREE_LEMMAS:
+        return None
+    return _citation_cue(lemma, token.text)
+
 
 def _select_komparativ_superlativ(sentence: TaggedSentence) -> list[Candidate]:
     """Predicative/adverbial comparative or superlative (``schneller``, ``am
@@ -365,6 +429,10 @@ def _select_komparativ_superlativ(sentence: TaggedSentence) -> list[Candidate]:
     * Superlative: immediately preceded by the fused particle "am" (the only
       periphrastic superlative construction; "der/die/das ...ste" is
       attributive and out of scope here for the same reason as above).
+
+    ``cue`` is the derived positive-form citation cue (see ``_degree_cue``),
+    ``None`` wherever that cannot be trusted -- the candidate is still
+    returned either way, matching every other cued kind in this module.
     """
     out: list[Candidate] = []
     lower_texts = [t.text.lower() for t in sentence.tokens]
@@ -381,7 +449,7 @@ def _select_komparativ_superlativ(sentence: TaggedSentence) -> list[Candidate]:
             prev = sentence.token_before(token.i)
             if prev is None or prev.text.lower() != "am":
                 continue
-        out.append(Candidate(token_index=token.i, kind="degree"))
+        out.append(Candidate(token_index=token.i, kind="degree", cue=_degree_cue(token)))
     return out
 
 
@@ -632,6 +700,16 @@ def _clause_span(sentence: TaggedSentence, index: int) -> tuple[int, int]:
     return start, end
 
 
+# German 2nd-person plural imperative is spelled identically to the present
+# indicative ("helft"/"helft") -- spaCy tags it ``VVIMP``/``VAIMP``/``VMIMP``
+# with no ``VerbForm`` at all rather than ``VerbForm=Fin``, so a competing
+# predicate tagged this way must be counted alongside a genuine
+# ``VerbForm=Fin`` finite verb wherever "exactly one finite verb in this
+# span" is the signal being checked (see ``_governing_verb_lemma``'s own
+# docstring for the confirmed defect this closes).
+_IMPERATIVE_TAGS: frozenset[str] = frozenset({"VVIMP", "VAIMP", "VMIMP"})
+
+
 def _governing_verb_lemma(
     sentence: TaggedSentence, clause_start: int, clause_end: int
 ) -> str | None:
@@ -653,11 +731,24 @@ def _governing_verb_lemma(
     governing-verb resolution itself, exactly like every other structural
     signal in this module. This is also this function's own answer to "where
     the governing verb cannot be determined, skip" -- the caller
-    (``_reflexive_case``) does exactly that on a ``None`` return."""
+    (``_reflexive_case``) does exactly that on a ``None`` return.
+
+    A second, ``und``-joined clause's own predicate counts as a competing
+    finite verb here even when spaCy tags it ``VVIMP``/``VAIMP``/``VMIMP``
+    (imperative) with no ``VerbForm`` at all, not only ``VerbForm=Fin``.
+    Confirmed necessary against this exact model: "Ihr gebt aber nicht auf
+    und helft euch gegenseitig." tags "helft" as an imperative (its 2nd
+    person plural form is spelled identically to the present indicative),
+    which a ``VerbForm=Fin``-only filter simply does not see -- so the span
+    (no comma before "und") looked like it had exactly one finite verb
+    ("gebt"/"aufgeben") and this function wrongly resolved through it
+    instead of returning ``None`` for the genuinely two-predicate clause it
+    actually is."""
     finite = [
         t
         for t in sentence.tokens[clause_start:clause_end]
-        if t.pos in ("VERB", "AUX") and t.morph.get("VerbForm") == "Fin"
+        if t.pos in ("VERB", "AUX")
+        and (t.morph.get("VerbForm") == "Fin" or t.tag in _IMPERATIVE_TAGS)
     ]
     if len(finite) != 1:
         return None
@@ -808,9 +899,18 @@ def _relative_pronoun_selector(fixed_cases: frozenset[str]) -> Selector:
 # already covered by ``is_vokalwechsel_praesens_lemma`` -- verb_praesens_regelm
 # must exclude these too (a verb irregular only in the Präteritum, e.g.
 # "gehen"/"kommen", is still perfectly regular in the present and stays
-# eligible).
+# eligible). ``paradigms.IRREGULAR_FINITE_INFLECTED_FORMS`` closes the gap
+# docs/audits/cycle-06-modal-leak.md found: excluding the modals' own
+# INFINITIVES here is not enough, because a mislemmatised token can carry an
+# INFLECTED modal form as its "lemma" instead ("sollten" for "solltet", true
+# infinitive "sollen") and evade a membership check keyed on the infinitives
+# alone -- confirmed live, "Ihr solltet ... bleiben." was selected as a
+# regular verb_praesens_regelm candidate with lemma "sollten" before this.
 _IRREGULAR_PRAESENS_LEMMAS: frozenset[str] = (
-    frozenset({"sein", "haben", "werden"}) | paradigms.MODAL_LEMMAS | frozenset({"möchten"})
+    frozenset({"sein", "haben", "werden"})
+    | paradigms.MODAL_LEMMAS
+    | frozenset({"möchten"})
+    | paradigms.IRREGULAR_FINITE_INFLECTED_FORMS
 )
 
 
@@ -836,6 +936,7 @@ def _select_verb_praesens_regelm(sentence: TaggedSentence) -> list[Candidate]:
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
             continue
+        cue = _citation_cue(lemma, token.text) if _lexical_verb_lemma_trustworthy(lemma) else None
         out.append(
             Candidate(
                 token_index=token.i,
@@ -844,6 +945,7 @@ def _select_verb_praesens_regelm(sentence: TaggedSentence) -> list[Candidate]:
                 person=person,
                 number=number,
                 verb_family="regular_praesens",
+                cue=cue,
             )
         )
     return out
@@ -857,11 +959,21 @@ def _select_verb_praesens_vokalwechsel(sentence: TaggedSentence) -> list[Candida
         if token.morph.get("Tense") != "Pres" or token.morph.get("Mood") != "Ind":
             continue
         lemma = token.lemma.lower()
+        # A mislemmatised modal-inflected "lemma" (see
+        # ``_IRREGULAR_PRAESENS_LEMMAS``'s own comment) is not a
+        # ``VOKALWECHSEL_PRAESENS`` table key or a recognised inseparable
+        # derivative of one either, so ``is_vokalwechsel_praesens_lemma``
+        # already excludes it structurally -- kept here anyway as an
+        # explicit, documented guard rather than an implicit side effect of
+        # an unrelated table's own closed membership.
+        if lemma in paradigms.IRREGULAR_FINITE_INFLECTED_FORMS:
+            continue
         if not paradigms.is_vokalwechsel_praesens_lemma(lemma):
             continue
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
             continue
+        cue = _citation_cue(lemma, token.text) if _lexical_verb_lemma_trustworthy(lemma) else None
         out.append(
             Candidate(
                 token_index=token.i,
@@ -870,6 +982,7 @@ def _select_verb_praesens_vokalwechsel(sentence: TaggedSentence) -> list[Candida
                 person=person,
                 number=number,
                 verb_family="vokalwechsel_praesens",
+                cue=cue,
             )
         )
     return out
@@ -922,10 +1035,18 @@ def _select_verben_trennbar_praesens(sentence: TaggedSentence) -> list[Candidate
             continue
         if token.morph.get("Tense") != "Pres" or token.morph.get("Mood") != "Ind":
             continue
-        if _own_clause_particle(sentence, token.i) is None:
+        particle = _own_clause_particle(sentence, token.i)
+        if particle is None:
             continue
         lemma = token.lemma.lower()
         if not lemma:
+            continue
+        # See ``_IRREGULAR_PRAESENS_LEMMAS``'s own comment: a mislemmatised
+        # modal-inflected "lemma" must not be treated as this topic's
+        # lexical-verb base either, defence-in-depth alongside the other
+        # three lexical-verb selectors even though a modal never carries a
+        # genuine separable ``PTKVZ`` particle in the first place.
+        if lemma in paradigms.IRREGULAR_FINITE_INFLECTED_FORMS:
             continue
         family = (
             "vokalwechsel_praesens"
@@ -935,6 +1056,19 @@ def _select_verben_trennbar_praesens(sentence: TaggedSentence) -> list[Candidate
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
             continue
+        # spaCy's own lemma for the finite half of a split separable verb
+        # drops the prefix entirely ("steht" -> "stehen", not "aufstehen"),
+        # confirmed the same way ``_governing_verb_lemma`` already confirms
+        # it for the reflexive router -- reused here rather than re-derived.
+        # The prefix is reconstructed from the particle's OWN lemma (its
+        # bare text), never trusted unless both halves are individually
+        # reliable: the base per ``_lexical_verb_lemma_trustworthy``, and
+        # the particle by simply being non-empty (a ``PTKVZ`` token's lemma
+        # is its own surface text, nothing to mislemmatise).
+        cue = None
+        if particle.lemma and _lexical_verb_lemma_trustworthy(lemma):
+            full_lemma = particle.lemma.lower() + lemma
+            cue = _citation_cue(full_lemma, token.text)
         out.append(
             Candidate(
                 token_index=token.i,
@@ -943,6 +1077,7 @@ def _select_verben_trennbar_praesens(sentence: TaggedSentence) -> list[Candidate
                 person=person,
                 number=number,
                 verb_family=family,
+                cue=cue,
             )
         )
     return out
@@ -956,24 +1091,152 @@ def _select_verben_trennbar_praesens(sentence: TaggedSentence) -> list[Candidate
 # a weak Präteritum from lemma "schalen" (stem "schal" + "te") reconstructs
 # "schalte" exactly, so the ``blanker.py`` reconstruction-vs-token check
 # cannot catch this either, it only re-derives the same wrong answer the
-# tagger already committed to. Every OTHER finite form of "schalten" tested
-# ("schaltest", "schaltet", "schalten", "schaltete") tags correctly, so this
-# is a targeted exclusion of the one broken lemma, not a guess about the
-# whole verb family.
-_MISLEMMATIZED_PRAETERITUM_LEMMAS: frozenset[str] = frozenset({"schalen"})
+# tagger already committed to.
+#
+# The remaining six entries were found the same way, by exhaustively tagging
+# every sentence in ``sentence_source._MOCK_SENTENCE_POOL`` (the pipeline's
+# own deterministic offline corpus -- see docs/audits/cycle-05-report.md's
+# lexical-verb cue task) and checking every ``verb_form`` candidate's own
+# derived cue by hand, not by guessing where else the bug might strike:
+#
+# * "frühstücksen"/"rufsen"/"streichsen" ("frühstückst"/"rufst"/"streichst",
+#   whose true infinitives are "frühstücken"/"rufen"/"streichen") -- the
+#   lemmatiser strips only the final "t" of the 2nd-singular "-st" form and
+#   appends "en", instead of removing the whole personal ending, leaving a
+#   phantom "s" INSIDE the stem. This is a distinct, non-overlapping failure
+#   mode from "schalen"'s (that one drops a stem consonant; this one adds
+#   one), so a round-trip is unable to catch it for the identical reason:
+#   the resulting stem happens to end in a sibilant, and
+#   ``regular_praesens_form``'s own dedicated sibilant rule for 2nd-singular
+#   ("reist", not "reisst") absorbs the phantom "s" and reconstructs the
+#   real surface form anyway.
+# * "antworen" ("antworte", true infinitive "antworten") -- the 1st-singular
+#   present ending "-e" on a stem that happens to end in "t" ("antwort" +
+#   "e") is spelled identically to a WEAK PRÄTERITUM "-te" ending on a
+#   shorter stem, and the lemmatiser un-inflects it as if it were one.
+# * "issen"/"vergissen" ("isst"/"vergisst", true infinitives "essen"/
+#   "vergessen") -- both wrongly bake the finite form's OWN stem-vowel
+#   ("i", from the "e"->"i" ablaut these two share) into the "citation"
+#   form, which additionally means ``is_vokalwechsel_praesens_lemma`` never
+#   recognises either as the vokalwechsel verb it actually is (a table
+#   lookup keyed on the correct lemma "essen"/"vergessen" cannot match a
+#   wrong one) -- misrouted to this file's regular-verb topics as well as
+#   mislemmatised.
+# * "fällen" ("gefällt", true infinitive "gefallen") -- conflated with the
+#   unrelated real verb "fällen" ("to fell [a tree]"), losing the "ge-"
+#   prefix entirely; the most severe single case found, a different verb
+#   altogether, not merely a malformed spelling of the right one.
+# * "hattesen" ("hattest", true infinitive "haben") -- built from a
+#   Präteritum form (haben's own) that the tagger ALSO mistags
+#   ``Tense=Pres``, so it evades ``_IRREGULAR_PRAESENS_LEMMAS``'s "haben"
+#   exclusion in ``_select_verb_praesens_regelm`` (keyed on the correct
+#   lemma, which this token never carries) as well as being mislemmatised
+#   in its own right.
+#
+# Named for the whole verb-lemma class of defect, not only the Präteritum
+# topic that first found the archetype (docs/audits/cycle-05-report.md's
+# lexical-verb cue task reuses it below as a cue-reliability guard for every
+# lexical-verb topic, not only that one -- the underlying tagger bug is the
+# same regardless of which tense selected the token). This list is exactly
+# what direct testing against this one closed, deterministic corpus turned
+# up, not a claim that these are the only lemmas this model ever
+# mislemmatises this way -- a live, LLM-generated corpus is unbounded and a
+# future audit may well find more; each addition here is meant to be
+# individually confirmed the same way, never guessed at in bulk.
+_MISLEMMATIZED_VERB_LEMMAS: frozenset[str] = frozenset(
+    {
+        "schalen",
+        "frühstücksen",
+        "rufsen",
+        "streichsen",
+        "antworen",
+        "issen",
+        "vergissen",
+        "fällen",
+        "hattesen",
+    }
+)
+
+# The closed class of German infinitives spelled WITHOUT the "-en" ending:
+# a verb whose stem itself already ends in "-el" or "-er" drops the "e" and
+# takes bare "-n" ("lächeln", "wandern", "sammeln", "klingeln"), plus the one
+# irregular "tun". Every other genuine German infinitive ends "-en" -- used
+# below as a structural shape check, not an exhaustive lemma list, so it
+# generalises to any verb of this closed morphological class without
+# needing to be named individually.
+_BARE_N_INFINITIVE_STEM_SUFFIXES: tuple[str, ...] = ("el", "er")
+
+
+def _lexical_verb_lemma_trustworthy(lemma: str) -> bool:
+    """Whether ``lemma`` -- BEFORE any separable-prefix reconstruction -- is
+    reliable enough to show a learner as an infinitive cue for a blanked
+    lexical-verb slot (docs/audits/cycle-05-report.md's lexical-verb cue
+    task). Same posture as ``_plural_noun_cue``'s own structural checks for
+    the equivalent open-class-noun problem, not a round-trip
+    reconstruction: the module's own confirmed trap is that rebuilding a
+    weak Präteritum from the wrong lemma "schalen" regenerates "schalte"
+    exactly, so a round-trip check on the ANSWER alone can never catch a
+    mislemmatised lexical verb, only an independent check on the lemma
+    itself can.
+
+    1. Genuinely infinitive-SHAPED: ends in "en" (the overwhelming majority
+       of German infinitives), or is "tun", or ends bare "-n" on a stem
+       that itself ends "-el"/"-er" (see ``_BARE_N_INFINITIVE_STEM_SUFFIXES``
+       -- "lächeln", "wandern"). An empty lemma, one left completely
+       unreduced by the tagger, or one truncated mid-ending ("kochn" for
+       "kochen", "fährstn"/"informierstn" for "fährst"/"informierst" left
+       with their own personal ending still attached) fails this and is the
+       tagger failing outright, not a citation form to show a learner. This
+       check is necessary but NOT sufficient: several of the confirmed-bad
+       lemmas below ("frühstücksen", "antworen", ...) are still "en"-shaped
+       and pass it, which is exactly why check 2 exists.
+    2. Not one of the lemmas confirmed mislemmatised for this exact model
+       (above) -- self-consistent tagger bugs a shape check cannot catch
+       any other way, per this function's own docstring.
+    3. Not itself an INFLECTED form of sein/haben/werden/a modal
+       (``paradigms.IRREGULAR_FINITE_INFLECTED_FORMS``) -- docs/audits/
+       cycle-06-modal-leak.md: "sollten" (spaCy's own wrong lemma for
+       "solltet", the true infinitive is "sollen") passes check 1, it ends in
+       "-en" exactly like a genuine infinitive, so shape alone cannot catch
+       it. What distinguishes an infinitive from a preterite plural here is
+       not spelling, it is membership: no genuine German verb's infinitive is
+       spelled "sollten"/"hatten"/"wären" -- those spellings are already,
+       fully, claimed by the closed irregular-verb table's own INFLECTED
+       cells, so a lexical-verb lemma that lands on one of them is proof the
+       tagger mislemmatised an inflected form as if it were a citation form,
+       the same class of self-consistent bug check 2 already guards against
+       one confirmed lemma at a time, generalised here to the whole closed
+       table instead."""
+    if not lemma:
+        return False
+    shaped = (
+        lemma.endswith("en")
+        or lemma == "tun"
+        or (lemma.endswith("n") and lemma[:-1].endswith(_BARE_N_INFINITIVE_STEM_SUFFIXES))
+    )
+    return (
+        shaped
+        and lemma not in _MISLEMMATIZED_VERB_LEMMAS
+        and lemma not in paradigms.IRREGULAR_FINITE_INFLECTED_FORMS
+    )
 
 
 def _select_praeteritum_vollverben(sentence: TaggedSentence) -> list[Candidate]:
     """Simple past of a full lexical verb -- weak (by rule), strong or mixed
     (from the closed tables in ``paradigms.py``). Excludes sein/haben/modals
     (``praeteritum_sein_haben_modal``'s own scope), ``werden`` (the
-    passive/Futur auxiliary topics' scope), and the confirmed-mislemmatised
-    lemmas above."""
+    passive/Futur auxiliary topics' scope), the confirmed-mislemmatised
+    lemmas above, and every INFLECTED form of any of those (see
+    ``_IRREGULAR_PRAESENS_LEMMAS``'s own comment on the same gap) -- a modal
+    lemma's own infinitive alone is not enough here either, since a
+    mislemmatised token can carry an inflected modal form as its "lemma"
+    instead."""
     excluded = (
         frozenset({"sein", "haben", "werden"})
         | paradigms.MODAL_LEMMAS
         | {"möchten"}
-        | _MISLEMMATIZED_PRAETERITUM_LEMMAS
+        | _MISLEMMATIZED_VERB_LEMMAS
+        | paradigms.IRREGULAR_FINITE_INFLECTED_FORMS
     )
     out: list[Candidate] = []
     for token in sentence.tokens:
@@ -993,6 +1256,7 @@ def _select_praeteritum_vollverben(sentence: TaggedSentence) -> list[Candidate]:
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
             continue
+        cue = _citation_cue(lemma, token.text) if _lexical_verb_lemma_trustworthy(lemma) else None
         out.append(
             Candidate(
                 token_index=token.i,
@@ -1001,6 +1265,7 @@ def _select_praeteritum_vollverben(sentence: TaggedSentence) -> list[Candidate]:
                 person=person,
                 number=number,
                 verb_family=family,
+                cue=cue,
             )
         )
     return out
@@ -1136,20 +1401,26 @@ def _select_nomen_plural(sentence: TaggedSentence) -> list[Candidate]:
 # ==============================================================================
 
 
-# The five modals plus the frozen sixth ("möchten") -- exactly the set
-# ``uniqueness.py`` treats as always-interchangeable in a modal slot (its
-# own module docstring's policy table). A modal lemma's own infinitive IS
-# its citation form, and selection into this set already means the lemma
-# matched one of exactly six known, closed values (below), so unlike
-# ``_plural_noun_cue`` there is no separate reliability check to make: a
-# mislemmatised token would simply not be in ``lemmas`` in the first place
-# and never reach here at all.
-_MODAL_LEMMAS_FOR_CUE: frozenset[str] = paradigms.MODAL_LEMMAS | frozenset({"möchten"})
-
-
 def _irregular_finite_selector(
     lemmas: frozenset[str], tense_mood: str, morph_tense: str, morph_mood: str
 ) -> Selector:
+    """``lemmas`` is this selector's own closed target set (sein/haben for
+    ``verb_sein_haben``, the modals for ``modalverben_praesens``, their union
+    for ``praeteritum_sein_haben_modal``, ...): every candidate this closure
+    ever emits has already matched ``lemma in lemmas`` above, so the lemma is
+    by construction one of a small, known-closed set of infinitives -- the
+    same "selection into a closed set already means the citation form is
+    trustworthy" argument ``_select_passiv_modalverben`` makes for its own
+    unconditional cue. Cueing every candidate this selector produces, not
+    only the ones whose lemma happens to be a modal, is docs/audits/
+    cycle-06-modal-leak.md's extension: ``verb_sein_haben`` and the sein/haben
+    half of ``praeteritum_sein_haben_modal`` used to go without a cue purely
+    because ``_MODAL_LEMMAS_FOR_CUE`` (now removed) only ever named the
+    modals, not because sein/haben's own citation form is any less reliable
+    than a modal's -- it is exactly as reliable, for exactly the same
+    closed-membership reason.
+    """
+
     def select(sentence: TaggedSentence) -> list[Candidate]:
         out: list[Candidate] = []
         for token in sentence.tokens:
@@ -1165,7 +1436,7 @@ def _irregular_finite_selector(
             person, number = token.morph.get("Person"), token.morph.get("Number")
             if not person or not number:
                 continue
-            cue = _citation_cue(lemma, token.text) if lemma in _MODAL_LEMMAS_FOR_CUE else None
+            cue = _citation_cue(lemma, token.text)
             out.append(
                 Candidate(
                     token_index=token.i,
@@ -1711,6 +1982,13 @@ _PARTIZIP_I_VERBS: frozenset[str] = frozenset(
 
 
 def _select_partizip_i_attributiv(sentence: TaggedSentence) -> list[Candidate]:
+    """``cue`` is the underlying verb's own infinitive (docs/audits/
+    cycle-06-modal-leak.md's cue extension) -- unconditionally derivable and
+    trustworthy here, unlike the general lexical-verb case: ``lemma[:-1]``
+    (the participle's own lemma minus its trailing "d") is only ever reached
+    once it has already matched a member of the closed ``_PARTIZIP_I_VERBS``
+    allowlist above, so it is by construction a verified real infinitive,
+    not a tagger guess."""
     out: list[Candidate] = []
     for token in sentence.tokens:
         if token.tag != "ADJA":
@@ -1727,12 +2005,51 @@ def _select_partizip_i_attributiv(sentence: TaggedSentence) -> list[Candidate]:
         if declension is None:
             continue
         out.append(
-            Candidate(token_index=token.i, kind="adjective", declension=declension, cell=cell)
+            Candidate(
+                token_index=token.i,
+                kind="adjective",
+                declension=declension,
+                cell=cell,
+                cue=_citation_cue(lemma[:-1], token.text),
+            )
         )
     return out
 
 
 _DECLENSION_SEARCH_WINDOW = 6
+
+# Tags/POS a prepositional phrase's own internal tokens (its determiner,
+# any attributive adjectives, its head noun) can carry -- used by
+# ``_skip_intervening_pp`` below to jump OVER a whole inserted PP in one
+# step rather than evaluating its own determiner as a candidate trigger.
+_PP_COMPLEMENT_POS: frozenset[str] = frozenset({"NOUN", "PROPN", "ADJ"})
+
+
+def _skip_intervening_pp(sentence: TaggedSentence, j: int, floor: int) -> int:
+    """If a prepositional phrase (``ADP`` + optional determiner/adjectives +
+    noun) sits immediately at and before position ``j`` scanning backward,
+    return the index of the token just before that PP's own ``ADP`` head --
+    so the caller resumes looking for a governing trigger BEFORE the
+    inserted phrase, not at a determiner that belongs to the PP's own
+    object. Confirmed necessary, not hypothetical: "das [von einem Maler]
+    gestaltete Arbeitszimmer" has its own determiner INSIDE the inserted
+    phrase ("einem", governing "Maler") one token nearer than the real
+    governing "das" -- a naive token-by-token backward scan hits "einem"
+    first and wrongly reports MIXED declension instead of "das"'s WEAK.
+    Returns ``j`` unchanged (no-op) whenever the run ending at ``j`` does not
+    actually terminate in an ``ADP`` within ``floor``, so a bare determiner
+    sitting directly at ``j`` (not part of any PP) is left for the caller's
+    own per-token check exactly as before this helper existed."""
+    k = j
+    consumed = False
+    while k > floor and (
+        sentence.tokens[k].pos in _PP_COMPLEMENT_POS or sentence.tokens[k].tag in _DETERMINER_TAGS
+    ):
+        k -= 1
+        consumed = True
+    if consumed and k > floor and sentence.tokens[k].pos == "ADP":
+        return k - 1
+    return j
 
 
 def _find_governing_declension_trigger(
@@ -1743,18 +2060,27 @@ def _find_governing_declension_trigger(
     phrase in between ("das [von Experten] entwickelte Programm" -- the
     immediately preceding token is "Experten", not the real governing
     article "das", unlike a plain, non-extended attributive adjective/
-    participle where the immediately preceding token IS the trigger).
-    Stops at a coordination boundary (comma/"und") without finding one,
-    same posture as ``_AMBIGUOUS_ZERO_CONTEXT_TAGS`` elsewhere in this
-    module: real but out of this cycle's scope, not a guess."""
+    participle where the immediately preceding token IS the trigger). The
+    inserted phrase is skipped as a whole via ``_skip_intervening_pp`` so an
+    ITS OWN determiner ("von einem Maler"'s "einem") is never mistaken for
+    the real governor. Stops at a coordination boundary (comma/"und")
+    without finding one, same posture as ``_AMBIGUOUS_ZERO_CONTEXT_TAGS``
+    elsewhere in this module: real but out of this cycle's scope, not a
+    guess."""
     start = max(-1, participle_index - 1 - _DECLENSION_SEARCH_WINDOW)
-    for j in range(participle_index - 1, start, -1):
+    j = participle_index - 1
+    while j > start:
+        skipped = _skip_intervening_pp(sentence, j, start)
+        if skipped != j:
+            j = skipped
+            continue
         candidate = sentence.tokens[j]
         trigger = _preceding_declension_trigger(candidate)
         if trigger is not None:
             return j, trigger
         if candidate.tag in ("KON", "$,"):
             return None
+        j -= 1
     return None
 
 
@@ -1772,7 +2098,14 @@ def _select_partizip_ii_attributiv_erweitert(sentence: TaggedSentence) -> list[C
     reconstructing a zero-article/strong reading here -- conservative on
     purpose, and an adverbial-only extension with no preposition at all
     ("das schnell entwickelte Programm") is left uncovered rather than
-    guessed at, per the module's own "reject rather than guess" standard."""
+    guessed at, per the module's own "reject rather than guess" standard.
+
+    ``cue`` is the participle's own infinitive (docs/audits/
+    cycle-06-modal-leak.md's cue extension), looked up in
+    ``paradigms.PARTICIPLE_II_TO_INFINITIVE`` -- safe unconditionally, since
+    ``token.lemma`` has already been checked against
+    ``paradigms.KNOWN_PARTICIPLE_FORMS`` above and that dict's keys are
+    exactly that same closed set (see its own module-level comment)."""
     out: list[Candidate] = []
     for token in sentence.tokens:
         if token.tag != "ADJA":
@@ -1791,8 +2124,12 @@ def _select_partizip_ii_attributiv_erweitert(sentence: TaggedSentence) -> list[C
         span = sentence.tokens[determiner_index + 1 : token.i]
         if not any(t.pos == "ADP" for t in span):
             continue
+        infinitive = paradigms.PARTICIPLE_II_TO_INFINITIVE.get(token.lemma)
+        cue = _citation_cue(infinitive, token.text) if infinitive else None
         out.append(
-            Candidate(token_index=token.i, kind="adjective", declension=declension, cell=cell)
+            Candidate(
+                token_index=token.i, kind="adjective", declension=declension, cell=cell, cue=cue
+            )
         )
     return out
 

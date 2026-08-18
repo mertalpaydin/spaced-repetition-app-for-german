@@ -71,21 +71,96 @@ and no cap was reached; the item is simply not solvable on its own terms.
 counter and detail list for exactly that reason -- CLAUDE.md 12's
 report-honestly standard applied a third time, not just the two the module
 docstring above already argues for.
+
+## A fourth problem: a correct, solvable item can still be the WRONG TYPE
+
+docs/audits/cycle-06-modal-leak.md audited this pipeline's own output
+against ``data/taxonomy.yaml``'s ``eligible_types`` -- the declared,
+per-topic list of item types that can honestly test that topic (see
+``src.verification.pipeline``'s own enforcement of the identical invariant
+for the other, LLM-direct generation path) -- and found 72 of 354 items on a
+300-sentence pilot run whose ``type`` was not in their own topic's declared
+list. Every outcome builder in ``blanker.py`` decides ``CandidateItem.type``
+locally (``_cued_item_type``: ``"cloze_cued"`` when a selector supplied a
+cue, ``"cloze_free"`` otherwise), with nothing anywhere checking that
+against the topic actually being built for. Two different situations
+produced this, and they need two different fixes, neither of them a fixture
+relabel (an earlier, adjacent audit -- docs/audits/
+stage-04-pilot-2026-08-15.md decision D4 -- explicitly rejected relabelling
+a non-conforming item's type to satisfy a type check as "converting a
+quality measure into a laundered defect"; the same reasoning applies here):
+
+1. **Eight topics wanted a citation cue and the mechanism to supply one
+   already existed** (cycle 5's own lexical-verb cue extension) but had
+   never been wired to them: ``adjektiv_komparativ_superlativ``,
+   ``partizip_i_attributiv``, ``partizip_ii_attributiv_erweitert``,
+   ``verb_sein_haben`` and ``praeteritum_sein_haben_modal`` are now cued
+   (``selectors.py``'s own per-selector docstrings), which resolves the
+   violation for those five by making the emitted type actually match.
+2. **Three topics (the ``artikel_*`` Nominative-case ones) cannot be
+   honestly tested by any single, standalone sentence at all** --
+   definiteness, indefiniteness and possession are discourse properties, and
+   this pipeline's whole architecture (module docstring above) is built on
+   independent, unpaired sentences with no mechanism to establish a referent
+   in one and refer back to it in another. Building that mechanism is new
+   architecture, not a fix to this cycle's own defect, so it is deliberately
+   NOT attempted here (see ``blanker.py``'s own module docstring, final
+   section). These three topics simply report zero.
+
+The hard assertion below (after ``blank_candidate`` succeeds AND after the
+uniqueness gate -- see the enforcement site's own comment for why that
+order, not the reverse, keeps the uniqueness gate's specific, diagnostic
+skip reasons intact for every cue-gated candidate kind) is what makes
+situation 2 resolve to "reports zero" rather than silently continuing to
+leak a ``cloze_free`` item: every item
+``_determiner_outcome`` builds for one of the three ``artikel_*`` topics is
+unconditionally ``type="cloze_free"``, which is never in their own
+``eligible_types: [paragraph_cloze]``, so it is always caught and skipped
+here. ``BlankingReport.skips_by_type_ineligibility`` and
+``type_ineligibility_skips`` are the FOURTH counter/detail-list pair this
+module now keeps, for the same "never conflate a distinct outcome with an
+existing bucket" reason ``skips_by_uniqueness`` already established --
+``TypeIneligibilitySkip``'s own docstring makes the full case for why.
 """
 
 from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Literal
 
-from src.contracts import CandidateItem, Difficulty
+from src.contracts import CandidateItem, Difficulty, ItemType
 from src.generation.blanking import sentence_tagger
 from src.generation.blanking.blanker import blank_candidate
 from src.generation.blanking.selectors import SELECTORS
 from src.generation.blanking.uniqueness import check_uniqueness
+from src.taxonomy.loader import load_taxonomy
 
 TOPIC_IDS: tuple[str, ...] = tuple(SELECTORS)
+
+
+@lru_cache(maxsize=1)
+def _eligible_types_by_topic() -> dict[str, frozenset[str]]:
+    """``topic.id -> frozenset(topic.eligible_types)`` for every topic in
+    ``data/taxonomy.yaml``, loaded and cached once per process.
+
+    This is the enforcement side of a defect an audit of this pipeline's own
+    output found (docs/audits/cycle-06-modal-leak.md): every outcome builder
+    in ``blanker.py`` decides its own ``CandidateItem.type`` locally (
+    ``"cloze_free"``, or ``"cloze_cued"`` via ``_cued_item_type`` when a
+    selector supplied a cue), with no check anywhere that the topic it is
+    building for actually permits that type. ``src.verification.pipeline``
+    enforces exactly this same ``item.type in topic.eligible_types``
+    invariant for the OTHER (LLM-direct) generation path (see that module's
+    own comment at the enforcement site) -- this pipeline had no equivalent
+    at all, and eight topics were confirmed emitting a type their own
+    ``eligible_types`` does not list on a 300-sentence pilot run before this
+    fix. ``blank_sentences`` is where that check now runs, once per
+    successfully built item, exactly mirroring where the uniqueness gate
+    runs (module docstring's own third-outcome section)."""
+    return {topic.id: frozenset(topic.eligible_types) for topic in load_taxonomy()}
+
 
 # A topic that can dominate a run gets capped, but the cap does not reassign
 # the freed-up "slots" to a starved topic -- each topic is matched against
@@ -147,6 +222,33 @@ class UniquenessSkip:
     prompt: str
     proposed_answer: str
     reason: str
+
+
+@dataclass(frozen=True)
+class TypeIneligibilitySkip:
+    """One item that WAS successfully built and paradigm-verified (a real
+    prompt and answer exist, exactly like ``UniquenessSkip``) but whose own
+    ``CandidateItem.type`` is not in its topic's declared ``eligible_types``
+    -- docs/audits/cycle-06-modal-leak.md's finding. A FOURTH, distinct
+    outcome, not folded into any of the other three: it is not a "no
+    candidate, or a candidate that failed paradigm reconstruction" quality
+    judgment (``skips_by_reason``), not a cap/dedup balance decision
+    (``DroppedItem``), and not a solvability judgment about whether some
+    OTHER member of a closed class would also fit (``UniquenessSkip``) --
+    this item genuinely is the unique, correct, paradigm-verified answer to
+    its own slot, and is still rejected, because the item TYPE it was built
+    as (``cloze_free`` when a cue mechanism failed to produce one; that same
+    ``cloze_free`` unconditionally for the three ``artikel_*`` topics, which
+    have no cue mechanism at all) is one ``eligible_types`` never lists for
+    this topic. ``allowed_types`` is carried alongside so a caller reading
+    the rejected file does not have to cross-reference ``data/taxonomy.yaml``
+    by hand to see why."""
+
+    topic_id: str
+    prompt: str
+    proposed_answer: str
+    item_type: ItemType
+    allowed_types: tuple[str, ...]
 
 
 # Selector pairs identified by direct inspection of every entry in
@@ -355,6 +457,12 @@ class BlankingReport:
     # grammatical filler of its own slot.
     skips_by_uniqueness: Counter[str] = field(default_factory=Counter)
     uniqueness_skips: list[UniquenessSkip] = field(default_factory=list)
+    # A fourth category (``TypeIneligibilitySkip``'s own docstring): an item
+    # that built and reconstructed cleanly, and would have passed the
+    # uniqueness gate, but whose own ``type`` its topic's ``eligible_types``
+    # does not list at all.
+    skips_by_type_ineligibility: Counter[str] = field(default_factory=Counter)
+    type_ineligibility_skips: list[TypeIneligibilitySkip] = field(default_factory=list)
 
     @property
     def total_items(self) -> int:
@@ -423,6 +531,40 @@ def blank_sentences(
                 report.uniqueness_skips.append(
                     UniquenessSkip(
                         topic_id, outcome.item.prompt, outcome.item.proposed_answer, reason
+                    )
+                )
+                continue
+            # Hard assertion (docs/audits/cycle-06-modal-leak.md): an item
+            # whose own type is not in its topic's declared ``eligible_types``
+            # must never be emitted, regardless of how correct or how
+            # solvable it otherwise is -- ``TypeIneligibilitySkip``'s own
+            # docstring is the full "why a fourth bucket" argument. Checked
+            # AFTER the uniqueness gate, deliberately: for every candidate
+            # kind the uniqueness gate applies real logic to (modal,
+            # personal pronoun, plural noun, lexical verb form), passing
+            # uniqueness already implies the type is eligible -- a cue-gated
+            # kind only ever passes BECAUSE a cue was supplied (uniqueness.py
+            # itself), which is exactly what makes ``_cued_item_type`` return
+            # ``"cloze_cued"``, the type every one of those topics' own
+            # ``eligible_types`` lists. Checking type eligibility first would
+            # instead mask the SPECIFIC, already-diagnostic uniqueness reason
+            # (e.g. "modal_verb_interchangeable") behind a generic
+            # "wrong type" one for exactly the no-cue cases cycle 4/5 already
+            # built a dedicated, informative reason for. For every OTHER kind
+            # (determiner, degree, adjective -- none of which the uniqueness
+            # gate constrains at all, see its own module docstring's policy
+            # table), this check is the only gate that ever applies, which is
+            # exactly the three ``artikel_*`` topics' own situation.
+            allowed_types = _eligible_types_by_topic().get(topic_id, frozenset())
+            if outcome.item.type not in allowed_types:
+                report.skips_by_type_ineligibility[topic_id] += 1
+                report.type_ineligibility_skips.append(
+                    TypeIneligibilitySkip(
+                        topic_id,
+                        outcome.item.prompt,
+                        outcome.item.proposed_answer,
+                        outcome.item.type,
+                        tuple(sorted(allowed_types)),
                     )
                 )
                 continue

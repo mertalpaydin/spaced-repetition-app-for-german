@@ -94,18 +94,64 @@ def test_blank_sentences_reports_items_by_topic_and_skips_by_reason() -> None:
     report = blank_sentences(
         [
             "Der Hund läuft schnell durch den Park.",
-            "Das ist wirklich nicht wahr, oder?",  # should yield nothing at all
+            "Das ist wirklich nicht wahr, oder?",
         ]
     )
     assert report.sentences_requested == 2
     assert report.sentences_tagged == 2
-    assert report.items_by_topic.get("artikel_bestimmt_nom", 0) >= 1
+    assert report.items_by_topic.get("verb_praesens_vokalwechsel", 0) >= 1
     assert report.total_items == sum(report.items_by_topic.values())
     assert report.skips_by_reason["no_candidate_for_topic"] > 0
-    # every (sentence, topic) pair is accounted for exactly once, either as
-    # an item or as a skip.
-    accounted = report.total_items + sum(report.skips_by_reason.values())
+    # every (sentence, topic) pair is accounted for exactly once, across the
+    # FOUR distinct outcome buckets this module keeps (module docstring): an
+    # item, an ordinary quality skip, a uniqueness skip, or (this fixture's
+    # own case) a type-ineligibility skip.
+    accounted = (
+        report.total_items
+        + sum(report.skips_by_reason.values())
+        + sum(report.skips_by_uniqueness.values())
+        + sum(report.skips_by_type_ineligibility.values())
+    )
     assert accounted == report.sentences_requested * len(TOPIC_IDS)
+
+
+def test_blank_sentences_skips_artikel_bestimmt_nom_as_type_ineligible() -> None:
+    """docs/audits/cycle-06-modal-leak.md: ``artikel_bestimmt_nom``'s own
+    ``eligible_types`` is ``[paragraph_cloze]`` -- a single, standalone
+    sentence can never honestly test definiteness (nothing forces "Der" over
+    "Ein"/"Mein"/"Kein"), so ``_determiner_outcome``'s unconditional
+    ``type="cloze_free"`` is never eligible and the item must be skipped, not
+    emitted, with this reason -- ``blanker.py``'s own module docstring, final
+    section, and ``pipeline.py``'s module docstring, "a fourth problem"."""
+    report = blank_sentences(["Der Hund läuft schnell durch den Park."])
+    assert report.items_by_topic.get("artikel_bestimmt_nom", 0) == 0
+    assert report.skips_by_type_ineligibility["artikel_bestimmt_nom"] == 1
+    matching = [s for s in report.type_ineligibility_skips if s.topic_id == "artikel_bestimmt_nom"]
+    assert len(matching) == 1
+    assert matching[0].proposed_answer == "Der"
+    assert matching[0].item_type == "cloze_free"
+    assert matching[0].allowed_types == ("paragraph_cloze",)
+    # never double-counted as an ordinary quality skip or a uniqueness skip.
+    assert report.skips_by_reason.get("artikel_bestimmt_nom", 0) == 0
+    assert "artikel_bestimmt_nom" not in report.skips_by_uniqueness
+
+
+def test_blank_sentences_reports_zero_for_every_artikel_nom_topic() -> None:
+    """The same architectural gap applies to all three Nominative article
+    topics, not only the definite one -- confirmed across sentences that
+    would previously have produced an indefinite/negative and a possessive
+    article item respectively."""
+    report = blank_sentences(
+        [
+            "Ein Mann steht vor der Tür.",
+            "Keine Katze mag Wasser.",
+            "Mein Vater kocht heute Abend.",
+        ]
+    )
+    assert report.items_by_topic.get("artikel_unbestimmt_kein_nom", 0) == 0
+    assert report.items_by_topic.get("artikel_possessiv_nom", 0) == 0
+    assert report.skips_by_type_ineligibility["artikel_unbestimmt_kein_nom"] >= 1
+    assert report.skips_by_type_ineligibility["artikel_possessiv_nom"] >= 1
 
 
 def test_blank_sentences_handles_an_empty_sentence_list() -> None:

@@ -235,6 +235,55 @@ def test_irregular_finite_family_forms_covers_all_six_cells() -> None:
 
 
 # ==============================================================================
+# docs/audits/cycle-06-modal-leak.md: ``IRREGULAR_FINITE_INFLECTED_FORMS``,
+# the set used to distinguish a genuine infinitive from an INFLECTED form of
+# a closed irregular verb ("sollten" is not a real infinitive of anything --
+# it is "sollen"'s own Präteritum/Konjunktiv-II plural).
+# ==============================================================================
+
+
+def test_irregular_finite_inflected_forms_contains_the_confirmed_modal_leak() -> None:
+    """ "sollten" is spaCy's own confirmed-wrong lemma for "solltet" (true
+    infinitive "sollen") -- the live defect this set exists to catch."""
+    assert "sollten" in paradigms.IRREGULAR_FINITE_INFLECTED_FORMS
+    assert "hatten" in paradigms.IRREGULAR_FINITE_INFLECTED_FORMS
+    assert "wärst" in paradigms.IRREGULAR_FINITE_INFLECTED_FORMS
+
+
+def test_irregular_finite_inflected_forms_excludes_every_genuine_lemma() -> None:
+    """A modal/sein/haben/werden's own infinitive must never be flagged as
+    an "inflected form" of itself, even though several of these verbs'
+    1st/3rd-plural present tense is SPELLED identically to their own
+    infinitive ("wir/sie können" == "können") -- flagging it would wrongly
+    reject the lemma a selector legitimately relies on."""
+    assert paradigms.IRREGULAR_FINITE_INFLECTED_FORMS.isdisjoint(
+        set(paradigms.IRREGULAR_FINITE.keys())
+    )
+    for lemma in paradigms.IRREGULAR_FINITE:
+        assert lemma not in paradigms.IRREGULAR_FINITE_INFLECTED_FORMS
+
+
+# ==============================================================================
+# docs/audits/cycle-06-modal-leak.md: ``PARTICIPLE_II_TO_INFINITIVE``, the
+# citation-cue source for ``partizip_ii_attributiv_erweitert``.
+# ==============================================================================
+
+
+def test_participle_ii_to_infinitive_covers_exactly_known_participle_forms() -> None:
+    """A selector that already checked ``lemma in KNOWN_PARTICIPLE_FORMS``
+    must be able to look its infinitive up here unconditionally -- if the
+    two sets ever drifted apart, a cue lookup could silently return
+    ``None`` (or worse, ``.get`` could be swapped for direct indexing and
+    raise) for a form the selector had already accepted."""
+    assert set(paradigms.PARTICIPLE_II_TO_INFINITIVE) == paradigms.KNOWN_PARTICIPLE_FORMS
+
+
+def test_participle_ii_to_infinitive_resolves_a_strong_and_a_weak_form() -> None:
+    assert paradigms.PARTICIPLE_II_TO_INFINITIVE["gesprochen"] == "sprechen"
+    assert paradigms.PARTICIPLE_II_TO_INFINITIVE["entwickelt"] == "entwickeln"
+
+
+# ==============================================================================
 # Cycle 3. Aux-selection and transitivity as lexical facts (AUX_SEIN_LEMMAS,
 # TRANSITIVE_LEMMAS) -- deliberately disjoint sets used to disambiguate
 # structurally identical "sein + past participle" constructions (Perfekt

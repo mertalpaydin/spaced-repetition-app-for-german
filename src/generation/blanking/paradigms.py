@@ -680,6 +680,34 @@ IRREGULAR_FINITE["möchten"] = {
     "Pres": _finite_table(("möchte", "möchtest", "möchte", "möchten", "möchtet", "möchten")),
 }
 
+# Every surface form ``IRREGULAR_FINITE`` produces (across sein/haben/werden/
+# every modal, every tense_mood, every cell) that does NOT itself equal one
+# of that table's own lemma keys -- i.e. every INFLECTED form of a closed,
+# irregular verb, with the handful of cells that happen to be spelled
+# identically to their own infinitive ("wir/sie können" == "können") removed
+# again by the set difference so those are not wrongly flagged.
+#
+# docs/audits/cycle-06-modal-leak.md's finding: a lexical-verb selector's own
+# lemma-trustworthiness guard (``selectors._lexical_verb_lemma_trustworthy``)
+# needs to distinguish an infinitive from an inflected form, and a suffix
+# shape check alone cannot do it -- "sollten" (spaCy's own, wrong, lemma for
+# "solltet") ends in "-en" exactly like a genuine infinitive does. What
+# actually tells the two apart is not spelling, it is membership: a German
+# infinitive can never legitimately coincide with an INFLECTED form of one of
+# these closed, already-fully-tabulated irregular verbs (no distinct lexeme
+# is spelled "sollten", "hatten", or "wärst"), so any candidate lemma found
+# here is proof the tagger mislemmatised an inflected form as if it were a
+# citation form -- the same class of self-consistent tagger bug
+# ``_MISLEMMATIZED_VERB_LEMMAS`` names one confirmed instance of at a time,
+# generalised here from the closed table itself so it can never drift out of
+# sync with it and does not need a new entry hand-added per confirmed case.
+IRREGULAR_FINITE_INFLECTED_FORMS: frozenset[str] = frozenset(
+    form
+    for tables in IRREGULAR_FINITE.values()
+    for table in tables.values()
+    for form in table.values()
+) - frozenset(IRREGULAR_FINITE.keys())
+
 
 def irregular_finite_form(lemma: str, tense_mood: str, person: str, number: str) -> str | None:
     table = IRREGULAR_FINITE.get(lemma, {}).get(tense_mood)
@@ -815,6 +843,49 @@ KNOWN_PARTICIPLE_FORMS: frozenset[str] = frozenset(
         "beendet",
     }
 )
+
+# The infinitive each ``KNOWN_PARTICIPLE_FORMS`` surface form belongs to --
+# docs/audits/cycle-06-modal-leak.md's cue extension for
+# ``partizip_ii_attributiv_erweitert``: the participle's own citation cue is
+# its infinitive, never itself (an ADJA-tagged participle's own ``lemma`` is
+# already the bare participle form, see ``KNOWN_PARTICIPLE_FORMS``'s own
+# comment, so there is nothing to reduce it to without this second table).
+# The strong/mixed half is derived by inverting ``STRONG_VERBS``/
+# ``MIXED_VERBS`` (no new fact, same "do not duplicate paradigm data"
+# posture as the rest of this module); the weak half is hand-verified by the
+# same standard as every other literal table here. Keys are exactly
+# ``KNOWN_PARTICIPLE_FORMS`` -- confirmed by
+# ``tests/test_blanking_paradigms.py`` -- so a selector that already checked
+# ``lemma in KNOWN_PARTICIPLE_FORMS`` can look its infinitive up here
+# unconditionally, no separate reliability check needed.
+_WEAK_PARTICIPLE_TO_INFINITIVE: dict[str, str] = {
+    "repariert": "reparieren",
+    "gebaut": "bauen",
+    "gekauft": "kaufen",
+    "gekocht": "kochen",
+    "geplant": "planen",
+    "geöffnet": "öffnen",
+    "organisiert": "organisieren",
+    "produziert": "produzieren",
+    "renoviert": "renovieren",
+    "entwickelt": "entwickeln",
+    "gemacht": "machen",
+    "gefragt": "fragen",
+    "gesucht": "suchen",
+    "gegründet": "gründen",
+    "fotografiert": "fotografieren",
+    "informiert": "informieren",
+    "verkauft": "verkaufen",
+    "bestellt": "bestellen",
+    "gemalt": "malen",
+    "beendet": "beenden",
+}
+
+PARTICIPLE_II_TO_INFINITIVE: dict[str, str] = {
+    **{verb.partizip_ii: lemma for lemma, verb in STRONG_VERBS.items()},
+    **{verb.partizip_ii: lemma for lemma, verb in MIXED_VERBS.items()},
+    **_WEAK_PARTICIPLE_TO_INFINITIVE,
+}
 
 # ==============================================================================
 # Dative-reflexive verb argument structure: another lexical fact, not a

@@ -317,6 +317,38 @@ def test_komparativ_superlativ_finds_superlative_after_am() -> None:
     assert item.proposed_answer == "schnellsten"
 
 
+# ==============================================================================
+# adjektiv_komparativ_superlativ cue (docs/audits/cycle-06-modal-leak.md):
+# without one, any comparative/superlative fits the slot -- the topic's own
+# ``eligible_types`` is ``[cloze_cued]`` alone, never ``cloze_free``.
+# ==============================================================================
+
+
+def test_komparativ_superlativ_cue_is_the_positive_form() -> None:
+    """spaCy's own lemmatiser correctly resolves even irregular comparatives
+    (gut/besser, hoch/höher, nah/näher, groß/größer) back to their positive
+    form -- confirmed by direct testing, see
+    ``selectors._MISLEMMATIZED_ADJEKTIV_DEGREE_LEMMAS`` for the confirmed
+    exceptions."""
+    item = _blank("adjektiv_komparativ_superlativ", "Das Zimmer ist größer als die Küche.")
+    assert item.proposed_answer == "größer"
+    assert item.cue == "groß"
+    assert item.type == "cloze_cued"
+
+
+def test_komparativ_superlativ_cue_is_none_for_the_confirmed_bad_gern_lemma() -> None:
+    """ "gern - lieber - am liebsten" is a suppletive comparison: the positive
+    form is a different word ("gern"), not "lieb". de_core_news_sm resolves
+    the comparative/superlative to the real, but wrong, adjective "lieb"
+    ("dear") -- cueing it would point the learner at the wrong word, so
+    ``_degree_cue`` withholds it."""
+    _, candidates = _select(
+        "adjektiv_komparativ_superlativ", "Ich esse am liebsten italienische Gerichte."
+    )
+    assert len(candidates) == 1
+    assert candidates[0].cue is None
+
+
 def test_komparativ_superlativ_rejects_a_bare_comparative_with_no_als() -> None:
     """No forced comparison in sight -- could be read as an intensified
     positive in casual speech, which this topic does not test."""
@@ -619,6 +651,26 @@ def test_verb_praesens_vokalwechsel_finds_stem_changing_present_tense_verbs() ->
 def test_verb_praesens_vokalwechsel_excludes_a_plain_regular_verb() -> None:
     _, candidates = _select("verb_praesens_vokalwechsel", "Ich mache heute meine Hausaufgaben.")
     assert candidates == []
+
+
+def test_verb_praesens_regelm_excludes_a_mislemmatised_modal_konjunktiv_ii_form() -> None:
+    """Live-pilot defect (docs/audits/cycle-06-modal-leak.md): "solltet" is
+    Konjunktiv II of the MODAL "sollen", but de_core_news_sm mislemmatises
+    it to "sollten" (itself an inflected Präteritum/Konjunktiv-II form, not
+    an infinitive) and simultaneously mistags it ``VVFIN``/Tense=Pres/
+    Mood=Ind -- both wrong, and self-consistently so, so it used to slip
+    past the modal exclusion (keyed on the infinitives "sollen" etc., which
+    "sollten" is not) straight into this topic. "sollten" is one of
+    ``paradigms.IRREGULAR_FINITE_INFLECTED_FORMS`` (an inflected form of
+    "sollen" no genuine infinitive could ever coincide with), which is what
+    now catches it."""
+    for sentence in (
+        "Ihr solltet bei diesem Sturm besser zuhause bleiben.",
+        "Ihr solltet eure Ideen offener im Team teilen.",
+        "Ihr solltet eure Passwörter regelmäßig ändern.",
+    ):
+        _, candidates = _select("verb_praesens_regelm", sentence)
+        assert candidates == [], f"{sentence!r} must not yield a verb_praesens_regelm candidate"
 
 
 def test_verb_praesens_regelm_excludes_an_inseparable_prefixed_vowel_change_verb() -> None:
@@ -991,6 +1043,16 @@ def test_partizip_i_attributiv_does_not_fire_on_a_genuine_d_final_adjective() ->
     assert candidates == []
 
 
+def test_partizip_i_attributiv_cue_is_the_underlying_infinitive() -> None:
+    """docs/audits/cycle-06-modal-leak.md: the topic's own ``eligible_types``
+    is ``[cloze_cued, transformation]``, never ``cloze_free`` -- without a
+    cue, any attributive participle-shaped adjective would fit the slot."""
+    item = _blank("partizip_i_attributiv", "Das schlafende Kind liegt im Bett.")
+    assert item.proposed_answer == "schlafende"
+    assert item.cue == "schlafen"
+    assert item.type == "cloze_cued"
+
+
 # ==============================================================================
 # Cycle 3. partizip_ii_attributiv_erweitert -- extended attributive participle
 # ("das von Experten entwickelte Programm"), gated on a closed list of known
@@ -1023,6 +1085,18 @@ def test_partizip_ii_attributiv_erweitert_does_not_fire_on_a_bare_participle() -
         "partizip_ii_attributiv_erweitert", "Das entwickelte Programm ist erfolgreich."
     )
     assert candidates == []
+
+
+def test_partizip_ii_attributiv_erweitert_cue_is_the_underlying_infinitive() -> None:
+    """docs/audits/cycle-06-modal-leak.md: same reasoning as
+    ``partizip_i_attributiv``'s own cue test -- the topic's own
+    ``eligible_types`` is ``[cloze_cued]`` alone."""
+    item = _blank(
+        "partizip_ii_attributiv_erweitert", "Das von Experten entwickelte Programm ist erfolgreich."
+    )
+    assert item.proposed_answer == "entwickelte"
+    assert item.cue == "entwickeln"
+    assert item.type == "cloze_cued"
 
 
 # ==============================================================================
@@ -1135,25 +1209,52 @@ def test_passiv_modalverben_cue_is_the_modals_own_infinitive() -> None:
     assert candidates[0].cue == "können"
 
 
-def test_verb_sein_haben_never_gets_a_cue() -> None:
-    """``verb_sein_haben`` shares ``_irregular_finite_selector`` with
-    ``modalverben_praesens``, but "haben" is not a modal -- the uniqueness
-    gate never flags it (its own identity is structurally fixed, see
-    ``uniqueness.py``'s policy table), so no cue mechanism applies here."""
+def test_verb_sein_haben_cue_is_the_lexemes_own_infinitive() -> None:
+    """docs/audits/cycle-06-modal-leak.md: ``verb_sein_haben``'s own
+    ``eligible_types`` is ``[cloze_cued]`` alone, so a cue-less item from it
+    was never a valid item type at all -- confirmed live, 16 of 174 pilot
+    items this way. ``verb_sein_haben`` shares ``_irregular_finite_selector``
+    with ``modalverben_praesens``; "haben" is not a modal, and the
+    uniqueness gate never flags it either way (its own identity is
+    structurally fixed, see ``uniqueness.py``'s policy table) -- but
+    ``lemma in lemmas`` (this selector's own closed target set) already
+    means "haben" is exactly as trustworthy a citation form as a modal's own
+    infinitive, so it is cued unconditionally now, the same as every other
+    candidate this factory produces."""
     _, candidates = _select("verb_sein_haben", "Ich habe einen Hund.")
+    assert len(candidates) == 1
+    assert candidates[0].cue == "haben"
+
+
+def test_verb_sein_haben_cue_is_none_when_it_would_equal_the_answer() -> None:
+    """1st/3rd-plural present tense of "haben" is spelled identically to its
+    own infinitive ("wir/sie haben" == "haben") -- a cue here would hand
+    over the answer verbatim, so it is withheld exactly like the equivalent
+    modal cell (``test_modalverben_praesens_cue_is_none_when_it_would_equal_
+    the_answer``)."""
+    _, candidates = _select("verb_sein_haben", "Wir haben ein neues Auto.")
     assert len(candidates) == 1
     assert candidates[0].cue is None
 
 
-def test_praeteritum_sein_haben_modal_cues_only_its_modal_candidates() -> None:
-    """The same selector also matches bare sein/haben Präteritum (not a
-    modal, never cued) alongside modals (cued) -- the cue, like the
-    uniqueness gate itself, is a property of the candidate's own lemma, not
-    of the topic name."""
+def test_praeteritum_sein_haben_modal_cues_every_candidate_now() -> None:
+    """The same selector also matches bare sein/haben Präteritum alongside
+    modals -- both are cued now (docs/audits/cycle-06-modal-leak.md extends
+    the cue mechanism to the auxiliary half of this topic, not only the
+    modal half), because both are members of this selector's own closed
+    target set (``frozenset({"sein", "haben"}) | MODAL_LEMMAS``) and a
+    citation form derived from a closed set is trustworthy regardless of
+    which member it is.
+
+    This does NOT make the item fully unambiguous on its own: a cue supplies
+    the LEXEME ("sein"), never the TENSE, and nothing in "Er ___ (sein)
+    gestern sehr müde." rules out "ist" over "war" the way the cue rules out
+    every other auxiliary/modal -- see ``blanker.py``'s own module docstring
+    for this honestly-reported, unresolved limitation."""
     _, modal_candidates = _select("praeteritum_sein_haben_modal", "Er konnte gestern nicht kommen.")
     assert len(modal_candidates) == 1
     assert modal_candidates[0].cue == "können"
 
     _, aux_candidates = _select("praeteritum_sein_haben_modal", "Er war gestern sehr müde.")
     assert len(aux_candidates) == 1
-    assert aux_candidates[0].cue is None
+    assert aux_candidates[0].cue == "sein"
