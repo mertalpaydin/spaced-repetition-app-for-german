@@ -12,11 +12,14 @@ from collections import Counter
 import pytest
 from src.contracts import CEFR
 from src.generation.blanking import carrier_validation as cv
+from src.generation.blanking.selectors import SELECTORS
 from src.generation.blanking.sentence_source import (
     _FEW_SHOT_EXAMPLES_DE,
     _INSTRUCTION_DE_LIVE,
     _INSTRUCTION_EN_REFERENCE_ONLY,
     _MOCK_SENTENCE_POOL,
+    _STARVED_CONSTRUCTION_EXAMPLES,
+    CONSTRUCTION_HINTS,
     DEFAULT_BATCH_SIZE,
     DEFAULT_POOL_SIZE,
     DEFAULT_THEMES,
@@ -32,6 +35,7 @@ from src.generation.blanking.sentence_source import (
     client_from_env,
     generate_sentence_pool,
 )
+from src.generation.blanking.sentence_tagger import tag_sentence
 
 _FORBIDDEN_GRAMMAR_WORDS = (
     "kasus",
@@ -248,6 +252,43 @@ def test_every_variety_hint_avoids_grammar_terminology() -> None:
         assert found is None, f"{found!r} leaked in hint: {hint!r}"
 
 
+# -- Construction-aware generation (the 16-of-49 starved-topic fix) ---------
+
+
+def test_construction_hints_cover_sixteen_topics_with_unique_ids() -> None:
+    """One hint per starved topic that actually has a selector (see
+    ``CONSTRUCTION_HINTS``'s own module comment on why ``passiv_unpersoenlich``,
+    the seventeenth topic the audit named, is deliberately not among
+    these), and every topic id is used exactly once."""
+    ids = [topic_id for topic_id, _ in CONSTRUCTION_HINTS]
+    assert len(ids) == 16
+    assert len(set(ids)) == 16
+    for topic_id in ids:
+        assert topic_id in SELECTORS, f"{topic_id!r} has no selector to ever fire on it"
+
+
+def test_every_construction_hint_avoids_grammar_terminology() -> None:
+    """The same forbidden-term check every other hint axis passes, applied
+    to the German construction hints -- CLAUDE.md rule 2 is exactly as
+    binding on a meaning-based hint as on an English one."""
+    for topic_id, hint in CONSTRUCTION_HINTS:
+        found = _contains_forbidden_word(hint)
+        assert found is None, f"{found!r} leaked in {topic_id!r}'s hint: {hint!r}"
+
+
+def test_build_prompt_with_construction_hint_includes_it_and_avoids_grammar_terms() -> None:
+    _, hint = CONSTRUCTION_HINTS[0]
+    prompt = build_prompt("A2", "Alltag", 10, construction=hint)
+    assert "Kommunikatives Ziel:" in prompt
+    assert hint in prompt
+    assert _contains_forbidden_word(prompt) is None
+
+
+def test_build_prompt_without_construction_omits_the_line() -> None:
+    prompt = build_prompt("A2", "Alltag", 10)
+    assert "Kommunikatives Ziel:" not in prompt
+
+
 def test_mock_sentence_generator_is_deterministic() -> None:
     gen = MockSentenceGenerator()
     first = gen.generate("A2", "Alltag", 20)
@@ -264,10 +305,24 @@ def test_mock_sentence_generator_is_deterministic_with_hints() -> None:
         "tense": "recent_past",
         "register": "informal",
         "structure": "simple",
+        "construction": "a construction hint",
     }
     first = gen.generate("A2", "Alltag", 15, **kwargs)
     second = gen.generate("A2", "Alltag", 15, **kwargs)
     assert first == second
+
+
+def test_mock_sentence_generator_varies_by_construction() -> None:
+    """A different construction hint (everything else held fixed) must
+    surface a different slice of the pool offline too -- the same property
+    ``test_mock_sentence_generator_varies_by_theme`` checks for theme,
+    checked here for the fifth axis."""
+    gen = MockSentenceGenerator()
+    _, hint_a = CONSTRUCTION_HINTS[0]
+    _, hint_b = CONSTRUCTION_HINTS[1]
+    by_hint_a = gen.generate("A2", "Alltag", 10, construction=hint_a)
+    by_hint_b = gen.generate("A2", "Alltag", 10, construction=hint_b)
+    assert by_hint_a != by_hint_b
 
 
 def test_mock_sentence_generator_varies_by_theme() -> None:
@@ -319,6 +374,63 @@ def test_mock_sentence_pool_is_well_above_the_audited_pilot_size() -> None:
     assert len(set(_MOCK_SENTENCE_POOL)) == len(_MOCK_SENTENCE_POOL)
 
 
+# -- Verifying the construction-aware technique actually works --------------
+#
+# It is not enough that the hand-written examples READ like the right
+# construction to a human -- the whole point of this technique is that a
+# TOKEN in the sentence is actually selectable by the topic's own selector
+# in ``selectors.SELECTORS``. Every test below runs the real tagger and the
+# real selector against each hand-written example, exactly the way the
+# report requested ("run selectors.py against your new sentences yourself
+# and report, topic by topic, which of the 16 now produce a candidate").
+
+
+def test_starved_construction_examples_cover_every_wired_construction_hint() -> None:
+    """``_STARVED_CONSTRUCTION_EXAMPLES`` must have an entry for every topic
+    ``CONSTRUCTION_HINTS`` targets (so no hint is wired for a topic with no
+    examples backing it up), plus the one extra topic
+    (``passiv_unpersoenlich``) that has examples but deliberately no wired
+    hint (see ``CONSTRUCTION_HINTS``'s own comment)."""
+    hinted_topic_ids = {topic_id for topic_id, _ in CONSTRUCTION_HINTS}
+    example_topic_ids = set(_STARVED_CONSTRUCTION_EXAMPLES)
+    assert hinted_topic_ids <= example_topic_ids
+    assert example_topic_ids - hinted_topic_ids == {"passiv_unpersoenlich"}
+
+
+@pytest.mark.skipif(
+    not cv.analysis_available(),
+    reason="spaCy de_core_news_sm is not installed in this environment",
+)
+@pytest.mark.parametrize(
+    "topic_id",
+    [topic_id for topic_id in _STARVED_CONSTRUCTION_EXAMPLES if topic_id in SELECTORS],
+)
+def test_starved_topic_examples_each_produce_a_selector_candidate(topic_id: str) -> None:
+    """The actual proof, per starved topic: every one of that topic's own
+    hand-written examples, tagged and run through THAT topic's own selector,
+    yields at least one candidate. A hint that reads right but produces no
+    selectable token would be worthless (the report's own standard) --
+    this is what would catch that."""
+    selector = SELECTORS[topic_id]
+    for sentence in _STARVED_CONSTRUCTION_EXAMPLES[topic_id]:
+        tagged = tag_sentence(sentence)
+        assert tagged is not None, f"could not tag: {sentence!r}"
+        candidates = selector(tagged)
+        assert candidates, f"{topic_id}: no candidate for {sentence!r}"
+
+
+def test_passiv_unpersoenlich_has_no_selector_so_its_examples_cannot_fire_one() -> None:
+    """Documented honestly, not silently: ``passiv_unpersoenlich`` is one of
+    three topics (with ``imperativ`` and ``relativsatz_was_wo``) that cycle 3
+    excluded from ``selectors.SELECTORS`` entirely, for a tagger-level
+    reason unrelated to pool coverage (see ``tests/test_blanking_pipeline.py``).
+    No sentence pool change -- this one included -- can produce an item for
+    it; that is a selector gap, out of ``sentence_source.py``'s ownership."""
+    assert "passiv_unpersoenlich" not in SELECTORS
+    assert "passiv_unpersoenlich" in _STARVED_CONSTRUCTION_EXAMPLES
+    assert len(_STARVED_CONSTRUCTION_EXAMPLES["passiv_unpersoenlich"]) >= 3
+
+
 class _FakeLlmClient:
     """A minimal stand-in for GeminiLlmClient.generate -- not a real client,
     never touches the network."""
@@ -352,6 +464,7 @@ def test_live_sentence_generator_forwards_hints_into_the_prompt() -> None:
         tense="a time-frame hint",
         register="a register hint",
         structure="a structure hint",
+        construction="a construction hint",
     )
     prompt = fake.calls[0]["prompt"]
     assert isinstance(prompt, str)
@@ -359,6 +472,7 @@ def test_live_sentence_generator_forwards_hints_into_the_prompt() -> None:
     assert "a time-frame hint" in prompt
     assert "a register hint" in prompt
     assert "a structure hint" in prompt
+    assert "a construction hint" in prompt
 
 
 def test_live_sentence_generator_strips_a_markdown_code_fence() -> None:
@@ -421,6 +535,7 @@ class _ScriptedGenerator:
         tense: str | None = None,
         register: str | None = None,
         structure: str | None = None,
+        construction: str | None = None,
     ) -> list[str]:
         call_index = len(self.calls)
         self.calls.append(
@@ -432,6 +547,7 @@ class _ScriptedGenerator:
                 "tense": tense,
                 "register": register,
                 "structure": structure,
+                "construction": construction,
             }
         )
         if self._batches is not None:
@@ -497,6 +613,17 @@ def test_generate_sentence_pool_varies_theme_person_tense_register_structure() -
     assert len(tenses) == len(TIME_FRAMES)
     assert len(registers) == len(REGISTERS)
     assert len(structures) == len(STRUCTURES)
+
+
+def test_generate_sentence_pool_also_varies_construction() -> None:
+    """The fix for the OTHER gap (16 of 49 topics with zero items): every
+    construction hint gets requested, not just theme/person/tense/register/
+    structure -- a pool that varied everything else but never asked for a
+    relative clause or a passive would still leave those topics starved."""
+    generator = _ScriptedGenerator()
+    generate_sentence_pool(generator, "A2", total=160, batch_size=10)
+    constructions = {call["construction"] for call in generator.calls}
+    assert len(constructions) == len(CONSTRUCTION_HINTS)
 
 
 def test_generate_sentence_pool_deduplicates_across_batches() -> None:

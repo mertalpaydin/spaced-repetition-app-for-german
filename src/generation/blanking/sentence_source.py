@@ -42,6 +42,7 @@ specific grammatical form on demand.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
 from collections import Counter
@@ -179,18 +180,34 @@ def build_prompt(
     tense: str | None = None,
     register: str | None = None,
     structure: str | None = None,
+    construction: str | None = None,
 ) -> str:
     """The full generation prompt, built from the LIVE German instruction
     (``_INSTRUCTION_DE_LIVE``, task 1) plus the hand-written few-shot
     examples (``_FEW_SHOT_EXAMPLES_DE``, task 2): CEFR level and theme are
-    the only grammar-adjacent-looking inputs when the four optional hints
+    the only grammar-adjacent-looking inputs when the five optional hints
     are left at their default of ``None``.
 
-    The four keyword-only hints are how ``generate_sentence_pool`` steers
-    person, tense, register, and sentence structure without ever naming a
-    grammar topic (see the module docstring): each is a plain-language
-    nudge ("write about yesterday", "address a close friend directly"), not
-    a grammar instruction ("use the Perfekt", "use the Dativ")."""
+    The first four keyword-only hints are how ``generate_sentence_pool``
+    steers person, tense, register, and sentence structure without ever
+    naming a grammar topic (see the module docstring): each is a
+    plain-language nudge ("write about yesterday", "address a close friend
+    directly"), not a grammar instruction ("use the Perfekt", "use the
+    Dativ").
+
+    ``construction`` is the fifth, added for the same reason but a
+    different job: the four hints above vary the SHAPE of ordinary,
+    everyday prose, but a general-purpose sentence pool rarely contains a
+    relative clause, a passive, or a Futur II construction no matter how
+    much of it is generated (see the module docstring's "pool problem this
+    module also fixes", and ``CONSTRUCTION_HINTS`` below). ``construction``
+    asks for the construction the same indirect way: by describing the
+    COMMUNICATIVE INTENT it expresses ("say what was done to something
+    without naming who did it"), never by naming the grammar that intent
+    happens to fall out as. Written in German, like the live instruction
+    itself (unlike the other four hints, which stayed in the English this
+    module already used for them before this parameter existed) -- see
+    ``CONSTRUCTION_HINTS``'s own comment for why."""
     lines = [_INSTRUCTION_DE_LIVE, "", "Beispiele für richtige, natürliche Sätze:"]
     lines.extend(f"- {example}" for example in _FEW_SHOT_EXAMPLES_DE)
     lines += ["", f"CEFR level: {cefr}", f"Theme: {theme}"]
@@ -202,6 +219,8 @@ def build_prompt(
         lines.append(f"Register: {register}")
     if structure is not None:
         lines.append(f"Sentence shape: {structure}")
+    if construction is not None:
+        lines.append(f"Kommunikatives Ziel: {construction}")
     lines.append(f"Number of sentences: {count}")
     return "\n".join(lines) + "\n"
 
@@ -217,6 +236,7 @@ class SentenceGenerator(Protocol):
         tense: str | None = None,
         register: str | None = None,
         structure: str | None = None,
+        construction: str | None = None,
     ) -> list[str]: ...
 
 
@@ -266,9 +286,17 @@ class LiveSentenceGenerator:
         tense: str | None = None,
         register: str | None = None,
         structure: str | None = None,
+        construction: str | None = None,
     ) -> list[str]:
         prompt = build_prompt(
-            cefr, theme, count, person=person, tense=tense, register=register, structure=structure
+            cefr,
+            theme,
+            count,
+            person=person,
+            tense=tense,
+            register=register,
+            structure=structure,
+            construction=construction,
         )
         response_text = self._client.generate(
             prompt,
@@ -299,7 +327,7 @@ class LiveSentenceGenerator:
 # ``carrier_validation.validate_carrier`` -- checked directly in
 # tests/test_blanking_sentence_source.py, so a future edit that breaks one
 # is caught immediately, not discovered downstream in a pilot report.
-_MOCK_SENTENCE_POOL: tuple[str, ...] = (
+_MOCK_SENTENCE_POOL_BASE: tuple[str, ...] = (
     # -- General / case and comparison coverage (original 40) --------------
     "Der Hund läuft schnell durch den Park.",
     "Die Sonne scheint heute hell über der Stadt.",
@@ -497,6 +525,187 @@ _MOCK_SENTENCE_POOL: tuple[str, ...] = (
 )
 
 
+# -- Starved-construction coverage --------------------------------------------
+#
+# Hand-written, per-topic examples for the 16-of-49-topic pool-coverage gap
+# (this module's own docstring, and ``CONSTRUCTION_HINTS`` above): a
+# general-purpose pool of everyday sentences essentially never contains a
+# relative clause, a passive, or a Futur II, so these are written
+# deliberately, one topic at a time, instead of hoped for from more volume
+# of ordinary prose.
+#
+# Keyed by TOPIC ID (not sent to the model -- this is the offline mock pool,
+# read only by this process, never transmitted) so
+# ``tests/test_blanking_sentence_source.py`` can assert, per topic, that
+# ``selectors.SELECTORS[topic_id]`` actually finds a candidate on that
+# topic's OWN examples -- not merely that "some sentence somewhere in the
+# 500-sentence pool happens to work", which could hide a topic that still
+# gets nothing. Every sentence below was run, individually, through
+# ``carrier_validation.validate_carrier`` (accepted) and its own topic's
+# selector (candidate found) before being added here; several hand-written
+# first attempts were rejected by one or the other during that process and
+# were rewritten, not weakened past the checks (CLAUDE.md 7) -- among the
+# confirmed failure modes, worth recording so a future edit does not
+# reintroduce them: a participle whose lemma is not in ``paradigms.
+# TRANSITIVE_LEMMAS``/``KNOWN_PARTICIPLE_FORMS`` (e.g. "unterschrieben",
+# "geschlossen" -- the latter lemmatises to "schließen", which does not
+# match the ASCII "schliessen" key in ``TRANSITIVE_LEMMAS``) never yields a
+# passive/Zustandspassiv candidate even though the sentence itself is
+# perfectly sound German; a separable verb's fused zu-infinitive
+# ("aufzustehen", one token, tag ``VVIZU``) never matches
+# ``infinitiv_mit_zu``'s selector, which looks for a split ``PTKZU`` token
+# immediately before a plain ``VVINF`` token; an inserted phrase between an
+# extended attributive participle and its real governing determiner must
+# itself contain NO determiner-tagged word ("von Experten", not "von der
+# Firma") or ``_find_governing_declension_trigger`` finds the inner
+# determiner instead of the real one and then fails the "at least one
+# preposition in between" check; and ``de_core_news_sm`` reproducibly mistags
+# the modal "muss" as a proper noun (``NE``) in a subject-muss-...-werden
+# passive frame regardless of which noun precedes it, which
+# ``carrier_validation`` then rejects as ``no_finite_verb`` -- confirmed on
+# three different subjects, so every passiv_modalverben example below uses
+# "kann", "soll", or "darf" instead.
+#
+# A subtler one, not a selector rejection but a PIPELINE-level one, found by
+# running ``pipeline.blank_sentences`` (not just ``selectors.py`` in
+# isolation) over these examples: ``selectors._select_passiv_praesens``
+# fires on ANY "wird" immediately followed by a transitive participle, with
+# no check for a further trailing aux-infinitive -- so a futur_ii sentence
+# whose participle happens to be one of ``paradigms.TRANSITIVE_LEMMAS``
+# ("geplant", "gelesen", "geschrieben", tried first) satisfies BOTH
+# selectors on the same "wird" token, and ``pipeline._SPECIFICITY_OVERRIDES``
+# has an entry for "futur_ii beats futur_i" but none for "futur_ii beats
+# passiv_praesens" -- so three of the first four futur_ii examples tried
+# lost their (prompt, answer) pair to passiv_praesens in
+# ``_drop_cross_topic_duplicates`` and never became a futur_ii item at all,
+# despite ``selectors.SELECTORS["futur_ii"]`` finding a candidate on every
+# one of them. The fix applied below is on THIS module's side, not
+# ``pipeline.py``'s (out of this file's ownership): every futur_ii example
+# now uses a participle OUTSIDE ``TRANSITIVE_LEMMAS`` ("erledigt",
+# "vorbereitet", "erklärt", "abgesagt"), which ``_select_passiv_praesens``'s
+# own transitive-lemma gate then correctly excludes, confirmed by re-running
+# ``pipeline.blank_sentences`` on the corrected four: zero cross-topic drops.
+#
+# ``passiv_unpersoenlich`` is the one topic named in the audit with NO entry
+# in ``selectors.SELECTORS`` (see ``CONSTRUCTION_HINTS``'s own comment for
+# why, and confirm directly with ``"passiv_unpersoenlich" not in
+# selectors.SELECTORS``) -- its three examples below are carrier-sound
+# (each uses the expletive "es" as subject, e.g. "Es wird hier abends oft
+# getanzt.", which resolves the ``ep`` dependency carrier_validation needs;
+# a genuinely SUBJECTLESS impersonal passive like "Hier wird getanzt." was
+# tried first and rejected as ``no_subject_found`` -- honestly, still a
+# correct German sentence, just one this module's own carrier checker
+# cannot confirm) but included for pool realism only. No test in this
+# suite claims a selector fires on them, because none exists to fire.
+_STARVED_CONSTRUCTION_EXAMPLES: dict[str, tuple[str, ...]] = {
+    "relativsatz_nom_akk": (
+        "Ich kenne den Mann, der uns gestern geholfen hat.",
+        "Wir suchen die Wohnung, die meine Schwester letztes Jahr gemietet hat.",
+        "Er liest das Buch, das seine Kollegin ihm empfohlen hat.",
+        "Ich mag die Kinder, die im Garten spielen.",
+    ),
+    "relativsatz_dativ": (
+        "Sie sucht den Kollegen, dem sie gestern die Unterlagen geschickt hat.",
+        "Er sucht den Freund, dem er das Buch geliehen hat.",
+        "Das ist die Kollegin, der ich die Unterlagen geschickt habe.",
+        "Wir kennen den Lehrer, dem die Schüler sehr vertrauen.",
+    ),
+    "relativsatz_genitiv": (
+        "Das ist der Mann, dessen Auto letzte Woche gestohlen wurde.",
+        "Ich kenne die Frau, deren Sohn an der Universität studiert.",
+        "Wir besuchen die Familie, deren Haus neben dem Park steht.",
+    ),
+    "passiv_praesens": (
+        "Das Fest wird jedes Jahr im Park organisiert.",
+        "Das Essen wird gerade gekocht.",
+        "Das neue Rathaus wird gerade renoviert.",
+        "Das neue Museum wird gerade gebaut.",
+    ),
+    "passiv_praeteritum": (
+        "Das alte Schloss wurde vor zwei Jahren renoviert.",
+        "Der Brief wurde gestern Abend geschrieben.",
+        "Die Firma wurde vor zehn Jahren gegründet.",
+        "Das Auto wurde letzte Woche verkauft.",
+    ),
+    "passiv_modalverben": (
+        "Das Fenster kann nicht mehr repariert werden.",
+        "Die Suppe soll noch einmal gekocht werden.",
+        "Der Brief darf heute noch geschrieben werden.",
+        "Die Bücher können jederzeit gelesen werden.",
+    ),
+    "passiv_unpersoenlich": (
+        "Es wird hier abends oft getanzt.",
+        "Es wird bei uns am Wochenende gern gekocht.",
+        "Es wurde auf der Party viel gelacht.",
+    ),
+    "zustandspassiv": (
+        "Die Tür ist schon repariert.",
+        "Der Brief ist bereits geschrieben.",
+        "Das Haus ist inzwischen gebaut.",
+        "Die Suppe ist schon gekocht.",
+    ),
+    "zustandspassiv_zeiten": (
+        "Die Tür war gestern noch nicht repariert.",
+        "Das Fenster war schon geöffnet, bevor wir ankamen.",
+        "Der Laden ist inzwischen geöffnet gewesen.",
+        "Das Auto war letzten Winter schon verkauft.",
+    ),
+    "infinitiv_mit_zu": (
+        "Sie hofft, den neuen Job bald zu bekommen.",
+        "Er versucht, das Problem endlich zu verstehen.",
+        "Wir finden es schwierig, das Rezept genau zu befolgen.",
+        "Ich plane, das Studium bald zu beginnen.",
+    ),
+    "infinitiv_um_zu": (
+        "Sie lernt jeden Abend, um die Prüfung zu bestehen.",
+        "Er steht früh auf, um den Bus nicht zu verpassen.",
+        "Wir sparen Geld, um eine große Reise zu machen.",
+        "Ich rufe an, um den Termin zu bestätigen.",
+    ),
+    "partizip_i_attributiv": (
+        "Das spielende Kind lacht laut im Garten.",
+        "Ein lachender Mann steht vor der Tür.",
+        "Die schlafende Katze liegt auf dem Sofa.",
+        "Der singende Chor probt jeden Mittwoch.",
+    ),
+    "partizip_ii_attributiv_erweitert": (
+        "Das von Experten entwickelte Programm läuft sehr stabil.",
+        "Das von Handwerkern renovierte Haus ist jetzt fertig.",
+        "Die von Freiwilligen organisierte Aktion war ein Erfolg.",
+        "Der von Studierenden gegründete Verein wächst schnell.",
+    ),
+    "kasus_genitiv_formen": (
+        "Die Farbe des Autos gefällt mir sehr.",
+        "Der Titel des Buches ist mir entfallen.",
+        "Das Ergebnis der Prüfung war enttäuschend.",
+        "Ich habe die Adresse meiner Tante vergessen.",
+    ),
+    "praepositionen_genitiv_gehoben": (
+        "Anhand der Unterlagen konnte die Polizei den Fall klären.",
+        "Infolge des schlechten Wetters wurde das Fest verschoben.",
+        "Zugunsten der Opfer wurde eine Spendenaktion gestartet.",
+        "Mittels eines neuen Verfahrens wurde das Problem gelöst.",
+    ),
+    "konjunktiv_ii_hoeflichkeit": (
+        "Könnten Sie mir bitte kurz helfen?",
+        "Hätten Sie einen Moment Zeit für mich?",
+        "Würden Sie mir bitte das Fenster öffnen?",
+    ),
+    "futur_ii": (
+        "Bis nächsten Montag wird er die Arbeit erledigt haben.",
+        "Bis morgen Abend werden wir die Präsentation vorbereitet haben.",
+        "Bis zum Sommer wird sie den Plan erklärt haben.",
+        "Bis Freitag wird sie den Termin abgesagt haben.",
+    ),
+}
+
+_MOCK_SENTENCE_POOL: tuple[str, ...] = _MOCK_SENTENCE_POOL_BASE + tuple(
+    sentence
+    for topic_sentences in _STARVED_CONSTRUCTION_EXAMPLES.values()
+    for sentence in topic_sentences
+)
+
+
 class MockSentenceGenerator:
     """Deterministic, offline sentence pool (CLAUDE.md 7: unit tests never
     touch the network), mirroring the pattern already used by
@@ -506,13 +715,15 @@ class MockSentenceGenerator:
 
     Unlike a single fixed slice of the pool, the starting position is a
     deterministic hash of every argument that identifies "which request this
-    is" (``cefr``, ``theme``, and the four variety hints) -- not the
-    sentence content, which this offline mock cannot actually vary to match
-    a hint the way a real model would. This is what lets
+    is" (``cefr``, ``theme``, and the five variety/construction hints) -- not
+    the sentence content, which this offline mock cannot actually vary to
+    match a hint the way a real model would. This is what lets
     ``generate_sentence_pool``'s many differently-themed batch calls surface
-    different slices of the 177-sentence pool offline too, instead of the
-    first ``count`` sentences over and over regardless of theme (which would
-    make every batch collapse to the same handful of duplicates after
+    different slices of the pool (242 sentences: the original 177-sentence
+    everyday-prose pool plus ``_STARVED_CONSTRUCTION_EXAMPLES``'s
+    construction-targeted additions) offline too, instead of the first
+    ``count`` sentences over and over regardless of theme (which would make
+    every batch collapse to the same handful of duplicates after
     deduplication, defeating the whole point of batching by theme)."""
 
     def generate(
@@ -525,11 +736,14 @@ class MockSentenceGenerator:
         tense: str | None = None,
         register: str | None = None,
         structure: str | None = None,
+        construction: str | None = None,
     ) -> list[str]:
         pool = _MOCK_SENTENCE_POOL
         if count <= 0 or not pool:
             return []
-        key = "|".join(str(part) for part in (cefr, theme, person, tense, register, structure))
+        key = "|".join(
+            str(part) for part in (cefr, theme, person, tense, register, structure, construction)
+        )
         offset = int(hashlib.sha256(key.encode("utf-8")).hexdigest(), 16) % len(pool)
         return [pool[(offset + i) % len(pool)] for i in range(count)]
 
@@ -632,6 +846,137 @@ STRUCTURES: tuple[tuple[str, str], ...] = (
     ("coordinated_clauses", "Join two related actions in one sentence with 'und' or 'aber'."),
 )
 
+# ---------------------------------------------------------------------------
+# Construction-aware generation: the fix for the audited pool-coverage gap
+# (16 of 49 topics receiving zero items -- see the module docstring's "pool
+# problem" section, which this section extends rather than duplicates).
+# Theme/person/tense/register/structure above vary the SHAPE of ordinary
+# prose; none of them makes a relative clause, a passive, or a Futur II more
+# likely to appear, because a general-purpose pool of everyday sentences
+# essentially never needs one -- more volume of "ordinary" sentences does
+# not fix that, only asking for the construction does.
+#
+# Each entry below is a (topic_id, german_hint) pair. The FIRST element is
+# never sent to the model -- exactly like every id in ``PERSON_PERSPECTIVES``,
+# ``TIME_FRAMES``, ``REGISTERS`` and ``STRUCTURES`` above, only the second
+# element of each of those tuples ever reaches ``build_prompt``'s output --
+# it exists purely so this module's own source stays traceable to which
+# starved topic each hint targets, for a human auditing coverage (or a test
+# asserting a given topic's own hint text). The topic id appearing in this
+# module's SOURCE is not a rule 2 violation: rule 2 is about what the model
+# sees, and nothing here sends a topic id anywhere.
+#
+# The hint TEXT is what actually matters, and it is deliberately German
+# (unlike the four hint axes above, whose text predates this task and
+# stayed as originally written): every hint describes a communicative
+# INTENT -- what a speaker is trying to say -- never the grammar that
+# intent happens to fall out as. "Sag, was mit einer Sache passiert ist,
+# ohne zu nennen, wer es getan hat" asks for a meaning; it does not ask for
+# "the passive voice", and CLAUDE.md rule 2 (never name the grammar topic in
+# anything the model sees) is why "the passive voice" could never appear
+# here even as a paraphrase. ``test_every_construction_hint_avoids_grammar_
+# terminology`` in the test suite checks every hint text below against the
+# same forbidden-term list the rest of this module's hints are checked
+# against.
+#
+# The audit named seventeen constructions as starved; sixteen hints are
+# wired in below, matching the "16 of 49" figure exactly -- ``passiv_
+# unpersoenlich`` (the impersonal passive: "Hier wird getanzt") is the
+# seventeenth, and it is not one of the 49 ``TOPIC_IDS`` this pipeline
+# covers at all, so it is not part of that "16 of 49" count either. It has
+# no entry in ``selectors.SELECTORS`` (confirmed directly against that
+# module -- ``"passiv_unpersoenlich" not in selectors.SELECTORS``), one of
+# three topics cycle 3 excluded from this whole pipeline's scope for a
+# tagger-level reason unrelated to pool coverage (see ``tests/
+# test_blanking_pipeline.py``'s own comment on the three topics left out of
+# ``TOPIC_IDS``). No sentence this module could ever generate can produce
+# an item for a topic with no selector to select it -- wiring a live
+# hint for it would spend real generation budget (CLAUDE.md 9's cost
+# discipline) on sentences that structurally cannot become an item, so it is
+# left out of the wired list. It is not left out of the offline mock pool
+# below (``_STARVED_CONSTRUCTION_EXAMPLES``), for realism and so a future
+# selector has real carrier-sound examples waiting -- see that constant's own
+# comment for the honest limitation this implies for its own tests.
+CONSTRUCTION_HINTS: tuple[tuple[str, str], ...] = (
+    (
+        "relativsatz_nom_akk",
+        "Nenne zu einer Person oder Sache eine zusätzliche Information, indem du sagst, "
+        "was sie selbst getan hat oder was jemand mit ihr gemacht hat.",
+    ),
+    (
+        "relativsatz_dativ",
+        "Beschreibe eine Person genauer, indem du sagst, wem sie geholfen hat oder wem sie "
+        "etwas geschenkt, geschickt oder erklärt hat.",
+    ),
+    (
+        "relativsatz_genitiv",
+        "Stelle eine Person oder Sache vor, indem du erzählst, was mit etwas passiert ist, "
+        "das ihr gehört, zum Beispiel ihr Auto, ihr Kind oder ihr Haus.",
+    ),
+    (
+        "passiv_praesens",
+        "Sag, was gerade mit einer Sache gemacht wird, ohne zu sagen, wer es tut.",
+    ),
+    (
+        "passiv_praeteritum",
+        "Erzähl, was früher einmal mit einer Sache gemacht wurde, ohne zu sagen, wer es getan hat.",
+    ),
+    (
+        "passiv_modalverben",
+        "Sag, was mit einer Sache gemacht werden muss, kann oder soll, ohne zu sagen, wer "
+        "das tun soll.",
+    ),
+    (
+        "zustandspassiv",
+        "Beschreibe den Zustand, in dem sich etwas jetzt befindet, weil vorher etwas damit "
+        "gemacht wurde, zum Beispiel repariert, geöffnet oder fertig.",
+    ),
+    (
+        "zustandspassiv_zeiten",
+        "Beschreibe, in welchem Zustand etwas schon zu einem früheren Zeitpunkt war, weil "
+        "vorher etwas damit gemacht worden war.",
+    ),
+    (
+        "infinitiv_mit_zu",
+        "Sag, was jemand plant, hofft, versucht oder schwierig findet zu tun.",
+    ),
+    (
+        "infinitiv_um_zu",
+        "Erklär, warum jemand etwas getan hat: was war sein Ziel oder sein Grund dafür?",
+    ),
+    (
+        "partizip_i_attributiv",
+        "Beschreibe eine Person oder Sache mit einem einzigen Wort direkt vor dem Nomen, "
+        "das ausdrückt, was sie gerade tut, zum Beispiel das lachende Kind oder der "
+        "wartende Mann.",
+    ),
+    (
+        "partizip_ii_attributiv_erweitert",
+        "Beschreibe eine Sache mit mehreren Wörtern direkt vor dem Nomen, die ausdrücken, "
+        "was mit ihr schon gemacht wurde und von wem, zum Beispiel das von einer Firma "
+        "gebaute Haus.",
+    ),
+    (
+        "kasus_genitiv_formen",
+        "Sag, wem oder wozu etwas gehört, oder wessen Ergebnis, Farbe oder Titel du meinst.",
+    ),
+    (
+        "praepositionen_genitiv_gehoben",
+        "Schreibe in einem sehr formellen, offiziellen Ton, wie in einem Bericht oder einer "
+        "amtlichen Mitteilung, und nenne dabei einen Grund oder verweise auf Unterlagen.",
+    ),
+    (
+        "konjunktiv_ii_hoeflichkeit",
+        "Bitte eine fremde Person sehr höflich um etwas, oder formuliere eine vorsichtige, "
+        "zurückhaltende Bitte.",
+    ),
+    (
+        "futur_ii",
+        "Sag, dass etwas bis zu einem bestimmten Zeitpunkt in der Zukunft schon fertig oder "
+        "erledigt sein wird.",
+    ),
+)
+
 DEFAULT_THEMES: tuple[str, ...] = (
     "Alltag",
     "Reisen",
@@ -705,6 +1050,30 @@ class SentencePool:
         return len(self.sentences)
 
 
+def _accepts_construction_hint(generator: SentenceGenerator) -> bool:
+    """Whether ``generator.generate`` actually accepts the ``construction``
+    keyword this module added alongside person/tense/register/structure.
+
+    Every implementation of the ``SentenceGenerator`` Protocol above SHOULD
+    accept it, but a concrete generator written before this parameter
+    existed -- a test double built against the four-hint Protocol, in
+    particular -- would otherwise raise ``TypeError`` the moment
+    ``generate_sentence_pool`` started passing a fifth keyword it never
+    declared. Checked once per ``generate_sentence_pool`` call, not once per
+    batch, since a generator's own signature cannot change mid-run. Never
+    raises: a callable ``inspect.signature`` genuinely cannot introspect (a
+    C-implemented callable with no Python signature) degrades to "assume
+    yes", matching the Protocol's own contract, rather than silently
+    dropping a hint from a generator that actually does support it."""
+    try:
+        parameters = inspect.signature(generator.generate).parameters
+    except (TypeError, ValueError):
+        return True
+    return "construction" in parameters or any(
+        p.kind is inspect.Parameter.VAR_KEYWORD for p in parameters.values()
+    )
+
+
 def generate_sentence_pool(
     generator: SentenceGenerator,
     cefr: CEFR,
@@ -716,11 +1085,19 @@ def generate_sentence_pool(
 ) -> SentencePool:
     """Build a large, varied, carrier-validated sentence pool, replacing one
     big single-theme request with many small ones that each nudge a
-    different theme, narrative person, time frame, register, and sentence
-    structure -- the fix for the pilot's 44-item/1-item topic skew (module
-    docstring): person and tense variety are properties of what the model
-    was asked to write, and one uniform request cannot produce them no
-    matter how large ``total`` is.
+    different theme, narrative person, time frame, register, sentence
+    structure, and -- cycling through ``CONSTRUCTION_HINTS`` -- a specific
+    construction to write toward, one per call. The first fix addresses the
+    pilot's 44-item/1-item topic skew (module docstring): person and tense
+    variety are properties of what the model was asked to write, and one
+    uniform request cannot produce them no matter how large ``total`` is.
+    The construction hints address a DIFFERENT gap the same fix cannot
+    reach: a request for varied everyday prose, however varied, essentially
+    never contains a relative clause, a passive, or a Futur II, because
+    ordinary daily narration rarely needs one -- these have to be asked for
+    directly, by describing the communicative intent that construction
+    expresses (see ``CONSTRUCTION_HINTS``'s own comment for why that is not
+    a rule 2 violation).
 
     Cost is bounded and predictable on purpose: exactly
     ``ceil(total / batch_size)`` calls to ``generator.generate`` are made, no
@@ -754,6 +1131,7 @@ def generate_sentence_pool(
     num_batches = -(
         -total // batch_size
     )  # ceil division, no negative-total edge case (guarded above)
+    construction_supported = _accepts_construction_hint(generator)
 
     for cell_index in range(num_batches):
         theme = themes[cell_index % len(themes)]
@@ -761,16 +1139,29 @@ def generate_sentence_pool(
         _, tense_hint = TIME_FRAMES[cell_index % len(TIME_FRAMES)]
         _, register_hint = REGISTERS[cell_index % len(REGISTERS)]
         _, structure_hint = STRUCTURES[cell_index % len(STRUCTURES)]
+        _, construction_hint = CONSTRUCTION_HINTS[cell_index % len(CONSTRUCTION_HINTS)]
 
-        raw = generator.generate(
-            cefr,
-            theme,
-            batch_size,
-            person=person_hint,
-            tense=tense_hint,
-            register=register_hint,
-            structure=structure_hint,
-        )
+        if construction_supported:
+            raw = generator.generate(
+                cefr,
+                theme,
+                batch_size,
+                person=person_hint,
+                tense=tense_hint,
+                register=register_hint,
+                structure=structure_hint,
+                construction=construction_hint,
+            )
+        else:
+            raw = generator.generate(
+                cefr,
+                theme,
+                batch_size,
+                person=person_hint,
+                tense=tense_hint,
+                register=register_hint,
+                structure=structure_hint,
+            )
         pool.raw_generated += len(raw)
         pool.batches_run += 1
 
