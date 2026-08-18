@@ -453,6 +453,105 @@ def test_verben_reflexiv_dat_rejects_a_reflexive_capable_form_governed_by_a_prep
 
 
 # ==============================================================================
+# Dative-reflexive routing is decided by the GOVERNING VERB's own argument
+# structure (docs/audits/cycle-04-report.md's second finding), not by
+# whether some accusative object happens to sit anywhere in the sentence.
+# Three of the report's own four sampled ``verben_reflexiv_dat`` items were
+# actually Accusative-reflexive verbs the old whole-sentence object scan
+# wrongly promoted to Dative; these pin the fix on the report's own
+# examples.
+# ==============================================================================
+
+
+def test_verben_reflexiv_akk_routes_sich_freuen_despite_an_object_in_another_clause() -> None:
+    """docs/audits/cycle-04-report.md's own example: "Wir würden uns
+    freuen, wenn Sie unsere Fragen beantworten." -- "unsere Fragen" is an
+    accusative object of "beantworten" in the SUBORDINATE clause, not of
+    "freuen"; a whole-sentence object scan wrongly promoted this to Dative,
+    but "freuen" is not on the dative-reflexive verb list at all."""
+    item = _blank(
+        "verben_reflexiv_akk",
+        "Wir würden uns freuen, wenn Sie unsere Fragen beantworten.",
+    )
+    assert item.proposed_answer == "uns"
+    _, dat_candidates = _select(
+        "verben_reflexiv_dat", "Wir würden uns freuen, wenn Sie unsere Fragen beantworten."
+    )
+    assert dat_candidates == []
+
+
+def test_verben_reflexiv_akk_routes_sich_treffen_with_no_object_anywhere() -> None:
+    """docs/audits/cycle-04-report.md's own example: "Wir treffen uns jeden
+    Samstag im Park." -- "treffen" is not on the dative-reflexive verb
+    list, so it routes Accusative regardless of any object heuristic."""
+    item = _blank("verben_reflexiv_akk", "Wir treffen uns jeden Samstag im Park.")
+    assert item.proposed_answer == "uns"
+    _, dat_candidates = _select("verben_reflexiv_dat", "Wir treffen uns jeden Samstag im Park.")
+    assert dat_candidates == []
+
+
+def test_verben_reflexiv_akk_routes_sich_aendern_in_a_subordinate_clause() -> None:
+    """docs/audits/cycle-04-report.md's own example (paraphrased to a
+    complete sentence): "ändern" is not on the dative-reflexive verb list,
+    so the subordinate clause's own "sich" routes Accusative -- this also
+    pins that the governing-verb lookup is scoped to "hat" being the one
+    finite verb of the "dass" clause itself, not the main clause's."""
+    item = _blank("verben_reflexiv_akk", "Er sagte, dass sich die Situation geändert hat.")
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select(
+        "verben_reflexiv_dat", "Er sagte, dass sich die Situation geändert hat."
+    )
+    assert dat_candidates == []
+
+
+def test_verben_reflexiv_dat_routes_sich_helfen_with_no_object_required() -> None:
+    """docs/audits/cycle-04-report.md's own sole genuinely-dative example:
+    "Wir helfen uns gegenseitig." -- "helfen" governs the Dative on any
+    object at all, so no co-occurring accusative is required, unlike every
+    other verb on the dative-reflexive list."""
+    item = _blank("verben_reflexiv_dat", "Wir helfen uns gegenseitig.")
+    assert item.proposed_answer == "uns"
+    _, akk_candidates = _select("verben_reflexiv_akk", "Wir helfen uns gegenseitig.")
+    assert akk_candidates == []
+
+
+def test_verben_reflexiv_dat_routes_a_closed_list_verb_with_its_own_accusative_object() -> None:
+    """ "merken" (docs/audits/cycle-04-report.md's own named example, "sich
+    etwas merken") is on the dative-reflexive-with-object list, and "die
+    Telefonnummer" is its own accusative object in the same clause."""
+    item = _blank("verben_reflexiv_dat", "Ich merke mir die Telefonnummer.")
+    assert item.proposed_answer == "mir"
+    _, akk_candidates = _select("verben_reflexiv_akk", "Ich merke mir die Telefonnummer.")
+    assert akk_candidates == []
+
+
+def test_verben_reflexiv_dat_reconstructs_a_separable_verbs_split_prefix() -> None:
+    """ "ansehen" ("sich etwas ansehen") splits into "sehe ... an" in plain
+    present-tense word order; confirmed empirically that spaCy's own lemma
+    for "sehe" alone drops the prefix ("sehen", not "ansehen"). The
+    separated ``PTKVZ`` token "an" is reconstructed onto it rather than
+    trusting that bare, confirmed-wrong lemma -- see
+    ``_governing_verb_lemma``'s own docstring."""
+    item = _blank("verben_reflexiv_dat", "Ich sehe mir den Film an.")
+    assert item.proposed_answer == "mir"
+    _, akk_candidates = _select("verben_reflexiv_akk", "Ich sehe mir den Film an.")
+    assert akk_candidates == []
+
+
+def test_verben_reflexiv_selectors_skip_when_the_governing_verb_is_undetermined() -> None:
+    """ "Er kommt und wäscht sich." has no comma before "und", so the clause
+    span this module derives from commas alone (no dependency parser is
+    available, see ``_clause_span``'s own docstring) contains BOTH finite
+    verbs ("kommt" and "wäscht") -- "reject rather than guess" applies to
+    the governing verb itself, not only to which case it implies, so this
+    candidate is skipped on EITHER topic rather than guessed at."""
+    _, akk_candidates = _select("verben_reflexiv_akk", "Er kommt und wäscht sich.")
+    assert akk_candidates == []
+    _, dat_candidates = _select("verben_reflexiv_dat", "Er kommt und wäscht sich.")
+    assert dat_candidates == []
+
+
+# ==============================================================================
 # Cycle 3. relativsatz_nom_akk / _dativ / _genitiv -- relative pronoun by case.
 # ==============================================================================
 
@@ -962,3 +1061,99 @@ def test_one_sentence_yields_candidates_for_several_topics() -> None:
     assert len(unbestimmt) == 1  # "starken" (mixed, after "einen")
     assert len(nom) == 1  # "Der"
     assert len(akkusativ) == 1  # "einen"
+
+
+# ==============================================================================
+# Cue generation (docs/audits/cycle-04-report.md recommendation 5, and its
+# headline finding): a bracketed citation-form cue for the three topics the
+# uniqueness gate would otherwise always skip as interchangeable --
+# ``nomen_plural`` (singular citation form), ``modalverben_praesens`` and
+# ``passiv_modalverben`` (the modal's own infinitive). ``Candidate.cue`` is
+# additive and not read by ``blanker.py``/``blank_candidate`` in this cycle,
+# so these tests go straight at the selector's own ``Candidate`` output.
+# ==============================================================================
+
+
+def test_nomen_plural_cue_is_the_singular_citation_form() -> None:
+    """docs/audits/cycle-04-report.md's own example: "meine ___" (Zähne)
+    would otherwise accept Hände/Schuhe/Haare too -- "(Zahn)" rescues it."""
+    _, candidates = _select("nomen_plural", "Nach dem Frühstück putze ich gründlich meine Zähne.")
+    assert len(candidates) == 1
+    assert candidates[0].cue == "Zahn"
+
+
+def test_nomen_plural_cue_is_none_for_a_genuinely_invariant_plural() -> None:
+    """ "Lehrer" is spelled identically in the singular and the plural -- a
+    cue here would hand over the answer, so ``_citation_cue`` withholds it
+    rather than leak (rule: the cue must never equal the answer)."""
+    _, candidates = _select("nomen_plural", "Die Lehrer unterrichten Mathematik.")
+    assert len(candidates) == 1
+    assert candidates[0].cue is None
+
+
+def test_nomen_plural_cue_is_none_for_a_dative_plural() -> None:
+    """Confirmed empirically that ``de_core_news_sm`` mislemmatises a
+    Dative plural of this noun class ("Müttern" -> "Müttern", entirely
+    unreduced, not "Mutter") -- see ``_plural_noun_cue``'s own docstring.
+    The candidate itself is still produced (the topic is unaffected), only
+    the cue is withheld."""
+    _, candidates = _select("nomen_plural", "Sie dankten den Müttern für alles.")
+    assert len(candidates) == 1
+    assert candidates[0].cue is None
+
+
+def test_modalverben_praesens_cue_is_the_modals_own_infinitive() -> None:
+    """docs/audits/cycle-04-report.md's own example: "kann" is one of
+    several equally grammatical modals in this slot -- "(können)" rescues
+    it, naming the lexeme, never the grammar category (CLAUDE.md rule 2)."""
+    _, candidates = _select(
+        "modalverben_praesens",
+        "Das Fleisch kann scharf angebraten werden, wenn ein kräftiger Geschmack gewünscht wird.",
+    )
+    assert len(candidates) == 1
+    assert candidates[0].cue == "können"
+
+
+def test_modalverben_praesens_cue_handles_the_frozen_moechten_lemma() -> None:
+    _, candidates = _select("modalverben_praesens", "Ich möchte gern ein Eis.")
+    assert len(candidates) == 1
+    assert candidates[0].cue == "möchten"
+
+
+def test_modalverben_praesens_cue_is_none_when_it_would_equal_the_answer() -> None:
+    """1st-plural present tense of a modal is spelled identically to its own
+    infinitive ("wir müssen" == "müssen") -- a cue here would hand over the
+    answer verbatim, so it is withheld rather than leaked."""
+    _, candidates = _select("modalverben_praesens", "Wir müssen jetzt gehen.")
+    assert len(candidates) == 1
+    assert candidates[0].cue is None
+
+
+def test_passiv_modalverben_cue_is_the_modals_own_infinitive() -> None:
+    _, candidates = _select("passiv_modalverben", "Das Fenster kann nicht mehr repariert werden.")
+    assert len(candidates) == 1
+    assert candidates[0].cue == "können"
+
+
+def test_verb_sein_haben_never_gets_a_cue() -> None:
+    """``verb_sein_haben`` shares ``_irregular_finite_selector`` with
+    ``modalverben_praesens``, but "haben" is not a modal -- the uniqueness
+    gate never flags it (its own identity is structurally fixed, see
+    ``uniqueness.py``'s policy table), so no cue mechanism applies here."""
+    _, candidates = _select("verb_sein_haben", "Ich habe einen Hund.")
+    assert len(candidates) == 1
+    assert candidates[0].cue is None
+
+
+def test_praeteritum_sein_haben_modal_cues_only_its_modal_candidates() -> None:
+    """The same selector also matches bare sein/haben Präteritum (not a
+    modal, never cued) alongside modals (cued) -- the cue, like the
+    uniqueness gate itself, is a property of the candidate's own lemma, not
+    of the topic name."""
+    _, modal_candidates = _select("praeteritum_sein_haben_modal", "Er konnte gestern nicht kommen.")
+    assert len(modal_candidates) == 1
+    assert modal_candidates[0].cue == "können"
+
+    _, aux_candidates = _select("praeteritum_sein_haben_modal", "Er war gestern sehr müde.")
+    assert len(aux_candidates) == 1
+    assert aux_candidates[0].cue is None

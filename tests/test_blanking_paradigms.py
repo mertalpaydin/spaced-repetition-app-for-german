@@ -270,3 +270,43 @@ def test_aux_sein_lemmas_excludes_an_individually_unverified_separable_verb() ->
 def test_transitive_lemmas_contains_verified_passivizable_verbs() -> None:
     assert "reparieren" in paradigms.TRANSITIVE_LEMMAS
     assert "kaufen" in paradigms.TRANSITIVE_LEMMAS
+
+
+# ==============================================================================
+# Dative-reflexive verb argument structure (docs/audits/cycle-04-report.md's
+# second finding): the closed list ``selectors._reflexive_case`` uses to
+# decide verben_reflexiv_akk/_dat instead of an unscoped "is there an
+# accusative object anywhere" guess.
+# ==============================================================================
+
+
+def test_dative_reflexive_verb_sets_are_disjoint() -> None:
+    """ "helfen" needs no co-occurring object and every other verb in the
+    combined list does -- a verb cannot honestly belong to both subsets at
+    once, or ``selectors._reflexive_case`` would not know which rule to
+    apply to it."""
+    assert paradigms.DATIVE_REFLEXIVE_VERBS_WITH_OBJECT.isdisjoint(
+        paradigms.DATIVE_REFLEXIVE_VERBS_NO_OBJECT
+    )
+
+
+def test_dative_reflexive_verbs_combines_both_subsets() -> None:
+    assert paradigms.DATIVE_REFLEXIVE_VERBS == (
+        paradigms.DATIVE_REFLEXIVE_VERBS_WITH_OBJECT | paradigms.DATIVE_REFLEXIVE_VERBS_NO_OBJECT
+    )
+
+
+def test_dative_reflexive_verbs_contains_the_reports_own_named_examples() -> None:
+    """docs/audits/cycle-04-report.md names these explicitly as the fix for
+    its second finding."""
+    for lemma in ("vorstellen", "merken", "leisten", "ansehen"):
+        assert lemma in paradigms.DATIVE_REFLEXIVE_VERBS_WITH_OBJECT
+    assert "helfen" in paradigms.DATIVE_REFLEXIVE_VERBS_NO_OBJECT
+
+
+def test_dative_reflexive_verbs_excludes_the_reports_misfiled_accusative_verbs() -> None:
+    """docs/audits/cycle-04-report.md's second finding: these three were
+    the accusative-reflexive verbs a whole-sentence object scan wrongly
+    promoted to Dative -- none belongs on either dative-reflexive list."""
+    for lemma in ("freuen", "treffen", "ändern"):
+        assert lemma not in paradigms.DATIVE_REFLEXIVE_VERBS

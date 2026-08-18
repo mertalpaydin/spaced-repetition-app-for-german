@@ -815,3 +815,94 @@ KNOWN_PARTICIPLE_FORMS: frozenset[str] = frozenset(
         "beendet",
     }
 )
+
+# ==============================================================================
+# Dative-reflexive verb argument structure: another lexical fact, not a
+# rule, same posture as ``AUX_SEIN_LEMMAS``/``TRANSITIVE_LEMMAS`` above (this
+# module's own docstring says "no new linguistic facts", and those two sets
+# already established the precedent that a verb's own argument structure is
+# exactly the kind of fact this cycle keeps as a closed list here rather than
+# re-deriving it per sentence).
+#
+# docs/audits/cycle-04-report.md's second finding: ``uns``/``sich`` are
+# syncretic between Accusative and Dative, so the reflexive pronoun's own
+# surface form cannot decide which topic (``verben_reflexiv_akk`` vs
+# ``verben_reflexiv_dat``) it belongs to -- the GOVERNING VERB decides it,
+# because German reflexive case is a property of the verb's own argument
+# structure, not of the sentence it happens to appear in. Three of the
+# report's four sampled ``verben_reflexiv_dat`` items were actually
+# Accusative-reflexive verbs ("sich freuen", "sich treffen", "sich ändern")
+# that a same-clause-scanning "is there an accusative object anywhere"
+# heuristic wrongly promoted to Dative; only "sich helfen" was genuinely
+# Dative. This is the fix: a closed list of verbs whose reflexive object is
+# genuinely Dative, checked by the governing verb's own lemma
+# (``selectors._governing_verb_lemma``), not by scanning for an unrelated
+# accusative elsewhere in the sentence.
+#
+# Sourced from the standard German pedagogical grammar's own "Verben mit
+# Reflexivpronomen im Dativ" class (Dreyer/Schmitt, "Praktische Grammatik der
+# deutschen Sprache"; Duden's reflexive-verb entries) -- an established,
+# closed, textbook-taught set, not invented for this cycle. Two subclasses:
+#
+# * ``DATIVE_REFLEXIVE_VERBS_WITH_OBJECT`` -- the "sich (Dat) etwas tun"
+#   pattern the report itself names ("sich etwas vorstellen", "sich etwas
+#   merken", "sich etwas leisten", "sich etwas ansehen"): the Dative
+#   reflexive stands beside its own separate Accusative object. Several of
+#   these verbs are genuinely POLYSEMOUS with an Accusative-reflexive
+#   reading when no object is present ("sich vorstellen" alone = "introduce
+#   oneself", Accusative; "sich (Dat) etwas vorstellen" = "imagine
+#   something", Dative) -- ``selectors._reflexive_case`` only treats a verb
+#   from this set as Dative when a genuine Accusative object also sits in
+#   the SAME clause (see ``_has_accusative_object``'s clause-scoped call),
+#   never from list membership alone. "kaufen" and "waschen" are included
+#   here because the confirmed body-part/purchase-for-oneself constructions
+#   ("Er kauft sich ein neues Auto.", "Sie wäscht sich die Hände.") were
+#   already this module's own precedent for the object-based signal before
+#   this fix (see ``selectors._immediately_followed_by_object_np``'s
+#   docstring) -- folding them into the closed list rather than leaving them
+#   to a bare object-presence guess is strictly more precise, not a new
+#   claim.
+# * ``DATIVE_REFLEXIVE_VERBS_NO_OBJECT`` -- "helfen", the report's own
+#   sole genuinely-Dative example ("Wir helfen uns gegenseitig."):
+#   "helfen" governs the Dative on ANY object, reflexive or not ("ich helfe
+#   dir"), so no co-occurring Accusative is expected or required. Kept as
+#   its own single-verb set rather than folded into the set above so a
+#   future addition to either subclass states its own evidence, rather than
+#   silently inheriting the "and requires an object" default of the other.
+DATIVE_REFLEXIVE_VERBS_WITH_OBJECT: frozenset[str] = frozenset(
+    {
+        "aneignen",
+        "anhören",
+        "anschauen",
+        "ansehen",
+        "anziehen",
+        "ausdenken",
+        "ausziehen",
+        "bestellen",
+        "eingestehen",
+        "einbilden",
+        "erlauben",
+        "ersparen",
+        "holen",
+        "kämmen",
+        "kaufen",
+        "leihen",
+        "leisten",
+        "merken",
+        "nehmen",
+        "notieren",
+        "putzen",
+        "überlegen",
+        "verdienen",
+        "vornehmen",
+        "vorstellen",
+        "vorwerfen",
+        "waschen",
+        "wünschen",
+        "zutrauen",
+    }
+)
+DATIVE_REFLEXIVE_VERBS_NO_OBJECT: frozenset[str] = frozenset({"helfen"})
+DATIVE_REFLEXIVE_VERBS: frozenset[str] = (
+    DATIVE_REFLEXIVE_VERBS_WITH_OBJECT | DATIVE_REFLEXIVE_VERBS_NO_OBJECT
+)

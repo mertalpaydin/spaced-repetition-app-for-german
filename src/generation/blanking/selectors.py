@@ -136,6 +136,21 @@ class Candidate:
     gender: str | None = None
     verb_family: str | None = None
     tense_mood: str | None = None
+    # docs/audits/cycle-04-report.md recommendation 5, and the same report's
+    # first finding more generally: a bracketed lemma cue (the citation
+    # form -- nominative singular for a noun, infinitive for a verb) that
+    # rescues a closed-class slot the uniqueness gate (``uniqueness.py`)
+    # would otherwise always skip as interchangeable, e.g. "meine ___
+    # (Zahn)" for "Zähne", "___ (müssen) er noch arbeiten" for "muss". Set
+    # only by the selectors for the topics the report names (``nomen_plural``,
+    # ``modalverben_praesens``, ``passiv_modalverben``); ``None`` everywhere
+    # else, including every candidate a topic's own selector could not
+    # derive a *reliable* cue for -- see ``_citation_cue`` and
+    # ``_plural_noun_cue``'s own docstrings for exactly what "reliable"
+    # means per part of speech. Additive: nothing downstream is required to
+    # read this field, and every existing candidate kind keeps emitting
+    # ``cue=None`` exactly as before.
+    cue: str | None = None
 
 
 Selector = Callable[[TaggedSentence], list[Candidate]]
@@ -448,17 +463,35 @@ def _personal_pronoun_selector(fixed_case: str) -> Selector:
 # ``Case=Dat`` (it is Accusative: "schämen" always takes an Accusative
 # reflexive, and "jeden Morgen" is a time adverbial, not an object). Both
 # would silently misattribute the item to the wrong one of these two
-# topics if trusted. Case is instead derived from two things this cycle DOES
-# trust: the closed, unambiguous-by-spelling forms ("mich"/"dich" are only
-# ever Accusative, "mir"/"dir" only ever Dative -- no judgment required),
-# and, for the genuinely syncretic forms ("sich", and "uns"/"euch" which
-# share one form across both cases), the same structural rule the topic's
-# own ``rule_hint`` states: a bare (non-prepositional, non-temporal)
-# Accusative object elsewhere in the clause means the reflexive itself is
-# Dative, its absence means Accusative. Agreement with the sentence's own
+# topics if trusted.
+#
+# Case is instead derived from the GOVERNING VERB's own argument structure
+# (``_governing_verb_lemma`` plus the closed ``paradigms.DATIVE_REFLEXIVE_
+# VERBS_*`` lists) -- docs/audits/cycle-04-report.md's second finding: an
+# earlier version of this module decided Dative-vs-Accusative purely from
+# whether SOME accusative object sat anywhere in the sentence, which wrongly
+# promoted three genuinely Accusative-reflexive verbs ("sich freuen", "sich
+# treffen", "sich ändern") to Dative whenever an unrelated accusative
+# happened to appear elsewhere (even in a different clause). The governing
+# verb's own lemma is the actual fact that decides it; the accusative-object
+# signal is now only consulted, and only within the SAME CLAUSE
+# (``_clause_span``), for the specific verbs from
+# ``paradigms.DATIVE_REFLEXIVE_VERBS_WITH_OBJECT`` that are genuinely
+# polysemous between an Accusative-reflexive reading and a "Dative reflexive
+# plus its own Accusative object" reading depending on whether that object
+# is present ("sich vorstellen" alone = introduce oneself, Accusative;
+# "sich (Dat) etwas vorstellen" = imagine something, Dative).
+#
+# The closed, unambiguous-by-spelling forms ("mich"/"dich" are only ever
+# Accusative, "mir"/"dir" only ever Dative) are cross-checked against the
+# governing-verb-derived case as a second, independent safety net: a
+# mismatch means either the clause-boundary heuristic or the governing-verb
+# lookup got it wrong, and "reject rather than guess" applies there exactly
+# as everywhere else in this module. Agreement with the sentence's own
 # finite verb (person/number must MATCH, not merely "not conflict" -- a
 # reflexive pronoun always agrees with its subject by definition) is a
-# second, independent safety net against the same kind of tagger error.
+# further, separate safety net against the same kind of tagger error, kept
+# from the previous version of this module unchanged.
 _REFLEXIVE_CASE_BY_FORM: dict[str, str] = {"mich": "Acc", "dich": "Acc", "mir": "Dat", "dir": "Dat"}
 _REFLEXIVE_PERSON_NUMBER_BY_FORM: dict[str, tuple[str, str]] = {
     "mich": ("1", "Sing"),
@@ -468,7 +501,6 @@ _REFLEXIVE_PERSON_NUMBER_BY_FORM: dict[str, tuple[str, str]] = {
     "uns": ("1", "Plur"),
     "euch": ("2", "Plur"),
 }
-_AMBIGUOUS_CASE_REFLEXIVE_FORMS: frozenset[str] = frozenset({"sich", "uns", "euch"})
 _REFLEXIVE_CAPABLE_FORMS: frozenset[str] = frozenset(
     {"mich", "dich", "sich", "uns", "euch", "mir", "dir"}
 )
@@ -499,8 +531,10 @@ def _governed_by_adposition(sentence: TaggedSentence, index: int) -> bool:
     return j >= 0 and sentence.tokens[j].pos == "ADP"
 
 
-def _has_bare_accusative_object(sentence: TaggedSentence, exclude_index: int) -> bool:
-    for other in sentence.tokens:
+def _has_bare_accusative_object(
+    sentence: TaggedSentence, exclude_index: int, clause_start: int, clause_end: int
+) -> bool:
+    for other in sentence.tokens[clause_start:clause_end]:
         if other.i == exclude_index:
             continue
         if other.pos not in ("NOUN", "PROPN", "PRON"):
@@ -515,11 +549,14 @@ def _has_bare_accusative_object(sentence: TaggedSentence, exclude_index: int) ->
     return False
 
 
-def _immediately_followed_by_object_np(sentence: TaggedSentence, index: int) -> bool:
+def _immediately_followed_by_object_np(
+    sentence: TaggedSentence, index: int, clause_end: int
+) -> bool:
     """Whether an explicit-determiner noun phrase ("ein neues Auto", "die
-    Hände") sits directly after ``index`` with nothing between -- a second,
-    Case-independent signal for the same "is there a bare accusative object"
-    question ``_has_bare_accusative_object`` answers from ``token.morph``.
+    Hände") sits directly after ``index``, still within the same clause
+    (``clause_end``), with nothing between -- a second, Case-independent
+    signal for the same "is there a bare accusative object" question
+    ``_has_bare_accusative_object`` answers from ``token.morph``.
 
     Confirmed empirically that this is necessary, not merely
     belt-and-braces: in "Er kauft sich ein neues Auto.", spaCy tags the
@@ -537,14 +574,14 @@ def _immediately_followed_by_object_np(sentence: TaggedSentence, index: int) -> 
     "reject rather than guess" bias as the rest of this module.
     """
     start = index + 1
-    if start >= len(sentence.tokens):
+    if start >= clause_end:
         return False
     if sentence.tokens[start].pos == "ADP":
         return False
     j = start
-    while j < len(sentence.tokens) and sentence.tokens[j].tag in _NP_INTERNAL_TAGS:
+    while j < clause_end and sentence.tokens[j].tag in _NP_INTERNAL_TAGS:
         j += 1
-    if j == start or j >= len(sentence.tokens):
+    if j == start or j >= clause_end:
         return False
     tok = sentence.tokens[j]
     if tok.pos not in ("NOUN", "PROPN"):
@@ -552,26 +589,142 @@ def _immediately_followed_by_object_np(sentence: TaggedSentence, index: int) -> 
     return tok.lemma.lower() not in _TEMPORAL_ACCUSATIVE_LEMMAS
 
 
-def _has_accusative_object(sentence: TaggedSentence, exclude_index: int) -> bool:
+def _has_accusative_object(
+    sentence: TaggedSentence, exclude_index: int, clause_start: int, clause_end: int
+) -> bool:
     """Combines the Case-based and word-order-based bare-object signals --
     see ``_has_bare_accusative_object`` and ``_immediately_followed_by_object_np``
-    docstrings for why neither alone is sufficient."""
+    docstrings for why neither alone is sufficient. Both are scoped to the
+    reflexive's OWN clause (``clause_start``/``clause_end`` from
+    ``_clause_span``) -- see the module-level comment above
+    ``_REFLEXIVE_CASE_BY_FORM`` for why an unscoped, whole-sentence scan was
+    a confirmed defect, not merely a theoretical one."""
     return _has_bare_accusative_object(
-        sentence, exclude_index
-    ) or _immediately_followed_by_object_np(sentence, exclude_index)
+        sentence, exclude_index, clause_start, clause_end
+    ) or _immediately_followed_by_object_np(sentence, exclude_index, clause_end)
+
+
+_CLAUSE_BOUNDARY_TAG = "$,"
+
+
+def _clause_span(sentence: TaggedSentence, index: int) -> tuple[int, int]:
+    """The token index range ``[start, end)`` of ``index``'s own clause,
+    bounded by the nearest comma on either side (or the sentence's own
+    edges). This package's tagger deliberately excludes the dependency
+    parser (``sentence_tagger.py``'s own docstring), so there is no parse
+    tree to read a real clause boundary from; a comma is the reliable proxy
+    available instead -- German subordinate clauses are conventionally
+    comma-set-off in standard written prose, and this cycle's sentences are
+    exactly that (LLM-generated, then carrier-validated German), not
+    colloquial text where a clause boundary might go unmarked. A clause
+    joined to its neighbour by a coordinating conjunction with no comma
+    ("und", "oder" in a short clause) is not specially detected here; it
+    simply yields a span containing more than one finite verb, which
+    ``_governing_verb_lemma`` already treats as undetermined rather than
+    guessing which one governs."""
+    start = index
+    while start > 0 and sentence.tokens[start - 1].tag != _CLAUSE_BOUNDARY_TAG:
+        start -= 1
+    end = index
+    n = len(sentence.tokens)
+    while end < n and sentence.tokens[end].tag != _CLAUSE_BOUNDARY_TAG:
+        end += 1
+    return start, end
+
+
+def _governing_verb_lemma(
+    sentence: TaggedSentence, clause_start: int, clause_end: int
+) -> str | None:
+    """The lexeme that actually governs a reflexive pronoun inside
+    ``[clause_start, clause_end)`` (see ``_clause_span``): the clause's one
+    finite verb, resolved through an auxiliary or modal to the participle or
+    infinitive that carries the real lexical meaning ("hat ... gekauft" ->
+    "kaufen", "will ... treffen" -> "treffen", "würde ... freuen" ->
+    "freuen"), never the auxiliary/modal's own lemma -- an auxiliary or
+    modal has no reflexive-object argument structure of its own to look up.
+    A plain, non-auxiliary finite verb ("wir treffen uns") is returned
+    directly.
+
+    More or fewer than one finite verb in the span -- a mis-split clause, an
+    ``und``-joined pair with no comma between them -- is treated as
+    undetermined (``None``), and so is a finite auxiliary/modal with no
+    participle or infinitive found in the same span (an incomplete or
+    unparseable construction): "reject rather than guess" applied to
+    governing-verb resolution itself, exactly like every other structural
+    signal in this module. This is also this function's own answer to "where
+    the governing verb cannot be determined, skip" -- the caller
+    (``_reflexive_case``) does exactly that on a ``None`` return."""
+    finite = [
+        t
+        for t in sentence.tokens[clause_start:clause_end]
+        if t.pos in ("VERB", "AUX") and t.morph.get("VerbForm") == "Fin"
+    ]
+    if len(finite) != 1:
+        return None
+    lemma = finite[0].lemma.lower()
+    if not lemma:
+        return None
+    is_modal = lemma in paradigms.MODAL_LEMMAS or lemma == "möchten"
+    if is_modal or lemma in ("haben", "sein", "werden"):
+        non_finite = next(
+            (
+                t
+                for t in sentence.tokens[clause_start:clause_end]
+                if t.tag in _MODAL_INFINITIVE_TAGS or t.tag == "VVPP"
+            ),
+            None,
+        )
+        if non_finite is None or not non_finite.lemma:
+            return None
+        # An infinitive/participle is already written as one fused word
+        # ("angesehen", "ansehen") -- confirmed empirically that spaCy
+        # lemmatises these correctly, unlike the bare-finite branch below.
+        return non_finite.lemma.lower()
+    # A separable-prefixed verb in PLAIN present/preterite main-clause word
+    # order splits ("Ich sehe den Film an."), and confirmed empirically that
+    # spaCy's own lemma for the finite half alone drops the prefix entirely
+    # ("sehe" -> "sehen", not "ansehen") -- unlike the infinitive/participle
+    # case just above, there is no fused word to lemmatise correctly in the
+    # first place. The separated prefix is still right there as its own
+    # token (tag ``PTKVZ``, its own lemma the bare prefix text), so it is
+    # reconstructed by simple concatenation rather than trusting the
+    # (confirmed wrong) bare lemma alone -- this is exactly how the verb is
+    # spelled in its own infinitive/citation form, not a guess.
+    prefix = next((t for t in sentence.tokens[clause_start:clause_end] if t.tag == "PTKVZ"), None)
+    if prefix is not None and prefix.lemma:
+        return prefix.lemma.lower() + lemma
+    return lemma
 
 
 def _reflexive_case(sentence: TaggedSentence, token: Token) -> str | None:
+    """The reflexive pronoun's own Case, decided by its governing verb's
+    argument structure (see the module-level comment above
+    ``_REFLEXIVE_CASE_BY_FORM``), never by scanning for an accusative object
+    with no regard to which verb actually governs it. Returns ``None`` --
+    reject, don't guess -- when the governing verb cannot be determined at
+    all, or when an unambiguous-by-spelling form ("mich"/"dich"/"mir"/"dir")
+    contradicts what the governing verb says, which means one of the two
+    structural signals got this sentence wrong and neither should be
+    trusted alone."""
     lower = token.text.lower()
+    clause_start, clause_end = _clause_span(sentence, token.i)
+    verb_lemma = _governing_verb_lemma(sentence, clause_start, clause_end)
+    if verb_lemma is None:
+        return None
+    if verb_lemma in paradigms.DATIVE_REFLEXIVE_VERBS_NO_OBJECT:
+        verb_case = "Dat"
+    elif verb_lemma in paradigms.DATIVE_REFLEXIVE_VERBS_WITH_OBJECT:
+        has_object = _has_accusative_object(sentence, token.i, clause_start, clause_end)
+        verb_case = "Dat" if has_object else "Acc"
+    else:
+        verb_case = "Acc"
     unambiguous = _REFLEXIVE_CASE_BY_FORM.get(lower)
-    if unambiguous is not None:
-        return unambiguous
-    if lower in _AMBIGUOUS_CASE_REFLEXIVE_FORMS:
-        return "Dat" if _has_accusative_object(sentence, token.i) else "Acc"
-    return None
+    if unambiguous is not None and unambiguous != verb_case:
+        return None
+    return verb_case
 
 
-def _reflexive_selector(fixed_case: str, *, require_accusative_object: bool) -> Selector:
+def _reflexive_selector(fixed_case: str) -> Selector:
     def select(sentence: TaggedSentence) -> list[Candidate]:
         out: list[Candidate] = []
         for token in sentence.tokens:
@@ -589,8 +742,9 @@ def _reflexive_selector(fixed_case: str, *, require_accusative_object: bool) -> 
                 # corefer with the subject as an ARGUMENT, it is governed by
                 # "zu". Without this check, the (unrelated) accusative
                 # object "meine besten Freunde" elsewhere in the clause was
-                # enough to satisfy ``require_accusative_object`` and
-                # wrongly select "mir" for verben_reflexiv_dat anyway.
+                # previously enough to satisfy the old object-presence
+                # heuristic and wrongly select "mir" for verben_reflexiv_dat
+                # anyway.
                 continue
             subject = _finite_verb_person_number(sentence)
             if subject is None:
@@ -606,8 +760,6 @@ def _reflexive_selector(fixed_case: str, *, require_accusative_object: bool) -> 
             if subject != (person, number):
                 continue  # a reflexive pronoun always agrees with its subject
             if _reflexive_case(sentence, token) != fixed_case:
-                continue
-            if require_accusative_object and not _has_accusative_object(sentence, token.i):
                 continue
             out.append(
                 Candidate(
@@ -882,6 +1034,76 @@ def _governing_determiner_number(sentence: TaggedSentence, index: int) -> str | 
     return prev.morph.get("Number")
 
 
+# ------------------------------------------------------------------------
+# Cue generation (docs/audits/cycle-04-report.md recommendation 5, and the
+# same report's headline finding): a bracketed CITATION-FORM cue -- never a
+# grammar term (rule 2 in CLAUDE.md is unchanged, this names a lexeme, not a
+# category), never the answer itself, always the constituent the gap tests.
+# See ``Candidate.cue``'s own docstring for the contract; this section is
+# only the two functions that compute one.
+# ------------------------------------------------------------------------
+
+
+def _citation_cue(lemma: str, surface: str) -> str | None:
+    """A cue string from ``lemma``, unless it is letter-for-letter identical
+    to ``surface`` (case-insensitively) -- "the cue must never equal the
+    answer" applies just as much to a lemma that happens to coincide with
+    the very form being blanked as it does to a lemma that is simply wrong.
+    Two concrete cases this guards, both real rather than hypothetical: a
+    modal's 1st/3rd-plural present tense is spelled identically to its own
+    infinitive ("wir/sie müssen" == "müssen"), and a handful of German
+    nouns have a plural spelled identically to their own singular ("der
+    Lehrer" / "die Lehrer"). No cue is the safe outcome for either -- the
+    uniqueness gate simply keeps treating that one cell as it did before
+    this cue mechanism existed."""
+    return None if lemma.lower() == surface.lower() else lemma
+
+
+def _plural_noun_cue(token: Token) -> str | None:
+    """The citation form (nominative singular) for a blanked plural noun,
+    taken from the tagger's own lemma -- the only source this cycle has for
+    it, since German plural formation has no single computable rule to
+    reconstruct a singular from (``_select_nomen_plural``'s own docstring).
+    Trusted only when it clears three structural reliability checks, each
+    confirmed necessary by direct testing against ``de_core_news_sm``
+    (never assumed from the "schalte" -> "schalen" precedent alone, though
+    that is the same CLASS of failure -- a lemma the tagger is simply
+    wrong about, self-consistently so, with nothing else in this cycle's
+    data to cross-check it against):
+
+    1. Non-empty and capitalised -- every genuine German noun citation form
+       is; an empty or lower-cased "lemma" is the tagger failing outright,
+       not a real singular.
+    2. Differs from the plural surface form itself (delegated to
+       ``_citation_cue``) -- catches BOTH a genuinely invariant plural
+       ("Lehrer"/"Fenster", where cueing would leak the answer) and a
+       confirmed lemmatiser failure to reduce at all ("Hunde" -> "Hunde",
+       "Äpfel" -> "Äpfel", "Gläser" -> "Gläser", all reproduced directly
+       against this model) -- both must be skipped for the same reason
+       (rule 2 aside, an unreduced lemma is simply not a citation form),
+       so one check does for both without needing to tell them apart.
+    3. The token's own ``Case`` is not Dative -- confirmed empirically that
+       ``de_core_news_sm``'s lemmatiser is measurably less reliable on a
+       DATIVE plural specifically (the same noun lemmatises correctly in
+       Nominative/Accusative/Genitive context): "Vätern" -> "Väter" (still
+       plural, not "Vater"), "Brüdern" -> "Brüdern" and "Müttern" ->
+       "Müttern" (entirely unreduced) all reproduced directly, while the
+       identical lemmas resolve correctly as "Väter" -> "Vater" in a
+       Genitive sentence. This is a distinct failure class from check 2 (the
+       lemma differs from the plural surface, so check 2 alone would wrongly
+       accept it) and is deliberately narrower than excluding Dative
+       candidates outright -- ``_select_nomen_plural`` itself still selects
+       and blanks a Dative plural noun exactly as before, this only
+       withholds the CUE for that one case, matching the module's own
+       "no cue is the safe outcome" posture."""
+    lemma = token.lemma
+    if not lemma or not lemma[:1].isupper():
+        return None
+    if token.morph.get("Case") == "Dat":
+        return None
+    return _citation_cue(lemma, token.text)
+
+
 def _select_nomen_plural(sentence: TaggedSentence) -> list[Candidate]:
     """A plural common noun, trusted as its own correct answer exactly like
     ``adjektiv_komparativ_superlativ`` trusts a comparative form -- German
@@ -891,7 +1113,10 @@ def _select_nomen_plural(sentence: TaggedSentence) -> list[Candidate]:
     ``blanker.py``). The noun's own ``Number=Plur`` tag is additionally
     cross-checked against any governing determiner's ``Number`` -- see
     ``_governing_determiner_number`` for the confirmed tagger failure this
-    guards against."""
+    guards against. ``cue`` is the derived singular citation form (see
+    ``_plural_noun_cue``), ``None`` wherever that cannot be derived
+    reliably -- the candidate is still returned either way, exactly as
+    before this cycle's cue mechanism existed."""
     out: list[Candidate] = []
     for token in sentence.tokens:
         if token.tag != "NN":
@@ -900,7 +1125,7 @@ def _select_nomen_plural(sentence: TaggedSentence) -> list[Candidate]:
             continue
         if _governing_determiner_number(sentence, token.i) == "Sing":
             continue
-        out.append(Candidate(token_index=token.i, kind="plural_noun"))
+        out.append(Candidate(token_index=token.i, kind="plural_noun", cue=_plural_noun_cue(token)))
     return out
 
 
@@ -909,6 +1134,17 @@ def _select_nomen_plural(sentence: TaggedSentence) -> list[Candidate]:
 # werden/the modals, in whichever (Tense, Mood) combination a given topic
 # needs (Präsens indicative, Präteritum indicative, Konjunktiv II).
 # ==============================================================================
+
+
+# The five modals plus the frozen sixth ("möchten") -- exactly the set
+# ``uniqueness.py`` treats as always-interchangeable in a modal slot (its
+# own module docstring's policy table). A modal lemma's own infinitive IS
+# its citation form, and selection into this set already means the lemma
+# matched one of exactly six known, closed values (below), so unlike
+# ``_plural_noun_cue`` there is no separate reliability check to make: a
+# mislemmatised token would simply not be in ``lemmas`` in the first place
+# and never reach here at all.
+_MODAL_LEMMAS_FOR_CUE: frozenset[str] = paradigms.MODAL_LEMMAS | frozenset({"möchten"})
 
 
 def _irregular_finite_selector(
@@ -929,6 +1165,7 @@ def _irregular_finite_selector(
             person, number = token.morph.get("Person"), token.morph.get("Number")
             if not person or not number:
                 continue
+            cue = _citation_cue(lemma, token.text) if lemma in _MODAL_LEMMAS_FOR_CUE else None
             out.append(
                 Candidate(
                     token_index=token.i,
@@ -937,6 +1174,7 @@ def _irregular_finite_selector(
                     person=person,
                     number=number,
                     tense_mood=tense_mood,
+                    cue=cue,
                 )
             )
         return out
@@ -1261,6 +1499,11 @@ def _select_passiv_modalverben(sentence: TaggedSentence) -> list[Candidate]:
                 person=person,
                 number=number,
                 tense_mood=tense,
+                # Unconditional, unlike ``_irregular_finite_selector``'s own
+                # cue: every candidate this selector emits already matched
+                # ``lemma in paradigms.MODAL_LEMMAS`` above, the same closed,
+                # reliable set.
+                cue=_citation_cue(lemma, token.text),
             )
         )
     return out
@@ -1583,8 +1826,8 @@ SELECTORS: dict[str, Selector] = {
     "pronomen_personal_nom": _personal_pronoun_selector("Nom"),
     "pronomen_personal_akk": _personal_pronoun_selector("Acc"),
     "pronomen_personal_dat": _personal_pronoun_selector("Dat"),
-    "verben_reflexiv_akk": _reflexive_selector("Acc", require_accusative_object=False),
-    "verben_reflexiv_dat": _reflexive_selector("Dat", require_accusative_object=True),
+    "verben_reflexiv_akk": _reflexive_selector("Acc"),
+    "verben_reflexiv_dat": _reflexive_selector("Dat"),
     "relativsatz_nom_akk": _relative_pronoun_selector(frozenset({"Nom", "Acc"})),
     "relativsatz_dativ": _relative_pronoun_selector(frozenset({"Dat"})),
     "relativsatz_genitiv": _relative_pronoun_selector(frozenset({"Gen"})),
