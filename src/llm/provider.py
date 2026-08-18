@@ -69,7 +69,7 @@ def _has_configured_api_key() -> bool:
     )
 
 
-def default_llm_provider() -> LlmProvider:
+def default_llm_provider(*, forbid_paid_lane: bool = True) -> LlmProvider:
     """Return the real Gemini client when an API key is configured, else the offline mock.
 
     This is the wiring point CLAUDE.md rule 4 requires: every feature module
@@ -77,9 +77,23 @@ def default_llm_provider() -> LlmProvider:
     defaults to this instead of hardcoding ``MockLlmClient()``, so a configured key
     is actually used, and an unconfigured environment (CI, offline development)
     degrades to the deterministic mock instead of failing.
+
+    ``forbid_paid_lane`` is threaded straight through to ``GeminiLlmClient``
+    (see its docstring and ``PaidLaneForbiddenError``): the owner's lane
+    policy is "no batch for the pilot; batch for scheduled/nightly work; and
+    for the four live feature modules, on demand if a human is waiting on an
+    instant answer or a button click, batch if the work runs on a schedule
+    with nobody watching". Every call site in this codebase that constructs a
+    feature module is on-demand or dual-mode, never purely scheduled, so the
+    default here is ``True`` -- the safe choice that guarantees a synchronous
+    reply rather than silently falling over to a batch job a waiting learner
+    would never see complete in time. Callers that are genuinely scheduled
+    (``WeeklyReportGenerator``'s activity-triggered auto-fire path) pass
+    ``forbid_paid_lane=False`` explicitly for that path only; nothing here
+    changes the default silently under them.
     """
     if _has_configured_api_key():
         from src.llm.client import GeminiLlmClient
 
-        return GeminiLlmClient()
+        return GeminiLlmClient(forbid_paid_lane=forbid_paid_lane)
     return MockLlmClient()

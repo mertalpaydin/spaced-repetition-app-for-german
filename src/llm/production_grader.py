@@ -43,7 +43,10 @@ class ProductionGrader:
     )
 
     def __init__(self, provider: LlmProvider | None = None) -> None:
-        self.provider = provider or default_llm_provider()
+        # Grades the learner's just-submitted text while they wait on the
+        # verdict: synchronous, never a silent batch fallback. See
+        # ``default_llm_provider``'s docstring for the lane-policy rationale.
+        self.provider = provider or default_llm_provider(forbid_paid_lane=True)
 
     def grade_production(
         self,

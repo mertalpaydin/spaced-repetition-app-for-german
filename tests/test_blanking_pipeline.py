@@ -147,6 +147,27 @@ def test_blank_sentences_deduplicates_cross_topic_same_prompt_and_answer() -> No
     assert dropped[0].prompt in kept_prompts
 
 
+def test_blank_sentences_futur_ii_beats_passiv_praesens_on_same_wird_token() -> None:
+    """ "Er wird das Buch gelesen haben." blanks the exact same token
+    ("wird") for both ``passiv_praesens`` (which stops looking after the
+    transitive participle "gelesen") and ``futur_ii`` (which additionally
+    requires, and finds, the trailing aux infinitive "haben") -- a real
+    collision every genuine Futur II sentence with a transitive participle
+    produces, since ``paradigms.TRANSITIVE_LEMMAS`` and the passive reading
+    of "wird" always agree on the same token. Only the more specific topic
+    (``futur_ii``) must keep the item; the general one is dropped and
+    counted, not silently lost -- and the genuine Futur II item must never
+    be the one that disappears."""
+    report = blank_sentences(["Er wird das Buch gelesen haben."])
+    assert report.items_by_topic.get("futur_ii", 0) == 1
+    assert report.items_by_topic.get("passiv_praesens", 0) == 0
+    assert report.cross_topic_duplicates_dropped["passiv_praesens"] == 1
+    dropped = [d for d in report.dropped_details if d.reason == "cross_topic_duplicate"]
+    assert len(dropped) == 1
+    assert dropped[0].topic_id == "passiv_praesens"
+    assert dropped[0].kept_topic_id == "futur_ii"
+
+
 def test_blank_sentences_max_items_per_topic_caps_a_dominant_topic() -> None:
     """Five different sentences all trigger ``pronomen_personal_nom``; a cap
     of 2 must keep exactly 2 and count the other 3 as dropped by the cap,

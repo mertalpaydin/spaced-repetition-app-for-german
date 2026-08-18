@@ -42,7 +42,10 @@ class LiveExplainer:
     )
 
     def __init__(self, provider: LlmProvider | None = None, cache: LlmCache | None = None) -> None:
-        self.provider = provider or default_llm_provider()
+        # A learner just answered and is waiting on this explanation: it must
+        # be synchronous, never silently fall over to a batch job. See
+        # ``default_llm_provider``'s docstring for the lane-policy rationale.
+        self.provider = provider or default_llm_provider(forbid_paid_lane=True)
         self.cache = cache or LlmCache()
         self.cache_hits = 0
         self.cache_misses = 0

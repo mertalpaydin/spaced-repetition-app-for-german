@@ -77,23 +77,45 @@ SPLIT_ACCURACY_GAP: float = 0.40  # facet accuracy spread that flags a candidate
 MODEL_LIVE: str = "gemini-3.5-flash-lite"
 MODEL_GENERATE: str = "gemini-3.5-flash-lite"
 MODEL_VERIFY: str = "gemini-3.7-flash"
-THINKING_VERIFY: str = "low"
+# The project owner's own reading of Google's current documentation: this
+# model's default thinking level is already "medium", so an explicit "medium"
+# here is a deliberate restatement of that default, not a downgrade from some
+# higher setting -- and "or do not set it at all" was the owner's other
+# accepted option, since either produces the same request. This constant is
+# kept (rather than dropped) so the level stays a named, greppable config
+# value instead of an implicit default nobody could find by reading this file.
+THINKING_VERIFY: str = "medium"
 # Gemini 3.5 Flash-Lite supports thinking levels ("minimal", "low", "medium",
 # "high"), superseding the earlier assumption that this model line had no
 # thinking capability at all. Generation quality (the "kauft ich" A1
 # agreement defect: a fronted adverbial forces V2 inversion, and an
 # autoregressive model with no planning step can commit to a high-probability
 # verb form before it has chosen the subject that has to agree with it) is
-# the reason to spend a thinking budget on this workload at all. The level is
-# "low", not "minimal": the project owner confirmed "minimal" is this line's
-# own default, so setting it explicitly bought nothing over leaving thinking
-# unset -- "low" is the smallest level that is actually a step up from doing
-# nothing. Named for, and used only by, the sentence-generation purpose below
-# -- MODEL_LIVE and MODEL_GENERATE are the SAME model string, so this cannot
-# be gated on model id alone without also turning thinking on for
-# explanations, production grading, and the weekly report narrative, none of
-# which this change is about.
-THINKING_GENERATE: str = "low"
+# the reason a thinking budget was first spent on this model at all. The
+# level is "low", not "minimal": the project owner confirmed "minimal" is
+# this line's own default, so setting it explicitly would buy nothing over
+# leaving thinking unset -- "low" is the smallest level that is actually a
+# step up from doing nothing.
+#
+# Renamed from ``THINKING_GENERATE``: that name described a purpose
+# (sentence generation) this constant no longer only governs. The project
+# owner's later instruction was explicit -- "set thinking level to low for
+# all gemini 3.5 flash lite actions" -- so ``GeminiLlmClient._thinking_config_for``
+# now keys on the MODEL rather than on any one purpose. Because ``MODEL_LIVE``
+# and ``MODEL_GENERATE`` are the SAME model string ("gemini-3.5-flash-lite"),
+# this constant now applies to every call on that model: explanations
+# (``src/llm/live_explainer.py``), production grading
+# (``src/llm/production_grader.py``), minimal-pair generation
+# (``src/llm/minimal_pairs.py``), the weekly report narrative
+# (``src/llm/weekly_report.py``), and sentence generation
+# (``src/generation/blanking/sentence_source.py``) alike. This is a reversal
+# of the previous purpose-gate, which existed specifically to keep those
+# other four purposes thinking-OFF -- the owner has now asked for the
+# opposite, so CLAUDE.md section 9's model-routing table and
+# ``docs/audits/stage-00-quota.md``'s routing matrix are stale on this point
+# and need updating to match, flagged rather than silently left
+# contradicting this code.
+THINKING_FLASH_LITE: str = "low"
 # The ``purpose=`` value ``LiveSentenceGenerator.generate`` (src/generation/
 # blanking/sentence_source.py) passes to ``GeminiLlmClient.generate``. Shared
 # as one constant, imported by both that call site and

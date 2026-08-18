@@ -30,7 +30,7 @@ from src.contracts import (
     MODEL_GENERATE,
     MODEL_VERIFY,
     PURPOSE_SENTENCE_GENERATION,
-    THINKING_GENERATE,
+    THINKING_FLASH_LITE,
     THINKING_VERIFY,
 )
 from src.llm.client import (
@@ -974,12 +974,15 @@ def test_generate_many_paid_lane_submits_one_job_for_the_whole_group(tmp_path: P
     assert all('"lane":"paid"' in line for line in lines)
 
 
-def test_generate_many_paid_lane_threads_purpose_into_thinking_config(tmp_path: Path) -> None:
+def test_generate_many_paid_lane_threads_model_into_thinking_config(tmp_path: Path) -> None:
     """``generate_many``'s paid-lane branch builds its ``GenerateContentConfig``
-    once for the whole group, so it must also pass ``purpose`` through to
-    ``_thinking_config_for`` -- otherwise a sentence-generation batch that
-    fell over to the paid lane would silently lose its low-thinking
-    config that the free lane grants it."""
+    once for the whole group, so it must also pass ``model`` through to
+    ``_thinking_config_for`` -- otherwise a ``gemini-3.5-flash-lite`` batch
+    that fell over to the paid lane would silently lose the low-thinking
+    config that the free lane grants it. ``purpose`` no longer gates this
+    (``_thinking_config_for`` keys on model alone), so any purpose exercises
+    the same path; ``PURPOSE_SENTENCE_GENERATION`` is used here only because
+    it is a real, already-defined purpose string."""
     log_file = tmp_path / "cost_log.jsonl"
     client = GeminiLlmClient(
         cost_log_path=log_file, cache_dir=tmp_path / "cache", paid_api_key="fake-paid-key"
@@ -996,7 +999,7 @@ def test_generate_many_paid_lane_threads_purpose_into_thinking_config(tmp_path: 
 
     sent_request = fake_batches.create_calls[0]["src"][0]
     assert sent_request.config.thinking_config.thinking_level == genai_types.ThinkingLevel(
-        THINKING_GENERATE
+        THINKING_FLASH_LITE
     )
 
 
@@ -1144,15 +1147,17 @@ def test_thoughts_token_count_added_to_completion_tokens_when_present(tmp_path: 
     assert row["completion_tokens"] == 35  # 5 candidate tokens + 30 thought tokens
 
 
-def test_thinking_disabled_for_generation_model_on_other_purposes(tmp_path: Path) -> None:
-    """CLAUDE.md 213: most ``gemini-3.5-flash-lite`` calls run with thinking
-    off -- everything on this model EXCEPT the sentence-generation purpose
-    (see ``test_thinking_low_for_sentence_generation_purpose`` below).
-    ``MODEL_LIVE`` and ``MODEL_GENERATE`` are literally the same model
-    string, so this must be tested with a purpose OTHER than
-    ``PURPOSE_SENTENCE_GENERATION`` -- this is exactly what stands in for
-    explanations, production grading, and the weekly report narrative, all of
-    which share this model id and must stay thinking-off.
+def test_thinking_low_for_generation_model_regardless_of_purpose(tmp_path: Path) -> None:
+    """The project owner's instruction ("set thinking level to low for all
+    gemini 3.5 flash lite actions") means ``_thinking_config_for`` keys on
+    ``model`` alone, not on ``purpose``. This used to be the opposite: thinking
+    was gated to the single sentence-generation purpose specifically to keep
+    explanations, production grading, minimal-pair generation, and the weekly
+    report narrative thinking-OFF, since ``MODEL_LIVE`` and ``MODEL_GENERATE``
+    are literally the same model string. The owner has since asked for the
+    reverse, so an arbitrary, non-sentence-generation purpose (standing in for
+    any of those other four call sites) must now also get
+    ``THINKING_FLASH_LITE``, not ``None``.
     """
     client = GeminiLlmClient(
         cost_log_path=tmp_path / "cost_log.jsonl",
@@ -1167,19 +1172,25 @@ def test_thinking_disabled_for_generation_model_on_other_purposes(tmp_path: Path
     client.generate("Prompt", model=MODEL_GENERATE, purpose="unit_test", use_cache=False)
 
     sent_config = fake_models.calls[0]["config"]
-    assert sent_config.thinking_config is None
+    assert sent_config.thinking_config.thinking_level == genai_types.ThinkingLevel(
+        THINKING_FLASH_LITE
+    )
+    assert sent_config.thinking_config.thinking_budget is None
 
 
 def test_thinking_low_for_sentence_generation_purpose(tmp_path: Path) -> None:
-    """The one deliberate exception: ``purpose=PURPOSE_SENTENCE_GENERATION``
-    (what ``LiveSentenceGenerator.generate`` sends, in
-    ``src.generation.blanking.sentence_source``) runs at ``THINKING_GENERATE``
-    ("low"), added after an accepted carrier sentence turned out to carry
-    an A1 subject-verb agreement error the model could not have fixed without
-    any planning step at all. "low", not "minimal", because the project
-    owner confirmed "minimal" is this model line's own default thinking
-    level -- setting it explicitly bought nothing over leaving thinking
-    unset."""
+    """``purpose=PURPOSE_SENTENCE_GENERATION`` (what
+    ``LiveSentenceGenerator.generate`` sends, in
+    ``src.generation.blanking.sentence_source``) runs at
+    ``THINKING_FLASH_LITE`` ("low"), added after an accepted carrier sentence
+    turned out to carry an A1 subject-verb agreement error the model could
+    not have fixed without any planning step at all. "low", not "minimal",
+    because the project owner confirmed "minimal" is this model line's own
+    default thinking level -- setting it explicitly bought nothing over
+    leaving thinking unset. This purpose is no longer special-cased (see
+    ``test_thinking_low_for_generation_model_regardless_of_purpose`` above),
+    but is kept as its own test since it is the purpose that originally
+    motivated turning thinking on for this model at all."""
     client = GeminiLlmClient(
         cost_log_path=tmp_path / "cost_log.jsonl",
         cache_dir=tmp_path / "cache",
@@ -1196,7 +1207,7 @@ def test_thinking_low_for_sentence_generation_purpose(tmp_path: Path) -> None:
 
     sent_config = fake_models.calls[0]["config"]
     assert sent_config.thinking_config.thinking_level == genai_types.ThinkingLevel(
-        THINKING_GENERATE
+        THINKING_FLASH_LITE
     )
     assert sent_config.thinking_config.thinking_budget is None
 

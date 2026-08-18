@@ -136,7 +136,13 @@ class DroppedItem:
 #   of everything ``futur_i``'s "werden + infinitive" shape already checks
 #   for (a rare but real overlap: a transitive-participle-then-aux-infinitive
 #   sentence satisfies both selectors' preconditions on the same "werden"
-#   token).
+#   token). It also beats ``passiv_praesens``: both fire on the same "wird"
+#   token whenever the participle's lemma is in ``paradigms.TRANSITIVE_LEMMAS``
+#   ("Er wird das Buch gelesen haben." -- ``passiv_praesens`` stops looking
+#   after the participle, ``futur_ii`` additionally requires and finds the
+#   trailing aux infinitive "haben" past it). Without this entry a genuine
+#   Futur II item loses the dedup to the passive reading of the same "wird"
+#   and is silently dropped as a cross-topic duplicate.
 # * ``partizip_i_attributiv``/``partizip_ii_attributiv_erweitert`` both
 #   require the ``ADJA`` token's lemma to be a recognised participle;
 #   ``adjektivdeklination_*`` accepts any ``ADJA`` with a resolvable
@@ -149,7 +155,7 @@ _SPECIFICITY_OVERRIDES: dict[str, frozenset[str]] = {
     "plusquamperfekt": frozenset({"praeteritum_sein_haben_modal"}),
     "zustandspassiv": frozenset({"verb_sein_haben"}),
     "zustandspassiv_zeiten": frozenset({"praeteritum_sein_haben_modal", "verb_sein_haben"}),
-    "futur_ii": frozenset({"futur_i"}),
+    "futur_ii": frozenset({"futur_i", "passiv_praesens"}),
     "partizip_i_attributiv": frozenset(
         {
             "adjektivdeklination_bestimmt",

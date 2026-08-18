@@ -61,7 +61,18 @@ class MinimalPairGenerator:
     }
 
     def __init__(self, provider: LlmProvider | None = None) -> None:
-        self.provider = provider or default_llm_provider()
+        # A minimal-pair drill is exercise content and could, in principle, be
+        # prepared ahead of time on the batch lane -- but ``get_or_generate_drill``
+        # is a single ad-hoc call for one ``confusion_group``, made synchronously
+        # in request/response style, not batched with other drills the way
+        # nightly item generation batches whole topic requests together
+        # (``src/generation/batch_client.py``). Nothing in this codebase calls
+        # it from a scheduled/nightly context; every existing and plausible
+        # caller (a duel needing a contrast drill for a confusion group right
+        # now) is a learner mid-session, waiting on the result. On demand,
+        # like ``LiveExplainer`` and ``ProductionGrader``, until a genuine
+        # batch-prep call site exists that can justify relaxing this.
+        self.provider = provider or default_llm_provider(forbid_paid_lane=True)
 
     def get_or_generate_drill(self, confusion_group: str) -> MinimalPairDrill | None:
         """Retrieve a pre-seeded drill, else generate one, else return ``None``.

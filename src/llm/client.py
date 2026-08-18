@@ -21,8 +21,7 @@ from src.contracts import (
     MODEL_GENERATE,
     MODEL_LIVE,
     MODEL_VERIFY,
-    PURPOSE_SENTENCE_GENERATION,
-    THINKING_GENERATE,
+    THINKING_FLASH_LITE,
     THINKING_VERIFY,
 )
 from src.llm.cache import LlmCache
@@ -505,39 +504,57 @@ class GeminiLlmClient:
             raise ValueError(f"_get_sdk_client has no client for lane={lane!r}")
 
     def _thinking_config_for(self, model: str, purpose: str) -> genai_types.ThinkingConfig | None:
-        """Thinking is off everywhere except the ``gemini-3.7-flash`` verify
-        workload and the sentence-generation workload, which now runs at the
-        ``THINKING_GENERATE`` ("low") level.
+        """Thinking is keyed on ``model`` alone, not on ``purpose``: the
+        ``gemini-3.7-flash`` verify workload runs at ``THINKING_VERIFY``
+        ("medium"), and every call on ``gemini-3.5-flash-lite`` -- i.e. every
+        call with ``model == MODEL_GENERATE`` or, equivalently,
+        ``model == MODEL_LIVE``, since the two are the same string -- runs at
+        ``THINKING_FLASH_LITE`` ("low").
 
         CLAUDE.md 213: thinking tokens bill as output and can multiply the
-        largest cost line severalfold, so most generation runs with thinking
-        disabled. ``MODEL_VERIFY`` uses ``THINKING_VERIFY``; the sentence
-        carrier generator (``purpose=PURPOSE_SENTENCE_GENERATION``, see
-        ``src.generation.blanking.sentence_source.LiveSentenceGenerator``) now
-        uses ``THINKING_GENERATE``, added deliberately after an accepted
-        carrier ("Auf dem Weg kauft ich ... ein.") turned out to have an A1
-        subject-verb agreement error: German V2 inversion after a fronted
-        adverbial puts the finite verb before the subject, and an
-        autoregressive model with no planning step can already have committed
-        to the (statistically far more common) third-person verb form before
-        it writes a first-person subject that no longer agrees with it. A
-        thinking budget gives the model a chance to plan the sentence's
-        subject before committing to the verb's agreement.
+        largest cost line severalfold, which is why a thinking level is a
+        named config value here rather than left to each caller. It is not,
+        by itself, a reason to gate thinking off for any particular purpose;
+        that judgement is the project owner's to make, and the owner's
+        instruction ("set thinking level to low for all gemini 3.5
+        flash-lite actions") is to apply it uniformly across the model.
 
-        The level is ``THINKING_GENERATE`` ("low"), not "minimal": the
+        History: thinking was first turned on for this model line for one
+        purpose only, sentence generation, after an accepted carrier ("Auf
+        dem Weg kauft ich ... ein.") turned out to have an A1 subject-verb
+        agreement error -- German V2 inversion after a fronted adverbial puts
+        the finite verb before the subject, and an autoregressive model with
+        no planning step can already have committed to the (statistically
+        far more common) third-person verb form before it writes a
+        first-person subject that no longer agrees with it. A thinking
+        budget gives the model a chance to plan the sentence's subject before
+        committing to the verb's agreement. That fix was deliberately gated
+        on ``purpose == PURPOSE_SENTENCE_GENERATION`` rather than on model id
+        alone, specifically to AVOID turning thinking on for explanations,
+        production grading, minimal-pair generation, and the weekly report
+        narrative -- all of which share this model id via ``MODEL_LIVE``.
+
+        The project owner has since asked for the opposite: thinking on for
+        every action on this model, not only sentence generation. The
+        purpose gate is therefore removed here. This reverses CLAUDE.md
+        section 9's model-routing table and ``docs/audits/stage-00-quota.md``'s
+        routing matrix, both of which still list explanations, production
+        grading, the weekly report, item generation, and the topic-leak
+        check as thinking "off" for this model -- flagged here rather than
+        silently left contradicting this code (CLAUDE.md rule 8); those
+        documents need an explicit update pass to match.
+
+        The level is ``THINKING_FLASH_LITE`` ("low"), not "minimal": the
         project owner confirmed "minimal" is this Flash-Lite line's own
-        default thinking level, so setting it explicitly, as this code used
-        to do, was a no-op -- it bought no planning step over leaving
-        thinking unset, which is exactly the failure this change exists to
-        avoid. "low" is the smallest level that is actually a step up from
-        the model's default.
+        default thinking level, so setting it explicitly to "minimal" would
+        be a no-op that buys no planning step over leaving thinking unset.
+        "low" is the smallest level that is actually a step up from the
+        model's default.
 
-        This is gated on ``purpose``, not on ``model`` alone, because
-        ``MODEL_LIVE`` and ``MODEL_GENERATE`` are literally the same model
-        string ("gemini-3.5-flash-lite") -- gating on model id alone would
-        also turn thinking on for explanations, production grading, and the
-        weekly report narrative, none of which this change is about and all
-        of which CLAUDE.md's routing table still lists as thinking "off".
+        ``purpose`` remains a parameter (rather than being dropped) because
+        every call site already threads it through for cost-log attribution,
+        and dropping it here only to have every caller keep passing it would
+        be needless churn for no behavioural gain.
 
         Historical note, corrected: this docstring used to claim that
         ``gemini-3.5-flash-lite`` "has no thinking capability at all" and that
@@ -546,16 +563,14 @@ class GeminiLlmClient:
         claim is now known to be stale: Google's current documentation states
         the Flash-Lite line supports thinking levels ``minimal``, ``low``,
         ``medium``, and ``high`` (``minimal`` is the documented default for
-        this line -- which is exactly why generation now asks for ``low``
-        instead: an explicit ``minimal`` would only restate the default and
-        buy nothing). A single live probe call (gemini-3.5-flash-lite,
+        this line). A single live probe call (gemini-3.5-flash-lite,
         thinking_config with thinking_level=LOW) was attempted to re-confirm
         this directly against the live endpoint, per the one-call budget for
-        this change, but the sandboxed environment's egress proxy refused the
-        connection to generativelanguage.googleapis.com outright (403, an
-        organisational policy denial reported by the proxy itself, not a
-        response from Gemini) -- so the call never reached Google's API at
-        all, and this specific claim could not be re-verified live in this
+        that earlier change, but the sandboxed environment's egress proxy
+        refused the connection to generativelanguage.googleapis.com outright
+        (403, an organisational policy denial reported by the proxy itself,
+        not a response from Gemini) -- so the call never reached Google's API
+        at all, and this specific claim could not be re-verified live in that
         environment. The change is made on the strength of the project
         owner's own reading of Google's current documentation, cited above,
         not on a live confirmation; whoever next has real network access to
@@ -566,9 +581,9 @@ class GeminiLlmClient:
             return genai_types.ThinkingConfig(
                 thinking_level=genai_types.ThinkingLevel(THINKING_VERIFY)
             )
-        if model == MODEL_GENERATE and purpose == PURPOSE_SENTENCE_GENERATION:
+        if model == MODEL_GENERATE:
             return genai_types.ThinkingConfig(
-                thinking_level=genai_types.ThinkingLevel(THINKING_GENERATE)
+                thinking_level=genai_types.ThinkingLevel(THINKING_FLASH_LITE)
             )
         return None
 
