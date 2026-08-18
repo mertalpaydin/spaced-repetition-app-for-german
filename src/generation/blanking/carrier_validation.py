@@ -101,6 +101,108 @@ Semantic incoherence (a sentence that parses and agrees but makes no sense)
 is explicitly out of scope -- not mechanically checkable, per the task that
 commissioned this module.
 
+## Cycle 5 additions: adjective declension, dass/das, Swiss spelling
+
+`docs/audits/cycle-04-report.md` found two error classes the checks above
+never looked at, plus one seen once. All three are real, mechanically-checked
+properties, not semantic proxies -- but each has an honestly-scoped limit,
+recorded here rather than left implicit:
+
+4. **Attributive adjective declension after its determiner.** An attributive
+   adjective's ending is fixed by what precedes it: weak after a definite
+   article, mixed after an ein-word (indefinite article, negation, or
+   possessive), strong after a quantifier such as "viele"/"einige"/
+   "mehrere"/"wenige" or after nothing at all. The three ending tables
+   (`paradigms.ADJ_ENDING_BY_CELL`) are reused, not duplicated, exactly as
+   this package's own convention requires.
+
+   The hard part is Case. "die" is nominative-or-accusative, singular
+   feminine or plural-any-gender; "der" is masculine nominative, feminine
+   dative-or-genitive, or genitive plural -- and a determiner never carries
+   enough information on its own to pick one reading. This check never
+   guesses: it reads the head noun's own Gender and Number off spaCy (both
+   are lexical facts about the noun, not context-dependent the way Case is,
+   so they are trustworthy here the same way Number already is for
+   subject-verb agreement), enumerates EVERY Case reading consistent with
+   the determiner's own surface form under that Gender/Number, and only
+   rejects when the adjective's actual ending matches NONE of them --
+   impossible under every reading, never merely improbable under the most
+   likely one. Where the determiner's own surface form cannot be classified
+   at all (an unrecognised word, or an ein-word ending the paradigm has no
+   plural Nominative/Accusative row for -- see `paradigms.py`'s own
+   docstring on that exact gap), the check is skipped for that noun phrase
+   rather than guessed. Deliberately narrow scope, to keep false positives
+   at zero: only `ART` (definite and indefinite article), `PPOSAT`
+   (possessive), and `PIAT` (the closed quantifier set, plus `kein`-family
+   words, which `de_core_news_sm` also tags `PIAT`) are read as determiners;
+   a demonstrative (`dieser`), `jeder`/`manche` (`PIDAT`), or a determiner
+   fused into a preposition ("im", "zum") are not recognised at all, so an
+   adjective after one of those falls through to the "no determiner found"
+   branch, which checks against all four cases and is correspondingly
+   looser (it still catches a wrong DECLENSION family, e.g. a weak "-en"
+   ending where every strong reading needs "-er"/"-es"/"-em", just not
+   every wrong CASE within the strong paradigm). The adjective's own ending
+   is read off its literal surface suffix, not off spaCy's morphology:
+   verified empirically that the morphologizer assigns a wrong attributive
+   adjective ("nassen" where "nasse" was needed) the SAME Case/Gender/Number
+   features as the correct form would have gotten, because it infers those
+   features from the surrounding noun phrase rather than from the
+   adjective's own ending -- exactly the case this check exists to catch,
+   so trusting that feature would silently defeat the check.
+
+5. **`dass` written where `das` belongs.** `dass` (`KOUS`, introducing a
+   clause attached with a `cp` dependency) can never itself fill a
+   grammatical role inside its own clause; every argument slot the clause's
+   verb needs must be filled from words already inside the clause. `das`
+   used as a relative pronoun is different: it IS one of those arguments,
+   referring back to an antecedent outside the clause. The reliable signal
+   is a gap: a clause introduced by `dass` whose verb is missing an argument
+   it structurally needs is exactly the shape a wrongly-typed `dass` leaves
+   behind, because the relative pronoun that should have filled that slot
+   is gone.
+
+   **This catches exactly one direction, and only for a closed, two-verb
+   list.** Knowing which verbs need which argument (transitivity/valency)
+   is not something spaCy's dependency labels give for free, and German
+   verbs are unusually promiscuous about dropping objects when the context
+   allows it ("Ich lese." is fine; "Ich esse." is fine) -- a general
+   "verb X normally takes an object" rule would misfire constantly against
+   ordinary, correct German. So this checks only `kaufen` and `schenken`,
+   picked because the audit's own example uses one of them and both are
+   about as close to obligatorily transitive as German verbs get in
+   ordinary written prose. A `dass`-clause whose content verb (walking down
+   any auxiliary/modal `oc` chain to find it, so "..., dass sie es gekauft
+   hatten" is checked on "gekauft", not "hatten") lemmatises to one of
+   those two AND has no accusative object (`oa`/`oa2`) child is rejected.
+   A verb carrying its own separable-prefix particle (`svp`, e.g.
+   "einkaufen" split as "kauft ... ein") is excluded first: it is a
+   different verb with different valency, not a transitivity gap in
+   "kaufen" itself. **The reverse error -- `das` written where a real
+   `dass`-complement clause was meant -- is NOT caught.** Confirming that
+   direction needs knowing which verbs take a sentential complement at all
+   (`glauben`, `wissen`, `sagen`, `hoffen`, ... an open, much larger lexical
+   class than "which two verbs are obligatorily transitive"), which this
+   module does not attempt to enumerate.
+
+6. **Swiss `ss` for standard `ß`.** Seen once (`heisse` for `heiße`). The
+   general rule -- `ß` after a long vowel or diphthong, `ss` after a short
+   one -- is exactly the kind of thing this module refuses to guess at
+   without a word list: "Fluss", "dass", and "muss" are correct with `ss`
+   precisely because their vowel is short, and nothing in the surface
+   spelling of a single vowel letter reliably says whether German
+   pronounces it long or short (contrast "Fluss" short /background of "u"
+   vs. "Fuß" long, spelled with the same single letter "u"). Flagging every
+   `ss` would reject a large fraction of genuinely correct sentences, and
+   this module has no vetted word list of which lemmas take `ß` to consult
+   instead, so **no general ss/ß rule is implemented.** What IS implemented
+   is much narrower and needs no word list at all: a fixed, closed set of
+   literal Swiss-spelled surface forms of exactly one verb, "heißen"
+   ("heisse", "heisst", "heissen", "heissend", "hiess", "hiessen",
+   "geheissen"), matched on the raw sentence text before spaCy ever sees
+   it. "heißen" always takes `ß` in every standard-German form regardless
+   of context, so there is no ambiguity to misjudge for this one closed
+   list, but it catches nothing outside these seven forms.
+
 ## Why this module loads its own spaCy pipeline
 
 ``src.taxonomy.tagger`` and ``src.generation.blanking.sentence_tagger`` both
@@ -123,6 +225,15 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
+from src.generation.blanking.paradigms import (
+    ADJ_ENDING_BY_CELL,
+    DEFINITE_ARTICLE_BY_CELL,
+    EIN_ENDING_BY_CELL,
+    Cell,
+    Declension,
+    adjective_ending,
+    match_ein_word,
+)
 from src.taxonomy.tagger import MODEL_NAME
 
 if TYPE_CHECKING:
@@ -143,6 +254,9 @@ REASON_MISSING_CLAUSE_CONNECTOR = "missing_clause_connector"
 REASON_NO_SUBJECT_FOUND = "no_subject_found"
 REASON_AGREEMENT_UNDECIDABLE = "agreement_undecidable"
 REASON_SUBJECT_VERB_DISAGREEMENT = "subject_verb_disagreement"
+REASON_ADJECTIVE_DECLENSION_MISMATCH = "adjective_declension_mismatch"
+REASON_DASS_CLAUSE_MISSING_OBJECT = "dass_clause_missing_object"
+REASON_SWISS_SPELLING = "swiss_spelling"
 
 # STTS fine-grained tags for a finite verb: full verb, auxiliary, modal, and
 # their imperative counterparts (imperative is a finite mood, not a
@@ -176,6 +290,15 @@ _CONTINUATION_EXPECTING_TAGS: frozenset[str] = frozenset(
 
 _TERMINAL_PUNCTUATION = re.compile(r"[.!?…]['\"”’)]*\s*$")
 _MIN_TOKEN_COUNT = 3
+
+# A fixed, closed list of literal Swiss-spelled surface forms of "heißen" --
+# not a general ss/ß rule (see module docstring section 6 for why a general
+# rule is not implemented). Word-boundary matched, case-insensitive, on the
+# raw text, so no parse is needed to evaluate this one.
+_SWISS_HEISSEN_PATTERN = re.compile(
+    r"\b(?:heissend|heissen|heisst|heisse|hiessen|hiess|geheissen)\b",
+    re.IGNORECASE,
+)
 
 
 @lru_cache(maxsize=1)
@@ -256,14 +379,17 @@ def _is_finite(token: SpacyToken) -> bool:
 
 def _sentence_shape_reason(text: str) -> str | None:
     """Cheap, parser-free structural checks: capitalisation, terminal
-    punctuation. Run before spaCy touches the sentence at all, since these
-    never need a parse to decide."""
+    punctuation, and the closed Swiss-spelling word list. Run before spaCy
+    touches the sentence at all, since none of these need a parse to
+    decide."""
     stripped = text.strip()
     first_alpha = next((ch for ch in stripped if ch.isalpha()), None)
     if first_alpha is not None and not first_alpha.isupper():
         return REASON_NOT_CAPITALIZED
     if not _TERMINAL_PUNCTUATION.search(stripped):
         return REASON_NO_TERMINAL_PUNCTUATION
+    if _SWISS_HEISSEN_PATTERN.search(stripped):
+        return REASON_SWISS_SPELLING
     return None
 
 
@@ -443,6 +569,229 @@ def _dangling_fragment_reason(tokens: list[SpacyToken]) -> str | None:
     return None
 
 
+def _reverse_form_to_cells(cell_to_form: dict[Cell, str]) -> dict[str, tuple[Cell, ...]]:
+    """Invert a ``cell -> surface form`` paradigm dict from ``paradigms.py``
+    into ``surface form -> every cell that produces it``, so a determiner's
+    OWN surface text can be read back into the set of grammatical cells it
+    is consistent with -- the genuine ambiguity (e.g. "der" is Nom Masc Sing
+    or Dat/Gen Fem Sing or Gen Plur) that the adjective-declension check
+    below must enumerate rather than guess past."""
+    reverse: dict[str, list[Cell]] = {}
+    for cell, form in cell_to_form.items():
+        reverse.setdefault(form, []).append(cell)
+    return {form: tuple(cells) for form, cells in reverse.items()}
+
+
+_DEFINITE_ARTICLE_CELLS_BY_FORM: dict[str, tuple[Cell, ...]] = _reverse_form_to_cells(
+    DEFINITE_ARTICLE_BY_CELL
+)
+_EIN_ENDING_CELLS_BY_ENDING: dict[str, tuple[Cell, ...]] = _reverse_form_to_cells(
+    EIN_ENDING_BY_CELL
+)
+
+
+def _strong_plural_ending_to_cases() -> dict[str, frozenset[str]]:
+    """Derive ``ending -> {Case, ...}`` for the PLURAL rows of the strong
+    adjective paradigm from ``paradigms.ADJ_ENDING_BY_CELL`` -- not a new
+    fact, just a regrouping of the same table already imported, used to read
+    a plural quantifier's OWN ending (below) back into the Case(s) it is
+    consistent with. Strong plural endings do not vary by Gender, so this
+    collapses Gender away entirely."""
+    reverse: dict[str, set[str]] = {}
+    for (case, _gender, number), ending in ADJ_ENDING_BY_CELL["strong"].items():
+        if number == "Plur":
+            reverse.setdefault(ending, set()).add(case)
+    return {ending: frozenset(cases) for ending, cases in reverse.items()}
+
+
+_STRONG_PLURAL_ENDING_TO_CASES: dict[str, frozenset[str]] = _strong_plural_ending_to_cases()
+
+# The closed set of plural quantifiers that trigger STRONG adjective
+# endings (CLAUDE.md task: "viele", "einige", "mehrere", "wenige"). Each
+# declines exactly like a strong plural adjective/article on this same
+# stem ("viele"/"vielen"/"vieler"), so matching stem + a strong-plural
+# ending is sufficient to read off which Case(s) the quantifier's own
+# surface form is consistent with.
+_STRONG_QUANTIFIER_STEMS: tuple[str, ...] = ("viel", "wenig", "einig", "mehrer")
+
+
+def _match_strong_quantifier(text: str) -> str | None:
+    """The quantifier's own strong-plural ending ("e"/"en"/"er"), or
+    ``None`` if ``text`` does not match one of the closed quantifier stems
+    with a recognised strong-plural ending."""
+    lower = text.strip().lower()
+    for stem in _STRONG_QUANTIFIER_STEMS:
+        if lower.startswith(stem):
+            ending = lower[len(stem) :]
+            if ending in _STRONG_PLURAL_ENDING_TO_CASES:
+                return ending
+    return None
+
+
+# The only endings any of the three adjective declension paradigms ever
+# assign (checked longest-first purely so a 2-letter ending is identified
+# over a coincidental trailing "e" -- the sets are otherwise disjoint, since
+# none of "em"/"en"/"es"/"er" ends in "e").
+_ADJ_SURFACE_ENDINGS: tuple[str, ...] = ("em", "en", "es", "er", "e")
+
+
+def _adjective_surface_ending(text: str) -> str | None:
+    """The attributive adjective's OWN ending, read off its literal surface
+    suffix -- never off spaCy's morphology (see module docstring: the
+    morphologizer assigns a wrong ending the SAME features the right one
+    would have gotten, because it infers Case/Gender/Number from the noun
+    phrase's context, not from the adjective's own spelling)."""
+    lower = text.strip().lower()
+    for ending in _ADJ_SURFACE_ENDINGS:
+        if len(lower) > len(ending) and lower.endswith(ending):
+            return ending
+    return None
+
+
+_ATTRIBUTIVE_DETERMINER_TAGS: frozenset[str] = frozenset({"ART", "PIAT", "PPOSAT"})
+
+
+def _declension_for_determiner(
+    det: SpacyToken, noun_gender: str, noun_number: str
+) -> tuple[Declension, frozenset[str]] | None:
+    """The declension family an attributive adjective must follow given its
+    determiner ``det``, and every Case that determiner's own surface form is
+    consistent with for a head noun of ``noun_gender``/``noun_number`` --
+    ``None`` if ``det`` cannot be confidently classified at all (an
+    unrecognised surface form, or a paradigm gap such as the ein-word
+    family's missing Nominative/Accusative plural row), in which case the
+    caller skips the check for this noun phrase rather than guesses."""
+    feats = dict(det.morph.to_dict())
+    if det.tag_ == "ART" and feats.get("Definite") == "Def":
+        cells = _DEFINITE_ARTICLE_CELLS_BY_FORM.get(det.text.strip().lower(), ())
+        cases = frozenset(c[0] for c in cells if c[1] == noun_gender and c[2] == noun_number)
+        return ("weak", cases) if cases else None
+
+    if det.tag_ == "PIAT":
+        quantifier_ending = _match_strong_quantifier(det.text)
+        if quantifier_ending is not None:
+            return ("strong", _STRONG_PLURAL_ENDING_TO_CASES[quantifier_ending])
+        # Falls through to the ein-word family: de_core_news_sm tags
+        # "kein"/"keine"/... as PIAT too, not ART, and "kein" takes the
+        # same mixed declension as "ein"/"mein"/... .
+
+    if det.tag_ in ("ART", "PPOSAT", "PIAT"):
+        match = match_ein_word(det.text)
+        if match is None:
+            return None
+        _stem, ending = match
+        cells = _EIN_ENDING_CELLS_BY_ENDING.get(ending, ())
+        cases = frozenset(c[0] for c in cells if c[1] == noun_gender and c[2] == noun_number)
+        return ("mixed", cases) if cases else None
+
+    return None
+
+
+def _adjective_declension_reason(tokens: list[SpacyToken]) -> str | None:
+    """Attributive adjective declension: an adjective's ending must be a
+    member of the declension family its determiner selects (weak/mixed/
+    strong), for at least one Case reading consistent with the determiner's
+    own surface form and the head noun's real Gender/Number. See the module
+    docstring section 4 for the full reasoning and the deliberately narrow
+    scope (only ``ART``/``PPOSAT``/``PIAT`` determiners are recognised; a
+    determiner-less noun phrase is checked as strong across all four Cases,
+    which is looser but never wrong)."""
+    for noun in tokens:
+        if noun.pos_ not in ("NOUN", "PROPN"):
+            continue
+        noun_feats = dict(noun.morph.to_dict())
+        noun_gender = noun_feats.get("Gender")
+        noun_number = noun_feats.get("Number")
+        if noun_gender is None or noun_number is None:
+            continue
+
+        adjectives = [c for c in noun.children if c.dep_ == "nk" and c.tag_ == "ADJA"]
+        if not adjectives:
+            continue
+
+        determiners = [
+            c for c in noun.children if c.dep_ == "nk" and c.tag_ in _ATTRIBUTIVE_DETERMINER_TAGS
+        ]
+        if len(determiners) == 1:
+            resolved = _declension_for_determiner(determiners[0], noun_gender, noun_number)
+            if resolved is None:
+                continue
+            declension, cases = resolved
+        elif len(determiners) == 0:
+            declension, cases = "strong", frozenset({"Nom", "Acc", "Dat", "Gen"})
+        else:
+            # More than one determiner-tagged child of one noun is not a
+            # shape this check anticipates; skip rather than guess which one
+            # governs the adjective.
+            continue
+
+        candidate_endings = {
+            ending
+            for case in cases
+            if (ending := adjective_ending(declension, (case, noun_gender, noun_number)))
+            is not None
+        }
+        if not candidate_endings:
+            continue
+
+        for adjective in adjectives:
+            actual_ending = _adjective_surface_ending(adjective.text)
+            if actual_ending is not None and actual_ending not in candidate_endings:
+                return REASON_ADJECTIVE_DECLENSION_MISMATCH
+    return None
+
+
+# The closed, two-verb list task 5 (module docstring) is scoped to: about as
+# close to obligatorily transitive as German verbs get in ordinary written
+# prose, so a missing accusative object is a reliable gap signal rather than
+# the normal object-dropping German otherwise tolerates freely.
+_DASS_CLAUSE_TRANSITIVE_LEMMAS: frozenset[str] = frozenset({"kaufen", "schenken"})
+
+
+def _content_verb(finite_verb: SpacyToken) -> SpacyToken:
+    """Walk down an auxiliary/modal ``oc`` chain to the deepest verb/aux
+    carrying the clause's real lexical content (e.g. "gekauft" inside
+    "..., dass sie es gekauft hatten"), or ``finite_verb`` itself if there is
+    no such chain. Depth-bounded via the visited set purely as a defensive
+    guard against a malformed parse creating a cycle."""
+    current = finite_verb
+    seen = {current.i}
+    while True:
+        content_children = [
+            c for c in current.children if c.dep_ == "oc" and c.pos_ in ("VERB", "AUX")
+        ]
+        if len(content_children) != 1 or content_children[0].i in seen:
+            return current
+        current = content_children[0]
+        seen.add(current.i)
+
+
+def _dass_clause_reason(tokens: list[SpacyToken]) -> str | None:
+    """``dass`` versus ``das``: see module docstring section 5 for the full
+    reasoning. Catches only "dass" written where relative "das" belongs, and
+    only when the clause's content verb is one of a closed two-verb list
+    that has no accusative object at all -- the gap the missing relative
+    pronoun leaves behind. Does not catch the reverse error."""
+    for kous in tokens:
+        if kous.tag_ != "KOUS" or kous.dep_ != "cp" or kous.text.strip().lower() != "dass":
+            continue
+        finite_verb = kous.head
+        if not _is_finite(finite_verb):
+            continue
+        content_verb = _content_verb(finite_verb)
+        if content_verb.lemma_ not in _DASS_CLAUSE_TRANSITIVE_LEMMAS:
+            continue
+        if any(c.dep_ == "svp" for c in content_verb.children):
+            # A separable-prefix compound (e.g. "kaufen" + "ein" ->
+            # "einkaufen") is a different verb with different valency, not a
+            # transitivity gap in "kaufen"/"schenken" themselves.
+            continue
+        has_object = any(c.dep_ in ("oa", "oa2") for c in content_verb.children)
+        if not has_object:
+            return REASON_DASS_CLAUSE_MISSING_OBJECT
+    return None
+
+
 def validate_carrier(sentence: str) -> CarrierValidation:
     """Validate one plain, generated German sentence as a sound carrier.
 
@@ -487,6 +836,14 @@ def validate_carrier(sentence: str) -> CarrierValidation:
         agreement_reason = _subject_agreement_reason(verb)
         if agreement_reason is not None:
             return CarrierValidation(sentence, False, agreement_reason)
+
+    declension_reason = _adjective_declension_reason(tokens)
+    if declension_reason is not None:
+        return CarrierValidation(sentence, False, declension_reason)
+
+    dass_reason = _dass_clause_reason(tokens)
+    if dass_reason is not None:
+        return CarrierValidation(sentence, False, dass_reason)
 
     return CarrierValidation(sentence, True, None)
 

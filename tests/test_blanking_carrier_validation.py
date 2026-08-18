@@ -252,6 +252,220 @@ def test_validate_carrier_accepts_formal_imperative_with_explicit_subject() -> N
     assert result.accepted, result.reason
 
 
+# -- Adjective declension after its determiner (cycle-04-report.md,
+# "carrier validation misses two error classes") ---------------------------
+
+
+def test_validate_carrier_rejects_the_pilot_viele_nassen_bug() -> None:
+    """The exact real example from the pilot audit: "viele" is a plural
+    quantifier, which takes STRONG adjective endings ("viele nasse
+    Blätter"), not the weak/mixed "-en" of "nassen"."""
+    result = cv.validate_carrier(
+        "Auf dem Boden lagen viele nassen Blätter, die ich heute Morgen sofort wegfegte."
+    )
+    assert not result.accepted
+    assert result.reason == cv.REASON_ADJECTIVE_DECLENSION_MISMATCH
+
+
+def test_validate_carrier_accepts_the_corrected_viele_nasse_sentence() -> None:
+    result = cv.validate_carrier(
+        "Auf dem Boden lagen viele nasse Blätter, die ich heute Morgen sofort wegfegte."
+    )
+    assert result.accepted, result.reason
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Mehrere neue Autos stehen dort.",
+        "Einige junge Männer kamen spät.",
+        "Wenige gute Freunde bleiben treu.",
+    ],
+)
+def test_validate_carrier_accepts_correct_strong_ending_after_quantifier(sentence: str) -> None:
+    result = cv.validate_carrier(sentence)
+    assert result.accepted, result.reason
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Mehrere neuen Autos stehen dort.",
+        "Einige jungen Männer kamen spät.",
+        "Wenige guten Freunde bleiben treu.",
+    ],
+)
+def test_validate_carrier_rejects_weak_ending_after_quantifier(sentence: str) -> None:
+    result = cv.validate_carrier(sentence)
+    assert not result.accepted
+    assert result.reason == cv.REASON_ADJECTIVE_DECLENSION_MISMATCH
+
+
+def test_validate_carrier_rejects_wrong_ending_after_definite_article() -> None:
+    """Weak declension: a definite article forces "-e" here, not "-en"."""
+    result = cv.validate_carrier("Der alten Mann geht spazieren.")
+    assert not result.accepted
+    assert result.reason == cv.REASON_ADJECTIVE_DECLENSION_MISMATCH
+
+
+def test_validate_carrier_rejects_wrong_ending_after_indefinite_article() -> None:
+    """Mixed declension: "ein" (Nom Neut Sing) forces "-es" here, not the
+    weak/plural-shaped "-e"."""
+    result = cv.validate_carrier("Ein kleine Kind spielt im Garten.")
+    assert not result.accepted
+    assert result.reason == cv.REASON_ADJECTIVE_DECLENSION_MISMATCH
+
+
+def test_validate_carrier_rejects_wrong_ending_with_no_determiner_at_all() -> None:
+    """Strong declension applies with zero article; "Kaffee" is masculine,
+    so "-es" (neuter) is impossible under every reading."""
+    result = cv.validate_carrier("Frisches Kaffee schmeckt gut.")
+    assert not result.accepted
+    assert result.reason == cv.REASON_ADJECTIVE_DECLENSION_MISMATCH
+
+
+def test_validate_carrier_rejects_wrong_ending_after_kein() -> None:
+    """ "kein" tags as PIAT in de_core_news_sm (not ART), but still takes
+    the "ein"-family mixed declension, not the neuter "-es" tried here on a
+    masculine noun."""
+    result = cv.validate_carrier("Kein nettes Mensch würde das tun.")
+    assert not result.accepted
+    assert result.reason == cv.REASON_ADJECTIVE_DECLENSION_MISMATCH
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        # "die": Fem Sing Nom/Acc, or Plur Nom/Acc (any gender) -- genuinely
+        # ambiguous from the determiner alone, resolved here by the noun's
+        # own Number, and correct under either resulting reading.
+        "Die junge Frau lächelt freundlich.",
+        "Ich sehe die junge Frau im Park.",
+        "Die jungen Frauen lächeln freundlich.",
+        "Ich sehe die jungen Frauen im Park.",
+        # "der": Masc Sing Nom, Fem Sing Dat/Gen, or Gen Plur (any gender) --
+        # every one of those readings is correct here; none may be flagged.
+        "Der junge Mann lächelt freundlich.",
+        "Ich helfe der jungen Frau im Park.",
+        "Die Farbe der jungen Frau gefällt mir.",
+        "Die Farben der jungen Blumen gefallen mir.",
+    ],
+)
+def test_validate_carrier_does_not_false_accuse_genuinely_ambiguous_determiners(
+    sentence: str,
+) -> None:
+    """The false-accusation trap the task warned about: only reject a
+    combination impossible under EVERY reading, never one that merely looks
+    odd under the first reading tried."""
+    result = cv.validate_carrier(sentence)
+    assert result.accepted, f"{sentence!r}: {result.reason}"
+
+
+def test_validate_carrier_skips_coordinated_second_adjective_without_misfiring() -> None:
+    """ "kluge" attaches to "und", not to "Mann", as a coordinated conjunct
+    ("cj") rather than a direct "nk" child -- a known, documented gap (the
+    second conjunct in a coordinated adjective pair is not checked at all).
+    Whether or not it is checked, this correct sentence must not be
+    rejected."""
+    result = cv.validate_carrier("Der alte und kluge Mann lächelt freundlich.")
+    assert result.accepted, result.reason
+
+
+# -- "dass" versus "das" (cycle-04-report.md, same section) -----------------
+
+
+def test_validate_carrier_rejects_the_pilot_dass_das_bug() -> None:
+    """The exact real example from the pilot audit: "dass" cannot fill a
+    grammatical role in its own clause, but "gekauft" here has no
+    accusative object at all -- the gap the relative pronoun "das" should
+    have filled."""
+    result = cv.validate_carrier(
+        "Sie haben Ihren Mitreisenden ein Souvenir geschenkt, "
+        "dass Sie auf dem Markt gekauft hatten."
+    )
+    assert not result.accepted
+    assert result.reason == cv.REASON_DASS_CLAUSE_MISSING_OBJECT
+
+
+def test_validate_carrier_accepts_the_corrected_das_relative_clause() -> None:
+    result = cv.validate_carrier(
+        "Sie haben Ihren Mitreisenden ein Souvenir geschenkt, das Sie auf dem Markt gekauft hatten."
+    )
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_accepts_dass_clause_with_kaufen_when_object_present() -> None:
+    """Same verb as the bug, but with its accusative object actually
+    present -- a completely ordinary, correct "dass" complement clause."""
+    result = cv.validate_carrier("Ich glaube, dass sie das Auto gestern gekauft hat.")
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_accepts_dass_clause_with_schenken_when_object_present() -> None:
+    result = cv.validate_carrier("Ich weiß, dass er ihr ein Buch schenkt.")
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_accepts_dass_clause_with_separable_prefix_einkaufen() -> None:
+    """ "einkaufen" (separable "kaufen" + "ein") is a different verb with
+    different valency -- it is normal for it to appear with no accusative
+    object, and must not be confused with a transitivity gap in "kaufen"
+    itself."""
+    result = cv.validate_carrier("Sie sagt, dass sie samstags immer dort einkauft.")
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_accepts_ordinary_dass_clauses_with_intransitive_verbs() -> None:
+    """Verbs outside the closed two-verb list are never checked for a
+    missing object at all -- German drops objects freely, and this check is
+    deliberately narrow rather than guessing at general verb valency."""
+    for sentence in [
+        "Ich glaube, dass er kommt.",
+        "Ich weiß, dass du gern liest.",
+    ]:
+        result = cv.validate_carrier(sentence)
+        assert result.accepted, f"{sentence!r}: {result.reason}"
+
+
+# -- Swiss orthography ("heisse" for "heiße") --------------------------------
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Ich heisse Anna.",
+        "Er hiess früher anders.",
+        "Wie heisst du?",
+    ],
+)
+def test_validate_carrier_rejects_swiss_spelled_heissen(sentence: str) -> None:
+    result = cv.validate_carrier(sentence)
+    assert not result.accepted
+    assert result.reason == cv.REASON_SWISS_SPELLING
+
+
+def test_validate_carrier_accepts_standard_spelled_heissen() -> None:
+    result = cv.validate_carrier("Ich heiße Anna.")
+    assert result.accepted, result.reason
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Ich glaube, dass er kommt.",
+        "Das Auto ist neu.",
+        "Er isst jeden Tag Obst.",
+        "Das Wasser im Fluss ist kalt.",
+    ],
+)
+def test_validate_carrier_does_not_flag_correct_short_vowel_ss_words(sentence: str) -> None:
+    """ "dass", "isst", "Fluss" are all correct WITH "ss" (short vowel); the
+    Swiss-spelling check is scoped to a closed list of "heißen" forms only
+    and must never fire on these."""
+    result = cv.validate_carrier(sentence)
+    assert result.accepted, result.reason
+
+
 # -- Batch summary ------------------------------------------------------
 
 
@@ -296,3 +510,24 @@ def test_analysis_available_reports_true_when_spacy_is_installed() -> None:
     # this being true; asserting it directly documents the contract rather
     # than only relying on the skip.
     assert cv.analysis_available() is True
+
+
+# -- Regression: the new cycle-5 checks must not reject known-good German ---
+
+
+def test_validate_carrier_has_zero_false_positives_on_the_mock_sentence_pool() -> None:
+    """``sentence_source._MOCK_SENTENCE_POOL`` is a corpus of hand-written or
+    hand-reviewed known-good German (every entry was individually confirmed
+    sound before being added, per that module's own docstring). Anything
+    this module rejects from it is a false positive -- the exact risk the
+    task warned about for the new adjective-declension and dass/das checks.
+    This is a regression test, not a one-off measurement: it must stay at
+    zero as both this module and the pool evolve."""
+    from src.generation.blanking.sentence_source import _MOCK_SENTENCE_POOL
+
+    rejected = [
+        (sentence, result.reason)
+        for sentence in _MOCK_SENTENCE_POOL
+        if not (result := cv.validate_carrier(sentence)).accepted
+    ]
+    assert rejected == []
