@@ -319,6 +319,76 @@ def test_print_report_shows_pool_and_cap_and_dedup_sections_distinctly(
     assert "Skips by reason" in out
 
 
+def test_print_report_shows_uniqueness_skips_distinctly(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A modal item with no derivable cue is still a genuine uniqueness
+    skip (docs/audits/cycle-04-report.md's own finding), and the report must
+    show that skip under its own section, not folded into ordinary quality
+    skips. 3rd-plural present "müssen" == its own infinitive, so
+    ``selectors._citation_cue`` withholds the cue and both
+    ``modalverben_praesens`` and ``passiv_modalverben`` -- which both fire on
+    this same "müssen" token -- stay unrescued; "Fenster" is also an
+    invariant plural (singular == plural), so ``nomen_plural`` is skipped
+    too, for the same "no cue" reason, on the same sentence."""
+    sentence = "Die Fenster müssen repariert werden."
+    report = blank_sentences([sentence])
+    pool = sentence_source.SentencePool(
+        sentences=[sentence], requested=1, raw_generated=1, duplicates_skipped=0, batches_run=1
+    )
+
+    _print_report(report, pool, ran_live=False)
+    out = capsys.readouterr().out
+
+    assert "Skips by uniqueness reason" in out
+    assert "modal_verb_interchangeable: 2" in out
+    assert "plural_noun_open_class: 1" in out
+    assert report.items_by_topic.get("modalverben_praesens", 0) == 0
+    assert report.items_by_topic.get("passiv_modalverben", 0) == 0
+    assert report.items_by_topic.get("nomen_plural", 0) == 0
+
+
+def test_print_report_shows_a_cued_item_rescued_from_the_uniqueness_gate(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The counterpart to the test above: the same modal slot, but with a
+    form that differs from its own infinitive, gets a cue and is kept, not
+    skipped."""
+    sentence = (
+        "Das Fleisch kann scharf angebraten werden, wenn ein kräftiger Geschmack gewünscht wird."
+    )
+    report = blank_sentences([sentence])
+    pool = sentence_source.SentencePool(
+        sentences=[sentence], requested=1, raw_generated=1, duplicates_skipped=0, batches_run=1
+    )
+
+    _print_report(report, pool, ran_live=False)
+    out = capsys.readouterr().out
+
+    assert "modal_verb_interchangeable" not in out
+    assert report.items_by_topic.get("passiv_modalverben", 0) == 1
+
+
+def test_uniqueness_skips_to_skips_preserves_reason_and_answer() -> None:
+    skip = step6.UniquenessSkip(
+        topic_id="modalverben_praesens",
+        prompt="Das Fleisch ___ scharf angebraten werden.",
+        proposed_answer="kann",
+        reason="modal_verb_interchangeable",
+    )
+    skips = step6._uniqueness_skips_to_skips([skip])
+
+    assert len(skips) == 1
+    assert skips[0].topic_id == "modalverben_praesens"
+    assert skips[0].sentence == "Das Fleisch ___ scharf angebraten werden."
+    assert skips[0].reason == "modal_verb_interchangeable"
+    assert skips[0].proposed_answer == "kann"
+
+    record = _to_rejected_record(skips[0])
+    assert record.proposed_answer == "kann"
+    assert record.reason == "modal_verb_interchangeable"
+
+
 def test_dropped_items_to_skips_preserves_reason_and_answer() -> None:
     dropped = [
         DroppedItem(

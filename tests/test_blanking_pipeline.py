@@ -216,3 +216,109 @@ def test_blank_sentences_default_caps_are_generous_enough_for_a_single_sentence(
     assert not report.items_dropped_by_topic_cap
     assert not report.items_dropped_by_sentence_cap
     assert not report.cross_topic_duplicates_dropped
+
+
+# ==============================================================================
+# The uniqueness gate (docs/audits/cycle-04-report.md): a correctly-built
+# item is skipped, under its own counter and detail list, when another
+# member of the blanked token's closed class would also have been
+# grammatical in the same slot. See test_blanking_uniqueness.py for the
+# per-candidate-kind policy this exercises end to end.
+# ==============================================================================
+
+
+def test_blank_sentences_skips_a_modal_verb_item_with_no_cue_as_a_uniqueness_skip() -> None:
+    """1st/3rd-plural present tense of a modal is spelled identically to its
+    own infinitive ("wir müssen" == "müssen") -- ``selectors._citation_cue``
+    withholds a cue there, so this one cell is still genuinely unrescuable
+    and the item stays a uniqueness skip, not a kept item."""
+    sentence = "Wir müssen jetzt gehen."
+    report = blank_sentences([sentence])
+    assert report.items_by_topic.get("modalverben_praesens", 0) == 0
+    assert report.skips_by_uniqueness["modal_verb_interchangeable"] >= 1
+    matching = [
+        s
+        for s in report.uniqueness_skips
+        if s.topic_id == "modalverben_praesens" and s.reason == "modal_verb_interchangeable"
+    ]
+    assert len(matching) == 1
+    assert matching[0].proposed_answer == "müssen"
+    # never double-counted as an ordinary quality skip.
+    assert report.skips_by_reason.get("modal_verb_interchangeable", 0) == 0
+
+
+def test_blank_sentences_keeps_a_cued_modal_verb_item() -> None:
+    """docs/audits/cycle-04-report.md's own worked example: "kann" used to
+    be a uniqueness skip (another modal fits equally well); the selector's
+    own cue ("können", the modal's own infinitive) now rescues it. Both
+    ``modalverben_praesens`` and ``passiv_modalverben`` fire on the same
+    "kann" token (module docstring); the cross-topic dedup keeps exactly one
+    of them (``passiv_modalverben`` beats ``modalverben_praesens``,
+    ``_SPECIFICITY_OVERRIDES``), not a uniqueness skip for either."""
+    sentence = (
+        "Das Fleisch kann scharf angebraten werden, wenn ein kräftiger Geschmack gewünscht wird."
+    )
+    report = blank_sentences([sentence])
+    assert "modal_verb_interchangeable" not in report.skips_by_uniqueness
+    assert report.items_by_topic.get("passiv_modalverben", 0) == 1
+    kept = next(item for item in report.items if item.topic_id == "passiv_modalverben")
+    assert kept.proposed_answer == "kann"
+    assert kept.cue == "können"
+    assert kept.type == "cloze_cued"
+    dropped = [d for d in report.dropped_details if d.topic_id == "modalverben_praesens"]
+    assert len(dropped) == 1
+    assert dropped[0].reason == "cross_topic_duplicate"
+
+
+def test_blank_sentences_skips_an_unanchored_dative_pronoun() -> None:
+    sentence = (
+        "Das Restaurant hatte einen neuen Koch eingestellt, und das Essen schmeckte "
+        "Ihnen ausgezeichnet."
+    )
+    report = blank_sentences([sentence])
+    assert report.items_by_topic.get("pronomen_personal_dat", 0) == 0
+    assert report.skips_by_uniqueness["personal_pronoun_unanchored"] >= 1
+
+
+def test_blank_sentences_keeps_a_carrier_anchored_dative_pronoun() -> None:
+    """docs/audits/cycle-04-report.md's own solvable example: must survive
+    the uniqueness gate, not be thrown away with every other dative pronoun."""
+    sentence = "Wir erklären Ihnen den Fehler, weil Sie das System besser verstehen müssen."
+    report = blank_sentences([sentence])
+    assert report.items_by_topic.get("pronomen_personal_dat", 0) == 1
+    assert "personal_pronoun_unanchored" not in report.skips_by_uniqueness
+
+
+def test_blank_sentences_skips_a_plural_noun_item_with_no_cue() -> None:
+    """ "Lehrer" is spelled identically singular and plural -- a cue there
+    would hand over the answer verbatim, so ``selectors._plural_noun_cue``
+    withholds it and the item stays a uniqueness skip."""
+    sentence = "Die Lehrer unterrichten Mathematik."
+    report = blank_sentences([sentence])
+    assert report.items_by_topic.get("nomen_plural", 0) == 0
+    assert report.skips_by_uniqueness["plural_noun_open_class"] >= 1
+
+
+def test_blank_sentences_keeps_a_cued_plural_noun_item() -> None:
+    """docs/audits/cycle-04-report.md's own worked example: "meine ___" used
+    to be a uniqueness skip (Zähne/Hände/Schuhe/Haare all fit equally well);
+    the selector's own cue ("Zahn", the derived singular citation form) now
+    rescues it."""
+    sentence = "Nach dem Frühstück putze ich gründlich meine Zähne."
+    report = blank_sentences([sentence])
+    assert "plural_noun_open_class" not in report.skips_by_uniqueness
+    assert report.items_by_topic.get("nomen_plural", 0) == 1
+    kept = next(item for item in report.items if item.topic_id == "nomen_plural")
+    assert kept.proposed_answer == "Zähne"
+    assert kept.cue == "Zahn"
+    assert kept.type == "cloze_cued"
+
+
+def test_blank_sentences_keeps_a_nominative_pronoun_item_unaffected() -> None:
+    """Nominative pronouns are trusted unconditionally (verb agreement is
+    the anchor) -- confirms the gate does not regress the existing
+    pronomen_personal_nom coverage relied on elsewhere in this file (e.g.
+    test_blank_sentences_max_items_per_topic_caps_a_dominant_topic)."""
+    report = blank_sentences(["Ich sehe den Mann auf der anderen Straßenseite."])
+    assert report.items_by_topic.get("pronomen_personal_nom", 0) == 1
+    assert not report.skips_by_uniqueness

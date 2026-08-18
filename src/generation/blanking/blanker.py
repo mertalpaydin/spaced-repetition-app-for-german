@@ -10,6 +10,25 @@ the same surface form from the paradigm table for the token's own
 A mismatch (an irregular form, a paradigm cell the reused tables do not
 cover -- see ``paradigms.py``'s docstring on the ein-word plural gap) is a
 reject, not a lower-confidence accept.
+
+## Carrying a selector's cue through
+
+``Candidate.cue`` (a bracketed citation-form cue -- see that field's own
+docstring) is set by the selector, not derived here, but it has to reach the
+``CandidateItem`` for ``uniqueness.py``'s cue rescue
+(docs/audits/cycle-04-report.md recommendation 5) to mean anything: a cue
+that is computed and then discarded rescues nothing. The two outcome
+builders that can receive one (``_irregular_aux_outcome`` for a modal,
+``_plural_noun_outcome``) copy it onto ``CandidateItem.cue`` unchanged, and
+set ``type="cloze_cued"`` instead of the ``"cloze_free"`` every other
+outcome builder still hard-codes -- ``data/taxonomy.yaml`` declares
+``nomen_plural`` and ``modalverben_praesens`` as ``cloze_cued``-only topics,
+so an item built from either without this would not even be a valid item
+type, regardless of the uniqueness question. ``_cue_equals_answer`` is a
+second, independent check of the same invariant ``selectors._citation_cue``
+already enforces at derivation time (a cue must never equal the answer it
+cues) -- reject the item outright if it is ever true, rather than trust a
+single guard for something this severe.
 """
 
 from __future__ import annotations
@@ -17,7 +36,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 
-from src.contracts import CandidateItem, Difficulty, Distractor
+from src.contracts import CandidateItem, Difficulty, Distractor, ItemType
 from src.generation.blanking import paradigms
 from src.generation.blanking.selectors import Candidate
 from src.generation.blanking.sentence_tagger import TaggedSentence
@@ -58,6 +77,34 @@ def _render_prompt(sentence: TaggedSentence, blank_index: int) -> str:
 def _source_sentence_id(sentence: TaggedSentence) -> str:
     digest = hashlib.sha256(sentence.text.encode("utf-8")).hexdigest()[:16]
     return f"sent_{digest}"
+
+
+def _cue_equals_answer(cue: str | None, answer: str) -> bool:
+    """Whether ``cue`` is letter-for-letter identical to ``answer``
+    (case-insensitively) -- a total giveaway, never acceptable.
+
+    ``selectors._citation_cue`` already withholds a cue in exactly this
+    situation at derivation time (docs/audits/cycle-04-report.md
+    recommendation 5), so this should never fire in practice. It is kept
+    here anyway as a second, independent backstop at the point the item is
+    actually built and handed to a learner -- a bug in the selector's own
+    guard should not alone be enough to leak an answer, and "reject rather
+    than guess" (this module's own docstring) applies just as much to a
+    defect in this pipeline's own earlier stage as to an unresolved
+    paradigm cell."""
+    return cue is not None and cue.lower() == answer.lower()
+
+
+def _cued_item_type(cue: str | None) -> ItemType:
+    """``cloze_cued`` whenever a cue is present, ``cloze_free`` otherwise --
+    matching how every other ``cloze_cued`` item in this bank is shaped (a
+    bracketed citation form paired with a ``cue`` field the learner sees;
+    see ``CandidateItem.cue``'s own docstring) and, concretely, how
+    ``data/taxonomy.yaml`` declares ``nomen_plural``'s and
+    ``modalverben_praesens``'s own ``eligible_types`` (``cloze_cued`` only,
+    no bare ``cloze_free``): a cue-rescued item from either topic would not
+    even be a valid item type without this."""
+    return "cloze_cued" if cue else "cloze_free"
 
 
 def _determiner_outcome(
@@ -354,6 +401,8 @@ def _irregular_aux_outcome(
         return BlankOutcome(None, "irregular_aux_cell_uncovered_by_paradigm")
     if reconstructed.lower() != token.text.lower():
         return BlankOutcome(None, "irregular_aux_paradigm_mismatch")
+    if _cue_equals_answer(candidate.cue, token.text):
+        return BlankOutcome(None, "cue_equals_answer")
 
     distractor_forms = sorted(
         {
@@ -367,11 +416,12 @@ def _irregular_aux_outcome(
     return BlankOutcome(
         CandidateItem(
             topic_id=topic_id,
-            type="cloze_free",
+            type=_cued_item_type(candidate.cue),
             difficulty=difficulty,
             prompt=_render_prompt(sentence, candidate.token_index),
             proposed_answer=token.text,
             distractors=distractors,
+            cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
         ),
         None,
@@ -415,14 +465,17 @@ def _plural_noun_outcome(
     docstring on this topic), so distractors are left empty rather than
     guessed, matching ``_degree_outcome``'s precedent for the same reason."""
     token = sentence.tokens[candidate.token_index]
+    if _cue_equals_answer(candidate.cue, token.text):
+        return BlankOutcome(None, "cue_equals_answer")
     return BlankOutcome(
         CandidateItem(
             topic_id=topic_id,
-            type="cloze_free",
+            type=_cued_item_type(candidate.cue),
             difficulty=difficulty,
             prompt=_render_prompt(sentence, candidate.token_index),
             proposed_answer=token.text,
             distractors=[],
+            cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
         ),
         None,

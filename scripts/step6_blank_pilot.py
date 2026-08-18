@@ -34,6 +34,14 @@ first-person prose. Both are reported separately from ordinary quality
 skips (``--max-items-per-topic``/``--max-items-per-sentence`` are exposed as
 flags precisely so a cap is a visible, deliberate choice, not a silent one).
 
+It also runs the uniqueness gate (docs/audits/cycle-04-report.md's own
+finding): a blanked token being correct does not mean it is the only
+grammatically possible filler of its slot -- a modal verb or a free-choice
+object pronoun very often is not. ``src.generation.blanking.uniqueness``
+rejects a correctly-built item under those conditions and this script
+reports the skip under its own reason, distinct from both an ordinary
+quality skip and a balance drop (``report.skips_by_uniqueness``).
+
 Run this from a terminal:
 
     .venv/bin/python -m scripts.step6_blank_pilot --sentences 300
@@ -63,6 +71,7 @@ from src.generation.blanking.pipeline import (
     TOPIC_IDS,
     BlankingReport,
     DroppedItem,
+    UniquenessSkip,
     blank_sentences,
 )
 from src.generation.pilot import _write_rejected_file, _write_review_file
@@ -217,6 +226,20 @@ def _dropped_items_to_skips(dropped: list[DroppedItem]) -> list[_DetailedSkip]:
     ]
 
 
+def _uniqueness_skips_to_skips(skips: list[UniquenessSkip]) -> list[_DetailedSkip]:
+    """``pipeline.UniquenessSkip`` (a correct item rejected because another
+    member of its own closed class would also have fit the slot) onto this
+    script's ``_DetailedSkip`` shape, same posture as
+    ``_dropped_items_to_skips`` above -- persisted through the same
+    rejected-file machinery, distinguishable afterwards by ``reason``
+    (``"modal_verb_interchangeable"``, ``"personal_pronoun_unanchored"``,
+    ``"plural_noun_open_class"``)."""
+    return [
+        _DetailedSkip(s.topic_id, s.prompt, s.reason, proposed_answer=s.proposed_answer)
+        for s in skips
+    ]
+
+
 def _print_report(
     report: BlankingReport, pool: sentence_source.SentencePool, ran_live: bool
 ) -> None:
@@ -270,6 +293,15 @@ def _print_report(
     if not report.skips_by_reason:
         print("    (none)")
     for reason, count in sorted(report.skips_by_reason.items(), key=lambda kv: -kv[1]):
+        print(f"    - {reason}: {count}")
+
+    print("  Skips by uniqueness reason (the item was correct and built cleanly,")
+    print("  but another member of the blanked token's own closed class would")
+    print("  also have been grammatical there -- not a quality defect in the item")
+    print("  itself, and not a balance decision, see pipeline.py's own docstring):")
+    if not report.skips_by_uniqueness:
+        print("    (none)")
+    for reason, count in sorted(report.skips_by_uniqueness.items(), key=lambda kv: -kv[1]):
         print(f"    - {reason}: {count}")
 
 
@@ -404,6 +436,7 @@ def main() -> int:
         for skip in [
             *skips,
             *_dropped_items_to_skips(report.dropped_details),
+            *_uniqueness_skips_to_skips(report.uniqueness_skips),
             *unknown_topic_skips,
         ]
     ]

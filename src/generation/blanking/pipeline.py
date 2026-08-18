@@ -47,6 +47,30 @@ reconstruction); ``cross_topic_duplicates_dropped``,
 ``items_dropped_by_topic_cap``, and ``items_dropped_by_sentence_cap`` are
 kept as separate counters for the second kind precisely so the two are never
 conflated in a report.
+
+## A third problem: a correct item is not necessarily a SOLVABLE one
+
+docs/audits/cycle-04-report.md found a third, architecturally distinct
+defect, on top of the two above: blanking proves the removed token was
+correct, never that it was the only grammatically possible one. A modal verb
+or a free-choice object pronoun is very often one of several equally
+grammatical fillers, and a plural noun with no cue is nearly always one of
+many -- the item is correct and unsolvable at once.
+
+``src.generation.blanking.uniqueness.check_uniqueness`` is the gate for
+this, run once per successfully built ``CandidateItem`` (after
+``blank_candidate`` already confirmed it is correct, before it is eligible
+for cross-topic dedup or a cap). It is a THIRD, distinct outcome from the
+two above, not folded into either: it is not a "no candidate, or the
+candidate failed paradigm reconstruction" quality judgment
+(``skips_by_reason``), because the item it rejects was neither of those --
+it built cleanly and reconstructed correctly. It is not a cap/dedup balance
+decision either, because nothing else claimed the same (prompt, answer) pair
+and no cap was reached; the item is simply not solvable on its own terms.
+``BlankingReport.skips_by_uniqueness`` and ``uniqueness_skips`` are its own
+counter and detail list for exactly that reason -- CLAUDE.md 12's
+report-honestly standard applied a third time, not just the two the module
+docstring above already argues for.
 """
 
 from __future__ import annotations
@@ -59,6 +83,7 @@ from src.contracts import CandidateItem, Difficulty
 from src.generation.blanking import sentence_tagger
 from src.generation.blanking.blanker import blank_candidate
 from src.generation.blanking.selectors import SELECTORS
+from src.generation.blanking.uniqueness import check_uniqueness
 
 TOPIC_IDS: tuple[str, ...] = tuple(SELECTORS)
 
@@ -105,6 +130,23 @@ class DroppedItem:
     proposed_answer: str
     reason: DropReason
     kept_topic_id: str | None = None
+
+
+@dataclass(frozen=True)
+class UniquenessSkip:
+    """One item that WAS successfully built and paradigm-verified (a real
+    prompt and answer exist, exactly like ``DroppedItem``) but was rejected
+    because a different member of the blanked token's own closed class would
+    ALSO have been grammatical in the same slot -- a solvability judgment,
+    not a quality defect in the item (``blanker.py`` already guarantees
+    that) and not a balance decision (``DroppedItem``'s own territory). Its
+    own type, its own counter, its own report section: see this module's
+    docstring for why the three must never be conflated."""
+
+    topic_id: str
+    prompt: str
+    proposed_answer: str
+    reason: str
 
 
 # Selector pairs identified by direct inspection of every entry in
@@ -308,6 +350,11 @@ class BlankingReport:
     items_dropped_by_topic_cap: Counter[str] = field(default_factory=Counter)
     items_dropped_by_sentence_cap: Counter[str] = field(default_factory=Counter)
     dropped_details: list[DroppedItem] = field(default_factory=list)
+    # A third category, distinct from both of the above (module docstring):
+    # an item that built and reconstructed cleanly but was not the unique
+    # grammatical filler of its own slot.
+    skips_by_uniqueness: Counter[str] = field(default_factory=Counter)
+    uniqueness_skips: list[UniquenessSkip] = field(default_factory=list)
 
     @property
     def total_items(self) -> int:
@@ -368,6 +415,16 @@ def blank_sentences(
                 reason = outcome.skip_reason or "unknown_skip_reason"
                 report.skips_by_reason[reason] += 1
                 report.skip_details.append(SkipDetail(topic_id, raw, reason))
+                continue
+            uniqueness_outcome = check_uniqueness(tagged, candidates[0])
+            if not uniqueness_outcome.unique:
+                reason = uniqueness_outcome.reason or "unknown_uniqueness_reason"
+                report.skips_by_uniqueness[reason] += 1
+                report.uniqueness_skips.append(
+                    UniquenessSkip(
+                        topic_id, outcome.item.prompt, outcome.item.proposed_answer, reason
+                    )
+                )
                 continue
             raw_items.append(outcome.item)
 
