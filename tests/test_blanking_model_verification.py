@@ -16,6 +16,7 @@ from src.contracts import BankItem
 from src.generation.blanking.model_verification import (
     _INSTRUCTION_DE_LIVE,
     _INSTRUCTION_EN_REFERENCE_ONLY,
+    REASON_BATCH_FORBIDDEN,
     REASON_BUDGET_EXCEEDED,
     REASON_MALFORMED_RESPONSE,
     REASON_MISSING_API_KEY,
@@ -29,6 +30,7 @@ from src.generation.blanking.model_verification import (
     verify_items,
 )
 from src.llm.client import (
+    BatchForbiddenError,
     BudgetExceeded,
     MissingApiKeyError,
     PaidLaneForbiddenError,
@@ -399,6 +401,7 @@ def test_verify_items_malformed_batch_response_is_not_run_not_verified() -> None
         (BudgetExceeded("over ceiling"), REASON_BUDGET_EXCEEDED),
         (ServerUnavailableError("503"), REASON_SERVER_UNAVAILABLE),
         (PaidLaneForbiddenError("paid forbidden"), REASON_PAID_LANE_FORBIDDEN),
+        (BatchForbiddenError("batch forbidden"), REASON_BATCH_FORBIDDEN),
         (MissingApiKeyError("no key"), REASON_MISSING_API_KEY),
     ],
 )

@@ -396,24 +396,31 @@ class GeminiBatchClient:
 # ==============================================================================
 
 
-def _build_llm_client_if_configured(*, forbid_paid_lane: bool = False) -> GeminiLlmClient | None:
+def _build_llm_client_if_configured(
+    *, forbid_paid_lane: bool = False, forbid_batch: bool = False
+) -> GeminiLlmClient | None:
     """Route real cost accounting and the spend ceiling through the single client
     in src/llm/client.py (CLAUDE.md rule 4) whenever an API key is configured.
     Falls back to None (no ceiling check possible, offline dev) otherwise.
 
-    ``forbid_paid_lane`` defaults to ``False`` here, which preserves the
-    existing nightly-automation behaviour (``run_submit``/``run_ingest``):
-    overflow is meant to accumulate and ship as one real batch job (CLAUDE.md
-    9, "Overflow accumulates, it does not fail over per request"). Pilot
-    generation (``src.generation.pilot.run_pilot``) passes
-    ``forbid_paid_lane=True`` explicitly instead, since batch must be
-    genuinely off for a pilot run by default."""
+    ``forbid_paid_lane`` and ``forbid_batch`` both default to ``False`` here,
+    which preserves the existing nightly-automation behaviour
+    (``run_submit``/``run_ingest``): overflow is meant to accumulate and ship
+    as one real batch job (CLAUDE.md 9, "Overflow accumulates, it does not
+    fail over per request"). Pilot generation
+    (``src.generation.pilot.run_pilot``) passes ``forbid_batch=True``
+    explicitly instead (and ``forbid_paid_lane=False``): the project owner's
+    instruction is "no batch for the pilot", not "no paid lane for the
+    pilot" -- a pilot must still be able to spend on the paid lane
+    synchronously once the free lane's daily quota is spent, it must just
+    never queue a real batch job. See ``BatchForbiddenError`` in
+    ``src.llm.client`` for the full history of that distinction."""
     if (
         os.getenv("GEMINI_FREE_API_KEY")
         or os.getenv("GEMINI_PAID_API_KEY")
         or os.getenv("GEMINI_API_KEY")
     ):
-        return GeminiLlmClient(forbid_paid_lane=forbid_paid_lane)
+        return GeminiLlmClient(forbid_paid_lane=forbid_paid_lane, forbid_batch=forbid_batch)
     return None
 
 

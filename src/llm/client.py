@@ -139,15 +139,53 @@ class PaidLaneForbiddenError(RuntimeError):
     """Raised by ``_determine_lane`` when routing would pick the paid lane
     but ``forbid_paid_lane`` is set on the client.
 
-    This is the real "batch is off" switch (CLAUDE.md 9). Before this
-    existed, ``--batch`` only ever controlled *forcing* the paid lane;
-    nothing ever *forbade* it, so once the free lane's daily quota tripped
-    (``_close_free_lane_until_pacific_midnight``), every subsequent call in
-    the same process silently fell through to the paid batch lane -- for a
-    whole pilot run, unattended, with no operator ever having asked for
-    batch. ``forbid_paid_lane=True`` makes that fall-through fail loudly
-    here instead, with a message that says why, when the free lane reopens,
-    and that ``--batch`` remains available as an explicit opt-in.
+    Historical note: this used to be described as "the real 'batch is off'
+    switch (CLAUDE.md 9)". That conflated two different ideas that the
+    project owner has since split apart explicitly: "no batch" (see
+    ``BatchForbiddenError`` below) and "no paid lane at all" are not the
+    same instruction. This error is the latter -- it forbids the paid lane
+    outright, sync or batch, and remains a real, still-used switch (see
+    ``src.llm.provider.default_llm_provider``, ``LiveExplainer``,
+    ``ProductionGrader``, ``MinimalPairGenerator``, all of which have a
+    learner waiting on the reply and must never fall through to a paid
+    lane at all, batch or not). It is simply no longer what pilots use to
+    keep themselves off batch -- see ``BatchForbiddenError`` for that.
+
+    Before this existed, ``--batch`` only ever controlled *forcing* the
+    paid lane; nothing ever *forbade* it, so once the free lane's daily
+    quota tripped (``_close_free_lane_until_pacific_midnight``), every
+    subsequent call in the same process silently fell through to the paid
+    batch lane -- for a whole pilot run, unattended, with no operator ever
+    having asked for batch. ``forbid_paid_lane=True`` makes that
+    fall-through fail loudly here instead, with a message that says why,
+    when the free lane reopens, and that ``--batch`` remains available as
+    an explicit opt-in.
+    """
+
+
+class BatchForbiddenError(RuntimeError):
+    """Raised when a call would use the paid lane's batch mode but the
+    client was built with ``forbid_batch=True``.
+
+    This is the real "no batch" switch the project owner actually asked
+    for: "when I said no batch api I meant for pilot go to paid on demand
+    api, if free lane is already expired." A pilot must never queue work
+    into the real Batch API, but IS allowed to spend on the paid lane
+    synchronously once the free lane's daily quota is spent -- unlike
+    ``forbid_paid_lane``, which forbids the paid lane entirely, sync or
+    batch.
+
+    Before this existed, ``forbid_paid_lane=True`` was pilots' only lever,
+    and it was wired to mean "no batch" -- so once the free lane's quota
+    was spent mid-run, ``_determine_lane`` raised ``PaidLaneForbiddenError``
+    instead of continuing on the paid lane synchronously, and the model
+    verification pass degraded its entire run to ``"not_run"`` rather than
+    actually verifying anything (``cost_log.jsonl`` from that run has zero
+    rows with ``purpose="item_verification"``). ``forbid_batch=True`` fixes
+    that: the paid lane stays open for on-demand (synchronous) calls, and
+    only an actual batch submission is refused, with a message saying the
+    run is on-demand only and that batch remains available for
+    nightly/initial generation, which does not set this flag.
     """
 
 
@@ -293,6 +331,7 @@ class GeminiLlmClient:
         clock: Callable[[], datetime] | None = None,
         sleep_fn: Callable[[float], None] | None = None,
         forbid_paid_lane: bool = False,
+        forbid_batch: bool = False,
     ) -> None:
         self.free_api_key = (
             free_api_key or os.getenv("GEMINI_FREE_API_KEY") or os.getenv("GEMINI_API_KEY")
@@ -319,6 +358,20 @@ class GeminiLlmClient:
         # explicit, deliberate opt-in into the paid lane even from a client
         # built with ``forbid_paid_lane=True``.
         self.forbid_paid_lane = forbid_paid_lane
+        # Genuinely different from ``forbid_paid_lane`` above: this leaves
+        # the paid lane available but forces every call onto it to be
+        # synchronous (on-demand), never the real Batch API. ``_call_transport``
+        # raises ``BatchForbiddenError`` instead of ``ValueError`` for a
+        # paid-lane batch call when this is set, and the two seams that
+        # otherwise default a paid-lane call to batch mode
+        # (``_call_transport_with_lane_handling``'s up-front lane decision and
+        # its mid-call RPD fallback, plus ``generate_many``'s own paid-lane
+        # branch) all resolve to sync instead. Default ``False`` preserves
+        # today's "paid lane is always batch" behaviour for every caller that
+        # does not opt in; pilots opt in by default
+        # (``src.generation.pilot.run_pilot``), with ``--batch`` (``use_batch``)
+        # remaining the explicit, deliberate opt-in back into real batch mode.
+        self.forbid_batch = forbid_batch
         self._clock: Callable[[], datetime] = clock or (lambda: datetime.now(UTC))
         self._sleep: Callable[[float], None] = sleep_fn or time.sleep
 
@@ -905,6 +958,21 @@ class GeminiLlmClient:
             client, model=model, prompts=[prompt], config=config, purpose=purpose
         )[0]
 
+    def _mode_for_lane(self, lane: Lane) -> Literal["sync", "batch"]:
+        """The one place that decides which transport mode a lane resolves
+        to, shared by ``_call_transport_with_lane_handling``'s up-front
+        decision, its mid-call RPD fallback, and ``generate_many``'s own
+        paid-lane branch, so the three can never quietly diverge.
+
+        The free lane is always sync. The paid lane is batch by default,
+        except when ``self.forbid_batch`` is set, in which case it is sync
+        too -- the owner's "no batch api ... go to paid on demand api"
+        instruction.
+        """
+        if lane == "paid" and not self.forbid_batch:
+            return "batch"
+        return "sync"
+
     def _call_transport(
         self,
         *,
@@ -923,12 +991,24 @@ class GeminiLlmClient:
         without touching the network (see ``QuotaExceededError``).
         """
         # CLAUDE.md 9: the free lane is always synchronous, the paid lane is
-        # always batch. A call that violates either is a defect in the caller,
-        # not something to silently coerce.
-        if lane == "paid" and mode != "batch":
+        # batch by default. A call that violates either is a defect in the
+        # caller, not something to silently coerce -- EXCEPT a paid-lane sync
+        # call is legitimate, not a defect, when the client was built with
+        # ``forbid_batch=True`` (the owner's "no batch api ... go to paid on
+        # demand api" instruction): that is exactly the mode a pilot is meant
+        # to use once the free lane's daily quota is spent.
+        if lane == "paid" and mode == "batch" and self.forbid_batch:
+            raise BatchForbiddenError(
+                f"Paid-lane batch call for purpose={purpose!r} requested, but this "
+                "client was built with forbid_batch=True: this run is on-demand "
+                "(synchronous) only. Batch remains available for nightly/initial "
+                "generation, which does not set forbid_batch."
+            )
+        if lane == "paid" and mode != "batch" and not self.forbid_batch:
             raise ValueError(
                 f"Paid-lane call for purpose={purpose!r} requested mode={mode!r}; "
-                "the paid lane is batch-only (a non-batch paid-lane call is a defect)."
+                "the paid lane is batch-only unless the client was built with "
+                "forbid_batch=True (a non-batch paid-lane call is otherwise a defect)."
             )
         if lane == "free" and mode != "sync":
             raise ValueError(
@@ -972,12 +1052,18 @@ class GeminiLlmClient:
         every later call, so it must raise ``PaidLaneForbiddenError`` here
         too rather than let the very first call that trips RPD slip through
         onto paid before ``forbid_paid_lane`` ever gets a chance to apply.
+        When the paid lane IS permitted (``forbid_paid_lane`` is not set),
+        ``self.forbid_batch`` decides which mode that paid-lane fallback
+        uses: batch by default, sync when the client was built for
+        on-demand-only paid spend -- the same choice the up-front lane
+        decision below makes, kept as one seam (``_mode_for_lane``) so the
+        two can never diverge.
         5xx server overload: not a quota signal at all -- back off and retry
         on the same lane, exactly like RPM, but with its own bounded retry
         count so it can never masquerade as quota exhaustion or trigger the
         RPD lane-closing path.
         """
-        mode: Literal["sync", "batch"] = "batch" if lane == "paid" else "sync"
+        mode: Literal["sync", "batch"] = self._mode_for_lane(lane)
         rpm_attempts = 0
         server_attempts = 0
         while True:
@@ -1001,7 +1087,7 @@ class GeminiLlmClient:
                         self._paid_lane_forbidden_message(ref_time)
                     ) from exc
                 lane = "paid"
-                mode = "batch"
+                mode = self._mode_for_lane(lane)
             except ServerUnavailableError:
                 if server_attempts >= self.SERVER_ERROR_MAX_RETRIES:
                     raise
@@ -1106,17 +1192,25 @@ class GeminiLlmClient:
           correctness. Cost-log writes and cache writes happen on the calling
           thread only, after collecting each worker's result, never inside a
           worker, so no locking is needed around them.
-        - **Paid lane**: all cache-miss prompts are submitted as real
-          multi-item Gemini batch jobs (``_call_batch_many``) instead of one
-          job per prompt -- the previous per-``generate()``-call loop paid a
-          full batch-job's queueing overhead (observed live: 1-3 minutes) for
-          every single item, serially, with none of the throughput benefit
-          batching exists for. Chunked by ``_chunk_indices_for_inline_batch``
-          to respect Google's documented ~20MB inline-submission guidance
+        - **Paid lane, batch mode** (the default, ``self.forbid_batch`` unset):
+          all cache-miss prompts are submitted as real multi-item Gemini
+          batch jobs (``_call_batch_many``) instead of one job per prompt --
+          the previous per-``generate()``-call loop paid a full batch-job's
+          queueing overhead (observed live: 1-3 minutes) for every single
+          item, serially, with none of the throughput benefit batching
+          exists for. Chunked by ``_chunk_indices_for_inline_batch`` to
+          respect Google's documented ~20MB inline-submission guidance
           (``BATCH_INLINE_MAX_BYTES``): one job for every group small enough
           to submit inline (every group this codebase's own item caps
           produce), more only if a caller ever hands this a genuinely
           oversized group.
+        - **Paid lane, on-demand mode** (``self.forbid_batch`` set): dispatched
+          exactly like the free lane above -- concurrently, per-item, through
+          ``_call_transport_with_lane_handling`` -- just against the paid
+          lane's own SDK client and key. This is the owner's "no batch api
+          ... go to paid on demand api" policy: a pilot whose free-lane daily
+          quota is spent keeps generating, on the paid lane, without ever
+          queuing a real batch job.
 
         ``force_lane`` bypasses ``_determine_lane`` entirely and pins the
         call to the given lane instead. Deliberately narrow: the normal
@@ -1168,7 +1262,14 @@ class GeminiLlmClient:
 
         lane: Lane = force_lane or self._determine_lane(is_user_content, ref_time)
 
-        if lane == "free":
+        # Paid-lane on-demand mode (``forbid_batch``) dispatches exactly like
+        # the free lane -- concurrently, per item, through
+        # ``_call_transport_with_lane_handling`` -- so it shares that whole
+        # branch; ``_call_transport_with_lane_handling`` (via
+        # ``_mode_for_lane``) is what actually resolves the paid lane to sync
+        # instead of batch, this condition only decides which of the two
+        # dispatch strategies below is used.
+        if lane == "free" or (lane == "paid" and self.forbid_batch):
             with ThreadPoolExecutor(max_workers=self.FREE_LANE_MAX_CONCURRENCY) as pool:
                 future_to_index = {
                     pool.submit(
@@ -1201,7 +1302,7 @@ class GeminiLlmClient:
                     if use_cache:
                         self.cache.set(model=model, prompt=prompts[i], response=text)
                     results[i] = text
-        else:  # paid
+        else:  # paid, batch mode (self.forbid_batch is not set)
             client = self._get_sdk_client("paid")
             config = genai_types.GenerateContentConfig(
                 thinking_config=self._thinking_config_for(model, purpose)

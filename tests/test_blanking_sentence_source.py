@@ -507,6 +507,25 @@ def test_client_from_env_returns_none_without_any_key(monkeypatch: pytest.Monkey
     assert client_from_env() is None
 
 
+def test_client_from_env_forbids_batch_but_not_the_paid_lane(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The project owner's instruction is 'no batch api for pilot', not 'no
+    paid lane for pilot': this script must keep generating (and verifying)
+    on the paid lane, synchronously, once the free lane's daily quota is
+    spent, rather than raising ``PaidLaneForbiddenError`` on every call
+    once that happens."""
+    monkeypatch.setenv("GEMINI_FREE_API_KEY", "fake-free-key")
+    monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    client = client_from_env()
+
+    assert client is not None
+    assert client.forbid_batch is True
+    assert client.forbid_paid_lane is False
+
+
 def test_build_sentence_generator_falls_back_to_mock_when_no_client() -> None:
     generator = build_sentence_generator(None)
     assert isinstance(generator, MockSentenceGenerator)

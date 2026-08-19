@@ -38,11 +38,15 @@ DEFAULT_TOPICS_PER_CEFR = 3
 DEFAULT_DIFFICULTIES: tuple[Difficulty, ...] = (1, 2, 3)
 
 # The project owner's own words: batch is too slow to develop against, so a
-# pilot run's DEFAULT path is the synchronous free lane, paced by
-# ``GeminiLlmClient``'s own rate limiter -- never the paid lane's real Batch
-# API, which is reserved for a deliberate ``--batch`` real stock run
-# (docs/01-foundation.md, "two-lane execution": "the free lane is
-# synchronous, the paid lane is always batch"). ``requests`` here means
+# pilot run's DEFAULT path is the free lane, synchronous and paced by
+# ``GeminiLlmClient``'s own rate limiter, spilling over to the paid lane
+# ON DEMAND (also synchronous, never the real Batch API) once the free
+# lane's daily quota is spent -- "no batch api ... for pilot go to paid on
+# demand api, if free lane is already expired." The real Batch API is
+# reserved for a deliberate ``--batch`` real stock run (CLAUDE.md 9, "two
+# lanes, two projects": this supersedes that section's earlier "the paid
+# lane is always batch" wording for pilots specifically, at the owner's
+# explicit instruction). ``requests`` here means
 # ``GenerationRequest`` objects, i.e. one (topic, difficulty) cell -- each
 # one prompt asking the model for that cell's whole ``count`` of items in a
 # single call, NOT one prompt per item. A 300-item pilot with the default
@@ -310,12 +314,22 @@ def run_pilot(
     -- fast, cheap, dev-iteration generation, which is what a pilot is for.
     When ``False`` and an ``llm_client`` is auto-built here (i.e. the caller
     did not pass one in), that client is constructed with
-    ``forbid_paid_lane=True``: the paid lane is genuinely off, not merely
-    deprioritised, so if the free lane's daily quota is already exhausted
-    (or closes mid-run), the call raises ``PaidLaneForbiddenError`` instead
-    of silently spending on the paid batch lane -- this is what actually
-    caught last cycle's regression, where "sync by default" alone still let
-    every call fall through to paid once the free lane closed.
+    ``forbid_batch=True`` and ``forbid_paid_lane=False``: real batch
+    submission is genuinely off, not merely deprioritised, but the paid lane
+    itself stays available for on-demand (synchronous) calls once the free
+    lane's daily quota is exhausted (or closes mid-run) -- the project
+    owner's explicit instruction: "when I said no batch api I meant for
+    pilot go to paid on demand api, if free lane is already expired." An
+    earlier version of this flag used ``forbid_paid_lane=True`` instead,
+    which forbade the paid lane outright; that meant a pilot whose free-lane
+    quota ran out mid-run raised ``PaidLaneForbiddenError`` on every
+    subsequent call, including the model verification backstop, which
+    degraded its entire run to ``"not_run"`` -- a run that looked like it
+    passed (exit code 0) while zero verification calls were actually made.
+    ``forbid_batch=True`` fixes that: the run keeps generating and
+    verifying, on the paid lane, synchronously, instead of silently doing
+    nothing. See ``BatchForbiddenError`` in ``src.llm.client`` for the full
+    history.
     Set ``use_batch=True`` only for a deliberate real stock run through the
     paid lane's actual Batch API (``scripts/step5_pilot_generation.py
     --batch``); it requires a live ``GeminiBatchClient`` (a configured
@@ -356,14 +370,17 @@ def run_pilot(
     ran_live = False
     if batch_client is None:
         if llm_client is None:
-            # Pilots are genuinely off the paid lane by default (the project
-            # owner's instruction, twice): a client built here for a
-            # non-``--batch`` run forbids ``_determine_lane`` from ever
-            # falling through to paid, so a closed free lane fails loudly
-            # instead of silently routing to the real Batch API. ``--batch``
-            # (``use_batch=True``) is the deliberate opt-in and gets a client
-            # with the ordinary auto-routing policy instead.
-            llm_client = _build_llm_client_if_configured(forbid_paid_lane=not use_batch)
+            # Pilots are genuinely off the real Batch API by default (the
+            # project owner's instruction): a client built here for a
+            # non-``--batch`` run forbids batch submission, so it never
+            # queues a real batch job, but the paid lane itself stays
+            # available for on-demand (synchronous) calls once the free
+            # lane's daily quota is exhausted. ``--batch`` (``use_batch=True``)
+            # is the deliberate opt-in and gets a client with the ordinary
+            # batch-by-default policy instead.
+            llm_client = _build_llm_client_if_configured(
+                forbid_paid_lane=False, forbid_batch=not use_batch
+            )
         if llm_client is not None:
             spend = llm_client.get_month_to_date_spend()
             if spend >= llm_client.spend_ceiling_usd:

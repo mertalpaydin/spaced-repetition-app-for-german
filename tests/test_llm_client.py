@@ -34,6 +34,7 @@ from src.contracts import (
     THINKING_VERIFY,
 )
 from src.llm.client import (
+    BatchForbiddenError,
     BudgetExceeded,
     GeminiLlmClient,
     MissingApiKeyError,
@@ -1071,13 +1072,20 @@ def test_generate_many_raises_budget_exceeded_before_any_call(tmp_path: Path) ->
 
 
 def test_paid_lane_non_batch_call_is_rejected_as_a_defect(tmp_path: Path) -> None:
-    """A non-batch call on the paid lane is a defect (CLAUDE.md 9), not something
+    """Pinning UPDATED (was unconditional; now explicitly conditional on
+    ``forbid_batch``, per the project owner's "no batch api ... for pilot
+    go to paid on demand api" instruction, which requires a paid-lane sync
+    call to be legitimate under ``forbid_batch=True`` -- see
+    ``test_paid_lane_sync_call_permitted_under_forbid_batch`` below for that
+    case). Without ``forbid_batch`` (the default, exercised here), a
+    non-batch call on the paid lane remains a defect, not something
     ``_call_transport`` silently coerces into batch mode."""
     client = GeminiLlmClient(
         cost_log_path=tmp_path / "cost_log.jsonl",
         cache_dir=tmp_path / "cache",
         paid_api_key="fake-paid-key",
     )
+    assert client.forbid_batch is False
 
     with pytest.raises(ValueError, match="batch-only"):
         client._call_transport(
@@ -1097,6 +1105,134 @@ def test_free_lane_batch_mode_call_is_also_rejected_as_a_defect(tmp_path: Path) 
         client._call_transport(
             model=MODEL_GENERATE, prompt="x", lane="free", mode="batch", purpose="unit_test"
         )
+
+
+def test_paid_lane_sync_call_permitted_under_forbid_batch(tmp_path: Path) -> None:
+    """The owner's actual instruction: 'no batch api ... for pilot go to
+    paid on demand api, if free lane is already expired.' A paid-lane
+    synchronous call is legitimate, not a defect, when the client was built
+    with ``forbid_batch=True`` -- ``_call_transport`` must reach the real
+    sync transport instead of raising."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        paid_api_key="fake-paid-key",
+        forbid_batch=True,
+    )
+
+    fake_models = _FakeModels(
+        response=_fake_generate_content_response("Antwort", prompt_tokens=4, candidates_tokens=2)
+    )
+    fake_sdk = _FakeSdkClient(models=fake_models)
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    text, prompt_tokens, completion_tokens = client._call_transport(
+        model=MODEL_GENERATE, prompt="x", lane="paid", mode="sync", purpose="unit_test"
+    )
+
+    assert text == "Antwort"
+    assert len(fake_models.calls) == 1, "must have reached the real sync transport, not batch"
+
+
+def test_paid_lane_batch_call_raises_batch_forbidden_under_forbid_batch(tmp_path: Path) -> None:
+    """The mirror image: with ``forbid_batch=True``, a paid-lane call that
+    requests batch mode must raise ``BatchForbiddenError`` -- distinct from
+    the ``ValueError`` a non-batch paid-lane call raises without
+    ``forbid_batch`` -- and say the run is on-demand only and that batch
+    remains available for nightly/initial generation."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        paid_api_key="fake-paid-key",
+        forbid_batch=True,
+    )
+
+    with pytest.raises(BatchForbiddenError) as exc_info:
+        client._call_transport(
+            model=MODEL_GENERATE, prompt="x", lane="paid", mode="batch", purpose="unit_test"
+        )
+
+    message = str(exc_info.value)
+    assert "on-demand" in message or "on demand" in message
+    assert "nightly" in message.lower()
+
+
+def test_generate_many_rpd_mid_call_fallback_lands_on_paid_sync_under_forbid_batch(
+    tmp_path: Path,
+) -> None:
+    """The mid-call RPD fallback in ``_call_transport_with_lane_handling``
+    is the second seam that decides paid-lane mode (the first is the
+    up-front lane decision, exercised by
+    ``test_paid_lane_sync_call_permitted_under_forbid_batch`` via
+    ``_call_transport`` directly). Both must resolve to sync when
+    ``forbid_batch`` is set: an RPD 429 discovered mid-call on the free
+    lane must fall through to a real, synchronous paid-lane call, never a
+    batch submission, and never a ``BatchForbiddenError`` (only an actual
+    attempted batch call raises that)."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file,
+        cache_dir=tmp_path / "cache",
+        forbid_batch=True,
+    )
+
+    call_count = {"n": 0}
+    seen: list[tuple[str, str]] = []
+
+    def fallback_transport(**kwargs: object) -> tuple[str, int, int]:
+        lane = str(kwargs["lane"])
+        mode = str(kwargs["mode"])
+        seen.append((lane, mode))
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            assert lane == "free"
+            raise QuotaExceededError("rpd")
+        return _fake_transport_ok(**kwargs)
+
+    client._call_transport = fallback_transport  # type: ignore[method-assign]
+
+    response = client.generate("Anfrage nach RPD", purpose="unit_test", use_cache=False)
+
+    assert "lane=paid" in response
+    assert "mode=sync" in response
+    assert seen == [("free", "sync"), ("paid", "sync")]
+    assert client.free_lane_open is False
+
+
+def test_generate_many_paid_lane_dispatches_sync_per_item_under_forbid_batch(
+    tmp_path: Path,
+) -> None:
+    """``generate_many``'s own paid-lane branch must also resolve to sync,
+    per-item dispatch (not the batch-job grouping machinery) when
+    ``forbid_batch`` is set -- the third seam the brief calls out
+    ("generate_many picks its mode")."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file,
+        cache_dir=tmp_path / "cache",
+        paid_api_key="fake-paid-key",
+        forbid_batch=True,
+    )
+    client.free_lane_open = False  # force the paid lane
+
+    fake_models = _FakeModels(
+        response=_fake_generate_content_response("Antwort", prompt_tokens=4, candidates_tokens=2)
+    )
+    fake_batches = _FakeBatches()
+    fake_sdk = _FakeSdkClient(models=fake_models, batches=fake_batches)
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    responses = client.generate_many(["eins", "zwei"], purpose="unit_test", use_cache=False)
+
+    assert responses == ["Antwort", "Antwort"]
+    assert len(fake_models.calls) == 2, "must have reached the sync transport, per item"
+    assert len(fake_batches.create_calls) == 0, "must never have queued a real batch job"
+
+    lines = [
+        line.strip() for line in log_file.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    assert len(lines) == 2
+    assert all('"lane":"paid"' in line for line in lines)
 
 
 def test_real_token_counts_from_usage_metadata_flow_into_cost_log(tmp_path: Path) -> None:

@@ -150,7 +150,12 @@ def test_main_writes_review_and_rejected_files_offline(
 
     exit_code = step6.main()
 
-    assert exit_code == 0
+    # No API key configured -> the model verification backstop never ran for
+    # any accepted item (module docstring's "documented no-op"), and a run
+    # whose backstop did not execute is not a valid pilot run regardless of
+    # why -- see main()'s not_run_count check. The files are still written;
+    # only the exit code changes.
+    assert exit_code != 0
     assert review_path.exists()
     assert rejected_path.exists()
 
@@ -239,7 +244,11 @@ def test_main_uses_generate_sentence_pool_not_a_single_flat_request(
 
     exit_code = step6.main()
 
-    assert exit_code == 0
+    # No API key configured here either -> same not_run-forces-nonzero-exit
+    # policy as test_main_writes_review_and_rejected_files_offline; this
+    # test only cares that generate_sentence_pool was called correctly, so
+    # it does not otherwise care about the exit code's exact value.
+    assert exit_code != 0
     assert len(calls) == 1, "exactly one generate_sentence_pool call, not one per sentence"
     assert calls[0]["total"] == 10
 
@@ -281,7 +290,9 @@ def test_main_gates_a_carrier_invalid_sentence_before_it_reaches_a_selector(
     exit_code = step6.main()
     captured = capsys.readouterr()
 
-    assert exit_code == 0
+    # No API key configured -> not_run_count > 0 for whatever the good
+    # sentence produces, same policy as the other offline-mode tests above.
+    assert exit_code != 0
     assert "Rejected by carrier validation:   1" in captured.out
     assert "subject_verb_disagreement" in captured.out
 
@@ -410,3 +421,89 @@ def test_dropped_items_to_skips_preserves_reason_and_answer() -> None:
     record = _to_rejected_record(skips[0])
     assert record.proposed_answer == "stehe"
     assert record.reason == "cross_topic_duplicate"
+
+
+def test_main_returns_nonzero_and_says_why_when_verification_did_not_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A skipped model verification backstop must fail the run, not just be
+    reported and then exit 0 -- exactly the regression the project owner
+    reported: sentence generation alone spent the whole 50-call free-lane
+    quota, the verification pass then raised (an unconditionally
+    paid-lane-forbidden client), every one of 370 items degraded to
+    ``not_run``, zero rows with ``purpose="item_verification"`` landed in
+    ``cost_log.jsonl``, and the script still exited 0."""
+    from src.generation.blanking.model_verification import ItemVerdict, VerificationReport
+
+    monkeypatch.setattr(step6, "load_env_file", lambda *a, **k: {})
+    monkeypatch.delenv("GEMINI_FREE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    def _fake_verify_items(
+        items: list[BankItem], llm_client: object, *, batch_size: int = 20
+    ) -> VerificationReport:
+        verdicts = [ItemVerdict(outcome="not_run", reason="paid_lane_forbidden") for _ in items]
+        return VerificationReport(attempted=True, verdicts=verdicts)
+
+    monkeypatch.setattr(step6, "verify_items", _fake_verify_items)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "step6_blank_pilot.py",
+            "--sentences",
+            "10",
+            "--review-file",
+            str(tmp_path / "review.jsonl"),
+            "--rejected-file",
+            str(tmp_path / "rejected.jsonl"),
+        ],
+    )
+
+    exit_code = step6.main()
+    captured = capsys.readouterr()
+
+    assert exit_code != 0
+    assert "not a valid pilot run" in captured.out.lower()
+
+
+def test_main_returns_zero_when_verification_ran_even_with_model_rejections(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Once the model verification pass genuinely executes for every item
+    (``attempted=True``, no item degraded to ``not_run``), a nonzero
+    rejected-by-the-model count is NOT a run failure -- only items the pass
+    never got to judge are (module docstring: 'Items rejected by the model
+    are NOT a failure; only not_run is')."""
+    from src.generation.blanking.model_verification import ItemVerdict, VerificationReport
+
+    monkeypatch.setattr(step6, "load_env_file", lambda *a, **k: {})
+    monkeypatch.delenv("GEMINI_FREE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    def _fake_verify_items(
+        items: list[BankItem], llm_client: object, *, batch_size: int = 20
+    ) -> VerificationReport:
+        verdicts = [ItemVerdict(outcome="rejected", reason="nicht plausibel") for _ in items]
+        return VerificationReport(attempted=True, verdicts=verdicts)
+
+    monkeypatch.setattr(step6, "verify_items", _fake_verify_items)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "step6_blank_pilot.py",
+            "--sentences",
+            "10",
+            "--review-file",
+            str(tmp_path / "review.jsonl"),
+            "--rejected-file",
+            str(tmp_path / "rejected.jsonl"),
+        ],
+    )
+
+    exit_code = step6.main()
+
+    assert exit_code == 0

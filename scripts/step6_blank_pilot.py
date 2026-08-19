@@ -56,9 +56,20 @@ pass could not run at all (no API key configured, or a malformed model
 response) -- see ``_print_verification_report`` and CLAUDE.md 12. This
 script shares the SAME ``llm_client`` between sentence generation and this
 pass (never builds a second one), so both draw from one cost log and one
-rate-limiter state, and both are unconditionally forbidden from the paid
-lane (module docstring's own note on this script never taking a
-``--batch`` opt-in at all).
+rate-limiter state, and both are unconditionally forbidden from queuing a
+real Batch API job (this script never takes a ``--batch`` opt-in at all) --
+but NOT from the paid lane itself. The client
+``sentence_source.client_from_env`` builds is ``forbid_batch=True``,
+``forbid_paid_lane=False``: the project owner's own instruction is "no
+batch api ... for pilot go to paid on demand api, if free lane is already
+expired," not "no paid lane." So once the free lane's daily quota is spent
+(exactly what happened in the run that motivated this: sentence generation
+alone consumed the whole 50-call free-lane quota), both sentence generation
+and this verification pass keep going, synchronously, on the paid lane,
+instead of silently degrading every item to ``"not_run"`` the way an
+unconditionally paid-lane-forbidden client used to. See ``main()``'s
+exit-code handling below: a run where this pass did not execute must never
+exit 0 again, regardless of why it did not execute.
 
 Run this from a terminal:
 
@@ -527,10 +538,13 @@ def main() -> int:
     # runs LAST, over items that already survived every structural check
     # above. Shares the SAME ``llm_client`` sentence generation just used
     # (never builds a second one), so both draw from one cost log and one
-    # rate-limiter, and both are unconditionally forbidden from the paid
-    # lane. With no client configured (``ran_live`` is ``False``) this is a
-    # documented no-op -- every item is reported "not_run", never silently
-    # "verified".
+    # rate-limiter, and both are unconditionally forbidden from queuing a
+    # real Batch API job, but NOT from the paid lane itself (forbid_batch=True,
+    # forbid_paid_lane=False -- see sentence_source.client_from_env). With no
+    # client configured (``ran_live`` is ``False``) this is a documented
+    # no-op -- every item is reported "not_run", never silently "verified".
+    # main() below turns a nonzero not_run_count into a nonzero exit code so
+    # a skipped backstop can never look like a successful run again.
     verification_report = verify_items(
         accepted_items, llm_client, batch_size=DEFAULT_VERIFICATION_BATCH_SIZE
     )
@@ -555,6 +569,27 @@ def main() -> int:
 
     print(f"  Review file:           {review_path}")
     print(f"  Rejected file:         {rejected_path}")
+
+    if verification_report.not_run_count > 0:
+        # The model verification backstop is the whole point of this
+        # script's "generate then blank then verify" architecture (module
+        # docstring's "model verification backstop" section). A run whose
+        # backstop did not execute -- budget ceiling, missing key, a
+        # transport failure, or a batch-forbidden client that somehow still
+        # hit that path -- must never look like a successful run: exit 0
+        # here is exactly what let the run that consumed the whole
+        # free-lane quota on sentence generation report zero
+        # item_verification calls in cost_log.jsonl while still reporting
+        # success. Items the model actually rejected are NOT a failure of
+        # this run; only items the pass never got to judge are.
+        print()
+        print(
+            "  FAILING: the model verification backstop did not run for "
+            f"{verification_report.not_run_count} item(s) (see 'Items not "
+            "verified' above for why). A run where this backstop did not "
+            "execute is not a valid pilot run."
+        )
+        return 1
 
     return 0
 

@@ -91,12 +91,12 @@ named directly in the brief for this cycle:
    ``"verified"``. Other, well-formed batches in the same run are
    unaffected -- ``_parse_batch_response`` operates one batch at a time.
 
-``BudgetExceeded``, ``ServerUnavailableError``, ``PaidLaneForbiddenError``
-and ``MissingApiKeyError`` are caught around the whole
-``generate_many`` call (which either returns every batch's response text or
-raises -- there is no partial result to salvage from a raised call) and
-degrade the ENTIRE run to ``"not_run"`` for every item, each carrying a
-reason naming which of the four occurred, for exactly the same "never
+``BudgetExceeded``, ``ServerUnavailableError``, ``PaidLaneForbiddenError``,
+``BatchForbiddenError`` and ``MissingApiKeyError`` are caught around the
+whole ``generate_many`` call (which either returns every batch's response
+text or raises -- there is no partial result to salvage from a raised call)
+and degrade the ENTIRE run to ``"not_run"`` for every item, each carrying a
+reason naming which of the five occurred, for exactly the same "never
 silently claim success" reason.
 
 Every rejected item's model-given reason is kept (never discarded), so a
@@ -104,15 +104,24 @@ rejected item is diagnosable rather than a silent drop -- the same standard
 CLAUDE.md 12's "report honestly" posture and ``pipeline.py``'s own four
 skip/drop categories already hold this whole package to.
 
-This script never uses the paid lane (``scripts/step6_blank_pilot.py`` --
-see CLAUDE.md 9's model-routing table -- "has no such flag [``--batch``] at
-all: the paid lane is unconditionally forbidden for it"), so the
-``llm_client`` a caller hands to ``verify_items`` is expected to already be
-built with ``forbid_paid_lane=True``
-(``src.generation.blanking.sentence_source.client_from_env`` already does
-this; the pilot script reuses that same client and function for both
-generation and this verification pass, rather than building a second one,
-so both share one cost log and one rate-limiter state).
+This script never queues a real Batch API job (``scripts/step6_blank_pilot.py``
+has no ``--batch`` flag at all: real batch submission is unconditionally
+forbidden for it), so the ``llm_client`` a caller hands to ``verify_items``
+is expected to already be built with ``forbid_batch=True`` and
+``forbid_paid_lane=False`` (``src.generation.blanking.sentence_source.
+client_from_env`` already does this; the pilot script reuses that same
+client and function for both generation and this verification pass, rather
+than building a second one, so both share one cost log and one
+rate-limiter state). This is a deliberate change from an earlier version of
+this module, which expected ``forbid_paid_lane=True`` instead: that
+forbade the paid lane outright, so once sentence generation had spent the
+free lane's whole daily quota, this pass's own ``generate_many`` call
+raised ``PaidLaneForbiddenError`` immediately, before a single verification
+request went out, and every item degraded to ``"not_run"`` while the
+script still exited 0 -- the exact failure ``scripts/step6_blank_pilot.py``
+now refuses to let pass silently (see its own module docstring and
+``main()``'s exit-code handling). ``forbid_batch=True`` keeps this pass
+able to run, on the paid lane, synchronously, once the free lane closes.
 """
 
 from __future__ import annotations
@@ -127,6 +136,7 @@ from pydantic import BaseModel, ConfigDict
 
 from src.contracts import MODEL_VERIFY, BankItem
 from src.llm.client import (
+    BatchForbiddenError,
     BudgetExceeded,
     GeminiLlmClient,
     MissingApiKeyError,
@@ -224,16 +234,18 @@ REASON_MALFORMED_RESPONSE = "malformed_model_response"
 REASON_BUDGET_EXCEEDED = "budget_exceeded"
 REASON_SERVER_UNAVAILABLE = "server_unavailable"
 REASON_PAID_LANE_FORBIDDEN = "paid_lane_forbidden"
+REASON_BATCH_FORBIDDEN = "batch_forbidden"
 REASON_MISSING_API_KEY = "missing_api_key"
 
 # Maps the transport/budget exceptions ``verify_items`` degrades a whole run
 # on to their reason slug -- checked in this order (a subclass relationship
-# does not exist among these four, so order does not affect matching, only
+# does not exist among these five, so order does not affect matching, only
 # readability matches the order they are documented in above).
 _DEGRADE_EXCEPTIONS: tuple[tuple[type[Exception], str], ...] = (
     (BudgetExceeded, REASON_BUDGET_EXCEEDED),
     (ServerUnavailableError, REASON_SERVER_UNAVAILABLE),
     (PaidLaneForbiddenError, REASON_PAID_LANE_FORBIDDEN),
+    (BatchForbiddenError, REASON_BATCH_FORBIDDEN),
     (MissingApiKeyError, REASON_MISSING_API_KEY),
 )
 _DEGRADE_EXCEPTION_TYPES: tuple[type[Exception], ...] = tuple(

@@ -798,17 +798,25 @@ def client_from_env() -> GeminiLlmClient | None:
     -- kept as its own small copy here rather than importing that private
     helper, so this module stays self-contained within the new package.
 
-    Built with ``forbid_paid_lane=True``: this is a pilot script
-    (``scripts/step6_blank_pilot.py``) with no ``--batch`` opt-in at all, so
-    unlike the nightly automation there is no scenario where this client
-    should ever fall through to the real paid Batch API. If the free lane's
-    daily quota is exhausted, the run must fail loudly, not spend silently."""
+    Built with ``forbid_batch=True`` and ``forbid_paid_lane=False``: this is
+    a pilot script (``scripts/step6_blank_pilot.py``) with no ``--batch``
+    opt-in at all, so unlike the nightly automation there is no scenario
+    where this client should ever queue a real Batch API job. That is a
+    different thing from forbidding the paid lane outright, though -- the
+    project owner's own words: "no batch api ... for pilot go to paid on
+    demand api, if free lane is already expired." So the paid lane itself
+    stays open, synchronously, once the free lane's daily quota is spent;
+    only real batch submission is refused. See ``BatchForbiddenError`` in
+    ``src.llm.client`` for why this used to be ``forbid_paid_lane=True``
+    (which forbade the paid lane outright, sync or batch) and why that was
+    wrong: it made a spent free-lane quota degrade the whole run silently
+    instead of continuing on-demand."""
     if (
         os.getenv("GEMINI_FREE_API_KEY")
         or os.getenv("GEMINI_PAID_API_KEY")
         or os.getenv("GEMINI_API_KEY")
     ):
-        return GeminiLlmClient(forbid_paid_lane=True)
+        return GeminiLlmClient(forbid_paid_lane=False, forbid_batch=True)
     return None
 
 
