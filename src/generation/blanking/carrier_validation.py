@@ -101,8 +101,6 @@ Semantic incoherence (a sentence that parses and agrees but makes no sense)
 is explicitly out of scope -- not mechanically checkable, per the task that
 commissioned this module.
 
-## Cycle 5 additions: adjective declension, dass/das, Swiss spelling
-
 `docs/audits/cycle-04-report.md` found two error classes the checks above
 never looked at, plus one seen once. All three are real, mechanically-checked
 properties, not semantic proxies -- but each has an honestly-scoped limit,
@@ -203,6 +201,241 @@ recorded here rather than left implicit:
    of context, so there is no ambiguity to misjudge for this one closed
    list, but it catches nothing outside these seven forms.
 
+## Cycle 6 additions, and one investigated but NOT added
+
+`docs/audits/cycle-06-report.md` found three more classes. Two are new
+checks (7, 8 below); the third (the `treue`/`treffe` item, report class G)
+is a diagnosis with NO new check attached, and section "Cycle 6: the
+`treue` hole" below explains why at length rather than shipping something
+that either does not close the reported item or breaks the zero-false-
+positive regression trying to.
+
+7. **Swiss `ss` for standard `ß`, extended to `groß`.** The report proposed
+   validating every `ss` token against the vendored dictionary
+   (`data/fixtures/corpus/frequency/de_dictionary_filter.txt`, 37,567
+   entries, CC0) instead of hand-listing forms: reject a token whose literal
+   text is absent from the dictionary but whose `ß`-substituted spelling is
+   present. **Verified against the actual file before relying on it, per
+   the task's own instruction, and it cannot support that test.** The file
+   was built by writing each retained entry through
+   `src.lexicon.lemmatizer.normalise` (see
+   `src/lexicon/frequency.py:load_dictionary_filter` and the file's own
+   `PROVENANCE.md`), which maps `ß` to `ss` -- so the file was normalised
+   not just for the membership TEST used to build it, but in the bytes it
+   actually stores. Empirically: the file contains zero `ß` characters in
+   37,567 entries despite containing 6,316 entries with umlauts, and
+   `gross`/`weiss`/`fuss`/`strasse` are present while `groß`/`weiß`/`fuß`/
+   `straße` -- unambiguously real, extremely common German words that a
+   genuine 37k-entry wordlist would certainly contain -- are absent. Every
+   `ß` the source wordlist ever had was already collapsed to `ss` before
+   this file was committed. A lookup against it (or through
+   `FrequencyBander.load_dictionary_filter`, which normalises again on
+   load, compounding the same loss) cannot tell "grossen" and "großen"
+   apart: both normalise to the same stored key, so the proposed test would
+   either never fire (checked literally, as specified) or, if implemented
+   with case/eszett-blind normalisation on both sides, fire on nothing
+   because there is no `ß`-bearing key left anywhere in the file to find.
+   **This is a real, reportable data-quality finding: the vendoring for the
+   B2-vocabulary task last cycle discarded exactly the information this
+   cycle's task needs, since the frequency-banding use case never needed
+   orthography preserved.** Fixing it properly means re-deriving the filter
+   file from the upstream `enz/german-wordlist` source with normalisation
+   applied only to the membership test, not to the stored bytes -- out of
+   scope here (this module owns carrier validation, not corpus vendoring),
+   and flagged for whoever next touches that fixture.
+
+   The fallback actually shipped is the same closed-list technique already
+   proven for `heißen` (section 6 below), extended by ONE lexeme: `groß`,
+   the specific word both audited items used. `_SWISS_GROSS_PATTERN`
+   matches the six surface forms `gross`/`grosse`/`grossem`/`grossen`/
+   `grosser`/`grosses` (predicative plus all four attributive endings).
+   Unlike the `heißen` pattern, this one is matched CASE-SENSITIVELY,
+   lowercase only, deliberately: "Gross" and "Grosser" are attested German
+   surnames, and matching them case-insensitively (as the `heißen` pattern
+   does, safely, because "Heißen" is not a surname anyone actually has)
+   would risk rejecting a sentence that correctly names someone. Attributive
+   and predicative uses of the adjective are always lowercase, so this loses
+   only the rare sentence-initial capitalised use ("Grosse Sorgfalt ist
+   nötig...") -- an acceptable, deliberate narrowing given CLAUDE.md's own
+   cost calculus (discarding a good sentence is cheap; a false accusation
+   against a real surname is a different, worse kind of expensive: it is
+   not just a lost sentence, it is a wrong answer to a learner if it ever
+   reached the cue-validation path instead of only this pre-blank stage).
+
+8. **`dass` where `damit`/`weil`/`wenn` belongs.** A genuine content clause
+   ("Er sagt, dass er kommt") is licensed by its MATRIX predicate -- a verb
+   of saying, knowing, hoping, or informing. A matrix predicate of physical
+   action never licenses one; a `dass`-clause hanging off "kaufen" or
+   "helfen" is a purpose/causal clause the model wrote with the wrong
+   connective. The check walks from the `dass` token's own clause verb
+   (`kous.head`) up at most two hops -- skipping one intervening object noun
+   the clause sometimes attaches to instead of the verb directly (a real,
+   observed parser quirk: "..., dass X" attaches to the preceding NP for
+   "Sie kaufen ein neues Smartphone, dass ... ist" rather than to "kaufen"
+   itself) -- to the matrix predicate, and rejects only when that predicate's
+   lemma is one of a small closed set confirmed to be obligatorily
+   transitive, physical, and non-communicative: `kaufen`, `schenken` (the
+   same two already vetted for section 5's check, for the same reason),
+   `helfen`, and the separable compound `herunterladen` (`laden` + an
+   `svp` child literally "herunter", checked narrowly so plain "laden" or a
+   differently-prefixed compound is not touched).
+
+   **Deliberately a closed BLOCKLIST, not a whitelist of licensing verbs,
+   and deliberately small -- biased toward missing errors over raising
+   false alarms, per the task's own instruction.** A whitelist ("flag any
+   matrix verb not in the list of saying/knowing verbs") would need to
+   enumerate an open lexical class correctly to avoid false positives on
+   every verb an author forgot to list; getting that list wrong in either
+   direction is easy. A blocklist can only ever under-fire: an unlisted
+   physical-action verb before a wrongly-typed `dass` is simply missed,
+   which is the safe failure direction this task asked for, while a
+   genuine communication verb is NEVER at risk of being flagged merely for
+   being unlisted. Verified against the audit's two good-content-clause
+   examples specifically because they use a verb ("schicken") that looks
+   superficially similar to the disallowed set (also a transfer-of-object
+   verb): "Sie haben der Reiseleitung eine Nachricht geschickt, dass der
+   Bus pünktlich angekommen ist" and "Wir schicken dem Hotelier eine
+   Nachricht, dass wir am Abend ankommen" both resolve their matrix
+   predicate to "schicken", which is not on the blocklist, so both accept
+   -- "eine Nachricht schicken" IS a communication act, and this check does
+   not need to know that specially; it only needed to not guess wrong about
+   a verb it was never told is disallowed.
+
+   **Known gap, left uncaught on purpose:** the report's fourth example,
+   "Es wäre sehr hilfreich, dass Sie dem Reiseleiter Ihre Wünsche
+   mitteilen" (should be "wenn"), has a different shape entirely -- an
+   extraposed "es" subject with a predicate ADJECTIVE ("hilfreich"), not a
+   matrix VERB, and the wrongness is a Konjunktiv-II-versus-indicative mood
+   mismatch between the two clauses, not a transitivity gap. The head-walk
+   here reaches "wäre" (the copula, "sein"), which is not and should not be
+   on a physical-action blocklist -- there is no verb here to blocklist at
+   all. Catching this shape needs a different check (predicate-adjective
+   licensing plus a mood-agreement rule across the clause boundary), which
+   this task's matrix-predicate-list design does not cover and this cycle
+   does not add.
+
+9. **Cycle 6: the `treue` hole -- diagnosed, not special-cased, and no new
+   check follows from it.** The report's own carrier: "Nach der Arbeit
+   treue ich mich mit Lisa auf einen Kaffee in der Stadt." ("treffe" was
+   meant). The report asked whether the agreement check -- section 1 above,
+   the module's strongest -- has a hole that let a subject with no
+   agreeing verb through, since "no finite verb agrees with ich" was the
+   human read of the sentence.
+
+   **What the tagger actually does, verified empirically (not assumed):**
+   `de_core_news_sm` parses "treue" as `VVFIN`, `pos_="VERB"`, `dep_="ROOT"`
+   -- a finite verb, present, with `Person=1, Number=Sing` -- which is
+   EXACTLY what "ich" needs. The agreement check runs, finds a resolved
+   subject ("ich", real Person/Number features, not a default), reads the
+   verb's own declared Person/Number, and they match. It is not a bug in
+   the comparison: both sides of that comparison are read faithfully off
+   spaCy, exactly as documented in section 1, and section 1's own
+   comparison logic is correct on the features it was given. **The hole is
+   one level down: nothing anywhere validates that "treuen" (the lemma
+   spaCy invented for this token) is a real German verb before trusting
+   its morphology.** It is not one -- the real verb is "treffen" -- but
+   `de_core_news_sm`'s morphologizer, given an out-of-vocabulary token
+   shaped like a regular ("weak") conjugation, assigns Person/Number from
+   the token's own suffix shape almost independently of whether the lemma
+   exists: "treue" (ending "-e") reliably gets `Person=1, Number=Sing`
+   regardless of subject (confirmed: the same suffix on "wir treuen" gets
+   `Person=1, Number=Plur`, matching "wir" too) BECAUSE "-e" genuinely is
+   the correct 1st-singular-present ending for ANY regular verb, real or
+   invented -- weak conjugation is fully regular precisely in this cell.
+   **Confirmed this is not limited to "ich"/"-e": it is not a universal
+   "verb always agrees" hole either.** "du treust" -- also OOV, also
+   weak-conjugation-shaped -- gets tagged `Person=1, Number=Sing` (a
+   genuine tagger error, since 2nd person "-st" should be `Person=2`), and
+   because that does NOT match "du" (`Person=2`), the EXISTING check
+   already rejects it as `REASON_SUBJECT_VERB_DISAGREEMENT` with no changes
+   needed. The hole specifically, and only, manifests when a fabricated
+   verb's ending happens to be the grammatically correct one for its own
+   adjacent subject -- which is the likely shape of exactly the kind of
+   error a language model makes (it reliably gets conjugational endings
+   right; picking the right STEM for a less common verb is where it
+   slips), so this is a real, non-trivial gap, not a curiosity.
+
+   **Closing it fully needs knowing whether a verb's LEMMA is real, which
+   needs a POS-aware verb lexicon this repository does not have -- but a
+   partial, verified-safe mitigation IS shipped (section 10 below), because
+   it closes real cases beyond this one even though it does not close this
+   exact reported item, and it was measured, not assumed, to add zero
+   false positives before being wired in.**
+
+   - **The flat word dictionary cannot arbitrate the reported item, for the
+     identical reason it cannot arbitrate section 7's `ss`/`ß` question**:
+     it has no part-of-speech information, and it lists inflected surface
+     forms broadly, not just lemmas. Checked directly: "treue" AND
+     "treuen" are BOTH already present in `de_dictionary_filter.txt` -- as
+     real inflections of the adjective "treu" ("die Treue", "meinen
+     treuen Freunden"), not as a verb. A bare "is this string a real
+     word" lookup on the verb's lemma would accept this exact sentence,
+     not reject it: the collision is real, not hypothetical, and verified
+     against the actual file rather than assumed. **This is why section
+     10's check, below, cannot and does not claim to catch "treue" -- it
+     is documented there as a known, permanent gap of that check, not
+     silently left implicit.**
+   - **Trusting spaCy's own `token.lemma_` for a dictionary check was
+     tried and rejected on evidence, not suspicion.** `token.lemma_` comes
+     from `EditTreeLemmatizer`, a trained model, not a lookup table
+     (confirmed by introspecting the loaded pipe: no exceptions table to
+     query for "is this a known verb" either). Tested directly against
+     `sentence_source._MOCK_SENTENCE_POOL`: 12 sentences of genuinely
+     correct German -- "Du frühstückst normalerweise sehr schnell.", "Du
+     vergisst beim Einkaufen ständig deine eigene Tasche.", "Du hilfst
+     deinen Freunden immer sehr gern.", and nine more -- got a nonsense
+     lemma from the lemmatizer (`vergissen`, `hilfstn`, `rufsen`, ...),
+     mostly 2nd-person-singular forms whose stem is genuinely ablauted.
+     Gating carrier acceptance on THAT lemma being a dictionary word would
+     have rejected all twelve, a direct violation of the zero-false-
+     positive regression this module is pinned against, so section 10
+     never reads `token.lemma_` at all.
+
+   **What would actually close the reported item specifically:** a
+   POS-tagged German verb lexicon (infinitive lemma to part of speech), so
+   a finite-verb-lemma check could require the lemma be classified VERB
+   specifically, not merely be some real word. No such resource is
+   vendored in this repo; building or fetching one is corpus work, out of
+   scope for a module that owns carrier validation, not corpus vendoring
+   (the same boundary drawn in section 7).
+
+10. **Finite-verb lexical reality, for the two present-tense cells German
+    morphology GUARANTEES are never ablauted.** A regular ("weak") verb's
+    1st-singular-present is always its stem plus "-e", and its 1st- or
+    3rd-plural-present is always the bare infinitive itself, for every
+    German verb, strong or weak, without exception -- ablaut (the vowel
+    change that makes 2nd/3rd-singular-present unpredictable from the
+    infinitive, e.g. "helfen" to "hilfst"/"hilft") never touches these two
+    cells. That guarantee is what makes this check safe WITHOUT trusting
+    `token.lemma_` (rejected above): for `tag_=="VVFIN"`, `pos_=="VERB"`
+    (never `AUX`/`VMFIN` -- the closed-class auxiliaries and modals have
+    their own irregular 1st-singular forms, "bin"/"habe"/"kann", not
+    covered by this rule), `Mood=="Ind"` (Konjunktiv II is excluded too:
+    its stem is not always the plain infinitive stem either, e.g. "wäre"),
+    `Tense=="Pres"`, this module derives the candidate infinitive itself
+    -- MECHANICALLY, by string surgery, never by reading `token.lemma_` --
+    strips a trailing "-e" for `Person=="1", Number=="Sing"`, or takes the
+    surface form as-is for `Number=="Plur"` (either person, since the two
+    are syncretic here per section on syncretism above) -- and rejects
+    only if that candidate (and, for a verb with a separable-prefix `svp`
+    child, the candidate with that prefix re-attached, e.g. "auf" +
+    "stehe" -> "aufstehen") is absent from the same vendored dictionary
+    used in section 7, run through the same `src.lexicon.lemmatizer.
+    normalise` the dictionary itself was built with.
+
+    **Measured before shipping, exactly per this task's standing
+    instruction:** zero false positives across every 1st-singular- and
+    plural-present verb in `_MOCK_SENTENCE_POOL` (22 checked). Catches, by
+    construction, a fabricated verb whose derived infinitive is not a real
+    word under ANY part of speech (e.g. a "musse"/"mussen"-shaped
+    hallucination, absent from the dictionary in every reading, unlike
+    "treuen"). **Does NOT catch, and is not claimed to catch, "treue" ->
+    "treuen"** (present in the dictionary as a real adjective inflection;
+    see section 9 above) or any other case where a fabricated lemma
+    happens to collide with a real word under a different part of speech
+    -- a POS-tagged verb lexicon would be needed to close that, and this
+    repository does not have one.
+
 ## Why this module loads its own spaCy pipeline
 
 ``src.taxonomy.tagger`` and ``src.generation.blanking.sentence_tagger`` both
@@ -223,6 +456,7 @@ from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import lru_cache
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from src.generation.blanking.paradigms import (
@@ -234,6 +468,7 @@ from src.generation.blanking.paradigms import (
     adjective_ending,
     match_ein_word,
 )
+from src.lexicon.lemmatizer import normalise
 from src.taxonomy.tagger import MODEL_NAME
 
 if TYPE_CHECKING:
@@ -257,6 +492,8 @@ REASON_SUBJECT_VERB_DISAGREEMENT = "subject_verb_disagreement"
 REASON_ADJECTIVE_DECLENSION_MISMATCH = "adjective_declension_mismatch"
 REASON_DASS_CLAUSE_MISSING_OBJECT = "dass_clause_missing_object"
 REASON_SWISS_SPELLING = "swiss_spelling"
+REASON_DASS_AFTER_PHYSICAL_ACTION_VERB = "dass_after_physical_action_verb"
+REASON_FINITE_VERB_NOT_A_REAL_WORD = "finite_verb_not_a_real_word"
 
 # STTS fine-grained tags for a finite verb: full verb, auxiliary, modal, and
 # their imperative counterparts (imperative is a finite mood, not a
@@ -300,6 +537,32 @@ _SWISS_HEISSEN_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# A fixed, closed list of literal Swiss-spelled surface forms of "groß" --
+# see module docstring section 7 for why this is a closed-list extension of
+# the same technique as _SWISS_HEISSEN_PATTERN, not the dictionary-based
+# general rule the task proposed (verified unworkable on the vendored
+# data). Matched CASE-SENSITIVELY, lowercase only, unlike the heißen
+# pattern: "Gross"/"Grosser" are attested German surnames, and an
+# attributive/predicative adjective use is always lowercase anyway, so
+# case-sensitivity loses nothing but the rare sentence-initial capitalised
+# use while avoiding a false accusation against a real name.
+_SWISS_GROSS_PATTERN = re.compile(r"\b(?:gross|grosse|grossem|grossen|grosser|grosses)\b")
+
+# Path to the same vendored dictionary used, and found insufficient for the
+# ss/ß question, in module docstring section 7 -- reused here for section
+# 10's finite-verb lexical-reality check, where it IS sufficient (that
+# check only needs "is this a real word", not "is this word spelled with ß
+# or ss", which is exactly the distinction the file cannot make -- see
+# section 7 and section 9's docstring for why).
+_DICTIONARY_PATH = (
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "data"
+    / "fixtures"
+    / "corpus"
+    / "frequency"
+    / "de_dictionary_filter.txt"
+)
+
 
 @lru_cache(maxsize=1)
 def _load_model() -> Language | None:
@@ -321,6 +584,22 @@ def _load_model() -> Language | None:
         # lemmatizer stays in (cheap, and keeps this loader interchangeable
         # with sentence_tagger's if a future check needs a lemma).
         return spacy.load(MODEL_NAME, exclude=["ner"])
+    except OSError:
+        return None
+
+
+@lru_cache(maxsize=1)
+def _load_dictionary() -> frozenset[str] | None:
+    """The vendored real-word list (section 7/10 of the module docstring),
+    normalised through the same ``normalise`` the file was built with, so a
+    lookup is comparing like with like. Mirrors ``_load_model``'s fail-safe
+    contract: never raises, ``None`` if the file is missing, degrading the
+    one check that needs it (section 10) to a no-op rather than a crash --
+    consistent with every other check in this module being conservative by
+    construction, not by exception handling sprinkled at the call site."""
+    try:
+        with _DICTIONARY_PATH.open("r", encoding="utf-8") as f:
+            return frozenset(normalise(line) for line in f if line.strip())
     except OSError:
         return None
 
@@ -388,7 +667,7 @@ def _sentence_shape_reason(text: str) -> str | None:
         return REASON_NOT_CAPITALIZED
     if not _TERMINAL_PUNCTUATION.search(stripped):
         return REASON_NO_TERMINAL_PUNCTUATION
-    if _SWISS_HEISSEN_PATTERN.search(stripped):
+    if _SWISS_HEISSEN_PATTERN.search(stripped) or _SWISS_GROSS_PATTERN.search(stripped):
         return REASON_SWISS_SPELLING
     return None
 
@@ -792,6 +1071,148 @@ def _dass_clause_reason(tokens: list[SpacyToken]) -> str | None:
     return None
 
 
+# The closed BLOCKLIST for module docstring section 8: matrix verbs
+# confirmed, by the audit's own examples, to be obligatorily transitive,
+# physical, and non-communicative -- never a real "dass"-complement
+# licenser. "kaufen"/"schenken" are the same two already vetted for
+# section 5's check, for the same reason; "helfen" is the second audited
+# item. "laden" is handled separately (below) because only its
+# "herunterladen" reading is in scope: plain "laden" or a differently
+# prefixed compound is a different verb, not audited, and left alone.
+_DASS_MATRIX_PHYSICAL_ACTION_LEMMAS: frozenset[str] = frozenset({"kaufen", "schenken", "helfen"})
+
+# The one separable compound in scope: "herunterladen" ("laden" + the
+# literal particle "herunter"), the audit's first example. Plain "laden"
+# (no particle) or any other prefixed compound ("einladen", "aufladen", ...)
+# is a different verb with different valency/semantics and is not touched.
+_DASS_MATRIX_SEPARABLE_LEMMA = "laden"
+_DASS_MATRIX_SEPARABLE_PARTICLE = "herunter"
+
+
+def _is_disallowed_dass_matrix(verb: SpacyToken) -> bool:
+    """Whether ``verb`` is on the closed physical-action blocklist (module
+    docstring section 8), narrowly enough that a differently-prefixed
+    compound of the same stem is never caught by accident."""
+    svp_particles = [c.text.strip().lower() for c in verb.children if c.dep_ == "svp"]
+    if verb.lemma_ == _DASS_MATRIX_SEPARABLE_LEMMA:
+        return svp_particles == [_DASS_MATRIX_SEPARABLE_PARTICLE]
+    if verb.lemma_ in _DASS_MATRIX_PHYSICAL_ACTION_LEMMAS:
+        # A separable-prefix compound of "kaufen"/"schenken" (there is no
+        # common one, but the same precedent as section 5's check applies)
+        # would be a different verb; only the bare verb is in scope.
+        return not svp_particles
+    return False
+
+
+def _matrix_predicate(kous: SpacyToken) -> SpacyToken | None:
+    """The verb that GOVERNS the ``dass``-clause from outside it (module
+    docstring section 8), or ``None`` if it cannot be found confidently.
+
+    ``kous.head`` is the clause's OWN finite verb (e.g. "ist" in "..., dass
+    ... ist"), not the matrix predicate -- that verb's own ``.head`` is
+    usually the matrix verb directly, but a real, observed parser quirk
+    sometimes attaches the clause to the preceding OBJECT NOUN instead
+    ("Sie kaufen ein neues Smartphone, dass ... ist" attaches "ist" to
+    "Smartphone", not to "kaufen"), so exactly one more hop through a
+    NOUN/PROPN head is allowed before giving up. Anything else (an
+    extraposed "es" placeholder subject, a predicate adjective, ...) is
+    deliberately NOT walked past -- see the module docstring's "known gap,
+    left uncaught on purpose" for why "Es wäre hilfreich, dass ..." is not
+    handled here."""
+    clause_verb = kous.head
+    if clause_verb.pos_ not in ("VERB", "AUX"):
+        return None
+    candidate = clause_verb.head
+    if candidate is clause_verb:
+        return None
+    if candidate.pos_ in ("NOUN", "PROPN"):
+        candidate = candidate.head
+    if candidate is clause_verb or candidate.pos_ not in ("VERB", "AUX"):
+        return None
+    return candidate
+
+
+def _dass_matrix_verb_reason(tokens: list[SpacyToken]) -> str | None:
+    """``dass`` after a matrix verb of physical action, where "damit"/
+    "weil"/"wenn" was meant: see module docstring section 8 for the full
+    reasoning, the closed blocklist, and the one construction (predicate
+    adjective, e.g. "wäre hilfreich") this deliberately does not cover."""
+    for kous in tokens:
+        if kous.tag_ != "KOUS" or kous.dep_ != "cp" or kous.text.strip().lower() != "dass":
+            continue
+        matrix = _matrix_predicate(kous)
+        if matrix is None:
+            continue
+        if _is_disallowed_dass_matrix(matrix):
+            return REASON_DASS_AFTER_PHYSICAL_ACTION_VERB
+    return None
+
+
+# The two present-tense (Person, Number) cells German morphology guarantees
+# are never ablauted -- see module docstring section 10 for the full
+# argument for why this makes a mechanically-derived (never
+# ``token.lemma_``-trusting) infinitive candidate safe to check here where
+# trusting the lemmatizer was measured and rejected.
+_SAFE_LEXICAL_REALITY_NUMBERS: frozenset[str] = frozenset({"Sing", "Plur"})
+
+
+def _candidate_infinitives(verb: SpacyToken, feats: dict[str, str]) -> frozenset[str] | None:
+    """The infinitive form(s) ``verb`` would need to be a real word under,
+    derived MECHANICALLY from its own surface text -- never from
+    ``token.lemma_`` (module docstring section 10 explains why that is
+    untrustworthy for exactly this purpose). ``None`` if ``verb`` is not in
+    one of the two safe (Person, Number) cells, or its surface form does
+    not fit the expected shape for its cell (defensive: an unexpected
+    shape is skipped, not guessed at)."""
+    text = verb.text.strip().lower()
+    number = feats.get("Number")
+    person = feats.get("Person")
+    if number == "Sing":
+        if person != "1" or not text.endswith("e") or len(text) < 3:
+            return None
+        base = text[:-1] + "en"
+    elif number == "Plur":
+        if person not in ("1", "3"):
+            return None
+        base = text
+    else:
+        return None
+    candidates = {base}
+    svp_particles = [c.text.strip().lower() for c in verb.children if c.dep_ == "svp"]
+    if len(svp_particles) == 1:
+        candidates.add(svp_particles[0] + base)
+    return frozenset(candidates)
+
+
+def _finite_verb_lexical_reality_reason(verb: SpacyToken) -> str | None:
+    """Whether ``verb``'s mechanically-derived candidate infinitive(s) --
+    never its ``token.lemma_``, see above -- are a real word in the
+    vendored dictionary (module docstring section 10). ``None`` (no
+    rejection) whenever the dictionary failed to load, the verb is not a
+    lexical verb (``AUX``/modal are excluded -- their irregular forms are
+    not covered by this rule), its mood is not plain indicative present
+    (Konjunktiv II stems are not always the infinitive stem either), or it
+    is not in one of the two safe (Person, Number) cells at all --
+    conservative by construction, exactly like the rest of this module."""
+    if verb.tag_ != "VVFIN" or verb.pos_ != "VERB":
+        return None
+    feats = dict(verb.morph.to_dict())
+    if feats.get("Mood") != "Ind" or feats.get("Tense") != "Pres":
+        return None
+    if feats.get("Number") not in _SAFE_LEXICAL_REALITY_NUMBERS:
+        return None
+    dictionary = _load_dictionary()
+    if dictionary is None:
+        return None
+    candidates = _candidate_infinitives(verb, feats)
+    if candidates is None:
+        return None
+    normalised_candidates = {normalise(c) for c in candidates}
+    if normalised_candidates & dictionary:
+        return None
+    return REASON_FINITE_VERB_NOT_A_REAL_WORD
+
+
 def validate_carrier(sentence: str) -> CarrierValidation:
     """Validate one plain, generated German sentence as a sound carrier.
 
@@ -837,6 +1258,11 @@ def validate_carrier(sentence: str) -> CarrierValidation:
         if agreement_reason is not None:
             return CarrierValidation(sentence, False, agreement_reason)
 
+    for verb in finite_verbs:
+        lexical_reality_reason = _finite_verb_lexical_reality_reason(verb)
+        if lexical_reality_reason is not None:
+            return CarrierValidation(sentence, False, lexical_reality_reason)
+
     declension_reason = _adjective_declension_reason(tokens)
     if declension_reason is not None:
         return CarrierValidation(sentence, False, declension_reason)
@@ -844,6 +1270,10 @@ def validate_carrier(sentence: str) -> CarrierValidation:
     dass_reason = _dass_clause_reason(tokens)
     if dass_reason is not None:
         return CarrierValidation(sentence, False, dass_reason)
+
+    dass_matrix_reason = _dass_matrix_verb_reason(tokens)
+    if dass_matrix_reason is not None:
+        return CarrierValidation(sentence, False, dass_matrix_reason)
 
     return CarrierValidation(sentence, True, None)
 

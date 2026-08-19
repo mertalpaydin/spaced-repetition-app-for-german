@@ -48,21 +48,37 @@ already enforces at derivation time (a cue must never equal the answer it
 cues) -- reject the item outright if it is ever true, rather than trust a
 single guard for something this severe.
 
-## The one topic no cue mechanism can rescue: ``artikel_bestimmt_nom`` and
-## its two siblings
+## ``artikel_bestimmt_nom`` and its two siblings, revisited
 
 ``artikel_bestimmt_nom``, ``artikel_unbestimmt_kein_nom`` and
-``artikel_possessiv_nom`` all declare ``eligible_types: [paragraph_cloze]``
-in ``data/taxonomy.yaml`` -- definiteness, indefiniteness and possession are
-discourse properties (docs/audits/stage-04-pilot-2026-08-15.md's bucket 1),
-never forced by anything a single bare sentence can contain, so a citation
-cue is not a coherent fix here the way it is for a lexeme choice (a cue
-names a WORD; there is no word that forces "the" over "a"). ``pipeline.py``'s
-own eligible-types assertion is what actually keeps these three honest: it
-skips every item ``_determiner_outcome`` builds for one of them (always
-``type="cloze_free"``, never eligible) rather than emit it. This is a
-deliberate architectural choice, not an oversight -- see that module's own
-docstring.
+``artikel_possessiv_nom`` used to declare ``eligible_types: [paragraph_cloze]``
+in ``data/taxonomy.yaml`` alone, and this module's own ``_determiner_outcome``
+unconditionally built ``type="cloze_free"`` for every one of them -- never
+eligible, so ``pipeline.py``'s eligible-types assertion skipped every item
+these three topics' selectors ever found, and they reported zero. That was a
+deliberate architectural choice, not an oversight: definiteness, negation and
+possession are discourse properties (docs/audits/stage-04-pilot-2026-08-15.md's
+bucket 1), and a bare, unanchored sentence never forces one determiner family
+over the other three ("Der/Ein/Kein/Mein Hund schläft im Garten" are all
+grammatical) -- a citation cue is no fix here either, the way it is for a
+lexeme choice, because there is no WORD that forces "the" over "a".
+
+A later cycle (feat/generate-then-blank) narrowed the fix to what the
+restriction was actually protecting against, rather than removing it: each
+of the three topics gets a selector in ``selectors.py`` that fires ONLY when
+a real, structural forcing anchor is present in the sentence (a uniqueness-
+making relative clause, superlative, or ordinal for the definite article; a
+causal ``weil`` clause for the negative article; a kinship noun plus an
+explicit 1st-/2nd-person reference for the possessive) -- see that module's
+own section for the three of them. With the anchor required, the item this
+outcome builder still unconditionally types ``cloze_free`` genuinely is
+solvable, so ``data/taxonomy.yaml`` now lists ``cloze_free`` alongside
+``paragraph_cloze`` in all three topics' own ``eligible_types``, and
+``pipeline.py``'s assertion passes these items through instead of skipping
+them. An UNANCHORED sentence for one of these three topics still yields no
+candidate at all -- that judgment did not change, only the topics' own
+selectors got strict enough to make it safe to stop blocking every item
+regardless of anchor.
 """
 
 from __future__ import annotations

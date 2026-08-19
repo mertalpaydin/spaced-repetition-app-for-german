@@ -18,8 +18,9 @@ in this environment (mirrors ``tests/test_tagger.py``'s own guard).
 """
 
 import pytest
-from src.generation.blanking import sentence_tagger
+from src.generation.blanking import selectors, sentence_tagger
 from src.generation.blanking.blanker import blank_candidate
+from src.generation.blanking.pipeline import blank_sentences
 from src.generation.blanking.selectors import SELECTORS
 
 pytestmark = pytest.mark.skipif(
@@ -45,39 +46,82 @@ def _blank(topic_id: str, sentence: str, candidate_index: int = 0):
 
 
 # ==============================================================================
-# artikel_bestimmt_nom -- definite article, Nominative.
+# artikel_bestimmt_nom -- definite article, Nominative. Each of these three
+# topics now requires a genuine forcing anchor (see selectors.py's own
+# section for the three of them, added alongside this test rewrite): a bare
+# Nominative sentence with no anchor is unsolvable ("Der/Ein/Kein/Mein Hund
+# schläft im Garten" are all grammatical), so it must no longer yield a
+# candidate at all -- the positive cases below all add the anchor their own
+# topic needs; the negative cases at the end of each section pin down that a
+# bare, unanchored sentence -- including every sentence this section used to
+# test with before the anchor requirement existed -- now yields nothing.
 # ==============================================================================
 
 
-def test_artikel_bestimmt_nom_finds_masculine_definite_article() -> None:
-    item = _blank("artikel_bestimmt_nom", "Der Hund läuft schnell durch den Park.")
-    assert item.prompt == "___ Hund läuft schnell durch den Park."
+def test_artikel_bestimmt_nom_finds_masculine_definite_article_via_relative_clause() -> None:
+    item = _blank(
+        "artikel_bestimmt_nom", "Der Hund, den ich gestern gekauft habe, schläft im Garten."
+    )
+    assert item.prompt == "___ Hund, den ich gestern gekauft habe, schläft im Garten."
     assert item.proposed_answer == "Der"
 
 
-def test_artikel_bestimmt_nom_finds_feminine_and_neuter() -> None:
-    fem = _blank("artikel_bestimmt_nom", "Die Sonne scheint heute hell.")
+def test_artikel_bestimmt_nom_finds_feminine_and_neuter_via_relative_clause() -> None:
+    fem = _blank("artikel_bestimmt_nom", "Die Frau, die neben mir wohnt, ist Ärztin.")
     assert fem.proposed_answer == "Die"
-    neut = _blank("artikel_bestimmt_nom", "Das Kind spielt im Garten.")
+    neut = _blank("artikel_bestimmt_nom", "Das Kind, das im Garten spielt, lacht laut.")
     assert neut.proposed_answer == "Das"
 
 
+def test_artikel_bestimmt_nom_finds_it_via_a_superlative_adjective() -> None:
+    item = _blank("artikel_bestimmt_nom", "Der größte Baum im Park ist über hundert Jahre alt.")
+    assert item.proposed_answer == "Der"
+
+
+def test_artikel_bestimmt_nom_finds_it_via_an_ordinal_adjective() -> None:
+    item = _blank("artikel_bestimmt_nom", "Der letzte Tag im Urlaub war wunderschön.")
+    assert item.proposed_answer == "Der"
+
+
 def test_artikel_bestimmt_nom_ignores_the_accusative_article_in_the_same_sentence() -> None:
-    """ "den Park" is Accusative, not Nominative -- only "Der Hund" qualifies."""
-    _, candidates = _select("artikel_bestimmt_nom", "Der Hund läuft schnell durch den Park.")
+    """ "den Park" is Accusative, not Nominative -- only the anchored "Der
+    Hund" qualifies."""
+    _, candidates = _select(
+        "artikel_bestimmt_nom", "Der Hund, den ich gestern gekauft habe, schläft im Garten."
+    )
     assert len(candidates) == 1
 
 
+def test_artikel_bestimmt_nom_finds_nothing_without_a_uniqueness_anchor() -> None:
+    """The negative case that proves the anchor is doing the work: this is
+    the exact sentence ``test_artikel_bestimmt_nom_ignores_the_accusative_
+    article_in_the_same_sentence`` used before the anchor requirement
+    existed, and it is real, grammatical German -- "Der/Ein/Kein/Mein Hund
+    läuft schnell durch den Park" are all equally valid completions with
+    nothing here to force "Der" specifically, so it must now yield no
+    candidate at all."""
+    _, candidates = _select("artikel_bestimmt_nom", "Der Hund läuft schnell durch den Park.")
+    assert candidates == []
+
+
 # ==============================================================================
-# artikel_unbestimmt_kein_nom -- indefinite/negative article, Nominative.
+# artikel_unbestimmt_kein_nom -- negative article ("kein"/"keine"), Nominative.
+# Scoped to "kein" only, not plain "ein" (selectors.py's own module comment
+# for why): a "weil"-clause is the one single-sentence device that forces a
+# negation, and no equivalent device forces a bare affirmative indefinite.
 # ==============================================================================
 
 
-def test_artikel_unbestimmt_kein_nom_finds_indefinite_and_negative() -> None:
-    ind = _blank("artikel_unbestimmt_kein_nom", "Ein Mann steht vor der Tür.")
-    assert ind.proposed_answer == "Ein"
-    neg = _blank("artikel_unbestimmt_kein_nom", "Keine Katze mag Wasser.")
-    assert neg.proposed_answer == "Keine"
+def test_artikel_unbestimmt_kein_nom_finds_it_in_either_clause_order() -> None:
+    weil_first = _blank(
+        "artikel_unbestimmt_kein_nom", "Weil kein Bus fährt, kommen wir heute zu spät."
+    )
+    assert weil_first.proposed_answer == "kein"
+    weil_second = _blank(
+        "artikel_unbestimmt_kein_nom",
+        "Wir kaufen das Brot woanders, weil keine Bäckerei heute geöffnet hat.",
+    )
+    assert weil_second.proposed_answer == "keine"
 
 
 def test_artikel_unbestimmt_kein_nom_rejects_plural_kein_as_a_known_paradigm_gap() -> None:
@@ -87,11 +131,31 @@ def test_artikel_unbestimmt_kein_nom_rejects_plural_kein_as_a_known_paradigm_gap
     ``paradigms.py``'s module docstring. The selector still finds the
     token; the blanker's own paradigm-reconstruction check is what refuses
     rather than guesses."""
-    tagged, candidates = _select("artikel_unbestimmt_kein_nom", "Keine Kinder mögen Regen.")
+    tagged, candidates = _select(
+        "artikel_unbestimmt_kein_nom", "Weil keine Kinder draußen spielen, ist es ruhig."
+    )
     assert len(candidates) == 1
     outcome = blank_candidate("artikel_unbestimmt_kein_nom", tagged, candidates[0])
     assert outcome.item is None
     assert outcome.skip_reason == "determiner_cell_uncovered_by_paradigm"
+
+
+def test_artikel_unbestimmt_kein_nom_finds_nothing_without_a_weil_clause() -> None:
+    """The negative case: the same "kein" sentence with no causal "weil"
+    clause at all -- real, grammatical German, but "Kein/Der/Ein/Mein Bus
+    fährt heute" are all equally valid completions with nothing to force
+    "kein" specifically."""
+    _, candidates = _select("artikel_unbestimmt_kein_nom", "Kein Bus fährt heute.")
+    assert candidates == []
+
+
+def test_artikel_unbestimmt_kein_nom_finds_nothing_for_a_bare_indefinite() -> None:
+    """Plain "ein" (no negation) is out of this topic's anchored scope
+    entirely -- see selectors.py's own module comment: nothing forces a bare
+    affirmative indefinite over "der"/"kein"/a possessive the way a "weil"
+    clause forces a negation."""
+    _, candidates = _select("artikel_unbestimmt_kein_nom", "Ein Mann steht vor der Tür.")
+    assert candidates == []
 
 
 # ==============================================================================
@@ -99,13 +163,42 @@ def test_artikel_unbestimmt_kein_nom_rejects_plural_kein_as_a_known_paradigm_gap
 # ==============================================================================
 
 
-def test_artikel_possessiv_nom_finds_different_persons() -> None:
-    mein = _blank("artikel_possessiv_nom", "Mein Vater kocht heute Abend.")
-    assert mein.proposed_answer == "Mein"
-    ihre = _blank("artikel_possessiv_nom", "Ihre Schwester lacht laut.")
-    assert ihre.proposed_answer == "Ihre"
-    sein = _blank("artikel_possessiv_nom", "Sein Bruder wohnt in Berlin.")
+def test_artikel_possessiv_nom_finds_different_persons_via_relative_clause() -> None:
+    mein = _blank(
+        "artikel_possessiv_nom",
+        "Meine Großmutter, die ich jedes Wochenende besuche, wohnt in München.",
+    )
+    assert mein.proposed_answer == "Meine"
+    dein = _blank(
+        "artikel_possessiv_nom", "Dein Bruder, den du gestern angerufen hast, wohnt in Berlin."
+    )
+    assert dein.proposed_answer == "Dein"
+    sein = _blank(
+        "artikel_possessiv_nom",
+        "Sein Onkel, den ich letzten Sommer kennengelernt habe, lebt in Hamburg.",
+    )
     assert sein.proposed_answer == "Sein"
+
+
+def test_artikel_possessiv_nom_finds_nothing_without_the_person_anchor() -> None:
+    """The negative case: the same kinship noun as a bare Nominative
+    subject, with no relative clause at all to name whose it is -- real,
+    grammatical German ("Mein/Dein/Sein/Der Vater kocht heute Abend" are all
+    equally valid), so it must yield no candidate."""
+    _, candidates = _select("artikel_possessiv_nom", "Mein Vater kocht heute Abend.")
+    assert candidates == []
+
+
+def test_artikel_possessiv_nom_finds_nothing_for_a_body_part_noun() -> None:
+    """Body-part nouns are the inverse case (module docstring above
+    selectors.SELECTORS): German idiomatically prefers the definite article
+    there ("Ich wasche mir die Hände"), so this topic's kinship whitelist
+    never includes one -- even wrapped in the same relative-clause anchor
+    that works for a real kinship noun, it must yield nothing."""
+    _, candidates = _select(
+        "artikel_possessiv_nom", "Meine Hand, die ich mir verletzt habe, tut noch weh."
+    )
+    assert candidates == []
 
 
 # ==============================================================================
@@ -283,6 +376,83 @@ def test_adjektivdeklination_nullartikel_does_not_fire_after_a_fused_definite_pr
     assert strong_candidates == []
     weak_item = _blank("adjektivdeklination_bestimmt", "Die Kinder spielen im großen Garten.")
     assert weak_item.proposed_answer == "großen"
+
+
+def test_adjektivdeklination_nullartikel_does_not_fire_past_a_preceding_adjective() -> None:
+    """docs/audits/cycle-06-report.md class E, item 1: "die erste ___
+    Besprechung" -- the governing determiner ("die") sits one token further
+    back than usual, behind another attributive adjective ("erste"), not a
+    prepositional phrase. Before the far-scan's span check accepted a
+    plain adjective chain (not only a PP), "wichtige" was wrongly selected
+    as zero-article/strong."""
+    sentence = (
+        "Gemeinsam erreichten sie die Firma, wo schon die erste wichtige Besprechung wartete."
+    )
+    _, strong_candidates = _select("adjektivdeklination_nullartikel", sentence)
+    assert strong_candidates == []
+    weak_item = _blank("adjektivdeklination_bestimmt", sentence, candidate_index=1)
+    assert weak_item.proposed_answer == "wichtige"
+
+
+def test_adjektivdeklination_nullartikel_does_not_fire_past_a_preceding_quantifier() -> None:
+    """docs/audits/cycle-06-report.md class E, item 2: "eine viel ___
+    Zukunft" -- the governing determiner ("eine") sits one token further
+    back behind a degree adverb ("viel") modifying the comparative
+    adjective itself, not a prepositional phrase."""
+    sentence = "Ich wünsche mir wirklich eine viel umweltfreundlichere Zukunft für unsere Stadt."
+    _, strong_candidates = _select("adjektivdeklination_nullartikel", sentence)
+    assert strong_candidates == []
+    mixed_item = _blank("adjektivdeklination_unbestimmt", sentence)
+    assert mixed_item.proposed_answer == "umweltfreundlichere"
+
+
+def test_adjektivdeklination_nullartikel_does_not_fire_on_the_maler_sentence_live() -> None:
+    """docs/audits/cycle-06-report.md class E, item 3: "das von einem Maler
+    ___ Arbeitszimmer" -- reported fixed by a previous cycle and verified
+    fixed, but still live, because the fix was verified only against an
+    isolated call, on a sentence shaped so "das" is tagged ``ART``. In the
+    actual full sentence a fronted clause precedes the finite verb, and
+    ``de_core_news_sm`` -- confirmed directly -- then tags that same "das"
+    ``PDS`` (demonstrative pronoun) instead, purely because of clause
+    position, defeating the ``ART``-only determiner check.
+
+    Pinned as the full, fronted-clause sentence (not the bare "Wir hatten
+    das ..." fragment a prior cycle tested), and verified through the real
+    pipeline (``blank_sentences``), not a direct selector call, since that
+    is exactly the gap the audit named."""
+    sentence = (
+        "Nachdem der Umzug endlich abgeschlossen war, hatten wir das von einem "
+        "Maler gestaltete Arbeitszimmer besichtigt."
+    )
+    tagged = sentence_tagger.tag_sentence(sentence)
+    assert tagged is not None
+    das = next(t for t in tagged.tokens if t.text == "das" and t.i > 0)
+    assert das.tag == "PDS", "this regression pin depends on the live PDS mistag reproducing"
+
+    _, strong_candidates = _select("adjektivdeklination_nullartikel", sentence)
+    assert strong_candidates == []
+    _, weak_candidates = _select("adjektivdeklination_bestimmt", sentence)
+    assert [c.declension for c in weak_candidates] == ["weak"]
+
+    report = blank_sentences([sentence])
+    assert not any(item.topic_id == "adjektivdeklination_nullartikel" for item in report.items)
+    # The pipeline does not go on to emit an ACCEPTED adjektivdeklination_
+    # bestimmt item for this exact sentence either, but for an entirely
+    # separate, pre-existing reason that has nothing to do with this fix
+    # and is out of this module's scope: ``de_core_news_sm`` also mistags
+    # "Arbeitszimmer"/"gestaltete" themselves as Masculine Plural (confirmed
+    # even on the bare, subject-first, ART-tagged form of this sentence, so
+    # it is independent of the PDS mistag above), which makes
+    # ``blanker.py``'s own paradigm-reconstruction check correctly refuse to
+    # emit an item ("reject rather than guess", the same safe failure
+    # direction as everywhere else in this pipeline) rather than emit one
+    # with a mismatched ending. Pinned here as a skip, not an item, so this
+    # test states plainly what the pipeline actually does today.
+    assert not any(item.topic_id == "adjektivdeklination_bestimmt" for item in report.items)
+    assert any(
+        d.topic_id == "adjektivdeklination_bestimmt" and d.reason == "adjective_ending_mismatch"
+        for d in report.skip_details
+    )
 
 
 def test_adjective_declension_selectors_reject_an_unclassifiable_determiner() -> None:
@@ -653,6 +823,33 @@ def test_verb_praesens_vokalwechsel_excludes_a_plain_regular_verb() -> None:
     assert candidates == []
 
 
+def test_verb_praesens_vokalwechsel_excludes_first_person_forms() -> None:
+    """docs/audits/cycle-06-report.md class D: German's present-tense stem-
+    vowel change only surfaces in 2nd/3rd person singular ("du isst",
+    "er isst") -- 1st singular and every plural form of a vokalwechsel verb
+    is spelled exactly like a regular verb ("ich esse", "wir essen"), so
+    blanking one of those cells would exercise nothing this topic is about.
+    7 of 8 live-pilot items audited were exactly this defect."""
+    for sentence in (
+        "Mittags esse ich meistens ein leckeres Sandwich.",
+        "Wir essen oft Pizza am Freitag.",
+        "Morgen helfe ich meinem besten Freund beim Umzug.",
+    ):
+        _, candidates = _select("verb_praesens_vokalwechsel", sentence)
+        assert candidates == [], f"{sentence!r} must not yield a vokalwechsel candidate"
+
+
+def test_verb_praesens_vokalwechsel_still_finds_the_second_and_third_singular() -> None:
+    """The positive counterpart of the test above: the SAME family's
+    2nd/3rd-singular cell, where the vowel change actually shows, must
+    still be selected."""
+    assert _blank("verb_praesens_vokalwechsel", "Du liest zu wenig.").proposed_answer == "liest"
+    assert (
+        _blank("verb_praesens_vokalwechsel", "Er hilft mir oft beim Umzug.").proposed_answer
+        == "hilft"
+    )
+
+
 def test_verb_praesens_regelm_excludes_a_mislemmatised_modal_konjunktiv_ii_form() -> None:
     """Live-pilot defect (docs/audits/cycle-06-modal-leak.md): "solltet" is
     Konjunktiv II of the MODAL "sollen", but de_core_news_sm mislemmatises
@@ -685,13 +882,27 @@ def test_verb_praesens_regelm_excludes_an_inseparable_prefixed_vowel_change_verb
 
 
 def test_verb_praesens_vokalwechsel_finds_an_inseparable_prefixed_verb() -> None:
-    """ "verlassen" inherits "lassen"'s own stem-vowel change unchanged --
-    "du verlässt" exactly like "du lässt"."""
+    """ "entsprechen" inherits "sprechen"'s own stem-vowel change unchanged --
+    "er entspricht" exactly like "er spricht".
+
+    Deliberately 3rd singular, not 1st ("ich entspreche"/"ich verlasse"):
+    docs/audits/cycle-06-report.md class D means this selector now requires
+    the blanked cell to actually SHOW the vowel change (see
+    ``_select_verb_praesens_vokalwechsel``'s own docstring), which 1st
+    singular never does. A 1st-singular inseparable example ("verlasse")
+    was this test's original carrier before that fix; the base verb changed
+    from "verlassen" to "entsprechen" as well because ``de_core_news_sm``'s
+    lemmatiser -- confirmed directly -- only reduces "verlässt" back to its
+    infinitive incorrectly (it stays "verlässt", not "verlassen"), so no
+    3rd-singular "verlassen" sentence can pass this selector's own,
+    unrelated lemma-membership check at all; "entspricht" lemmatises
+    correctly, so it exercises the SAME inseparable-prefix inheritance this
+    test has always been about, on a cell that is actually in scope now."""
     item = _blank(
         "verb_praesens_vokalwechsel",
-        "Um acht Uhr verlasse ich das Haus und gehe zur Bushaltestelle.",
+        "Er entspricht genau meinen Erwartungen.",
     )
-    assert item.proposed_answer == "verlasse"
+    assert item.proposed_answer == "entspricht"
 
 
 def test_modalverben_praesens_finds_present_tense_modals() -> None:
@@ -897,6 +1108,52 @@ def test_konjunktiv_ii_irreal_gegenwart_finds_both_the_haette_and_the_wuerde() -
 def test_konjunktiv_ii_irreal_gegenwart_does_not_fire_without_a_wenn_clause() -> None:
     _, candidates = _select("konjunktiv_ii_irreal_gegenwart", "Könnten Sie mir bitte helfen?")
     assert candidates == []
+
+
+def test_konjunktiv_ii_irreal_gegenwart_does_not_fire_on_an_indicative_wenn_clause() -> None:
+    """docs/audits/cycle-06-report.md class F, item 1: "wenn Sie unsere
+    Fragen beantworten" is a plain present-indicative "wenn" clause, used
+    inside a "wir würden uns freuen, wenn ..." polite-request formula, not a
+    hypothetical condition -- the topic this belongs to is
+    konjunktiv_ii_hoeflichkeit, not this one."""
+    _, candidates = _select(
+        "konjunktiv_ii_irreal_gegenwart",
+        "Wir würden uns freuen, wenn Sie unsere Fragen beantworten.",
+    )
+    assert candidates == []
+
+
+def test_konjunktiv_ii_irreal_gegenwart_does_not_fire_on_a_wenn_clause_with_koennte() -> None:
+    """docs/audits/cycle-06-report.md class F, item 2: "wenn Sie mir dabei
+    helfen könnten" IS grammatically Konjunktiv II throughout ("könnten" is
+    tagged Mood=Sub, confirmed directly), unlike item 1 above -- so "the
+    wenn-clause has SOME Konjunktiv II verb" is not by itself enough to
+    distinguish this from politeness. "können"/"werden" are exactly the two
+    lemmas konjunktiv_ii_hoeflichkeit's own rule_hint names as its
+    politeness markers ("könnten Sie", "würden Sie"), so a wenn-clause whose
+    only Konjunktiv II verb is one of those two must not license this
+    topic either."""
+    _, candidates = _select(
+        "konjunktiv_ii_irreal_gegenwart",
+        "Ich würde mich sehr freuen, wenn Sie mir dabei helfen könnten.",
+    )
+    assert candidates == []
+
+
+def test_konjunktiv_ii_irreal_gegenwart_still_fires_on_a_genuine_hypothetical_state() -> None:
+    """The positive counterpart of the two tests above: a wenn-clause whose
+    own Konjunktiv II verb is a genuine hypothetical-state verb ("hätte")
+    still licenses this topic, both for the canonical "wenn X, würde Y"
+    order and this exact live example fires unchanged from before."""
+    _, candidates = _select(
+        "konjunktiv_ii_irreal_gegenwart", "Wenn ich Zeit hätte, würde ich kommen."
+    )
+    assert len(candidates) == 2
+    _, sein_candidates = _select(
+        "konjunktiv_ii_irreal_gegenwart",
+        "Wenn ich reich wäre, würde ich eine Weltreise machen.",
+    )
+    assert len(sein_candidates) == 2
 
 
 def test_konjunktiv_ii_vergangenheit_finds_a_past_counterfactual() -> None:
@@ -1124,7 +1381,11 @@ def test_praepositionen_genitiv_gehoben_finds_anhand_and_mangels() -> None:
 
 
 def test_one_sentence_yields_candidates_for_several_topics() -> None:
-    sentence = "Der alte Mann trinkt einen starken Kaffee."
+    # A relative clause right after "Mann" is added purely to give
+    # ``artikel_bestimmt_nom`` the uniqueness anchor its own selector now
+    # requires (see that topic's section above); it does not disturb either
+    # adjective-declension reading or the accusative object.
+    sentence = "Der alte Mann, der hier wohnt, trinkt einen starken Kaffee."
     tagged = sentence_tagger.tag_sentence(sentence)
     assert tagged is not None
     bestimmt = SELECTORS["adjektivdeklination_bestimmt"](tagged)
@@ -1174,6 +1435,91 @@ def test_nomen_plural_cue_is_none_for_a_dative_plural() -> None:
     _, candidates = _select("nomen_plural", "Sie dankten den Müttern für alles.")
     assert len(candidates) == 1
     assert candidates[0].cue is None
+
+
+# ==============================================================================
+# docs/audits/cycle-06-report.md class A: a cue must resolve to a real
+# German word, checked against the vendored dictionary
+# (``data/fixtures/corpus/frequency/de_dictionary_filter.txt``), rather than
+# extending ``_MISLEMMATIZED_VERB_LEMMAS`` one confirmed-bad lemma at a
+# time. Each test below reproduces the mechanism behind one of the four
+# nonsense cues the audit reported live, then confirms it degrades to no
+# cue rather than either leaking the nonsense or dropping the item's own
+# grammar-topic classification.
+# ==============================================================================
+
+
+def test_praeteritum_vollverben_cue_is_none_for_the_mislemmatised_modal_mussten() -> None:
+    """Live-pilot defect: "..., dass wir die Reise stornieren mussten." --
+    de_core_news_sm mislemmatises "mussten" (müssen's own Präteritum) to
+    "mussen" (missing the umlaut, and reconstructing the exact right
+    surface form by coincidence, the same self-consistent-bug shape as
+    every other entry in ``_MISLEMMATIZED_VERB_LEMMAS``). "mussen" is not
+    itself in that hand list, and it is not the correctly-spelled "müssen"
+    either, so the modal exclusion this selector's own docstring describes
+    does not catch it: the token is still selected as a (mislabelled)
+    ``praeteritum_vollverben`` candidate, but the dictionary check must
+    withhold its cue -- "mussen" is not a real German word."""
+    _, candidates = _select(
+        "praeteritum_vollverben", "Sie hatte gesagt, dass wir die Reise stornieren mussten."
+    )
+    assert len(candidates) == 1
+    assert candidates[0].lemma == "mussen"
+    assert candidates[0].cue is None
+
+
+def test_verben_trennbar_praesens_cue_is_none_for_the_mislemmatised_packsen() -> None:
+    """Live-pilot defect: "Morgen früh ___ du deine Schultasche ein." --
+    de_core_news_sm mislemmatises "packst" to "packsen" (a phantom "s"
+    inside the stem, the same failure shape as the already-documented
+    "frühstücksen"/"rufsen"/"streichsen"), which the dictionary check now
+    catches generically instead of needing "packsen" added to
+    ``_MISLEMMATIZED_VERB_LEMMAS`` by hand."""
+    _, candidates = _select(
+        "verben_trennbar_praesens", "Morgen früh packst du deine Schultasche ein."
+    )
+    assert len(candidates) == 1
+    assert candidates[0].lemma == "packsen"
+    assert candidates[0].cue is None
+
+
+def test_nomen_plural_cue_is_none_for_the_truncated_plastiktuet() -> None:
+    """Live-pilot defect: "...beim Einkaufen auf ___ zu verzichten." --
+    de_core_news_sm's own lemma for "Plastiktüten" is "Plastiktüt", missing
+    the trailing "e" -- not a real word either as a direct entry or as a
+    compound split ("plastiktüt" does not resolve as a compound tail with
+    any real head either)."""
+    _, candidates = _select("nomen_plural", "Er versucht, auf Plastiktüten zu verzichten.")
+    assert len(candidates) == 1
+    assert candidates[0].cue is None
+
+
+def test_cue_is_real_word_accepts_a_compound_absent_from_the_direct_wordlist() -> None:
+    """The "do not over-reject" half of the same check, exercised directly
+    against ``_cue_is_real_word`` rather than through a full sentence: a
+    small ``de_core_news_sm`` model does not reliably lemmatise or
+    Number-tag every uncommon compound correctly, which makes a compound
+    cue hard to reproduce end-to-end through a real sentence, but the
+    dictionary-lookup mechanism itself is exactly what
+    ``_citation_cue``/every selector's cue path shares, so testing it here
+    is testing the real code path, not a re-implementation of it.
+    "Familienurlaub" is not a direct entry in the 37,567-word list
+    (confirmed directly against the fixture), but it is perfectly good
+    German -- a real compound of two words that ARE both direct entries
+    ("Familie", "Urlaub"). The two-part compound split fallback must accept
+    it, not silently drop a good cue because a general wordlist happens not
+    to spell out every compound."""
+    assert selectors._cue_is_real_word("Familienurlaub") is True
+    assert selectors._citation_cue("Familienurlaub", "Familienurlauben") == "Familienurlaub"
+
+
+def test_cue_is_real_word_rejects_a_string_that_is_not_german_at_all() -> None:
+    """Neither a direct hit nor any two-part split resolves -- unlike the
+    compound test above, this is not a real word under any avenue this
+    check has, so it must be rejected outright."""
+    assert selectors._cue_is_real_word("mussen") is False
+    assert selectors._cue_is_real_word("einpacksen") is False
+    assert selectors._cue_is_real_word("Plastiktüt") is False
 
 
 def test_modalverben_praesens_cue_is_the_modals_own_infinitive() -> None:

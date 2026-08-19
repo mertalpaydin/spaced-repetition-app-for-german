@@ -98,13 +98,27 @@ _INSTRUCTION_EN_REFERENCE_ONLY = (
     "no blanks, no underscores, no questions to the reader. Do not mention "
     "grammar, cases, articles, tenses, or any linguistic terminology "
     "anywhere in your output; just write ordinary German sentences a "
-    "textbook would use as reading material. Respond with ONLY a JSON "
+    'textbook would use as reading material. Use "dass" only when a '
+    "clause reports what someone says, knows, believes, hopes, or is told; "
+    "when the sentence expresses a reason, a purpose, or a condition, use "
+    '"weil", "damit", or "wenn" instead, never "dass" for those. '
+    "Respond with ONLY a JSON "
     'object of the exact shape {"sentences": ["...", "..."]} and nothing '
     "else -- no commentary, no markdown fence."
 )
 
 # THE LIVE PROMPT TEXT. ``build_prompt`` sends exactly this, not the English
 # text above -- see ``test_build_prompt_uses_the_german_instruction_not_the_english_one``.
+#
+# The "dass" sentence (cycle 6, CLAUDE.md audit class C) is a direct
+# generation-side repair, not just a carrier-validation backstop: the
+# report's four bad items all used "dass" for a purpose, causal, or
+# conditional clause ("..., dass Ihr Computer wieder sicher ist" where
+# "damit" was meant), which is a different mistake from the "das"/"dass"
+# confusion an earlier cycle already addressed. Naming the correct
+# alternatives ("weil"/"damit"/"wenn") explicitly, rather than only telling
+# the model what NOT to do, gives it something to write instead of leaving
+# it to guess.
 _INSTRUCTION_DE_LIVE = (
     "Schreibe natürliche, grammatisch korrekte deutsche Sätze für "
     "Deutschlernende. Jeder Satz muss eine vollständige, einfache Aussage "
@@ -112,6 +126,10 @@ _INSTRUCTION_DE_LIVE = (
     "an die Leserin oder den Leser. Nenne in der Ausgabe an keiner Stelle "
     "grammatische Fachbegriffe oder Regeln; schreibe einfach gewöhnliche "
     "deutsche Sätze, wie sie in einem Lehrbuch als Lesetext stehen könnten. "
+    'Verwende "dass" nur, wenn ein Satzteil wiedergibt, was jemand sagt, '
+    "weiß, glaubt, hofft oder mitgeteilt bekommt. Wenn ein Grund, ein Zweck "
+    'oder eine Bedingung gemeint ist, benutze stattdessen "weil", "damit" '
+    'oder "wenn" -- niemals "dass" dafür. '
     "Antworte ausschließlich mit einem JSON-Objekt der exakten Form "
     '{"sentences": ["...", "..."]} und mit nichts sonst -- kein Kommentar, '
     "kein Markdown-Codeblock."
@@ -697,6 +715,31 @@ _STARVED_CONSTRUCTION_EXAMPLES: dict[str, tuple[str, ...]] = {
         "Bis zum Sommer wird sie den Plan erklärt haben.",
         "Bis Freitag wird sie den Termin abgesagt haben.",
     ),
+    # -- Appended by a later cycle: the three Nominative article topics
+    # (CONSTRUCTION_HINTS's own comment above the three hints has the full
+    # rationale). Each example was run, individually, through
+    # ``carrier_validation.validate_carrier`` (accepted) and its own topic's
+    # selector in ``selectors.SELECTORS`` (candidate found, and the
+    # resulting item built cleanly through ``blanker.blank_candidate``)
+    # before being added here, exactly like every other entry in this dict.
+    "artikel_bestimmt_nom": (
+        "Der Hund, den ich gestern gekauft habe, schläft im Garten.",
+        "Die Frau, die neben mir wohnt, ist Ärztin.",
+        "Das Kind, das im Garten spielt, lacht laut.",
+        "Der größte Baum im Park ist über hundert Jahre alt.",
+        "Der letzte Tag im Urlaub war wunderschön.",
+    ),
+    "artikel_unbestimmt_kein_nom": (
+        "Wir kommen heute zu spät, weil kein Bus fährt.",
+        "Weil keine Bäckerei heute geöffnet hat, kaufen wir das Brot woanders.",
+        "Die Innenstadt bleibt leer, weil kein Geschäft heute geöffnet hat.",
+    ),
+    "artikel_possessiv_nom": (
+        "Meine Großmutter, die ich jedes Wochenende besuche, wohnt in München.",
+        "Dein Bruder, den du gestern angerufen hast, wohnt in Berlin.",
+        "Sein Onkel, den ich letzten Sommer kennengelernt habe, lebt in Hamburg.",
+        "Unsere Tante, die wir jedes Jahr besuchen, kocht sehr gut.",
+    ),
 }
 
 _MOCK_SENTENCE_POOL: tuple[str, ...] = _MOCK_SENTENCE_POOL_BASE + tuple(
@@ -974,6 +1017,43 @@ CONSTRUCTION_HINTS: tuple[tuple[str, str], ...] = (
         "futur_ii",
         "Sag, dass etwas bis zu einem bestimmten Zeitpunkt in der Zukunft schon fertig oder "
         "erledigt sein wird.",
+    ),
+    # -- Appended by a later cycle (feat/generate-then-blank): the three
+    # Nominative article topics, not part of the "16 of 49" audit above and
+    # not "starved" in that audit's sense (a general-purpose sentence pool
+    # contains plenty of plain Nominative sentences). Their own defect was
+    # architectural (module docstring's "pool problem" does not apply to
+    # them at all): ``pipeline.py`` used to report zero for all three
+    # unconditionally, because no single bare sentence forces "der" over
+    # "ein"/"kein"/a possessive (blanker.py's own module docstring, final
+    # section). ``selectors.py`` now gives each of the three its own
+    # structural forcing anchor (a uniqueness-making relative clause /
+    # superlative / ordinal for the definite article, a causal "weil" clause
+    # for the negative article, a kinship noun plus an explicit 1st/2nd
+    # person reference for the possessive), and these three hints nudge
+    # generation toward writing the CARRIER SHAPE each anchor needs -- still
+    # by describing communicative intent only, never the grammar it falls
+    # out as, exactly like every hint above.
+    (
+        "artikel_bestimmt_nom",
+        "Beschreibe eine Person oder Sache so genau, dass völlig klar ist, welche einzige "
+        "gemeint ist: füge direkt danach eine zusätzliche Information hinzu -- was sie selbst "
+        "getan hat oder was jemand mit ihr gemacht hat -- oder sag, dass sie in ihrer Art die "
+        "größte, älteste, beste, erste oder letzte ist.",
+    ),
+    (
+        "artikel_unbestimmt_kein_nom",
+        "Erklär in einem Satz, warum jemand etwas nicht tun kann oder etwas nicht passiert, "
+        "weil eine Sache oder Person komplett fehlt oder überhaupt nicht vorhanden ist -- "
+        "nenne sowohl diesen Grund als auch die Folge davon.",
+    ),
+    (
+        "artikel_possessiv_nom",
+        "Stelle ein Familienmitglied vor (zum Beispiel Mutter, Vater, Bruder, Schwester, "
+        "Großmutter, Großvater, Onkel oder Tante) und füge direkt danach eine zusätzliche "
+        "Information hinzu, die zeigt, dass genau du oder deine Gesprächspartnerin oft mit "
+        "dieser Person zu tun hat -- zum Beispiel wen sie regelmäßig besucht, anruft oder "
+        "trifft.",
     ),
 )
 

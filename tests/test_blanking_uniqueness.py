@@ -228,7 +228,15 @@ def test_nomen_plural_is_rescued_by_its_own_cue() -> None:
 
 
 def test_determiner_topics_are_never_flagged() -> None:
-    outcome = _check("artikel_bestimmt_nom", "Der Hund läuft schnell durch den Park.")
+    # "Der Hund läuft schnell durch den Park." has no relative clause,
+    # superlative, or ordinal, and would now find no candidate at all
+    # (artikel_bestimmt_nom's own anchor requirement, selectors.py) -- the
+    # relative clause added here is purely to give the selector something to
+    # find, so this test still exercises what it always meant to: the
+    # uniqueness gate itself never flags a determiner candidate.
+    outcome = _check(
+        "artikel_bestimmt_nom", "Der Hund, den ich gestern gekauft habe, schläft im Garten."
+    )
     assert outcome.unique is True
     assert outcome.reason is None
 

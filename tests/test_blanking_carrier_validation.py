@@ -460,10 +460,150 @@ def test_validate_carrier_accepts_standard_spelled_heissen() -> None:
 )
 def test_validate_carrier_does_not_flag_correct_short_vowel_ss_words(sentence: str) -> None:
     """ "dass", "isst", "Fluss" are all correct WITH "ss" (short vowel); the
-    Swiss-spelling check is scoped to a closed list of "heißen" forms only
-    and must never fire on these."""
+    Swiss-spelling check is scoped to a closed list of "heißen" (and, as of
+    cycle 6, "groß") forms only and must never fire on these."""
     result = cv.validate_carrier(sentence)
     assert result.accepted, result.reason
+
+
+# -- Swiss orthography, cycle 6: "gross" for "groß" --------------------------
+#
+# The dictionary-based general rule the cycle-6 report proposed was verified
+# against the actual vendored file and found unable to support it (see the
+# module docstring, section 7): every entry was written through
+# ``normalise``, which maps ß to ss, so the file has zero ß characters at
+# all and cannot tell "grossen" and "großen" apart. These tests pin the
+# closed-list fallback that was shipped instead.
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "In der grossen Pause hatte unser Klassenlehrer mir den Schlüssel gegeben.",
+        "Vor der grossen Prüfung hatte mein bester Freund mir seine Notizen gezeigt.",
+        "Das ist ein grosses Problem.",
+        "Er ist ein grosser Mann.",
+    ],
+)
+def test_validate_carrier_rejects_swiss_spelled_gross(sentence: str) -> None:
+    result = cv.validate_carrier(sentence)
+    assert not result.accepted
+    assert result.reason == cv.REASON_SWISS_SPELLING
+
+
+def test_validate_carrier_accepts_standard_spelled_gross() -> None:
+    result = cv.validate_carrier(
+        "In der großen Pause hatte unser Klassenlehrer mir den Schlüssel gegeben."
+    )
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_does_not_flag_the_surname_gross() -> None:
+    """The "gross" pattern is matched case-sensitively, lowercase only, so
+    that a capitalised "Gross" -- a real German surname -- is never mistaken
+    for the adjective. See module docstring section 7."""
+    result = cv.validate_carrier("Frau Gross wohnt seit zehn Jahren in dieser Straße.")
+    assert result.accepted, result.reason
+
+
+# -- "dass" after a physical-action matrix verb, cycle 6 ---------------------
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Sie laden das Betriebssystem herunter, dass Ihr Computer wieder sicher ist.",
+        "Wir hatten der netten Dame geholfen, dass sie ihren Koffer schnell fand.",
+        "Sie kaufen ein neues Smartphone, dass Ihre alte Technik zu langsam ist.",
+    ],
+)
+def test_validate_carrier_rejects_dass_after_a_physical_action_matrix_verb(sentence: str) -> None:
+    result = cv.validate_carrier(sentence)
+    assert not result.accepted
+    assert result.reason == cv.REASON_DASS_AFTER_PHYSICAL_ACTION_VERB
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Sie haben der Reiseleitung eine Nachricht geschickt, "
+        "dass der Bus pünktlich angekommen ist.",
+        "Wir schicken dem Hotelier eine Nachricht, dass wir am Abend ankommen.",
+    ],
+)
+def test_validate_carrier_accepts_a_genuine_content_clause_after_schicken(sentence: str) -> None:
+    """ "schicken" looks superficially like the disallowed physical-action
+    verbs (it also transfers an object), but "eine Nachricht schicken,
+    dass ..." is a genuine communication act and must not be flagged --
+    the blocklist is deliberately closed and does not include it."""
+    result = cv.validate_carrier(sentence)
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_does_not_flag_a_plain_laden_without_herunter() -> None:
+    """Only the audited "herunterladen" reading is in scope; plain "laden"
+    is a different verb and must not be caught by accident."""
+    result = cv.validate_carrier("Ich weiß, dass er den Wagen lädt.")
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_does_not_catch_the_extraposed_es_waere_shape() -> None:
+    """Documented, deliberate gap (module docstring section 8): an
+    extraposed "es" subject with a predicate adjective ("hilfreich") is a
+    different construction from a matrix VERB, and this check does not walk
+    into it. The real defect here needs "wenn", not "dass"."""
+    result = cv.validate_carrier(
+        "Es wäre sehr hilfreich, dass Sie dem Reiseleiter Ihre Wünsche mitteilen."
+    )
+    assert result.accepted, result.reason
+
+
+# -- Finite-verb lexical reality, cycle 6 -------------------------------------
+
+
+def test_validate_carrier_rejects_a_hallucinated_first_person_singular_verb() -> None:
+    """ "musse" is not a real German verb (the real modal is "müssen", with
+    an umlaut the dictionary does not lose -- unlike the ß/ss case, this is
+    a genuine absence, not a normalisation collision)."""
+    result = cv.validate_carrier("Ich musse das unbedingt heute noch erledigen.")
+    assert not result.accepted
+    assert result.reason == cv.REASON_FINITE_VERB_NOT_A_REAL_WORD
+
+
+def test_validate_carrier_treue_hole_remains_a_documented_gap() -> None:
+    """Pins the exact boundary documented in the module docstring (section
+    9): this sentence is NOT sound German ("treue" should be "treffe"), and
+    it is NOT caught, because "treuen" already exists in the vendored
+    dictionary as a real inflection of the adjective "treu", so section
+    10's lexical-reality check cannot distinguish it from a real verb
+    lemma without part-of-speech information the dictionary does not
+    carry. This test exists so a future change that silently starts (or
+    stops) catching this sentence is noticed and the docstring is
+    revisited, not so this sentence is endorsed as correct German."""
+    result = cv.validate_carrier(
+        "Nach der Arbeit treue ich mich mit Lisa auf einen Kaffee in der Stadt."
+    )
+    assert result.accepted, (
+        "if this now fails, section 10 has changed behaviour -- update the "
+        "module docstring's section 9 accordingly rather than only this test"
+    )
+
+
+def test_validate_carrier_accepts_separable_prefix_first_person_singular() -> None:
+    """The lexical-reality check must re-attach a separable prefix before
+    checking the dictionary ("stehe...auf" -> "aufstehen"), not just check
+    the bare stem."""
+    result = cv.validate_carrier("Morgens stehe ich meistens um sechs Uhr auf.")
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_does_not_check_modal_or_auxiliary_verbs_for_lexical_reality() -> None:
+    """Modals and auxiliaries have irregular 1st-singular-present forms
+    ("bin", "habe", "kann", ...) not covered by the weak-verb "-e" rule;
+    the check is scoped to VVFIN/VERB only and must never touch these."""
+    for sentence in ["Ich habe Hunger.", "Ich bin müde.", "Ich kann gut kochen."]:
+        result = cv.validate_carrier(sentence)
+        assert result.accepted, f"{sentence!r}: {result.reason}"
 
 
 # -- Batch summary ------------------------------------------------------

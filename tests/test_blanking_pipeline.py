@@ -115,43 +115,73 @@ def test_blank_sentences_reports_items_by_topic_and_skips_by_reason() -> None:
     assert accounted == report.sentences_requested * len(TOPIC_IDS)
 
 
-def test_blank_sentences_skips_artikel_bestimmt_nom_as_type_ineligible() -> None:
-    """docs/audits/cycle-06-modal-leak.md: ``artikel_bestimmt_nom``'s own
-    ``eligible_types`` is ``[paragraph_cloze]`` -- a single, standalone
-    sentence can never honestly test definiteness (nothing forces "Der" over
-    "Ein"/"Mein"/"Kein"), so ``_determiner_outcome``'s unconditional
-    ``type="cloze_free"`` is never eligible and the item must be skipped, not
-    emitted, with this reason -- ``blanker.py``'s own module docstring, final
-    section, and ``pipeline.py``'s module docstring, "a fourth problem"."""
-    report = blank_sentences(["Der Hund läuft schnell durch den Park."])
-    assert report.items_by_topic.get("artikel_bestimmt_nom", 0) == 0
-    assert report.skips_by_type_ineligibility["artikel_bestimmt_nom"] == 1
-    matching = [s for s in report.type_ineligibility_skips if s.topic_id == "artikel_bestimmt_nom"]
-    assert len(matching) == 1
-    assert matching[0].proposed_answer == "Der"
-    assert matching[0].item_type == "cloze_free"
-    assert matching[0].allowed_types == ("paragraph_cloze",)
-    # never double-counted as an ordinary quality skip or a uniqueness skip.
-    assert report.skips_by_reason.get("artikel_bestimmt_nom", 0) == 0
-    assert "artikel_bestimmt_nom" not in report.skips_by_uniqueness
+def test_blank_sentences_produces_items_for_all_three_artikel_nom_topics_when_anchored() -> None:
+    """docs/audits/cycle-06-modal-leak.md found that a single, standalone
+    sentence can never honestly test definiteness/negation/possession on its
+    own (nothing forces "Der" over "Ein"/"Mein"/"Kein" in a bare sentence),
+    so these three topics used to report zero unconditionally, via the
+    eligible_types check (``blanker.py``'s own module docstring, final
+    section, and ``pipeline.py``'s module docstring, "a fourth problem").
 
-
-def test_blank_sentences_reports_zero_for_every_artikel_nom_topic() -> None:
-    """The same architectural gap applies to all three Nominative article
-    topics, not only the definite one -- confirmed across sentences that
-    would previously have produced an indefinite/negative and a possessive
-    article item respectively."""
+    This task adds a genuine forcing anchor per topic (selectors.py's own
+    section on the three of them) and widens ``eligible_types`` to allow
+    ``cloze_free`` alongside ``paragraph_cloze`` for exactly these three
+    topics (data/taxonomy.yaml) -- run end to end through the full pipeline,
+    not just a direct selector call (the honesty requirement this task set:
+    a prior fix in this package was reported verified from a direct selector
+    call alone, while the pipeline's own eligible_types assertion was still
+    silently skipping every item)."""
     report = blank_sentences(
         [
+            "Der Hund, den ich gestern gekauft habe, schläft im Garten.",
+            "Wir kommen heute zu spät, weil kein Bus fährt.",
+            "Meine Großmutter, die ich jedes Wochenende besuche, wohnt in München.",
+        ]
+    )
+    assert report.items_by_topic.get("artikel_bestimmt_nom", 0) == 1
+    assert report.items_by_topic.get("artikel_unbestimmt_kein_nom", 0) == 1
+    assert report.items_by_topic.get("artikel_possessiv_nom", 0) == 1
+    assert report.skips_by_type_ineligibility.get("artikel_bestimmt_nom", 0) == 0
+    assert report.skips_by_type_ineligibility.get("artikel_unbestimmt_kein_nom", 0) == 0
+    assert report.skips_by_type_ineligibility.get("artikel_possessiv_nom", 0) == 0
+
+    bestimmt = next(i for i in report.items if i.topic_id == "artikel_bestimmt_nom")
+    assert bestimmt.type == "cloze_free"
+    assert bestimmt.proposed_answer == "Der"
+    unbestimmt = next(i for i in report.items if i.topic_id == "artikel_unbestimmt_kein_nom")
+    assert unbestimmt.type == "cloze_free"
+    assert unbestimmt.proposed_answer == "kein"
+    possessiv = next(i for i in report.items if i.topic_id == "artikel_possessiv_nom")
+    assert possessiv.type == "cloze_free"
+    assert possessiv.proposed_answer == "Meine"
+
+
+def test_blank_sentences_reports_zero_for_every_artikel_nom_topic_without_its_anchor() -> None:
+    """The negative case, run through the FULL pipeline rather than a direct
+    selector call (this task's own honesty requirement -- see the positive
+    test above): the same three sentences the old, unanchored selectors used
+    to accept, now producing nothing at all, because none of them carries
+    the anchor its own topic now requires. This is what proves the anchor
+    requirement is actually doing the work end to end, not merely in
+    isolation."""
+    report = blank_sentences(
+        [
+            "Der Hund läuft schnell durch den Park.",
             "Ein Mann steht vor der Tür.",
-            "Keine Katze mag Wasser.",
+            "Kein Bus fährt heute.",
             "Mein Vater kocht heute Abend.",
         ]
     )
+    assert report.items_by_topic.get("artikel_bestimmt_nom", 0) == 0
     assert report.items_by_topic.get("artikel_unbestimmt_kein_nom", 0) == 0
     assert report.items_by_topic.get("artikel_possessiv_nom", 0) == 0
-    assert report.skips_by_type_ineligibility["artikel_unbestimmt_kein_nom"] >= 1
-    assert report.skips_by_type_ineligibility["artikel_possessiv_nom"] >= 1
+    # No candidate at all (the selector itself found nothing), never a
+    # type-ineligibility skip -- that bucket is for an item that WAS built
+    # and would need rejecting for its type; here nothing was ever built.
+    assert report.skips_by_reason["no_candidate_for_topic"] >= 4
+    assert report.skips_by_type_ineligibility.get("artikel_bestimmt_nom", 0) == 0
+    assert report.skips_by_type_ineligibility.get("artikel_unbestimmt_kein_nom", 0) == 0
+    assert report.skips_by_type_ineligibility.get("artikel_possessiv_nom", 0) == 0
 
 
 def test_blank_sentences_handles_an_empty_sentence_list() -> None:

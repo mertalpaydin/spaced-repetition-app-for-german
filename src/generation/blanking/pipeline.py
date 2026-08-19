@@ -97,30 +97,44 @@ quality measure into a laundered defect"; the same reasoning applies here):
    ``verb_sein_haben`` and ``praeteritum_sein_haben_modal`` are now cued
    (``selectors.py``'s own per-selector docstrings), which resolves the
    violation for those five by making the emitted type actually match.
-2. **Three topics (the ``artikel_*`` Nominative-case ones) cannot be
-   honestly tested by any single, standalone sentence at all** --
-   definiteness, indefiniteness and possession are discourse properties, and
-   this pipeline's whole architecture (module docstring above) is built on
-   independent, unpaired sentences with no mechanism to establish a referent
-   in one and refer back to it in another. Building that mechanism is new
-   architecture, not a fix to this cycle's own defect, so it is deliberately
-   NOT attempted here (see ``blanker.py``'s own module docstring, final
-   section). These three topics simply report zero.
+2. **Three topics (the ``artikel_*`` Nominative-case ones) could not be
+   honestly tested by any single, standalone sentence at the time of that
+   audit** -- definiteness, indefiniteness and possession are discourse
+   properties, and this pipeline's whole architecture (module docstring
+   above) is built on independent, unpaired sentences with no mechanism to
+   establish a referent in one and refer back to it in another. Building
+   THAT mechanism (cross-sentence discourse tracking) would have been new
+   architecture, not a fix to this cycle's own defect, so it was
+   deliberately not attempted then, and these three topics reported zero
+   unconditionally.
 
-The hard assertion below (after ``blank_candidate`` succeeds AND after the
-uniqueness gate -- see the enforcement site's own comment for why that
-order, not the reverse, keeps the uniqueness gate's specific, diagnostic
-skip reasons intact for every cue-gated candidate kind) is what makes
-situation 2 resolve to "reports zero" rather than silently continuing to
-leak a ``cloze_free`` item: every item
-``_determiner_outcome`` builds for one of the three ``artikel_*`` topics is
-unconditionally ``type="cloze_free"``, which is never in their own
-``eligible_types: [paragraph_cloze]``, so it is always caught and skipped
-here. ``BlankingReport.skips_by_type_ineligibility`` and
-``type_ineligibility_skips`` are the FOURTH counter/detail-list pair this
-module now keeps, for the same "never conflate a distinct outcome with an
-existing bucket" reason ``skips_by_uniqueness`` already established --
-``TypeIneligibilitySkip``'s own docstring makes the full case for why.
+   A later cycle (feat/generate-then-blank) found a narrower fix that does
+   not need cross-sentence discourse at all: each of the three families is
+   in fact forced by something a SINGLE sentence can contain -- a
+   uniqueness-making relative clause, superlative, or ordinal for the
+   definite article; a causal ``weil`` clause for the negative article; a
+   kinship noun plus an explicit 1st-/2nd-person reference for the
+   possessive (``selectors.py``'s own section for the three of them). Their
+   selectors now return a candidate only when that anchor is actually
+   present, which is what makes the emitted ``cloze_free`` item honestly
+   solvable, and ``data/taxonomy.yaml`` now lists ``cloze_free`` alongside
+   ``paragraph_cloze`` in their own ``eligible_types`` to match. The hard
+   assertion below (after ``blank_candidate`` succeeds AND after the
+   uniqueness gate -- see the enforcement site's own comment for why that
+   order, not the reverse, keeps the uniqueness gate's specific, diagnostic
+   skip reasons intact for every cue-gated candidate kind) still exists and
+   still runs for every topic; it simply no longer has anything to catch for
+   these three, because the type they now emit is the type their own
+   ``eligible_types`` now declares. An UNANCHORED sentence for one of the
+   three still yields nothing, because the topic's OWN selector -- not this
+   assertion -- finds no candidate for it at all; that is
+   ``skips_by_reason["no_candidate_for_topic"]``, not
+   ``skips_by_type_ineligibility``. ``BlankingReport.
+   skips_by_type_ineligibility`` and ``type_ineligibility_skips`` remain the
+   FOURTH counter/detail-list pair this module keeps, for the same "never
+   conflate a distinct outcome with an existing bucket" reason
+   ``skips_by_uniqueness`` already established -- ``TypeIneligibilitySkip``'s
+   own docstring makes the full case for why.
 """
 
 from __future__ import annotations

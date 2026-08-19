@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from src.contracts import BankItem, CandidateItem, Distractor, Topic
 from src.generation.blanking import sentence_tagger
-from src.generation.spec import TopicSpec, load_spec
+from src.generation.spec import TopicSpec, build_spec_for_topic, load_spec
 from src.lexicon.vocabulary import VocabularyStore
 from src.taxonomy.loader import load_taxonomy
 from src.verification.layer1_syntax import Layer1SyntaxValidator
@@ -126,7 +126,26 @@ def test_adversarial_suite_catches_all_known_defects(
         if expected_type == "duplicate":
             existing_bank_items = [b for j, b in duplicate_bank if j != idx]
 
-        res = pipeline.verify_item(item, spec=sample_spec, existing_bank_items=existing_bank_items)
+        # A vocabulary-ceiling check (layer1_syntax) needs the SPEC of the
+        # row's own topic, not an unrelated fixed one: ``sample_spec`` is
+        # ``dativ_nach_praeposition``'s (ceiling A2), which tolerates B1
+        # vocabulary one band above it, so every A1 row this fixture ships
+        # was checked against the wrong ceiling entirely. This went
+        # unnoticed while ``artikel_bestimmt_nom``'s own eligible_types was
+        # ``[paragraph_cloze]`` only, because adv_036's ``cloze_free`` type
+        # got caught by that unrelated layer-1 check first and never
+        # actually reached the vocabulary-ceiling check this fixture item
+        # is meant to exercise -- widening eligible_types for the three
+        # artikel_*_nom topics (data/taxonomy.yaml, this task) unmasked it.
+        # ``build_spec_for_topic`` derives a spec from the row's own topic
+        # (ceiling = that topic's own CEFR, matching every row's own "cefr"
+        # field), falling back to ``sample_spec`` only for the handful of
+        # legacy topic ids in this fixture that predate the current
+        # taxonomy and have no topic to derive one from.
+        row_topic = pipeline.topics_map.get(row["topic_id"])
+        row_spec = build_spec_for_topic(row_topic) if row_topic is not None else sample_spec
+
+        res = pipeline.verify_item(item, spec=row_spec, existing_bank_items=existing_bank_items)
 
         recall_totals[expected_type] += 1
         if not res.passed:
@@ -631,15 +650,28 @@ def test_layer1_rejects_parenthetical_cue_leaked_into_prompt(
     pipeline: VerificationPipeline,
 ) -> None:
     """docs/audits/stage-04-pilot-2026-08-14.md item 7: a bracketed authoring
-    cue ('(Katze)') leaking into the visible sentence, instead of the
-    dedicated ``cue`` field, must be rejected -- this item was accepted by
-    every layer, including the new model-backed layer 5, in the pilot re-run
-    that motivated this fix."""
+    cue leaking into the visible sentence, instead of the dedicated ``cue``
+    field, must be rejected -- this item was accepted by every layer,
+    including the new model-backed layer 5, in the pilot re-run that
+    motivated this fix.
+
+    The original single-word cue from that audit ('(Katze)') is no longer a
+    usable fixture for this: docs/audits/stage-04-recovery-plan.md fix D
+    later reversed the unconditional parenthetical ban (a single-word cue
+    that is not the answer itself is legitimate -- ``layer1_syntax``'s own
+    "2b" comment), so '(Katze)' alone never violates either of the two rules
+    that remain, and this test's old fixture only ever failed at layer 1
+    because ``artikel_unbestimmt_kein_nom``'s ``eligible_types`` used to be
+    ``[paragraph_cloze]`` alone -- an unrelated, coincidental mask, removed
+    now that this task widened it to include ``cloze_free`` (data/
+    taxonomy.yaml). The fixture below exercises the check this test is
+    actually named for -- rule 2, a multi-word aside, which IS still
+    rejected -- instead of relying on that removed coincidence."""
     item = CandidateItem(
         topic_id="artikel_unbestimmt_kein_nom",
         type="cloze_free",
         difficulty=2,
-        prompt="Weil das Haus so alt ist, wohnt dort ___ (Katze) drin.",
+        prompt="Weil das Haus so alt ist, wohnt dort ___ (eine Katze) drin.",
         proposed_answer="eine",
         distractors=[Distractor(text="die"), Distractor(text="der"), Distractor(text="das")],
     )

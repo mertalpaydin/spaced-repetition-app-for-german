@@ -143,7 +143,7 @@
   prereqs: [pronomen_personal_nom]
   confusion_group: artikelwoerter
   description: "Definite articles in the Nominative case (der, die, das, die)."
-  eligible_types: [paragraph_cloze]
+  eligible_types: [paragraph_cloze, cloze_free]
   requires_context: true
   morph_spec: {Case: Nom}
   verification_class: computable
@@ -163,7 +163,7 @@
   prereqs: [artikel_bestimmt_nom]
   confusion_group: artikelwoerter
   description: "Indefinite (ein, eine) and negative (kein, keine) articles in Nominative."
-  eligible_types: [paragraph_cloze]
+  eligible_types: [paragraph_cloze, cloze_free]
   requires_context: true
   morph_spec: {Case: Nom}
   verification_class: computable
@@ -183,7 +183,7 @@
   prereqs: [artikel_unbestimmt_kein_nom]
   confusion_group: artikelwoerter
   description: "Possessive determiners in the Nominative case (mein, dein, sein, ihr, unser, euer, ihr, Ihr)."
-  eligible_types: [paragraph_cloze]
+  eligible_types: [paragraph_cloze, cloze_free]
   requires_context: true
   morph_spec: {Case: Nom}
   verification_class: computable

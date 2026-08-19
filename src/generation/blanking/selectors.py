@@ -31,11 +31,15 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from src.generation.blanking import paradigms
 from src.generation.blanking.paradigms import Cell
 from src.generation.blanking.sentence_tagger import TaggedSentence, Token
+from src.lexicon.frequency import FrequencyBander
+from src.lexicon.lemmatizer import compound_split_candidates, normalise
 from src.taxonomy.facets import UNK as _FACETS_UNK
 
 ArtFamily = Literal["Def", "Ind", "Neg", "Poss"]
@@ -271,6 +275,28 @@ def _determiner_selector(
 _FUSED_DEFINITE_PREPOSITION_TAG = "APPRART"
 
 
+# A demonstrative pronoun (PDS) is spelled identically to the definite
+# article for every one of these six surface forms -- "der"/"die"/"das"/
+# "den"/"dem"/"des" -- and docs/audits/cycle-06-report.md class E's third
+# item is exactly this ambiguity, confirmed empirically, not assumed: the
+# SAME "das von einem Maler gestaltete Arbeitszimmer" fragment tags "das"
+# ART when it is the sentence's own grammatical subject/object position
+# reached directly ("Wir hatten das ... besichtigt."), but PDS once any
+# fronted clause or adverbial precedes the finite verb ("Weil ..., hatten
+# wir das ... besichtigt." / "Gestern hatten wir das ... besichtigt.") --
+# a POS-disambiguation flip driven entirely by clause position, not by this
+# "das" itself changing grammatical role. Trusted as a weak-declension
+# trigger here regardless of which of the two tags the parser settled on,
+# because the two readings are not actually in tension for this module's
+# one question: a demonstrative DETERMINER ("dieses Auto") triggers weak
+# adjective declension in German exactly like the definite article does, so
+# "weak" is the correct consequence of a PDS in this governing position
+# under EITHER reading, not a guess between them.
+_DEFINITE_ARTICLE_SURFACE_FORMS: frozenset[str] = frozenset(
+    {"der", "die", "das", "den", "dem", "des"}
+)
+
+
 # Tokens after which an attributive adjective is unambiguously governed by a
 # preceding determiner (weak: definite article, plain or fused with a
 # preposition; mixed: ein-word). Any OTHER determiner-tagged token (an
@@ -290,6 +316,8 @@ def _preceding_declension_trigger(prev: Token | None) -> Literal["weak", "mixed"
         return "weak"
     if art_type in ("Ind", "Neg", "Poss"):
         return "mixed"
+    if prev.tag == "PDS" and prev.text.lower() in _DEFINITE_ARTICLE_SURFACE_FORMS:
+        return "weak"
     return None
 
 
@@ -326,6 +354,39 @@ def _followed_by_nominal(sentence: TaggedSentence, index: int) -> bool:
     return nxt is not None and nxt.pos in _ADJECTIVE_HEAD_POS
 
 
+# A span between a far-found governing determiner and the candidate
+# adjective/participle is trustworthy when every token in it is either part
+# of a genuine inserted PP (``ADP`` present, the ``von einem Maler`` shape
+# ``_find_governing_declension_trigger`` was originally built for) or is
+# ITSELF transparent to declension -- another attributive adjective in a
+# chain ("die erste ___ Besprechung": pos ``ADJ``), or a bare degree/
+# intensifier adverb modifying the candidate directly ("eine viel ___
+# Zukunft": pos ``ADV``, and this is also where an ADJD used adverbially,
+# e.g. "wirklich", lands, since German's own POS scheme gives predicative/
+# adverbial adjectives pos ``ADV`` not ``ADJ``). docs/audits/
+# cycle-06-report.md class E's first two items are exactly these two
+# shapes, confirmed live: the far determiner was already being FOUND by
+# ``_find_governing_declension_trigger`` (that walk does not stop at an
+# adjective or an adverb), it was only ever being DISCARDED afterwards by
+# the old "span must contain an ADP" gate, which the PP case alone needs
+# and the adjective-chain/quantifier case never had.
+#
+# An allowlist, not "anything that is not a boundary", on purpose: a verb,
+# a noun, or a pronoun in the span means the walk crossed into unrelated
+# material (a different clause's own words, or a genuinely separate NP),
+# and the found determiner must not be trusted then -- "reject rather than
+# guess" applied to a token category this module has not considered yet,
+# same as everywhere else here, by defaulting new/unknown span content to
+# rejection instead of silent acceptance.
+_DECLENSION_TRANSPARENT_SPAN_POS: frozenset[str] = frozenset({"ADJ", "ADV"})
+
+
+def _span_trusts_far_declension_trigger(span: tuple[Token, ...]) -> bool:
+    if any(t.pos == "ADP" for t in span):
+        return True
+    return all(t.pos in _DECLENSION_TRANSPARENT_SPAN_POS for t in span)
+
+
 def _adjective_selector(declension: Literal["weak", "mixed", "strong"]) -> Selector:
     def select(sentence: TaggedSentence) -> list[Candidate]:
         out: list[Candidate] = []
@@ -341,21 +402,21 @@ def _adjective_selector(declension: Literal["weak", "mixed", "strong"]) -> Selec
             trigger = _preceding_declension_trigger(prev)
             if trigger is None:
                 # No determiner immediately adjacent -- but one may still
-                # govern this adjective through an intervening phrase
-                # ("das [von einem Maler] ___ Arbeitszimmer": "das" governs
-                # weak declension, defeated by "von einem Maler" sitting in
-                # between). Reuses the same bounded backward scan built for
-                # ``partizip_ii_attributiv_erweitert`` after that exact trap,
-                # gated the same way that selector gates it: only trusted
-                # when an ``ADP`` genuinely sits in the intervening span, so
-                # a plain, non-extended zero-article reading ("frische
-                # Milch") is never second-guessed by an unrelated determiner
-                # several tokens further back.
+                # govern this adjective through an intervening phrase or
+                # word ("das [von einem Maler] ___ Arbeitszimmer", "die
+                # [erste] ___ Besprechung", "eine [viel] ___ Zukunft").
+                # Reuses the same bounded backward scan built for
+                # ``partizip_ii_attributiv_erweitert`` after the first of
+                # those traps, gated by ``_span_trusts_far_declension_
+                # trigger`` (see its own docstring) so a plain,
+                # non-extended zero-article reading ("frische Milch") is
+                # never second-guessed by an unrelated determiner several
+                # tokens further back across unrelated material.
                 found = _find_governing_declension_trigger(sentence, token.i)
                 if found is not None:
                     determiner_index, far_trigger = found
                     span = sentence.tokens[determiner_index + 1 : token.i]
-                    if any(t.pos == "ADP" for t in span):
+                    if _span_trusts_far_declension_trigger(span):
                         trigger = far_trigger
             if declension in ("weak", "mixed"):
                 if trigger != declension:
@@ -952,6 +1013,29 @@ def _select_verb_praesens_regelm(sentence: TaggedSentence) -> list[Candidate]:
 
 
 def _select_verb_praesens_vokalwechsel(sentence: TaggedSentence) -> list[Candidate]:
+    """docs/audits/cycle-06-report.md class D: German's present-tense stem-
+    vowel change only ever surfaces in the 2nd/3rd person singular ("du
+    isst", "er isst") -- 1st singular and every plural cell are spelled
+    exactly like a regular verb ("ich esse", identical to what
+    ``verb_praesens_regelm`` would produce), so blanking one of those cells
+    exercises nothing this topic is about. Seven of eight items audited
+    live were exactly this: a first-person form of a verb that merely
+    HAPPENS to belong to the vowel-change table, not a cell that actually
+    shows the change.
+
+    The fix is mechanical, not a person/number allowlist: reconstruct both
+    the actual vowel-change form and the form a REGULAR verb would take for
+    the same ``(lemma, person, number)`` cell (``paradigms.
+    vokalwechsel_praesens_form``/``regular_praesens_form``, the same two
+    resolvers ``blanker.py`` already trusts for reconstruction) and require
+    them to differ. By construction of ``vokalwechsel_praesens_form``
+    itself, they differ only in the 2nd/3rd singular cells the table
+    actually covers, and are identical everywhere else (1st singular, every
+    plural) since that function falls back to the regular resolver there --
+    so this single comparison IS the person/number restriction, derived
+    from the paradigm data instead of hand-declared, and it also rejects a
+    cell either resolver cannot cover at all (``None``) rather than
+    guessing."""
     out: list[Candidate] = []
     for token in sentence.tokens:
         if token.tag != "VVFIN":
@@ -973,6 +1057,10 @@ def _select_verb_praesens_vokalwechsel(sentence: TaggedSentence) -> list[Candida
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
             continue
+        actual_form = paradigms.vokalwechsel_praesens_form(lemma, person, number)
+        regular_form = paradigms.regular_praesens_form(lemma, person, number)
+        if actual_form is None or regular_form is None or actual_form == regular_form:
+            continue  # this cell does not show the vowel change -- see docstring
         cue = _citation_cue(lemma, token.text) if _lexical_verb_lemma_trustworthy(lemma) else None
         out.append(
             Candidate(
@@ -1305,8 +1393,134 @@ def _governing_determiner_number(sentence: TaggedSentence, index: int) -> str | 
 # grammar term (rule 2 in CLAUDE.md is unchanged, this names a lexeme, not a
 # category), never the answer itself, always the constituent the gap tests.
 # See ``Candidate.cue``'s own docstring for the contract; this section is
-# only the two functions that compute one.
+# only the functions that compute one.
 # ------------------------------------------------------------------------
+
+# docs/audits/cycle-06-report.md class A: a cue reaching the learner as
+# nonsense ("mussen", "einpacksen", "Plastiktüt") is the worst defect class
+# in the audit, because unlike a wrong ANSWER (caught by paradigm
+# reconstruction before it can ship) a wrong CUE is never cross-checked
+# against anything and goes straight to the learner. Previous cycles caught
+# individual instances by adding the exact bad lemma to a hand-maintained
+# exclusion list (``_MISLEMMATIZED_VERB_LEMMAS``,
+# ``_MISLEMMATIZED_ADJEKTIV_DEGREE_LEMMAS``); that does not converge, since
+# every new sentence can produce a new lemmatiser artefact. This is the
+# general replacement: a cue must resolve to a real German word, checked
+# against the same 37,567-entry vendored dictionary
+# ``carrier_validation.py`` already uses for its own, unrelated lexical-
+# reality check (``data/fixtures/corpus/frequency/de_dictionary_filter.txt``,
+# CC0). The hand-maintained lists stay in place as a second line of defence
+# (a real dictionary word that is nonetheless the WRONG word -- "fällen" for
+# "gefallen" is the confirmed example -- is a defect this dictionary check
+# structurally cannot see, since the check only asks "is this a word", never
+# "is this the right one"), not superseded by it.
+_DICTIONARY_PATH = (
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "data"
+    / "fixtures"
+    / "corpus"
+    / "frequency"
+    / "de_dictionary_filter.txt"
+)
+
+
+@lru_cache(maxsize=1)
+def _load_cue_dictionary() -> frozenset[str] | None:
+    """The vendored real-word list, loaded once per process and normalised
+    through ``normalise`` on load (``FrequencyBander.load_dictionary_filter``
+    already does this). Mirrors every other loader in this package's own
+    fail-safe contract (``sentence_tagger._load_model``,
+    ``carrier_validation._load_dictionary``): never raises, ``None`` if the
+    fixture is missing, which degrades ``_cue_is_real_word`` to "always
+    trust the cue" rather than crashing cue generation over a missing file.
+
+    **Important caveat, confirmed empirically (not merely documented) by
+    ``carrier_validation.py``'s own module docstring section 7**: the file
+    was itself written through ``normalise``, which maps ``ß`` to ``ss`` and
+    casefolds -- so it contains zero ``ß`` characters and no uppercase
+    letters at all. A lookup against it must normalise its own query key the
+    same way (``_cue_is_real_word`` below does), never compare the raw cue
+    text directly, or every ``ß``-spelled or capitalised entry would
+    (wrongly) look absent."""
+    try:
+        return FrequencyBander.load_dictionary_filter(_DICTIONARY_PATH)
+    except OSError:
+        return None
+
+
+def _cue_is_real_word(cue: str) -> bool:
+    """Whether ``cue`` -- a bracketed citation-form cue about to be shown to
+    a learner -- resolves to a real German word.
+
+    A direct dictionary hit is not the only avenue: a legitimate compound
+    ("Familienfoto") may not be a direct entry in a 37,567-word general list
+    even though it is perfectly good German, so a two-part compound split
+    (``lemmatizer.compound_split_candidates``, both halves required to
+    resolve) is tried as a fallback before rejecting -- the same technique
+    ``src.lexicon.vocabulary.VocabularyStore._compound_level`` already uses
+    for the identical "is this real, even though it's a compound" question,
+    reused rather than re-invented.
+
+    **Absent-from-the-list is treated as "reject the cue", not "reject the
+    item"** (see ``_citation_cue``, the one caller): a cue that is genuinely
+    correct German but happens to fall outside a 37,567-entry list (real,
+    but rarer than the list's own cutoff, or a compound this function's
+    bounded two-way split still cannot resolve) is not proof the item is
+    bad, only that this one check cannot vouch for the cue. Killing the
+    whole item on an absent-word false negative would be the module's own
+    "reject rather than guess" posture turned the wrong direction -- the
+    guess being rejected here is the CUE's reliability, not the sentence's
+    correctness, so the safe degrade is the cue-less outcome every other
+    reliability check in this module already falls back to, not a skip.
+
+    **Measured on the offline mock pool (242 sentences, ``blank_sentences``,
+    both with and without this check), not assumed:**
+
+    * Total item count is identical either way (380). Every ``verb_form``/
+      ``plural_noun``/modal ``irregular_aux`` candidate this check ever
+      suppresses a cue for already fails ``uniqueness.check_uniqueness`` on
+      that same missing cue regardless of WHY it is missing (that gate's
+      own policy table requires a cue for exactly those three open-class
+      kinds), and the other cue-bearing kinds (``degree``, the two
+      participle ``adjective`` kinds) belong to topics whose
+      ``eligible_types`` is ``cloze_cued``-only -- so on the topic set that
+      exists today, a suppressed cue and an outright-rejected candidate
+      always converge to the same "no item" outcome by construction, not by
+      coincidence of this one pool. The choice still matters for a future
+      topic that accepts ``cloze_free`` for one of these kinds, or a future
+      uniqueness policy change -- suppressing preserves that item instead of
+      silently discarding a possibly-fine sentence, which rejecting would
+      not.
+    * Concretely two ``nomen_plural`` items change (the pool's own topic cap
+      backfills two others, which is why the total above does not move):
+      "Großelter" (spaCy's own singular-strip lemma for "Großeltern") is
+      correctly caught -- it is not a real German word, "Großelternteil" is
+      the actual singular. "Radweg" (bike path, a common, entirely correct
+      word) is a genuine OVER-reject: it is not a direct entry in the
+      37,567-word list, and its own compound halves ("Rad", "weg") are both
+      only 3 characters, one short of ``compound_split_candidates``'s own
+      4-character floor, so the compound fallback cannot rescue it either.
+      Lowering that floor to 3 was tried and reverted: it resolves "Radweg"
+      but ALSO resolves "mussen" (the confirmed-bad modal lemma this check
+      exists to catch) via the spurious split "mus"+"sen" -- both entries
+      the dictionary happens to contain for unrelated reasons -- which
+      reopens exactly the defect class this task closes. The 4-character
+      floor is ``src.lexicon.vocabulary.VocabularyStore``'s own existing,
+      deliberate choice for the identical false-positive reason, so this
+      function keeps it rather than tuning a narrower one for one word.
+
+    Degrades to ``True`` (never rejects) when the dictionary itself failed
+    to load."""
+    dictionary = _load_cue_dictionary()
+    if dictionary is None:
+        return True
+    key = normalise(cue)
+    if key in dictionary:
+        return True
+    for head, tail in compound_split_candidates(cue):
+        if head in dictionary and tail in dictionary:
+            return True
+    return False
 
 
 def _citation_cue(lemma: str, surface: str) -> str | None:
@@ -1320,8 +1534,18 @@ def _citation_cue(lemma: str, surface: str) -> str | None:
     nouns have a plural spelled identically to their own singular ("der
     Lehrer" / "die Lehrer"). No cue is the safe outcome for either -- the
     uniqueness gate simply keeps treating that one cell as it did before
-    this cue mechanism existed."""
-    return None if lemma.lower() == surface.lower() else lemma
+    this cue mechanism existed.
+
+    docs/audits/cycle-06-report.md class A: also the one choke point every
+    cue this module ever produces passes through (every ``cue=`` in this
+    file is either a literal call to this function or delegates to one that
+    is), so the dictionary reality check (``_cue_is_real_word``) belongs
+    here, once, rather than repeated at each of the call sites."""
+    if lemma.lower() == surface.lower():
+        return None
+    if not _cue_is_real_word(lemma):
+        return None
+    return lemma
 
 
 def _plural_noun_cue(token: Token) -> str | None:
@@ -1654,10 +1878,62 @@ def _select_konjunktiv_ii_hoeflichkeit(sentence: TaggedSentence) -> list[Candida
     return _select_konjunktiv_ii_base(sentence)
 
 
+# docs/audits/cycle-06-report.md class F: a "wenn" clause is not, by
+# itself, proof of a genuine hypothetical CONDITION -- "wenn Sie unsere
+# Fragen beantworten" is a plain present-indicative clause used inside a
+# "wir würden uns freuen, wenn ..." POLITE-REQUEST formula, not a
+# counterfactual. Mood alone is not quite enough to tell the two apart
+# either, confirmed against the audit's own second example: "wenn Sie mir
+# dabei helfen könnten" IS grammatically Konjunktiv II throughout (spaCy
+# tags "könnten" ``Mood=Sub`` exactly like a genuine "wenn ich Zeit hätte"
+# would), yet it is the same politeness formula as the first example, not
+# a hypothetical condition either -- so "the subordinate clause verb is
+# Konjunktiv II" has to mean something narrower than "some Konjunktiv II
+# verb sits somewhere in the wenn-clause", or it would not close this
+# second, reported item at all.
+#
+# The narrower, still mechanical fact used here: "können" and "werden" are
+# exactly the two lemmas ``konjunktiv_ii_hoeflichkeit``'s own rule_hint
+# names as ITS politeness markers ("könnten Sie", "würden Sie"). A
+# Konjunktiv II verb in the wenn-clause built from one of those two lemmas
+# is indistinguishable, by this module's own closed-class evidence, from
+# the identical politeness construction one clause up -- it does not
+# license the irrealis topic. A genuine hypothetical-state verb in the
+# wenn-clause ("hätte", "wäre", or any other lexical verb's own Konjunktiv
+# II) still does, unchanged.
+_HOEFLICHKEIT_ONLY_KONJUNKTIV_LEMMAS: frozenset[str] = frozenset({"können", "werden"})
+
+
+def _wenn_clause_has_genuine_konjunktiv(sentence: TaggedSentence) -> bool:
+    """Whether the sentence's own "wenn" clause -- bounded the same way
+    ``_clause_span`` bounds any other clause, by the nearest comma on
+    either side or a sentence edge -- has a finite verb that is Konjunktiv
+    II (``Mood=Sub``) AND is not one of the two politeness-only lemmas
+    above (see this function's own preceding module-level comment for
+    why the second condition is needed, not only the first). ``False``
+    both when the wenn-clause's own verb is plainly indicative (class F's
+    first reported item) and when its only Konjunktiv II verb is
+    "könnte(n)"/"würde(n)" (its second) -- ``False`` is also the answer
+    when no "wenn" is present at all, which the caller has already
+    checked, so this never needs to guess at a clause that is not there."""
+    for token in sentence.tokens:
+        if token.text.lower() == "wenn" and token.pos == "SCONJ":
+            start, end = _clause_span(sentence, token.i)
+            return any(
+                t.morph.get("VerbForm") == "Fin"
+                and t.morph.get("Mood") == "Sub"
+                and t.lemma.lower() not in _HOEFLICHKEIT_ONLY_KONJUNKTIV_LEMMAS
+                for t in sentence.tokens[start:end]
+            )
+    return False
+
+
 def _select_konjunktiv_ii_irreal_gegenwart(sentence: TaggedSentence) -> list[Candidate]:
     if sentence.text.rstrip().endswith("?"):
         return []
     if not any(t.text.lower() == "wenn" and t.pos == "SCONJ" for t in sentence.tokens):
+        return []
+    if not _wenn_clause_has_genuine_konjunktiv(sentence):
         return []
     return _select_konjunktiv_ii_base(sentence)
 
@@ -2134,12 +2410,230 @@ def _select_partizip_ii_attributiv_erweitert(sentence: TaggedSentence) -> list[C
     return out
 
 
+# ==============================================================================
+# The three Nominative article topics, revisited: each needs a genuine
+# forcing anchor, not merely a Nominative-case determiner of the right
+# family. docs/audits/cycle-06-modal-leak.md's own fix for these three
+# topics was to report zero unconditionally (blanker.py's own module
+# docstring, final section) -- correct at the time, because the plain
+# ``_determiner_selector`` fires on ANY Nominative determiner of the
+# family, with nothing ruling out the other three families also fitting the
+# same slot ("Der/Ein/Kein/Mein Hund schläft im Garten" are all
+# grammatical). The fix here is not to relax that judgment, it is to add a
+# real anchor per topic and require it: each of the three selectors below
+# returns a candidate ONLY when its own structural anchor is present in the
+# sentence, so a bare, unanchored Nominative sentence still yields nothing
+# (confirmed by the negative-case tests in
+# tests/test_blanking_selectors.py) and only a genuinely forced item is ever
+# built. This is what makes ``cloze_free`` an honest type for these three
+# again (data/taxonomy.yaml's own ``eligible_types`` now says so).
+# ==============================================================================
+
+# Ordinal-numeral lemmas German's own morphologizer assigns for an
+# attributive ordinal ("die erste", "der zweite", ...): each declines
+# exactly like a normal attributive adjective (``ADJA``, no distinct
+# ``NumType`` feature to key off in this tagger), so the lemma itself -- the
+# closed set of German ordinal citation forms up to twelfth, plus "letzter"
+# ("last"), which behaves identically as a uniqueness anchor -- is the only
+# reliable signal. Confirmed empirically: "erste"/"zweite"/"dritte" lemmatise
+# to "erster"/"zweiter"/"dritter", not to a cardinal-numeral form.
+_ORDINAL_ADJEKTIV_LEMMAS: frozenset[str] = frozenset(
+    {
+        "erster",
+        "zweiter",
+        "dritter",
+        "vierter",
+        "fünfter",
+        "sechster",
+        "siebter",
+        "achter",
+        "neunter",
+        "zehnter",
+        "elfter",
+        "zwölfter",
+        "letzter",
+    }
+)
+
+
+def _definite_uniqueness_anchor(sentence: TaggedSentence, det_index: int) -> bool:
+    """Whether the definite article at ``det_index`` sits in a construction
+    that makes its own referent identifiable on the strength of the sentence
+    alone -- a superlative or ordinal attributive adjective before the head
+    noun, or a relative clause immediately after it -- which is what rules
+    out ``ein`` (there is nothing left to introduce; the referent is already
+    singled out) and, with it, ``kein``/a possessive (neither reading fits a
+    referent already pinned down this way). Walks past zero or more
+    attributive adjectives to find the head noun, exactly like
+    ``_followed_by_nominal``'s own neighbour-scan elsewhere in this module,
+    but needs the noun's own INDEX here (not just whether one exists) to
+    look past it for a following relative clause."""
+    tokens = sentence.tokens
+    j = det_index + 1
+    saw_forcing_adjective = False
+    while j < len(tokens) and tokens[j].tag == "ADJA":
+        adj = tokens[j]
+        if adj.morph.get("Degree") == "Sup" or adj.lemma.lower() in _ORDINAL_ADJEKTIV_LEMMAS:
+            saw_forcing_adjective = True
+        j += 1
+    if saw_forcing_adjective:
+        return True
+    if j >= len(tokens) or tokens[j].pos not in ("NOUN", "PROPN"):
+        return False
+    comma = sentence.token_after(j)
+    if comma is None or comma.tag != "$,":
+        return False
+    rel = sentence.token_after(comma.i)
+    return rel is not None and rel.tag in _RELATIVE_PRONOUN_TAGS
+
+
+def _select_artikel_bestimmt_nom(sentence: TaggedSentence) -> list[Candidate]:
+    out: list[Candidate] = []
+    for token in sentence.tokens:
+        if token.tag != "ART" or token.morph.get("Definite") != "Def":
+            continue
+        cell = _cell(token)
+        if cell is None or cell[0] != "Nom":
+            continue
+        if _preceded_by_adposition(sentence, token.i):
+            continue
+        if not _definite_uniqueness_anchor(sentence, token.i):
+            continue
+        out.append(Candidate(token_index=token.i, kind="determiner", art_type="Def", cell=cell))
+    return out
+
+
+def _kein_causal_anchor(sentence: TaggedSentence, det_index: int) -> bool:
+    """Whether the ``kein``/``keine`` token at ``det_index`` sits inside its
+    own clause, and that clause is introduced by ``weil`` -- naming the
+    negated noun's absence as the CAUSE of a consequence stated in the
+    sentence's other clause (either order: "..., weil kein Bus fährt." or
+    "Weil kein Bus fährt, ..."), which is what forces a negation here rather
+    than ``der``/``ein``/a possessive: the other clause only makes sense if
+    the noun is genuinely absent. Reuses ``_clause_span``, already built for
+    the reflexive-pronoun selectors above, to find the determiner's own
+    clause boundaries (nearest comma either side, or a sentence edge)
+    without a dependency parse -- this module never loads the parser (see
+    ``sentence_tagger``'s own module docstring)."""
+    start, _ = _clause_span(sentence, det_index)
+    first = sentence.tokens[start]
+    return first.tag == "KOUS" and first.text.lower() == "weil"
+
+
+def _select_artikel_unbestimmt_kein_nom(sentence: TaggedSentence) -> list[Candidate]:
+    """Scoped to ``kein``/``keine`` (the ``Neg`` family) only, not plain
+    ``ein`` -- no single-sentence device this task identified forces a bare
+    affirmative indefinite over ``der``/``kein``/a possessive the way a
+    ``weil``-clause forces a negation (a first-mention "Das ist ein Hund"
+    admits ``kein``/``mein``/``der`` just as grammatically -- see the module
+    docstring above); rather than guess at one, this topic is served only by
+    the mechanism that is actually forced."""
+    out: list[Candidate] = []
+    for token in sentence.tokens:
+        if token.tag != "PIAT" or not token.text.lower().startswith(_KEIN_STEM):
+            continue
+        cell = _cell(token)
+        if cell is None or cell[0] != "Nom":
+            continue
+        if _preceded_by_adposition(sentence, token.i):
+            continue
+        if not _kein_causal_anchor(sentence, token.i):
+            continue
+        out.append(Candidate(token_index=token.i, kind="determiner", art_type="Neg", cell=cell))
+    return out
+
+
+# A closed set of common A1 kinship nouns, deliberately excluding body-part
+# nouns entirely (never added to this set in the first place, not filtered
+# out afterwards): German idiomatically prefers the definite article for a
+# body part ("Ich wasche mir die Hände", never "meine Hände" there), so a
+# body-part noun is the INVERSE of this topic's own forcing case and must
+# never be treated as one of its anchors. "Mann"/"Frau" are deliberately
+# left out too: both are also the plain, non-kinship words for "man"/"woman"
+# and including them risks the anchor firing on a sentence that never meant
+# "husband"/"wife" at all.
+_KINSHIP_LEMMAS: frozenset[str] = frozenset(
+    {
+        "mutter",
+        "vater",
+        "bruder",
+        "schwester",
+        "großmutter",
+        "grossmutter",
+        "großvater",
+        "grossvater",
+        "tante",
+        "onkel",
+        "cousine",
+        "cousin",
+        "sohn",
+        "tochter",
+        "oma",
+        "opa",
+        "neffe",
+        "nichte",
+        "ehemann",
+        "ehefrau",
+    }
+)
+
+
+def _possessive_person_anchor(sentence: TaggedSentence, noun_index: int) -> bool:
+    """Whether the kinship noun at ``noun_index`` is immediately followed by
+    a relative clause whose own clause contains an explicit 1st- or
+    2nd-person personal pronoun -- the same "made identifiable by a
+    following clause" shape ``_definite_uniqueness_anchor`` uses above, here
+    forcing WHICH person's kinship member is meant (the relative clause's
+    own speaker or addressee: "meine Großmutter, die ICH jedes Wochenende
+    besuche" reads as MY grandmother precisely because I am the one doing
+    the visiting), not merely that a possessive of some kind is meant.
+    German has no dependency parse available here to confirm that pronoun is
+    specifically the relative clause's own subject (this module never loads
+    the parser -- see ``sentence_tagger``'s own module docstring), so its
+    mere presence inside the clause is the signal, the same "reject rather
+    than guess"-scoped structural proxy ``_clause_span`` and friends already
+    use elsewhere in this module for an unavailable dependency fact."""
+    tokens = sentence.tokens
+    comma = sentence.token_after(noun_index)
+    if comma is None or comma.tag != "$,":
+        return False
+    rel = sentence.token_after(comma.i)
+    if rel is None or rel.tag not in _RELATIVE_PRONOUN_TAGS:
+        return False
+    j = rel.i + 1
+    while j < len(tokens) and tokens[j].tag != "$,":
+        tok = tokens[j]
+        if tok.pos == "PRON" and tok.morph.get("Person") in ("1", "2"):
+            return True
+        j += 1
+    return False
+
+
+def _select_artikel_possessiv_nom(sentence: TaggedSentence) -> list[Candidate]:
+    out: list[Candidate] = []
+    for token in sentence.tokens:
+        if token.tag != "PPOSAT" or token.morph.get("Poss") != "Yes":
+            continue
+        cell = _cell(token)
+        if cell is None or cell[0] != "Nom":
+            continue
+        if _preceded_by_adposition(sentence, token.i):
+            continue
+        noun = sentence.token_after(token.i)
+        if noun is None or noun.pos not in ("NOUN", "PROPN"):
+            continue
+        if noun.lemma.lower() not in _KINSHIP_LEMMAS:
+            continue
+        if not _possessive_person_anchor(sentence, noun.i):
+            continue
+        out.append(Candidate(token_index=token.i, kind="determiner", art_type="Poss", cell=cell))
+    return out
+
+
 SELECTORS: dict[str, Selector] = {
-    "artikel_bestimmt_nom": _determiner_selector("Nom", frozenset({"Def"}), "forbidden"),
-    "artikel_unbestimmt_kein_nom": _determiner_selector(
-        "Nom", frozenset({"Ind", "Neg"}), "forbidden"
-    ),
-    "artikel_possessiv_nom": _determiner_selector("Nom", frozenset({"Poss"}), "forbidden"),
+    "artikel_bestimmt_nom": _select_artikel_bestimmt_nom,
+    "artikel_unbestimmt_kein_nom": _select_artikel_unbestimmt_kein_nom,
+    "artikel_possessiv_nom": _select_artikel_possessiv_nom,
     "kasus_akkusativ_formen": _determiner_selector("Acc", _ALL_ART_TYPES, "forbidden"),
     "kasus_dativ_formen": _determiner_selector("Dat", _ALL_ART_TYPES, "forbidden"),
     "kasus_genitiv_formen": _determiner_selector("Gen", _ALL_ART_TYPES, "forbidden"),
