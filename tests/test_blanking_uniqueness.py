@@ -198,6 +198,20 @@ def test_futur_i_is_not_flagged_no_rival_construction_exists() -> None:
     assert outcome.reason is None
 
 
+def test_futur_i_is_flagged_when_interchangeable_with_a_modal_with_no_time_anchor() -> None:
+    """docs/audits/cycle-07-report.md defect 12: "werden Sie den Termin
+    einhalten" reads just as naturally as "müssen/sollen/können Sie den
+    Termin einhalten" -- nothing in the sentence forces a future reading
+    over a modal one, so the item is unsolvable by typing and must be
+    skipped rather than accepted as futur_i."""
+    outcome = _check(
+        "futur_i",
+        "Obwohl die Bearbeitungszeit kurz ist, werden Sie den Termin einhalten.",
+    )
+    assert outcome.unique is False
+    assert outcome.reason == "futur_i_modal_interchangeable"
+
+
 def test_futur_ii_is_not_flagged_no_rival_construction_exists() -> None:
     outcome = _check("futur_ii", "Er wird das Buch gelesen haben.")
     assert outcome.unique is True
@@ -317,6 +331,30 @@ def test_pronomen_personal_dat_passes_when_a_matching_possessive_anchors_it() ->
     )
     assert outcome.unique is True
     assert outcome.reason is None
+
+
+def test_pronomen_personal_dat_is_flagged_when_the_possessive_governs_the_subject() -> None:
+    """docs/audits/cycle-07-report.md defects 10/11: "Mein bester Freund
+    Timo" is the SUBJECT of "hat", not a co-referring argument of "mir" --
+    the possessive-person anchor must not fire from the subject NP, so
+    mir/ihm/ihr/uns/ihnen are all still equally plausible here."""
+    outcome = _check(
+        "pronomen_personal_dat",
+        "Mein bester Freund Timo hat mir gestern ein sehr gutes Buch geschenkt.",
+    )
+    assert outcome.unique is False
+    assert outcome.reason == "personal_pronoun_unanchored"
+
+
+def test_pronomen_personal_dat_is_flagged_when_the_possessive_governs_a_second_subject() -> None:
+    """docs/audits/cycle-07-report.md defect 11: the same subject-anchor
+    defect on a second, shorter sentence ("Mein Kollege hat mir ...")."""
+    outcome = _check(
+        "pronomen_personal_dat",
+        "Mein Kollege hat mir heute einen leckeren Apfelkuchen mitgebracht.",
+    )
+    assert outcome.unique is False
+    assert outcome.reason == "personal_pronoun_unanchored"
 
 
 def test_pronomen_personal_akk_is_flagged_with_no_anchor() -> None:

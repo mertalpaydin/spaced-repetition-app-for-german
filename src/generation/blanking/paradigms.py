@@ -1067,3 +1067,122 @@ TEMPORAL_ANCHOR_LEMMAS: frozenset[str] = frozenset(
 # the SAME state/time as the matrix, in ordinary usage" question, not
 # assumed from the general "subordinating conjunction" category.
 TENSE_CONCORDANT_SUBORDINATORS: frozenset[str] = frozenset({"obwohl", "weil", "während", "da"})
+
+# ==============================================================================
+# docs/audits/cycle-07-report.md defect 1: cue round-trip for a plural-noun
+# cue. "Tablett" (tray) pluralises to "Tabletts", never "Tabletten" --
+# "Tabletten" is the plural of the unrelated lemma "Tablette" (pill). The
+# tagger's own lemmatiser strips a final "-e" indiscriminately, so it
+# produced "Tablett" from "Tabletten" -- a real German word, so the cue
+# dictionary check (``selectors._cue_is_real_word``) cannot see anything
+# wrong with it; only checking whether "Tablett" actually PLURALISES TO the
+# observed surface form catches this.
+#
+# German plural formation genuinely has no single rule (this module's own
+# "do not invent paradigm data" standard, and ``_select_nomen_plural``'s own
+# docstring), so this is not a predictor of THE correct plural -- it is a
+# permissive SET of every standard plural-suffix CLASS a German noun might
+# belong to, and the caller (``selectors._plural_noun_cue``) only trusts an
+# EXACT match against the token actually observed, never a guess at which
+# class applies.
+#
+# The "-(e)n" weak-noun class ("Student" -> "Studenten", "Nachbar" ->
+# "Nachbarn", and the whole productive "-heit/-keit/-ung/-schaft" feminine
+# suffix class, e.g. "Kleinigkeit" -> "Kleinigkeiten", "Landschaft" ->
+# "Landschaften") is common enough that withholding it for every
+# consonant-final lemma was measured, not assumed, to be a materially worse
+# trade than the one line above claims: run against
+# ``sentence_source._MOCK_SENTENCE_POOL`` through the real pipeline, an
+# earlier version of this function that omitted "-(e)n" entirely silently
+# dropped "Bäume", "Kleinigkeiten", "Landschaften", "Nachbarn" (twice) and
+# "Studenten" from ``nomen_plural`` -- not merely "loses a cue", since an
+# uncued ``nomen_plural`` candidate is always flagged ambiguous by
+# ``uniqueness.py`` and so the whole item is skipped, not merely uncued.
+# That is a large, common, productive plural class to disable outright to
+# close one lemmatiser bug on one specific loanword.
+#
+# The orthographic feature that actually distinguishes "Tablett" (a loanword
+# that pluralises "-s", never "-en") from "Student"/"Nachbar"/"Kleinigkeit"/
+# "Landschaft" is a doubled final consonant letter ("tt"): German nouns
+# ending in a geminate consonant are overwhelmingly the "-s"-plural loanword
+# class (also "Ticket" -> "Tickets", "Etikett" -> "Etiketts"), not the
+# "-(e)n" weak/abstract-suffix class, so "-(e)n" is withheld only for a
+# lemma ending in a doubled consonant letter. This is still a heuristic, not
+# a rule -- a handful of genuine "-(e)n" nouns do end in a doubled
+# consonant ("Bett" -> "Betten") and lose their cue under it -- but losing a
+# cue is always the safe direction here (a lost cue is a skip, never a
+# wrong accept), and it closes the confirmed "Tablett" + "en" ==
+# "Tabletten" defect while no longer discarding the much larger regular
+# class.
+_NOUN_PLURAL_SUFFIXES: tuple[str, ...] = ("e", "er", "s")
+
+
+def _ends_in_geminate_consonant(lemma: str) -> bool:
+    """Whether ``lemma`` ends in the same consonant letter twice ("Tablett",
+    "Ticket" is NOT geminate and is unaffected either way, "Etikett",
+    "Ball") -- see ``_NOUN_PLURAL_SUFFIXES``'s own comment for why this is
+    the signal used to withhold the "-(e)n" plural class."""
+    if len(lemma) < 2:
+        return False
+    last, second_last = lemma[-1].lower(), lemma[-2].lower()
+    return last == second_last and last not in "aeiouäöü"
+
+
+#: Forward umlaut table -- the reverse of ``lemmatizer._UMLAUT_REVERSE``,
+#: used only to generate one extra permissive candidate per lemma (never to
+#: assert which vowel actually umlauts for a given noun, which is itself a
+#: per-lemma fact this module does not have a table for).
+_UMLAUT_FORWARD: dict[str, str] = {"a": "ä", "o": "ö", "u": "ü"}
+
+#: "au" is a diphthong that umlauts as a UNIT ("Baum" -> "Bäum-", "Haus" ->
+#: "Häus-"), not by replacing its final "u" alone ("Baum" -> "Baüm" is not a
+#: real German spelling) -- checked before the single-vowel table below so
+#: the diphthong match wins.
+_UMLAUT_DIPHTHONGS: dict[str, str] = {"au": "äu"}
+
+
+def _umlaut_last_vowel(stem: str) -> str | None:
+    """``stem`` with its LAST umlaut-able vowel or diphthong replaced by its
+    umlaut equivalent, or ``None`` if it contains none -- a best-effort
+    proxy for where German umlaut plurals actually umlaut (the stem vowel
+    nearest the ending), offered only as one extra candidate, never
+    asserted."""
+    for i in range(len(stem) - 1, -1, -1):
+        if i >= 1:
+            pair = stem[i - 1 : i + 1]
+            if pair in _UMLAUT_DIPHTHONGS:
+                return stem[: i - 1] + _UMLAUT_DIPHTHONGS[pair] + stem[i + 1 :]
+        if stem[i] in _UMLAUT_FORWARD:
+            return stem[:i] + _UMLAUT_FORWARD[stem[i]] + stem[i + 1 :]
+    return None
+
+
+def plausible_noun_plurals(lemma: str) -> frozenset[str]:
+    """A permissive set of surface forms ``lemma`` might plausibly
+    pluralise to, built from the standard German plural-suffix classes this
+    module's own docstring says have no single deciding rule -- see this
+    section's own comment for exactly which class is deliberately withheld,
+    and why. The caller trusts only an EXACT match against the token
+    actually observed in the carrier; this function never claims one
+    candidate is THE correct plural."""
+    out = {lemma, *(lemma + suffix for suffix in _NOUN_PLURAL_SUFFIXES)}
+    if lemma.endswith("e"):
+        out.add(lemma + "n")
+    elif not _ends_in_geminate_consonant(lemma):
+        # The "-(e)n" weak/abstract-suffix class for a lemma NOT already
+        # ending in "-e" -- both possible endings ("Student" -> "-en",
+        # "Nachbar" -> "-n") are offered; see this section's own comment
+        # for why the geminate-consonant exclusion, not a blanket ban, is
+        # what keeps "Tablett" + "en" out of this set.
+        out.add(lemma + "en")
+        out.add(lemma + "n")
+    umlauted = _umlaut_last_vowel(lemma)
+    if umlauted is not None:
+        out.add(umlauted)
+        out.update(umlauted + suffix for suffix in _NOUN_PLURAL_SUFFIXES)
+        if umlauted.endswith("e"):
+            out.add(umlauted + "n")
+        elif not _ends_in_geminate_consonant(umlauted):
+            out.add(umlauted + "en")
+            out.add(umlauted + "n")
+    return frozenset(out)

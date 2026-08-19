@@ -92,7 +92,7 @@ from dataclasses import dataclass
 
 from src.contracts import CandidateItem, Difficulty, Distractor, ItemType
 from src.generation.blanking import paradigms
-from src.generation.blanking.selectors import Candidate
+from src.generation.blanking.selectors import Candidate, _cue_is_real_word
 from src.generation.blanking.sentence_tagger import TaggedSentence
 
 MAX_DISTRACTORS = 3
@@ -237,7 +237,27 @@ def _adjective_outcome(
     family = paradigms.adjective_family_forms(candidate.declension, stem)
     distractor_forms = sorted(
         {form for cell, form in family.items() if cell != candidate.cell and form != token.text}
-    )[:MAX_DISTRACTORS]
+    )
+    # docs/audits/cycle-07-report.md defect 2: an adjective distractor is
+    # synthesised by concatenating a STEM (read off the blanked token's own
+    # surface text, not looked up in any paradigm) with each OTHER cell's
+    # ending -- unlike every other outcome builder's distractors, which are
+    # real closed-class paradigm forms by construction, this one is only as
+    # good as the stem. A wrongly-selected candidate (e.g. "euer" mistagged
+    # as an attributive adjective) yields a stem that is not a real
+    # adjective stem at all, and every "distractor" built from it is
+    # nonsense ("eue", "euem", "euen") -- checked here, once, against the
+    # same vendored dictionary the cue check uses, independently of whether
+    # the selector-level fix above also closed this specific case, per the
+    # module's own "reject rather than guess" posture: a non-word distractor
+    # is shown to the learner at hint level 2, so this is not merely
+    # cosmetic. A distractor that fails the check is dropped; if that
+    # leaves fewer than ``MAX_DISTRACTORS``, the item ships with the
+    # distractors it has, exactly like every other reject-partial posture in
+    # this pipeline.
+    distractor_forms = [form for form in distractor_forms if _cue_is_real_word(form)][
+        :MAX_DISTRACTORS
+    ]
     distractors = [Distractor(text=form) for form in distractor_forms]
 
     return BlankOutcome(

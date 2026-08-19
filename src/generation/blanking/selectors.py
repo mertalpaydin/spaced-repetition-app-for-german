@@ -496,6 +496,21 @@ def _adjective_selector(declension: Literal["weak", "mixed", "strong"]) -> Selec
         for token in sentence.tokens:
             if token.tag != "ADJA":
                 continue
+            # docs/audits/cycle-07-report.md defect 2: "euer" (a possessive
+            # DETERMINER, "your") is mistagged ``ADJA`` by this exact model
+            # in some contexts ("Gegen euer Unwohlsein ..."), which the bare
+            # tag check above cannot catch -- it already IS "ADJA" by the
+            # tagger's own (wrong) call. A possessive/indefinite/negative
+            # determiner is a closed, fully enumerable family
+            # (``paradigms.match_ein_word``'s own stem list); no genuine
+            # German ADJECTIVE is spelled as one of those stems plus a valid
+            # ending (they are function words, not descriptive adjectives),
+            # so any token that parses as a member of that family is
+            # rejected here regardless of what tag the tagger assigned it --
+            # the actual attributive-adjective requirement the topic needs,
+            # not merely the tag that usually, but not always, signals it.
+            if paradigms.match_ein_word(token.text) is not None:
+                continue
             if not _followed_by_nominal(sentence, token.i):
                 continue
             # docs/audits/cycle-07-report.md section B: a comparative or
@@ -772,9 +787,18 @@ _REFLEXIVE_CAPABLE_FORMS: frozenset[str] = frozenset(
 # Temporal accusatives ("jeden Morgen", "letzte Woche") are extremely common
 # and are NOT direct objects -- exempted from the "bare accusative object"
 # check below so they never masquerade as the object that would force a
-# Dative reading.
+# Dative reading. The seven weekday names ("jeden Samstag") are the same
+# shape and were a confirmed gap (docs/audits/cycle-07-report.md defect 8's
+# own fix, generalising the accusative-object check to every reflexive verb,
+# surfaced it: "Wir treffen uns jeden Samstag im Park." was wrongly promoted
+# to Dative because "Samstag" is not in this set) -- added here rather than
+# duplicated, and reusing the identical spellings
+# ``paradigms.TEMPORAL_ANCHOR_LEMMAS`` already carries for the same seven
+# words, for an unrelated topic, so the list of German weekday names exists
+# in exactly one place.
 _TEMPORAL_ACCUSATIVE_LEMMAS: frozenset[str] = frozenset(
     {"morgen", "tag", "woche", "monat", "jahr", "abend", "nacht", "stunde", "minute", "sekunde"}
+    | {"montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag", "sonntag"}
 )
 
 # Determiner/adjective tags that sit INSIDE a noun phrase, between a
@@ -851,21 +875,6 @@ def _immediately_followed_by_object_np(
     if tok.pos not in ("NOUN", "PROPN"):
         return False
     return tok.lemma.lower() not in _TEMPORAL_ACCUSATIVE_LEMMAS
-
-
-def _has_accusative_object(
-    sentence: TaggedSentence, exclude_index: int, clause_start: int, clause_end: int
-) -> bool:
-    """Combines the Case-based and word-order-based bare-object signals --
-    see ``_has_bare_accusative_object`` and ``_immediately_followed_by_object_np``
-    docstrings for why neither alone is sufficient. Both are scoped to the
-    reflexive's OWN clause (``clause_start``/``clause_end`` from
-    ``_clause_span``) -- see the module-level comment above
-    ``_REFLEXIVE_CASE_BY_FORM`` for why an unscoped, whole-sentence scan was
-    a confirmed defect, not merely a theoretical one."""
-    return _has_bare_accusative_object(
-        sentence, exclude_index, clause_start, clause_end
-    ) or _immediately_followed_by_object_np(sentence, exclude_index, clause_end)
 
 
 _CLAUSE_BOUNDARY_TAG = "$,"
@@ -1000,15 +1009,105 @@ def _reflexive_case(sentence: TaggedSentence, token: Token) -> str | None:
         return None
     if verb_lemma in paradigms.DATIVE_REFLEXIVE_VERBS_NO_OBJECT:
         verb_case = "Dat"
-    elif verb_lemma in paradigms.DATIVE_REFLEXIVE_VERBS_WITH_OBJECT:
-        has_object = _has_accusative_object(sentence, token.i, clause_start, clause_end)
-        verb_case = "Dat" if has_object else "Acc"
     else:
-        verb_case = "Acc"
+        # docs/audits/cycle-07-report.md defect 8: "sich (Dat) etwas tun" is
+        # not limited to the closed ``DATIVE_REFLEXIVE_VERBS_WITH_OBJECT``
+        # list -- it is the general benefactive-dative construction, and it
+        # applies to essentially any transitive verb, not only the handful
+        # the list happens to name. "den er sich frisch gekocht hatte" (a
+        # relative clause: "er hatte sich einen Kaffee gekocht", the
+        # accusative object fronted as the relative pronoun "den") is
+        # exactly this shape with "kochen", a verb the cycle-5 list never
+        # covered because it is not lexically dative-reflexive at all --
+        # this is the STRUCTURAL case the list was never meant to handle
+        # (see that list's own module comment in ``paradigms.py``: it names
+        # verbs "genuinely POLYSEMOUS between an Accusative-reflexive
+        # reading and a Dative one", which "kochen" is not -- "sich kochen"
+        # alone is not idiomatic Accusative-reflexive German at all, so
+        # restricting the object-presence check to that list only ever
+        # under-covers this construction, never over-covers it). Checking
+        # ``_has_bare_accusative_object`` for every verb not lexically
+        # Dative-only closes that gap: an accusative-reflexive verb
+        # genuinely never
+        # co-occurs with a further accusative object in its own clause (the
+        # cycle-4 report's own three counter-examples -- "sich freuen",
+        # "sich treffen", "sich ändern" -- are all intransitive-reflexive
+        # and simply never trip this check), so widening it costs nothing
+        # for those and closes this defect for every OTHER transitive verb.
+        #
+        # Widened to the CASE-based signal only (``_has_bare_accusative_
+        # object``), not the WORD-ORDER fallback (``_immediately_followed_
+        # by_object_np``): confirmed necessary while building this fix --
+        # "Er sagte, dass sich die Situation geändert hat." has "die
+        # Situation" (correctly tagged ``Case=Nom``, the genuine SUBJECT of
+        # this intransitive-reflexive verb) sitting immediately after
+        # "sich" purely from ordinary subordinate-clause word order (the
+        # reflexive object preceding a "heavy" subject), which the
+        # word-order fallback cannot tell apart from a genuine object NP by
+        # shape alone -- it was only ever vetted against verbs KNOWN to take
+        # this construction (the closed list below), never against every
+        # verb in German. The Case-based check alone already resolves
+        # "kochen" correctly (its own accusative object, the fronted
+        # relative pronoun "den", is directly Case-tagged and needs no
+        # word-order guess), so nothing is lost by keeping the fallback
+        # scoped to its original, narrower, already-vetted population.
+        has_object = _has_bare_accusative_object(sentence, token.i, clause_start, clause_end)
+        if not has_object and verb_lemma in paradigms.DATIVE_REFLEXIVE_VERBS_WITH_OBJECT:
+            has_object = _immediately_followed_by_object_np(sentence, token.i, clause_end)
+        verb_case = "Dat" if has_object else "Acc"
     unambiguous = _REFLEXIVE_CASE_BY_FORM.get(lower)
     if unambiguous is not None and unambiguous != verb_case:
         return None
     return verb_case
+
+
+def _reflexive_governed_by_attributive_phrase(sentence: TaggedSentence, index: int) -> bool:
+    """Whether the reflexive-capable pronoun at ``index`` sits INSIDE a
+    determiner-headed attributive noun phrase ("dem [mir] oft helfenden
+    Trainer") rather than as a bare clause argument of the matrix verb.
+
+    docs/audits/cycle-07-report.md defect 9: "Im Verein helfe ich dem ___
+    oft helfenden Trainer beim Aufräumen." wrongly selects "mir" for
+    ``verben_reflexiv_dat`` -- "mir" is the dative OBJECT OF THE PARTICIPLE
+    "helfenden" ("the trainer who often helps me"), whose own subject is
+    "der Trainer" (3rd person), never a reflexive argument of the main
+    clause's "ich helfe" at all. The existing subject-agreement check does
+    not catch this: "mir" always maps to (1, Sing) regardless of context,
+    which happens to equal the main clause's own subject "ich" (also
+    1, Sing) purely by coincidence of person, not because "mir" actually
+    corefers with it.
+
+    Detected structurally, since this package's own tagger carries no
+    dependency parse to ask "what governs this pronoun" directly: a
+    determiner-shaped token (``_DETERMINER_TAGS``, or a PDS mistagged
+    demonstrative spelled like the definite article -- the exact ambiguity
+    ``_preceding_declension_trigger`` already documents and handles for the
+    identical model quirk) immediately precedes the pronoun, which is the
+    "trapped inside this determiner's own noun phrase" signal, and a later
+    token in the SAME clause is an attributive adjective/participle
+    (``ADJA``) immediately followed by a nominal head -- the participle
+    that is the pronoun's REAL governor. A pronoun that is a genuine clause
+    argument is never preceded by a bare determiner this way (it follows
+    the finite verb or the subject directly), so this never fires on any
+    of the module's own passing reflexive examples."""
+    prev = sentence.token_before(index)
+    if prev is None:
+        return False
+    is_determiner_like = prev.tag in _DETERMINER_TAGS or (
+        prev.tag == "PDS" and prev.text.lower() in _DEFINITE_ARTICLE_SURFACE_FORMS
+    )
+    if not is_determiner_like:
+        return False
+    _, clause_end = _clause_span(sentence, index)
+    j = index + 1
+    while j < clause_end:
+        tok = sentence.tokens[j]
+        if tok.pos in ("VERB", "AUX") and tok.morph.get("VerbForm") == "Fin":
+            return False
+        if tok.tag == "ADJA" and _followed_by_nominal(sentence, tok.i):
+            return True
+        j += 1
+    return False
 
 
 def _reflexive_selector(fixed_case: str) -> Selector:
@@ -1019,6 +1118,8 @@ def _reflexive_selector(fixed_case: str) -> Selector:
                 continue
             lower = token.text.lower()
             if lower not in _REFLEXIVE_CAPABLE_FORMS:
+                continue
+            if _reflexive_governed_by_attributive_phrase(sentence, token.i):
                 continue
             if _governed_by_adposition(sentence, token.i):
                 # A genuine reflexive is a bare clause argument of the verb,
@@ -1885,13 +1986,30 @@ def _plural_noun_cue(token: Token) -> str | None:
        candidates outright -- ``_select_nomen_plural`` itself still selects
        and blanks a Dative plural noun exactly as before, this only
        withholds the CUE for that one case, matching the module's own
-       "no cue is the safe outcome" posture."""
+       "no cue is the safe outcome" posture.
+
+    4. **Round-trips against the observed plural**
+       (``paradigms.plausible_noun_plurals``) -- docs/audits/
+       cycle-07-report.md defect 1: "Tablett" (tray, a real word) is not
+       proof the cue is right, because "Tabletten" is the plural of the
+       unrelated "Tablette" (pill), not of "Tablett" (which pluralises to
+       "Tabletts"). The dictionary check (``_citation_cue``'s own
+       ``_cue_is_real_word`` call) cannot see this -- "Tablett" IS a real
+       word -- so nothing upstream of this catches it. Withheld whenever the
+       observed plural is not itself one of the lemma's own plausible
+       plural forms; see that function's own docstring for what "plausible"
+       deliberately does and does not cover."""
     lemma = token.lemma
     if not lemma or not lemma[:1].isupper():
         return None
     if token.morph.get("Case") == "Dat":
         return None
-    return _citation_cue(lemma, token.text)
+    cue = _citation_cue(lemma, token.text)
+    if cue is None:
+        return None
+    if token.text not in paradigms.plausible_noun_plurals(cue):
+        return None
+    return cue
 
 
 def _select_nomen_plural(sentence: TaggedSentence) -> list[Candidate]:
@@ -1983,6 +2101,48 @@ def _participle_after(sentence: TaggedSentence, index: int) -> Token | None:
         if token.tag == "VVPP":
             return token
     return None
+
+
+def _participle_after_in_clause(sentence: TaggedSentence, index: int) -> Token | None:
+    """The same search as ``_participle_after``, bounded to ``index``'s own
+    clause (``_clause_span``) rather than the rest of the sentence.
+
+    docs/audits/cycle-07-report.md defects 5 and 7: ``_select_zustandspassiv``
+    used the unbounded ``_participle_after`` to decide whether a bare "ist"/
+    "war" is followed by a transitive participle -- which means it happily
+    reaches into a LATER, unrelated clause for one. "Es ist sehr wichtig,
+    dass die Suppe langsam gekocht wird." has no participle anywhere near
+    "ist" (a predicative adjective, "wichtig", follows it directly), but the
+    unbounded search walked straight past the clause boundary and found
+    "gekocht" in the "dass" clause's own (unrelated) Vorgangspassiv --
+    "kochen" is transitive, so the candidate was wrongly built. Bounding the
+    search to "ist"'s own clause closes this specific shape; see the module
+    docstring's ``_clause_span`` precedent for why a comma is the available
+    proxy here, not a real parse."""
+    _, end = _clause_span(sentence, index)
+    for token in sentence.tokens[index + 1 : end]:
+        if token.tag == "VVPP":
+            return token
+    return None
+
+
+def _clause_contains_worden(sentence: TaggedSentence, index: int) -> bool:
+    """Whether ``worden`` (the Vorgangspassiv Perfekt/Plusquamperfekt
+    marker -- "ist/war ... PARTIZIP worden") appears anywhere in ``index``'s
+    own clause.
+
+    docs/audits/cycle-07-report.md defect 7: clause-scoping alone
+    (``_participle_after_in_clause``) does not close every case -- a MAIN
+    clause with ordinary Vorgangspassiv-Perfekt word order ("Das Auto ist
+    gestern gekauft worden.") has its own participle immediately AFTER
+    "ist", in the SAME clause, with no comma anywhere to bound the search
+    at all. "worden" is the unambiguous marker that this is Vorgangspassiv
+    (a dynamic passive event), never Zustandspassiv (a state) -- the two
+    can never co-occur -- so its presence anywhere in the clause rules out
+    Zustandspassiv regardless of where the participle itself sits relative
+    to the blanked "ist"/"war"."""
+    start, end = _clause_span(sentence, index)
+    return any(t.text.lower() == "worden" for t in sentence.tokens[start:end])
 
 
 def _participle_before(sentence: TaggedSentence, index: int) -> Token | None:
@@ -2366,8 +2526,10 @@ def _select_zustandspassiv(sentence: TaggedSentence) -> list[Candidate]:
             continue
         if token.lemma.lower() != "sein":
             continue
-        participle = _participle_after(sentence, token.i)
+        participle = _participle_after_in_clause(sentence, token.i)
         if participle is None or participle.lemma.lower() not in paradigms.TRANSITIVE_LEMMAS:
+            continue
+        if _clause_contains_worden(sentence, token.i):
             continue
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
@@ -2398,8 +2560,10 @@ def _select_zustandspassiv_zeiten(sentence: TaggedSentence) -> list[Candidate]:
             continue
         if token.morph.get("Mood") != "Ind":
             continue
-        participle = _participle_after(sentence, token.i)
+        participle = _participle_after_in_clause(sentence, token.i)
         if participle is None or participle.lemma.lower() not in paradigms.TRANSITIVE_LEMMAS:
+            continue
+        if _clause_contains_worden(sentence, token.i):
             continue
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
@@ -2643,20 +2807,36 @@ def _find_governing_declension_trigger(
     the real governor. Stops at a coordination boundary (comma/"und")
     without finding one, same posture as ``_AMBIGUOUS_ZERO_CONTEXT_TAGS``
     elsewhere in this module: real but out of this cycle's scope, not a
-    guess."""
+    guess.
+
+    docs/audits/cycle-07-report.md defect 3, third cycle for this exact
+    trap ("mit dem vor wenigen Wochen ___ Ball"): the token at ``j`` is now
+    tested as a trigger candidate FIRST, before ``_skip_intervening_pp`` is
+    ever tried on it. The previous order tried the skip first, and
+    ``_skip_intervening_pp``'s own inner loop treats ANY determiner-tagged
+    token as more PP-complement material to walk past (it has to, for "von
+    einem Maler"'s own "einem") -- so when ``j`` itself already IS the real
+    governing determiner ("dem" in "mit **dem** [vor wenigen Wochen]
+    gekauften Ball"), the old order let the skip swallow it whole, walking
+    straight past "dem" AND its own outer preposition "mit" too, and the
+    real trigger was never tested at all. Checking the candidate first means
+    a genuine trigger is always caught at the position it actually sits at,
+    and ``_skip_intervening_pp`` is only ever asked to jump an inserted
+    phrase that does NOT itself start on the trigger -- exactly the "von
+    einem Maler" shape it was built for, unchanged."""
     start = max(-1, participle_index - 1 - _DECLENSION_SEARCH_WINDOW)
     j = participle_index - 1
     while j > start:
-        skipped = _skip_intervening_pp(sentence, j, start)
-        if skipped != j:
-            j = skipped
-            continue
         candidate = sentence.tokens[j]
         trigger = _preceding_declension_trigger(candidate)
         if trigger is not None:
             return j, trigger
         if candidate.tag in ("KON", "$,"):
             return None
+        skipped = _skip_intervening_pp(sentence, j, start)
+        if skipped != j:
+            j = skipped
+            continue
         j -= 1
     return None
 
@@ -2788,6 +2968,44 @@ def _definite_uniqueness_anchor(sentence: TaggedSentence, det_index: int) -> boo
     return rel is not None and rel.tag in _RELATIVE_PRONOUN_TAGS
 
 
+def _earlier_subject_shaped_np(sentence: TaggedSentence, det_index: int) -> bool:
+    """Whether a NOUN/PROPN/PRON tagged ``Case=Nom`` -- excluding a relative
+    pronoun, which refers back to an antecedent rather than being a subject
+    of its own -- appears anywhere before ``det_index``.
+
+    docs/audits/cycle-07-report.md defect 4: "hat ___ schwerste Kiste
+    getragen" blanked "die", tagged ``Case=Nom`` by this exact model even
+    though "die schwerste Kiste" is the ACCUSATIVE object of "getragen" --
+    "die" is syncretic between the two cases, and the morphologizer's own
+    Case call is simply wrong here (confirmed directly: the token's own
+    dependency arc, when the parser is loaded at all -- which this module's
+    tagger deliberately never does, see ``sentence_tagger``'s own module
+    docstring -- resolves it correctly as an accusative object, "oa", while
+    ``token.morph["Case"]`` still says "Nom" regardless). Trusting the
+    tagger's Case call alone is exactly the bug.
+
+    This package has no dependency parse to ask "is this noun phrase the
+    clause's subject" directly (a literal ``sb``/``nsubj`` check needs the
+    parser ``sentence_tagger.py`` excludes for every other selector too, and
+    extending that loader is out of this cycle's scope -- flagged, not
+    silently worked around). The structural proxy used instead: a clause
+    has exactly one subject, so if a DIFFERENT, earlier Nominative-tagged
+    noun phrase already exists in the sentence, THIS one cannot also be the
+    subject, regardless of what its own (possibly wrong) Case tag claims.
+    In the defect sentence, "Nachbar" (the true subject, "Der nette
+    Nachbar von nebenan ...") is exactly that earlier NP. A relative
+    pronoun ("der", introducing "der uns gestern geholfen hat") is excluded
+    from this scan: it is Nominative because it is the RELATIVE CLAUSE's
+    own subject, a fact that says nothing about the MAIN clause's subject
+    one way or the other."""
+    for token in sentence.tokens[:det_index]:
+        if token.tag in _RELATIVE_PRONOUN_TAGS:
+            continue
+        if token.pos in ("NOUN", "PROPN", "PRON") and token.morph.get("Case") == "Nom":
+            return True
+    return False
+
+
 def _select_artikel_bestimmt_nom(sentence: TaggedSentence) -> list[Candidate]:
     out: list[Candidate] = []
     for token in sentence.tokens:
@@ -2799,6 +3017,8 @@ def _select_artikel_bestimmt_nom(sentence: TaggedSentence) -> list[Candidate]:
         if _preceded_by_adposition(sentence, token.i):
             continue
         if not _definite_uniqueness_anchor(sentence, token.i):
+            continue
+        if _earlier_subject_shaped_np(sentence, token.i):
             continue
         # docs/audits/cycle-07-report.md section A: this anchor rules out
         # the INDEFINITE family (nothing is left to introduce), but not a

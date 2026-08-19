@@ -652,6 +652,44 @@ def test_analysis_available_reports_true_when_spacy_is_installed() -> None:
     assert cv.analysis_available() is True
 
 
+# -- cycle-07 defect 6: a non-finite verb form must be a real German word ---
+
+
+def test_validate_carrier_rejects_the_pilot_heilgemacht_bug() -> None:
+    """docs/audits/cycle-07-report.md defect 6: the sentence's OWN blanked
+    slot ("ist ... repariert", Zustandspassiv) is genuinely correct German;
+    the fault is elsewhere in the same carrier, the participle
+    "heilgemacht" ("heil" + "gemacht" fused as if it were a separable
+    verb), which is not standard German. This must be rejected as a
+    carrier before it ever reaches the blanking stage, regardless of which
+    token would be blanked."""
+    result = cv.validate_carrier(
+        "Der Computer ist jetzt wieder repariert, weil der Hausmeister ihn gestern "
+        "schnell heilgemacht hat."
+    )
+    assert not result.accepted
+    assert result.reason == cv.REASON_CONTENT_WORD_NOT_A_REAL_WORD
+
+
+def test_validate_carrier_rejects_the_mislemmatised_einpacksen_participle() -> None:
+    """Same mechanism as the mislemmatised-verb cue checks in
+    ``selectors.py`` (``mussen``, ``packsen``), but at participle level:
+    confirmed no real dictionary entry and no valid prefix-stripped
+    reading exists, so this must stay rejected."""
+    result = cv.validate_carrier("Er hat die Koffer schon einpacksen.")
+    assert not result.accepted
+    assert result.reason == cv.REASON_CONTENT_WORD_NOT_A_REAL_WORD
+
+
+def test_validate_carrier_accepts_a_genuine_noun_compound_absent_from_the_wordlist() -> None:
+    """ "Radweg" (bike path) is not a direct dictionary entry but resolves
+    as a real compound ("Rad" + "Weg", both real words); confirms the new
+    non-finite-verb check does not touch noun validation at all, so this
+    kind of legitimate compound stays accepted exactly as before."""
+    result = cv.validate_carrier("Der Radweg ist heute gesperrt.")
+    assert result.accepted, result.reason
+
+
 # -- Regression: the new cycle-5 checks must not reject known-good German ---
 
 

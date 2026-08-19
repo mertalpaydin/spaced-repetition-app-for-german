@@ -297,7 +297,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.generation.blanking import paradigms
-from src.generation.blanking.selectors import _MODAL_INFINITIVE_TAGS, Candidate, _clause_span
+from src.generation.blanking.selectors import (
+    _MODAL_INFINITIVE_TAGS,
+    Candidate,
+    _clause_span,
+    _determiner_head_noun,
+)
 from src.generation.blanking.sentence_tagger import TaggedSentence, Token
 
 # Possessive-determiner stems (paradigms.match_ein_word's own stem list)
@@ -493,6 +498,89 @@ def _auxiliary_tense_anchor_present(sentence: TaggedSentence, candidate: Candida
     return _sibling_clause_tense_anchor(sentence, candidate)
 
 
+def _futur_i_shape(sentence: TaggedSentence, candidate: Candidate) -> bool:
+    """Whether ``candidate`` (an ``irregular_aux`` candidate whose lemma is
+    ``werden``) is genuinely Futur I: a bare infinitive later in its own
+    clause, with no participle -- Futur II's own shape, checked and
+    excluded first so this never doubles up with that construction.
+
+    Scoped to ``tense_mood == "Pres"`` (indicative present "werden"), not
+    merely to the surface shape "werden-family form + bare infinitive
+    later in the clause": Konjunktiv II politeness ("Würden Sie mir bitte
+    das Fenster öffnen?", ``tense_mood == "SubjII"``) has the identical
+    surface shape but is not interchangeable with a modal at all -- "Würden
+    Sie...?" is a fixed, conventionalised polite-request formula with no
+    modal-verb paraphrase that keeps the same register, unlike Futur I's
+    genuine free choice against the whole modal set. Regression found by
+    running this check against the real pipeline: without this restriction
+    it also rejected the konjunktiv_ii_hoeflichkeit item built from that
+    exact sentence."""
+    if candidate.lemma != "werden" or candidate.tense_mood != "Pres":
+        return False
+    if _clause_participle(sentence, candidate) is not None:
+        return False
+    return _clause_infinitive_after(sentence, candidate) is not None
+
+
+def _futur_i_modal_interchangeable(sentence: TaggedSentence, candidate: Candidate) -> bool:
+    """docs/audits/cycle-07-report.md defect 12: "werden" plus a bare
+    infinitive (Futur I) is not merely a tense choice the way a bare "ist"/
+    "war" is (the previous bullet's own question) -- it is ALSO, separately,
+    a free LEXICAL choice against the entire modal set. "Obwohl die
+    Bearbeitungszeit kurz ist, ___ Sie den Termin einhalten." accepts
+    "können"/"müssen"/"wollen"/"sollen" exactly as well as "werden": nothing
+    about the construction's own shape rules a modal out the way it does
+    for "wurde + infinitive" against Futur's OWN Präteritum reading
+    (``_tense_forced_by_construction``'s own claim, which is real but
+    narrower than "no rival LEXEME exists at all"). The modal-
+    interchangeability check (the very first branch of
+    ``check_uniqueness``) never fires here because the answer itself is
+    "werden", not a modal -- this is the same ambiguity one lexeme over.
+
+    Rescued exactly the way the modal branch rescues itself: an explicit
+    FUTURE time anchor (``paradigms.TEMPORAL_ANCHOR_LEMMAS``, the same
+    closed list ``_temporal_expression_anchor`` already uses) makes "werden"
+    the only construction that actually commits to that future reading --
+    "Ich werde morgen kommen." forces Futur specifically, because a modal
+    alone ("Ich kann morgen kommen.") states ability/permission, not a
+    scheduled future event, which is a real, if softer, semantic
+    difference "morgen" resolves. With no such anchor, "werden" and the
+    modal set are interchangeable and neither the module's cue mechanism
+    (``selectors.py`` never puts one on this kind, see the ``irregular_aux``
+    bullets above) nor anything else in this pipeline rescues it."""
+    return _futur_i_shape(sentence, candidate) and not _temporal_expression_anchor(sentence)
+
+
+def _possessive_governs_a_subject(sentence: TaggedSentence, token: Token) -> bool:
+    """Whether the possessive determiner ``token`` sits inside the SUBJECT
+    noun phrase of its own clause -- i.e. its head noun (``selectors.
+    _determiner_head_noun``, the same walk that already derives a
+    determiner's cue from its head noun elsewhere in this package) is itself
+    tagged ``Case=Nom``.
+
+    docs/audits/cycle-07-report.md defects 10 and 11: "Mein bester Freund
+    Timo hat ___ gestern ein sehr gutes Buch geschenkt." wrongly anchors
+    "mir" because "Mein" (1st-singular-possessor) sits somewhere in the
+    sentence with the right (Person, Number) -- but "Mein" possesses the
+    SUBJECT ("mein Freund", who does the giving), which says nothing at all
+    about the person of the DATIVE OBJECT (the recipient: "dir"/"ihm"/"ihr"/
+    "uns"/"euch"/"Ihnen" all fit exactly as well as "mir" does here). A
+    possessive only forces the referent of a DIFFERENT argument when it
+    itself belongs to that argument's own noun phrase (module docstring's
+    own working example, "für meinen Aufsatz", where "meinen" possesses the
+    accusative object itself, not the subject) or a phrase coreferring with
+    it -- never when it sits in the subject, which is a structurally
+    unrelated argument of the very same clause. Conservative on an
+    unresolved head noun (``None``, or a noun whose own Case did not tag):
+    treated as "might be the subject", not as "safe to trust", per this
+    module's own standing bias against a false anchor over a lost one."""
+    head = _determiner_head_noun(sentence, token.i)
+    if head is None:
+        return True
+    case = head.morph.get("Case")
+    return case is None or case == "Nom"
+
+
 def _person_number_anchor_present(sentence: TaggedSentence, candidate: Candidate) -> bool:
     """Whether some token OTHER than the blanked one itself carries the
     identical (Person, Number) as ``candidate`` -- another personal pronoun,
@@ -502,7 +590,12 @@ def _person_number_anchor_present(sentence: TaggedSentence, candidate: Candidate
     instead of leaving the referent free among every other member of the
     pronoun paradigm. Reflexive pronouns are not treated as an anchor: "sich"
     corefers with its own clause's subject, which is a different fact than
-    "some other pronoun in this sentence has the same person as the blank"."""
+    "some other pronoun in this sentence has the same person as the blank".
+
+    A possessive determiner is trusted only when it does NOT govern the
+    clause's own SUBJECT (``_possessive_governs_a_subject``) -- see that
+    function's own docstring for docs/audits/cycle-07-report.md defects 10
+    and 11, the possessive-in-the-subject-noun-phrase false anchor."""
     assert candidate.person is not None and candidate.number is not None
     target = (candidate.person, candidate.number)
     for token in sentence.tokens:
@@ -516,8 +609,11 @@ def _person_number_anchor_present(sentence: TaggedSentence, candidate: Candidate
             if match is None:
                 continue
             stem, _ending = match
-            if _UNAMBIGUOUS_POSSESSIVE_STEM_PERSON_NUMBER.get(stem) == target:
-                return True
+            if _UNAMBIGUOUS_POSSESSIVE_STEM_PERSON_NUMBER.get(stem) != target:
+                continue
+            if _possessive_governs_a_subject(sentence, token):
+                continue
+            return True
     return False
 
 
@@ -582,9 +678,16 @@ def check_uniqueness(sentence: TaggedSentence, candidate: Candidate) -> Uniquene
         # the personal_pronoun argument below applies here too (the
         # ambiguity is over which CELL of the one paradigm, not which
         # lexeme), so this branch never even looks at ``candidate.cue``.
-        if _auxiliary_tense_anchor_present(sentence, candidate):
-            return UniquenessOutcome(True, None)
-        return UniquenessOutcome(False, "auxiliary_tense_unanchored")
+        if not _auxiliary_tense_anchor_present(sentence, candidate):
+            return UniquenessOutcome(False, "auxiliary_tense_unanchored")
+        # docs/audits/cycle-07-report.md defect 12: a SEPARATE, lexical
+        # ambiguity from the tense question just above -- "werden" plus a
+        # bare infinitive is also interchangeable with the whole modal set
+        # unless a future time anchor is present. See
+        # ``_futur_i_modal_interchangeable``'s own docstring.
+        if _futur_i_modal_interchangeable(sentence, candidate):
+            return UniquenessOutcome(False, "futur_i_modal_interchangeable")
+        return UniquenessOutcome(True, None)
 
     if candidate.kind == "personal_pronoun":
         assert candidate.token_index < len(sentence.tokens)

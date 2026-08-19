@@ -468,7 +468,7 @@ from src.generation.blanking.paradigms import (
     adjective_ending,
     match_ein_word,
 )
-from src.lexicon.lemmatizer import normalise
+from src.lexicon.lemmatizer import SEPARABLE_PREFIXES, normalise
 from src.taxonomy.tagger import MODEL_NAME
 
 if TYPE_CHECKING:
@@ -494,6 +494,7 @@ REASON_DASS_CLAUSE_MISSING_OBJECT = "dass_clause_missing_object"
 REASON_SWISS_SPELLING = "swiss_spelling"
 REASON_DASS_AFTER_PHYSICAL_ACTION_VERB = "dass_after_physical_action_verb"
 REASON_FINITE_VERB_NOT_A_REAL_WORD = "finite_verb_not_a_real_word"
+REASON_CONTENT_WORD_NOT_A_REAL_WORD = "content_word_not_a_real_word"
 
 # STTS fine-grained tags for a finite verb: full verb, auxiliary, modal, and
 # their imperative counterparts (imperative is a finite mood, not a
@@ -1213,6 +1214,112 @@ def _finite_verb_lexical_reality_reason(verb: SpacyToken) -> str | None:
     return REASON_FINITE_VERB_NOT_A_REAL_WORD
 
 
+# ==============================================================================
+# docs/audits/cycle-07-report.md defect 6, third fix of the zustandspassiv
+# group: "Der kaputte Computer ... ist jetzt wieder repariert, weil der
+# Hausmeister ihn gestern schnell heilgemacht hat." is a genuinely correct
+# Zustandspassiv on its OWN blanked slot -- the fault is elsewhere in the
+# same carrier, "heilgemacht", which is not standard German ("heil" +
+# "gemacht" fused as if it were one separable-verb participle; the intended
+# word is "repariert" or similar). Section 10 above only ever checks a
+# FINITE verb in one of the two ablaut-safe cells, so a PARTICIPLE like this
+# one is entirely outside its scope; this is the extension for non-finite
+# verb forms specifically.
+#
+# Scoped to non-finite VERB forms only (VVPP/VVINF/VAINF/VMINF: past
+# participles and bare infinitives), never to nouns, and checked by DIRECT
+# dictionary lookup on the surface form only -- no compound-split fallback.
+# This is a deliberate, narrower asymmetry from the cue-reality check
+# ``selectors._cue_is_real_word`` uses for a lemma cue: German compounding
+# is a genuinely productive NOUN process ("Radweg", absent as a direct
+# entry, is still perfectly good German because "Rad"+"Weg" both resolve),
+# but there is no equivalent productive process for FUSING an adjective and
+# a participle into one new verb form the way "heilgemacht" pretends to --
+# and "heil" and "gemacht" are BOTH, individually, real dictionary words, so
+# a compound-split fallback applied here would accept exactly the defect
+# this check exists to catch. Extending this check to every noun in the
+# carrier as well was considered and deliberately left out: a 37,567-entry
+# general-purpose list is nowhere near exhaustive for German's productive
+# noun compounding, and the false-positive risk of rejecting ordinary,
+# correct carriers this way was not one this task's evidence supported
+# taking on for every noun. See docs/audits/cycle-07-report.md for that
+# tradeoff, since this constant appears there.
+_NON_FINITE_VERB_FORM_TAGS: frozenset[str] = frozenset({"VVPP", "VVINF", "VAINF", "VMINF"})
+
+# A separable-prefixed participle fuses its prefix directly onto the "ge-"
+# participle as ONE token ("wieder" + "getroffen" -> "wiedergetroffen"),
+# unlike a separable-prefixed FINITE verb, which splits into two tokens in
+# plain word order (section 10's own ``svp`` dependency-child handling).
+# There is no separate token here to read the prefix off, so a direct
+# dictionary lookup on the whole fused form fails for a real word ANY time
+# the base participle alone was vendored but the prefixed compound was not
+# -- confirmed empirically, not assumed: "wiedergetroffen" (a real,
+# standard Partizip II of "wiedertreffen") rejected the entire
+# ``_MOCK_SENTENCE_POOL`` regression before this list existed.
+#
+# Reuses ``src.lexicon.lemmatizer.SEPARABLE_PREFIXES`` (this cycle's own "do
+# not duplicate paradigm data" standard, extended to prefix data) plus
+# "wieder" -- confirmed missing from that list (it is scoped to a narrower,
+# unrelated CEFR-lookup purpose that never needed it) but a genuine,
+# unambiguous separable prefix for exactly this purpose. Sorted longest
+# first so a token is never mis-split on a shorter prefix that is itself a
+# substring of a longer, more specific one.
+#
+# Deliberately a CLOSED, curated list, not a blind "does 'ge' appear
+# anywhere in this token" search: "heilgemacht" also contains "ge"
+# (position 4, "heil" + "ge" + "macht") and "gemacht" also resolves in the
+# dictionary, so an unscoped search would wrongly ACCEPT the very defect
+# this check exists to catch. "heil" is not a real German separable-verb
+# prefix (it is an adjective), so it is not, and must never be, a member of
+# this list -- the curation itself is the check, not merely a convenience.
+_NON_FINITE_VERB_PREFIXES: tuple[str, ...] = tuple(
+    sorted(SEPARABLE_PREFIXES | frozenset({"wieder"}), key=len, reverse=True)
+)
+
+
+def _participle_candidate_texts(text: str) -> frozenset[str]:
+    """``text`` itself, plus -- for a fused separable-prefix participle --
+    the bare participle with a recognised prefix from
+    ``_NON_FINITE_VERB_PREFIXES`` stripped off, keeping the "ge-" that
+    always immediately follows a genuine separable prefix in this shape
+    ("wieder" + "getroffen", never "wieder" + "troffen"). A prefix whose
+    remainder does not start with "ge" is not tried at all -- this is what
+    keeps the check from mechanically splitting on an unrelated internal
+    substring."""
+    candidates = {text}
+    lower = text.lower()
+    for prefix in _NON_FINITE_VERB_PREFIXES:
+        if lower.startswith(prefix) and lower[len(prefix) :].startswith("ge"):
+            candidates.add(text[len(prefix) :])
+    return frozenset(candidates)
+
+
+def _non_finite_verb_lexical_reality_reason(tokens: list[SpacyToken]) -> str | None:
+    """Whether every non-finite verb form (participle or bare infinitive) in
+    ``tokens`` is a real word under a DIRECT dictionary lookup on its own
+    surface text, or on its own text with a recognised separable prefix
+    stripped (``_participle_candidate_texts``) -- see this section's own
+    module-level comment for why no general compound-split fallback is
+    offered here, unlike the noun-cue check this reuses the same vendored
+    dictionary from. ``None`` (no rejection) whenever the dictionary failed
+    to load, matching every other check in this module's fail-safe
+    contract."""
+    dictionary = _load_dictionary()
+    if dictionary is None:
+        return None
+    for token in tokens:
+        if token.tag_ not in _NON_FINITE_VERB_FORM_TAGS:
+            continue
+        text = token.text.strip()
+        if not text:
+            continue
+        candidates = {normalise(c) for c in _participle_candidate_texts(text)}
+        if candidates & dictionary:
+            continue
+        return REASON_CONTENT_WORD_NOT_A_REAL_WORD
+    return None
+
+
 def validate_carrier(sentence: str) -> CarrierValidation:
     """Validate one plain, generated German sentence as a sound carrier.
 
@@ -1262,6 +1369,10 @@ def validate_carrier(sentence: str) -> CarrierValidation:
         lexical_reality_reason = _finite_verb_lexical_reality_reason(verb)
         if lexical_reality_reason is not None:
             return CarrierValidation(sentence, False, lexical_reality_reason)
+
+    non_finite_reality_reason = _non_finite_verb_lexical_reality_reason(tokens)
+    if non_finite_reality_reason is not None:
+        return CarrierValidation(sentence, False, non_finite_reality_reason)
 
     declension_reason = _adjective_declension_reason(tokens)
     if declension_reason is not None:

@@ -92,6 +92,23 @@ def test_artikel_bestimmt_nom_ignores_the_accusative_article_in_the_same_sentenc
     assert len(candidates) == 1
 
 
+def test_artikel_bestimmt_nom_rejects_an_accusative_object_with_an_earlier_subject() -> None:
+    """docs/audits/cycle-07-report.md defect 4: "Der nette Nachbar ... hat
+    die schwerste Kiste getragen." -- "die schwerste Kiste" is Accusative
+    (the direct object of "getragen"), morphologically indistinguishable
+    from Nominative on a feminine definite article, and the superlative
+    anchor ("schwerste") that would otherwise force a determiner reading
+    fires regardless of case. The sentence already has its own subject
+    ("Der nette Nachbar", earlier and genuinely Nominative), so this must
+    not also offer "die" as an artikel_bestimmt_nom candidate."""
+    _, candidates = _select(
+        "artikel_bestimmt_nom",
+        "Der nette Nachbar von nebenan, der uns gestern geholfen hat, hat die schwerste "
+        "Kiste getragen.",
+    )
+    assert candidates == []
+
+
 def test_artikel_bestimmt_nom_finds_nothing_without_a_uniqueness_anchor() -> None:
     """The negative case that proves the anchor is doing the work: this is
     the exact sentence ``test_artikel_bestimmt_nom_ignores_the_accusative_
@@ -375,6 +392,44 @@ def test_adjektivdeklination_nullartikel_finds_strong_endings() -> None:
     assert frische.proposed_answer == "frische"
 
 
+def test_adjektivdeklination_nullartikel_does_not_fire_on_a_possessive_determiner() -> None:
+    """docs/audits/cycle-07-report.md defect 2: "Gegen euer Unwohlsein ..."
+    -- "euer" is the possessive determiner (an ein-word: eur-/euer stem),
+    not a genuine attributive adjective, even though ``de_core_news_sm``
+    tags it ADJA here. Treating it as one synthesises a stem ("eu") that
+    is not a real adjective stem, so the whole candidate must be rejected,
+    not merely have its distractors filtered afterward."""
+    _, candidates = _select(
+        "adjektivdeklination_nullartikel",
+        "Gegen euer Unwohlsein wurde früher ganz sicher direkt eine warme Wärmflasche geholt.",
+    )
+    assert candidates == []
+
+
+def test_adjective_outcome_drops_distractor_forms_that_are_not_real_words() -> None:
+    """docs/audits/cycle-07-report.md defect 2, the blanker-level half of the
+    same fix: even if a candidate were built pointing at "euer" (e.g. by a
+    future, differently-scoped selector, or before the selector-level
+    exclusion above existed), the synthesised distractors "eue"/"euem"/
+    "euen" are not real German words and must be filtered out rather than
+    shipped to a learner at hint level 2."""
+    tagged = sentence_tagger.tag_sentence(
+        "Gegen euer Unwohlsein wurde früher ganz sicher direkt eine warme Wärmflasche geholt."
+    )
+    assert tagged is not None
+    index = next(i for i, t in enumerate(tagged.tokens) if t.text == "euer")
+    candidate = selectors.Candidate(
+        token_index=index,
+        kind="adjective",
+        declension="strong",
+        cell=("Nom", "Masc", "Sing"),
+    )
+    outcome = blank_candidate("adjektivdeklination_nullartikel", tagged, candidate)
+    assert outcome.item is not None
+    distractor_texts = {d.text for d in outcome.item.distractors}
+    assert distractor_texts.isdisjoint({"eue", "euem", "euen", "eues"})
+
+
 def test_adjektivdeklination_nullartikel_does_not_fire_after_a_fused_definite_preposition() -> None:
     """ "im großen Garten" ("im" = "in dem") is DEFINITE, hence weak
     declension, even though there is no separate DET token -- this is a
@@ -464,6 +519,23 @@ def test_adjektivdeklination_nullartikel_does_not_fire_on_the_maler_sentence_liv
         d.topic_id == "adjektivdeklination_bestimmt" and d.reason == "adjective_ending_mismatch"
         for d in report.skip_details
     )
+
+
+def test_adjektivdeklination_nullartikel_does_not_fire_when_a_determiner_precedes_the_clause() -> (
+    None
+):
+    """docs/audits/cycle-07-report.md defect 3: "mit dem vor wenigen Wochen
+    gekauften Ball" -- the head noun ("Ball") has a genuine determiner
+    ("dem"), just with "vor wenigen Wochen" intervening between the
+    determiner and the participle. The null-article selector must reject
+    this regardless of how much material intervenes, because the head noun
+    has a determiner child at all; ``adjektivdeklination_bestimmt`` is the
+    correct topic and must still find the weak ending."""
+    sentence = "Dort trainiere ich mit dem vor wenigen Wochen gekauften Ball."
+    _, strong_candidates = _select("adjektivdeklination_nullartikel", sentence)
+    assert strong_candidates == []
+    weak_item = _blank("adjektivdeklination_bestimmt", sentence)
+    assert weak_item.proposed_answer == "gekauften"
 
 
 def test_adjective_declension_selectors_reject_an_unclassifiable_determiner() -> None:
@@ -661,6 +733,38 @@ def test_verben_reflexiv_dat_rejects_a_reflexive_capable_form_governed_by_a_prep
     accusative-object requirement and wrongly select "mir" anyway."""
     _, candidates = _select(
         "verben_reflexiv_dat", "Ich lade meine besten Freunde zu mir nach Hause ein."
+    )
+    assert candidates == []
+
+
+def test_verben_reflexiv_akk_rejects_sich_when_the_clause_has_a_direct_object() -> None:
+    """docs/audits/cycle-07-report.md defect 8: "..., den er sich frisch
+    gekocht hatte." -- the relative pronoun "den" IS the direct object of
+    "gekocht" (a benefactive-dative "sich": he cooked it FOR himself), so
+    this "sich" is Dative, not Accusative, even though "kochen" is not on
+    any closed dative-reflexive-verb list. A clause with a direct object
+    already present means a reflexive "sich" alongside it can only be the
+    dative benefactive, never the accusative object itself (that slot is
+    taken); verben_reflexiv_akk must not fire here, and verben_reflexiv_dat
+    must find "sich" instead."""
+    sentence = "Danach trank er gemütlich einen Kaffee, den er sich frisch gekocht hatte."
+    _, akk_candidates = _select("verben_reflexiv_akk", sentence)
+    assert akk_candidates == []
+    item = _blank("verben_reflexiv_dat", sentence)
+    assert item.proposed_answer == "sich"
+
+
+def test_verben_reflexiv_dat_rejects_a_dative_pronoun_governed_by_another_verb() -> None:
+    """docs/audits/cycle-07-report.md defect 9: "...dem mir oft helfenden
+    Trainer..." -- "mir" is the dative object of the ATTRIBUTIVE participle
+    "helfenden" ("the trainer who often helps me"), not a reflexive
+    pronoun of the sentence's own finite verb ("helfe"); it does not
+    corefer with the subject of ITS OWN governing verb ("helfenden",
+    whose implicit subject is "Trainer", not "ich"). Must not be mistaken
+    for a reflexive dative just because the sentence elsewhere has a
+    first-person subject and a form of "helfen"."""
+    _, candidates = _select(
+        "verben_reflexiv_dat", "Im Verein helfe ich dem mir oft helfenden Trainer beim Aufräumen."
     )
     assert candidates == []
 
@@ -1245,6 +1349,37 @@ def test_zustandspassiv_and_passiv_praesens_are_disjoint_by_auxiliary() -> None:
     assert passiv_candidates == []
 
 
+def test_zustandspassiv_rejects_a_copula_plus_adjective_with_no_passive_at_all() -> None:
+    """docs/audits/cycle-07-report.md defect 5: "Es ist sehr wichtig, dass
+    die Suppe langsam gekocht wird." -- "ist" here is a plain copula in
+    front of a genuine adjective ("wichtig"), not the "sein" auxiliary of a
+    Zustandspassiv; there is no participle following it at all. Must not
+    be mistaken for zustandspassiv just because "sein" appears somewhere
+    in the sentence (the actual passive here is Vorgangspassiv, "wird
+    gekocht", an entirely different construction with its own topic)."""
+    _, candidates = _select(
+        "zustandspassiv", "Es ist sehr wichtig, dass die Suppe langsam gekocht wird."
+    )
+    assert candidates == []
+
+
+def test_zustandspassiv_rejects_a_vorgangspassiv_perfekt_with_worden() -> None:
+    """docs/audits/cycle-07-report.md defect 7: "...dass ein wichtiges
+    Ereignis angekündigt worden ist..." -- this is Vorgangspassiv in the
+    Perfekt ("worden ist", the auxiliary-of-the-passive-auxiliary
+    construction), not Zustandspassiv, even though "ist" is immediately
+    followed by a genuine transitive past participle ("angekündigt") in
+    its own clause. The presence of "worden" anywhere in the clause is
+    what distinguishes the two; must reject rather than mistake this for a
+    present-tense Zustandspassiv reading of "ist"."""
+    _, candidates = _select(
+        "zustandspassiv",
+        "Manchmal erfahren Sie erst spät, dass ein wichtiges Ereignis angekündigt "
+        "worden ist, obwohl wir sofort darüber geschrieben haben.",
+    )
+    assert candidates == []
+
+
 def test_zustandspassiv_zeiten_finds_past_tense_zustandspassiv() -> None:
     item = _blank("zustandspassiv_zeiten", "Das Auto war repariert.")
     assert item.proposed_answer == "war"
@@ -1451,6 +1586,24 @@ def test_nomen_plural_cue_is_none_for_a_genuinely_invariant_plural() -> None:
     cue here would hand over the answer, so ``_citation_cue`` withholds it
     rather than leak (rule: the cue must never equal the answer)."""
     _, candidates = _select("nomen_plural", "Die Lehrer unterrichten Mathematik.")
+    assert len(candidates) == 1
+    assert candidates[0].cue is None
+
+
+def test_nomen_plural_cue_is_none_when_it_does_not_round_trip_to_the_answer() -> None:
+    """docs/audits/cycle-07-report.md defect 1: "die neuen Tabletten" --
+    ``de_core_news_sm`` lemmatises "Tabletten" to "Tablett" (the wrong
+    lexeme: a tablet/tray, singular "das Tablett", not "die Tablette"), so
+    the bracketed cue would show the learner a citation form that does not
+    even belong to the same word as the answer. ``_plural_noun_cue`` must
+    round-trip the cue lemma through ``plausible_noun_plurals`` and require
+    it to reproduce the actual answer text before offering it; "Tablett"
+    does not plausibly pluralise to "Tabletten" (that would need a bare
+    "-en" ending on a consonant-final lemma, a plural class excluded on
+    purpose), so the cue is withheld rather than shown wrong."""
+    _, candidates = _select(
+        "nomen_plural", "Im Wohnzimmer erklärt sie der Nachbarin die neuen Tabletten."
+    )
     assert len(candidates) == 1
     assert candidates[0].cue is None
 
