@@ -161,6 +161,24 @@ class Candidate:
     # every existing candidate kind keeps emitting ``cue=None`` exactly as
     # before.
     cue: str | None = None
+    # docs/audits/cycle-07-report.md section A: ``True`` only for a
+    # ``determiner`` candidate whose selector already established a genuine
+    # forcing anchor that rules out every RIVAL DETERMINER FAMILY, not
+    # merely the blanked token's own case/gender cell -- currently
+    # ``_select_artikel_unbestimmt_kein_nom``'s causal ``weil``-clause
+    # negation (naming the referent's absence as the CAUSE of a stated
+    # consequence rules out every other family: "der"/"ein"/"mein" would
+    # all read backwards there) and ``_select_artikel_possessiv_nom``'s
+    # possessive-person relative-clause anchor. ``uniqueness.py`` trusts
+    # this instead of requiring a cue for exactly those two selectors' own
+    # candidates; every other ``determiner`` candidate (including
+    # ``artikel_bestimmt_nom``, whose own anchor only rules out the
+    # indefinite family, not a possessive or demonstrative one -- see that
+    # selector's own module-level comment) leaves this ``False`` and goes
+    # through the ordinary cue-or-skip determiner policy instead. Additive,
+    # same posture as ``cue`` itself: every other candidate kind keeps
+    # emitting the dataclass default (``False``).
+    lexeme_anchored: bool = False
 
 
 Selector = Callable[[TaggedSentence], list[Candidate]]
@@ -230,6 +248,85 @@ def _preceded_by_adposition_in(sentence: TaggedSentence, index: int, forms: froz
 PrepositionGate = Literal["forbidden"] | frozenset[str]
 
 
+# Categories transparent to a determiner's own agreement with its head noun
+# -- an attributive adjective ("die schöne Tasse") or a bare degree/
+# intensifier adverb modifying that adjective ("eine sehr schöne Tasse") --
+# walked past by ``_determiner_head_noun`` below on the way to the noun that
+# actually decides the determiner's own gender/number for cue purposes. Not
+# the SAME transparent set as ``_DECLENSION_TRANSPARENT_SPAN_POS`` (that one
+# is keyed by ``pos``, this one mixes a ``tag`` and a ``pos`` check because
+# an attributive adjective is only unambiguously identified by its own tag,
+# ``ADJA``, not by ``pos=="ADJ"`` alone, which also matches a predicative
+# adjective this walk should not treat as transparent in the same way).
+def _determiner_head_noun(sentence: TaggedSentence, det_index: int) -> Token | None:
+    """The noun this determiner at ``det_index`` governs -- walked forward
+    past zero or more attributive adjectives and degree adverbs, stopping at
+    the first ``NOUN``/``PROPN`` token. ``None`` if the walk runs off the
+    sentence or lands on anything else (a verb, a pronoun, a second
+    determiner...) -- "reject rather than guess" applied to the source of
+    the determiner cue's own gender/number, docs/audits/cycle-07-report.md
+    section A's own instruction to derive the cue from the HEAD NOUN's own
+    tagged gender/number, never from the blanked token's own morphology
+    (which is exactly the fact the learner is meant to work out)."""
+    tokens = sentence.tokens
+    j = det_index + 1
+    n = len(tokens)
+    while j < n and (tokens[j].tag == "ADJA" or tokens[j].pos == "ADV"):
+        j += 1
+    if j >= n:
+        return None
+    head = tokens[j]
+    if head.pos not in ("NOUN", "PROPN"):
+        return None
+    return head
+
+
+def _determiner_cue(sentence: TaggedSentence, token: Token, art_type: ArtFamily) -> str | None:
+    """docs/audits/cycle-07-report.md section A: a bracketed citation cue
+    naming the blanked determiner's own FAMILY (which article/possessive/
+    demonstrative-adjacent word it is), leaving only the CASE-FORM inflection
+    -- the one thing every one of these topics actually tests -- for the
+    learner to supply. "Nach ___ (die) Arbeit" tells the learner the word is
+    the definite article, not "meiner"/"dieser"/"jeder"; they still have to
+    know it takes "der" in the Dative here.
+
+    Built from the determiner's own NOMINATIVE form at the cell
+    ``(Nom, head_noun_gender, head_noun_number)`` -- the citation form every
+    German dictionary/textbook prints for an article or possessive, agreeing
+    with the noun the determiner actually governs (``_determiner_head_noun``),
+    not with the blanked token's own tagged cell. ``None`` -- no cue, the
+    candidate falls back to the ordinary interchangeable-family skip in
+    ``uniqueness.py`` -- whenever any link in that chain is missing:
+
+    * No resolvable head noun, or the noun's own ``Gender``/``Number`` is
+      unresolved.
+    * The family's own paradigm has no Nominative row for that cell -- most
+      notably every ein-word family (indefinite/negative/possessive) in the
+      plural (``paradigms.py``'s own module docstring: "ein" genuinely has
+      no plural at all).
+    * The computed Nominative form coincides with the token's own surface
+      text (delegated to ``_citation_cue``, which also runs the dictionary
+      reality check) -- not a bug: this is every ``artikel_bestimmt_nom``
+      candidate, where the blanked cell already IS the Nominative cell, so
+      no cue can exist without handing over the answer verbatim (the report
+      itself: "a cue cannot make a nominative-article item solvable")."""
+    noun = _determiner_head_noun(sentence, token.i)
+    if noun is None:
+        return None
+    gender = noun.morph.get("Gender")
+    number = noun.morph.get("Number")
+    if not gender or not number:
+        return None
+    cue_cell: Cell = ("Nom", gender, number)
+    family = paradigms.family_forms(art_type, token.text)
+    if family is None:
+        return None
+    form = family.get(cue_cell)
+    if form is None:
+        return None
+    return _citation_cue(form, token.text)
+
+
 def _determiner_selector(
     fixed_case: str,
     allowed_art_types: frozenset[ArtFamily],
@@ -252,7 +349,13 @@ def _determiner_selector(
             elif not _preceded_by_adposition_in(sentence, token.i, preposition_gate):
                 continue
             out.append(
-                Candidate(token_index=token.i, kind="determiner", art_type=art_type, cell=cell)
+                Candidate(
+                    token_index=token.i,
+                    kind="determiner",
+                    art_type=art_type,
+                    cell=cell,
+                    cue=_determiner_cue(sentence, token, art_type),
+                )
             )
         return out
 
@@ -395,6 +498,20 @@ def _adjective_selector(declension: Literal["weak", "mixed", "strong"]) -> Selec
                 continue
             if not _followed_by_nominal(sentence, token.i):
                 continue
+            # docs/audits/cycle-07-report.md section B: a comparative or
+            # superlative attributive adjective ("bester", "bessere") shares
+            # its lemma with the positive form ("gut"), so a "(gut)" cue
+            # would not distinguish "guter" from "bester" -- the item stays
+            # ambiguous even with a cue. That ambiguity belongs to
+            # ``adjektiv_komparativ_superlativ`` instead, so a non-Pos degree
+            # is excluded here rather than cued. A missing ``Degree`` (never
+            # observed for an ``ADJA`` token in testing, but not assumed
+            # impossible) is treated as positive rather than rejected --
+            # this filter only ever excludes a CONFIRMED comparative/
+            # superlative, never an unresolved one.
+            degree = token.morph.get("Degree")
+            if degree and degree != "Pos":
+                continue
             cell = _cell(token)
             if cell is None:
                 continue
@@ -424,8 +541,26 @@ def _adjective_selector(declension: Literal["weak", "mixed", "strong"]) -> Selec
             else:  # strong / zero-article
                 if trigger is not None or not _is_safe_zero_article_context(prev):
                     continue
+            # docs/audits/cycle-07-report.md section B: the adjective's own
+            # uninflected positive base form, the same fact
+            # ``partizip_i_attributiv``/``partizip_ii_attributiv_erweitert``
+            # already cue with (their own infinitive) -- here the lemma
+            # itself is already that base form (an ADJA's lemma is never the
+            # inflected surface form the way a verb's finite-form lemma can
+            # be), so no extra table lookup is needed. Delegated to
+            # ``_citation_cue`` for the same equals-the-answer guard and
+            # dictionary reality check every other cue in this module goes
+            # through -- never equal in practice, since the base form always
+            # lacks the declension ending the inflected surface form carries.
+            cue = _citation_cue(token.lemma, token.text) if token.lemma else None
             out.append(
-                Candidate(token_index=token.i, kind="adjective", declension=declension, cell=cell)
+                Candidate(
+                    token_index=token.i,
+                    kind="adjective",
+                    declension=declension,
+                    cell=cell,
+                    cue=cue,
+                )
             )
         return out
 
@@ -2665,7 +2800,26 @@ def _select_artikel_bestimmt_nom(sentence: TaggedSentence) -> list[Candidate]:
             continue
         if not _definite_uniqueness_anchor(sentence, token.i):
             continue
-        out.append(Candidate(token_index=token.i, kind="determiner", art_type="Def", cell=cell))
+        # docs/audits/cycle-07-report.md section A: this anchor rules out
+        # the INDEFINITE family (nothing is left to introduce), but not a
+        # possessive or demonstrative one ("Der/Mein größter Baum..." are
+        # both grammatical) -- so, unlike ``artikel_unbestimmt_kein_nom``
+        # below, this candidate is NOT marked ``lexeme_anchored`` and goes
+        # through the ordinary cue-or-skip policy. Its own blanked cell is
+        # already Nominative, so the computed cue always coincides with the
+        # answer and comes back ``None`` (``_determiner_cue``'s own
+        # docstring) -- this candidate is built anyway, for one code path,
+        # rather than special-cased, and simply never clears the
+        # uniqueness gate as a result.
+        out.append(
+            Candidate(
+                token_index=token.i,
+                kind="determiner",
+                art_type="Def",
+                cell=cell,
+                cue=_determiner_cue(sentence, token, "Def"),
+            )
+        )
     return out
 
 
@@ -2705,7 +2859,23 @@ def _select_artikel_unbestimmt_kein_nom(sentence: TaggedSentence) -> list[Candid
             continue
         if not _kein_causal_anchor(sentence, token.i):
             continue
-        out.append(Candidate(token_index=token.i, kind="determiner", art_type="Neg", cell=cell))
+        # docs/audits/cycle-07-report.md section A's own exception: the
+        # causal ``weil``-clause anchor rules out EVERY rival family, not
+        # only the indefinite one -- "weil der/ein/mein Bus fährt" all read
+        # backwards as an explanation for lateness, only "kein Bus fährt"
+        # does not. No cue is computed or needed; ``lexeme_anchored=True``
+        # tells ``uniqueness.py`` to trust this anchor on its own, exactly
+        # as before this cue mechanism existed for the other determiner
+        # topics.
+        out.append(
+            Candidate(
+                token_index=token.i,
+                kind="determiner",
+                art_type="Neg",
+                cell=cell,
+                lexeme_anchored=True,
+            )
+        )
     return out
 
 
@@ -2792,7 +2962,21 @@ def _select_artikel_possessiv_nom(sentence: TaggedSentence) -> list[Candidate]:
             continue
         if not _possessive_person_anchor(sentence, noun.i):
             continue
-        out.append(Candidate(token_index=token.i, kind="determiner", art_type="Poss", cell=cell))
+        # Out of docs/audits/cycle-07-report.md's own scope (not in its
+        # "Topics affected" list) -- left exactly as it already behaved
+        # before this cycle's cue mechanism: no cue computed,
+        # ``lexeme_anchored=True`` so ``uniqueness.py`` keeps trusting this
+        # selector's own person anchor unconditionally, the same trust it
+        # already had.
+        out.append(
+            Candidate(
+                token_index=token.i,
+                kind="determiner",
+                art_type="Poss",
+                cell=cell,
+                lexeme_anchored=True,
+            )
+        )
     return out
 
 

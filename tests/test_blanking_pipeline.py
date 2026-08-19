@@ -130,7 +130,17 @@ def test_blank_sentences_produces_items_for_all_three_artikel_nom_topics_when_an
     not just a direct selector call (the honesty requirement this task set:
     a prior fix in this package was reported verified from a direct selector
     call alone, while the pipeline's own eligible_types assertion was still
-    silently skipping every item)."""
+    silently skipping every item).
+
+    docs/audits/cycle-07-report.md section A revisits ``artikel_bestimmt_
+    nom`` specifically: its own anchor rules out the indefinite family but
+    not a possessive/demonstrative one, and its blanked cell is already
+    Nominative so no cue can rescue it either -- the uniqueness gate now
+    flags every one of its items, so it produces zero here where it used to
+    produce one. ``artikel_unbestimmt_kein_nom`` and ``artikel_possessiv_
+    nom`` are untouched by that report (a causal anchor and a person anchor,
+    respectively, both already rule out every rival family) and still
+    produce their items exactly as before."""
     report = blank_sentences(
         [
             "Der Hund, den ich gestern gekauft habe, schläft im Garten.",
@@ -138,16 +148,17 @@ def test_blank_sentences_produces_items_for_all_three_artikel_nom_topics_when_an
             "Meine Großmutter, die ich jedes Wochenende besuche, wohnt in München.",
         ]
     )
-    assert report.items_by_topic.get("artikel_bestimmt_nom", 0) == 1
+    assert report.items_by_topic.get("artikel_bestimmt_nom", 0) == 0
     assert report.items_by_topic.get("artikel_unbestimmt_kein_nom", 0) == 1
     assert report.items_by_topic.get("artikel_possessiv_nom", 0) == 1
     assert report.skips_by_type_ineligibility.get("artikel_bestimmt_nom", 0) == 0
     assert report.skips_by_type_ineligibility.get("artikel_unbestimmt_kein_nom", 0) == 0
     assert report.skips_by_type_ineligibility.get("artikel_possessiv_nom", 0) == 0
+    assert any(
+        s.topic_id == "artikel_bestimmt_nom" and s.reason == "determiner_family_interchangeable"
+        for s in report.uniqueness_skips
+    )
 
-    bestimmt = next(i for i in report.items if i.topic_id == "artikel_bestimmt_nom")
-    assert bestimmt.type == "cloze_free"
-    assert bestimmt.proposed_answer == "Der"
     unbestimmt = next(i for i in report.items if i.topic_id == "artikel_unbestimmt_kein_nom")
     assert unbestimmt.type == "cloze_free"
     assert unbestimmt.proposed_answer == "kein"

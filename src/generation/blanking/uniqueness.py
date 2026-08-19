@@ -100,12 +100,41 @@ one accepted answer among several equally grammatical ones.
   anchor, no item".
 
 * ``personal_pronoun`` -- **ambiguous unless the carrier itself supplies an
-  anchor.** A NOMINATIVE personal pronoun is the one case this module trusts
-  unconditionally: the sentence's own finite verb form is left untouched by
-  blanking, and German subject-verb agreement means only the pronoun(s)
-  matching that verb's own (person, number) can stand in the subject slot at
-  all -- the verb itself is already the disambiguator, no search needed. An
-  ACCUSATIVE or DATIVE personal pronoun has no such built-in anchor: the verb
+  anchor.** A NOMINATIVE personal pronoun is trusted on the strength of the
+  sentence's own finite verb form alone -- UNLESS that verb form's own
+  (person, number) is itself SYNCRETIC across more than one pronoun, the
+  sixth reason this module tracks (docs/audits/cycle-07-report.md section C,
+  added alongside the determiner/adjective fix below):
+
+  1. **1st and 3rd person PLURAL share one finite form in every German
+     tense** ("wir machen"/"sie machen"/"Sie machen",
+     "wir machten"/"sie machten"/"Sie machten", ...) -- a closed
+     conjugation fact true of every verb, not a per-lemma lookup. "wir",
+     "sie" (3rd plural) and the formal "Sie" are the resulting three-way
+     ambiguity; this tagger cannot tell "sie" and "Sie" apart at all (it
+     tags both ``Person=3``, ``Number=Plur`` regardless of capitalisation),
+     so the ambiguity is real even where German orthography alone would
+     resolve it for a human reader.
+  2. **1st and 3rd person SINGULAR share one finite form in the Präteritum
+     and Konjunktiv II** ("ich machte"/"er machte", "ich hätte"/"er
+     hätte") -- both surface as ``Tense=Past`` in this tagger's own
+     morphology (see the Konjunktiv II selectors elsewhere in this
+     package) -- but NOT in the Präsens, where the endings genuinely
+     differ ("ich mache"/"er macht").
+
+  See ``_nominative_pronoun_syncretic`` for exactly which (person, number,
+  tense) combinations this covers. Where the verb form IS syncretic, this
+  module falls back to the same carrier-supplied anchor the oblique cases
+  already use (``_person_number_anchor_present``, reused rather than
+  re-derived -- a second pronoun or unambiguous possessive elsewhere in the
+  sentence sharing the identical (person, number) is what turns "sie/Sie/
+  wir all fit" back into "only this one does", exactly the same mechanism
+  that already rescues an oblique pronoun): "Sie haben ... geschickt, obwohl
+  Sie ... waren." is rescued by its own second "Sie" (same (3, Plur) cell);
+  "Sie haben ... geholfen, weil die Gäste ... nicht gefunden haben." has no
+  second matching pronoun anywhere and stays flagged.
+
+  An ACCUSATIVE or DATIVE personal pronoun has no such built-in anchor: the verb
   does not care which person its object refers to, so every other pronoun of
   the same case is, by default, equally grammatical (the report's own
   "schmeckte ___ ausgezeichnet" example: mir/ihm/ihr/uns/ihnen all fit).
@@ -188,20 +217,79 @@ one accepted answer among several equally grammatical ones.
   kind's own paragraph above for why a cue is not a coherent idea there at
   all, not merely withheld.
 
-* Every other kind (``determiner``, ``adjective``, ``degree``,
-  ``reflexive_pronoun``, ``relative_pronoun``, ``fixed_particle``) --
-  **passes unaffected.** Their own paradigm cell (Case/Gender/Number, or
-  Person/Number
-  for a reflexive/relative pronoun) is forced by agreement with a governing
-  noun, preposition, or antecedent that this module does not re-derive: a
-  DIFFERENT cell's form would not agree with that governor and so would not
-  be grammatical in the slot at all, which is exactly the asymmetry the task
-  that specified this module called out (a determiner slot whose case and
-  gender are forced by a preposition has only one grammatical filler, unlike
-  a modal slot where essentially every member fits). Nothing observed in the
-  cycle-4 audit contradicts this for these kinds; if a future audit finds
-  otherwise for one of them, this policy table is where that finding lands,
-  not a silent guess bolted onto ``blanker.py``.
+* ``determiner`` -- **ambiguous, UNLESS the candidate carries a cue or the
+  selector already established an unconditional lexeme anchor, in which
+  case it passes.** docs/audits/cycle-07-report.md section A: cycle 4's own
+  claim for this kind (see the superseded paragraph this replaces, kept
+  below for the record) proved half right -- a determiner slot's CASE and
+  GENDER genuinely are forced by agreement with a governing noun or
+  preposition, exactly as claimed, but the FAMILY (definite article vs.
+  possessive vs. demonstrative vs. an indefinite-family word) is a free
+  lexical choice almost everywhere one of these topics blanks one ("Nach
+  der Arbeit" also admits "meiner"/"dieser"/"jeder" -- same case, same
+  gender, different lexeme entirely). ``Candidate.cue``
+  (``selectors._determiner_cue``) is the determiner's own Nominative
+  citation form, agreeing with the HEAD NOUN's gender/number -- the fact
+  "der Arbeit" alone does not supply: which FAMILY the word belongs to,
+  leaving only the case-form inflection for the learner to work out.
+  ``Candidate.lexeme_anchored`` is the narrower, unconditional escape hatch
+  for the two selectors whose own forcing anchor already rules out every
+  rival family, not merely the blanked cell (``_select_artikel_unbestimmt_
+  kein_nom``'s causal ``weil``-clause negation, and ``_select_artikel_
+  possessiv_nom``'s possessive-person anchor, out of this report's own
+  scope and left exactly as it already behaved) -- see ``Candidate.
+  lexeme_anchored``'s own docstring for why ``artikel_bestimmt_nom`` is
+  deliberately NOT in that set even though it also has a forcing anchor:
+  its own anchor only rules out the indefinite family, not a possessive or
+  demonstrative one, so it still needs (and, because its own blanked cell
+  is already Nominative, can never receive) a cue -- see
+  ``selectors._determiner_cue``'s own docstring for why that is the correct
+  behaviour, not a bug, and docs/audits/cycle-07-report.md's own count of
+  how many items this costs that topic.
+
+* ``adjective`` -- **ambiguous, UNLESS the candidate carries a cue, in
+  which case it passes.** docs/audits/cycle-07-report.md section B: the
+  ENDING an attributive adjective takes is forced by the governing
+  determiner's own declension (weak/mixed/strong), exactly as cycle 4
+  claimed, but the ADJECTIVE ITSELF is open-class ("eine ___ Tasse Tee"
+  admits warme/große/volle/heiße/frische alike) -- structurally the same
+  defect ``plural_noun``/``verb_form`` already have, one part of speech
+  over. ``Candidate.cue`` (``selectors._adjective_selector``'s own cue
+  computation) is the adjective's uninflected positive base form -- its own
+  lemma, never a separate lookup, since an ``ADJA`` token's lemma is
+  already that base form. A comparative or superlative attributive
+  adjective is excluded from candidacy entirely rather than cued (its
+  lemma is shared with the positive -- "bester" and "guter" both lemmatise
+  to "gut" -- so a cue would not distinguish them; that ambiguity belongs to
+  ``adjektiv_komparativ_superlativ`` instead). The two attributive-
+  participle topics (``partizip_i_attributiv``/``partizip_ii_attributiv_
+  erweitert``) already cued with the underlying infinitive before this
+  report and are unaffected by this bullet's own addition -- they were
+  cycle 4's own proof this mechanism works, reused here for the ordinary
+  adjective case instead of a participle.
+
+* Every remaining kind (``degree``, ``reflexive_pronoun``,
+  ``relative_pronoun``, ``fixed_particle``) -- **passes unaffected.** Their
+  own paradigm cell (Case/Gender/Number, or Person/Number for a reflexive/
+  relative pronoun, or the comparative/superlative alternation itself for
+  ``degree``) is forced by agreement with a governing noun, preposition, or
+  antecedent that this module does not re-derive, or (``degree``) already
+  gated by its own selector's forcing element (an explicit "als", or the
+  fused "am" particle) and its own cue where the tagger's lemma can be
+  trusted. Nothing observed in the cycle-4 or cycle-7 audits contradicts
+  this for these kinds; if a future audit finds otherwise for one of them,
+  this policy table is where that finding lands, not a silent guess bolted
+  onto ``blanker.py``.
+
+  **Superseded claim, kept for the historical record cycle-7 itself asks
+  for (its own section 2's closing paragraph: "this is my error, not the
+  pipeline's"):** cycle 4 originally placed ``determiner`` and ``adjective``
+  in this same "passes unaffected" bucket, reasoning that agreement with a
+  governing noun/preposition leaves only one grammatical filler. That
+  reasoning is correct for CASE and GENDER, which is all cycle 4's own audit
+  had tested for -- it does not extend to LEXEME choice within a family that
+  shares the same case and gender, which is what cycle 7's full hand-audit
+  (370 of 370 items, not a sample) found instead.
 """
 
 from __future__ import annotations
@@ -433,6 +521,47 @@ def _person_number_anchor_present(sentence: TaggedSentence, candidate: Candidate
     return False
 
 
+def _clause_finite_verb(sentence: TaggedSentence, index: int) -> Token | None:
+    """The single finite verb sharing ``index``'s own clause
+    (``_clause_span``), or ``None`` if the clause has none or more than one
+    -- "reject rather than guess" applied to the same "exactly one finite
+    verb decides this" signal ``_governing_verb_lemma``/
+    ``_sibling_clause_tense_anchor`` already use elsewhere in this package,
+    reused here to find the verb whose ``Tense`` decides whether a
+    Nominative pronoun candidate's own (person, number) is syncretic
+    (``_nominative_pronoun_syncretic``)."""
+    start, end = _clause_span(sentence, index)
+    finite = [t for t in sentence.tokens[start:end] if t.morph.get("VerbForm") == "Fin"]
+    return finite[0] if len(finite) == 1 else None
+
+
+def _nominative_pronoun_syncretic(sentence: TaggedSentence, candidate: Candidate) -> bool:
+    """Whether ``candidate``'s own (person, number) shares an identical
+    finite-verb form with another cell of the German personal-pronoun
+    paradigm, docs/audits/cycle-07-report.md section C's sixth uniqueness
+    reason -- see the module docstring's ``personal_pronoun`` bullet for the
+    two closed conjugation facts this checks:
+
+    * ``(1, Plur)`` or ``(3, Plur)`` -- the wir/sie/Sie three-way ambiguity,
+      true in EVERY tense, so no verb lookup is needed to confirm it.
+    * ``(1, Sing)`` or ``(3, Sing)`` in the Präteritum or Konjunktiv II
+      (both surface as ``Tense=Past`` in this tagger's own morphology) --
+      NOT in the Präsens, where "ich mache"/"er macht" genuinely differ, so
+      this branch looks up the clause's own finite verb before deciding.
+      A clause whose finite verb cannot be resolved to exactly one token
+      (``_clause_finite_verb`` returns ``None``) is treated as NOT
+      syncretic here -- the pre-existing, unconditional trust this module
+      already gave every Nominative pronoun before this reason existed, kept
+      as the fallback rather than guessed into a new skip."""
+    assert candidate.person is not None and candidate.number is not None
+    if candidate.number == "Plur" and candidate.person in ("1", "3"):
+        return True
+    if candidate.number == "Sing" and candidate.person in ("1", "3"):
+        verb = _clause_finite_verb(sentence, candidate.token_index)
+        return verb is not None and verb.morph.get("Tense") == "Past"
+    return False
+
+
 def check_uniqueness(sentence: TaggedSentence, candidate: Candidate) -> UniquenessOutcome:
     """Whether ``candidate``'s blanked token is the only member of its own
     closed class that would also be grammatical in this slot -- see the
@@ -462,7 +591,15 @@ def check_uniqueness(sentence: TaggedSentence, candidate: Candidate) -> Uniquene
         token = sentence.tokens[candidate.token_index]
         if token.morph.get("Case") == "Nom":
             # The sentence's own (unchanged) finite verb already forces this
-            # -- see module docstring.
+            # -- UNLESS that verb's own (person, number) is itself
+            # syncretic across more than one pronoun (docs/audits/
+            # cycle-07-report.md section C), in which case the same
+            # carrier-supplied anchor the oblique cases already use is
+            # required. See module docstring.
+            if _nominative_pronoun_syncretic(sentence, candidate):
+                if _person_number_anchor_present(sentence, candidate):
+                    return UniquenessOutcome(True, None)
+                return UniquenessOutcome(False, "nominative_pronoun_syncretic")
             return UniquenessOutcome(True, None)
         if _person_number_anchor_present(sentence, candidate):
             return UniquenessOutcome(True, None)
@@ -488,5 +625,29 @@ def check_uniqueness(sentence: TaggedSentence, candidate: Candidate) -> Uniquene
         if candidate.cue:
             return UniquenessOutcome(True, None)
         return UniquenessOutcome(False, "verb_lexical_open_class")
+
+    if candidate.kind == "determiner":
+        # docs/audits/cycle-07-report.md section A: a determiner's own
+        # FAMILY (definite/indefinite/negative/possessive) is a free
+        # lexical choice, not forced by case/gender agreement alone -- a
+        # cue names the family, and ``lexeme_anchored`` marks the two
+        # selectors whose own forcing anchor already rules out every rival
+        # family unconditionally. See module docstring.
+        if candidate.lexeme_anchored:
+            return UniquenessOutcome(True, None)
+        if candidate.cue:
+            return UniquenessOutcome(True, None)
+        return UniquenessOutcome(False, "determiner_family_interchangeable")
+
+    if candidate.kind == "adjective":
+        # docs/audits/cycle-07-report.md section B: an attributive
+        # adjective's ENDING is forced by the governing determiner's
+        # declension, but the adjective itself is open-class -- same cue
+        # rescue as ``plural_noun``/``verb_form`` above, for the same
+        # reason. The two attributive-participle topics were already cued
+        # before this report and pass here exactly as before.
+        if candidate.cue:
+            return UniquenessOutcome(True, None)
+        return UniquenessOutcome(False, "adjective_lexeme_open_class")
 
     return UniquenessOutcome(True, None)

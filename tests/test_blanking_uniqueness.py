@@ -205,16 +205,82 @@ def test_futur_ii_is_not_flagged_no_rival_construction_exists() -> None:
 
 
 # ==============================================================================
-# Personal pronouns: Nominative trusted unconditionally (verb agreement is
-# the anchor); Accusative/Dative need a carrier-supplied anchor or are
-# flagged.
+# Personal pronouns: Nominative trusted on verb agreement alone UNLESS that
+# verb form is itself syncretic across more than one pronoun
+# (docs/audits/cycle-07-report.md section C, the sixth uniqueness reason);
+# Accusative/Dative always need a carrier-supplied anchor or are flagged.
 # ==============================================================================
 
 
 def test_pronomen_personal_nom_is_never_flagged_verb_agreement_is_the_anchor() -> None:
+    """1st singular Präsens ("sehe") is not syncretic with anything --
+    ``_nominative_pronoun_syncretic`` returns ``False`` and this candidate
+    passes exactly as it did before section C's fix existed."""
     outcome = _check("pronomen_personal_nom", "Ich sehe den Mann auf der anderen Straßenseite.")
     assert outcome.unique is True
     assert outcome.reason is None
+
+
+def test_pronomen_personal_nom_is_not_flagged_for_a_present_tense_singular() -> None:
+    """docs/audits/cycle-07-report.md section C's own KEEP example: 1st
+    singular Präsens is never syncretic with 3rd singular ("ich genieße" vs
+    "er genießt" genuinely differ), unlike the SAME two persons in the
+    Präteritum below."""
+    outcome = _check("pronomen_personal_nom", "Nun genieße ich die ruhige Abendstunde.")
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+def test_pronomen_personal_nom_is_flagged_for_the_wir_sie_sie_plural_syncretism() -> None:
+    """docs/audits/cycle-07-report.md section C's own SKIP example: 1st and
+    3rd person plural share one finite form in every German tense
+    ("wir/sie/Sie haben"), and this tagger cannot tell 3rd-plural "sie" from
+    formal "Sie" apart at all -- with no second matching pronoun anywhere in
+    the sentence, the candidate stays genuinely unrescuable."""
+    outcome = _check(
+        "pronomen_personal_nom",
+        "Sie haben im letzten Jahr vielen Touristen geholfen, weil die Gäste den Weg "
+        "nicht gefunden haben.",
+    )
+    assert outcome.unique is False
+    assert outcome.reason == "nominative_pronoun_syncretic"
+
+
+def test_pronomen_personal_nom_passes_the_plural_syncretism_when_a_second_sie_anchors_it() -> None:
+    """docs/audits/cycle-07-report.md section C's own KEEP counter-example:
+    a second "Sie" elsewhere in the sentence, sharing the identical
+    (Person=3, Number=Plur) cell, is the same carrier-supplied anchor that
+    already rescues an oblique pronoun (``_person_number_anchor_present``,
+    reused rather than re-derived)."""
+    outcome = _check(
+        "pronomen_personal_nom",
+        "Sie haben den Urlaubern eine Nachricht geschickt, obwohl Sie damals selbst "
+        "sehr müde waren.",
+    )
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+def test_pronomen_personal_nom_is_flagged_for_the_1st_3rd_singular_preterite_syncretism() -> None:
+    """docs/audits/cycle-07-report.md section C: 1st and 3rd person singular
+    share one finite form in the Präteritum ("ich arbeitete"/"er
+    arbeitete") -- unlike the Präsens case above, this tagger surfaces both
+    as ``Tense=Past``, so this candidate needs (and here has none of) the
+    same carrier anchor."""
+    outcome = _check("pronomen_personal_nom", "Gestern arbeitete er lange im Büro.")
+    assert outcome.unique is False
+    assert outcome.reason == "nominative_pronoun_syncretic"
+
+
+def test_pronomen_personal_nom_is_flagged_for_a_second_1st_3rd_singular_preterite_verb() -> None:
+    """A second, independently confirmed instance of the same Präteritum
+    syncretism, with a different strong verb ("rief") -- pinned separately
+    since ``_nominative_pronoun_syncretic`` reads the clause's own finite
+    verb's ``Tense``, not a per-lemma fact, and a single example does not
+    prove that generalises."""
+    outcome = _check("pronomen_personal_nom", "Gestern rief sie ihre Mutter an.")
+    assert outcome.unique is False
+    assert outcome.reason == "nominative_pronoun_syncretic"
 
 
 def test_pronomen_personal_dat_is_flagged_with_no_anchor() -> None:
@@ -317,29 +383,97 @@ def test_nomen_plural_is_rescued_by_its_own_cue() -> None:
 
 
 # ==============================================================================
-# Determiners and adjective declension: case/gender agreement with the
-# governing noun/preposition already forces a unique cell, so these must
-# pass unaffected -- the asymmetry the task that specified this module named
-# explicitly.
+# Determiners and adjective declension (docs/audits/cycle-07-report.md
+# sections A and B): case/gender agreement with the governing noun/
+# preposition forces a unique CELL, but not a unique LEXEME -- a cue names
+# the family/base form, rescuing the candidate the same way it already
+# rescues a modal or a plural noun.
 # ==============================================================================
 
 
-def test_determiner_topics_are_never_flagged() -> None:
-    # "Der Hund läuft schnell durch den Park." has no relative clause,
-    # superlative, or ordinal, and would now find no candidate at all
-    # (artikel_bestimmt_nom's own anchor requirement, selectors.py) -- the
-    # relative clause added here is purely to give the selector something to
-    # find, so this test still exercises what it always meant to: the
-    # uniqueness gate itself never flags a determiner candidate.
+def test_determiner_is_rescued_by_its_own_cue() -> None:
+    """docs/audits/cycle-07-report.md's own worked example: "meiner",
+    "dieser", "jeder" all fit "Nach ___ Arbeit" just as grammatically as
+    "der" does -- the case (Dativ, forced by "nach") and gender (feminine,
+    forced by "Arbeit") do not pick the definite article out from its
+    rivals. The cue ("die", the definite article's own Nominative feminine
+    singular form) names the family; only the case-form inflection is left
+    for the learner."""
     outcome = _check(
-        "artikel_bestimmt_nom", "Der Hund, den ich gestern gekauft habe, schläft im Garten."
+        "praepositionen_dativ", "Nach der Arbeit treffe ich oft meine Nachbarin im Park."
     )
     assert outcome.unique is True
     assert outcome.reason is None
 
 
-def test_adjective_declension_topics_are_never_flagged() -> None:
+def test_determiner_is_flagged_when_its_own_cell_is_already_nominative() -> None:
+    """``artikel_bestimmt_nom``'s own anchor (a relative clause identifying
+    the referent) rules out the indefinite family but not a possessive or
+    demonstrative one ("Der/Mein Hund, den ich gestern gekauft habe,
+    schläft im Garten." are both grammatical) -- and because this topic's
+    own blanked cell is already Nominative, no cue can exist without
+    handing over the answer verbatim (``selectors._determiner_cue``), so
+    the candidate stays genuinely unrescuable."""
+    outcome = _check(
+        "artikel_bestimmt_nom", "Der Hund, den ich gestern gekauft habe, schläft im Garten."
+    )
+    assert outcome.unique is False
+    assert outcome.reason == "determiner_family_interchangeable"
+
+
+def test_artikel_unbestimmt_kein_nom_passes_uncued_on_its_own_causal_anchor() -> None:
+    """The one deliberate exception (docs/audits/cycle-07-report.md section
+    A): the causal ``weil``-clause anchor already rules out every rival
+    family unconditionally ("weil der/ein/mein Bus fährt" reads backwards
+    as an explanation for lateness), so this candidate carries no cue at
+    all and must still pass -- exactly as it did before this cycle's cue
+    mechanism existed for the other determiner topics."""
+    tagged = sentence_tagger.tag_sentence("Weil kein Bus fährt, kommen wir heute zu spät.")
+    assert tagged is not None
+    candidates = SELECTORS["artikel_unbestimmt_kein_nom"](tagged)
+    assert len(candidates) == 1
+    assert candidates[0].cue is None
+    assert candidates[0].lexeme_anchored is True
+    outcome = check_uniqueness(tagged, candidates[0])
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+def test_adjective_declension_is_rescued_by_its_own_cue() -> None:
+    """docs/audits/cycle-07-report.md's own worked example: "eine ___ Tasse
+    Tee" admits warme/große/volle/heiße/frische alike -- the weak/mixed/
+    strong ENDING is forced by the governing determiner, but the adjective
+    itself is open class. The cue ("warm", the adjective's own uninflected
+    positive base form) names the lexeme."""
+    outcome = _check("adjektivdeklination_unbestimmt", "Auf dem Tisch steht eine warme Tasse Tee.")
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+def test_adjektivdeklination_bestimmt_is_still_rescued_on_a_second_sentence() -> None:
     outcome = _check("adjektivdeklination_bestimmt", "Der alte Mann liest die neue Zeitung.")
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+def test_attributive_comparative_is_never_a_candidate_at_all() -> None:
+    """docs/audits/cycle-07-report.md section B: "bester" and "guter" share
+    the lemma "gut", so a "(gut)" cue would not distinguish them -- rather
+    than emit an unrescuable candidate, the selector excludes a
+    non-positive-degree attributive adjective from candidacy entirely. That
+    ambiguity belongs to ``adjektiv_komparativ_superlativ`` instead. The
+    same sentence's OTHER attributive adjective ("gutes", genuinely
+    Degree=Pos) is unaffected and still produces its own, cue-rescued
+    candidate -- this pins that the exclusion is per-token, not a
+    whole-sentence reject."""
+    tagged = sentence_tagger.tag_sentence(
+        "Mein bester Freund Timo hat mir gestern ein sehr gutes Buch geschenkt."
+    )
+    assert tagged is not None
+    candidates = SELECTORS["adjektivdeklination_unbestimmt"](tagged)
+    assert [c.token_index for c in candidates] == [9]
+    assert candidates[0].cue == "gut"
+    outcome = check_uniqueness(tagged, candidates[0])
     assert outcome.unique is True
     assert outcome.reason is None
 

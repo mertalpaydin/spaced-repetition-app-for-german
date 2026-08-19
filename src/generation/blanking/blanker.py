@@ -19,13 +19,17 @@ docstring) is set by the selector, not derived here, but it has to reach the
 (docs/audits/cycle-04-report.md recommendation 5, extended by
 docs/audits/cycle-05-report.md to every open-class lexical-verb topic, and
 again by docs/audits/cycle-06-modal-leak.md to the comparative/superlative
-degree topic and both attributive-participle topics) to mean anything: a
-cue that is computed and then discarded rescues nothing. The five outcome
-builders that can receive one (``_irregular_aux_outcome`` for a modal or
-sein/haben, ``_plural_noun_outcome``, ``_verb_form_outcome`` for a lexical
-verb, ``_degree_outcome`` for a comparative/superlative, and
-``_adjective_outcome`` for the two attributive-participle topics) copy it
-onto ``CandidateItem.cue`` unchanged via ``_cued_item_type``, which resolves
+degree topic and both attributive-participle topics, and again by
+docs/audits/cycle-07-report.md to every determiner topic and the three
+plain adjective-declension topics) to mean anything: a cue that is computed
+and then discarded rescues nothing. The six outcome builders that can
+receive one (``_irregular_aux_outcome`` for a modal or sein/haben,
+``_plural_noun_outcome``, ``_verb_form_outcome`` for a lexical verb,
+``_degree_outcome`` for a comparative/superlative, ``_adjective_outcome``
+for every attributive-adjective topic -- the two participle topics and now
+the three plain declension topics alike -- and ``_determiner_outcome``)
+copy it onto ``CandidateItem.cue`` unchanged via ``_cued_item_type``, which
+resolves
 to ``type="cloze_cued"`` instead of the ``"cloze_free"`` every cue-less
 outcome builder still hard-codes -- ``data/taxonomy.yaml``'s
 ``eligible_types`` for ``nomen_plural``, ``verb_praesens_regelm``/
@@ -174,6 +178,9 @@ def _determiner_outcome(
     if reconstructed.lower() != token.text.lower():
         return BlankOutcome(None, "determiner_paradigm_mismatch")
 
+    if _cue_equals_answer(candidate.cue, token.text):
+        return BlankOutcome(None, "cue_equals_answer")
+
     distractor_forms = sorted(
         {
             form
@@ -186,11 +193,12 @@ def _determiner_outcome(
     return BlankOutcome(
         CandidateItem(
             topic_id=topic_id,
-            type="cloze_free",
+            type=_cued_item_type(candidate.cue),
             difficulty=difficulty,
             prompt=_render_prompt(sentence, candidate.token_index),
             proposed_answer=token.text,
             distractors=distractors,
+            cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
         ),
         None,
