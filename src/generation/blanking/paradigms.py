@@ -977,3 +977,93 @@ DATIVE_REFLEXIVE_VERBS_NO_OBJECT: frozenset[str] = frozenset({"helfen"})
 DATIVE_REFLEXIVE_VERBS: frozenset[str] = (
     DATIVE_REFLEXIVE_VERBS_WITH_OBJECT | DATIVE_REFLEXIVE_VERBS_NO_OBJECT
 )
+
+# ==============================================================================
+# Tense anchoring (docs/audits/cycle-06-report.md's next-cycle task): a bare
+# ``sein``/``haben``/``werden`` finite form ("ist"/"war", "hat"/"hatte",
+# "wird"/"wurde") is grammatical at EITHER tense in an ordinary sentence with
+# nothing else to decide which one is meant -- unlike a modal or a plural
+# noun (``uniqueness.py``'s existing policy table), the ambiguity here is not
+# over which LEXEME fills the slot, it is over which CELL of the same
+# lexeme's own paradigm does, so a citation-form cue (which only ever names a
+# lexeme) cannot rescue it the way it rescues those two kinds -- the same
+# argument ``uniqueness.py``'s own ``personal_pronoun`` paragraph already
+# makes for the identical reason, one part of speech over.
+#
+# ``TEMPORAL_ANCHOR_LEMMAS`` is the closed list of unambiguous German time
+# expressions ``scripts/check_gold_examples.py`` already built and verified
+# for exactly this purpose (its own D6 forcing-element check for the
+# ``temporal_anchor`` kind) -- moved here, the one place this cycle's
+# linguistic data lives, so ``uniqueness.py`` can reuse the identical list
+# rather than redeclaring it, and ``check_gold_examples.py`` now imports it
+# instead of keeping its own copy. Deliberately limited to words that are
+# ALWAYS temporal, never also some other part of speech, so a hit can never
+# be a false positive from an unrelated word elsewhere in the sentence.
+TEMPORAL_ANCHOR_LEMMAS: frozenset[str] = frozenset(
+    {
+        "gestern",
+        "heute",
+        "morgen",
+        "übermorgen",
+        "vorgestern",
+        "jetzt",
+        "bald",
+        "später",
+        "damals",
+        "früher",
+        "demnächst",
+        "künftig",
+        "montag",
+        "dienstag",
+        "mittwoch",
+        "donnerstag",
+        "freitag",
+        "samstag",
+        "sonntag",
+        "woche",
+        "monat",
+        "jahr",
+        "nächste",
+        "nächsten",
+        "nächstes",
+        "letzte",
+        "letzten",
+        "letztes",
+        "vorher",
+        "nachher",
+        "anschließend",
+        "zuvor",
+        "danach",
+        "sofort",
+        "gleich",
+        "nachdem",
+        "bevor",
+        "während",
+        "als",
+        "wenn",
+        "sobald",
+    }
+)
+
+# Subordinating conjunctions whose clause conventionally shares the MATRIX
+# clause's own tense when both describe a concurrent state or reason, rather
+# than an independent time reference of their own -- the mechanism behind
+# docs/audits/cycle-06-report.md's task 1 worked example: "Obwohl die neuen
+# Vorschriften sehr streng sind, bitten wir um Ihr Verständnis." forces "sind"
+# (not "waren") because the "obwohl" clause describes the SAME present state
+# the present-tense matrix clause ("bitten wir") is talking about, not a
+# separate past event.
+#
+# Deliberately narrow and NOT the same list as ``TEMPORAL_ANCHOR_LEMMAS``'s
+# own "nachdem"/"bevor"/"als"/"wenn" entries, which are excluded here on
+# purpose: "nachdem"/"bevor" introduce an explicit ANTERIORITY relation
+# (Plusquamperfekt's own forcing element), a *different* tense from the
+# matrix by definition, not the same one; "als" is reserved for a single
+# past narrative event and does not license a present reading either way;
+# and "wenn" is genuinely polysemous between a tense-concordant habitual/
+# temporal reading and a conditional one this module cannot mechanically
+# tell apart from the tokens alone. Every entry actually kept here was
+# checked individually against the "does the subordinate clause describe
+# the SAME state/time as the matrix, in ordinary usage" question, not
+# assumed from the general "subordinating conjunction" category.
+TENSE_CONCORDANT_SUBORDINATORS: frozenset[str] = frozenset({"obwohl", "weil", "während", "da"})

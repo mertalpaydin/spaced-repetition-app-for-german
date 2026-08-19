@@ -41,6 +41,7 @@ from typing import Any
 
 import yaml
 from src.contracts import BankItem, Topic
+from src.generation.blanking.paradigms import TEMPORAL_ANCHOR_LEMMAS as _TEMPORAL_ANCHORS
 from src.generation.prompt_builder import PromptBuilder
 from src.taxonomy.facets import derive_facet, facet_space
 from src.taxonomy.loader import load_taxonomy
@@ -52,52 +53,10 @@ PLACEHOLDER_MARKERS = ("Hier steht Beispielsatz", "Beispielsatz Nummer")
 # D6: closed list a temporal_anchor gold example must draw from. Deliberately
 # limited to unambiguous time expressions -- words that are ALWAYS temporal,
 # never also e.g. a determiner or preposition, so a hit cannot be a false
-# positive from an unrelated part of the sentence.
-_TEMPORAL_ANCHORS: frozenset[str] = frozenset(
-    {
-        "gestern",
-        "heute",
-        "morgen",
-        "übermorgen",
-        "vorgestern",
-        "jetzt",
-        "bald",
-        "später",
-        "damals",
-        "früher",
-        "demnächst",
-        "künftig",
-        "montag",
-        "dienstag",
-        "mittwoch",
-        "donnerstag",
-        "freitag",
-        "samstag",
-        "sonntag",
-        "woche",
-        "monat",
-        "jahr",
-        "nächste",
-        "nächsten",
-        "nächstes",
-        "letzte",
-        "letzten",
-        "letztes",
-        "vorher",
-        "nachher",
-        "anschließend",
-        "zuvor",
-        "danach",
-        "sofort",
-        "gleich",
-        "nachdem",
-        "bevor",
-        "während",
-        "als",
-        "wenn",
-        "sobald",
-    }
-)
+# positive from an unrelated part of the sentence. Now the single canonical
+# copy, in ``src.generation.blanking.paradigms`` -- docs/audits/cycle-06-report.md's
+# next-cycle task 1 reuses this exact list for the blanking pipeline's own
+# auxiliary-tense-anchor check rather than redeclaring it a second time.
 
 # D6/D2: an anteriority_anchor is either an explicit nachdem/bevor clause, or
 # a second past-tense finite verb the gap's action precedes -- the latter

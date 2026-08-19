@@ -870,6 +870,24 @@ def test_verb_praesens_regelm_excludes_a_mislemmatised_modal_konjunktiv_ii_form(
         assert candidates == [], f"{sentence!r} must not yield a verb_praesens_regelm candidate"
 
 
+def test_verb_praesens_regelm_excludes_a_hallucinated_non_verb() -> None:
+    """docs/audits/cycle-06-report.md task 2's confirmed live example:
+    "treue" is not a German verb at all, but de_core_news_sm tags it
+    ``VVFIN``, ``Person=1|Number=Sing``, agreeing with "ich" -- every
+    STRUCTURAL check in this module passes it, and even the dictionary check
+    ``_cue_is_real_word`` uses does too ("treuen", the tagger's own wrong
+    lemma, is a real word -- the dative-plural inflection of the adjective
+    "treu" -- just never as a verb). ``_lexical_verb_answer_is_plausible``
+    catches it instead: the regularly-constructed "-t" form ("treut") is not
+    attested anywhere in the vendored frequency list, unlike a genuine verb's
+    own always-regular 2nd-plural-shaped cell."""
+    _, candidates = _select(
+        "verb_praesens_regelm",
+        "Nach der Arbeit treue ich mich mit Lisa auf einen Kaffee in der Stadt.",
+    )
+    assert candidates == []
+
+
 def test_verb_praesens_regelm_excludes_an_inseparable_prefixed_vowel_change_verb() -> None:
     """Live-pilot defect: "verlasse" (1st singular of "verlassen") is not a
     direct key in VOKALWECHSEL_PRAESENS ("lassen" is), so it fell through to
@@ -1513,10 +1531,27 @@ def test_cue_is_real_word_accepts_a_compound_absent_from_the_direct_wordlist() -
     assert selectors._citation_cue("Familienurlaub", "Familienurlauben") == "Familienurlaub"
 
 
+def test_cue_is_real_word_accepts_a_compound_with_both_halves_short_but_high_frequency() -> None:
+    """docs/audits/cycle-06-report.md task 3: "Radweg" is correct German, not
+    a direct dictionary entry, and its own two halves ("Rad", "weg") are
+    both only 3 characters -- one short of the standard 4-character compound
+    floor, so the ordinary compound fallback above cannot rescue it. Both
+    halves ARE high-frequency words (top 5,000 of the vendored frequency
+    list), which is exactly what now rescues it without lowering the
+    4-character floor across the board -- see the regression right below
+    this test for why a blanket floor drop is not the fix."""
+    assert selectors._cue_is_real_word("Radweg") is True
+
+
 def test_cue_is_real_word_rejects_a_string_that_is_not_german_at_all() -> None:
     """Neither a direct hit nor any two-part split resolves -- unlike the
-    compound test above, this is not a real word under any avenue this
-    check has, so it must be rejected outright."""
+    compound tests above, this is not a real word under any avenue this
+    check has, so it must be rejected outright. "mussen" is the pinned
+    regression for docs/audits/cycle-06-report.md task 3 specifically: its
+    own 3-character split ("mus"+"sen") is a real dictionary pair, exactly
+    like "Radweg"'s, but NEITHER half is a high-frequency word (rank
+    ~38,400/~29,100 of 50,000, versus "rad"/"weg"'s ~3,800/~130), so the
+    frequency gate that rescues "Radweg" must not rescue this one too."""
     assert selectors._cue_is_real_word("mussen") is False
     assert selectors._cue_is_real_word("einpacksen") is False
     assert selectors._cue_is_real_word("Plastiktüt") is False

@@ -101,8 +101,105 @@ def test_praeteritum_sein_haben_modal_rescues_only_its_modal_candidates() -> Non
 def test_verb_sein_haben_is_not_flagged_the_auxiliary_is_structurally_fixed() -> None:
     """Unlike a modal, sein/haben is not a free lexical choice -- Perfekt
     picks its auxiliary by verb, Passiv always takes werden -- so there is no
-    other member of an "auxiliary class" that could stand in this slot."""
+    other LEXEME that could stand in this slot. That alone is not the whole
+    story any more (docs/audits/cycle-06-report.md task 1): the sentence's
+    own "heute" is what anchors the TENSE ("bin" vs "war"), a separate
+    question from lexeme choice -- see the ``auxiliary_tense_unanchored``
+    tests below for the case where that anchor is missing."""
     outcome = _check("verb_sein_haben", "Ich bin heute sehr müde.")
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+# ==============================================================================
+# Auxiliary tense anchoring (docs/audits/cycle-06-report.md task 1): a bare
+# sein/haben/werden finite form is ambiguous over TENSE, not lexeme, unless
+# the carrier anchors it -- an explicit time expression, a genuinely
+# subordinated sibling clause with matching tense, or a construction (Futur,
+# Konjunktiv II, Perfekt/Plusquamperfekt) whose own shape already fixes it.
+# ==============================================================================
+
+
+def test_verb_sein_haben_is_flagged_with_no_tense_anchor() -> None:
+    outcome = _check("verb_sein_haben", "Das Wetter ist schön.")
+    assert outcome.unique is False
+    assert outcome.reason == "auxiliary_tense_unanchored"
+
+
+def test_zustandspassiv_is_flagged_with_no_tense_anchor() -> None:
+    """The report's own worked example: "ist" and "war" both fit here
+    equally well, and "aber" coordinates two independent main clauses, so
+    the present-tense "müssen" in the second clause is not a genuine
+    tense-agreement anchor for the first (see
+    ``uniqueness._sibling_clause_tense_anchor``'s own docstring)."""
+    outcome = _check(
+        "zustandspassiv",
+        "Das Buffet ist bereits gut geplant, aber die Getränke müssen wir noch einkaufen.",
+    )
+    assert outcome.unique is False
+    assert outcome.reason == "auxiliary_tense_unanchored"
+
+
+def test_verb_sein_haben_passes_when_a_subordinated_sibling_clause_anchors_the_tense() -> None:
+    """The report's own other worked example: the present-tense matrix
+    clause ("bitten wir") forces "sind", not "waren", because the "obwohl"
+    clause describes the SAME present state -- genuine subordination, unlike
+    the "aber" case above."""
+    outcome = _check(
+        "verb_sein_haben",
+        "Obwohl die neuen Vorschriften sehr streng sind, bitten wir um Ihr Verständnis.",
+    )
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+def test_praeteritum_sein_haben_modal_aux_is_flagged_with_no_tense_anchor() -> None:
+    outcome = _check("praeteritum_sein_haben_modal", "Das Wetter war schön.")
+    assert outcome.unique is False
+    assert outcome.reason == "auxiliary_tense_unanchored"
+
+
+def test_passiv_praesens_is_flagged_with_no_tense_anchor() -> None:
+    outcome = _check("passiv_praesens", "Das Auto wird repariert.")
+    assert outcome.unique is False
+    assert outcome.reason == "auxiliary_tense_unanchored"
+
+
+def test_passiv_praeteritum_passes_with_an_explicit_time_expression_anchor() -> None:
+    outcome = _check("passiv_praeteritum", "Das Auto wurde gestern repariert.")
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+def test_perfekt_haben_is_not_flagged_the_participle_fixes_the_construction() -> None:
+    """No anchor needed: a haben+Partizip-II candidate is unambiguously
+    Perfekt (haben is never a Zustandspassiv auxiliary), so there is no
+    rival-tense reading of this exact shape to rule out."""
+    outcome = _check("perfekt_haben", "Ich habe das Buch gelesen.")
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+def test_plusquamperfekt_is_not_flagged_the_anteriority_marker_fixes_the_construction() -> None:
+    outcome = _check("plusquamperfekt", "Nachdem wir gegessen hatten, gingen wir spazieren.")
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+def test_konjunktiv_ii_irreal_gegenwart_is_not_flagged_no_rival_tense_form_exists() -> None:
+    outcome = _check("konjunktiv_ii_irreal_gegenwart", "Wenn ich Zeit hätte, würde ich kommen.")
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+def test_futur_i_is_not_flagged_no_rival_construction_exists() -> None:
+    outcome = _check("futur_i", "Ich werde morgen ins Kino gehen.")
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+def test_futur_ii_is_not_flagged_no_rival_construction_exists() -> None:
+    outcome = _check("futur_ii", "Er wird das Buch gelesen haben.")
     assert outcome.unique is True
     assert outcome.reason is None
 

@@ -39,7 +39,7 @@ from src.generation.blanking import paradigms
 from src.generation.blanking.paradigms import Cell
 from src.generation.blanking.sentence_tagger import TaggedSentence, Token
 from src.lexicon.frequency import FrequencyBander
-from src.lexicon.lemmatizer import compound_split_candidates, normalise
+from src.lexicon.lemmatizer import _MIN_COMPOUND_PART_LEN, compound_split_candidates, normalise
 from src.taxonomy.facets import UNK as _FACETS_UNK
 
 ArtFamily = Literal["Def", "Ind", "Neg", "Poss"]
@@ -997,6 +997,8 @@ def _select_verb_praesens_regelm(sentence: TaggedSentence) -> list[Candidate]:
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
             continue
+        if not _lexical_verb_answer_is_plausible(lemma):
+            continue
         cue = _citation_cue(lemma, token.text) if _lexical_verb_lemma_trustworthy(lemma) else None
         out.append(
             Candidate(
@@ -1143,6 +1145,8 @@ def _select_verben_trennbar_praesens(sentence: TaggedSentence) -> list[Candidate
         )
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
+            continue
+        if not _lexical_verb_answer_is_plausible(lemma):
             continue
         # spaCy's own lemma for the finite half of a split separable verb
         # drops the prefix entirely ("steht" -> "stehen", not "aufstehen"),
@@ -1309,6 +1313,136 @@ def _lexical_verb_lemma_trustworthy(lemma: str) -> bool:
     )
 
 
+# docs/audits/cycle-06-report.md task 2: a hallucinated non-word ("treue" for
+# "treffe", the confirmed live example) can still TAG as a perfectly formed
+# finite verb -- de_core_news_sm gives it ``VVFIN``, ``Person=1|Number=Sing``,
+# agreeing with its own subject -- so every STRUCTURAL check in this module
+# (and the carrier validator's subject-verb agreement check) passes it. The
+# dictionary check ``_cue_is_real_word`` already uses cannot catch this class
+# either: "treuen" (spaCy's own lemma for "treue") IS a real dictionary
+# entry -- the dative-plural inflection of the adjective "treu" ("den treuen
+# Freunden") -- just never as a VERB, and the dictionary has no part-of-speech
+# information to rule that reading out.
+#
+# The lever is the vendored frequency list instead
+# (``data/fixtures/corpus/frequency/de_opensubtitles2018_top50k.txt``, a
+# ``word count`` list in rank order, already loaded by
+# ``src.lexicon.frequency.FrequencyBander``): German's 2nd-person-plural
+# present ending ("-t"/"-et") is the ONE present-tense cell that is
+# ALWAYS formed by the plain regular rule, for every verb class without
+# exception -- strong, weak, mixed, vokalwechsel alike (the stem-vowel
+# change docs/audits/cycle-06-report.md class D documents only ever touches
+# 2nd/3rd SINGULAR, never any plural cell). ``paradigms.regular_praesens_form``
+# happens to construct exactly this cell for the ("3", "Sing") input (the
+# same "-t" ending, since German's regular paradigm reuses one ending for
+# both), so probing it against the frequency list is a check on a form that
+# is genuinely, always attested for a real verb -- "esst"/"geht"/"habt" all
+# rank inside the top 50k for their own genuine verbs -- while a hallucinated
+# non-verb's regularly-constructed "-t" form is, in ordinary usage, not a
+# word at all: "treuen" itself ranks inside the list (as the adjective
+# inflection above), but "treut" does not appear anywhere in it.
+#
+# This is deliberately independent of ``_lexical_verb_lemma_trustworthy``
+# above: that function only ever gates the CUE (a wrong cue is shown
+# alongside an otherwise-correct answer); this one gates the CANDIDATE
+# itself, because here the blanked ANSWER is the thing that is wrong, not
+# merely its citation-form cue. Applied unconditionally to every lexical-verb
+# selector below, regardless of that function's own verdict.
+_FREQUENCY_LIST_PATH = (
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "data"
+    / "fixtures"
+    / "corpus"
+    / "frequency"
+    / "de_opensubtitles2018_top50k.txt"
+)
+
+
+@lru_cache(maxsize=1)
+def _load_frequency_ranked_words() -> list[str] | None:
+    """The vendored frequency list's own words, most-frequent first, loaded
+    once per process -- mirrors every other loader in this package's
+    fail-safe contract (``_load_cue_dictionary``'s own docstring): never
+    raises, ``None`` if the fixture is missing. The single shared source for
+    both ``_load_verb_frequency_words`` (task 2: membership, any rank) and
+    ``_load_high_frequency_words`` (task 3: membership within a top band),
+    so the file is only ever read once regardless of how many checks use it."""
+    try:
+        return FrequencyBander.load_ranked_words(_FREQUENCY_LIST_PATH)
+    except OSError:
+        return None
+
+
+@lru_cache(maxsize=1)
+def _load_verb_frequency_words() -> frozenset[str] | None:
+    """Every word in the vendored frequency list, degrading
+    ``_lexical_verb_answer_is_plausible`` to "always trust the answer"
+    (rather than crashing selection) when the fixture is missing."""
+    ranked = _load_frequency_ranked_words()
+    return None if ranked is None else frozenset(ranked)
+
+
+# docs/audits/cycle-06-report.md task 3: "Radweg" is correct German, but is
+# suppressed as a cue because it is absent from the 37,567-entry dictionary
+# and its own compound halves ("Rad", "weg") are both only 3 characters --
+# one short of ``compound_split_candidates``'s own 4-character floor
+# (``src.lexicon.vocabulary.VocabularyStore``'s deliberate choice, kept here
+# too: see ``_cue_is_real_word``'s own docstring for why a blanket 3-
+# character floor was tried and reverted, "mussen" -> "mus"+"sen" being the
+# confirmed hole it reopened). The fix keeps the 4-character floor as the
+# general rule and allows a SHORTER half only when that half is ALSO a
+# high-frequency word: "rad" (rank ~3,800 of 50,000) and "weg" (rank ~130)
+# both clear a top-5,000 band comfortably; "mus" (rank ~38,400) and "sen"
+# (rank ~29,100) do not come close, so the same split that used to rescue
+# "mussen" stays rejected under this rule -- see
+# ``tests/test_blanking_selectors.py`` for the pinned regression proving
+# "mussen"/"einpacksen"/"Plastiktüt" are all still rejected.
+#
+# 5,000 is a round, defensible cut -- comfortably inside "everyday core
+# vocabulary" territory (``FrequencyBander.DEFAULT_B2_BAND_SIZE`` bands the
+# NEXT 6,000 newly-surfaced words beyond A1/A2/B1 for comparison) and, on the
+# two confirmed cases above, wide enough to clear "rad"/"weg" by roughly an
+# order of magnitude while nowhere near reaching "mus"/"sen". Not tuned
+# narrower to fit one word: the module docstring's own standard is to check
+# a reusable FACT (frequency band membership), not hand-fit a single lemma.
+_HIGH_FREQUENCY_BAND_SIZE = 5000
+
+
+@lru_cache(maxsize=1)
+def _load_high_frequency_words() -> frozenset[str] | None:
+    """The top ``_HIGH_FREQUENCY_BAND_SIZE`` words of the vendored frequency
+    list, degrading ``_cue_is_real_word``'s short-compound-half rescue to
+    "never rescue" (not "always trust") when the fixture is missing -- the
+    opposite fail-safe direction from ``_load_verb_frequency_words`` above,
+    deliberately: this list only ever WIDENS what a cue check already
+    accepts (module docstring: an absent cue degrades to no-cue, never to a
+    rejected item), so a missing fixture here must fall back to the
+    STRICTER pre-existing behaviour, not a permissive one."""
+    ranked = _load_frequency_ranked_words()
+    return None if ranked is None else frozenset(ranked[:_HIGH_FREQUENCY_BAND_SIZE])
+
+
+def _lexical_verb_answer_is_plausible(lemma: str) -> bool:
+    """Whether ``lemma`` -- the tagger's own citation form for a blanked
+    lexical-verb ANSWER, before separable-prefix reconstruction -- clears the
+    frequency-plausibility check this function's own module comment
+    describes. ``True`` (never rejects) when the frequency list failed to
+    load, or when ``lemma`` is not infinitive-shaped enough for
+    ``paradigms.regular_praesens_form`` to construct a probe from at all
+    (``_lexical_verb_lemma_trustworthy``'s own check 1 already covers this
+    shape more thoroughly; this function does not duplicate it, it only
+    treats "cannot even construct a probe" as unverifiable rather than as a
+    rejection, matching the module's own "reject rather than guess" posture
+    applied to the ABSENCE of a verdict, not to a verdict itself)."""
+    frequency = _load_verb_frequency_words()
+    if frequency is None:
+        return True
+    probe = paradigms.regular_praesens_form(lemma, "3", "Sing")
+    if probe is None:
+        return True
+    return normalise(probe) in frequency
+
+
 def _select_praeteritum_vollverben(sentence: TaggedSentence) -> list[Candidate]:
     """Simple past of a full lexical verb -- weak (by rule), strong or mixed
     (from the closed tables in ``paradigms.py``). Excludes sein/haben/modals
@@ -1340,6 +1474,13 @@ def _select_praeteritum_vollverben(sentence: TaggedSentence) -> list[Candidate]:
         elif lemma in paradigms.MIXED_VERBS:
             family = "mixed_praeteritum"
         else:
+            # Unlike the two closed-table branches above (hand-verified real
+            # verbs, never tagger-derived), a "regular_praeteritum" lemma is
+            # exactly the OPEN-class, tagger-derived case
+            # ``_lexical_verb_answer_is_plausible`` exists for -- see that
+            # function's own module comment.
+            if not _lexical_verb_answer_is_plausible(lemma):
+                continue
             family = "regular_praeteritum"
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
@@ -1496,18 +1637,33 @@ def _cue_is_real_word(cue: str) -> bool:
       "Großelter" (spaCy's own singular-strip lemma for "Großeltern") is
       correctly caught -- it is not a real German word, "Großelternteil" is
       the actual singular. "Radweg" (bike path, a common, entirely correct
-      word) is a genuine OVER-reject: it is not a direct entry in the
-      37,567-word list, and its own compound halves ("Rad", "weg") are both
-      only 3 characters, one short of ``compound_split_candidates``'s own
-      4-character floor, so the compound fallback cannot rescue it either.
-      Lowering that floor to 3 was tried and reverted: it resolves "Radweg"
-      but ALSO resolves "mussen" (the confirmed-bad modal lemma this check
-      exists to catch) via the spurious split "mus"+"sen" -- both entries
-      the dictionary happens to contain for unrelated reasons -- which
-      reopens exactly the defect class this task closes. The 4-character
-      floor is ``src.lexicon.vocabulary.VocabularyStore``'s own existing,
-      deliberate choice for the identical false-positive reason, so this
-      function keeps it rather than tuning a narrower one for one word.
+      word) used to be a genuine OVER-reject: it is not a direct entry in
+      the 37,567-word list, and its own compound halves ("Rad", "weg") are
+      both only 3 characters, one short of ``compound_split_candidates``'s
+      own 4-character floor, so the compound fallback could not rescue it
+      either. Lowering that floor to 3 across the board was tried and
+      reverted: it resolves "Radweg" but ALSO resolves "mussen" (the
+      confirmed-bad modal lemma this check exists to catch) via the
+      spurious split "mus"+"sen" -- both entries the dictionary happens to
+      contain for unrelated reasons -- which reopens exactly the defect
+      class this task closes.
+
+      docs/audits/cycle-06-report.md task 3's fix, now below: keep the
+      4-character floor as the GENERAL rule (unchanged default on
+      ``compound_split_candidates``, and still the only rule applied to any
+      part 4 characters or longer), but allow a SHORTER half specifically
+      when that half is ALSO a member of ``_load_high_frequency_words``
+      (the top ``_HIGH_FREQUENCY_BAND_SIZE`` words of the same vendored
+      frequency list task 2 uses) -- "rad"/"weg" both clear that band
+      comfortably (ranks ~3,800/~130 of 50,000), "mus"/"sen" do not (ranks
+      ~38,400/~29,100), so "Radweg" now resolves while "mussen" stays
+      exactly as rejected as before. See
+      ``tests/test_blanking_selectors.py`` for the pinned regression proving
+      "mussen"/"einpacksen"/"Plastiktüt" are all still rejected under this
+      rule. The 4-character floor itself is
+      ``src.lexicon.vocabulary.VocabularyStore``'s own existing, deliberate
+      choice for the identical false-positive reason, so this function
+      still keeps it as the default rather than lowering it outright.
 
     Degrades to ``True`` (never rejects) when the dictionary itself failed
     to load."""
@@ -1520,6 +1676,16 @@ def _cue_is_real_word(cue: str) -> bool:
     for head, tail in compound_split_candidates(cue):
         if head in dictionary and tail in dictionary:
             return True
+    high_frequency = _load_high_frequency_words()
+    if high_frequency is not None:
+        for head, tail in compound_split_candidates(cue, min_part_len=3):
+            if head not in dictionary or tail not in dictionary:
+                continue
+            short_parts = [part for part in (head, tail) if len(part) < _MIN_COMPOUND_PART_LEN]
+            if not short_parts:
+                continue  # already covered by the standard-floor loop above
+            if all(part in high_frequency for part in short_parts):
+                return True
     return False
 
 

@@ -42,6 +42,24 @@ rejects a correctly-built item under those conditions and this script
 reports the skip under its own reason, distinct from both an ordinary
 quality skip and a balance drop (``report.skips_by_uniqueness``).
 
+## The model verification backstop
+
+After every structural check above, the surviving accepted items go through
+one more pass: ``src.generation.blanking.model_verification.verify_items``,
+the model-backed backstop docs/audits/cycle-06-report.md's own class G
+defect ("treue" for "treffe", a non-word a mistagging spaCy pass let
+through every structural check) argues for -- see that module's own
+docstring for the full case. An item the model rejects is pulled out of the
+accepted set here and moved to the rejected file with the model's own
+reason attached; an item is never silently reported as verified when the
+pass could not run at all (no API key configured, or a malformed model
+response) -- see ``_print_verification_report`` and CLAUDE.md 12. This
+script shares the SAME ``llm_client`` between sentence generation and this
+pass (never builds a second one), so both draw from one cost log and one
+rate-limiter state, and both are unconditionally forbidden from the paid
+lane (module docstring's own note on this script never taking a
+``--batch`` opt-in at all).
+
 Run this from a terminal:
 
     .venv/bin/python -m scripts.step6_blank_pilot --sentences 300
@@ -65,6 +83,12 @@ from pathlib import Path
 from src.contracts import CEFR, BankItem, CandidateItem, Difficulty, Topic
 from src.generation.batch_client import RejectedCandidateRecord
 from src.generation.blanking import sentence_source, sentence_tagger
+from src.generation.blanking.model_verification import (
+    DEFAULT_VERIFICATION_BATCH_SIZE,
+    ModelRejection,
+    VerificationReport,
+    verify_items,
+)
 from src.generation.blanking.pipeline import (
     DEFAULT_MAX_ITEMS_PER_SENTENCE,
     DEFAULT_MAX_ITEMS_PER_TOPIC,
@@ -238,6 +262,74 @@ def _uniqueness_skips_to_skips(skips: list[UniquenessSkip]) -> list[_DetailedSki
         _DetailedSkip(s.topic_id, s.prompt, s.reason, proposed_answer=s.proposed_answer)
         for s in skips
     ]
+
+
+def _model_rejection_to_record(rejection: ModelRejection) -> RejectedCandidateRecord:
+    """One ``model_verification.ModelRejection`` onto the exact field set
+    ``data/pilot_rejected.jsonl`` uses, with the model's own reason kept
+    verbatim in ``reason`` (never discarded -- model_verification.py's own
+    docstring on diagnosability) and ``error_type`` a fixed, machine-stable
+    category distinct from that free text, so a rejected file can be
+    grouped by ``error_type`` and still read the specific reason per row."""
+    return RejectedCandidateRecord(
+        topic_id=rejection.topic_id,
+        type="cloze_free",
+        difficulty=1,
+        prompt=rejection.prompt,
+        proposed_answer=" / ".join(rejection.accepted_answers),
+        layer_failed=None,
+        error_type="model_verification_rejected",
+        reason=rejection.reason,
+    )
+
+
+def _apply_model_verification(
+    items: list[BankItem], verification_report: VerificationReport
+) -> list[BankItem]:
+    """The items the model verification pass did NOT reject, in original
+    order -- ``"verified"`` and ``"not_run"`` both stay in the accepted set
+    (the rest of the pipeline already established these are structurally
+    sound; a pass that could not run is not evidence AGAINST an item, only
+    an absent additional confirmation), only ``"rejected"`` items are
+    pulled out. ``verification_report.verdicts`` is aligned by position with
+    ``items`` (``verify_items``'s own contract), so this zips the two
+    directly rather than re-deriving an index."""
+    return [
+        item
+        for item, verdict in zip(items, verification_report.verdicts, strict=True)
+        if verdict.outcome != "rejected"
+    ]
+
+
+def _print_verification_report(verification_report: VerificationReport) -> None:
+    """Print the model verification pass's outcome with its three counts
+    kept visibly separate (this cycle's own brief: "Report the counts
+    separately") -- verified, rejected by the model (with reasons grouped),
+    and not verified because the pass could not run. Never prints a single
+    combined "fine" number, and never lets a ``not_run`` item read as
+    verified: the "NOT RUN" banner below is unconditional whenever
+    ``verification_report.attempted`` is ``False``, which is exactly the
+    no-API-key case CLAUDE.md 12 and this module's own docstring require to
+    be reported honestly rather than silently passed."""
+    print("  Model verification pass (backstop over items that already survived")
+    print("  every structural check; see model_verification.py's own docstring):")
+    if not verification_report.attempted:
+        print("    NOT RUN: no LLM client configured (no API key). Every item below")
+        print("    is UNVERIFIED by this pass -- it is not confirmed correct by it,")
+        print("    only by the structural checks that ran before it.")
+    print(f"    Items verified:                       {verification_report.verified_count}")
+    print(f"    Items rejected by the model:          {verification_report.rejected_count}")
+    if not verification_report.rejected_reasons:
+        print("      (none)")
+    for reason, count in sorted(
+        verification_report.rejected_reasons.items(), key=lambda kv: -kv[1]
+    ):
+        print(f"      - {reason}: {count}")
+    print(f"    Items not verified (pass did not run): {verification_report.not_run_count}")
+    if not verification_report.not_run_reasons:
+        print("      (none)")
+    for reason, count in sorted(verification_report.not_run_reasons.items(), key=lambda kv: -kv[1]):
+        print(f"      - {reason}: {count}")
 
 
 def _print_report(
@@ -431,6 +523,19 @@ def main() -> int:
             continue
         accepted_items.append(bank_item)
 
+    # The model verification backstop (module docstring's own section):
+    # runs LAST, over items that already survived every structural check
+    # above. Shares the SAME ``llm_client`` sentence generation just used
+    # (never builds a second one), so both draw from one cost log and one
+    # rate-limiter, and both are unconditionally forbidden from the paid
+    # lane. With no client configured (``ran_live`` is ``False``) this is a
+    # documented no-op -- every item is reported "not_run", never silently
+    # "verified".
+    verification_report = verify_items(
+        accepted_items, llm_client, batch_size=DEFAULT_VERIFICATION_BATCH_SIZE
+    )
+    final_items = _apply_model_verification(accepted_items, verification_report)
+
     rejected_records = [
         _to_rejected_record(skip)
         for skip in [
@@ -439,12 +544,14 @@ def main() -> int:
             *_uniqueness_skips_to_skips(report.uniqueness_skips),
             *unknown_topic_skips,
         ]
-    ]
+    ] + [_model_rejection_to_record(r) for r in verification_report.rejections]
 
     review_path = Path(args.review_file)
     rejected_path = Path(args.rejected_file)
-    _write_review_file(review_path, accepted_items, batch_id)
+    _write_review_file(review_path, final_items, batch_id)
     _write_rejected_file(rejected_path, rejected_records, batch_id)
+
+    _print_verification_report(verification_report)
 
     print(f"  Review file:           {review_path}")
     print(f"  Rejected file:         {rejected_path}")
