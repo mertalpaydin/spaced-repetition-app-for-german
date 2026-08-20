@@ -157,13 +157,18 @@ def test_artikel_unbestimmt_kein_nom_rejects_plural_kein_as_a_known_paradigm_gap
     assert outcome.skip_reason == "determiner_cell_uncovered_by_paradigm"
 
 
-def test_artikel_unbestimmt_kein_nom_finds_nothing_without_a_weil_clause() -> None:
-    """The negative case: the same "kein" sentence with no causal "weil"
-    clause at all -- real, grammatical German, but "Kein/Der/Ein/Mein Bus
-    fährt heute" are all equally valid completions with nothing to force
-    "kein" specifically."""
+def test_artikel_unbestimmt_kein_nom_finds_a_candidate_without_a_weil_clause() -> None:
+    """TODO.md 2.3 (owner's decision, cycle 9): the causal "weil"-clause
+    anchor used to GATE candidacy entirely, because with no cue "Kein/Der/
+    Ein/Mein Bus fährt heute" are all equally valid completions and nothing
+    forces "kein" specifically. Under the invariant-citation cue (TODO.md
+    2.1) the cue always names the family ("kein") directly, so that
+    forcing is no longer needed -- the anchor is still recorded (``False``
+    here, no "weil" clause), but no longer withholds the candidate."""
     _, candidates = _select("artikel_unbestimmt_kein_nom", "Kein Bus fährt heute.")
-    assert candidates == []
+    assert len(candidates) == 1
+    assert candidates[0].lexeme_anchored is False
+    assert candidates[0].cue == "Kein"
 
 
 def test_artikel_unbestimmt_kein_nom_finds_nothing_for_a_bare_indefinite() -> None:
@@ -197,25 +202,32 @@ def test_artikel_possessiv_nom_finds_different_persons_via_relative_clause() -> 
     assert sein.proposed_answer == "Sein"
 
 
-def test_artikel_possessiv_nom_finds_nothing_without_the_person_anchor() -> None:
-    """The negative case: the same kinship noun as a bare Nominative
-    subject, with no relative clause at all to name whose it is -- real,
-    grammatical German ("Mein/Dein/Sein/Der Vater kocht heute Abend" are all
-    equally valid), so it must yield no candidate."""
+def test_artikel_possessiv_nom_finds_a_candidate_without_the_person_anchor() -> None:
+    """TODO.md 2.3 (owner's decision, cycle 9): the kinship-noun-plus-
+    relative-clause person anchor used to GATE candidacy entirely -- real,
+    but narrow enough that this topic produced nothing across three
+    cycles. Under the invariant-citation cue (TODO.md 2.1) the cue always
+    names WHICH possessive stem is meant, so that forcing is no longer
+    needed for every Nominative possessive, not only the kinship-plus-
+    relative-clause shape -- the anchor is still recorded (``False`` here,
+    no relative clause at all), but no longer withholds the candidate."""
     _, candidates = _select("artikel_possessiv_nom", "Mein Vater kocht heute Abend.")
-    assert candidates == []
+    assert len(candidates) == 1
+    assert candidates[0].lexeme_anchored is False
+    assert candidates[0].cue == "Mein"
 
 
-def test_artikel_possessiv_nom_finds_nothing_for_a_body_part_noun() -> None:
-    """Body-part nouns are the inverse case (module docstring above
-    selectors.SELECTORS): German idiomatically prefers the definite article
-    there ("Ich wasche mir die Hände"), so this topic's kinship whitelist
-    never includes one -- even wrapped in the same relative-clause anchor
-    that works for a real kinship noun, it must yield nothing."""
+def test_artikel_possessiv_nom_finds_a_candidate_for_a_body_part_noun() -> None:
+    """Body-part nouns (module docstring above selectors.SELECTORS) never
+    satisfy the narrower kinship-plus-relative-clause anchor -- German
+    idiomatically prefers the definite article there ("Ich wasche mir die
+    Hände") -- but TODO.md 2.3 no longer gates candidacy on that anchor at
+    all, so this still yields a candidate, unanchored."""
     _, candidates = _select(
         "artikel_possessiv_nom", "Meine Hand, die ich mir verletzt habe, tut noch weh."
     )
-    assert candidates == []
+    assert len(candidates) == 1
+    assert candidates[0].lexeme_anchored is False
 
 
 # ==============================================================================
@@ -538,6 +550,23 @@ def test_adjektivdeklination_nullartikel_does_not_fire_when_a_determiner_precede
     assert weak_item.proposed_answer == "gekauften"
 
 
+def test_adjektivdeklination_nullartikel_does_not_fire_past_a_second_preceding_adjective() -> None:
+    """docs/audits/cycle-09-report.md 1.5, the fourth reported cycle for
+    this class: "diese innovative ___ Lösung" -- "diese" is a genuine
+    governing determiner, but a SECOND attributive adjective ("innovative")
+    sits between it and the blanked one ("technische"), defeating every
+    previous fix (which extended a backward SCAN one hop at a time: an
+    intervening prepositional phrase, then an adverbial, then a quantifier
+    -- see the three tests above and cycle-06-report.md class E). Fixed by
+    walking the noun phrase from the head noun instead of extending the
+    scan again (``selectors._noun_phrase_has_governing_determiner``): reject
+    if ANY determiner exists at any distance, rather than checking a fixed
+    number of hops back."""
+    sentence = "Wir möchten gerne wissen, ob Ihnen diese innovative technische Lösung gefällt."
+    _, strong_candidates = _select("adjektivdeklination_nullartikel", sentence)
+    assert strong_candidates == []
+
+
 def test_adjective_declension_selectors_reject_an_unclassifiable_determiner() -> None:
     """ "jeder" is tagged the same (PIAT) as "kein", but its own declension
     trigger is out of this cycle's scope -- it must not be guessed as either
@@ -804,6 +833,71 @@ def test_verben_reflexiv_akk_routes_sich_treffen_with_no_object_anywhere() -> No
     item = _blank("verben_reflexiv_akk", "Wir treffen uns jeden Samstag im Park.")
     assert item.proposed_answer == "uns"
     _, dat_candidates = _select("verben_reflexiv_dat", "Wir treffen uns jeden Samstag im Park.")
+    assert dat_candidates == []
+
+
+def test_verben_reflexiv_dat_routes_sich_wuenschen_with_a_dass_clause_object() -> None:
+    """docs/audits/cycle-09-report.md 1.1, all three of "sich (Dat) etwas
+    wünschen"'s reported items: the object is a "dass" clause, not a noun
+    phrase, so neither ``_has_bare_accusative_object`` nor
+    ``_immediately_followed_by_object_np`` sees it at all -- closed by
+    ``_followed_by_dass_clause_object``."""
+    item = _blank(
+        "verben_reflexiv_dat", "Wir wünschen uns, dass Sie uns Ihre ehrliche Meinung mitteilen."
+    )
+    assert item.proposed_answer == "uns"
+    item2 = _blank(
+        "verben_reflexiv_dat", "Er wünscht sich sehr, dass er bald bessere Noten schreibt."
+    )
+    assert item2.proposed_answer == "sich"
+    item3 = _blank(
+        "verben_reflexiv_dat", "Sie wünscht sich, dass das teure Obst günstiger verkauft wird."
+    )
+    assert item3.proposed_answer == "sich"
+
+
+def test_verben_reflexiv_akk_routes_sich_treffen_past_an_apposition() -> None:
+    """docs/audits/cycle-09-report.md 1.1: "Um zwei Uhr treffen wir uns alle
+    vor dem Haupteingang." -- "alle" is an apposition to the subject
+    ("wir alle"), tagged ``Case=Acc`` by agreement with the reflexive
+    rather than the Nominative subject it restates, and the old rule
+    wrongly counted it as "treffen"'s own direct object. Closed by
+    ``_APPOSITIONAL_QUANTIFIER_LEMMAS``."""
+    item = _blank("verben_reflexiv_akk", "Um zwei Uhr treffen wir uns alle vor dem Haupteingang.")
+    assert item.proposed_answer == "uns"
+    _, dat_candidates = _select(
+        "verben_reflexiv_dat", "Um zwei Uhr treffen wir uns alle vor dem Haupteingang."
+    )
+    assert dat_candidates == []
+
+
+def test_verben_reflexiv_akk_routes_sich_treffen_past_a_temporal_accusative() -> None:
+    """docs/audits/cycle-09-report.md 1.1: "Sie treffen sich heute Nachmittag
+    mit Ihrer Freundin." -- "heute Nachmittag" is an accusative time
+    adverbial, not an object, wrongly counted as one by the old rule.
+    Closed by reusing ``paradigms.TEMPORAL_ANCHOR_LEMMAS`` (this task's own
+    instruction: reuse the existing list rather than a second one)."""
+    item = _blank("verben_reflexiv_akk", "Sie treffen sich heute Nachmittag mit Ihrer Freundin.")
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select(
+        "verben_reflexiv_dat", "Sie treffen sich heute Nachmittag mit Ihrer Freundin."
+    )
+    assert dat_candidates == []
+
+
+def test_verben_reflexiv_akk_routes_sich_ansammeln_past_a_mistagged_subject() -> None:
+    """docs/audits/cycle-09-report.md 1.1: "...weil sich darauf viel Staub
+    angesammelt hat." -- "viel Staub" is the clause's genuine Nominative
+    SUBJECT, but spaCy persistently mistags it ``Case=Acc`` in this exact
+    postposed-subject-after-fronted-reflexive word order (confirmed against
+    several rewordings), so the old rule counted it as an object. Closed by
+    ``paradigms.ACCUSATIVE_ONLY_REFLEXIVE_VERBS`` -- "ansammeln" is
+    genuinely accusative-reflexive-only, so no object scan is needed (or
+    safe) for it at all."""
+    sentence = "Der Keller wurde feucht, weil sich darauf viel Staub angesammelt hat."
+    item = _blank("verben_reflexiv_akk", sentence)
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select("verben_reflexiv_dat", sentence)
     assert dat_candidates == []
 
 
@@ -1290,10 +1384,26 @@ def test_konjunktiv_ii_irreal_gegenwart_still_fires_on_a_genuine_hypothetical_st
 
 
 def test_konjunktiv_ii_vergangenheit_finds_a_past_counterfactual() -> None:
-    item = _blank(
+    """docs/audits/cycle-09-report.md 1.7's own bidirectional-participle fix
+    (``_select_konjunktiv_ii_base``/``_select_konjunktiv_ii_vergangenheit``,
+    both now checking BEFORE the aux as well as after, clause-bounded) has
+    a positive side effect on this exact sentence: "Wenn ich das gewusst
+    ___, wäre ich nicht gekommen." has TWO genuine Konjunktiv II
+    Vergangenheit slots, not one -- "hätte" (wenn-clause, its own participle
+    "gewusst" BEFORE it) and "wäre" (main clause, its own participle
+    "gekommen" after it). Before this fix, "hätte" was accidentally
+    excluded: the old unbounded, after-only participle search from "hätte"
+    reached across the comma into the MAIN clause's "gekommen" and,
+    because "gekommen" (a sein-verb) mismatched "hätte"'s own haben-aux,
+    was filtered out by what turned out to be a correct exclusion for the
+    wrong reason -- masking, not fixing, the missing before-check this task
+    closes. Both members are pinned here instead of assuming a single
+    candidate."""
+    tagged, candidates = _select(
         "konjunktiv_ii_vergangenheit", "Wenn ich das gewusst hätte, wäre ich nicht gekommen."
     )
-    assert item.proposed_answer == "wäre"
+    surface = {tagged.tokens[c.token_index].text for c in candidates}
+    assert surface == {"hätte", "wäre"}
 
 
 # ==============================================================================
@@ -1411,6 +1521,38 @@ def test_futur_i_does_not_fire_when_a_participle_follows() -> None:
     """That shape belongs to futur_ii, not futur_i."""
     _, candidates = _select("futur_i", "Er wird das Buch gelesen haben.")
     assert candidates == []
+
+
+def test_futur_i_does_not_fire_on_a_present_passive() -> None:
+    """docs/audits/cycle-09-report.md 1.2: "werden" plus a past participle is
+    the present passive (Vorgangspassiv), not Futur I -- the old check
+    accepted it merely because no participle happened to follow "wird"
+    (Futur II's own shape), never checking whether a genuine INFINITIVE was
+    actually present either. Fixed by requiring a real infinitive
+    (``_MODAL_INFINITIVE_TAGS``) in the clause and rejecting outright if any
+    participle (``VVPP``) shares it, closing the gap that also starved
+    ``passiv_praesens`` (both are one selector bug)."""
+    item = _blank("futur_i", "Ich werde morgen ins Kino gehen.")
+    assert item.proposed_answer == "werde"
+    _, candidates = _select("futur_i", "Die Suppe wird jeden Tag frisch gekocht.")
+    assert candidates == []
+    passiv_item = _blank("passiv_praesens", "Die Suppe wird jeden Tag frisch gekocht.")
+    assert passiv_item.proposed_answer == "wird"
+
+    # The exact two reported sentences: futur_i no longer wrongly claims
+    # either. Neither yields a passiv_praesens item either, but for a
+    # separate, unrelated, and already-documented reason outside this
+    # task's scope -- both participles are separable-prefix verbs
+    # ("anbraten", "aufladen") that de_core_news_sm mistags ``VVIZU``
+    # instead of ``VVPP`` in this exact context (confirmed directly), which
+    # is the tag ``passiv_praesens``'s own participle search requires and a
+    # gap this task's fix does not, and was never asked to, close.
+    for sentence in (
+        "Das Fleisch wird scharf angebraten, wenn ein tolles Aroma entstehen soll.",
+        "Das Smartphone wird jetzt aufgeladen, damit Sie es am Abend sofort nutzen können.",
+    ):
+        _, futur_candidates = _select("futur_i", sentence)
+        assert futur_candidates == []
 
 
 def test_futur_ii_finds_werden_plus_participle_plus_haben() -> None:
@@ -1840,19 +1982,92 @@ def test_cue_case_matched_to_answer_tolerates_an_empty_cue() -> None:
     assert selectors._cue_case_matched_to_answer("", "Ihrer") == ""
 
 
+# -- TODO.md 1.3: the determiner cue no longer reads the head noun's gender
+# at all --------------------------------------------------------------------
+#
+# docs/audits/cycle-09-report.md's own two examples: the OLD design read the
+# cue's gender off the head noun's own tagged ``Gender``, which can disagree
+# with the determiner's own (agreement-consistent) tag on the identical noun
+# phrase -- "einen ... Orangensaft" (masculine) got cued "(eine)" because
+# "Orangensaft" itself was independently mistagged ``Gender=Fem``, and "das
+# ... Zimmer" (neuter) got cued "(die)" the same way. TODO.md 2.1 (Part A,
+# owner's decision) does not merely correct the lookup -- it removes the
+# lookup entirely: ``_determiner_cue`` never reads ANY noun's gender, head or
+# otherwise, so this defect class cannot recur structurally, not just by a
+# fixed bug. These tests pin that per gender, not just assume Part A makes
+# task 1.3 moot (this task's own explicit instruction), using the exact
+# reported sentences plus one direct case per gender.
+
+
+def test_determiner_cue_is_invariant_for_the_reported_orangensaft_sentence() -> None:
+    """The exact cycle-9 example: "Orangensaft" is masculine and correctly
+    tagged so on its own governing determiner ("einen"), but was
+    independently mistagged ``Gender=Fem`` on the noun itself -- the old,
+    now-removed head-noun lookup would have cued "eine". The invariant cue
+    is "ein" regardless, because it never reads the noun at all."""
+    tagged, candidates = _select(
+        "kasus_akkusativ_formen",
+        "Zum Frühstück trinkt er immer einen frisch gepressten Orangensaft.",
+    )
+    einen = next(c for c in candidates if tagged.tokens[c.token_index].text == "einen")
+    assert einen.cue == "ein"
+
+
+def test_determiner_cue_is_invariant_for_the_reported_zimmer_sentence() -> None:
+    """The exact cycle-9 example: "Zimmer" is neuter; the old, now-removed
+    head-noun lookup cued "die" for the definite article "das" here. The
+    invariant cue is "der" (the definite family's own citation form)
+    regardless of the noun's gender, correct or mistagged."""
+    tagged, candidates = _select(
+        "kasus_akkusativ_formen",
+        "Morgen möchte ich gerne den schweren Schrank in das andere Zimmer schieben.",
+    )
+    den = next(c for c in candidates if tagged.tokens[c.token_index].text == "den")
+    assert den.cue == "der"
+
+
+@pytest.mark.parametrize(
+    "sentence,answer_text,expected_cue",
+    [
+        # Masculine head noun ("der Tisch").
+        ("Ich sehe den Tisch.", "den", "der"),
+        # Feminine head noun ("die Lampe").
+        ("Ich sehe die Lampe.", "die", "der"),
+        # Neuter head noun ("das Auto").
+        ("Ich sehe das Auto.", "das", "der"),
+        # Plural head noun ("die Bücher").
+        ("Ich sehe die Bücher.", "die", "der"),
+    ],
+)
+def test_determiner_cue_is_invariant_der_regardless_of_head_noun_gender(
+    sentence: str, answer_text: str, expected_cue: str
+) -> None:
+    """One case per gender (plus plural): the definite-article cue is
+    always the literal invariant "der", never agreed to the head noun's
+    own gender/number -- the class of defect TODO.md 1.3 reports is closed
+    structurally, not merely for the two reported sentences."""
+    tagged, candidates = _select("kasus_akkusativ_formen", sentence)
+    target = next(c for c in candidates if tagged.tokens[c.token_index].text == answer_text)
+    assert target.cue == expected_cue
+
+
 def test_praepositionen_dativ_cue_matches_the_formal_sie_possessives_case() -> None:
-    """docs/audits/cycle-08-report.md: 'Sie kochen oft zusammen mit ___
-    (ihre) Familie ...' -> 'Ihrer'. The formal register capitalises the
-    whole ``Ihr``-family; before this fix the cue came back lowercase
-    'ihre' (the paradigm table's own storage case, not the answer's),
-    handing a learner who typed exactly 'ihre' a capitalisation FAIL
-    against the strict-cased grader (``typo_grader.ScopedTypoGrader``)."""
+    """docs/audits/cycle-08-report.md's own finding still holds -- the
+    formal register capitalises the whole ``Ihr``-family, so the cue's
+    case must match the answer's ('Ihrer'), never the paradigm table's own
+    lowercase storage case -- but TODO.md 2.1 (owner's decision, cycle 9)
+    changed WHAT the cue is: the invariant citation stem 'ihr', not the
+    head-noun-gender-agreed form 'ihre' this test used to pin. 'Sie kochen
+    oft zusammen mit ___ (ihre) Familie ...' -> 'Ihrer' now cues 'Ihr', not
+    'Ihre' -- the learner works out the ending (gender AND case) instead of
+    being handed the gender for free. Case-matching itself (capitalised for
+    formal ``Sie``) is unchanged and still tested here."""
     item = _blank(
         "praepositionen_dativ",
         "Kochen Sie oft zusammen mit Ihrer Familie und laden Sie Freunde ein?",
     )
     assert item.proposed_answer == "Ihrer"
-    assert item.cue == "Ihre"
+    assert item.cue == "Ihr"
     assert item.cue is not None
     assert item.cue[:1].isupper() == item.proposed_answer[:1].isupper()
 

@@ -978,6 +978,31 @@ DATIVE_REFLEXIVE_VERBS: frozenset[str] = (
     DATIVE_REFLEXIVE_VERBS_WITH_OBJECT | DATIVE_REFLEXIVE_VERBS_NO_OBJECT
 )
 
+# TODO.md 1.1: the mirror image of ``DATIVE_REFLEXIVE_VERBS_NO_OBJECT`` --
+# verbs whose reflexive object is genuinely ALWAYS Accusative, intransitive
+# (no "sich (Dat) etwas VERB" reading exists for any of these the way it
+# does for the ``_WITH_OBJECT`` set above), so ``selectors._reflexive_case``
+# trusts this list unconditionally rather than running its own same-clause
+# accusative-object scan for them at all.
+#
+# Added because that scan is itself a heuristic over spaCy's own ``Case``
+# tags, and confirmed empirically (docs/audits/cycle-09-report.md) that the
+# tagger can mistag a postposed bare-NP SUBJECT as Accusative rather than
+# Nominative in exactly the word order these verbs' own reflexive
+# construction produces: "..., weil sich darauf viel Staub angesammelt
+# hat." tags "Staub" (the genuine Nominative subject of "sich ansammeln")
+# ``Case=Acc`` regardless of the surrounding sentence, confirmed against
+# several rewordings, not a one-off. The scan cannot tell that mistagged
+# subject apart from a real object by Case alone; a verb known to never
+# take a further object needs no such scan in the first place. "freuen",
+# "treffen" and "ändern" are the cycle-4 report's own three counter-
+# examples for exactly this reason (see that report's docstring above);
+# "ansammeln" and "beeilen" are the same class, confirmed against this
+# task's own reported items.
+ACCUSATIVE_ONLY_REFLEXIVE_VERBS: frozenset[str] = frozenset(
+    {"freuen", "treffen", "ändern", "ansammeln", "beeilen"}
+)
+
 # ==============================================================================
 # Tense anchoring (docs/audits/cycle-06-report.md's next-cycle task): a bare
 # ``sein``/``haben``/``werden`` finite form ("ist"/"war", "hat"/"hatte",

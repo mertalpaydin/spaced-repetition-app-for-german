@@ -182,24 +182,31 @@ recorded here rather than left implicit:
    class than "which two verbs are obligatorily transitive"), which this
    module does not attempt to enumerate.
 
-6. **Swiss `ss` for standard `ß`.** Seen once (`heisse` for `heiße`). The
-   general rule -- `ß` after a long vowel or diphthong, `ss` after a short
-   one -- is exactly the kind of thing this module refuses to guess at
-   without a word list: "Fluss", "dass", and "muss" are correct with `ss`
-   precisely because their vowel is short, and nothing in the surface
-   spelling of a single vowel letter reliably says whether German
-   pronounces it long or short (contrast "Fluss" short /background of "u"
-   vs. "Fuß" long, spelled with the same single letter "u"). Flagging every
-   `ss` would reject a large fraction of genuinely correct sentences, and
-   this module has no vetted word list of which lemmas take `ß` to consult
-   instead, so **no general ss/ß rule is implemented.** What IS implemented
-   is much narrower and needs no word list at all: a fixed, closed set of
-   literal Swiss-spelled surface forms of exactly one verb, "heißen"
+6. **Swiss `ss` for standard `ß`.** Seen once (`heisse` for `heiße`). At the
+   time this section was first written, the general rule -- `ß` after a
+   long vowel or diphthong, `ss` after a short one -- looked like exactly
+   the kind of thing this module refuses to guess at without a word list:
+   "Fluss", "dass", and "muss" are correct with `ss` precisely because
+   their vowel is short, and nothing in the surface spelling of a single
+   vowel LETTER reliably says whether German pronounces it long or short
+   (contrast "Fluss" short vs. "Fuß" long, spelled with the same single
+   letter "u"). **docs/audits/cycle-09-report.md 1.4 revisits this and
+   ships the DIPHTHONG half of the rule generally** (see
+   `_SWISS_DIPHTHONG_SS_PATTERN`'s own comment for the empirical dictionary
+   check behind it): a diphthong ("ei"/"eu"/"äu"/"ie") is two vowel LETTERS
+   forming one sound, always long by definition, so the ambiguity that
+   blocks a general rule for a single vowel letter does not apply to a
+   diphthong at all. The long-vowel-single-LETTER half of the rule
+   ("groß", "Straße", "Fuß", "Maß", "Spaß") still has no general answer for
+   the reason above, and stays a closed list -- what was originally
+   implemented here is that closed list's first, narrowest member: a fixed
+   set of literal Swiss-spelled surface forms of exactly one verb, "heißen"
    ("heisse", "heisst", "heissen", "heissend", "hiess", "hiessen",
    "geheissen"), matched on the raw sentence text before spaCy ever sees
    it. "heißen" always takes `ß` in every standard-German form regardless
    of context, so there is no ambiguity to misjudge for this one closed
-   list, but it catches nothing outside these seven forms.
+   list -- section 11 below has the general diphthong rule and the rest of
+   the long-vowel closed list this cycle adds.
 
 ## Cycle 6 additions, and one investigated but NOT added
 
@@ -436,6 +443,73 @@ positive regression trying to.
     -- a POS-tagged verb lexicon would be needed to close that, and this
     repository does not have one.
 
+11. **Swiss `ss` for standard `ß`, generalised: the diphthong half of the
+    rule.** docs/audits/cycle-09-report.md 1.4: the closed-list approach
+    (sections 6 and 7) caught the class exactly once in a full pilot run
+    ("Schliesslich", "draussen" both went uncaught), because it only ever
+    covered two lexemes ("heißen", "groß") out of an open class. Section 6
+    above explains why the general rule is now safe for HALF of the
+    original ss/ß question -- diphthongs ("ei"/"eu"/"äu"/"ie") are always
+    long, so `_SWISS_DIPHTHONG_SS_PATTERN` (module level, see its own
+    comment) catches any of the four immediately followed by `ss`, verified
+    against the vendored dictionary (236 matches, all but one -- "diesseits",
+    a genuine compound-boundary `ss` excluded by name -- real ß-words spelled
+    Swiss). Catches "schliesslich", "heisst" (already covered by section 6's
+    own list too; harmless overlap), and "weiss" (case-sensitive, lowercase
+    only, for the same surname reason as "groß" -- "Weiss" is attested too).
+
+    **"au" stays a closed list, not a general rule, and this is a deliberate,
+    checked narrowing, not an oversight.** The same dictionary check applied
+    to "au" immediately followed by `ss` returns 140 matches, and the large
+    majority -- "aussage", "ausschalten", "aussehen", "aussteigen",
+    "ausstellen", "voraussetzung", dozens more -- are ordinary "aus-" prefix
+    compounds (an extremely productive separable/inseparable verb prefix)
+    plus an s-initial stem: standard German, correctly spelled with `ss`
+    because the `ss` is two DIFFERENT morphemes' consonants meeting at a
+    prefix boundary, never a single-morpheme diphthong-plus-ß the way
+    "draußen"/"außen"/"außer" are. A general "au"+`ss` rule would reject
+    "aussteigen", "ausschließlich" (itself containing a genuine `ie`+ß
+    later in the same word -- the general rule already catches it for that
+    reason, without needing "au" at all) and dozens more completely correct
+    sentences. `_SWISS_DRAUSSEN_PATTERN` closed-lists exactly the one "au"
+    lexeme TODO.md 1.4 names ("draussen") instead.
+
+    **The long-vowel-STEM half of the original rule (a single vowel LETTER,
+    not a diphthong) is still a closed list, for the identical reason
+    section 6 gives** -- `_SWISS_LONG_VOWEL_STEM_PATTERN` extends it by the
+    four lexemes TODO.md 1.4 names beyond "groß": "Straße" -> "strasse",
+    "Fuß"/"Füße" -> "fuss"/"füsse", "Maß" -> "mass" (bare word only, see
+    below), "Spaß" -> "spass". Matched case-insensitively, unlike "groß"/
+    "weiß": all four are common nouns, and German always capitalises a
+    common noun in ordinary use, so a lowercase-only match (the right
+    choice for an adjective, capitalised only by sentence position) would
+    catch almost nothing here.
+
+    **Known cost, recorded rather than discovered later, per this task's
+    own instruction:**
+    - "Masse"/"Massen" (the Swiss spelling of "Maße", plural of "Maß") is
+      NOT caught. "Masse"/"Massen" is itself standard, unrelated German
+      ("mass, crowd", genuinely short-vowel), so including it would reject
+      correct sentences about crowds or physical mass -- the same false-
+      positive-over-false-negative choice section 7 already made for
+      "Gross" the surname. Only the bare nominative/genitive "mass"/
+      "masses" are caught.
+    - "außen"/"außer" and their own compounds ("außerdem",
+      "außergewöhnlich", "außenminister", ...) are NOT caught beyond the
+      one literal "draussen" TODO.md 1.4 names -- the same "au"-prefix
+      ambiguity above applies to them (e.g. "aussenden", "aus" + "senden",
+      is a real, unrelated, correctly-`ss`-spelled standard word that
+      collides with a naive "aussen"-prefix match), and resolving it
+      lexeme-by-lexeme was judged out of this task's scope. A future cycle
+      that finds one of these live in a pilot run should extend
+      `_SWISS_DRAUSSEN_PATTERN`'s sibling list the same closed-list way,
+      not attempt a broader "au" rule.
+    - Any OTHER Swiss-spelled long-vowel-single-LETTER word outside this
+      closed list ("Maße" itself before the plural collision above, "Soße"
+      -> "Sosse", ...) is still uncaught, unchanged from section 7's own
+      standing limitation -- this task closed the specific lexemes TODO.md
+      1.4 named, not the open class.
+
 ## Why this module loads its own spaCy pipeline
 
 ``src.taxonomy.tagger`` and ``src.generation.blanking.sentence_tagger`` both
@@ -549,6 +623,77 @@ _SWISS_HEISSEN_PATTERN = re.compile(
 # use while avoiding a false accusation against a real name.
 _SWISS_GROSS_PATTERN = re.compile(r"\b(?:gross|grosse|grossem|grossen|grosser|grosses)\b")
 
+# docs/audits/cycle-09-report.md 1.4: a general rule, not another one-word
+# closed list. German's own long/short vowel rule for ss-vs-ß ("ß after a
+# long vowel or diphthong, ss after a short one") generalises cleanly for
+# the DIPHTHONG half specifically: "ei"/"eu"/"äu"/"ie" are long by
+# definition (two vowel letters making one sound), so standard German never
+# spells one of them followed by "ss" within a single morpheme -- it always
+# writes "ß" there instead ("schließen", "heißen", "weiß", "reißen", ...).
+# There is no short-vowel reading of a digraph to misjudge the way a single
+# vowel LETTER has one (the module docstring's own "Fluss" short vs. "Fuß"
+# long example, same "u" letter) -- that asymmetry is exactly why the long
+# VOWEL half of the rule still needs a closed list below, while the
+# diphthong half does not.
+#
+# Verified empirically against the vendored dictionary
+# (`data/fixtures/corpus/frequency/de_dictionary_filter.txt`, already
+# normalised so every real ß-word in it is stored ss-spelled -- see section
+# 7): 236 entries match this pattern, and all but one ("diesseits" --
+# "dies" + "seits", a genuine compound-boundary "ss", not a ß-word in
+# standard spelling either) are real ß-words. "jenseits" does not itself
+# match but is the same compound family, so both are excluded on purpose,
+# not because either was individually reported.
+#
+# "au" is deliberately NOT in this general pattern, even though "draußen"
+# needs it (handled in the closed list below instead): checked the same
+# way against the dictionary, "au" immediately followed by "ss" matches 140
+# entries, and the large majority -- "aussage", "ausschalten", "aussehen",
+# "aussetzen", "aussteigen", "ausstellen", "voraussetzung", and more -- are
+# ordinary "aus-" prefix compounds (a hugely productive separable/
+# inseparable verb prefix) plus an s-initial stem, standard German spelled
+# with "ss" precisely because the "ss" is two DIFFERENT morphemes'
+# consonants meeting, never a single-morpheme diphthong-plus-ß the way
+# "draußen"/"außen"/"außer" are. There is no cheap way to tell the two
+# apart without a lexicon, so "au" is handled by an explicit closed list
+# instead, the same way "groß" already is.
+_SWISS_DIPHTHONG_SS_PATTERN = re.compile(r"\b\w*(?:ei|eu|äu|ie)ss\w*\b", re.IGNORECASE)
+_SWISS_DIPHTHONG_SS_EXCLUSIONS: frozenset[str] = frozenset({"diesseits", "jenseits"})
+
+# The "au" diphthong, closed-list handled per the comment above.
+# Case-insensitive: "draussen" is an adverb with no plausible surname
+# collision (unlike "Gross"/"Weiss" below).
+_SWISS_DRAUSSEN_PATTERN = re.compile(r"\bdraussen\b", re.IGNORECASE)
+
+# The long-vowel-STEM half of the rule TODO.md 1.4 also names ("Strasse",
+# "Fuss", "Mass", "Spass"): a single vowel LETTER carries no long/short
+# information this module (or the tagger) can read -- "Fluss" (short "u")
+# and "Fuß" (long "u") share the identical letter -- so, exactly as section
+# 7 already argues for "groß", these are a closed list of the specific
+# lexemes named, not a rule. Matched case-insensitively, unlike "groß"/
+# "weiß" below: all four are common nouns, which German always capitalises
+# in normal use ("die Straße", "der Fuß", "das Maß", "der Spaß"), so a
+# lowercase-only match would catch almost nothing -- the opposite tradeoff
+# from an adjective, which is capitalised only by accident of position.
+# "mass" is deliberately bounded to the bare word (never "masse"/"massen"):
+# "Masse"/"Massen" IS itself standard German ("mass, crowd", genuinely
+# short-vowel, unrelated in meaning to "Maß") and would collide directly --
+# a real, reported false-negative for the Swiss plural of "Maß" ("Maße" ->
+# "Masse"), the identical kind of gap section 7 already accepts for "Gross"
+# as a surname.
+_SWISS_LONG_VOWEL_STEM_PATTERN = re.compile(
+    r"\b(?:strasse\w*|fuss(?:es)?|füsse\w*|mass(?:es)?|spass(?:es)?)\b",
+    re.IGNORECASE,
+)
+
+# "weiß" -- both the adjective ("weiß"/"weiße"/...) and "wissen"'s own
+# "ich weiß"/"du weißt" forms share this spelling -- needs the same
+# surname protection "groß" gets ("Weiss" is an attested German surname,
+# paired with "Gross" in section 7's own note), so it stays its own
+# lowercase-only pattern rather than joining the case-insensitive diphthong
+# rule above.
+_SWISS_WEISS_PATTERN = re.compile(r"\b(?:weiss|weisse|weissem|weissen|weisser|weisses|weisst)\b")
+
 # Path to the same vendored dictionary used, and found insufficient for the
 # ss/ß question, in module docstring section 7 -- reused here for section
 # 10's finite-verb lexical-reality check, where it IS sufficient (that
@@ -657,18 +802,50 @@ def _is_finite(token: SpacyToken) -> bool:
     return token.tag_ in _FINITE_TAGS and token.pos_ in ("VERB", "AUX")
 
 
+def _has_swiss_diphthong_spelling(text: str) -> bool:
+    """The general diphthong-plus-``ss`` rule (module-level
+    ``_SWISS_DIPHTHONG_SS_PATTERN``, see its own comment for the rule and
+    the dictionary check behind it), with the two exceptions that pattern
+    alone cannot express:
+
+    * ``_SWISS_DIPHTHONG_SS_EXCLUSIONS`` -- "diesseits"/"jenseits", the one
+      compound-boundary false positive the dictionary check found.
+    * "weiss" and its own inflections are matched CASE-SENSITIVELY here,
+      not case-insensitively like the rest of the pattern's matches --
+      "Weiss" is an attested German surname (``_SWISS_WEISS_PATTERN``'s own
+      comment), the identical protection ``_SWISS_GROSS_PATTERN`` already
+      gives "Gross"."""
+    for match in _SWISS_DIPHTHONG_SS_PATTERN.finditer(text):
+        word = match.group(0)
+        lowered = word.lower()
+        if lowered in _SWISS_DIPHTHONG_SS_EXCLUSIONS:
+            continue
+        if lowered.startswith("weiss") and word != lowered:
+            continue
+        return True
+    return False
+
+
 def _sentence_shape_reason(text: str) -> str | None:
     """Cheap, parser-free structural checks: capitalisation, terminal
-    punctuation, and the closed Swiss-spelling word list. Run before spaCy
-    touches the sentence at all, since none of these need a parse to
-    decide."""
+    punctuation, and the Swiss-spelling checks (module docstring sections 6
+    and 7, and the general diphthong rule docs/audits/cycle-09-report.md
+    1.4 adds). Run before spaCy touches the sentence at all, since none of
+    these need a parse to decide."""
     stripped = text.strip()
     first_alpha = next((ch for ch in stripped if ch.isalpha()), None)
     if first_alpha is not None and not first_alpha.isupper():
         return REASON_NOT_CAPITALIZED
     if not _TERMINAL_PUNCTUATION.search(stripped):
         return REASON_NO_TERMINAL_PUNCTUATION
-    if _SWISS_HEISSEN_PATTERN.search(stripped) or _SWISS_GROSS_PATTERN.search(stripped):
+    if (
+        _SWISS_HEISSEN_PATTERN.search(stripped)
+        or _SWISS_GROSS_PATTERN.search(stripped)
+        or _SWISS_WEISS_PATTERN.search(stripped)
+        or _SWISS_DRAUSSEN_PATTERN.search(stripped)
+        or _SWISS_LONG_VOWEL_STEM_PATTERN.search(stripped)
+        or _has_swiss_diphthong_spelling(stripped)
+    ):
         return REASON_SWISS_SPELLING
     return None
 

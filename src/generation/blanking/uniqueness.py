@@ -70,20 +70,31 @@ one accepted answer among several equally grammatical ones.
      indicative-shaped form of the same construction exists at all), Futur
      I/II (``werden`` plus a clause-final infinitive -- no ordinary German
      construction pairs a trailing infinitive with "wurde" the same way),
-     and Perfekt/Plusquamperfekt (``haben``/``sein`` plus a Partizip II in
-     the same clause, aux choice and Zustandspassiv-vs-Perfekt both already
-     decided by the participle's own lemma against
-     ``paradigms.AUX_SEIN_LEMMAS``/``TRANSITIVE_LEMMAS``, the same disjoint
-     pair ``selectors.py`` itself uses). Zustandspassiv is deliberately NOT
-     in this list -- it is the report's own worked example, and a
-     participle alone does not fix its tense (a Zustandspassiv participle's
-     lemma is never in ``AUX_SEIN_LEMMAS``, so it falls through to anchor 2
-     or 3 like any other bare aux).
+     and Perfekt (``haben``/``sein`` plus a Partizip II in the same clause,
+     with the candidate itself in the PRESENT-tense aux cell -- aux choice
+     and Zustandspassiv-vs-Perfekt both already decided by the participle's
+     own lemma against ``paradigms.AUX_SEIN_LEMMAS``/``TRANSITIVE_LEMMAS``,
+     the same disjoint pair ``selectors.py`` itself uses). Zustandspassiv is
+     deliberately NOT in this list -- it is the report's own worked
+     example, and a participle alone does not fix its tense (a
+     Zustandspassiv participle's lemma is never in ``AUX_SEIN_LEMMAS``, so
+     it falls through to anchor 2 or 3 like any other bare aux).
+
+     Plusquamperfekt (the SAME shape, candidate in the PAST-tense aux cell
+     -- "hatte"/"hatten"/"war"/"waren") is deliberately EXCLUDED from this
+     anchor as of docs/audits/cycle-09-report.md 1.6: a participle in the
+     clause proves the construction is Perfekt-or-Plusquamperfekt, not
+     which of the two, and "er hatte gegessen" reads exactly as naturally
+     as "er hat gegessen" with nothing else in the sentence to decide
+     between them -- the pilot's own verifier caught this confusion 15
+     times ("hatte" vs "habe", "war" vs "bin", "hatten" vs "haben"). This
+     population is routed to its own narrower anchor instead; see the
+     dedicated bullet below.
   2. **An explicit time expression** (``_temporal_expression_anchor``) --
      ``paradigms.TEMPORAL_ANCHOR_LEMMAS``, the same closed list
      ``scripts/check_gold_examples.py`` already uses for its own
      ``temporal_anchor`` forcing-element check, reused here rather than
-     redeclared.
+     redeclared. Never reached by a Plusquamperfekt candidate (see below).
   3. **A genuinely subordinated sibling clause with matching tense**
      (``_sibling_clause_tense_anchor``) -- the report's own "Obwohl die
      neuen Vorschriften sehr streng ___, bitten wir um Ihr Verständnis."
@@ -93,11 +104,26 @@ one accepted answer among several equally grammatical ones.
      the report's OTHER example does not turn into a false anchor: "aber"
      COORDINATES two independent clauses with no tense relationship at all,
      which a naive "some other finite verb in the sentence has a matching
-     Tense" check would wrongly accept.
+     Tense" check would wrongly accept. Never reached by a Plusquamperfekt
+     candidate either.
 
   No anchor of any of the three kinds: the candidate is skipped
   (``auxiliary_tense_unanchored``), exactly the standing standard's "no
   anchor, no item".
+
+* **Plusquamperfekt specifically** (``_is_plusquamperfekt_shape`` /
+  ``_has_anteriority_marker``, docs/audits/cycle-09-report.md 1.6) --
+  excluded from anchor 1 above for the reason just given, and deliberately
+  NOT routed to anchor 2 either: that list's "zuvor"/"davor"/"damals"/
+  "vorher"/"schließlich" entries are bare adverbs that state WHEN, not that
+  one event precedes another, and the verifier caught exactly those
+  standing in for a real anchor ("Kurz zuvor ___ ich ... gelaufen." and
+  "Davor ___ ich ... gehängt." were both rejected as equally natural in
+  Perfekt). The real anchor is narrower: an explicit ``bevor``/``nachdem``
+  clause naming the ordering directly, or a genuine second past-tense
+  event in another clause (``_has_anteriority_marker``'s own docstring has
+  both worked examples from the accepted pilot set). No anchor of either
+  kind: skipped, same as any other unanchored aux.
 
 * ``personal_pronoun`` -- **ambiguous unless the carrier itself supplies an
   anchor.** A NOMINATIVE personal pronoun is trusted on the strength of the
@@ -228,24 +254,29 @@ one accepted answer among several equally grammatical ones.
   lexical choice almost everywhere one of these topics blanks one ("Nach
   der Arbeit" also admits "meiner"/"dieser"/"jeder" -- same case, same
   gender, different lexeme entirely). ``Candidate.cue``
-  (``selectors._determiner_cue``) is the determiner's own Nominative
-  citation form, agreeing with the HEAD NOUN's gender/number -- the fact
+  (``selectors._determiner_cue``) is, as of the owner's TODO.md 2.1
+  decision, the determiner FAMILY's own invariant citation form (always
+  "der"/"ein"/"kein", or the possessive's own uninflected stem) -- the fact
   "der Arbeit" alone does not supply: which FAMILY the word belongs to,
-  leaving only the case-form inflection for the learner to work out.
+  leaving case AND gender for the learner to work out from the sentence
+  itself (superseding an earlier design that agreed the cue to the head
+  noun's own gender, handing that fact over for free -- see ``selectors.
+  _determiner_cue``'s own docstring for why, and for the confirmed defect
+  that design had independently of the owner's decision to replace it).
+  Present for essentially every candidate of this kind now, definite/
+  indefinite/negative always and possessive whenever the token matches the
+  ein-word paradigm at all (see that function's own ``None`` case).
   ``Candidate.lexeme_anchored`` is the narrower, unconditional escape hatch
-  for the two selectors whose own forcing anchor already rules out every
-  rival family, not merely the blanked cell (``_select_artikel_unbestimmt_
-  kein_nom``'s causal ``weil``-clause negation, and ``_select_artikel_
-  possessiv_nom``'s possessive-person anchor, out of this report's own
-  scope and left exactly as it already behaved) -- see ``Candidate.
-  lexeme_anchored``'s own docstring for why ``artikel_bestimmt_nom`` is
-  deliberately NOT in that set even though it also has a forcing anchor:
-  its own anchor only rules out the indefinite family, not a possessive or
-  demonstrative one, so it still needs (and, because its own blanked cell
-  is already Nominative, can never receive) a cue -- see
-  ``selectors._determiner_cue``'s own docstring for why that is the correct
-  behaviour, not a bug, and docs/audits/cycle-07-report.md's own count of
-  how many items this costs that topic.
+  this module trusted before a cue existed for these candidates at all
+  (``_select_artikel_unbestimmt_kein_nom``'s causal ``weil``-clause
+  negation, and ``_select_artikel_possessiv_nom``'s possessive-person
+  anchor) -- both selectors still compute and record it, but a cue alone
+  already passes this gate now, so it is no longer load-bearing for either.
+  ``artikel_bestimmt_nom`` is deliberately NOT one of the two selectors
+  that sets it: its own anchor (``_definite_uniqueness_anchor``) only rules
+  out the indefinite family, not a possessive or demonstrative one, and
+  remains a REQUIRED gate at the selector level, unaffected by the cue rule
+  change -- see that selector's own comment.
 
 * ``adjective`` -- **ambiguous, UNLESS the candidate carries a cue, in
   which case it passes.** docs/audits/cycle-07-report.md section B: the
@@ -412,7 +443,23 @@ def _tense_forced_by_construction(sentence: TaggedSentence, candidate: Candidate
     A bare ``sein``/``haben``/``werden`` finite form with none of these
     shapes (``verb_sein_haben``, ``praeteritum_sein_haben_modal``'s own
     sein/haben half, plain Passiv, plain Zustandspassiv) returns ``False``
-    -- exactly the population this task exists to close."""
+    -- exactly the population this task exists to close.
+
+    docs/audits/cycle-09-report.md 1.6's own correction to this function:
+    a Partizip II sharing the clause fixes the CONSTRUCTION (Perfekt-or-
+    Plusquamperfekt, as opposed to Zustandspassiv/plain Passiv/bare copula),
+    but it does NOT by itself decide which of THOSE TWO the candidate is --
+    "er hatte gegessen" and "er hat gegessen" are both, in isolation, an
+    equally natural way to say the same thing, and the pilot's own verifier
+    caught this exact confusion 15 separate times ("hatte" vs "habe", "war"
+    vs "bin", "hatten" vs "haben"). So this function now only claims the
+    tense is forced by the shape ALONE when the candidate's own cell is
+    Perfekt (``tense_mood != "Past"``, i.e. a present-tense aux) -- German's
+    default, unmarked way to narrate a finished action, needing nothing
+    else to license it. A Plusquamperfekt cell (``tense_mood == "Past"``,
+    "hatte"/"hatten"/"war"/"waren") is never forced by the shape alone;
+    ``_auxiliary_tense_anchor_present`` routes it to ``_has_anteriority_marker``
+    instead, the narrower check this task adds."""
     if candidate.tense_mood == "SubjII":
         return True
     if candidate.lemma == "werden":
@@ -422,10 +469,73 @@ def _tense_forced_by_construction(sentence: TaggedSentence, candidate: Candidate
         if participle is None:
             return False
         if candidate.lemma == "haben":
-            return True
+            return candidate.tense_mood != "Past"
         part_lemma = participle.lemma.lower()
-        return part_lemma in paradigms.AUX_SEIN_LEMMAS
+        if part_lemma not in paradigms.AUX_SEIN_LEMMAS:
+            return False
+        return candidate.tense_mood != "Past"
     return False
+
+
+# The two German subordinators that introduce an explicit ANTERIORITY
+# relation ("this event finished before that one") rather than a merely
+# concurrent one -- the same pair ``paradigms.TENSE_CONCORDANT_SUBORDINATORS``'s
+# own comment names and deliberately excludes for the opposite reason (it
+# wants SAME-tense concordance, this wants a genuine tense DIFFERENCE).
+# Deliberately narrower than ``paradigms.TEMPORAL_ANCHOR_LEMMAS``, whose
+# broad list ("zuvor", "davor", "damals", "vorher", "schließlich"/
+# "schliesslich", "sofort", "gleich" -- all bare adverbs with no clause of
+# their own) is exactly what docs/audits/cycle-09-report.md 1.6 found the
+# verifier catching as an insufficient anchor for the Perfekt-vs-
+# Plusquamperfekt question specifically: "Kurz zuvor ___ ich ... gelaufen."
+# and "Davor ___ ich ... gehängt." were both rejected with "'war'/'hatte' is
+# no better than 'bin'/'habe' here" even though ``_temporal_expression_anchor``
+# already treated "zuvor"/"davor" as sufficient. A bare adverb states WHEN,
+# not that one event precedes another; only a subordinator that names the
+# ordering, or a second clause whose own verb is independently in the past,
+# does that.
+_ANTERIORITY_SUBORDINATORS: frozenset[str] = frozenset({"bevor", "nachdem"})
+
+
+def _is_plusquamperfekt_shape(sentence: TaggedSentence, candidate: Candidate) -> bool:
+    """Whether ``candidate`` is exactly the population
+    ``_tense_forced_by_construction`` now declines to anchor by shape alone:
+    a ``sein``/``haben`` finite form in the Past cell (Plusquamperfekt),
+    sharing its clause with a Partizip II that is not, for ``sein``, a
+    Zustandspassiv participle (``paradigms.AUX_SEIN_LEMMAS`` decides that the
+    same way ``_tense_forced_by_construction`` does). Used by
+    ``_auxiliary_tense_anchor_present`` to route this specific population to
+    ``_has_anteriority_marker`` instead of the generic, too-broad
+    ``_temporal_expression_anchor`` fallback."""
+    if candidate.lemma not in ("sein", "haben") or candidate.tense_mood != "Past":
+        return False
+    participle = _clause_participle(sentence, candidate)
+    if participle is None:
+        return False
+    if candidate.lemma == "sein" and participle.lemma.lower() not in paradigms.AUX_SEIN_LEMMAS:
+        return False
+    return True
+
+
+def _has_anteriority_marker(sentence: TaggedSentence, candidate: Candidate) -> bool:
+    """The narrow anchor a Plusquamperfekt candidate actually needs
+    (docs/audits/cycle-09-report.md 1.6): either an explicit ``bevor``/
+    ``nachdem`` clause naming the ordering directly, or a genuine second
+    past-tense event -- another clause, outside ``candidate``'s own
+    (``_clause_span``), with its own finite verb tagged ``Tense=Past``. Both
+    of ``_tense_forced_by_construction``'s Past-tense examples in the
+    accepted pilot set are the ``bevor`` shape ("Bevor der Unterricht ...
+    anfing, ___ ich meinen ... Rucksack ... gestellt."); the narrative-past
+    shape ("In der Hand hielt sie das Portemonnaie, das ihr Onkel ...
+    geschenkt ___.") is the second clause with its own past-tense verb.
+    Deliberately does NOT fall back to ``paradigms.TEMPORAL_ANCHOR_LEMMAS``
+    -- see ``_ANTERIORITY_SUBORDINATORS``'s own comment for why that list is
+    exactly what this task tightens against."""
+    if any(t.text.lower() in _ANTERIORITY_SUBORDINATORS for t in sentence.tokens):
+        return True
+    start, end = _clause_span(sentence, candidate.token_index)
+    other = sentence.tokens[:start] + sentence.tokens[end:]
+    return any(t.morph.get("VerbForm") == "Fin" and t.morph.get("Tense") == "Past" for t in other)
 
 
 def _sibling_clause_tense_anchor(sentence: TaggedSentence, candidate: Candidate) -> bool:
@@ -490,9 +600,19 @@ def _auxiliary_tense_anchor_present(sentence: TaggedSentence, candidate: Candida
     tense-anchor check: ``True`` when the tense is fixed by the
     construction's own shape, or by an explicit time expression, or by a
     genuinely subordinated sibling clause -- ``False``, "no anchor, no
-    item", otherwise."""
+    item", otherwise.
+
+    A Plusquamperfekt candidate (``_is_plusquamperfekt_shape``) is routed to
+    ``_has_anteriority_marker`` ALONE, never to the two generic fallbacks
+    below it -- docs/audits/cycle-09-report.md 1.6's finding was precisely
+    that ``_temporal_expression_anchor``'s broad adverb list was standing in
+    for that narrower check and passing sentences the verifier then caught,
+    so letting this population fall through to it again would silently
+    undo the fix."""
     if _tense_forced_by_construction(sentence, candidate):
         return True
+    if _is_plusquamperfekt_shape(sentence, candidate):
+        return _has_anteriority_marker(sentence, candidate)
     if _temporal_expression_anchor(sentence):
         return True
     return _sibling_clause_tense_anchor(sentence, candidate)

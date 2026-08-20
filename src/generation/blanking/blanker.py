@@ -50,7 +50,37 @@ more topics including these five.) ``_cue_equals_answer`` is a
 second, independent check of the same invariant ``selectors._citation_cue``
 already enforces at derivation time (a cue must never equal the answer it
 cues) -- reject the item outright if it is ever true, rather than trust a
-single guard for something this severe.
+single guard for something this severe. **Except for ``_determiner_outcome``**
+-- see that function's own comment, and the section below, for why a
+determiner cue is exempt from this specific check as of the owner's
+TODO.md 2.2 decision.
+
+## The cue rule for determiner slots (TODO.md 2.1, 2.2), and its history
+
+A determiner cue (``selectors._determiner_cue``) used to be the
+determiner's own Nominative form AGREED TO THE HEAD NOUN's gender/number --
+"Nach ___ (die) Arbeit" -> "der". The owner overruled this design: it handed
+the learner the noun's gender for free, leaving only the case to work out,
+and it read that gender off the head noun's own independently-tagged
+morphology rather than the determiner's own -- a real, confirmed defect
+(docs/audits/cycle-09-report.md, TODO.md 1.3) when the two disagree, which
+spaCy's tagger does often enough to matter. The cue is now the determiner
+FAMILY's own invariant citation form: always "der", always "ein", always
+"kein", or the possessive's own uninflected stem -- see ``selectors.
+_determiner_cue`` for the derivation. The learner works out gender and case
+from the cue plus the sentence; the family is no longer a free lexical
+choice they have to guess blind.
+
+**Consequence, stated by the owner verbatim in TODO.md 2.2:** "cue being the
+answer is not a problem if the problem still requires student to identify
+case, declension etc. so 'ein' can still be both clue and an answer if the
+exercise requires identify whether its ein, eine, einen etc." So
+``_determiner_outcome`` no longer runs ``_cue_equals_answer`` at all --
+every OTHER cued outcome builder in this module keeps it unchanged, because
+there the cue is derived from the answer's own inflected form and a match
+really is the tagger handing the answer back; a determiner cue is never
+derived from the answer's own inflected form to begin with, so a match is
+a coincidence of German morphology, not a leak.
 
 ## ``artikel_bestimmt_nom`` and its two siblings, revisited
 
@@ -79,10 +109,16 @@ outcome builder still unconditionally types ``cloze_free`` genuinely is
 solvable, so ``data/taxonomy.yaml`` now lists ``cloze_free`` alongside
 ``paragraph_cloze`` in all three topics' own ``eligible_types``, and
 ``pipeline.py``'s assertion passes these items through instead of skipping
-them. An UNANCHORED sentence for one of these three topics still yields no
-candidate at all -- that judgment did not change, only the topics' own
-selectors got strict enough to make it safe to stop blocking every item
-regardless of anchor.
+them. An UNANCHORED sentence for ``artikel_bestimmt_nom`` still yields no
+candidate at all -- that judgment did not change. TODO.md 2.1-2.3 (the
+invariant-citation-cue rule) removed the anchor REQUIREMENT for the other
+two (``artikel_unbestimmt_kein_nom``'s causal-clause anchor,
+``artikel_possessiv_nom``'s kinship-plus-person anchor) -- a determiner cue
+now closes the same free-lexical-choice-of-family gap the anchor used to be
+the only way to close, for every Nominative candidate of that family, not
+only the anchored ones; see ``selectors.py``'s own two selectors for where
+each anchor is still computed and recorded (``Candidate.lexeme_anchored``)
+but no longer gates candidacy.
 """
 
 from __future__ import annotations
@@ -145,7 +181,15 @@ def _cue_equals_answer(cue: str | None, answer: str) -> bool:
     guard should not alone be enough to leak an answer, and "reject rather
     than guess" (this module's own docstring) applies just as much to a
     defect in this pipeline's own earlier stage as to an unresolved
-    paradigm cell."""
+    paradigm cell.
+
+    Callers: every cued outcome builder except ``_determiner_outcome``
+    (TODO.md 2.2, the owner's own decision -- see that function's own
+    comment and this module's docstring section on the cue rule for
+    determiner slots). A determiner's cue is never derived from ``selectors.
+    _citation_cue`` in the first place, so this function's premise ("the
+    cue is the answer's own inflected form, reflected back") does not hold
+    for that one candidate kind."""
     return cue is not None and cue.lower() == answer.lower()
 
 
@@ -178,9 +222,27 @@ def _determiner_outcome(
     if reconstructed.lower() != token.text.lower():
         return BlankOutcome(None, "determiner_paradigm_mismatch")
 
-    if _cue_equals_answer(candidate.cue, token.text):
-        return BlankOutcome(None, "cue_equals_answer")
-
+    # TODO.md 2.2, owner's decision, recorded verbatim: "cue being the
+    # answer is not a problem if the problem still requires student to
+    # identify case, declension etc. so 'ein' can still be both clue and an
+    # answer if the exercise requires identify whether its ein, eine,
+    # einen etc." No ``_cue_equals_answer`` check here, deliberately --
+    # this is the one outcome builder that is EXEMPT from it. Every other
+    # cued outcome builder in this module keeps the check unchanged: there,
+    # the cue is derived from the ANSWER's own inflected surface form (a
+    # plural noun's singular, a verb's infinitive, an adjective's positive
+    # base, a comparative's positive degree), so cue-equals-answer really
+    # is the tagger handing the answer straight back. A determiner cue
+    # (``selectors._determiner_cue``, TODO.md 2.1) is never derived from
+    # this candidate's own inflected form at all -- it is the determiner
+    # FAMILY's invariant citation word ("der"/"ein"/"kein"/the possessive's
+    # own uninflected stem), the same fixed string regardless of which cell
+    # the answer turns out to occupy. When that citation word happens to
+    # equal the required inflected form (roughly a fifth of
+    # ``artikel_bestimmt_nom`` items, whose Nominative-masculine cell IS
+    # the citation cell), that is a coincidence of German morphology the
+    # learner could not have known in advance -- they still had to work out
+    # the slot's case and gender before writing the unchanged form down.
     distractor_forms = sorted(
         {
             form

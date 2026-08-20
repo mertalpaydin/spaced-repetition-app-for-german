@@ -506,6 +506,88 @@ def test_validate_carrier_does_not_flag_the_surname_gross() -> None:
     assert result.accepted, result.reason
 
 
+# -- Swiss orthography, cycle 9 task 1.4: the general diphthong rule ---------
+#
+# docs/audits/cycle-09-report.md 1.4: the closed-list approach above caught
+# the class exactly once in a full pilot run. These tests pin the general
+# rule (module docstring section 11): a diphthong ("ei"/"eu"/"äu"/"ie")
+# immediately followed by "ss" is always Swiss, plus a closed list for the
+# long-vowel-single-LETTER words ("groß" already had, extended here) and
+# for "au" (kept a closed list on purpose -- see the module docstring for
+# why a general "au" rule would reject "aussteigen"/"ausschließlich" and
+# dozens more genuinely standard words).
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Schliesslich war es doch noch möglich.",
+        "Die Kinder spielen draussen im Garten.",
+        "Es heisst, dass er krank ist.",
+        "Der Schnee war ganz weiss.",
+        "Wir gingen die Strasse entlang.",
+        "Er hat einen verletzten Fuss.",
+        "Das ist das falsche Mass für diese Aufgabe.",
+        "Das war ein grosser Spass für alle.",
+    ],
+)
+def test_validate_carrier_rejects_swiss_spelled_diphthong_and_long_vowel_words(
+    sentence: str,
+) -> None:
+    result = cv.validate_carrier(sentence)
+    assert not result.accepted
+    assert result.reason == cv.REASON_SWISS_SPELLING
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Ich muss jetzt nach Hause gehen.",
+        "Sie musste gestern lange arbeiten.",
+        "Der Fluss ist heute sehr breit.",
+        "Er gab mir gestern einen Kuss.",
+        "Ich weiß die Antwort nicht genau.",
+        "Wir essen heute Abend zusammen.",
+        "Bitte lassen Sie mich in Ruhe.",
+    ],
+)
+def test_validate_carrier_does_not_flag_correct_short_vowel_words_general_rule(
+    sentence: str,
+) -> None:
+    """The general diphthong rule and its long-vowel closed-list siblings
+    must never fire on any of these -- none contains a diphthong or a
+    listed long-vowel stem before "ss"."""
+    result = cv.validate_carrier(sentence)
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_does_not_flag_diesseits_compound_boundary() -> None:
+    """ "diesseits" ("dies" + "seits") contains "ie" immediately followed by
+    "ss" but is standard German, never spelled with "ß" -- a genuine
+    compound-boundary "ss", not a diphthong-plus-eszett word. Verified
+    against the vendored dictionary and excluded by name (module docstring
+    section 11)."""
+    result = cv.validate_carrier("Diesseits des Flusses liegt das kleine Dorf.")
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_does_not_flag_the_surname_weiss() -> None:
+    """ "weiss" is matched case-sensitively, lowercase only, for the same
+    surname-protection reason "gross" already is -- "Weiss" is an attested
+    German surname."""
+    result = cv.validate_carrier("Herr Weiss kommt heute Nachmittag vorbei.")
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_does_not_flag_masse_the_standard_word() -> None:
+    """ "Masse"/"Massen" ("mass, crowd") is itself standard German, unrelated
+    in meaning to "Maß" -- the long-vowel closed list is deliberately
+    bounded to the bare word "mass" so it never collides with this one
+    (module docstring section 11's own recorded cost)."""
+    result = cv.validate_carrier("Eine große Menschenmasse strömte auf den Platz.")
+    assert result.accepted, result.reason
+
+
 # -- "dass" after a physical-action matrix verb, cycle 6 ---------------------
 
 

@@ -123,24 +123,23 @@ def test_blank_sentences_produces_items_for_all_three_artikel_nom_topics_when_an
     eligible_types check (``blanker.py``'s own module docstring, final
     section, and ``pipeline.py``'s module docstring, "a fourth problem").
 
-    This task adds a genuine forcing anchor per topic (selectors.py's own
-    section on the three of them) and widens ``eligible_types`` to allow
-    ``cloze_free`` alongside ``paragraph_cloze`` for exactly these three
-    topics (data/taxonomy.yaml) -- run end to end through the full pipeline,
-    not just a direct selector call (the honesty requirement this task set:
-    a prior fix in this package was reported verified from a direct selector
-    call alone, while the pipeline's own eligible_types assertion was still
-    silently skipping every item).
-
-    docs/audits/cycle-07-report.md section A revisits ``artikel_bestimmt_
-    nom`` specifically: its own anchor rules out the indefinite family but
-    not a possessive/demonstrative one, and its blanked cell is already
-    Nominative so no cue can rescue it either -- the uniqueness gate now
-    flags every one of its items, so it produces zero here where it used to
-    produce one. ``artikel_unbestimmt_kein_nom`` and ``artikel_possessiv_
-    nom`` are untouched by that report (a causal anchor and a person anchor,
-    respectively, both already rule out every rival family) and still
-    produce their items exactly as before."""
+    TODO.md 2.1-2.3 (owner's decision, cycle 9) superseded the intermediate
+    per-topic-anchor fix a later cycle had added: every Nominative
+    determiner candidate now carries the invariant-citation-form cue
+    (``selectors._determiner_cue``), which by itself closes the free-
+    lexical-choice-of-family gap the anchor used to be the only way to
+    close -- so ``artikel_bestimmt_nom`` is no longer the odd one out
+    (previously flagged ``determiner_family_interchangeable`` because its
+    own blanked cell is already Nominative and used to have no cue at
+    all); all three topics now produce an item from their own anchored
+    sentence, run end to end through the full pipeline, not just a direct
+    selector call. Every determiner candidate now carrying a cue also
+    means every item these three topics build is typed ``cloze_cued``. not
+    the ``cloze_free`` an earlier cycle's fix produced -- confirmed a real,
+    live consequence of the cue rule while writing this test (the pipeline
+    silently skipped every item as type-ineligible until ``data/
+    taxonomy.yaml``'s own ``eligible_types`` for these three topics was
+    widened to include it, alongside ``paragraph_cloze``/``cloze_free``)."""
     report = blank_sentences(
         [
             "Der Hund, den ich gestern gekauft habe, schläft im Garten.",
@@ -148,51 +147,45 @@ def test_blank_sentences_produces_items_for_all_three_artikel_nom_topics_when_an
             "Meine Großmutter, die ich jedes Wochenende besuche, wohnt in München.",
         ]
     )
-    assert report.items_by_topic.get("artikel_bestimmt_nom", 0) == 0
+    assert report.items_by_topic.get("artikel_bestimmt_nom", 0) == 1
     assert report.items_by_topic.get("artikel_unbestimmt_kein_nom", 0) == 1
     assert report.items_by_topic.get("artikel_possessiv_nom", 0) == 1
     assert report.skips_by_type_ineligibility.get("artikel_bestimmt_nom", 0) == 0
     assert report.skips_by_type_ineligibility.get("artikel_unbestimmt_kein_nom", 0) == 0
     assert report.skips_by_type_ineligibility.get("artikel_possessiv_nom", 0) == 0
-    assert any(
-        s.topic_id == "artikel_bestimmt_nom" and s.reason == "determiner_family_interchangeable"
-        for s in report.uniqueness_skips
-    )
 
+    bestimmt = next(i for i in report.items if i.topic_id == "artikel_bestimmt_nom")
+    assert bestimmt.type == "cloze_cued"
+    assert bestimmt.proposed_answer == "Der"
+    assert bestimmt.cue == "Der"
     unbestimmt = next(i for i in report.items if i.topic_id == "artikel_unbestimmt_kein_nom")
-    assert unbestimmt.type == "cloze_free"
+    assert unbestimmt.type == "cloze_cued"
     assert unbestimmt.proposed_answer == "kein"
     possessiv = next(i for i in report.items if i.topic_id == "artikel_possessiv_nom")
-    assert possessiv.type == "cloze_free"
+    assert possessiv.type == "cloze_cued"
     assert possessiv.proposed_answer == "Meine"
 
 
-def test_blank_sentences_reports_zero_for_every_artikel_nom_topic_without_its_anchor() -> None:
+def test_blank_sentences_reports_zero_for_artikel_bestimmt_nom_without_its_anchor() -> None:
     """The negative case, run through the FULL pipeline rather than a direct
-    selector call (this task's own honesty requirement -- see the positive
-    test above): the same three sentences the old, unanchored selectors used
-    to accept, now producing nothing at all, because none of them carries
-    the anchor its own topic now requires. This is what proves the anchor
-    requirement is actually doing the work end to end, not merely in
-    isolation."""
+    selector call (the positive test above's own honesty requirement).
+    ``artikel_bestimmt_nom`` is the one of the three topics whose own
+    forcing anchor (a uniqueness-making relative clause, superlative, or
+    ordinal) still GATES candidacy -- TODO.md 2.1-2.3 only removed the
+    anchor requirement for ``artikel_unbestimmt_kein_nom`` and
+    ``artikel_possessiv_nom`` (both now produce an item from these same
+    unanchored sentences instead; see the positive test above for their
+    own anchored case, and ``test_blanking_selectors.py`` for their direct,
+    unanchored-still-finds-a-candidate pins)."""
     report = blank_sentences(
         [
             "Der Hund läuft schnell durch den Park.",
             "Ein Mann steht vor der Tür.",
-            "Kein Bus fährt heute.",
-            "Mein Vater kocht heute Abend.",
         ]
     )
     assert report.items_by_topic.get("artikel_bestimmt_nom", 0) == 0
-    assert report.items_by_topic.get("artikel_unbestimmt_kein_nom", 0) == 0
-    assert report.items_by_topic.get("artikel_possessiv_nom", 0) == 0
-    # No candidate at all (the selector itself found nothing), never a
-    # type-ineligibility skip -- that bucket is for an item that WAS built
-    # and would need rejecting for its type; here nothing was ever built.
-    assert report.skips_by_reason["no_candidate_for_topic"] >= 4
+    assert report.skips_by_reason["no_candidate_for_topic"] >= 1
     assert report.skips_by_type_ineligibility.get("artikel_bestimmt_nom", 0) == 0
-    assert report.skips_by_type_ineligibility.get("artikel_unbestimmt_kein_nom", 0) == 0
-    assert report.skips_by_type_ineligibility.get("artikel_possessiv_nom", 0) == 0
 
 
 def test_blank_sentences_handles_an_empty_sentence_list() -> None:

@@ -186,6 +186,76 @@ def test_plusquamperfekt_is_not_flagged_the_anteriority_marker_fixes_the_constru
     assert outcome.reason is None
 
 
+# -- TODO.md 1.6: a Plusquamperfekt candidate needs its OWN, narrower anchor
+# (a bevor/nachdem clause, or a genuine second past-tense event), never the
+# generic vague-adverb list ------------------------------------------------
+#
+# docs/audits/cycle-09-report.md 1.6: the ``auxiliary_tense_unanchored`` gate
+# let a Plusquamperfekt candidate through whenever ANY of
+# ``paradigms.TEMPORAL_ANCHOR_LEMMAS``'s bare adverbs was present anywhere
+# in the sentence, including "zuvor"/"davor"/"vorher" -- none of which
+# actually states that one event precedes another, only WHEN something
+# happened. The verifier caught this 15 times in one pilot run: "hatte" vs
+# "habe", "war" vs "bin", "hatten" vs "haben". These pin the exact rejected
+# sentences (from the staged pilot review data) plus the exact accepted
+# ones, both from the same run, so the fix is shown to close the reported
+# gap without also closing the population that was already fine.
+
+
+def test_praeteritum_sein_haben_modal_plusquamperfekt_shape_is_flagged_on_a_bare_adverb() -> None:
+    """The verifier's own rejected item (docs/audits/cycle-09-report.md
+    1.6): "Kurz zuvor war ich schnellen Schrittes in das leise Gebäude
+    gelaufen." -- "zuvor" alone (no bevor/nachdem clause, no second past
+    event) is not a real anchor; "bin" is exactly as natural here."""
+    outcome = _check(
+        "praeteritum_sein_haben_modal",
+        "Kurz zuvor war ich schnellen Schrittes in das leise Gebäude gelaufen.",
+    )
+    assert outcome.unique is False
+    assert outcome.reason == "auxiliary_tense_unanchored"
+
+
+def test_praeteritum_sein_haben_modal_plusquamperfekt_shape_is_flagged_on_gestern_alone() -> None:
+    """A second rejected shape from the same run: "gestern" IS in
+    ``paradigms.TEMPORAL_ANCHOR_LEMMAS`` and used to anchor this
+    unconditionally, but it states WHEN, not that one event precedes
+    another -- with no bevor/nachdem clause and no second past-tense event
+    in the other clause, "hatte" is not the only natural reading."""
+    outcome = _check(
+        "praeteritum_sein_haben_modal",
+        "Die kleine Bäckerei an der Ecke, die jeden Morgen frischen Kuchen backt, "
+        "hatte gestern leider schon geschlossen.",
+    )
+    assert outcome.unique is False
+    assert outcome.reason == "auxiliary_tense_unanchored"
+
+
+def test_praeteritum_sein_haben_modal_plusquamperfekt_shape_passes_on_a_bevor_clause() -> None:
+    """The accepted counterpart, same run, same construction: an explicit
+    "bevor" clause is a real anchor."""
+    outcome = _check(
+        "praeteritum_sein_haben_modal",
+        "Bevor der Unterricht an diesem Tag anfing, hatte ich meinen schweren "
+        "Rucksack eilig in die hinterste Ecke des Klassenzimmers gestellt.",
+    )
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
+def test_praeteritum_sein_haben_modal_plusquamperfekt_shape_passes_on_a_second_past_event() -> None:
+    """The accepted counterpart's other shape: no bevor/nachdem clause at
+    all, but a genuine second past-tense event in the other clause
+    ("hielt") -- the narrative-past pattern ("matrix clause narrates a
+    single past moment; the relative clause's own Plusquamperfekt precedes
+    it") this task's own ``_has_anteriority_marker`` docstring names."""
+    outcome = _check(
+        "praeteritum_sein_haben_modal",
+        "In der Hand hielt sie das Portemonnaie, das ihr Onkel zum Geburtstag geschenkt hatte.",
+    )
+    assert outcome.unique is True
+    assert outcome.reason is None
+
+
 def test_konjunktiv_ii_irreal_gegenwart_is_not_flagged_no_rival_tense_form_exists() -> None:
     outcome = _check("konjunktiv_ii_irreal_gegenwart", "Wenn ich Zeit hätte, würde ich kommen.")
     assert outcome.unique is True
@@ -444,33 +514,43 @@ def test_determiner_is_rescued_by_its_own_cue() -> None:
     assert outcome.reason is None
 
 
-def test_determiner_is_flagged_when_its_own_cell_is_already_nominative() -> None:
+def test_determiner_with_a_nominative_cell_is_rescued_by_its_invariant_cue() -> None:
     """``artikel_bestimmt_nom``'s own anchor (a relative clause identifying
     the referent) rules out the indefinite family but not a possessive or
     demonstrative one ("Der/Mein Hund, den ich gestern gekauft habe,
-    schläft im Garten." are both grammatical) -- and because this topic's
-    own blanked cell is already Nominative, no cue can exist without
-    handing over the answer verbatim (``selectors._determiner_cue``), so
-    the candidate stays genuinely unrescuable."""
+    schläft im Garten." are both grammatical). Before TODO.md 2.1/2.2
+    (owner's decision, cycle 9), this candidate's own blanked cell already
+    being Nominative meant no cue could exist without handing over the
+    answer verbatim, so it stayed genuinely unrescuable. Under the
+    invariant-citation cue ("der", always, regardless of the blanked
+    cell), the cue always exists, and TODO.md 2.2 explicitly permits cue
+    and answer to coincide for a determiner slot ("cue being the answer is
+    not a problem if the problem still requires student to identify case,
+    declension etc.") -- the family question ("Der" vs. "Mein"/"Ein"/
+    "Kein") is exactly the thing this cue closes, so the candidate now
+    passes."""
     outcome = _check(
         "artikel_bestimmt_nom", "Der Hund, den ich gestern gekauft habe, schläft im Garten."
     )
-    assert outcome.unique is False
-    assert outcome.reason == "determiner_family_interchangeable"
+    assert outcome.unique is True
+    assert outcome.reason is None
 
 
-def test_artikel_unbestimmt_kein_nom_passes_uncued_on_its_own_causal_anchor() -> None:
-    """The one deliberate exception (docs/audits/cycle-07-report.md section
-    A): the causal ``weil``-clause anchor already rules out every rival
-    family unconditionally ("weil der/ein/mein Bus fährt" reads backwards
-    as an explanation for lateness), so this candidate carries no cue at
-    all and must still pass -- exactly as it did before this cycle's cue
-    mechanism existed for the other determiner topics."""
+def test_artikel_unbestimmt_kein_nom_passes_both_cued_and_lexeme_anchored() -> None:
+    """docs/audits/cycle-07-report.md section A's causal ``weil``-clause
+    anchor already rules out every rival family unconditionally ("weil
+    der/ein/mein Bus fährt" reads backwards as an explanation for
+    lateness), and is still recorded on ``lexeme_anchored`` here (TODO.md
+    2.3: kept, un-deleted, no longer required). Under the invariant-
+    citation cue (TODO.md 2.1) this candidate ALSO now carries a cue
+    ("kein") -- unlike before this cycle, when the cue mechanism did not
+    yet cover this topic -- so it passes for either reason, both true at
+    once here."""
     tagged = sentence_tagger.tag_sentence("Weil kein Bus fährt, kommen wir heute zu spät.")
     assert tagged is not None
     candidates = SELECTORS["artikel_unbestimmt_kein_nom"](tagged)
     assert len(candidates) == 1
-    assert candidates[0].cue is None
+    assert candidates[0].cue == "kein"
     assert candidates[0].lexeme_anchored is True
     outcome = check_uniqueness(tagged, candidates[0])
     assert outcome.unique is True
