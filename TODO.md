@@ -484,8 +484,19 @@ selector cannot see it".
 
 ### 4.3 Measure corpus coverage per topic
 
-- [ ] Run all 49 selectors over Tatoeba. Count candidates per topic and per
-  CEFR band. This answers, with a number rather than an opinion, whether the
+- [x] Run all 49 selectors over Tatoeba. Count candidates per topic and per
+  CEFR band.
+
+  **Done, and the answer is yes. See `docs/audits/corpus-coverage.md`;
+  raw counts in `docs/audits/data/`.** 120,000 sentences from each corpus:
+  Tatoeba yields 175,640 candidates and Leipzig 172,017, and **both cover
+  all 49 topics**, against 36 for AI generation in cycle 9. Every one of the
+  ten topics generation could not reach is well supplied, several with
+  thousands of candidates. Two findings to carry forward: the CEFR
+  vocabulary filter is the next measurement and will cut both numbers
+  substantially, and `passiv_praesens` at 21 per 120k is not a corpus fact
+  but our own participle-tagging bug showing up against a baseline for the
+  first time (see the caveat on TODO 1.2). This answers, with a number rather than an opinion, whether the
   corpus revives the ten topics that generation cannot reach. A construction
   occurring in 0.01 percent of sentences still yields 70 hits in 700k, which
   is the whole argument for corpus retrieval over generation for rare
