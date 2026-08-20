@@ -1492,3 +1492,15 @@ def test_operator_tuned_rate_limit_constants_are_pinned() -> None:
     assert GeminiLlmClient.RPM_MAX_RETRIES == 5
     assert GeminiLlmClient.FREE_LANE_MAX_CONCURRENCY == 4
     assert GeminiLlmClient.FREE_LANE_RATE_LIMIT_PER_MINUTE == 5
+
+
+def test_operator_tuned_server_error_constants_are_pinned() -> None:
+    """``SERVER_ERROR_BACKOFF_SECONDS`` and ``SERVER_ERROR_MAX_RETRIES`` are
+    the project owner's own edit, applied by hand after the cycle 9 pilot run
+    died partway through on a Gemini 503. The defaults (5.0 seconds, 3
+    retries) were not enough to ride out that outage; 15 seconds and 5
+    retries were. Same standing rule as the rate-limit constants above: if
+    this fails, ask the owner rather than updating the assertion, per
+    CLAUDE.md rule 7 and TODO.md section 5."""
+    assert GeminiLlmClient.SERVER_ERROR_BACKOFF_SECONDS == 15.0
+    assert GeminiLlmClient.SERVER_ERROR_MAX_RETRIES == 5

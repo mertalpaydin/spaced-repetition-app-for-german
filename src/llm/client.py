@@ -274,8 +274,8 @@ class GeminiLlmClient:
     # demand" with a plain-text body, no RetryInfo). A few short retries on
     # the same lane clears it in practice; this is not a quota signal and
     # must never touch the RPD lane-closing path.
-    SERVER_ERROR_BACKOFF_SECONDS: float = 5.0
-    SERVER_ERROR_MAX_RETRIES: int = 3
+    SERVER_ERROR_BACKOFF_SECONDS: float = 15.0
+    SERVER_ERROR_MAX_RETRIES: int = 5
 
     # ``generate_many``'s free-lane path fires independent items concurrently
     # instead of serially -- each is still just one HTTP round-trip, so wall
