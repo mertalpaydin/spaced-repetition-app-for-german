@@ -21,13 +21,15 @@ learner or a textbook editor would, and to say plainly whether it is sound.
 Nothing upstream changes. Carrier validation, the selectors, paradigm
 reconstruction and the uniqueness gate in ``pipeline.py`` all still run
 first, exactly as before -- this module runs LAST, over the items that
-already survived every one of those, and asks two questions per item that no
-closed-class table or dependency-parse rule can answer on its own:
+already survived every one of those, and asks three questions per item that
+no closed-class table or dependency-parse rule can answer on its own:
 
 1. Is the finished sentence (gap filled with the stated answer) correct,
    natural German that a textbook could print?
 2. Given only the prompt and the cue -- never the topic -- is the stated
    answer the ONLY correct filler for the gap?
+3. Does every word in the finished sentence exist in German as a word a
+   native speaker would actually use?
 
 Question 2 is where most of the remaining value is. The rule-based
 uniqueness gate in ``uniqueness.py`` already covers a handful of closed
@@ -39,6 +41,36 @@ wording happens to create -- exactly the cases this model pass exists to
 catch, because they are not a closed class at all, just contextual
 solvability, which is what a competent reader (or model) judges directly
 rather than what a table enumerates.
+
+## Question 3: the carrier word that is not a word, docs/audits/cycle-08-report.md
+
+    Ich wünsche mir, dass Stefan bald den Tennisschlüssel findet, den wir
+    gestern im Park gesucht haben.
+
+``Tennisschlüssel`` ("tennis key") is not a word anyone means; ``Tennis-
+schläger`` (tennis racket) was intended. Both halves -- ``Tennis`` and
+``Schlüssel`` -- are individually real German words, so the compound
+splitter in ``selectors._cue_is_real_word`` and every dictionary check
+upstream of this module pass it cleanly: neither operates on the
+COMPLETED sentence's actual meaning, only on whether a string resolves to
+known morphemes. The cycle-08 audit found this one bad carrier had already
+reached three separate accepted items (``kasus_akkusativ_formen``,
+``verb_praesens_regelm``, ``relativsatz_nom_akk``) before the model
+verification pass existed to catch it.
+
+A frequency-list gate was tried and rejected during that audit, deliberately
+not adopted here: ``Tennisschlüssel`` is absent from the vendored 50k
+frequency list, but so are ``Radweg``, ``Altkleidersammlung``,
+``Einweihungsfest``, ``Aufräumaktion``, ``Mathehausaufgabe``,
+``Lieblingsjacke``, ``Kulturzentrum`` and ``Ingwertee`` -- every one of them
+a legitimate, freely-formed compound that appeared in an otherwise-accepted
+item. A frequency floor cannot tell "uncommon but real" apart from
+"nonexistent"; only a semantic judgment can, which is exactly what a model
+call and nothing upstream of it can make. The live prompt (below) is
+explicit with the model about this distinction -- it must not reject a word
+merely for being uncommon, only for being wrong or nonexistent -- using
+``Tennisschlüssel`` as the negative worked example and ``Radweg``/
+``Altkleidersammlung``/``Einweihungsfest`` as positive ones that must pass.
 
 The prompt never names or hints at the grammar topic (CLAUDE.md rule 2):
 naming it would tell the model what "should" be tested and bias the
@@ -86,8 +118,9 @@ named directly in the brief for this cycle:
    failure mode it exists to close -- an item nobody actually verified,
    reported as verified. A batch whose response cannot be parsed into
    exactly as many verdicts as items were sent, each with a boolean
-   ``valid`` and a resolvable ``index``, degrades every item in THAT batch
-   to ``"not_run"`` (reason ``"malformed_model_response"``), never to
+   ``valid``, a boolean ``woerter_echt`` (the third question's own answer)
+   and a resolvable ``index``, degrades every item in THAT batch to
+   ``"not_run"`` (reason ``"malformed_model_response"``), never to
    ``"verified"``. Other, well-formed batches in the same run are
    unaffected -- ``_parse_batch_response`` operates one batch at a time.
 
@@ -175,17 +208,34 @@ _INSTRUCTION_EN_REFERENCE_ONLY = (
     "and the proposed answer. Never name or guess which grammar topic a "
     "task is testing -- that is not needed for your judgment and must play "
     "no part in it.\n\n"
-    "For every task, answer two questions: (1) is the complete sentence, "
+    "For every task, answer three questions: (1) is the complete sentence, "
     "with the gap filled by the proposed answer, correct and natural "
     "German a textbook could print; (2) working out for yourself, from "
     "only the task and the cue, exactly as a learner facing just those two "
     "things would have to, is the proposed answer the ONLY correct filler "
     "for the gap, or would at least one other answer -- a different tense, "
     "an equally fitting word, a different reading the sentence allows just "
-    "as well -- fit too. A task is valid only if both answers are yes; "
-    "otherwise give a short, concrete reason naming which question failed "
-    "and why. Respond with ONLY a JSON object of the given shape, one "
-    "verdict per task, indexed to match the task numbers, and nothing else."
+    "as well -- fit too. Only count an alternative a native speaker would "
+    "actually use just as naturally; a technically-grammatical but stilted "
+    "or dated option (e.g. the relative pronoun 'welcher' where 'der/die/"
+    "das' is the plain modern choice) does not disqualify the proposed "
+    "answer, but a genuinely equally idiomatic alternative does; (3) look "
+    "at EVERY SINGLE WORD in the complete sentence: is it a word that "
+    "actually exists in German and that a native speaker would really use? "
+    "Freely-formed compounds are completely normal German and must NOT be "
+    "rejected merely for being uncommon -- 'Radweg' (bike path), "
+    "'Altkleidersammlung' (used-clothing collection) and 'Einweihungsfest' "
+    "(housewarming party) are all perfectly good German and must pass this "
+    "question even though none of them is a high-frequency word. Reject a "
+    "word here only when its MEANING is wrong or it does not exist at all "
+    "-- for example 'Tennisschlüssel' ('tennis key') is not a real word; "
+    "'Tennisschläger' (tennis racket) was clearly meant, and this question "
+    "must get a no for that sentence. A task is valid only if all three "
+    "answers are yes; otherwise give a short, concrete reason naming which "
+    "question failed and why. Respond with ONLY a JSON object of the given "
+    "shape, one verdict per task carrying both the overall verdict and the "
+    "third question's own answer, indexed to match the task numbers, and "
+    "nothing else."
 )
 
 _INSTRUCTION_DE_LIVE = (
@@ -197,7 +247,7 @@ _INSTRUCTION_DE_LIVE = (
     "Antwort. Nenne oder errate an keiner Stelle, welches Grammatikthema "
     "geprüft wird -- das spielt für deine Beurteilung keine Rolle und darf "
     "sie auch nicht beeinflussen.\n\n"
-    "Beantworte zu jeder Aufgabe zwei Fragen:\n"
+    "Beantworte zu jeder Aufgabe drei Fragen:\n"
     "1. Ist der VOLLSTÄNDIGE Satz (Lücke durch die vorgeschlagene Antwort "
     "ersetzt) korrektes, natürliches Deutsch, wie es in einem Lehrbuch "
     "stehen könnte?\n"
@@ -205,19 +255,44 @@ _INSTRUCTION_DE_LIVE = (
     "Wörter in die Lücke passen würden -- genau so, wie ein Lernender es "
     "tun müsste, der nur diese beiden Angaben hat. Ist die vorgeschlagene "
     "Antwort dabei die EINZIGE richtig passende Lösung, oder gäbe es "
-    "mindestens eine ebenso richtige Alternative, zum Beispiel eine andere "
-    "Zeitform, ein anderes ebenso passendes Wort, oder eine andere "
-    "Bedeutung, die der Satz genauso gut zulässt?\n\n"
-    'Eine Aufgabe ist nur dann gültig ("valid": true), wenn BEIDE Fragen '
-    'mit Ja beantwortet sind. Bei "valid": false nenne unter "reason" kurz '
-    "und konkret auf Deutsch, welche der beiden Fragen mit Nein beantwortet "
-    "wurde und warum, so dass das Problem auch ohne erneutes Lesen der "
-    "Aufgabe klar wird.\n\n"
+    "mindestens eine ebenso richtige, ebenso natürliche Alternative, zum "
+    "Beispiel eine andere Zeitform, ein anderes ebenso passendes Wort, "
+    "oder eine andere Bedeutung, die der Satz genauso gut zulässt? Zähle "
+    "dabei nur eine Alternative, die ein/e Muttersprachler/in tatsächlich "
+    "genauso natürlich verwenden würde. Eine Alternative, die zwar "
+    "grammatisch zulässig, aber selten, gestelzt oder veraltet wirkt -- "
+    "zum Beispiel das Relativpronomen 'welcher' anstelle von 'der/die/"
+    "das', wo beide grammatisch möglich sind, 'welcher' im heutigen "
+    "Sprachgebrauch aber ungewöhnlich ist --, zählt NICHT als zweite "
+    "richtige Lösung; eine Alternative, die genauso alltäglich und "
+    "natürlich ist wie die vorgeschlagene Antwort, zählt dagegen sehr "
+    "wohl.\n"
+    "3. Sieh dir JEDES EINZELNE WORT im vollständigen Satz an: Ist es ein "
+    "Wort, das es im Deutschen wirklich gibt und das ein/e "
+    "Muttersprachler/in tatsächlich so verwenden würde? Frei gebildete, "
+    "aber sinnvolle Komposita sind im Deutschen völlig normal und dürfen "
+    "NICHT allein deswegen abgelehnt werden, weil sie selten oder "
+    "ungewöhnlich sind -- 'Radweg', 'Altkleidersammlung' und "
+    "'Einweihungsfest' sind zum Beispiel völlig korrektes Deutsch und "
+    "müssen diese Frage mit Ja beantwortet bekommen, obwohl keins davon "
+    "zu den häufigsten Wörtern gehört. Lehne ein Wort hier nur ab, wenn "
+    "seine BEDEUTUNG falsch ist oder es das Wort schlicht nicht gibt -- "
+    "'Tennisschlüssel' zum Beispiel ist kein Wort, das es gibt (gemeint "
+    "war offenbar 'Tennisschläger', der Schläger, mit dem man Tennis "
+    "spielt), und für einen Satz mit diesem Wort muss diese Frage mit "
+    "Nein beantwortet werden.\n\n"
+    'Eine Aufgabe ist nur dann gültig ("valid": true), wenn ALLE DREI '
+    'Fragen mit Ja beantwortet sind. Gib zusätzlich unter "woerter_echt" '
+    "gesondert an, ob Frage 3 für sich allein mit Ja beantwortet wurde "
+    '(unabhängig von "valid"). Bei "valid": false oder "woerter_echt": '
+    'false nenne unter "reason" kurz und konkret auf Deutsch, welche der '
+    "drei Fragen mit Nein beantwortet wurde und warum, so dass das "
+    "Problem auch ohne erneutes Lesen der Aufgabe klar wird.\n\n"
     "Antworte ausschließlich mit einem JSON-Objekt dieser exakten Form, "
     "ohne Markdown-Codeblock:\n"
-    '{"verdicts": [{"index": 1, "valid": true, "reason": null}, '
-    '{"index": 2, "valid": false, "reason": "kurze Begründung auf '
-    'Deutsch"}]}\n'
+    '{"verdicts": [{"index": 1, "valid": true, "woerter_echt": true, '
+    '"reason": null}, {"index": 2, "valid": false, "woerter_echt": true, '
+    '"reason": "kurze Begründung auf Deutsch"}]}\n'
     "Die Liste muss genau so viele Einträge enthalten wie Aufgaben unten, "
     'jeweils mit "index" gleich der Aufgabennummer, in beliebiger '
     "Reihenfolge."
@@ -388,14 +463,30 @@ def _parse_batch_response(text: str, expected_count: int) -> list[tuple[bool, st
     Returns ``None`` -- "malformed", the whole batch degrades to
     ``"not_run"`` -- unless the response is a JSON object whose
     ``"verdicts"`` is a list of EXACTLY ``expected_count`` entries, each a
-    dict with an integer ``"index"`` and a boolean ``"valid"``, and whose
-    indices are exactly ``{1, ..., expected_count}`` with no duplicate and
-    no gap. This is deliberately strict (module docstring: this pass does
-    not fail open on a parse defect) -- a response missing one task's
-    verdict, or numbering two tasks the same index, is exactly the kind of
-    silent-drop failure this module exists to never produce for the
-    candidate items themselves, so it must not reproduce that failure mode
-    in its own transport parsing either."""
+    dict with an integer ``"index"``, a boolean ``"valid"`` AND a boolean
+    ``"woerter_echt"`` (the third question -- every word in the completed
+    sentence is a real German word someone would actually use -- see the
+    module docstring's ``Tennisschlüssel`` example), and whose indices are
+    exactly ``{1, ..., expected_count}`` with no duplicate and no gap. This
+    is deliberately strict (module docstring: this pass does not fail open
+    on a parse defect) -- a response missing one task's verdict, missing
+    the third question's own answer, or numbering two tasks the same
+    index, is exactly the kind of silent-drop failure this module exists
+    to never produce for the candidate items themselves, so it must not
+    reproduce that failure mode in its own transport parsing either.
+
+    ``woerter_echt`` is kept as its OWN required field rather than folded
+    silently into ``valid`` (which the live prompt also asks the model to
+    set to the AND of all three questions) for exactly this reason: a
+    response that carries ``valid`` but omits ``woerter_echt`` entirely
+    must be rejected as malformed, not silently trusted on the model's own
+    aggregate bit alone -- the same "verify, don't just trust a single
+    flag" posture ``_cue_equals_answer`` already applies one layer down in
+    ``blanker.py``. The final per-item validity this function returns is
+    the AND of both fields, so a model response that answers ``valid:
+    true`` but ``woerter_echt: false`` (an internally inconsistent
+    response, but not a malformed one) is still correctly treated as a
+    rejection rather than trusted on the aggregate field alone."""
     try:
         payload = json.loads(_strip_code_fence(text))
     except json.JSONDecodeError:
@@ -419,11 +510,14 @@ def _parse_batch_response(text: str, expected_count: int) -> list[tuple[bool, st
         valid = entry.get("valid")
         if not isinstance(valid, bool):
             return None
+        words_real = entry.get("woerter_echt")
+        if not isinstance(words_real, bool):
+            return None
         reason = entry.get("reason")
         reason = reason if isinstance(reason, str) and reason.strip() else None
         if index in by_index:
             return None
-        by_index[index] = (valid, reason)
+        by_index[index] = (valid and words_real, reason)
 
     if set(by_index) != set(range(1, expected_count + 1)):
         return None

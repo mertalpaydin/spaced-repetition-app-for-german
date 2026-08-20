@@ -83,12 +83,21 @@ class _FakeVerifyLlmClient:
         return list(self._responses)
 
 
-def _verdict_response(verdicts: list[tuple[bool, str | None]]) -> str:
+def _verdict_response(
+    verdicts: list[tuple[bool, str | None]], *, woerter_echt: bool | list[bool] = True
+) -> str:
+    """Build a canned ``generate_many`` response JSON. ``woerter_echt`` (the
+    third question's own answer) defaults to ``True`` for every entry so
+    existing callers that only care about the ``(valid, reason)`` pair do
+    not need to know about the third field at all; pass a per-entry list to
+    exercise the third question's own effect on the combined verdict."""
+    per_entry = woerter_echt if isinstance(woerter_echt, list) else [woerter_echt] * len(verdicts)
+    assert len(per_entry) == len(verdicts)
     return json.dumps(
         {
             "verdicts": [
-                {"index": i + 1, "valid": valid, "reason": reason}
-                for i, (valid, reason) in enumerate(verdicts)
+                {"index": i + 1, "valid": valid, "woerter_echt": we, "reason": reason}
+                for i, ((valid, reason), we) in enumerate(zip(verdicts, per_entry, strict=True))
             ]
         }
     )
@@ -137,6 +146,42 @@ def test_build_batch_prompt_uses_the_german_instruction_not_the_english_one() ->
     prompt = build_batch_prompt([_bank_item()])
     assert _INSTRUCTION_DE_LIVE in prompt
     assert _INSTRUCTION_EN_REFERENCE_ONLY not in prompt
+
+
+def test_instruction_de_live_asks_three_questions_and_carries_woerter_echt() -> None:
+    """docs/audits/cycle-08-report.md: the third question -- every word in
+    the completed sentence must be a real German word -- is added to the
+    SAME batched call, not a new one; the response schema example must
+    carry ``woerter_echt`` so ``_parse_batch_response`` can require it."""
+    assert "drei Fragen" in _INSTRUCTION_DE_LIVE
+    assert "3." in _INSTRUCTION_DE_LIVE
+    assert '"woerter_echt"' in _INSTRUCTION_DE_LIVE
+
+
+def test_instruction_de_live_gives_tennisschluessel_as_the_negative_example() -> None:
+    """The exact defect from the last pilot: both halves of
+    ``Tennisschlüssel`` are real German words, so a compound splitter or a
+    plain dictionary check cannot reject it -- only a semantic judgment
+    can, which is exactly why this is the model's own worked example."""
+    assert "Tennisschlüssel" in _INSTRUCTION_DE_LIVE
+    assert "Tennisschläger" in _INSTRUCTION_DE_LIVE
+
+
+def test_instruction_de_live_gives_uncommon_compounds_as_positive_examples() -> None:
+    """The prompt must tell the model NOT to reject a word merely for
+    being uncommon -- these three are real, freely-formed compounds that
+    were wrongly at risk of the same treatment as ``Tennisschlüssel``."""
+    for compound in ("Radweg", "Altkleidersammlung", "Einweihungsfest"):
+        assert compound in _INSTRUCTION_DE_LIVE
+
+
+def test_instruction_de_live_tells_the_model_stilted_alternatives_do_not_count() -> None:
+    """The self-consistency fix for question 2: a rare/stilted alternative
+    (the model's own worked example, ``welcher`` as a relative pronoun)
+    must not by itself disqualify the proposed answer, while a genuinely
+    equally idiomatic alternative still must."""
+    assert "welcher" in _INSTRUCTION_DE_LIVE
+    assert "gestelzt" in _INSTRUCTION_DE_LIVE
 
 
 def test_build_batch_prompt_never_leaks_the_topic_or_rule_hint() -> None:
@@ -232,8 +277,8 @@ def test_parse_batch_response_reorders_by_index() -> None:
     text = json.dumps(
         {
             "verdicts": [
-                {"index": 2, "valid": False, "reason": "zweitens"},
-                {"index": 1, "valid": True, "reason": None},
+                {"index": 2, "valid": False, "woerter_echt": True, "reason": "zweitens"},
+                {"index": 1, "valid": True, "woerter_echt": True, "reason": None},
             ]
         }
     )
@@ -241,7 +286,40 @@ def test_parse_batch_response_reorders_by_index() -> None:
 
 
 def test_parse_batch_response_blank_reason_string_becomes_none() -> None:
-    text = json.dumps({"verdicts": [{"index": 1, "valid": True, "reason": "   "}]})
+    text = json.dumps(
+        {"verdicts": [{"index": 1, "valid": True, "woerter_echt": True, "reason": "   "}]}
+    )
+    assert _parse_batch_response(text, 1) == [(True, None)]
+
+
+# ---------------------------------------------------------------------------
+# _parse_batch_response: the third question (``woerter_echt``) -- docs/
+# audits/cycle-08-report.md's ``Tennisschlüssel`` defect.
+# ---------------------------------------------------------------------------
+
+
+def test_parse_batch_response_woerter_echt_false_overrides_valid_true() -> None:
+    """A response can be internally inconsistent -- ``valid: true`` but
+    ``woerter_echt: false`` -- and the combined verdict must still reject:
+    the parser never trusts the model's own aggregate ``valid`` bit alone
+    once a specific sub-answer contradicts it."""
+    text = json.dumps(
+        {
+            "verdicts": [
+                {
+                    "index": 1,
+                    "valid": True,
+                    "woerter_echt": False,
+                    "reason": "'Tennisschlüssel' ist kein Wort.",
+                }
+            ]
+        }
+    )
+    assert _parse_batch_response(text, 1) == [(False, "'Tennisschlüssel' ist kein Wort.")]
+
+
+def test_parse_batch_response_woerter_echt_true_and_valid_true_is_valid() -> None:
+    text = _verdict_response([(True, None)], woerter_echt=True)
     assert _parse_batch_response(text, 1) == [(True, None)]
 
 
@@ -251,20 +329,60 @@ def test_parse_batch_response_blank_reason_string_becomes_none() -> None:
         "not json at all",
         "[]",
         json.dumps({"no_verdicts_key": []}),
-        json.dumps({"verdicts": [{"index": 1, "valid": True}]}),  # count mismatch (expects 2)
         json.dumps(
-            {"verdicts": [{"index": 1, "valid": True}, {"index": 1, "valid": False}]}
+            {"verdicts": [{"index": 1, "valid": True, "woerter_echt": True}]}
+        ),  # count mismatch (expects 2)
+        json.dumps(
+            {
+                "verdicts": [
+                    {"index": 1, "valid": True, "woerter_echt": True},
+                    {"index": 1, "valid": False, "woerter_echt": True},
+                ]
+            }
         ),  # duplicate index
         json.dumps(
-            {"verdicts": [{"index": 1, "valid": True}, {"index": 3, "valid": False}]}
+            {
+                "verdicts": [
+                    {"index": 1, "valid": True, "woerter_echt": True},
+                    {"index": 3, "valid": False, "woerter_echt": True},
+                ]
+            }
         ),  # gap: no index 2
         json.dumps(
-            {"verdicts": [{"index": True, "valid": True}, {"index": 2, "valid": False}]}
+            {
+                "verdicts": [
+                    {"index": True, "valid": True, "woerter_echt": True},
+                    {"index": 2, "valid": False, "woerter_echt": True},
+                ]
+            }
         ),  # bool used as index
         json.dumps(
-            {"verdicts": [{"index": 1, "valid": "yes"}, {"index": 2, "valid": False}]}
+            {
+                "verdicts": [
+                    {"index": 1, "valid": "yes", "woerter_echt": True},
+                    {"index": 2, "valid": False, "woerter_echt": True},
+                ]
+            }
         ),  # non-bool valid
-        json.dumps({"verdicts": ["not a dict", {"index": 2, "valid": False}]}),
+        json.dumps(
+            {
+                "verdicts": [
+                    {"index": 1, "valid": True},  # missing woerter_echt entirely
+                    {"index": 2, "valid": False, "woerter_echt": True},
+                ]
+            }
+        ),
+        json.dumps(
+            {
+                "verdicts": [
+                    {"index": 1, "valid": True, "woerter_echt": "yes"},  # non-bool woerter_echt
+                    {"index": 2, "valid": False, "woerter_echt": True},
+                ]
+            }
+        ),
+        json.dumps(
+            {"verdicts": ["not a dict", {"index": 2, "valid": False, "woerter_echt": True}]}
+        ),
         json.dumps(["not", "a", "dict", "at", "top", "level"]),
     ],
 )
