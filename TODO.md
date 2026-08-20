@@ -127,13 +127,79 @@ cycles have shipped a "fixed" defect that was still live in the next run.
   `konjunktiv_ii_vergangenheit` instead of `_irreal_gegenwart`. Verified
   against both exact reported sentences.
 
-- [ ] **1.8 Demand is computed once and misallocates the call budget.**
+- [x] **1.8 Demand is computed once and misallocates the call budget.**
   Cycle 9 spent 3 calls on each of 49 topics. Twenty topics met demand and
   were then capped, throwing away 1,746 items (339 from
   `pronomen_personal_nom` alone), while ten topics ended at zero after three
   attempts each. Generating for one topic produces items for many others.
   Fix: recompute demand after each topic completes, skip topics already
   filled as a side effect, and give the freed calls to the starved topics.
+
+  **The specific figures above (1,746 items discarded, 339 from
+  `pronomen_personal_nom`, ten topics at zero) do not appear in
+  `docs/audits/cycle-09-report.md` or `cycle-09-demand-driven-generation.md`**
+  and could not be reproduced from either document; flagged per CLAUDE.md
+  rule 8 rather than silently treated as ground truth. `cycle-09-report.md`
+  reports 428 items accepted from 36 topics with only 13 topics at zero, a
+  different pattern, and `cycle-09-demand-driven-generation.md`'s 147 is a
+  projected worst-case call count, not a measured loss figure. The
+  underlying defect description (demand fixed once, no redistribution) is
+  real regardless, and is what got fixed.
+
+  Fixed: `run_demand_driven_generation` in
+  `src/generation/blanking/orchestrator.py` now recomputes each remaining
+  topic's deficit from a fresh snapshot of all sentences generated so far
+  before every topic it serves (`_snapshot_items_by_topic`,
+  `_effective_deficit`), so a topic already filled as a side effect of
+  another topic's sentences is skipped with zero calls
+  (`already_met_by_other_topics`), and after the main pass a redistribution
+  pass gives topics that exhausted their retries and are still short
+  (`used_redistributed_budget`) a second full retry budget out of the calls
+  the skipped topics never spent, up to the same call ceiling as before.
+
+  Verified against the offline mock pool (`sentence_source.
+  MockSentenceGenerator`, deterministic, no network), same 49-topic A2 run,
+  same call ceiling (147) both before and after:
+
+  | | before (flat 3 calls/topic) | after (demand-driven) |
+  |---|---|---|
+  | calls made | 147 | 147 (same ceiling, reallocated) |
+  | topics already met, 0 calls spent | 0 | 16 |
+  | calls saved on those 16 topics | -- | 48 (16 x 3) |
+  | topics given a second retry budget | 0 | 16 (each 3 -> 6 calls) |
+  | total items produced | 447 | 459 |
+  | topics with zero items | 1 (`zustandspassiv`) | 2 (`zustandspassiv`,
+  `passiv_modalverben`) |
+
+  16 topics that would have spent 3 calls each under the old flat scheme
+  (`adjektivdeklination_bestimmt/nullartikel/unbestimmt`,
+  `artikel_possessiv_nom`, `dativ_nach_praeposition`,
+  `kasus_akkusativ_formen`, `nomen_plural`, `perfekt_haben`,
+  `plusquamperfekt`, `praepositionen_akkusativ`, `praepositionen_dativ`,
+  `praeteritum_vollverben`, `pronomen_personal_nom`, `verb_praesens_regelm`,
+  `verb_praesens_vokalwechsel`, `verb_sein_haben`) were already filled by
+  other topics' sentences and are now skipped entirely; the freed 48 calls
+  went to the 16 topics that had exhausted their original retries and were
+  still short (`infinitiv_mit_zu`, `modalverben_praesens`,
+  `partizip_ii_attributiv_erweitert`, `passiv_modalverben`,
+  `passiv_praesens`, `passiv_praeteritum`, `zustandspassiv`,
+  `zustandspassiv_zeiten`, `pronomen_personal_akk`, `relativsatz_genitiv`,
+  `konjunktiv_ii_hoeflichkeit`, `futur_i`, `futur_ii`, `infinitiv_um_zu`,
+  `partizip_i_attributiv`, `praepositionen_genitiv_gehoben`), each getting a
+  second full `1 + max_retries_per_topic` attempt budget.
+
+  **Honest caveat:** `passiv_modalverben` went from 3 items (before) to 0
+  (after), which is why `topics_with_zero` went up, not down, from 1 to 2.
+  This is not a defect in the reallocation logic itself: the deterministic
+  `MockSentenceGenerator` selects sentences by a hash of the requested
+  theme/person/tense/register/structure combination, and recomputing demand
+  changes topic processing order, which changes which combinations get
+  requested when, which this mock's hash-based selection is sensitive to.
+  `cycle-09-demand-driven-generation.md` documents the same limitation of
+  the offline mock pool. Regression tests:
+  `test_topic_already_met_by_other_topics_sentences_is_skipped_with_zero_calls`
+  and `test_starved_topic_gets_a_second_budget_from_redistribution` in
+  `tests/test_blanking_orchestrator.py`.
 
 ---
 
@@ -210,12 +276,72 @@ cycles have shipped a "fixed" defect that was still live in the next run.
 The verifier caught the wrong-gender cue twice and missed it twice in the
 same run. Four responses, in order of how much they matter.
 
-- [ ] **3.1 Ask about the cue.** The three questions cover the sentence, the
+- [x] **3.1 Ask about the cue.** The three questions cover the sentence, the
   answer's uniqueness, and whether every word is real. None mentions the
   parenthesised hint. Both catches were the model volunteering it under
   question two. Add a fourth question: is the hint the correct citation form
   of the answer. Most of what looks like unreliability is the verifier not
   having been asked.
+
+  Fixed: `_INSTRUCTION_DE_LIVE` in `src/generation/blanking/
+  model_verification.py` adds question 4, written to match the TODO 2.1-2.3
+  invariant-citation-form cue redesign (`der`/`ein`/`kein`/possessive stem,
+  never gender- or case-agreed) rather than the pre-redesign contract this
+  item was originally written against: it explains that a determiner cue is
+  correct whenever it matches its own invariant family regardless of the
+  form the gap actually needs, explicitly walks through a worked
+  cue-equals-answer example so the model does not reject a correct
+  invariant cue for "not agreeing" or "for giving away the answer" (owner's
+  cited concern in TODO 2.2), and states the ordinary rule (citation form of
+  the source word) for every non-determiner cue. `_parse_batch_response`
+  now requires `hinweis_korrekt` as a strict boolean in every verdict;
+  missing or wrong-typed degrades that item to `not_run`, never a silent
+  `valid: true`, per CLAUDE.md rule 7's own spirit (a verifier gate must
+  fail closed, not open). Could not name "Artikel" or "Kasus" directly
+  (both in `_FORBIDDEN_GRAMMAR_WORDS`, CLAUDE.md rule 2): the question
+  enumerates the literal invariant word forms instead of the grammatical
+  category names. Full German text below.
+
+  Verified: `tests/test_blanking_model_verification.py` (54 tests, all
+  passing) checks the instruction text asks all four questions, explains
+  the invariant citation form without naming a forbidden grammar word,
+  gives the worked cue-equals-answer example, still rejects a cue from the
+  wrong determiner family (`'die'` cited for a `der`-series answer), and
+  that `_parse_batch_response` degrades to `not_run` on a missing
+  `hinweis_korrekt` field. `test_forbidden_grammar_words` and
+  `test_build_batch_prompt_never_leaks_the_topic_or_rule_hint` (pre-existing,
+  CLAUDE.md rule 2 enforcement) still pass against the extended prompt.
+
+  Full text of question 4 (German, as sent to the model, verbatim):
+
+  > 4. NUR falls die Aufgabe einen Hinweis in Klammern hat: Ist dieser
+  > Hinweis die richtige Zitierform (Grundform) zu der vorgeschlagenen
+  > Antwort? Zeigt der Hinweis eine dieser kurzen, unveränderlichen Formen
+  > -- 'der', 'ein', 'kein', 'mein', 'dein', 'sein', 'ihr', 'unser',
+  > 'euer', 'Ihr' --, dann ist GENAU DIESE Form für die ganze zugehörige
+  > Wortreihe immer richtig, egal welche andere Form davon im Satz an der
+  > Lückenstelle tatsächlich gebraucht wird (zum Beispiel 'des', 'dem',
+  > 'den', 'die', 'das' gehören alle zur 'der'-Reihe; 'eines', 'einem',
+  > 'einen', 'eine' gehören alle zur 'ein'-Reihe; entsprechend für 'kein'
+  > und für die Formen auf 'mein'/'dein'/'sein'/'ihr'/'unser'/'euer'/
+  > 'Ihr'). Ein solcher Hinweis muss also KEINE Endung der vorgeschlagenen
+  > Antwort tragen, und es ist völlig in Ordnung -- kein Fehler --, wenn
+  > er zufällig genauso lautet wie die vorgeschlagene Antwort selbst: bei
+  > der Aufgabe 'Er hat sich ___ (ein) neues Fahrrad gekauft.' mit Antwort
+  > 'ein' ist der Hinweis 'ein' korrekt, obwohl Hinweis und Antwort
+  > identisch sind. Beantworte diese Frage bei einem solchen Hinweis nur
+  > dann mit Nein, wenn er zu einer ANDEREN der oben genannten Formen
+  > gehört als der, die zur Antwort passt -- zum Beispiel wenn statt immer
+  > 'der' der Hinweis 'die' oder 'das' steht, obwohl die Antwort zur
+  > 'der'-Reihe gehört. Bei jedem anderen Hinweis (zum Beispiel Infinitiv
+  > eines Verbs, Singular eines Nomens, Grundform eines Adjektivs) ist die
+  > richtige Zitierform die im Deutschen übliche Grundform des Wortes, aus
+  > dem die vorgeschlagene Antwort gebildet ist -- lehne den Hinweis hier
+  > nur ab, wenn er das falsche Wort nennt (zum Beispiel 'Tennisschlüssel'
+  > statt 'Tennisschläger' als Hinweis) oder gar keine echte deutsche
+  > Wortform ist, niemals nur deswegen, weil er nicht dieselbe Endung wie
+  > die Antwort trägt. Hat die Aufgabe KEINEN Hinweis ('Hinweis: (kein
+  > Hinweis)'), ist diese Frage automatisch mit Ja beantwortet.
 
 - [ ] **3.2 Anything the verifier catches twice becomes a deterministic
   rule.** This is the structural answer. The verifier is a discovery
@@ -230,7 +356,7 @@ same run. Four responses, in order of how much they matter.
   question three, and in cycle 9 caught `holzigen Tisch`, `rote Software`,
   `unsere sehr geehrte Familie` and `festhoffen`.
 
-- [ ] **3.3 Measure recall instead of guessing it.** Build an adversarial
+- [x] **3.3 Measure recall instead of guessing it.** Build an adversarial
   eval set from every defect ever hand-confirmed: 14 from cycle 7, 7 from
   cycle 8, 17 from cycle 9, each with its exact sentence, plus a sample of
   hand-confirmed clean items. Run the verifier against it and record two
@@ -241,10 +367,61 @@ same run. Four responses, in order of how much they matter.
   Until this exists, "the verifier is unreliable" is something we both
   believe and neither of us can act on.
 
-- [ ] **3.4 Test batch size.** Items are verified 20 to a prompt. Attention
+  Done. Two golden fixtures under `data/fixtures/verification/`
+  (CLAUDE.md section 7: versioned, `_meta` header records its own future-
+  cycle-appends instruction so the rule survives outside this TODO entry
+  too):
+
+  - `blanking_model_verifier_adversarial.jsonl`: 38 records, 14 from
+    `cycle-07-report.md`, 7 from `cycle-08-report.md`, 17 from
+    `cycle-09-report.md`, spread across 21 distinct defect classes (the
+    largest: 5 `nonword_in_carrier_wrong_lexeme`, 4
+    `swiss_orthography_elsewhere_in_carrier`, 3+3 reflexive-case-routing in
+    each direction). Each record's sentence/answer/cue is quoted, or where
+    an audit only quoted a fragment, reconstructed from it and flagged
+    `topic_inferred: true` rather than presented as if it were a verbatim
+    quote.
+  - `blanking_model_verifier_known_clean.jsonl`: 31 records. The audits
+    only name clean *topics* with counts, never literal clean item text, so
+    these were built by running real carrier sentences through the actual
+    current `pipeline.blank_sentences()` and hand-reviewing the output,
+    not invented. Several attempted topics (`modalverben_praesens`,
+    `pronomen_personal_dat`, `pronomen_personal_akk`) were dropped from
+    this set because unanchored/unforced carriers were correctly rejected
+    by the uniqueness gate -- itself a demonstration the gate works, not a
+    fixture defect.
+
+  `scripts/eval_verifier.py` loads both, builds a minimal `BankItem` per
+  record, and runs `verify_items` over each set, reporting recall (fraction
+  of the adversarial set rejected or downgraded) and false-positive rate
+  (fraction of the known-clean set wrongly rejected), plus a per-defect-
+  class recall breakdown. `tests/test_eval_verifier.py` (14 tests) covers
+  fixture loading/shape and an end-to-end run against a scripted fake
+  client (perfect recall, zero FPR, proving the wiring without a network
+  call).
+
+  **Could not actually run it against the real model in this container**:
+  no outbound network access here, and `src/llm/client.py` is off-limits
+  to touch. Confirmed this honestly rather than reporting invented numbers:
+  `verify_items` raises `httpx.ProxyError: 403 Forbidden` through the
+  configured (but network-blocked) client, which `eval_verifier.main`
+  catches and reports as `NOT RUN: a transport error prevented any model
+  call from completing`, exit code 1, same honest-degrade shape as the
+  already-existing no-API-key case. Whoever runs this next, with real
+  network access and a configured key, gets real recall/FPR numbers from
+  the same script; this task could not manufacture them.
+
+- [x] **3.4 Test batch size.** Items are verified 20 to a prompt. Attention
   is plausibly not uniform across a 20-item list, so an item late in a batch
   may get less scrutiny. One-line change; the eval set from 3.3 shows whether
   smaller batches raise recall. Drop the theory if it does not.
+
+  Done: `scripts/eval_verifier.py --batch-size N` passes `N` straight
+  through to `verify_items`'s own `batch_size` parameter, without touching
+  `model_verification.DEFAULT_VERIFICATION_BATCH_SIZE` (still 20). Whoever
+  runs 3.3 for real can rerun with `--batch-size 5` (or any other size)
+  against the same fixtures and compare recall directly; this task could
+  not run that comparison itself for the same no-network reason as 3.3.
 
 ---
 

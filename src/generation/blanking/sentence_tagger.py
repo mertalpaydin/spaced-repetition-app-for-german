@@ -111,11 +111,27 @@ def analysis_available() -> bool:
     return answer_tagger.analysis_available()
 
 
+@lru_cache(maxsize=8192)
 def tag_sentence(text: str) -> TaggedSentence | None:
     """Tag every token of ``text`` with its POS, fine-grained tag, and UD
     morphology. Returns ``None`` if spaCy is unavailable or ``text`` is
     blank after stripping -- never raises for either condition, matching
     ``src.taxonomy.tagger``'s degrade contract.
+
+    Cached on ``text`` alone: this function is a pure mapping from a
+    sentence string to its tagging (the loaded model is process-global and
+    never changes mid-run), and ``src.generation.blanking.orchestrator``'s
+    demand-recomputation loop (TODO 1.8) now re-runs ``pipeline.
+    blank_sentences`` -- which calls this for every sentence -- over the
+    SAME, growing pool of accumulated sentences many times in one run, to
+    check whether a topic's demand has already been met by other topics'
+    output before spending a call on it. Without this cache, that check
+    would re-parse identical text with spaCy on every recheck; with it, only
+    genuinely new sentences cost a fresh parse. 8192 is comfortably above
+    any single pilot run's sentence count (49 topics x a handful of batches
+    each), so eviction should not matter in practice; a run that did exceed
+    it would simply re-parse the evicted sentences, never produce a wrong
+    tagging -- this is a performance cache, not a correctness dependency.
     """
     stripped = text.strip()
     if not stripped:

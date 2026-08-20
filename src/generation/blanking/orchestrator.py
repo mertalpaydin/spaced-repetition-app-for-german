@@ -61,6 +61,65 @@ that no number of additional sentences will ever clear. ``TopicRunReport``
 keeps both numbers (``provisional_items`` from the scoped passes,
 ``items_produced`` from the final pass) so this is visible, not hidden.
 
+## TODO 1.8: demand is now recomputed as items accumulate, not fixed at the start
+
+Before this fix, every topic's own three attempts (1 initial + 2 retries,
+the script's own defaults) were spent no matter what, because the per-topic
+retry decision above only ever looked at sentences THAT topic's own calls
+had produced. It had no way to know that a sentence requested for a
+different topic's construction hint -- "gestern kaufte ich mir ein neues
+Fahrrad" answers a nominative pronoun topic, a Praeteritum topic and a
+reflexive-dative topic all at once -- had, as a side effect, already filled
+it. Measured against the offline mock pool at this cycle's own defaults (49
+topics, ``target_unseen=12``, every topic forced, ``max_retries_per_topic=2``,
+the exact scenario ``docs/audits/cycle-09-demand-driven-generation.md``
+already used): 18 of the 49 topics ended their OWN three attempts having
+found nothing for themselves (``provisional_items`` still 0 or barely above
+it) and only turned out to have met demand because the run's FINAL,
+cross-topic pass credited them with items other topics' sentences produced.
+Every one of those 18 topics' three calls were spent finding this out the
+slow way -- 54 of the run's 147 calls, before a single retry went to any of
+the topics that legitimately needed one.
+
+The fix: before a topic is served at all, its current standing is
+rechecked against every sentence the run has collected SO FAR (not only
+that topic's own), via ``_snapshot_items_by_topic`` -- the identical
+topic-scoped ``blank_sentences`` call the retry decision already trusted,
+just run one topic (or, for re-sorting, several at once) earlier and over
+the WHOLE accumulated pool rather than only the newest batch. A topic whose
+snapshot already meets its demand is skipped outright: ``TopicRunReport.
+already_met_by_other_topics`` records this, ``calls_made`` for that topic
+stays at whatever it already was (zero, the common case, when the topic is
+reached before its own retry loop runs at all), and the report shows the
+saving instead of a silent three-call round trip that finds nothing new.
+This is also what makes "recompute demand as items accumulate" real rather
+than a one-time check: the demand list is re-sorted, scarcest-effective-
+deficit-first, immediately before every topic is chosen (module docstring's
+own "in demand order, scarcest first" promise, now honoured against the
+CURRENT tally rather than the tally ``compute_demand`` saw before
+generation started).
+
+**What happens to the calls this frees up.** Two ways to spend them were
+considered (this task's own brief): raise every topic's per-topic retry
+budget so the shared ceiling is the only thing bounding a run, or make a
+second, targeted pass over the topics still short once the main pass ends,
+spending only what the main pass did not use. This module takes the
+second option. Raising every topic's budget uniformly would also hand
+extra attempts to topics that do not need them (most of a run's calls
+would still go to topics likely to be met by cross-topic fallout, just
+later); a second pass aimed only at ``exhausted_retries and not (yet) met``
+topics, in the same scarcest-first order, spends the freed budget exactly
+where cycle 9's own report says it is missing -- the ten topics that ended
+at zero. The redistribution pass gives each still-short topic one more full
+``1 + max_retries_per_topic`` attempt budget, re-sorting and re-checking the
+running tally before every topic exactly as the main pass does, and stops
+the instant the shared ``call_ceiling`` is reached -- the run-wide worst
+case (``projected_call_count``) is unchanged by this pass existing at all,
+only which topics the same total budget actually reaches. ``TopicRunReport.
+used_redistributed_budget`` marks a topic that drew on it, so a report can
+show which zero-item topics got a genuine second look versus which used up
+their calls in the main pass alone.
+
 ## Two explicit budgets
 
 - ``max_retries_per_topic`` (default ``DEFAULT_MAX_RETRIES_PER_TOPIC``):
@@ -162,7 +221,19 @@ class TopicRunReport:
 
     A fourth, ``type_ineligible_count``, is kept for the same reason
     ``pipeline.TypeIneligibilitySkip`` is its own bucket there: a distinct
-    outcome from all three above, not folded into any of them."""
+    outcome from all three above, not folded into any of them.
+
+    ``already_met_by_other_topics`` and ``used_redistributed_budget`` are
+    TODO 1.8's own two additions (module docstring's own section): the
+    first marks a topic the running cross-topic tally already satisfied
+    before it was ever served (``calls_made`` for it can be, and usually
+    is, zero); the second marks a topic that drew on the redistribution
+    pass's freed budget after exhausting its own first-pass retries. Both
+    default ``False`` and are independent of ``met_demand`` -- a topic can
+    be marked ``already_met_by_other_topics`` and still show ``met_demand
+    is False`` if the FINAL, globally-gated pass later capped or lost the
+    very items the pre-check saw (the same honest seam the module docstring
+    already describes between ``provisional_items`` and ``items_produced``)."""
 
     topic_id: str
     demand: TopicDemand
@@ -178,6 +249,8 @@ class TopicRunReport:
     type_ineligible_count: int = 0
     exhausted_retries: bool = False
     stopped_by_call_ceiling: bool = False
+    already_met_by_other_topics: bool = False
+    used_redistributed_budget: bool = False
 
     @property
     def met_demand(self) -> bool:
@@ -312,6 +385,162 @@ def _request_batch(
     )
 
 
+def _snapshot_items_by_topic(
+    all_sentences: list[str],
+    topic_ids: Sequence[str],
+    *,
+    difficulty: Difficulty,
+    max_items_per_topic: int,
+    max_items_per_sentence: int,
+) -> dict[str, int]:
+    """How many items each of ``topic_ids`` would get from every carrier-
+    valid sentence this run has collected SO FAR -- not only the sentences
+    that topic's own calls produced. This is TODO 1.8's "recompute demand as
+    items accumulate" made real (module docstring's own section): a topic
+    another topic's sentences would fill anyway is caught here, before this
+    loop ever spends a call finding that out the slow way. Returns ``{}``
+    without doing any work when there is nothing to check against yet."""
+    if not all_sentences or not topic_ids:
+        return {}
+    snapshot = blank_sentences(
+        all_sentences,
+        difficulty=difficulty,
+        max_items_per_topic=max_items_per_topic,
+        max_items_per_sentence=max_items_per_sentence,
+        topic_ids=topic_ids,
+    )
+    return dict(snapshot.items_by_topic)
+
+
+def _effective_deficit(demand: TopicDemand, inherited: dict[str, int]) -> int:
+    """How short ``demand``'s topic still is, given items it has already
+    inherited from OTHER topics' sentences (``inherited``, from
+    ``_snapshot_items_by_topic``) -- the number the demand list is re-sorted
+    on before every topic is chosen, so "scarcest first" (module docstring)
+    stays true against the CURRENT tally, not the one ``compute_demand`` saw
+    before generation started."""
+    return max(0, demand.demand - inherited.get(demand.topic_id, 0))
+
+
+def _serve_topic(
+    generator: SentenceGenerator,
+    cefr: CEFR,
+    batch_size: int,
+    topic_report: TopicRunReport,
+    demand: TopicDemand,
+    *,
+    max_attempts: int,
+    ceiling: int,
+    calls_made: int,
+    variety_counter: int,
+    all_sentences: list[str],
+    seen_sentences: set[str],
+    themes: Sequence[str],
+    difficulty: Difficulty,
+    max_items_per_topic: int,
+    max_items_per_sentence: int,
+    report: DemandRunReport,
+) -> tuple[int, int]:
+    """Run up to ``max_attempts`` generate-and-check attempts for one topic,
+    starting from whatever ``topic_report.provisional_items`` already is
+    (which may be nonzero -- items inherited from earlier topics' sentences,
+    module docstring's own section). Mutates ``topic_report``, ``report``,
+    ``all_sentences`` and ``seen_sentences`` in place and returns the
+    caller's updated ``(calls_made, variety_counter)``, so the same counters
+    stay in sync whether this is called once (the main pass) or twice (a
+    second call from the redistribution pass, with a fresh ``max_attempts``
+    budget but the same accumulated ``topic_report``).
+
+    ``retries_used`` is incremented from ``topic_report.calls_made > 0``
+    (checked before this attempt's own increment), not from a per-call
+    attempt counter -- so a topic served again by the redistribution pass
+    after already using calls in the main pass correctly keeps counting every
+    further call as a retry, rather than resetting to "not a retry" just
+    because it is the first attempt of THIS particular call."""
+    attempt = 0
+    topic_report.exhausted_retries = False
+    while topic_report.provisional_items < demand.demand:
+        # Retry exhaustion is checked before the call ceiling, deliberately:
+        # when a topic's own attempt count and the run's remaining call
+        # budget happen to run out at exactly the same call, the more
+        # specific, topic-intrinsic reason -- it used its whole retry budget
+        # -- is reported rather than the global, resource-contention one,
+        # which is only actually true when some OTHER topic's calls are what
+        # used up the shared budget ahead of this one.
+        if attempt >= max_attempts:
+            topic_report.exhausted_retries = True
+            break
+        if calls_made >= ceiling:
+            topic_report.stopped_by_call_ceiling = True
+            report.call_ceiling_hit = True
+            break
+
+        raw = _request_batch(
+            generator,
+            cefr,
+            demand.topic_id,
+            batch_size,
+            variety_index=variety_counter,
+            themes=themes,
+        )
+        is_retry = topic_report.calls_made > 0
+        calls_made += 1
+        variety_counter += 1
+        topic_report.calls_made += 1
+        if is_retry:
+            topic_report.retries_used += 1
+        attempt += 1
+
+        topic_report.sentences_requested += len(raw)
+        validation = carrier_validation.validate_carriers(raw)
+        report.rejected_by_reason.update(validation.rejected_by_reason)
+        topic_report.carriers_accepted += len(validation.accepted)
+        # "The model never produced a usable carrier for this construction"
+        # (task 4's own first category) covers BOTH ways that can happen: a
+        # sentence came back and carrier_validation rejected it (counted in
+        # ``validation.rejected_by_reason``), and the model returning fewer
+        # than ``batch_size`` sentences at all -- malformed JSON, an empty
+        # response, anything ``sentence_source._parse_sentences`` could not
+        # read a single sentence out of. Measuring against ``batch_size``
+        # (what was ASKED for) rather than ``len(raw)`` (what came back) is
+        # what makes the second case count at all; against ``len(raw)`` a
+        # call that returned nothing would silently contribute zero to this
+        # bucket instead of the whole batch.
+        topic_report.no_usable_carrier_count += max(0, batch_size - len(validation.accepted))
+
+        new_sentences = [s for s in validation.accepted if s not in seen_sentences]
+        report.duplicates_skipped += len(validation.accepted) - len(new_sentences)
+        for sentence in new_sentences:
+            seen_sentences.add(sentence)
+            all_sentences.append(sentence)
+
+        if not new_sentences:
+            # Every carrier-valid sentence this batch produced was one this
+            # run already had (from an earlier topic, or an earlier retry of
+            # this one) -- nothing NEW to re-check against this topic's own
+            # selector, so the provisional count cannot move this attempt.
+            # Still counted above (calls_made, attempt), so a topic that only
+            # ever regenerates duplicates still exhausts its retries rather
+            # than looping forever.
+            continue
+
+        scoped = blank_sentences(
+            new_sentences,
+            difficulty=difficulty,
+            max_items_per_topic=max_items_per_topic,
+            max_items_per_sentence=max_items_per_sentence,
+            topic_ids=[demand.topic_id],
+        )
+        topic_report.provisional_items += scoped.total_items
+        topic_report.no_candidate_for_topic_count += scoped.skips_by_reason.get(
+            "no_candidate_for_topic", 0
+        )
+        topic_report.uniqueness_skipped_count += sum(scoped.skips_by_uniqueness.values())
+        topic_report.type_ineligible_count += sum(scoped.skips_by_type_ineligibility.values())
+
+    return calls_made, variety_counter
+
+
 def run_demand_driven_generation(
     generator: SentenceGenerator,
     cefr: CEFR,
@@ -326,8 +555,13 @@ def run_demand_driven_generation(
     themes: Sequence[str] = DEFAULT_THEMES,
 ) -> DemandRunReport:
     """Run the per-topic demand-driven loop (module docstring) over
-    ``demands``, in the order given (``topic_demand.compute_demand`` already
-    sorts scarcest-deficit-first).
+    ``demands``. Topics are NOT served in the fixed order ``demands`` were
+    given (``topic_demand.compute_demand``'s own scarcest-deficit-first
+    sort, against the stock ``compute_demand`` saw before generation
+    started) -- module docstring's TODO 1.8 section -- they are re-sorted,
+    scarcest EFFECTIVE deficit first, immediately before each one is chosen,
+    against the running tally of what this run's own sentences have already
+    produced for it.
 
     ``call_ceiling``, when ``None`` (the default), is set to
     ``projected_call_count(demands, max_retries_per_topic=...)`` -- the same
@@ -338,7 +572,8 @@ def run_demand_driven_generation(
     the loop stops requesting new batches for ANY topic, mid-run, the moment
     it would be exceeded, and ``DemandRunReport.call_ceiling_hit`` records
     that this happened rather than letting a truncated run look identical to
-    a complete one.
+    a complete one. The redistribution pass (module docstring) never pushes
+    the run's total calls past this same ceiling either.
     """
     projected = projected_call_count(demands, max_retries_per_topic=max_retries_per_topic)
     ceiling = projected if call_ceiling is None else call_ceiling
@@ -350,92 +585,105 @@ def run_demand_driven_generation(
     calls_made = 0
     variety_counter = 0
 
-    for demand in demands:
+    # Main pass: every topic in ``demands`` is served (or skipped outright)
+    # exactly once, in an order re-decided before each pick from the running
+    # cross-topic tally (module docstring's TODO 1.8 section), not the
+    # static order ``demands`` arrived in.
+    pending: list[TopicDemand] = list(demands)
+    while pending:
+        inherited = _snapshot_items_by_topic(
+            all_sentences,
+            [d.topic_id for d in pending],
+            difficulty=difficulty,
+            max_items_per_topic=max_items_per_topic,
+            max_items_per_sentence=max_items_per_sentence,
+        )
+        pending.sort(key=lambda d: (-_effective_deficit(d, inherited), d.topic_id))
+        demand = pending.pop(0)
+
         topic_report = TopicRunReport(topic_id=demand.topic_id, demand=demand)
         report.topic_reports.append(topic_report)
 
-        attempt = 0
-        while topic_report.provisional_items < demand.demand:
-            # Retry exhaustion is checked before the call ceiling,
-            # deliberately: when a topic's own attempt count and the run's
-            # remaining call budget happen to run out at exactly the same
-            # call (e.g. a single-topic run whose default ceiling IS its own
-            # worst case), the more specific, topic-intrinsic reason -- it
-            # used its whole retry budget -- is reported rather than the
-            # global, resource-contention one, which is only actually true
-            # when some OTHER topic's calls are what used up the shared
-            # budget ahead of this one.
-            if attempt > max_retries_per_topic:
-                topic_report.exhausted_retries = True
-                break
-            if calls_made >= ceiling:
-                topic_report.stopped_by_call_ceiling = True
-                report.call_ceiling_hit = True
-                break
+        starting_items = inherited.get(demand.topic_id, 0)
+        topic_report.provisional_items = starting_items
+        if starting_items >= demand.demand:
+            # Every sentence collected before this topic was even reached
+            # already meets its demand -- served with ZERO calls, the saving
+            # TODO 1.8 exists to make visible rather than silent.
+            topic_report.already_met_by_other_topics = True
+            report.calls_made = calls_made
+            continue
 
-            raw = _request_batch(
-                generator,
-                cefr,
-                demand.topic_id,
-                batch_size,
-                variety_index=variety_counter,
-                themes=themes,
-            )
-            calls_made += 1
-            variety_counter += 1
-            topic_report.calls_made += 1
-            if attempt > 0:
-                topic_report.retries_used += 1
-            attempt += 1
+        calls_made, variety_counter = _serve_topic(
+            generator,
+            cefr,
+            batch_size,
+            topic_report,
+            demand,
+            max_attempts=1 + max_retries_per_topic,
+            ceiling=ceiling,
+            calls_made=calls_made,
+            variety_counter=variety_counter,
+            all_sentences=all_sentences,
+            seen_sentences=seen_sentences,
+            themes=themes,
+            difficulty=difficulty,
+            max_items_per_topic=max_items_per_topic,
+            max_items_per_sentence=max_items_per_sentence,
+            report=report,
+        )
+        report.calls_made = calls_made
 
-            topic_report.sentences_requested += len(raw)
-            validation = carrier_validation.validate_carriers(raw)
-            report.rejected_by_reason.update(validation.rejected_by_reason)
-            topic_report.carriers_accepted += len(validation.accepted)
-            # "The model never produced a usable carrier for this
-            # construction" (task 4's own first category) covers BOTH ways
-            # that can happen: a sentence came back and carrier_validation
-            # rejected it (counted in ``validation.rejected_by_reason``),
-            # and the model returning fewer than ``batch_size`` sentences at
-            # all -- malformed JSON, an empty response, anything
-            # ``sentence_source._parse_sentences`` could not read a single
-            # sentence out of. Measuring against ``batch_size`` (what was
-            # ASKED for) rather than ``len(raw)`` (what came back) is what
-            # makes the second case count at all; against ``len(raw)`` a
-            # call that returned nothing would silently contribute zero to
-            # this bucket instead of the whole batch.
-            topic_report.no_usable_carrier_count += max(0, batch_size - len(validation.accepted))
+    # Redistribution pass (module docstring's own section): spend whatever
+    # of the call budget the main pass did not use on topics that exhausted
+    # their own first-pass retries still short, scarcest-effective-deficit
+    # first, exactly as the main pass orders topics -- never exceeding the
+    # same shared ``ceiling``. A topic can appear here more than once only
+    # in the sense that it is the SAME ``TopicRunReport`` being updated
+    # again, never a second report row.
+    starved = [
+        t
+        for t in report.topic_reports
+        if t.exhausted_retries and t.provisional_items < t.demand.demand
+    ]
+    while starved and calls_made < ceiling:
+        inherited = _snapshot_items_by_topic(
+            all_sentences,
+            [t.topic_id for t in starved],
+            difficulty=difficulty,
+            max_items_per_topic=max_items_per_topic,
+            max_items_per_sentence=max_items_per_sentence,
+        )
+        starved.sort(key=lambda t: (-_effective_deficit(t.demand, inherited), t.topic_id))
+        topic_report = starved.pop(0)
 
-            new_sentences = [s for s in validation.accepted if s not in seen_sentences]
-            report.duplicates_skipped += len(validation.accepted) - len(new_sentences)
-            for sentence in new_sentences:
-                seen_sentences.add(sentence)
-                all_sentences.append(sentence)
+        starting_items = inherited.get(topic_report.topic_id, 0)
+        topic_report.provisional_items = starting_items
+        if starting_items >= topic_report.demand.demand:
+            topic_report.exhausted_retries = False
+            topic_report.already_met_by_other_topics = True
+            report.calls_made = calls_made
+            continue
 
-            if not new_sentences:
-                # Every carrier-valid sentence this batch produced was one
-                # this run already had (from an earlier topic, or an earlier
-                # retry of this one) -- nothing NEW to re-check against this
-                # topic's own selector, so the provisional count cannot move
-                # this attempt. Still counted above (calls_made, attempt),
-                # so a topic that only ever regenerates duplicates still
-                # exhausts its retries rather than looping forever.
-                continue
-
-            scoped = blank_sentences(
-                new_sentences,
-                difficulty=difficulty,
-                max_items_per_topic=max_items_per_topic,
-                max_items_per_sentence=max_items_per_sentence,
-                topic_ids=[demand.topic_id],
-            )
-            topic_report.provisional_items += scoped.total_items
-            topic_report.no_candidate_for_topic_count += scoped.skips_by_reason.get(
-                "no_candidate_for_topic", 0
-            )
-            topic_report.uniqueness_skipped_count += sum(scoped.skips_by_uniqueness.values())
-            topic_report.type_ineligible_count += sum(scoped.skips_by_type_ineligibility.values())
-
+        topic_report.used_redistributed_budget = True
+        calls_made, variety_counter = _serve_topic(
+            generator,
+            cefr,
+            batch_size,
+            topic_report,
+            topic_report.demand,
+            max_attempts=1 + max_retries_per_topic,
+            ceiling=ceiling,
+            calls_made=calls_made,
+            variety_counter=variety_counter,
+            all_sentences=all_sentences,
+            seen_sentences=seen_sentences,
+            themes=themes,
+            difficulty=difficulty,
+            max_items_per_topic=max_items_per_topic,
+            max_items_per_sentence=max_items_per_sentence,
+            report=report,
+        )
         report.calls_made = calls_made
 
     # The final, globally-gated pass (module docstring's "two passes"

@@ -242,6 +242,110 @@ def test_projected_call_count_is_the_worst_case_bound() -> None:
     assert orchestrator.projected_call_count(demands, max_retries_per_topic=0) == 3
 
 
+class _ByCallCountGenerator:
+    """A ``SentenceGenerator`` whose response for a given ``construction``
+    hint depends on how many times THAT hint has already been requested --
+    lets a test prove a topic's redistributed second-round attempt actually
+    gets exercised (returns nothing on the first N calls, then a usable
+    batch), not just that ``calls_made`` went up."""
+
+    def __init__(self, sentences_by_hint_by_call_index: dict[str, list[list[str]]]) -> None:
+        self._by_hint = sentences_by_hint_by_call_index
+        self._call_counts: dict[str, int] = {}
+        self.calls: list[dict[str, object]] = []
+
+    def generate(
+        self,
+        cefr: str,
+        theme: str,
+        count: int,
+        *,
+        person: str | None = None,
+        tense: str | None = None,
+        register: str | None = None,
+        structure: str | None = None,
+        construction: str | None = None,
+    ) -> list[str]:
+        hint = construction or ""
+        self.calls.append({"construction": hint})
+        responses = self._by_hint.get(hint, [])
+        index = self._call_counts.get(hint, 0)
+        self._call_counts[hint] = index + 1
+        if index >= len(responses):
+            return []
+        return list(responses[index])
+
+
+def test_topic_already_met_by_other_topics_sentences_is_skipped_with_zero_calls() -> None:
+    """TODO 1.8: a topic must never spend a call finding out something it
+    could already tell from sentences OTHER topics' calls collected. Here
+    ``perfekt_sein``'s own sentences ("ist"/"sind" + participle) also satisfy
+    ``verb_sein_haben`` (any present-tense sein/haben, no participle
+    required) when ``verb_sein_haben`` is checked alone -- exactly the
+    cross-topic fallout the module docstring describes."""
+    sentences = [
+        "Meine Schwester ist gestern nach Berlin gefahren.",
+        "Er ist heute Morgen sehr früh aufgewacht.",
+        "Wir sind letzten Sommer nach Italien geflogen.",
+    ]
+    generator = _ScriptedGenerator(
+        {
+            _HINT_BY_TOPIC["perfekt_sein"]: sentences,
+            _HINT_BY_TOPIC["verb_sein_haben"]: ["should never be requested"],
+        }
+    )
+    demands = [_demand("perfekt_sein", 2), _demand("verb_sein_haben", 2)]
+
+    report = orchestrator.run_demand_driven_generation(
+        generator, "A2", demands, max_retries_per_topic=1
+    )
+
+    verb_sein_haben_report = next(
+        t for t in report.topic_reports if t.topic_id == "verb_sein_haben"
+    )
+    assert verb_sein_haben_report.already_met_by_other_topics is True
+    assert verb_sein_haben_report.calls_made == 0
+
+    requested_hints = {c["construction"] for c in generator.calls}
+    assert _HINT_BY_TOPIC["verb_sein_haben"] not in requested_hints
+
+
+def test_starved_topic_gets_a_second_budget_from_redistribution() -> None:
+    """TODO 1.8's own second half: calls a topic did not need (here,
+    ``perfekt_sein`` meets its demand in one call) are not simply wasted on
+    topics the run already has evidence for -- they are spent on a topic
+    that exhausted ITS OWN first-pass retries still short. ``futur_i``
+    returns nothing for its first two attempts (its whole normal
+    ``1 + max_retries_per_topic`` budget) and only succeeds on what would be
+    a third attempt -- reachable only via the redistribution pass."""
+    perfekt_sein_sentences = [
+        "Meine Schwester ist gestern nach Berlin gefahren.",
+        "Er ist heute Morgen sehr früh aufgewacht.",
+    ]
+    futur_i_sentences = [
+        "Ich werde morgen kommen.",
+        "Ich werde morgen ins Kino gehen.",
+    ]
+    generator = _ByCallCountGenerator(
+        {
+            _HINT_BY_TOPIC["perfekt_sein"]: [perfekt_sein_sentences],
+            _HINT_BY_TOPIC["futur_i"]: [[], [], futur_i_sentences],
+        }
+    )
+    demands = [_demand("perfekt_sein", 2), _demand("futur_i", 2)]
+
+    report = orchestrator.run_demand_driven_generation(
+        generator, "A2", demands, max_retries_per_topic=1
+    )
+
+    futur_i_report = next(t for t in report.topic_reports if t.topic_id == "futur_i")
+    assert futur_i_report.calls_made == 3, "2 in the main pass, 1 more from redistribution"
+    assert futur_i_report.used_redistributed_budget is True
+    assert futur_i_report.met_demand is True
+    assert report.calls_made == 4  # 1 (perfekt_sein) + 2 (futur_i main) + 1 (redistribution)
+    assert report.calls_made <= report.call_ceiling
+
+
 def test_request_batch_asserts_topic_id_never_reaches_the_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

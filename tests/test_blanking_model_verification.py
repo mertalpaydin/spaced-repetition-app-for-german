@@ -84,20 +84,38 @@ class _FakeVerifyLlmClient:
 
 
 def _verdict_response(
-    verdicts: list[tuple[bool, str | None]], *, woerter_echt: bool | list[bool] = True
+    verdicts: list[tuple[bool, str | None]],
+    *,
+    woerter_echt: bool | list[bool] = True,
+    hinweis_korrekt: bool | list[bool] = True,
 ) -> str:
     """Build a canned ``generate_many`` response JSON. ``woerter_echt`` (the
-    third question's own answer) defaults to ``True`` for every entry so
-    existing callers that only care about the ``(valid, reason)`` pair do
-    not need to know about the third field at all; pass a per-entry list to
-    exercise the third question's own effect on the combined verdict."""
-    per_entry = woerter_echt if isinstance(woerter_echt, list) else [woerter_echt] * len(verdicts)
-    assert len(per_entry) == len(verdicts)
+    third question's own answer) and ``hinweis_korrekt`` (the fourth
+    question's own answer, TODO 3.1) each default to ``True`` for every
+    entry so existing callers that only care about the ``(valid, reason)``
+    pair do not need to know about either field at all; pass a per-entry
+    list to exercise either question's own effect on the combined verdict."""
+    words_real_per_entry = (
+        woerter_echt if isinstance(woerter_echt, list) else [woerter_echt] * len(verdicts)
+    )
+    cue_correct_per_entry = (
+        hinweis_korrekt if isinstance(hinweis_korrekt, list) else [hinweis_korrekt] * len(verdicts)
+    )
+    assert len(words_real_per_entry) == len(verdicts)
+    assert len(cue_correct_per_entry) == len(verdicts)
     return json.dumps(
         {
             "verdicts": [
-                {"index": i + 1, "valid": valid, "woerter_echt": we, "reason": reason}
-                for i, ((valid, reason), we) in enumerate(zip(verdicts, per_entry, strict=True))
+                {
+                    "index": i + 1,
+                    "valid": valid,
+                    "woerter_echt": we,
+                    "hinweis_korrekt": hk,
+                    "reason": reason,
+                }
+                for i, ((valid, reason), we, hk) in enumerate(
+                    zip(verdicts, words_real_per_entry, cue_correct_per_entry, strict=True)
+                )
             ]
         }
     )
@@ -148,14 +166,60 @@ def test_build_batch_prompt_uses_the_german_instruction_not_the_english_one() ->
     assert _INSTRUCTION_EN_REFERENCE_ONLY not in prompt
 
 
-def test_instruction_de_live_asks_three_questions_and_carries_woerter_echt() -> None:
+def test_instruction_de_live_asks_four_questions_and_carries_woerter_echt() -> None:
     """docs/audits/cycle-08-report.md: the third question -- every word in
-    the completed sentence must be a real German word -- is added to the
-    SAME batched call, not a new one; the response schema example must
-    carry ``woerter_echt`` so ``_parse_batch_response`` can require it."""
-    assert "drei Fragen" in _INSTRUCTION_DE_LIVE
+    the completed sentence must be a real German word -- and TODO 3.1's own
+    fourth question -- is the cue the answer's correct citation form -- are
+    both added to the SAME batched call, not a new one; the response schema
+    example must carry both ``woerter_echt`` and ``hinweis_korrekt`` so
+    ``_parse_batch_response`` can require them."""
+    assert "vier Fragen" in _INSTRUCTION_DE_LIVE
     assert "3." in _INSTRUCTION_DE_LIVE
+    assert "4." in _INSTRUCTION_DE_LIVE
     assert '"woerter_echt"' in _INSTRUCTION_DE_LIVE
+    assert '"hinweis_korrekt"' in _INSTRUCTION_DE_LIVE
+
+
+def test_instruction_de_live_asks_about_the_cue() -> None:
+    """TODO 3.1: none of the first three questions ever mentions the
+    parenthesised hint at all -- the fourth question must, explicitly, and
+    must be skippable ("automatisch mit Ja") for an item with no cue."""
+    assert "Hinweis" in _INSTRUCTION_DE_LIVE
+    assert "Zitierform" in _INSTRUCTION_DE_LIVE
+    assert "kein Hinweis" in _INSTRUCTION_DE_LIVE
+
+
+def test_instruction_de_live_explains_the_invariant_determiner_citation_form() -> None:
+    """TODO 2.1-2.3's redesign (read before writing this question, per this
+    task's own brief): a determiner cue is always its own word-series'
+    invariant form, never agreed to the head noun's own grammar, and it may
+    legitimately equal the answer -- the prompt must say all of this (using
+    concrete word forms, not grammar terminology CLAUDE.md rule 2 forbids
+    handing the model at all -- see ``test_instructions_never_name_a_
+    grammar_topic``) or the model will reject a whole class of now-correct
+    items."""
+    for family_word in ("der", "ein", "kein", "mein"):
+        assert family_word in _INSTRUCTION_DE_LIVE
+    assert "immer richtig" in _INSTRUCTION_DE_LIVE
+
+
+def test_instruction_de_live_gives_a_worked_cue_equals_answer_example() -> None:
+    """TODO 2.2's owner-approved exemption, given to the model as a concrete
+    worked example so it does not flag the whole class: 'Fahrrad' is neuter
+    and the accusative neuter of 'ein' happens to also be 'ein', so a cue
+    identical to the answer is correct here, not a leak."""
+    assert "Fahrrad" in _INSTRUCTION_DE_LIVE
+    assert "identisch" in _INSTRUCTION_DE_LIVE
+
+
+def test_instruction_de_live_still_rejects_the_wrong_determiner_family() -> None:
+    """What question 4 must still catch post-redesign: a determiner cue
+    naming the wrong invariant word-series entirely (docs/audits/
+    cycle-09-report.md's own 'die'/'das' misses, now framed as a
+    wrong-series error rather than a wrong-gender one, since the cue no
+    longer varies by gender at all)."""
+    assert "'die'" in _INSTRUCTION_DE_LIVE
+    assert "ANDEREN" in _INSTRUCTION_DE_LIVE
 
 
 def test_instruction_de_live_gives_tennisschluessel_as_the_negative_example() -> None:
@@ -277,8 +341,20 @@ def test_parse_batch_response_reorders_by_index() -> None:
     text = json.dumps(
         {
             "verdicts": [
-                {"index": 2, "valid": False, "woerter_echt": True, "reason": "zweitens"},
-                {"index": 1, "valid": True, "woerter_echt": True, "reason": None},
+                {
+                    "index": 2,
+                    "valid": False,
+                    "woerter_echt": True,
+                    "hinweis_korrekt": True,
+                    "reason": "zweitens",
+                },
+                {
+                    "index": 1,
+                    "valid": True,
+                    "woerter_echt": True,
+                    "hinweis_korrekt": True,
+                    "reason": None,
+                },
             ]
         }
     )
@@ -287,7 +363,17 @@ def test_parse_batch_response_reorders_by_index() -> None:
 
 def test_parse_batch_response_blank_reason_string_becomes_none() -> None:
     text = json.dumps(
-        {"verdicts": [{"index": 1, "valid": True, "woerter_echt": True, "reason": "   "}]}
+        {
+            "verdicts": [
+                {
+                    "index": 1,
+                    "valid": True,
+                    "woerter_echt": True,
+                    "hinweis_korrekt": True,
+                    "reason": "   ",
+                }
+            ]
+        }
     )
     assert _parse_batch_response(text, 1) == [(True, None)]
 
@@ -310,6 +396,7 @@ def test_parse_batch_response_woerter_echt_false_overrides_valid_true() -> None:
                     "index": 1,
                     "valid": True,
                     "woerter_echt": False,
+                    "hinweis_korrekt": True,
                     "reason": "'Tennisschlüssel' ist kein Wort.",
                 }
             ]
@@ -321,6 +408,57 @@ def test_parse_batch_response_woerter_echt_false_overrides_valid_true() -> None:
 def test_parse_batch_response_woerter_echt_true_and_valid_true_is_valid() -> None:
     text = _verdict_response([(True, None)], woerter_echt=True)
     assert _parse_batch_response(text, 1) == [(True, None)]
+
+
+# ---------------------------------------------------------------------------
+# _parse_batch_response: the fourth question (``hinweis_korrekt``) -- TODO
+# 3.1, whether the cue is the answer's correct citation form.
+# ---------------------------------------------------------------------------
+
+
+def test_parse_batch_response_hinweis_korrekt_false_overrides_valid_true() -> None:
+    """Same internal-consistency guard as ``woerter_echt``, for the fourth
+    question: ``valid: true`` but ``hinweis_korrekt: false`` must still
+    reject, never trusted on the aggregate bit alone."""
+    text = json.dumps(
+        {
+            "verdicts": [
+                {
+                    "index": 1,
+                    "valid": True,
+                    "woerter_echt": True,
+                    "hinweis_korrekt": False,
+                    "reason": "Der Hinweis 'die' passt nicht zur Wortfamilie 'der'.",
+                }
+            ]
+        }
+    )
+    assert _parse_batch_response(text, 1) == [
+        (False, "Der Hinweis 'die' passt nicht zur Wortfamilie 'der'.")
+    ]
+
+
+def test_parse_batch_response_hinweis_korrekt_true_and_valid_true_is_valid() -> None:
+    text = _verdict_response([(True, None)], hinweis_korrekt=True)
+    assert _parse_batch_response(text, 1) == [(True, None)]
+
+
+def test_parse_batch_response_missing_hinweis_korrekt_is_malformed() -> None:
+    """A response missing the fourth question's own field entirely
+    degrades the whole batch to ``not_run`` -- never silently trusted as if
+    the cue had been judged correct, mirroring ``woerter_echt``'s own
+    missing-field test."""
+    text = json.dumps(
+        {"verdicts": [{"index": 1, "valid": True, "woerter_echt": True, "reason": None}]}
+    )
+    assert _parse_batch_response(text, 1) is None
+
+
+def test_parse_batch_response_non_bool_hinweis_korrekt_is_malformed() -> None:
+    text = json.dumps(
+        {"verdicts": [{"index": 1, "valid": True, "woerter_echt": True, "hinweis_korrekt": "ja"}]}
+    )
+    assert _parse_batch_response(text, 1) is None
 
 
 @pytest.mark.parametrize(

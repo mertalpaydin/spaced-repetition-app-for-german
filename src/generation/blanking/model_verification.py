@@ -21,7 +21,7 @@ learner or a textbook editor would, and to say plainly whether it is sound.
 Nothing upstream changes. Carrier validation, the selectors, paradigm
 reconstruction and the uniqueness gate in ``pipeline.py`` all still run
 first, exactly as before -- this module runs LAST, over the items that
-already survived every one of those, and asks three questions per item that
+already survived every one of those, and asks four questions per item that
 no closed-class table or dependency-parse rule can answer on its own:
 
 1. Is the finished sentence (gap filled with the stated answer) correct,
@@ -30,6 +30,8 @@ no closed-class table or dependency-parse rule can answer on its own:
    answer the ONLY correct filler for the gap?
 3. Does every word in the finished sentence exist in German as a word a
    native speaker would actually use?
+4. When the item carries a cue, is that cue the correct citation form for
+   the stated answer?
 
 Question 2 is where most of the remaining value is. The rule-based
 uniqueness gate in ``uniqueness.py`` already covers a handful of closed
@@ -80,6 +82,57 @@ prevent everywhere else in this codebase. The model sees only the prompt
 three things, and nothing more, a learner actually facing the item would
 have.
 
+## Question 4: the verifier is asked about the cue at all, TODO.md 3.1
+
+None of the three questions above ever mentions the parenthesised hint.
+docs/audits/cycle-09-report.md caught two wrong-gender cues (``(eine)`` for
+masculine ``Orangensaft``, ``(die)`` for neuter ``Zimmer``), but only
+because the model happened to volunteer the observation while answering
+question 2:
+
+    Der grammatische Hinweis '(die)' ist für das maskuline Nomen
+    'Einkaufszettel' fehlerhaft und führt Lernende in die Irre.
+
+    Der Hinweis '(die)' ist fehlerhaft, da 'Akku' maskulin ist.
+
+The same run's audit found two more of the same class that the pass did not
+catch, because nothing asked it to look. Question 4 asks directly: is the
+cue the correct citation form of the stated answer.
+
+**This question's wording had to change to match TODO 2.1 through 2.3, not
+just get added.** Those tasks reversed the cue design after the cycle-9
+audit above: ``selectors._determiner_cue`` no longer reads any noun's
+gender, case or number at all. A determiner cue is now the INVARIANT
+citation form of its whole family -- always "der" for the definite article,
+always "ein" for the indefinite, always "kein" for the negative, and a
+possessive's own uninflected stem ("mein"/"dein"/"sein"/"ihr"/"unser"/
+"euer"/"Ihr") for a possessive -- regardless of what case, gender or number
+the answer itself actually is, and per TODO 2.2 it may legitimately be
+IDENTICAL to the answer (the owner's own words, recorded there verbatim:
+"cue being the answer is not a problem if the problem still requires
+student to identify case, declension etc."). A question phrased like
+question 2 ("is this the only correct answer") would fail exactly the class
+of item this redesign was built to allow: it would read a determiner cue
+that equals its answer, or one that does not carry the head noun's gender,
+as if either were a defect, when neither is one any more. The live prompt
+below is explicit about this with a worked example of a legitimate
+cue-equals-answer item, and about what the question DOES still catch for a
+determiner cue: the wrong FAMILY entirely (a "die"/"das" cue where the
+answer's family citation form is always "der", the exact shape of the two
+misses above, now judged as a wrong-family error rather than a wrong-gender
+one, since the code no longer varies the cue by gender at all). For every
+OTHER cue kind (a lexical verb's infinitive, a plural noun's singular, an
+adjective's positive form, a participle's infinitive), the citation-form
+question is unchanged in spirit from before this redesign: the cue must
+name the actual word the answer is a form of, and be a real German word --
+catching, for example, the same ``Tablett``/``Tabletten`` wrong-lexeme class
+question 3 above cannot see (the cue itself, not a word IN the finished
+sentence, is what is wrong), and a cue that is not a real word at all, such
+as a rejection this project has already seen in a different question's
+reason text: "Der Hinweis 'festhoffen' existiert im Deutschen nicht als
+Verb." An item with no cue at all trivially passes this question -- there
+is nothing to judge.
+
 ## Batching
 
 Roughly ``DEFAULT_VERIFICATION_BATCH_SIZE`` (20) items ride in one prompt,
@@ -118,11 +171,12 @@ named directly in the brief for this cycle:
    failure mode it exists to close -- an item nobody actually verified,
    reported as verified. A batch whose response cannot be parsed into
    exactly as many verdicts as items were sent, each with a boolean
-   ``valid``, a boolean ``woerter_echt`` (the third question's own answer)
-   and a resolvable ``index``, degrades every item in THAT batch to
-   ``"not_run"`` (reason ``"malformed_model_response"``), never to
-   ``"verified"``. Other, well-formed batches in the same run are
-   unaffected -- ``_parse_batch_response`` operates one batch at a time.
+   ``valid``, a boolean ``woerter_echt`` (the third question's own answer),
+   a boolean ``hinweis_korrekt`` (the fourth question's own answer) and a
+   resolvable ``index``, degrades every item in THAT batch to ``"not_run"``
+   (reason ``"malformed_model_response"``), never to ``"verified"``. Other,
+   well-formed batches in the same run are unaffected -- ``_parse_batch_
+   response`` operates one batch at a time.
 
 ``BudgetExceeded``, ``ServerUnavailableError``, ``PaidLaneForbiddenError``,
 ``BatchForbiddenError`` and ``MissingApiKeyError`` are caught around the
@@ -208,7 +262,7 @@ _INSTRUCTION_EN_REFERENCE_ONLY = (
     "and the proposed answer. Never name or guess which grammar topic a "
     "task is testing -- that is not needed for your judgment and must play "
     "no part in it.\n\n"
-    "For every task, answer three questions: (1) is the complete sentence, "
+    "For every task, answer four questions: (1) is the complete sentence, "
     "with the gap filled by the proposed answer, correct and natural "
     "German a textbook could print; (2) working out for yourself, from "
     "only the task and the cue, exactly as a learner facing just those two "
@@ -230,12 +284,34 @@ _INSTRUCTION_EN_REFERENCE_ONLY = (
     "word here only when its MEANING is wrong or it does not exist at all "
     "-- for example 'Tennisschlüssel' ('tennis key') is not a real word; "
     "'Tennisschläger' (tennis racket) was clearly meant, and this question "
-    "must get a no for that sentence. A task is valid only if all three "
-    "answers are yes; otherwise give a short, concrete reason naming which "
-    "question failed and why. Respond with ONLY a JSON object of the given "
-    "shape, one verdict per task carrying both the overall verdict and the "
-    "third question's own answer, indexed to match the task numbers, and "
-    "nothing else."
+    "must get a no for that sentence; (4) if -- and only if -- the task "
+    "carries a cue in brackets, is that cue the correct citation form for "
+    "the proposed answer. For a determiner cue (article or possessive), "
+    "the citation form is the whole word FAMILY's own invariant, uninflected "
+    "form: always 'der' for a definite article, always 'ein' for an "
+    "indefinite article, always 'kein' for a negative article, and a "
+    "possessive's own bare stem ('mein', 'dein', 'sein', 'ihr', 'unser', "
+    "'euer', 'Ihr') for a possessive -- this does NOT have to agree with "
+    "the noun's actual gender, case or number, and it is completely fine, "
+    "not a defect, if it happens to be spelled identically to the proposed "
+    "answer (e.g. the task 'Er hat sich ___ (ein) neues Fahrrad gekauft.' "
+    "with answer 'ein' is correct: 'Fahrrad' is neuter, and the accusative "
+    "neuter of 'ein' happens to also be 'ein', which does not make the cue "
+    "wrong). Only answer no for a determiner cue when it names the wrong "
+    "FAMILY altogether, e.g. 'die' or 'das' where the answer's family "
+    "citation form is always 'der'. For every other kind of cue (a verb's "
+    "infinitive, a noun's singular, an adjective's positive/base form), the "
+    "citation form must simply be the actual dictionary base form of the "
+    "word the answer is an inflected form of, and a real German word -- "
+    "answer no when the cue names the wrong word entirely (the "
+    "'Tennisschlüssel' kind of error, but IN the cue itself rather than in "
+    "the finished sentence) or is not a real word at all. When the task has "
+    "no cue at all, this question is trivially yes. A task is valid only if "
+    "all four answers are yes; otherwise give a short, concrete reason "
+    "naming which question failed and why. Respond with ONLY a JSON object "
+    "of the given shape, one verdict per task carrying the overall verdict "
+    "plus the third and fourth questions' own separate answers, indexed to "
+    "match the task numbers, and nothing else."
 )
 
 _INSTRUCTION_DE_LIVE = (
@@ -247,7 +323,7 @@ _INSTRUCTION_DE_LIVE = (
     "Antwort. Nenne oder errate an keiner Stelle, welches Grammatikthema "
     "geprüft wird -- das spielt für deine Beurteilung keine Rolle und darf "
     "sie auch nicht beeinflussen.\n\n"
-    "Beantworte zu jeder Aufgabe drei Fragen:\n"
+    "Beantworte zu jeder Aufgabe vier Fragen:\n"
     "1. Ist der VOLLSTÄNDIGE Satz (Lücke durch die vorgeschlagene Antwort "
     "ersetzt) korrektes, natürliches Deutsch, wie es in einem Lehrbuch "
     "stehen könnte?\n"
@@ -280,19 +356,52 @@ _INSTRUCTION_DE_LIVE = (
     "'Tennisschlüssel' zum Beispiel ist kein Wort, das es gibt (gemeint "
     "war offenbar 'Tennisschläger', der Schläger, mit dem man Tennis "
     "spielt), und für einen Satz mit diesem Wort muss diese Frage mit "
-    "Nein beantwortet werden.\n\n"
-    'Eine Aufgabe ist nur dann gültig ("valid": true), wenn ALLE DREI '
+    "Nein beantwortet werden.\n"
+    "4. NUR falls die Aufgabe einen Hinweis in Klammern hat: Ist dieser "
+    "Hinweis die richtige Zitierform (Grundform) zu der vorgeschlagenen "
+    "Antwort? Zeigt der Hinweis eine dieser kurzen, unveränderlichen "
+    "Formen -- 'der', 'ein', 'kein', 'mein', 'dein', 'sein', 'ihr', "
+    "'unser', 'euer', 'Ihr' --, dann ist GENAU DIESE Form für die ganze "
+    "zugehörige Wortreihe immer richtig, egal welche andere Form davon im "
+    "Satz an der Lückenstelle tatsächlich gebraucht wird (zum Beispiel "
+    "'des', 'dem', 'den', 'die', 'das' gehören alle zur 'der'-Reihe; "
+    "'eines', 'einem', 'einen', 'eine' gehören alle zur 'ein'-Reihe; "
+    "entsprechend für 'kein' und für die Formen auf 'mein'/'dein'/'sein'/"
+    "'ihr'/'unser'/'euer'/'Ihr'). Ein solcher Hinweis muss also KEINE "
+    "Endung der vorgeschlagenen Antwort tragen, und es ist völlig in "
+    "Ordnung -- kein Fehler --, wenn er zufällig genauso lautet wie die "
+    "vorgeschlagene Antwort selbst: bei der Aufgabe 'Er hat sich ___ "
+    "(ein) neues Fahrrad gekauft.' mit Antwort 'ein' ist der Hinweis "
+    "'ein' korrekt, obwohl Hinweis und Antwort identisch sind. "
+    "Beantworte diese Frage bei einem solchen Hinweis nur dann mit Nein, "
+    "wenn er zu einer ANDEREN der oben genannten Formen gehört als der, "
+    "die zur Antwort passt -- zum Beispiel wenn statt immer 'der' der "
+    "Hinweis 'die' oder 'das' steht, obwohl die Antwort zur 'der'-Reihe "
+    "gehört. Bei jedem anderen Hinweis (zum Beispiel Infinitiv eines "
+    "Verbs, Singular eines Nomens, Grundform eines Adjektivs) ist die "
+    "richtige Zitierform die im Deutschen übliche Grundform des Wortes, "
+    "aus dem die vorgeschlagene Antwort gebildet ist -- lehne den "
+    "Hinweis hier nur ab, wenn er das falsche Wort nennt (zum Beispiel "
+    "'Tennisschlüssel' statt 'Tennisschläger' als Hinweis) oder gar "
+    "keine echte deutsche Wortform ist, niemals nur deswegen, weil er "
+    "nicht dieselbe Endung wie die Antwort trägt. Hat die Aufgabe KEINEN "
+    "Hinweis ('Hinweis: (kein Hinweis)'), ist diese Frage automatisch "
+    "mit Ja beantwortet.\n\n"
+    'Eine Aufgabe ist nur dann gültig ("valid": true), wenn ALLE VIER '
     'Fragen mit Ja beantwortet sind. Gib zusätzlich unter "woerter_echt" '
-    "gesondert an, ob Frage 3 für sich allein mit Ja beantwortet wurde "
-    '(unabhängig von "valid"). Bei "valid": false oder "woerter_echt": '
+    "gesondert an, ob Frage 3 für sich allein mit Ja beantwortet wurde, "
+    'und unter "hinweis_korrekt" gesondert, ob Frage 4 für sich allein '
+    'mit Ja beantwortet wurde (beides unabhängig von "valid"). Bei '
+    '"valid": false, "woerter_echt": false oder "hinweis_korrekt": '
     'false nenne unter "reason" kurz und konkret auf Deutsch, welche der '
-    "drei Fragen mit Nein beantwortet wurde und warum, so dass das "
+    "vier Fragen mit Nein beantwortet wurde und warum, so dass das "
     "Problem auch ohne erneutes Lesen der Aufgabe klar wird.\n\n"
     "Antworte ausschließlich mit einem JSON-Objekt dieser exakten Form, "
     "ohne Markdown-Codeblock:\n"
     '{"verdicts": [{"index": 1, "valid": true, "woerter_echt": true, '
-    '"reason": null}, {"index": 2, "valid": false, "woerter_echt": true, '
-    '"reason": "kurze Begründung auf Deutsch"}]}\n'
+    '"hinweis_korrekt": true, "reason": null}, {"index": 2, "valid": '
+    'false, "woerter_echt": true, "hinweis_korrekt": false, "reason": '
+    '"kurze Begründung auf Deutsch"}]}\n'
     "Die Liste muss genau so viele Einträge enthalten wie Aufgaben unten, "
     'jeweils mit "index" gleich der Aufgabennummer, in beliebiger '
     "Reihenfolge."
@@ -463,30 +572,35 @@ def _parse_batch_response(text: str, expected_count: int) -> list[tuple[bool, st
     Returns ``None`` -- "malformed", the whole batch degrades to
     ``"not_run"`` -- unless the response is a JSON object whose
     ``"verdicts"`` is a list of EXACTLY ``expected_count`` entries, each a
-    dict with an integer ``"index"``, a boolean ``"valid"`` AND a boolean
+    dict with an integer ``"index"``, a boolean ``"valid"``, a boolean
     ``"woerter_echt"`` (the third question -- every word in the completed
     sentence is a real German word someone would actually use -- see the
-    module docstring's ``Tennisschlüssel`` example), and whose indices are
-    exactly ``{1, ..., expected_count}`` with no duplicate and no gap. This
-    is deliberately strict (module docstring: this pass does not fail open
-    on a parse defect) -- a response missing one task's verdict, missing
-    the third question's own answer, or numbering two tasks the same
-    index, is exactly the kind of silent-drop failure this module exists
-    to never produce for the candidate items themselves, so it must not
-    reproduce that failure mode in its own transport parsing either.
+    module docstring's ``Tennisschlüssel`` example) AND a boolean
+    ``"hinweis_korrekt"`` (the fourth question -- TODO 3.1, whether the cue
+    is the answer's correct citation form, trivially satisfied when the item
+    has no cue -- see the module docstring's own "Question 4" section), and
+    whose indices are exactly ``{1, ..., expected_count}`` with no duplicate
+    and no gap. This is deliberately strict (module docstring: this pass
+    does not fail open on a parse defect) -- a response missing one task's
+    verdict, missing the third or fourth question's own answer, or numbering
+    two tasks the same index, is exactly the kind of silent-drop failure
+    this module exists to never produce for the candidate items themselves,
+    so it must not reproduce that failure mode in its own transport parsing
+    either.
 
-    ``woerter_echt`` is kept as its OWN required field rather than folded
-    silently into ``valid`` (which the live prompt also asks the model to
-    set to the AND of all three questions) for exactly this reason: a
-    response that carries ``valid`` but omits ``woerter_echt`` entirely
-    must be rejected as malformed, not silently trusted on the model's own
-    aggregate bit alone -- the same "verify, don't just trust a single
-    flag" posture ``_cue_equals_answer`` already applies one layer down in
-    ``blanker.py``. The final per-item validity this function returns is
-    the AND of both fields, so a model response that answers ``valid:
-    true`` but ``woerter_echt: false`` (an internally inconsistent
-    response, but not a malformed one) is still correctly treated as a
-    rejection rather than trusted on the aggregate field alone."""
+    ``woerter_echt`` and ``hinweis_korrekt`` are each kept as their OWN
+    required field rather than folded silently into ``valid`` (which the
+    live prompt also asks the model to set to the AND of all four
+    questions) for exactly this reason: a response that carries ``valid``
+    but omits either must be rejected as malformed, not silently trusted on
+    the model's own aggregate bit alone -- the same "verify, don't just
+    trust a single flag" posture ``_cue_equals_answer`` already applies one
+    layer down in ``blanker.py``. The final per-item validity this function
+    returns is the AND of all three fields, so a model response that
+    answers ``valid: true`` but ``woerter_echt: false`` or
+    ``hinweis_korrekt: false`` (an internally inconsistent response, but not
+    a malformed one) is still correctly treated as a rejection rather than
+    trusted on the aggregate field alone."""
     try:
         payload = json.loads(_strip_code_fence(text))
     except json.JSONDecodeError:
@@ -513,11 +627,14 @@ def _parse_batch_response(text: str, expected_count: int) -> list[tuple[bool, st
         words_real = entry.get("woerter_echt")
         if not isinstance(words_real, bool):
             return None
+        cue_correct = entry.get("hinweis_korrekt")
+        if not isinstance(cue_correct, bool):
+            return None
         reason = entry.get("reason")
         reason = reason if isinstance(reason, str) and reason.strip() else None
         if index in by_index:
             return None
-        by_index[index] = (valid and words_real, reason)
+        by_index[index] = (valid and words_real and cue_correct, reason)
 
     if set(by_index) != set(range(1, expected_count + 1)):
         return None

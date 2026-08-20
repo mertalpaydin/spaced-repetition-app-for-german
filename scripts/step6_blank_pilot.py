@@ -487,6 +487,12 @@ def _print_demand_run_report(run_report: DemandRunReport, *, ran_live: bool) -> 
     print(f"  Topics with demand this run:      {len(run_report.demands)}")
     print(f"  Calls made:                       {run_report.calls_made}")
     print(f"  Call ceiling hit:                 {run_report.call_ceiling_hit}")
+    already_met = [t for t in run_report.topic_reports if t.already_met_by_other_topics]
+    redistributed = [t for t in run_report.topic_reports if t.used_redistributed_budget]
+    print(
+        f"  Topics skipped, already met by other topics' sentences (TODO 1.8): {len(already_met)}"
+    )
+    print(f"  Topics served from the redistributed (freed) call budget: {len(redistributed)}")
     print(
         f"  Raw sentences requested (all topics, all attempts): "
         f"{sum(t.sentences_requested for t in run_report.topic_reports)}"
@@ -504,7 +510,19 @@ def _print_demand_run_report(run_report: DemandRunReport, *, ran_live: bool) -> 
     print("  Per-topic demand report:")
     print("    topic_id                                  demand  items  retries  status")
     for t in run_report.topic_reports:
-        status = "met demand" if t.met_demand else ", ".join(t.shortfall_reasons)
+        if t.already_met_by_other_topics and t.calls_made == 0:
+            # TODO 1.8: the saving this run made visible -- this topic never
+            # spent a call because other topics' sentences already met its
+            # demand before it was reached.
+            status = "already_met_by_other_topics (0 calls)"
+        elif t.met_demand:
+            status = "met demand"
+            if t.used_redistributed_budget:
+                status += " (via redistributed budget)"
+        else:
+            status = ", ".join(t.shortfall_reasons)
+            if t.used_redistributed_budget:
+                status += " (redistributed budget also spent)"
         print(
             f"    {t.topic_id:<42} {t.demand.demand:>6} {t.items_produced:>6} "
             f"{t.retries_used:>7}  {status}"
