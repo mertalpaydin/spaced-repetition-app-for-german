@@ -2354,9 +2354,54 @@ def _irregular_finite_selector(
     return select
 
 
+def _is_participle(token: Token) -> bool:
+    """Whether ``token`` is a German past participle (Partizip II), by TAG
+    (``VVPP``, unchanged from before -- trustworthy for an ordinary
+    participle) OR by its own SPELLING when the tag is one this exact
+    tagger is confirmed to confuse with a participle on a separable-prefix
+    verb (``paradigms.PARTICIPLE_CONFUSABLE_TAGS``).
+
+    docs/audits/cycle-09-report.md / TODO.md 1.2's own caveat: a
+    separable-prefixed participle ("angebraten", "aufgeladen") is sometimes
+    tagged ``VVIZU`` (the zu-infinitive tag) instead of ``VVPP`` in exactly
+    the passive construction ("wird ... angebraten") this module's every
+    participle-reading selector searches for, which is why ``passiv_
+    praesens``/``passiv_praeteritum`` were two of the lowest-yield topics
+    out of 49 on both corpora in ``docs/audits/corpus-coverage.md`` despite
+    the present passive being one of the commonest constructions in German.
+    ``paradigms.is_participle_shape``'s own ge/zu discriminator is what
+    keeps a genuine zu-infinitive ("anzubraten", also tagged ``VVIZU``,
+    correctly) from being wrongly accepted here -- ``VVIZU`` is the correct
+    tag for that shape too, so this function does not treat the tag alone
+    as evidence either way, only as a signal that the SPELLING is worth
+    checking."""
+    if token.tag == "VVPP":
+        return True
+    return token.tag in paradigms.PARTICIPLE_CONFUSABLE_TAGS and paradigms.is_participle_shape(
+        token.text
+    )
+
+
+def _participle_lemma(token: Token) -> str:
+    """``token``'s own infinitive lemma, read off the tagger's own
+    ``.lemma`` when the tag itself already says ``VVPP`` (trustworthy for an
+    ordinary participle), or reconstructed from ``token``'s own SPELLING
+    (``paradigms.participle_shape_infinitive``) when it was only recognised
+    as a participle via ``_is_participle``'s shape branch -- the tagger's
+    own ``.lemma`` is not reduced at all for the two confirmed ``VVIZU``-
+    mistagged cases (it is the bare, unchanged surface form), so it cannot
+    be trusted there the way it can for a correctly-tagged participle. Empty
+    string, never a guess, when neither source resolves -- callers already
+    treat an empty/unmatched lemma as "cannot verify, skip" exactly like an
+    ordinary tagger miss."""
+    if token.tag == "VVPP":
+        return token.lemma.lower()
+    return paradigms.participle_shape_infinitive(token.text) or ""
+
+
 def _participle_after(sentence: TaggedSentence, index: int) -> Token | None:
     for token in sentence.tokens[index + 1 :]:
-        if token.tag == "VVPP":
+        if _is_participle(token):
             return token
     return None
 
@@ -2379,7 +2424,7 @@ def _participle_after_in_clause(sentence: TaggedSentence, index: int) -> Token |
     proxy here, not a real parse."""
     _, end = _clause_span(sentence, index)
     for token in sentence.tokens[index + 1 : end]:
-        if token.tag == "VVPP":
+        if _is_participle(token):
             return token
     return None
 
@@ -2403,9 +2448,40 @@ def _clause_contains_worden(sentence: TaggedSentence, index: int) -> bool:
     return any(t.text.lower() == "worden" for t in sentence.tokens[start:end])
 
 
+_MODAL_LEMMAS_WITH_MOECHTEN: frozenset[str] = paradigms.MODAL_LEMMAS | {"möchten"}
+
+
+def _clause_has_other_modal(sentence: TaggedSentence, index: int) -> bool:
+    """Whether a modal verb (any of ``paradigms.MODAL_LEMMAS``, plus
+    "möchten") sits anywhere else in ``index``'s own clause.
+
+    Confirmed empirically, and only reachable through the bidirectional
+    clause-bound participle search the passive/Zustandspassiv selectors now
+    use (docs/audits corpus-coverage investigation for this task): a modal
+    passive's own clause-final "werden" ("... können keine Häuser gebaut
+    werden.") is sometimes tagged ``VAFIN`` by this tagger -- finite,
+    exactly like a genuine matrix-clause passive "werden" -- even though it
+    is really the invariant bare infinitive a modal governs, not a form that
+    agrees with its subject at all. The OLD forward-only participle search
+    never found this shape (the participle sits BEFORE the clause-final
+    "werden", not after), so this was invisible before the bidirectional
+    fix; the bidirectional search now finds it, and blanking it as if it
+    were an inflecting Präsens/Präteritum passive would produce a broken
+    item (a modal's own invariant complement has no person/number paradigm
+    to quiz). ``passiv_modalverben`` already owns this construction and
+    blanks the MODAL itself, not "werden" -- this is what actually excludes
+    it here, not cross-topic dedup, since the two topics blank different
+    tokens."""
+    start, end = _clause_span(sentence, index)
+    return any(
+        t.i != index and t.lemma.lower() in _MODAL_LEMMAS_WITH_MOECHTEN
+        for t in sentence.tokens[start:end]
+    )
+
+
 def _participle_before(sentence: TaggedSentence, index: int) -> Token | None:
     for token in reversed(sentence.tokens[:index]):
-        if token.tag == "VVPP":
+        if _is_participle(token):
             return token
     return None
 
@@ -2424,7 +2500,7 @@ def _participle_before_in_clause(sentence: TaggedSentence, index: int) -> Token 
     entirely."""
     start, _ = _clause_span(sentence, index)
     for token in reversed(sentence.tokens[start:index]):
-        if token.tag == "VVPP":
+        if _is_participle(token):
             return token
     return None
 
@@ -2483,7 +2559,7 @@ def _select_perfekt(sentence: TaggedSentence, *, aux_lemma: str) -> list[Candida
         participle = _participle_after(sentence, token.i)
         if participle is None:
             continue
-        part_lemma = participle.lemma.lower()
+        part_lemma = _participle_lemma(participle)
         if not part_lemma:
             continue
         takes_sein = part_lemma in paradigms.AUX_SEIN_LEMMAS
@@ -2535,7 +2611,7 @@ def _select_plusquamperfekt(sentence: TaggedSentence) -> list[Candidate]:
         participle = _participle_after(sentence, token.i) or _participle_before(sentence, token.i)
         if participle is None:
             continue
-        part_lemma = participle.lemma.lower()
+        part_lemma = _participle_lemma(participle)
         if not part_lemma:
             continue
         takes_sein = part_lemma in paradigms.AUX_SEIN_LEMMAS
@@ -2712,7 +2788,7 @@ def _select_konjunktiv_ii_vergangenheit(sentence: TaggedSentence) -> list[Candid
         )
         if participle is None:
             continue
-        part_lemma = participle.lemma.lower()
+        part_lemma = _participle_lemma(participle)
         if part_lemma:
             takes_sein = part_lemma in paradigms.AUX_SEIN_LEMMAS
             if (lemma == "sein") != takes_sein:
@@ -2739,6 +2815,22 @@ def _select_konjunktiv_ii_vergangenheit(sentence: TaggedSentence) -> list[Candid
 
 
 def _select_passiv(sentence: TaggedSentence, *, morph_tense: str) -> list[Candidate]:
+    """Present/Präteritum Vorgangspassiv: ``werden`` plus a transitive past
+    participle.
+
+    Both directions, clause-bounded -- not the unbounded, forward-only
+    ``_participle_after`` this selector used before. A subordinate clause is
+    verb-final in German ("..., dass das Fleisch scharf angebraten wird,
+    ..."), which puts the participle BEFORE the clause-final "wird", the
+    reverse of a main clause's own order; the previous forward-only search
+    found nothing there (or, worse, walked past the clause boundary into an
+    unrelated later clause's own participle). This is the identical
+    word-order fact ``_select_plusquamperfekt``/``_select_konjunktiv_ii_
+    vergangenheit`` already handle for their own aux -- see their own
+    comments -- extended here to close the same gap for the present/
+    Präteritum passive, one of the two exact TODO.md 1.2 sentences
+    ("dass das Fleisch scharf angebraten wird") needs it to be found at
+    all."""
     out: list[Candidate] = []
     for token in sentence.tokens:
         if token.morph.get("VerbForm") != "Fin":
@@ -2747,8 +2839,12 @@ def _select_passiv(sentence: TaggedSentence, *, morph_tense: str) -> list[Candid
             continue
         if token.lemma.lower() != "werden":
             continue
-        participle = _participle_after(sentence, token.i)
-        if participle is None or participle.lemma.lower() not in paradigms.TRANSITIVE_LEMMAS:
+        if _clause_has_other_modal(sentence, token.i):
+            continue  # passiv_modalverben's own shape; see _clause_has_other_modal
+        participle = _participle_after_in_clause(sentence, token.i) or _participle_before_in_clause(
+            sentence, token.i
+        )
+        if participle is None or _participle_lemma(participle) not in paradigms.TRANSITIVE_LEMMAS:
             continue
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
@@ -2818,6 +2914,14 @@ def _select_passiv_modalverben(sentence: TaggedSentence) -> list[Candidate]:
 
 
 def _select_zustandspassiv(sentence: TaggedSentence) -> list[Candidate]:
+    """Present-tense Zustandspassiv: ``sein`` plus a transitive past
+    participle.
+
+    Both directions, clause-bounded, the same fix and the same reason
+    ``_select_passiv`` needed it: a subordinate clause's own verb-final word
+    order puts the participle BEFORE "ist" ("..., dass das Auto repariert
+    ist, ..."), which the previous forward-only ``_participle_after_in_
+    clause`` alone never found."""
     out: list[Candidate] = []
     for token in sentence.tokens:
         if token.morph.get("VerbForm") != "Fin":
@@ -2826,8 +2930,12 @@ def _select_zustandspassiv(sentence: TaggedSentence) -> list[Candidate]:
             continue
         if token.lemma.lower() != "sein":
             continue
-        participle = _participle_after_in_clause(sentence, token.i)
-        if participle is None or participle.lemma.lower() not in paradigms.TRANSITIVE_LEMMAS:
+        if _clause_has_other_modal(sentence, token.i):
+            continue  # see _clause_has_other_modal -- the same risk, "sein" not "werden"
+        participle = _participle_after_in_clause(sentence, token.i) or _participle_before_in_clause(
+            sentence, token.i
+        )
+        if participle is None or _participle_lemma(participle) not in paradigms.TRANSITIVE_LEMMAS:
             continue
         if _clause_contains_worden(sentence, token.i):
             continue
@@ -2853,15 +2961,22 @@ def _select_zustandspassiv_zeiten(sentence: TaggedSentence) -> list[Candidate]:
     closing word ``gewesen`` blanked instead -- it is the one token that
     uniquely marks this specific sub-pattern; blanking ``ist`` there would
     leave the same Präsens-Zustandspassiv-vs-something-else ambiguity this
-    cycle avoids everywhere else)."""
+    cycle avoids everywhere else). Both directions, clause-bounded, the same
+    fix and the same reason ``_select_passiv``/``_select_zustandspassiv``
+    needed it -- a subordinate clause's own verb-final word order puts the
+    participle BEFORE "war"/"ist"."""
     out: list[Candidate] = []
     for token in sentence.tokens:
         if token.morph.get("VerbForm") != "Fin" or token.lemma.lower() != "sein":
             continue
         if token.morph.get("Mood") != "Ind":
             continue
-        participle = _participle_after_in_clause(sentence, token.i)
-        if participle is None or participle.lemma.lower() not in paradigms.TRANSITIVE_LEMMAS:
+        if _clause_has_other_modal(sentence, token.i):
+            continue  # see _clause_has_other_modal -- the same risk, "sein" not "werden"
+        participle = _participle_after_in_clause(sentence, token.i) or _participle_before_in_clause(
+            sentence, token.i
+        )
+        if participle is None or _participle_lemma(participle) not in paradigms.TRANSITIVE_LEMMAS:
             continue
         if _clause_contains_worden(sentence, token.i):
             continue
@@ -2911,13 +3026,15 @@ def _select_futur_i(sentence: TaggedSentence) -> list[Candidate]:
     infinitive in it and no participle; requiring the infinitive to be
     clause-local is what actually excludes both reported passive sentences
     above, since neither has ANY ``VVINF``/``VAINF`` token in "wird"'s own
-    clause at all (confirmed directly: de_core_news_sm mistags some
-    separable-prefix passive participles, "angebraten"/"aufgeladen", as
-    ``VVIZU`` rather than ``VVPP``, so the participle-exclusion alone is
-    not a complete fix -- REQUIRING an infinitive is). The participle
-    exclusion is kept anyway, now also clause-scoped, as the check that
-    distinguishes genuine Futur I from Futur II ("wird ... erklärt haben"),
-    whose participle this exact tagger does tag correctly."""
+    clause at all. The participle exclusion below now uses ``_is_participle``
+    (tag OR spelling shape, ``paradigms.is_participle_shape``), not a bare
+    ``VVPP`` tag check -- de_core_news_sm mistags some separable-prefix
+    passive participles, "angebraten"/"aufgeladen", as ``VVIZU`` rather than
+    ``VVPP`` (confirmed directly), which used to mean the participle
+    exclusion alone was not a complete fix and REQUIRING an infinitive did
+    the real work here; ``_is_participle`` closes that gap directly instead,
+    so this check now correctly excludes those two sentences on its own
+    terms rather than only by the infinitive requirement's side effect."""
     out: list[Candidate] = []
     for token in sentence.tokens:
         if token.morph.get("VerbForm") != "Fin":
@@ -2928,8 +3045,8 @@ def _select_futur_i(sentence: TaggedSentence) -> list[Candidate]:
             continue
         clause_start, clause_end = _clause_span(sentence, token.i)
         clause_tokens = sentence.tokens[clause_start:clause_end]
-        if any(t.tag == "VVPP" for t in clause_tokens):
-            continue  # Futur II's own shape, or a passive the tagger got right
+        if any(_is_participle(t) for t in clause_tokens):
+            continue  # Futur II's own shape, or a passive (tag- or shape-detected)
         has_infinitive = any(t.tag in _MODAL_INFINITIVE_TAGS for t in clause_tokens)
         if not has_infinitive:
             continue
@@ -2961,7 +3078,7 @@ def _select_futur_ii(sentence: TaggedSentence) -> list[Candidate]:
         participle = _participle_after(sentence, token.i)
         if participle is None:
             continue
-        part_lemma = participle.lemma.lower()
+        part_lemma = _participle_lemma(participle)
         if not part_lemma:
             continue
         expected_aux = "sein" if part_lemma in paradigms.AUX_SEIN_LEMMAS else "haben"

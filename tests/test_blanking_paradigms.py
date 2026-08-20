@@ -321,6 +321,72 @@ def test_transitive_lemmas_contains_verified_passivizable_verbs() -> None:
     assert "kaufen" in paradigms.TRANSITIVE_LEMMAS
 
 
+def test_transitive_lemmas_contains_the_two_reported_separable_verbs() -> None:
+    """TODO.md 1.2's own two exact sentences ("angebraten", "aufgeladen")."""
+    assert "anbraten" in paradigms.TRANSITIVE_LEMMAS
+    assert "aufladen" in paradigms.TRANSITIVE_LEMMAS
+    assert "einpacken" in paradigms.TRANSITIVE_LEMMAS
+
+
+# ==============================================================================
+# TODO.md 1.2: a shape-based participle test, so a selector does not have to
+# trust de_core_news_sm's opinion (``VVPP`` vs ``VVIZU``) when the fact is
+# derivable from the word's own spelling.
+# ==============================================================================
+
+
+def test_is_participle_shape_accepts_separable_prefix_ge_participles() -> None:
+    """The two exact TODO.md 1.2 sentences, plus the third named example."""
+    assert paradigms.is_participle_shape("angebraten")
+    assert paradigms.is_participle_shape("aufgeladen")
+    assert paradigms.is_participle_shape("eingepackt")
+
+
+def test_is_participle_shape_accepts_plain_ge_participles() -> None:
+    assert paradigms.is_participle_shape("gekocht")
+    assert paradigms.is_participle_shape("gesehen")
+
+
+def test_is_participle_shape_accepts_inseparable_prefixed_participles_without_ge() -> None:
+    """German never prefixes an already-prefixed verb's participle with a
+    second "ge-" -- "verkauft"/"besucht"/"erklärt", not "geverkauft"/
+    ..."""
+    assert paradigms.is_participle_shape("verkauft")
+    assert paradigms.is_participle_shape("besucht")
+    assert paradigms.is_participle_shape("erklärt")
+
+
+def test_is_participle_shape_rejects_a_genuine_zu_infinitiv() -> None:
+    """The discriminator this module's own docstring names: "zu" infixed,
+    not "ge" -- the one shape that must never be accepted as a participle,
+    since ``VVIZU`` is also the CORRECT tag for this shape."""
+    assert not paradigms.is_participle_shape("anzubraten")
+    assert not paradigms.is_participle_shape("aufzuladen")
+    assert not paradigms.is_participle_shape("einzupacken")
+
+
+def test_is_participle_shape_rejects_an_unrelated_word() -> None:
+    assert not paradigms.is_participle_shape("gerade")
+    assert not paradigms.is_participle_shape("Fleisch")
+    assert not paradigms.is_participle_shape("")
+
+
+def test_participle_shape_infinitive_reconstructs_the_two_reported_verbs() -> None:
+    assert paradigms.participle_shape_infinitive("angebraten") == "anbraten"
+    assert paradigms.participle_shape_infinitive("aufgeladen") == "aufladen"
+    assert paradigms.participle_shape_infinitive("eingepackt") == "einpacken"
+
+
+def test_participle_shape_infinitive_reconstructs_a_plain_and_a_no_ge_participle() -> None:
+    assert paradigms.participle_shape_infinitive("gekocht") == "kochen"
+    assert paradigms.participle_shape_infinitive("besucht") == "besuchen"
+
+
+def test_participle_shape_infinitive_returns_none_for_a_non_participle() -> None:
+    assert paradigms.participle_shape_infinitive("anzubraten") is None
+    assert paradigms.participle_shape_infinitive("gerade") is None
+
+
 # ==============================================================================
 # Dative-reflexive verb argument structure (docs/audits/cycle-04-report.md's
 # second finding): the closed list ``selectors._reflexive_case`` uses to

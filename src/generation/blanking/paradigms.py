@@ -41,6 +41,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from src.lexicon.lemmatizer import SEPARABLE_PREFIXES as _SEPARABLE_PREFIXES
 from src.taxonomy.facets import (
     _ADJ_ENDING_MIXED,
     _ADJ_ENDING_STRONG,
@@ -455,6 +456,14 @@ STRONG_VERBS: dict[str, _StrongVerb] = {
     "tun": _StrongVerb("tat", "getan"),
     "sterben": _StrongVerb("starb", "gestorben"),
     "wachsen": _StrongVerb("wuchs", "gewachsen"),
+    # Added for ``is_participle_shape``/``participle_shape_infinitive``
+    # (below): both are common, everyday strong verbs whose separable-
+    # prefixed participles ("angebraten", "aufgeladen") are the two exact
+    # sentences docs/audits/cycle-09-report.md and TODO.md 1.2 reported
+    # de_core_news_sm mistagging ``VVIZU``. Hand-verified standard forms,
+    # same standard as every other entry in this table.
+    "braten": _StrongVerb("briet", "gebraten"),
+    "laden": _StrongVerb("lud", "geladen"),
 }
 
 # Mixed verbs: consonant-changed stem, but the WEAK personal endings
@@ -806,6 +815,23 @@ TRANSITIVE_LEMMAS: frozenset[str] = frozenset(
         "malen",
         "bestellen",
         "beenden",
+        # Added alongside ``is_participle_shape``/``participle_shape_
+        # infinitive`` below: "braten"/"laden" are the bare verbs behind the
+        # two exact TODO.md 1.2 sentences ("angebraten"/"aufgeladen"), and
+        # "packen" behind the third named example ("eingepackt"). The
+        # SEPARABLE-prefixed lemma is also listed by name for each, matching
+        # ``AUX_SEIN_LEMMAS``'s own precedent above of listing a verified
+        # prefixed form alongside its base rather than only the base --
+        # ``participle_shape_infinitive`` reconstructs exactly this
+        # prefixed spelling for a separable-prefix participle, never the
+        # bare base alone, so the prefixed form is the one this set actually
+        # needs to contain for that lookup to succeed.
+        "braten",
+        "anbraten",
+        "laden",
+        "aufladen",
+        "packen",
+        "einpacken",
     }
 )
 
@@ -886,6 +912,179 @@ PARTICIPLE_II_TO_INFINITIVE: dict[str, str] = {
     **{verb.partizip_ii: lemma for lemma, verb in MIXED_VERBS.items()},
     **_WEAK_PARTICIPLE_TO_INFINITIVE,
 }
+
+# ==============================================================================
+# Participle by SHAPE, not by tag: docs/audits/cycle-09-report.md /
+# TODO.md 1.2's own caveat, confirmed directly against this exact tagger
+# (``uv run`` against the two reported sentences): a separable-prefixed past
+# participle ("angebraten", "aufgeladen", "eingepackt") is sometimes tagged
+# ``VVIZU`` (the zu-infinitive tag) instead of ``VVPP`` in exactly this
+# construction ("wird ... angebraten", clause-final passive word order).
+# ``selectors.py``'s participle search (``_participle_after``/``_before``
+# and their ``_in_clause`` variants) gates on the TAG alone today, so every
+# selector reading through them silently drops a passive whose participle
+# the tagger mislabels this way -- confirmed at scale in
+# ``docs/audits/corpus-coverage.md``: ``passiv_praesens``/``passiv_
+# praeteritum`` are two of the LOWEST-yield topics out of 49 on both
+# corpora, on a construction (the present passive) that is one of the
+# commonest in German journalism.
+#
+# The fix is not to trust the tagger's alternative reading, it is to trust
+# neither reading and check the word's own SPELLING instead: a genuine
+# German past participle has one of exactly three shapes --
+#
+#   1. separable prefix + "ge" + stem + participle ending ("an" + "ge" +
+#      "braten" -> "angebraten", "auf" + "ge" + "laden" -> "aufgeladen")
+#   2. "ge" + stem + participle ending, no separable prefix ("gekocht",
+#      "gesehen")
+#   3. an inseparable prefix (``_INSEPARABLE_PREFIXES``) + stem + participle
+#      ending, no "ge" at all ("verkauft", "besucht", "erklärt") -- German
+#      never prefixes an ALREADY-prefixed verb's participle with a second
+#      "ge-"
+#
+# -- and a genuine zu-infinitive has a related but different shape: the
+# INFIX is "zu", not "ge" ("an" + "zu" + "braten" -> "anzubraten"). That
+# infix is the one thing this check must get right, since ``VVIZU`` is also
+# the CORRECT tag for a genuine fused zu-infinitive, and this module's own
+# job is to add a second, independent way to be right about a participle,
+# not merely a way to blanket-accept anything wearing that tag.
+#
+# Reuses ``src.lexicon.lemmatizer.SEPARABLE_PREFIXES`` -- this module's own
+# "no new linguistic facts" posture (see the module docstring) extended to
+# prefix data, exactly the precedent ``carrier_validation.py``'s own
+# ``_NON_FINITE_VERB_PREFIXES`` already set for the identical "strip a
+# separable prefix off a fused non-finite verb form" problem. Not a table
+# this module already held under a different name -- there is no separable-
+# prefix list in ``paradigms.py`` itself, only ``_INSEPARABLE_PREFIXES``
+# above, which names a disjoint, unrelated closed class (be-/ver-/ent-/...,
+# a prefix that never detaches) -- so this reuses the *lexicon* package's
+# table rather than inventing a second, parallel one here.
+# ==============================================================================
+
+_SEPARABLE_PREFIXES_BY_LENGTH: tuple[str, ...] = tuple(
+    sorted(_SEPARABLE_PREFIXES, key=len, reverse=True)
+)
+
+
+def _split_separable_prefix(lower: str) -> tuple[str, str] | None:
+    """``(prefix, remainder)`` for the longest ``_SEPARABLE_PREFIXES`` member
+    ``lower`` starts with, else ``None``. Longest-first, the same precedent
+    ``_vokalwechsel_base_and_prefix`` and ``carrier_validation.py``'s own
+    ``_NON_FINITE_VERB_PREFIXES`` both already set, so a short prefix that is
+    itself a substring of a longer one is never preferred."""
+    for prefix in _SEPARABLE_PREFIXES_BY_LENGTH:
+        if lower.startswith(prefix) and len(lower) > len(prefix):
+            return prefix, lower[len(prefix) :]
+    return None
+
+
+def _has_participle_ending(text: str) -> bool:
+    return text.endswith("t") or (text.endswith("en") and len(text) > 2)
+
+
+def _is_inseparable_prefixed(lower: str) -> bool:
+    return any(lower.startswith(p) and len(lower) > len(p) for p in _INSEPARABLE_PREFIXES)
+
+
+# The one tag this exact tagger (de_core_news_sm) is confirmed, empirically,
+# to confuse with a genuine participle on a separable-prefix verb. Not a
+# broader set: ``VVIZU`` is ALSO the correct tag for a genuine fused
+# zu-infinitive ("aufzuladen"), so ``is_participle_shape``'s own ge/zu
+# discriminator, not this set alone, is what keeps one from being mistaken
+# for the other. Every other non-finite verb tag this tagger emits (VVINF,
+# VAINF, VMINF, VVFIN...) was checked directly against both reported
+# sentences and against the isolated forms this module's own tests exercise
+# and found NOT to carry a real participle mislabelled this way -- confirmed
+# a plain "zu besuchen"/"zu verkaufen" (two separate tokens, not fused) tags
+# its infinitive ``VVINF``, never ``VVIZU``, so restricting to the one
+# confirmed tag does not, on current evidence, leave a second confusable tag
+# unhandled.
+PARTICIPLE_CONFUSABLE_TAGS: frozenset[str] = frozenset({"VVIZU"})
+
+
+def is_participle_shape(text: str) -> bool:
+    """Whether ``text``'s own SPELLING is a German past participle, by the
+    three shapes this module's own comment above sets out, independent of
+    whatever tag a tagger attached to it. ``False`` for a genuine
+    zu-infinitive (the "zu" infix, checked first and unconditionally, wins
+    over any participle reading for that same prefix split) and for any
+    other shape this module cannot confirm one way or the other -- "reject
+    rather than guess", the same posture as every other lookup here."""
+    lower = text.lower()
+    if not lower:
+        return False
+    split = _split_separable_prefix(lower)
+    if split is not None:
+        _, remainder = split
+        if remainder.startswith("zu") and len(remainder) > 2:
+            return False
+        if remainder.startswith("ge") and _has_participle_ending(remainder):
+            return True
+    if lower.startswith("ge") and _has_participle_ending(lower):
+        return True
+    return bool(_is_inseparable_prefixed(lower) and lower.endswith("t"))
+
+
+def _weak_participle_ending_to_infinitive(word: str) -> str | None:
+    """``word`` (no "ge-", no separable prefix) with its participle ending
+    reduced back to "-en", by the same dental-epenthesis rule
+    ``regular_praeteritum_form`` already applies going the other way
+    ("arbeiten" -> "gearbeitet", stem ends in a dental so the ending gets an
+    epenthetic "-e-"). ``None`` if ``word`` does not end in a participle
+    shape at all."""
+    if word.endswith("et") and len(word) > 2 and word[:-2].endswith(("d", "t")):
+        return word[:-2] + "en"
+    if word.endswith("t") and len(word) > 1:
+        return word[:-1] + "en"
+    return None
+
+
+def participle_shape_infinitive(text: str) -> str | None:
+    """``text``'s own infinitive lemma, reconstructed from its SPELLING
+    alone -- for a token ``is_participle_shape`` already accepted, used
+    wherever a selector needs the participle's lemma (``TRANSITIVE_LEMMAS``/
+    ``AUX_SEIN_LEMMAS`` membership) but the tagger's own ``.lemma`` is not
+    trustworthy for a separable-prefix participle. ``AUX_SEIN_LEMMAS``'s own
+    comment above already documents this exact unreliability ("aufgestanden"
+    lemmatises to the nonsense "aufgestehen") for the tag-correct case; a
+    participle only found via ``is_participle_shape`` (tag ``VVIZU``) is not
+    reduced by the tagger's lemmatiser AT ALL in the two confirmed cases
+    (``.lemma`` is the bare surface form, unchanged), so it needs this
+    reconstruction even more, not less.
+
+    Tries, in order: the whole word directly against
+    ``PARTICIPLE_II_TO_INFINITIVE`` (covers an inseparable-prefixed or
+    unprefixed strong/mixed/known-weak participle, e.g. "verloren" ->
+    "verlieren"); a separable prefix split, then the same table against the
+    "ge"-remainder (e.g. "aufgeladen" -> "auf" + "geladen", "geladen" ->
+    "laden" -> "aufladen"); the general weak-participle reduction rule on
+    that same remainder; and finally the general weak-participle reduction
+    rule on the whole word for an inseparable-prefixed weak participle with
+    no "ge-" at all ("besucht" -> "besuchen"). Returns ``None``, never a
+    guess, for a strong/irregular participle none of this module's own
+    tables already cover -- the same "reject rather than guess" posture
+    ``AUX_SEIN_LEMMAS``'s own comment states for the tag-correct case."""
+    lower = text.lower()
+    if not lower:
+        return None
+    known = PARTICIPLE_II_TO_INFINITIVE.get(lower)
+    if known is not None:
+        return known
+    split = _split_separable_prefix(lower)
+    if split is not None:
+        prefix, remainder = split
+        if remainder.startswith("ge") and _has_participle_ending(remainder):
+            known_remainder = PARTICIPLE_II_TO_INFINITIVE.get(remainder)
+            if known_remainder is not None:
+                return prefix + known_remainder
+            base = _weak_participle_ending_to_infinitive(remainder[2:])
+            return None if base is None else prefix + base
+    if lower.startswith("ge") and _has_participle_ending(lower):
+        return _weak_participle_ending_to_infinitive(lower[2:])
+    if _is_inseparable_prefixed(lower) and lower.endswith("t"):
+        return _weak_participle_ending_to_infinitive(lower)
+    return None
+
 
 # ==============================================================================
 # Dative-reflexive verb argument structure: another lexical fact, not a

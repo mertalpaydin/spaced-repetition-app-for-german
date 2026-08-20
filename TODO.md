@@ -42,12 +42,148 @@ cycles have shipped a "fixed" defect that was still live in the next run.
   no longer wrongly matches either reported sentence, and a general
   transitive-verb passive (`"Die Suppe wird jeden Tag frisch gekocht."`) now
   correctly produces both a `futur_i` rejection and a `passiv_praesens`
-  item. **Caveat, reported rather than silently left:** the two exact
-  reported sentences ("angebraten", "aufgeladen") still produce no
-  `passiv_praesens` item either, because `de_core_news_sm` independently
-  mistags both separable-prefix participles `VVIZU` instead of `VVPP` in
-  this context -- a different, pre-existing tagger gap in
-  `passiv_praesens`'s own participle search, outside this task's scope.
+  item.
+
+  **The caveat this item used to carry ("angebraten"/"aufgeladen" still
+  produce no `passiv_praesens` item) is now closed, in a later task.** Not a
+  `futur_i` fix -- `passiv_praesens`'s own participle search had two
+  separate gaps, both fixed:
+
+  1. `de_core_news_sm` sometimes tags a separable-prefix past participle
+     (`angebraten`, `aufgeladen`) `VVIZU` (the zu-infinitive tag) instead of
+     `VVPP`, in exactly this construction. Fixed with a SHAPE-based
+     participle test (`paradigms.is_participle_shape`,
+     `paradigms.participle_shape_infinitive`) that does not need the
+     tagger's tag to be right: a known separable prefix + `ge` + a
+     participle ending is a past participle regardless of tag, and the `zu`
+     infix (never `ge`) is the discriminator that keeps a genuine
+     zu-infinitive (`anzubraten`) from being wrongly accepted -- confirmed
+     necessary, not just theoretical: this exact tagger tags `aufzuladen`
+     `VVIZU` too, correctly, in the identical clause shape. Wired in through
+     one new helper, `selectors._is_participle` (tag `VVPP`/`VAPP` OR shape
+     when the tag is `VVIZU`), which replaced every direct `token.tag ==
+     "VVPP"` check the four `_participle_after`/`_before`(`_in_clause`)
+     helpers and `futur_i`'s own inline exclusion used. A second helper,
+     `selectors._participle_lemma`, reconstructs the participle's own
+     infinitive lemma from its spelling when it was found via shape (the
+     tagger's `.lemma` is not merely wrong but UNCHANGED surface text for
+     both confirmed cases, unlike the "wrong-but-reduced" separable-verb
+     lemma gap `paradigms.AUX_SEIN_LEMMAS`'s own comment already documented).
+     `paradigms.STRONG_VERBS` gained `braten`/`laden` (real, hand-verified
+     entries, not a new mechanism) and `paradigms.TRANSITIVE_LEMMAS` gained
+     `anbraten`/`aufladen`/`einpacken` (plus their bare bases) so the two
+     reported verbs actually clear the existing transitivity gate once found.
+
+  2. Independently, `passiv_praesens`/`passiv_praeteritum` (`_select_passiv`)
+     only ever searched FORWARD, unbounded, for the participle. A
+     subordinate clause is verb-final in German (`"..., dass das Fleisch
+     scharf angebraten wird, ..."`, the first reported sentence's actual
+     shape), which puts the participle BEFORE the clause-final `wird`, the
+     reverse of a main clause's order -- the old search found nothing there
+     regardless of tag. Fixed by switching to the same clause-bounded,
+     BOTH-directions search `_select_plusquamperfekt`/`_select_konjunktiv_
+     ii_vergangenheit` already used for their own aux. Extended to
+     `_select_zustandspassiv`/`_select_zustandspassiv_zeiten` too, for the
+     identical reason.
+
+  Selectors checked against this same mistagging, as asked, and what
+  changed in each:
+
+  | selector | changed | why |
+  |---|---|---|
+  | `passiv_praesens`/`passiv_praeteritum` | yes: shape fix, directionality fix, modal guard | both reported sentences live here |
+  | `zustandspassiv`/`zustandspassiv_zeiten` | yes: shape fix, directionality fix, modal guard | identical `sein`+participle shape |
+  | `perfekt_haben`/`perfekt_sein` | yes: shape fix only (`_participle_lemma`) | no directionality gap found -- already bidirectional since `_select_plusquamperfekt`'s own fix; `perfekt_sein` additionally needs `AUX_SEIN_LEMMAS` membership, which a shape-recovered separable lemma will still usually miss (documented, pre-existing, unchanged) |
+  | `plusquamperfekt` | yes: shape fix only | already bidirectional |
+  | `konjunktiv_ii_vergangenheit` (and its shared base, `_select_konjunktiv_ii_base`) | yes: shape fix only | already bidirectional; the shape fix also means a mistagged participle now correctly EXCLUDES a sentence from `konjunktiv_ii_irreal_gegenwart`/`_hoeflichkeit` instead of wrongly admitting it |
+  | `futur_i` | yes: shape fix (its exclusion check) | the original TODO 1.2 fix already clause-scoped it; only the tag check itself changed |
+  | `futur_ii` | yes: shape fix only (`_participle_lemma` for the sein/haben aux choice) | same participle-lemma unreliability |
+  | `passiv_modalverben` | yes, via the shared `_participle_after` helper only | no other change needed -- does not gate on `TRANSITIVE_LEMMAS` at all |
+  | `partizip_ii_attributiv`/`partizip_ii_attributiv_erweitert` | **no** | confirmed empirically: an ATTRIBUTIVE separable-prefix participle ("das gebratene Fleisch", "der aufgeladene Akku") is tagged `ADJA` by this tagger, never `VVIZU` -- a different code path, unaffected by this bug |
+
+  **Two new, real defects found and fixed while verifying against corpus
+  data, both side effects of the directionality fix above, not the shape
+  fix:**
+
+  1. A modal passive's own clause-final `werden` (`"... können keine
+     Häuser gebaut werden."`) is sometimes tagged `VAFIN` (finite) by this
+     tagger even though it is really the INVARIANT infinitive `können`
+     governs. The old forward-only search never reached this shape (the
+     participle sits before the clause-final `werden`); the new
+     bidirectional search does, and would have blanked it as if it inflected
+     for Person/Number -- a broken item, `passiv_modalverben`'s own
+     territory, not `passiv_praesens`'s. Fixed with a new guard,
+     `selectors._clause_has_other_modal`, applied to `_select_passiv` and
+     both Zustandspassiv selectors: skip if a modal verb sits anywhere else
+     in the same clause. Regression test:
+     `test_passiv_praesens_does_not_claim_a_modal_passives_own_clause_final_werden`.
+  2. **Left as a known, documented cost, not fixed:** `vergessen`'s own
+     infinitive and past participle are spelled identically (a genuine,
+     narrow German syncretism -- `vergessen`, not a code bug), so `"werde
+     ... vergessen"` is structurally ambiguous between Futur I ("I will
+     forget") and Präsens Passiv ("it is forgotten") with no tag or shape
+     fact to decide between them; this ambiguity already existed in MAIN
+     clause word order before this task (confirmed via `git stash`: the
+     pre-existing, unmodified selector already produces the same wrong
+     `passiv_praesens` candidate for `"Ich werde nie vergessen, wie ich ...
+     habe."`). The directionality fix above newly exposes the SAME
+     ambiguity in verb-final (subordinate/relative-clause) word order too
+     (`"... die er nie vergessen wird."`), because that word order is
+     exactly what the fix needed to start searching. `vergessen` is the only
+     `TRANSITIVE_LEMMAS` member with this exact infinitive/participle
+     syncretism; resolving it needs semantic/argument-structure information
+     this module does not have. Recommended follow-up: none identified that
+     does not require guessing.
+
+  **Verified against real data, not only tests**, per this task's brief:
+
+  - Both exact reported sentences now produce a real `passiv_praesens` item
+    end to end through `pipeline.blank_sentences`.
+  - `scripts/eval_corpus_coverage.py --limit 30000` (as asked), before vs.
+    after, Tatoeba: `passiv_praesens` 7 -> 9, `passiv_praeteritum` 8 -> 10,
+    `zustandspassiv` 2 -> 4, all other topics unchanged. Leipzig: every one
+    of the 49 topics identical, before and after -- investigated rather than
+    assumed benign (CLAUDE.md-style "explain every move"): the only
+    Leipzig sentences in this exact 30k sample containing a shape-fixed verb
+    (`aufladen`, twice) are grammatically NOT eligible present-tense
+    indicative passives either way (one uses `aufgeladen` as a predicate
+    adjective with no `werden` at all, the other is Konjunktiv II
+    (`würde`), which `passiv_praesens` correctly requires `Mood=Ind` to
+    exclude) -- a real absence, not a bug.
+  - Because 30k is small enough that these topics' single-digit counts are
+    dominated by chance (confirmed above), also measured at
+    `--limit 100000` on Tatoeba for a steadier read: `passiv_praesens`
+    19 -> 26 (+37%), `passiv_praeteritum` 21 -> 26 (+24%), `zustandspassiv`
+    9 -> 16 (+78%). `futur_i` 643 -> 647, `perfekt_haben` 6423 -> 6424,
+    `praeteritum_vollverben` 9035 -> 9058, `verb_sein_haben` 4251 -> 4247
+    also moved, all by 4 items or fewer -- investigated, not just noted:
+    confirmed by direct raw-selector diff (no candidate-set change at all
+    for `praeteritum_vollverben`/`verb_sein_haben`/`praeteritum_
+    sein_haben_modal`/`plusquamperfekt` before vs. after) that these are
+    `blank_sentences`'s own cross-topic-duplicate resolution reacting to
+    `zustandspassiv`'s/`passiv_praesens`'s now-larger candidate sets (the
+    module's own `_SPECIFICITY_OVERRIDES` table already documents
+    `zustandspassiv` beating `verb_sein_haben` on an identical (prompt,
+    answer) pair), not a change in any of those four selectors' own logic.
+  - Hand-checked the newly admitted `passiv_praesens` candidates: 27 of 29
+    raw (pre-carrier-validation) candidates at the 100k scale are genuine
+    present passives (subordinate/relative-clause `"..., dass/der/wo ...
+    PARTIZIP wird"` shapes); 2 were not, both traced to the modal-passive
+    defect above, fixed before this count. The known `vergessen` residual
+    (documented above) was not present in this particular 100k sample's
+    newly-admitted set, but is real and reproducible on demand.
+
+  **Honest correction to this task's own brief:** it stated "`paradigms.py`
+  already holds German morphological tables including separable prefixes."
+  It does not -- `paradigms._INSEPARABLE_PREFIXES` is a disjoint, unrelated
+  closed class (`be`/`ver`/`ent`/..., prefixes that never detach). The
+  actual separable-prefix table lives in `src.lexicon.lemmatizer.
+  SEPARABLE_PREFIXES` (already reused once, by `carrier_validation.py`'s own
+  `_NON_FINITE_VERB_PREFIXES`, for the identical "strip a separable prefix
+  off a fused non-finite verb form" problem). `paradigms.py` now imports and
+  reuses that table rather than adding a second, parallel one, which is the
+  spirit of what the brief asked for even though its own premise about
+  where the data already lived was wrong.
 
 - [x] **1.3 Cue gender read off the wrong token.** At least 4 occurrences, 2
   in accepted items (`(eine)` for masculine `Orangensaft`, `(die)` for neuter

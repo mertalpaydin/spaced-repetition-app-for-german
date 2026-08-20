@@ -1506,6 +1506,126 @@ def test_zustandspassiv_zeiten_blanks_gewesen_for_the_perfekt_shaped_variant() -
 
 
 # ==============================================================================
+# TODO.md 1.2's own caveat: de_core_news_sm sometimes tags a separable-prefix
+# past participle ("angebraten", "aufgeladen") ``VVIZU`` (the zu-infinitive
+# tag) instead of ``VVPP`` in exactly the passive construction every
+# participle-reading selector searches for. Confirmed at scale in
+# docs/audits/corpus-coverage.md: passiv_praesens/passiv_praeteritum were
+# two of the LOWEST-yield topics out of 49 on both corpora despite the
+# present passive being one of the commonest constructions in German.
+#
+# Fixed with a shape-based participle test (``paradigms.is_participle_
+# shape``, wired in through ``selectors._is_participle``) that does not
+# trust the tagger's opinion when the fact is derivable from the word's own
+# spelling -- a known separable prefix, plus "ge", plus a participle ending,
+# is a past participle regardless of tag, and the "zu" infix (never "ge") is
+# what tells a genuine zu-infinitive apart from it. Applied to every
+# selector that reads through ``_participle_after``/``_before`` (and their
+# ``_in_clause`` variants) or ``futur_i``'s own inline participle exclusion:
+# passiv_praesens, passiv_praeteritum, passiv_modalverben, zustandspassiv,
+# zustandspassiv_zeiten, perfekt_haben, perfekt_sein, plusquamperfekt,
+# konjunktiv_ii_vergangenheit, futur_i, futur_ii. NOT
+# partizip_ii_attributiv/partizip_ii_attributiv_erweitert -- confirmed
+# empirically that an ATTRIBUTIVE separable-prefix participle ("das
+# gebratene Fleisch", "der aufgeladene Akku") is tagged ``ADJA``, not
+# ``VVIZU``, by this exact tagger, so that pair never hits the mistagging
+# this fix closes.
+# ==============================================================================
+
+
+def test_passiv_praesens_finds_a_separable_prefix_participle_mistagged_vviz() -> None:
+    """The two exact TODO.md 1.2 sentences. Both were a known, documented
+    miss until this fix; both must now produce a real item."""
+    item = _blank(
+        "passiv_praesens",
+        "Es muss unbedingt beachtet werden, dass das Fleisch scharf "
+        "angebraten wird, bevor man es serviert.",
+    )
+    assert item.proposed_answer == "wird"
+    assert "angebraten" in item.prompt
+
+    item = _blank(
+        "passiv_praesens",
+        "Das Smartphone wird jetzt aufgeladen, damit Sie es am Abend sofort nutzen können.",
+    )
+    assert item.prompt == (
+        "Das Smartphone ___ jetzt aufgeladen, damit Sie es am Abend sofort nutzen können."
+    )
+    assert item.proposed_answer == "wird"
+
+
+def test_passiv_praesens_finds_a_subordinate_clause_passive_participle_before_wird() -> None:
+    """A second, distinct gap the first reported sentence also exposed:
+    ``_select_passiv`` searched forward-only, unbounded, for its
+    participle -- which finds nothing in a verb-final subordinate clause
+    ("..., dass das Fleisch scharf angebraten wird, ...") where the
+    participle sits BEFORE "wird", not after it, exactly the word-order fact
+    ``_select_plusquamperfekt``/``_select_konjunktiv_ii_vergangenheit``
+    already had to handle for their own aux. Isolated here from the tagging
+    fix above with a plain, correctly-VVPP-tagged participle, so this test
+    fails on the old forward-only search even without any ``VVIZU``
+    mistagging in the picture at all."""
+    item = _blank(
+        "passiv_praesens", "Der Kellner sagt, dass die Suppe jeden Abend frisch gekocht wird."
+    )
+    assert item.proposed_answer == "wird"
+    assert item.prompt.endswith("gekocht ___.")
+
+
+def test_passiv_praesens_does_not_claim_a_modal_passives_own_clause_final_werden() -> None:
+    """A defect the bidirectional fix above would otherwise introduce,
+    found by hand-checking newly admitted corpus items for this task:
+    confirmed empirically that de_core_news_sm sometimes tags a modal
+    passive's own clause-final "werden" ("... können keine Häuser gebaut
+    werden.") ``VAFIN`` (finite) even though it is really the INVARIANT
+    bare infinitive "können" governs, not a form that agrees with its
+    subject. The old forward-only participle search never found this shape
+    (the participle sits BEFORE the clause-final "werden"), so it was
+    invisible before the bidirectional fix; blanking it as if it inflected
+    for Person/Number would build a broken item. ``passiv_modalverben``
+    already owns this construction (it blanks the modal itself, not
+    "werden") -- though the same ``VAFIN`` mistag also happens to defeat
+    ``passiv_modalverben``'s own infinitive-tag check on this exact
+    sentence, so this asserts only what this fix is actually responsible
+    for: passiv_praesens must not wrongly claim it, not that some other
+    topic picks it up instead."""
+    _, candidates = _select(
+        "passiv_praesens", "In diesem Bereich können keine Häuser gebaut werden."
+    )
+    assert candidates == []
+
+
+def test_futur_i_participle_exclusion_does_not_mistake_a_genuine_zu_infinitiv_for_one() -> None:
+    """The discriminator ``is_participle_shape`` must get right: "zu" is
+    infixed, not "ge" -- "aufzuladen" (confirmed tagged ``VVIZU`` in this
+    exact clause, same tag as the mistagged participle case this fix
+    targets) is a genuine zu-infinitive of the same separable verb
+    ("aufladen") as the reported participle ("aufgeladen"), never a
+    participle. A false accept here would wrongly exclude a genuine Futur I
+    clause built on this exact verb."""
+    item = _blank("futur_i", "Er wird das Handy aufzuladen versuchen.")
+    assert item.proposed_answer == "wird"
+
+
+def test_perfekt_haben_finds_a_separable_prefix_participle_mistagged_vvizu() -> None:
+    item = _blank("perfekt_haben", "Sie hat das Gemüse schon eingepackt.")
+    assert item.proposed_answer == "hat"
+
+
+def test_plusquamperfekt_finds_a_separable_prefix_participle_mistagged_vvizu() -> None:
+    item = _blank(
+        "plusquamperfekt",
+        "Nachdem sie das Fleisch scharf angebraten hatte, servierte sie es sofort.",
+    )
+    assert item.proposed_answer == "hatte"
+
+
+def test_zustandspassiv_finds_a_separable_prefix_participle_mistagged_vvizu() -> None:
+    item = _blank("zustandspassiv", "Das Handy ist schon aufgeladen.")
+    assert item.proposed_answer == "ist"
+
+
+# ==============================================================================
 # Cycle 3. futur_i / futur_ii -- werden + infinitive vs werden + participle
 # + haben/sein infinitive, disjoint by the presence of a participle.
 # ==============================================================================
@@ -1530,8 +1650,8 @@ def test_futur_i_does_not_fire_on_a_present_passive() -> None:
     (Futur II's own shape), never checking whether a genuine INFINITIVE was
     actually present either. Fixed by requiring a real infinitive
     (``_MODAL_INFINITIVE_TAGS``) in the clause and rejecting outright if any
-    participle (``VVPP``) shares it, closing the gap that also starved
-    ``passiv_praesens`` (both are one selector bug)."""
+    participle (``_is_participle``: tag OR shape) shares it, closing the gap
+    that also starved ``passiv_praesens`` (both are one selector bug)."""
     item = _blank("futur_i", "Ich werde morgen ins Kino gehen.")
     assert item.proposed_answer == "werde"
     _, candidates = _select("futur_i", "Die Suppe wird jeden Tag frisch gekocht.")
@@ -1540,19 +1660,22 @@ def test_futur_i_does_not_fire_on_a_present_passive() -> None:
     assert passiv_item.proposed_answer == "wird"
 
     # The exact two reported sentences: futur_i no longer wrongly claims
-    # either. Neither yields a passiv_praesens item either, but for a
-    # separate, unrelated, and already-documented reason outside this
-    # task's scope -- both participles are separable-prefix verbs
-    # ("anbraten", "aufladen") that de_core_news_sm mistags ``VVIZU``
+    # either, and -- updated from the previous version of this test, per
+    # CLAUDE.md rule 7 -- ``passiv_praesens`` now DOES produce an item for
+    # both. Previously it did not: both participles are separable-prefix
+    # verbs ("anbraten", "aufladen") that de_core_news_sm mistags ``VVIZU``
     # instead of ``VVPP`` in this exact context (confirmed directly), which
-    # is the tag ``passiv_praesens``'s own participle search requires and a
-    # gap this task's fix does not, and was never asked to, close.
+    # is the tag ``passiv_praesens``'s own participle search required and a
+    # gap a later task (the ``VVIZU`` shape-based participle test,
+    # ``paradigms.is_participle_shape``) closed.
     for sentence in (
         "Das Fleisch wird scharf angebraten, wenn ein tolles Aroma entstehen soll.",
         "Das Smartphone wird jetzt aufgeladen, damit Sie es am Abend sofort nutzen können.",
     ):
         _, futur_candidates = _select("futur_i", sentence)
         assert futur_candidates == []
+        passiv_item = _blank("passiv_praesens", sentence)
+        assert passiv_item.proposed_answer == "wird"
 
 
 def test_futur_ii_finds_werden_plus_participle_plus_haben() -> None:
