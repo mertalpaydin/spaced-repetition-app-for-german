@@ -135,16 +135,16 @@ cycles have shipped a "fixed" defect that was still live in the next run.
   Fix: recompute demand after each topic completes, skip topics already
   filled as a side effect, and give the freed calls to the starved topics.
 
-  **The specific figures above (1,746 items discarded, 339 from
-  `pronomen_personal_nom`, ten topics at zero) do not appear in
-  `docs/audits/cycle-09-report.md` or `cycle-09-demand-driven-generation.md`**
-  and could not be reproduced from either document; flagged per CLAUDE.md
-  rule 8 rather than silently treated as ground truth. `cycle-09-report.md`
-  reports 428 items accepted from 36 topics with only 13 topics at zero, a
-  different pattern, and `cycle-09-demand-driven-generation.md`'s 147 is a
-  projected worst-case call count, not a measured loss figure. The
-  underlying defect description (demand fixed once, no redistribution) is
-  real regardless, and is what got fixed.
+  Provenance of the figures above, since an agent correctly flagged that
+  they are not in any committed document: they come from the cycle 9 pilot's
+  own console output, which the owner pasted into the session and which was
+  never written to a file. That is exactly why TODO 4.6 below exists. The
+  console reported 147 calls, 1,746 items dropped to the per-topic cap
+  (339 `pronomen_personal_nom`, 205 `adjektivdeklination_bestimmt`, 139
+  `nomen_plural`), and ten topics ending with zero items before the model
+  verification pass, which then took three more to the thirteen that
+  `cycle-09-report.md` counts in the accepted output. The two documents do
+  not disagree; they are counting at different points in the pipeline.
 
   Fixed: `run_demand_driven_generation` in
   `src/generation/blanking/orchestrator.py` now recomputes each remaining
@@ -462,9 +462,22 @@ selector cannot see it".
 
 ### 4.2 Measure how much of our defect rate is the tagger's fault
 
-- [ ] HDT has hand-annotated morphology. Run the pipeline over it twice, once
+- [x] HDT has hand-annotated morphology. Run the pipeline over it twice, once
   with spaCy tags and once with the gold tags, and count disagreements on the
-  tokens the selectors actually read. `Tablett` versus `Tablette`, `treue`
+  tokens the selectors actually read.
+
+  **Done. See `docs/audits/tagger-accuracy-vs-gold.md`; reproduce with
+  `scripts/eval_tagger_vs_gold.py`.** 3,000 HDT sentences, 29,719 tokens.
+  80.3 percent of sentences contain at least one disagreement. Conflicting
+  values, worst first: Mood 12.59%, Gender 7.90%, lemma 6.69% (excluding a
+  punctuation convention difference), Case 6.08%, tag 5.67%, Tense 5.57%,
+  Number 3.37%, Person 0.40%. Missing values are reported separately and
+  cost coverage rather than correctness.
+
+  Two consequences already actionable: the `(letzter)` and `(nächster)` cues
+  written off as cosmetic in the cycle 8 audit are this measurement, not
+  cosmetics; and the Konjunktiv II topics, which produced their first items
+  in cycle 9 and have never been audited, sit on the single worst feature. `Tablett` versus `Tablette`, `treue`
   tagged as a finite verb, `schalte` lemmatised to `schalen`, `das` tagged
   `PDS` instead of `ART` were all spaCy being wrong, and we have never known
   whether that is 2 percent of items or 20.
@@ -492,6 +505,22 @@ selector cannot see it".
   corpus covers, which only AI generation covers, and whether the AI-only
   topics are the error-prone ones. Write the resulting policy back into this
   file as the standing generation rule.
+
+---
+
+## 4.6 The run report must be written to a file
+
+- [ ] The per-topic demand report, the rejection breakdown and the model
+  verification counts are printed to the console and nowhere else. After the
+  cycle 9 run this cost a full round trip: the audit could not distinguish
+  "the model never wrote this construction" from "the selector could not see
+  it" until the owner pasted the console output by hand, and an agent later
+  and correctly flagged figures taken from that paste as unsourced, because
+  they exist in no committed file.
+
+  Write the whole report to `data/blank_pilot_report.json` alongside the two
+  JSONL files, with the same numbers the console prints. Every future audit
+  then starts from a file rather than from a request.
 
 ---
 
