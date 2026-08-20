@@ -579,3 +579,91 @@ without the owner saying so explicitly.
   selector that has been audited once and fixed stays fixed. The path to zero
   is bounded: run until all 49 topics have produced items and been audited.
 - The verifier reduces defects. Until 3.3 exists, we have no measured recall.
+
+---
+
+## 7. Carrier validation audited against real corpora (2026-08-20)
+
+- [x] `docs/audits/corpus-coverage.md` found carrier validation rejects 30
+  percent of Tatoeba and 39 percent of Leipzig, written to judge model
+  output where a rejection means the model erred, never checked against
+  human-written German at scale. Audited: sampled at least 40 rejections
+  per reason across both corpora (440 sentences total), hand-classified
+  each, and loosened six of the ten reasons where the false-reject pattern
+  could be characterised precisely enough to exclude without admitting
+  anything the check exists to catch. Full method, examples and before/
+  after numbers in the session report; summary here.
+
+  Loosened, all in `src/generation/blanking/carrier_validation.py`:
+  - `no_subject_found`: a bare imperative (verb-initial, no subject,
+    non-interrogative) no longer requires a subject to resolve.
+  - `subject_verb_disagreement`: a verb ending in the unambiguous
+    2nd-singular "-st" suffix, paired with subject "du", is no longer
+    rejected for the morphologizer's own mistagged Person feature.
+  - `agreement_undecidable`: an all-3rd-person coordinated subject
+    ("Polizei und Staatsanwaltschaft") now resolves to 3rd-plural instead
+    of blanket-undecidable (and a genuine number defect on one is now
+    actively caught, not silently discarded); every subject type is now
+    given the same 3rd-person default a noun subject already got; a
+    non-finite verb acting as a clausal subject defaults to singular.
+  - `multiple_sentences`: a spaCy sentencizer split with no real
+    terminal-punctuation token backing it (a false split on a brand name,
+    an inverted question, or an ordinal number's period) is merged back
+    into one sentence before counting.
+  - `adjective_declension_mismatch`: a capitalised, non-sentence-initial,
+    "-er"-ending attributive adjective ("Berliner", "Münchner", "Pariser")
+    is recognised as the invariant toponymic/decade-adjective class and
+    skipped, rather than checked against a declension it never follows.
+  - `dangling_fragment`: "..., oder?" (the standard German tag-question
+    idiom) is no longer treated as a sentence truncated on a bare
+    conjunction; `APPO` (postposition) was removed from the
+    continuation-expecting tag set, since a postposition is correctly
+    phrase-final by definition, unlike a preposition.
+
+  Left alone, with the false-reject pattern stated rather than guessed
+  past: `missing_clause_connector` (dass-less reported speech and
+  "und"-coordination are common and legitimate, but parse identically to a
+  genuine comma-splice run-on -- verified empirically, no safe
+  discriminator found), `no_finite_verb` (V1 imperatives and inverted
+  questions are systematically mistagged as NE/NOUN/ADV by
+  `de_core_news_sm`, already documented in the module's own docstring;
+  fixing it means second-guessing the tagger's POS, which this module
+  never does), `content_word_not_a_real_word` and
+  `finite_verb_not_a_real_word` (both measured at a near-100 percent
+  false-reject rate on natural text, but the cause is the vendored
+  37,567-word dictionary being far too small for German's productive
+  verb-prefixation -- even common verbs like "erinnern"/"bewundern" are
+  missing -- not a logic gap; the only real fix is a much larger
+  dictionary, out of scope here the same way `docs/audits/cycle-06-report.md`
+  already ruled dictionary re-derivation out of scope for the Swiss-
+  spelling check).
+
+  **Recommended follow-up, not implemented here**: expand or replace
+  `data/fixtures/corpus/frequency/de_dictionary_filter.txt` with a larger
+  German wordlist, ideally covering common productive verb prefixes
+  (be-/ver-/ent-/er-/zer-/emp-/miss- and the standard separable set).
+  This single change would likely recover most of `content_word_not_a_
+  real_word` and `finite_verb_not_a_real_word`'s false rejects without
+  touching either check's logic, since the audit found the logic sound
+  and the data insufficient.
+
+  The false-negative guard: `data/fixtures/carrier_validation/
+  known_bad_carriers.jsonl`, a golden fixture (CLAUDE.md section 7) built
+  from every bad carrier `docs/audits/cycle-03-report.md` through
+  `cycle-09-report.md` hand-confirmed, asserted by
+  `tests/test_blanking_carrier_validation.py`'s
+  `test_validate_carrier_known_bad_carriers_regression` before AND after
+  the loosening. All nine records (eight named in the task, none dropped)
+  pass unchanged: every genuine defect ("kauft ich", "viele nassen",
+  "heilgemacht", Swiss "Schliesslich"/"draussen", the "dass"/"das"
+  confusion) is still rejected, and the two documented, pre-existing known
+  misses ("treue" for "treffe", "Tennisschlüssel" for "Tennisschläger") are
+  still accepted, unchanged, exactly as documented.
+
+  Volume, `scripts.eval_corpus_coverage --limit 30000`, same reader, same
+  seed, before vs. after: Tatoeba carrier-valid 21,157 -> 22,293 (+1,136,
+  rejection rate 29.5% -> 25.7%); Leipzig carrier-valid 18,395 -> 19,896
+  (+1,501, rejection rate 38.7% -> 33.7%). Both corpora still cover 49 of
+  49 topics after the change. Cost: none measured -- the false-negative
+  guard fixture and the full non-live/non-simulation test suite (1,201
+  tests) are unchanged in outcome, and mypy --strict / ruff are clean.

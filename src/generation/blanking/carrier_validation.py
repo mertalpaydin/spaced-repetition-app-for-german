@@ -547,6 +547,7 @@ from src.taxonomy.tagger import MODEL_NAME
 
 if TYPE_CHECKING:
     from spacy.language import Language
+    from spacy.tokens import Span as SpacySpan
     from spacy.tokens import Token as SpacyToken
 
 # -- Rejection reasons, named so callers and tests can key off a stable
@@ -584,6 +585,17 @@ _SUBJECT_DEPS: frozenset[str] = frozenset({"sb", "ep"})
 # sentence (its final non-punctuation token) is still expecting something to
 # follow -- a bare article, preposition, or conjunction, the shape a
 # truncated generation call leaves behind.
+#
+# ``APPO`` (postposition: "meiner Meinung nach", "deiner Expertenmeinung
+# zufolge") is deliberately NOT in this set, unlike ``APPR``
+# (preposition). A preposition always PRECEDES its complement, so one left
+# dangling at the very end of a sentence really is missing what should
+# follow it -- but a postposition's whole grammatical point is that it
+# FOLLOWS its complement, so a sentence correctly ending on one is complete
+# by construction, never truncated. Measured on a corpus audit
+# (2026-08-20): confirmed against a real Leipzig sentence ending
+# "...deiner Expertenmeinung zufolge?", a genuinely complete, correct
+# question wrongly rejected before this exclusion.
 _CONTINUATION_EXPECTING_TAGS: frozenset[str] = frozenset(
     {
         "ART",
@@ -591,7 +603,6 @@ _CONTINUATION_EXPECTING_TAGS: frozenset[str] = frozenset(
         "PPOSAT",
         "APPR",
         "APPRART",
-        "APPO",
         "KON",
         "KOUS",
         "KOUI",
@@ -599,6 +610,17 @@ _CONTINUATION_EXPECTING_TAGS: frozenset[str] = frozenset(
         "PTKZU",
     }
 )
+
+# "..., oder?" is a standard, extremely common German colloquial tag
+# question -- short for "oder nicht?" / "oder täusche ich mich?", the exact
+# structural equivalent of English "..., or?" / "..., right?" -- not a
+# sentence truncated on a bare coordinating conjunction. Bounded narrowly to
+# this one word plus a literal question mark (never a bare "oder." or
+# "oder!"): a corpus audit (2026-08-20) sampled 44 dangling_fragment
+# rejections and found this exact shape in the overwhelming majority,
+# always terminated with "?", never with "." or "!" -- consistent with it
+# being a real, complete tag-question idiom rather than a truncation.
+_TAG_QUESTION_PATTERN = re.compile(r"\boder\s*\?['\"”’)]*\s*$", re.IGNORECASE)
 
 _TERMINAL_PUNCTUATION = re.compile(r"[.!?…]['\"”’)]*\s*$")
 _MIN_TOKEN_COUNT = 3
@@ -877,6 +899,98 @@ def _resolve_subject(verb: SpacyToken, *, _depth: int = 0) -> SpacyToken | None:
     return None
 
 
+def _is_bare_imperative(verb: SpacyToken, *, _depth: int = 0) -> bool:
+    """Whether ``verb`` is (or is a same-clause coordinate conjunct of) a
+    verb-initial main clause with no subject at all and non-interrogative
+    terminal punctuation -- the ONE construction where German legitimately
+    allows a finite verb to have no subject: the imperative. German main
+    clauses are otherwise rigidly verb-SECOND, so a finite ROOT verb in
+    absolute first position, with no subject and not itself a question, has
+    no other grammatical reading -- this is a categorical word-order fact,
+    not a guess. Confirmed on a corpus audit (2026-08-20): "Holt eure
+    Bücher raus und schlagt Seite 42 auf.", "Ruf mich morgen früh um sechs
+    Uhr an.", "Lasst uns ans Meer fahren." are all correctly-tagged finite
+    verbs (``VVFIN``, not the mistagged-as-noun shape the module docstring
+    already documents for some bare imperatives) that were nonetheless
+    rejected here purely because an imperative structurally has no subject
+    to resolve -- the check itself, not the tagger, was wrong to require
+    one.
+
+    Scoped narrowly, mirroring ``_resolve_subject``'s own coordination
+    fallback rather than a generic upward walk through any dependency type:
+    only a verb that IS the sentence's own ``ROOT``, or that reaches it
+    through a coordinator (``cj`` -> ``cd`` head -> first conjunct) chain
+    exactly like the subject-gapped-coordination case above, can ever
+    qualify. An embedded subordinate clause's own verb is never
+    dep_-reachable this way (its dep_ is something like "mo"/"oc"/"rc",
+    never "ROOT" or a coordination chain rooted at position 0), so this
+    cannot accidentally exempt a genuinely subjectless embedded clause
+    nested inside an otherwise-imperative sentence."""
+    if verb.dep_ == "ROOT":
+        candidate = verb
+    elif verb.dep_ == "cj" and _depth < 5:
+        coordinator = verb.head
+        first_conjunct = coordinator.head
+        if first_conjunct is verb:
+            return False
+        return _is_bare_imperative(first_conjunct, _depth=_depth + 1)
+    else:
+        return False
+
+    if candidate.i != 0:
+        return False
+    if any(c.dep_ in _SUBJECT_DEPS for c in candidate.children):
+        return False
+    return not candidate.doc.text.rstrip().endswith("?")
+
+
+def _default_person(token: SpacyToken) -> str | None:
+    """The grammatical Person a subject token resolves to, generalising
+    what this check already did for ``NOUN``/``PROPN`` and certain
+    ``PRON`` subtypes to every other part of speech. German has exactly
+    one class of subject that is ever 1st or 2nd person: a genuine
+    personal pronoun ("ich"/"wir"/"du"/"ihr" -- the formal "Sie" already
+    resolves to Person 3 in this tagset, confirmed by the existing
+    "Kommen Sie bitte her." test). Every other subject -- a common or
+    proper noun, a relative/demonstrative/indefinite pronoun, a
+    substantivised adjective ("der dritte", "Jung und Alt"), a numeral, a
+    determiner used pronominally ("das ... ist"), or a non-finite verb
+    acting as a clausal subject -- is grammatically 3rd person BY
+    DEFINITION in German: there is no subject type other than a true
+    personal pronoun that could ever be notionally "I" or "you".
+    Confirmed on a corpus audit (2026-08-20): every ``agreement_undecidable``
+    false reject whose only missing feature was Person (Number already
+    resolved) was exactly this shape -- an ``ADJ``, ``PROPN``, ``NUM``,
+    ``DET``, or non-finite ``VERB`` subject that the pre-audit code simply
+    never assigned a Person to."""
+    feats = dict(token.morph.to_dict())
+    if (
+        token.pos_ == "PRON"
+        and feats.get("PronType") == "Prs"
+        and feats.get("Person")
+        in (
+            "1",
+            "2",
+        )
+    ):
+        return feats["Person"]
+    return "3"
+
+
+def _coordinated_conjuncts(subject: SpacyToken) -> list[SpacyToken]:
+    """``subject`` itself plus every other conjunct in its coordinated noun
+    phrase ("Polizei und Staatsanwaltschaft" -> both tokens), reached
+    through the "cd" coordinator child(ren) already used to detect
+    coordination, and that coordinator's own "cj" children -- the same
+    dependency shape ``_resolve_subject``'s own coordination fallback
+    already navigates for a coordinated VERB, mirrored here for a
+    coordinated SUBJECT noun phrase."""
+    conjuncts = [subject]
+    for cd in (c for c in subject.children if c.dep_ == "cd"):
+        conjuncts.extend(c for c in cd.children if c.dep_ == "cj")
+    return conjuncts
+
+
 def _subject_agreement_reason(verb: SpacyToken) -> str | None:
     """Subject-verb agreement for one finite verb, or ``None`` if it agrees
     (subject resolution, including the subject-gapped coordination case, is
@@ -885,37 +999,49 @@ def _subject_agreement_reason(verb: SpacyToken) -> str | None:
     guessing."""
     subject = _resolve_subject(verb)
     if subject is None:
+        if _is_bare_imperative(verb):
+            return None
         return REASON_NO_SUBJECT_FOUND
 
     # A coordinated subject ("Der Mann und die Frau tanzen") shows up as a
     # "cd" (coordinating conjunction) child on the subject noun itself, not
-    # on the verb -- German's coordinate-subject person-resolution rule
-    # ("du und ich" -> wir-agreement) is real but not implemented here.
+    # on the verb. German's genuine coordinate-subject person-resolution
+    # rule ("du und ich" -> wir-agreement) is real but not implemented here
+    # -- but that rule is ONLY needed when a conjunct is a 1st- or
+    # 2nd-person pronoun. When every conjunct is grammatically 3rd person
+    # (the overwhelming common case in real text: "Polizei und
+    # Staatsanwaltschaft", "Tom und Maria", "Knochen und Zähne", ...),
+    # German has no genuine ambiguity to resolve at all: two or more
+    # distinct 3rd-person entities joined by "und" are always
+    # 3rd-person-PLURAL, categorically, so this resolves the whole
+    # coordinated subject that way rather than reporting it undecidable.
+    # Confirmed on a corpus audit (2026-08-20) this is not merely a
+    # loosening but a strict improvement: because the resolved
+    # Person/Number still goes through the ordinary comparison below, a
+    # genuine number-agreement defect on a coordinated subject (e.g. a
+    # singular verb wrongly paired with "der Mann und die Frau") is now
+    # actively CAUGHT as REASON_SUBJECT_VERB_DISAGREEMENT rather than
+    # silently waved through as undecidable.
+    subject_person: str | None
+    subject_number: str | None
     if any(grandchild.dep_ == "cd" for grandchild in subject.children):
-        return REASON_AGREEMENT_UNDECIDABLE
-
-    subject_feats = dict(subject.morph.to_dict())
-    subject_number = subject_feats.get("Number")
-    if subject.pos_ == "PRON":
-        # A relative, demonstrative, or indefinite pronoun used as a subject
-        # ("der Mann, der dort steht" / "man kann das nicht wissen") carries
-        # no Person feature in UD either -- it is not deictic the way
-        # "ich"/"du" are -- but all three are always grammatically 3rd
-        # person in practice (a relative clause's antecedent is a noun
-        # phrase, and "man"/"jemand"/"etwas" are 3rd person by definition
-        # regardless of notional number), so the same safe default applies
-        # as for a noun subject. Personal pronouns still resolve their real
-        # Person here.
-        subject_person = subject_feats.get("Person")
-        if subject_person is None and subject_feats.get("PronType") in ("Rel", "Dem", "Ind"):
-            subject_person = "3"
-    elif subject.pos_ in ("NOUN", "PROPN"):
-        # A common or proper noun subject carries no Person feature in UD --
-        # it is always grammatically 3rd person, so that much is safe to
-        # assume rather than treat as missing.
-        subject_person = "3"
+        conjuncts = _coordinated_conjuncts(subject)
+        if all(_default_person(c) == "3" for c in conjuncts):
+            subject_person, subject_number = "3", "Plur"
+        else:
+            return REASON_AGREEMENT_UNDECIDABLE
     else:
-        subject_person = None
+        subject_person = _default_person(subject)
+        subject_feats = dict(subject.morph.to_dict())
+        subject_number = subject_feats.get("Number")
+        if subject_number is None and subject.pos_ == "VERB":
+            # An infinitive or other non-finite VERB acting as a clausal
+            # subject ("Rauchen ist verboten", "Einen Fehler begehen ...
+            # bedeutet wirklich fehlen") carries no Number feature in UD,
+            # but a clausal subject is always grammatically singular in
+            # German -- there is no plural reading of "to do X" as a
+            # subject -- so this is a categorical default, not a guess.
+            subject_number = "Sing"
 
     if subject_person is None or subject_number is None:
         return REASON_AGREEMENT_UNDECIDABLE
@@ -930,6 +1056,9 @@ def _subject_agreement_reason(verb: SpacyToken) -> str | None:
         return None
 
     if _is_syncretism_tolerated(subject_person, subject_number, verb_person, verb_number, verb):
+        return None
+
+    if _is_mistagged_du_st_form(subject_person, subject_number, verb):
         return None
 
     return REASON_SUBJECT_VERB_DISAGREEMENT
@@ -994,6 +1123,30 @@ def _is_syncretism_tolerated(
     return False
 
 
+def _is_mistagged_du_st_form(subject_person: str, subject_number: str, verb: SpacyToken) -> bool:
+    """Not a syncretism (two legitimate readings) -- a straightforward
+    ``de_core_news_sm`` morphologizer error, verified empirically on a
+    corpus audit (2026-08-20). German's 2nd-singular verb ending, ``-st``,
+    is unambiguous: no OTHER (Person, Number) cell of any German verb --
+    modal or lexical, regular or irregular -- ever ends in ``-st`` (the
+    same categorical fact ``_is_syncretism_tolerated``'s sibilant-stem case
+    already relies on for a different ending). The audit found the
+    morphologizer nonetheless mistags a genuine ``-st`` form's own Person
+    feature as ``1`` or ``3`` (never ``2``) across a range of real subjects
+    and verbs -- "Kannst du", "Du kannst", "du bildest", "du gehst",
+    "du betrittst" -- regardless of word order (both V2 declarative and V1
+    question inversion trigger it). Trusted only when the SUBJECT is
+    unambiguously "du" itself (Person 2, Number Sing -- the only nominative
+    pronoun that cell can ever resolve to) rather than merely inferred
+    2nd-singular some other way, and only when the verb's own surface text
+    ends in "st" -- so this can never paper over a genuine Person/Number
+    defect on a verb that does not carry the one ending German grammar
+    reserves exclusively for "du"."""
+    if subject_person != "2" or subject_number != "Sing":
+        return False
+    return verb.text.strip().lower().endswith("st")
+
+
 def _clause_connector_reason(verb: SpacyToken) -> str | None:
     """A finite verb that is not the sentence ROOT and whose head is itself
     a finite verb is only a legitimate subordinate clause if it carries an
@@ -1022,6 +1175,8 @@ def _dangling_fragment_reason(tokens: list[SpacyToken]) -> str | None:
     if len(content_tokens) < _MIN_TOKEN_COUNT:
         return REASON_FRAGMENT_TOO_SHORT
     if content_tokens[-1].tag_ in _CONTINUATION_EXPECTING_TAGS:
+        if content_tokens[-1].tag_ == "KON" and _TAG_QUESTION_PATTERN.search(tokens[0].doc.text):
+            return None
         return REASON_DANGLING_FRAGMENT
     return None
 
@@ -1192,10 +1347,42 @@ def _adjective_declension_reason(tokens: list[SpacyToken]) -> str | None:
             continue
 
         for adjective in adjectives:
+            if _is_invariant_toponymic_adjective(adjective):
+                continue
             actual_ending = _adjective_surface_ending(adjective.text)
             if actual_ending is not None and actual_ending not in candidate_endings:
                 return REASON_ADJECTIVE_DECLENSION_MISMATCH
     return None
+
+
+def _is_invariant_toponymic_adjective(adjective: SpacyToken) -> bool:
+    """German toponymic/decade adjectives formed with the invariant ``-er``
+    suffix ("Berliner", "Münchner", "Pariser", "Wiener", "Sechziger") never
+    decline at all -- "der Berliner Bär", "die Berliner Mauer", "dem
+    Berliner Wetter", "die Berliner Kinder" all keep the identical surface
+    form regardless of Case, Gender or Number. This module has no gazetteer
+    of place names to identify them by lexeme, but German orthography
+    already marks this exact class unambiguously: unlike an ordinary
+    attributive adjective, which is lowercase in attributive position
+    except when it happens to open the sentence, a toponymic ``-er``
+    adjective is conventionally capitalised the same way its source proper
+    noun is, in EVERY position. So a capitalised, non-sentence-initial
+    ``ADJA`` token ending in ``-er`` is this class, not a declension error
+    -- confirmed on a corpus audit (2026-08-20): every one of a 44-item
+    ``adjective_declension_mismatch`` sample was exactly this shape
+    ("Braunschweiger", "Münchner", "Dortmunder", "Pariser", "Wiener",
+    "Prager", "Kieler", "Hamburger", "Sechziger", ...), and none was a
+    genuine wrongly-declined adjective. Bounded to the ``-er`` ending
+    specifically (the only ending this invariant class ever takes) so a
+    capitalised word with any OTHER ending -- which this class never
+    produces -- still gets the normal declension check, not a blanket
+    pass."""
+    if adjective.i == 0:
+        return False
+    text = adjective.text.strip()
+    if not text or not text[0].isupper():
+        return False
+    return _adjective_surface_ending(text) == "er"
 
 
 # The closed, two-verb list task 5 (module docstring) is scoped to: about as
@@ -1497,6 +1684,34 @@ def _non_finite_verb_lexical_reality_reason(tokens: list[SpacyToken]) -> str | N
     return None
 
 
+def _real_sentence_count(sentence_spans: list[SpacySpan]) -> int:
+    """How many GENUINE sentences ``sentence_spans`` (``doc.sents``)
+    actually contains, correcting for spaCy's own sentencizer occasionally
+    splitting mid-sentence with no real terminal punctuation at all behind
+    the split -- confirmed empirically on a corpus audit (2026-08-20)
+    against real Leipzig text: a capitalised brand/proper-noun run with no
+    period ("Nun wollen die Earfun" | "Free Pro 3 im Test beweisen..."), a
+    bare inverted-question opening ("Erteilt" | "Van der Bellen..."), and an
+    ordinal number's period, which the tagger correctly does NOT read as
+    sentence-final ("Die 112." | "Tour de France...", "112." tagged
+    ``ADJA``, not ``$.``) all trip the sentencizer this way. A GENUINE
+    second sentence, by contrast, always ends its earlier span on the STTS
+    sentence-final punctuation tag ``$.`` -- covering ".", "!", "?", ":",
+    ";" here, verified directly against real two-sentence corpus text
+    (colon-introduced quotes, question-then-exclamation pairs, ...).
+
+    Only the SENTENCE-COUNTING gate is touched: every other check in this
+    module already reads every token in the whole ``doc`` regardless of
+    ``.sents`` grouping, so merging a spurious split changes nothing else
+    about how the (correctly single) sentence is checked, and a genuine
+    run-on with no punctuation anywhere between its two clauses never
+    reaches this function with more than one span in the first place --
+    that shape is ``missing_clause_connector``'s job, not this one's."""
+    if not sentence_spans:
+        return 0
+    return 1 + sum(1 for span in sentence_spans[:-1] if span[-1].tag_ == "$.")
+
+
 def validate_carrier(sentence: str) -> CarrierValidation:
     """Validate one plain, generated German sentence as a sound carrier.
 
@@ -1520,7 +1735,7 @@ def validate_carrier(sentence: str) -> CarrierValidation:
 
     doc = nlp(stripped)
     sentence_spans = list(doc.sents)
-    if len(sentence_spans) > 1:
+    if _real_sentence_count(sentence_spans) > 1:
         return CarrierValidation(sentence, False, REASON_MULTIPLE_SENTENCES)
 
     tokens = list(doc)

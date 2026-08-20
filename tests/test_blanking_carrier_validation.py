@@ -4,12 +4,23 @@ Skipped whole-file when spaCy's de_core_news_sm is not installed, mirroring
 tests/test_blanking_pipeline.py -- every real check here needs the parser.
 """
 
+import json
+from pathlib import Path
+
 import pytest
 from src.generation.blanking import carrier_validation as cv
 
 pytestmark = pytest.mark.skipif(
     not cv.analysis_available(),
     reason="spaCy de_core_news_sm is not installed in this environment",
+)
+
+_KNOWN_BAD_CARRIERS_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "data"
+    / "fixtures"
+    / "carrier_validation"
+    / "known_bad_carriers.jsonl"
 )
 
 
@@ -217,12 +228,43 @@ def test_validate_carrier_rejects_whitespace_only() -> None:
 # -- Documented conservative gaps -- discarding good sentences on purpose --
 
 
-def test_validate_carrier_rejects_coordinated_subject_as_undecidable() -> None:
-    """ "Der Mann und die Frau tanzen" is correct German (plural agreement
-    with a coordinated subject); this module deliberately does not implement
-    German's coordinate-subject person-resolution rule and rejects rather
-    than guesses. See the module docstring."""
+def test_validate_carrier_accepts_all_third_person_coordinated_subject() -> None:
+    """CLAUDE.md rule 7: this replaces (does not weaken) a prior test that
+    pinned coordinated subjects as ALWAYS undecidable. The carrier-
+    validation audit (2026-08-20) found that blanket rule was itself the
+    false positive: when every conjunct of an "und"-coordinated subject is
+    grammatically 3rd person (the overwhelming common case -- "der Mann und
+    die Frau", "Tom und Maria", "Polizei und Staatsanwaltschaft" -- none of
+    them "ich"/"du"/"wir"/"ihr"), German has no genuine ambiguity to
+    resolve: two or more distinct 3rd-person entities joined by "und" are
+    always 3rd-person-PLURAL, categorically. "Der Mann und die Frau tanzen
+    zusammen." is correct German and is now correctly accepted rather than
+    discarded as undecidable."""
     result = cv.validate_carrier("Der Mann und die Frau tanzen zusammen.")
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_catches_disagreement_on_coordinated_subject() -> None:
+    """The flip side of the fix above, and why it is a strict improvement
+    rather than merely a loosening: because the coordinated subject's
+    resolved Person/Number still goes through the ordinary comparison, a
+    genuine number defect on a coordinated subject is now actively CAUGHT,
+    where before it was silently waved through as undecidable and
+    discarded either way."""
+    result = cv.validate_carrier("Der Mann und die Frau tanzt zusammen.")
+    assert not result.accepted
+    assert result.reason == cv.REASON_SUBJECT_VERB_DISAGREEMENT
+
+
+def test_validate_carrier_still_treats_mixed_person_coordination_as_undecidable() -> None:
+    """The one case the fix above deliberately still declines to resolve:
+    a coordinated subject with a genuine 1st- or 2nd-person conjunct ("du
+    und ich" -> "wir"-agreement) needs German's real coordinate-subject
+    person-resolution rule, which this module still does not implement --
+    see the module docstring. Guessing here risks the opposite mistake
+    (assuming 3rd person when a real defect swapped the wrong pronoun in),
+    so this stays undecidable on purpose."""
+    result = cv.validate_carrier("Du und ich gehen jetzt nach Hause.")
     assert not result.accepted
     assert result.reason == cv.REASON_AGREEMENT_UNDECIDABLE
 
@@ -791,3 +833,67 @@ def test_validate_carrier_has_zero_false_positives_on_the_mock_sentence_pool() -
         if not (result := cv.validate_carrier(sentence)).accepted
     ]
     assert rejected == []
+
+
+# -- The false-negative guard: every bad carrier a previous audit found -----
+#
+# data/fixtures/carrier_validation/known_bad_carriers.jsonl is the standing
+# regression fixture the carrier-validation audit (2026-08-20) built per its
+# own task instruction: every model-written carrier docs/audits/cycle-03
+# through cycle-09-report.md hand-confirmed was bad German (or a documented,
+# pre-existing known miss) must never silently start being accepted (or, for
+# a known miss, never silently start being caught without the docstring
+# being updated to say so). Run BEFORE a loosening to record the baseline and
+# AFTER to prove nothing regressed -- a loosening that flips a "rejected"
+# record to accepted is wrong and must be reverted, per the task's own
+# standing instruction ("do not increase the false negative rate").
+
+
+def _load_known_bad_carriers() -> list[dict]:
+    records = []
+    with _KNOWN_BAD_CARRIERS_PATH.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            record = json.loads(line)
+            if record.get("_meta"):
+                continue
+            records.append(record)
+    return records
+
+
+_KNOWN_BAD_CARRIERS = _load_known_bad_carriers()
+
+
+@pytest.mark.parametrize("record", _KNOWN_BAD_CARRIERS, ids=[r["id"] for r in _KNOWN_BAD_CARRIERS])
+def test_validate_carrier_known_bad_carriers_regression(record: dict) -> None:
+    result = cv.validate_carrier(record["sentence"])
+    if record["expected_outcome"] == "rejected":
+        assert not result.accepted, (
+            f"{record['id']} ({record['sentence']!r}) must stay rejected -- "
+            f"a loosening admitted it. {record['defect']}"
+        )
+        assert result.reason == record["expected_reason"], (
+            f"{record['id']}: expected reason {record['expected_reason']!r}, got {result.reason!r}"
+        )
+    else:
+        assert record.get("documented_known_miss") is True, (
+            f"{record['id']}: an 'accepted' record must be a documented known "
+            "miss, never a silent gap"
+        )
+        assert result.accepted, (
+            f"{record['id']} ({record['sentence']!r}) is a documented known "
+            "miss and was expected to still be accepted; if this now fails, "
+            "carrier_validation started catching it -- update this fixture's "
+            "expected_outcome and the module docstring together, do not "
+            "just flip this assertion"
+        )
+
+
+def test_known_bad_carriers_fixture_has_at_least_the_eight_named_sentences() -> None:
+    """Pins the fixture's own minimum coverage: the audit task named eight
+    sentences explicitly ('at minimum'). This does not replace the
+    parametrized per-record test above; it guards against the fixture file
+    itself being trimmed."""
+    assert len(_KNOWN_BAD_CARRIERS) >= 8
