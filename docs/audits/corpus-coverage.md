@@ -55,17 +55,35 @@ roughly 700k and the Leipzig corpus is 1M, so multiply by six to eight.
 `futur_ii` at 20 becomes about 120. Only `zustandspassiv_zeiten`, at 1 per
 120k in Tatoeba, stays genuinely marginal.
 
-**`passiv_praesens` at 21 and 26 is not credible as a corpus fact.** The
-present passive is one of the commonest constructions in German news writing,
-and Leipzig is German news. Something in our selector is rejecting it, which
-matches the caveat recorded against TODO 1.2: `de_core_news_sm` tags some
-separable-prefix participles `VVIZU` instead of `VVPP`, and the passive
-selector's participle search does not survive that. The same suspicion
-applies to `passiv_praeteritum`.
+**`passiv_praesens` at 21 and 26 looked like a bug, and was partly one.**
+Followed up and resolved, with the original diagnosis only half right.
 
-Treat those two numbers as a bug report about our own code, not a measurement
-of the corpus. That is worth catching: without a corpus baseline there was
-nothing to notice it against.
+There were two real selector bugs, both now fixed: separable-prefix
+participles mistagged `VVIZU` instead of `VVPP`, and a participle search that
+only looked forward and so missed verb-final subordinate clauses. Together
+they were worth about a third: `passiv_praesens` went 19 to 26 per 100,000
+Tatoeba sentences, `zustandspassiv` 9 to 16.
+
+The remaining gap is not a bug. Taking 4,000 Leipzig sentences containing
+`wird` or `werden` and instrumenting the pipeline: 1,643 die in carrier
+validation, the selector finds roughly 44 passive candidates in the 2,357
+that survive, and **33 of those 44 are then killed by the uniqueness gate for
+`auxiliary_tense_unanchored`**, leaving 11.
+
+That gate is right. `passiv_praesens` blanks the auxiliary, because the
+auxiliary is what makes the sentence passive, and `Die Währung ___ auch in
+Bulgarien eingeführt` admits `wird` and `wurde` equally unless the sentence
+carries a time anchor. Three quarters of natural present passives do not
+carry one.
+
+So the topic is intrinsically expensive, not broken. It needs either a
+temporal anchor requirement of its own, the way `plusquamperfekt` requires
+`bevor`, or acceptance that its yield is roughly one usable item per 200
+passive sentences. At corpus scale that is still enough.
+
+The honest lesson: a number that looks impossible is worth chasing, and the
+answer was two real bugs plus a gate working correctly. Without the corpus
+baseline neither the bugs nor the gate's true cost would have been visible.
 
 ## Carrier validation on natural text
 

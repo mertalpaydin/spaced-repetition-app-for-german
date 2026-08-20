@@ -638,13 +638,39 @@ selector cannot see it".
   is the whole argument for corpus retrieval over generation for rare
   constructions.
 
-### 4.4 New gate that only corpus sentences need
+### 4.4 Unresolved references: the SLOT, not the sentence
 
-- [ ] **Standalone comprehensibility.** A sentence pulled out of a paragraph
-  carries unresolved references. `Er sagte das damals nicht.` is perfect
-  German and useless as an exercise, because nothing in it fixes who `er` is.
-  This is the uniqueness problem arriving from a new direction and the
-  existing gate only partly covers it.
+- [x] Superseded by the owner's correction, recorded verbatim because the
+  original framing of this item was wrong:
+
+  > "Er sagte das damals nicht" is a correct german sentence and it can stay.
+  > It can be an exercise to if the removed token is sagte or if its negation
+  > exercise like where to put nicht. It can even be used in future for vocab
+  > exercise for "damals". Student should not care who "er" is. you might
+  > need to rethink about unresolved references. lets not throw away
+  > perfectly good sentences
+
+  This item previously proposed a "standalone comprehensibility" check that
+  would reject a corpus sentence carrying an unresolved reference. That is
+  wrong and would have thrown away good carriers at scale. The problem was
+  never the sentence. It is only a problem when the BLANK IS the unresolved
+  reference:
+
+      Er sagte das damals nicht.   blank "er"     -> unsolvable
+      Er sagte das damals nicht.   blank "sagte"  -> fine, cue (sagen)
+      Er sagte das damals nicht.   blank "nicht"  -> fine, tests negation position
+      Er sagte das damals nicht.   blank "damals" -> fine as a vocabulary item
+
+  The gate for this already exists and is per item, not per sentence:
+  `uniqueness.py`'s `personal_pronoun_unanchored` and
+  `nominative_pronoun_syncretic`, which fired 85 and 212 times in cycle 9.
+  One good sentence yields several good items and at most one bad one, and
+  only the bad one is dropped.
+
+  **No new gate. Nothing to build.** The one thing left to check is whether
+  those two pronoun gates, which were tuned against model-generated text,
+  behave the same on corpus text. That is a question for the corpus audit
+  (section 7 below), not a filter to write in advance.
 
 ### 4.5 Decide the split
 
