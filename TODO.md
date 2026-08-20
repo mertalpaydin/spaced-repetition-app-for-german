@@ -512,10 +512,31 @@ selector cannot see it".
 
 ### 4.5 Decide the split
 
-- [ ] After 4.2, 4.3 and a fixed AI pilot run, compare: which topics the
+- [~] After 4.2, 4.3 and a fixed AI pilot run, compare: which topics the
   corpus covers, which only AI generation covers, and whether the AI-only
   topics are the error-prone ones. Write the resulting policy back into this
   file as the standing generation rule.
+
+  **Provisional policy, pending the fixed AI pilot run. Evidence in
+  `docs/audits/corpus-coverage.md`.** The corpus half is settled: at an A2
+  vocabulary ceiling both corpora cover all 49 topics, and at A1 Tatoeba
+  covers 48 and Leipzig 49.
+
+  1. **Tatoeba is the primary source.** Best register match, highest yield
+     per sentence at every ceiling, CC BY 2.0 FR.
+  2. **Leipzig is the supplement**, for constructions Tatoeba is thin on.
+     Its news register survives an A1 filter far worse (83 percent dropped
+     against Tatoeba's 52) but what survives is usable, and it is an
+     independent 1M sentences.
+  3. **Generation keeps two jobs**: any topic the corpus cannot reach even
+     at full scale, which on current evidence is at most
+     `zustandspassiv_zeiten`, and thematic control when the bank needs items
+     about a particular subject.
+  4. **Never ask generation for a rare construction again.** That single
+     decision caused ten empty topics in cycle 9.
+
+  Left open until the AI pilot runs with the section 1 fixes in: whether the
+  AI-only topics are also the error-prone ones.
 
 ---
 

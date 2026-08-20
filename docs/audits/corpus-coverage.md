@@ -113,3 +113,69 @@ learner-written corpus should look like.
 3. **A corpus baseline catches our own bugs.** `passiv_praesens` at 21 per
    120k is the first evidence of the participle-tagging gap outside a
    hand audit.
+
+## The level filter
+
+TODO 4.3, second half. Same runs, with `VocabularyStore.check_ceiling_budget`
+applied before tagging, which is the budgeted rule the generation pipeline
+already uses: content words two bands above the ceiling are always violations,
+words one band above are tolerated up to a small budget.
+
+Per 120,000 input sentences:
+
+| | Tatoeba A1 | Tatoeba A2 | Tatoeba B1 | Leipzig A1 | Leipzig A2 | Leipzig B1 |
+|---|---:|---:|---:|---:|---:|---:|
+| Dropped above ceiling | 62,172 (52%) | 34,972 (29%) | 1,234 (1%) | 99,518 (83%) | 67,289 (56%) | 5,778 (5%) |
+| Carrier-valid | 41,285 | 60,659 | 83,828 | 12,974 | 33,068 | 70,067 |
+| Candidates | 81,100 | 122,521 | 173,678 | 25,299 | 70,524 | 162,418 |
+| **Topics covered** | **48/49** | **49/49** | **49/49** | **49/49** | **49/49** | **49/49** |
+
+The filter cuts hard, exactly as expected, and coverage barely moves. At an A1
+vocabulary ceiling Tatoeba still yields 81,100 candidates across 48 of the 49
+topics, missing only `zustandspassiv_zeiten`. Leipzig loses 83 percent of its
+sentences and still covers all 49.
+
+### The finding that matters most
+
+**Grammar level and vocabulary level are independent, and the corpus lets us
+exploit that.** A Futur II sentence built entirely from A1 words is still a
+Futur II sentence. At the A1 ceiling Tatoeba yields 12 `futur_ii` candidates,
+6 `relativsatz_genitiv`, 10 `zustandspassiv`, and Leipzig adds more.
+
+That matters because this product interleaves grammar topics across levels
+against a learner whose vocabulary is fixed at their own level. Generation has
+to be asked for both at once and tends to raise the vocabulary when asked for
+harder grammar. Retrieval does not: filter for the words, search for the
+structure, and the two constraints stop fighting each other.
+
+### What is thin at A1 and A2, and whether it matters
+
+Under 20 candidates per 120k at an A2 ceiling: `zustandspassiv_zeiten` (1 in
+Tatoeba, 4 in Leipzig), `praepositionen_genitiv_gehoben` (6, 13), `futur_ii`
+(15, 3), `zustandspassiv` (11, 18), `relativsatz_genitiv` (13, 11),
+`passiv_praesens` (18, 14), `passiv_praeteritum` (17), the two participle
+topics, and `konjunktiv_ii_hoeflichkeit` (13 in Leipzig).
+
+Scale settles most of it. Full Tatoeba is roughly 5.8 times this sample and
+the full Leipzig corpus 8.3 times, and the two are independent sources that
+add. `zustandspassiv_zeiten`, the worst case, goes from 1 and 4 to roughly 6
+and 33. `futur_ii` goes to about 110 combined.
+
+Two caveats on those numbers. `passiv_praesens` and `passiv_praeteritum` are
+still suppressed by our own participle-tagging bug, so their true counts are
+higher. And `praepositionen_genitiv_gehoben` is elevated register by
+definition, so a low count under an A2 ceiling is the corpus being honest
+rather than thin.
+
+## Recommended split (TODO 4.5)
+
+1. **Tatoeba is the primary source.** Best register match, highest yield per
+   sentence at every ceiling, CC BY 2.0 FR.
+2. **Leipzig is the supplement**, for constructions Tatoeba is thin on. Its
+   news register survives an A1 filter far worse, but what survives is usable
+   and it is an independent 1M sentences.
+3. **Generation keeps two jobs only**: topics the corpus cannot reach even at
+   full scale, which on this evidence is at most `zustandspassiv_zeiten`, and
+   thematic control when the bank needs items about a particular subject.
+4. **Never ask generation for a rare construction again.** That was the cause
+   of ten empty topics in cycle 9 and the corpus answers it outright.

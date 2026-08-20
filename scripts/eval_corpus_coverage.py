@@ -48,6 +48,9 @@ from pathlib import Path
 from src.generation.blanking import carrier_validation
 from src.generation.blanking.pipeline import blank_sentences
 from src.generation.blanking.selectors import SELECTORS
+from src.lexicon.vocabulary import VocabularyStore
+
+DEFAULT_VOCAB_PATH = Path("data/fixtures/corpus/vocab_levels.json")
 
 # Carrier-plausible bounds, matching scripts/eval_tagger_vs_gold.py so the two
 # measurements are talking about the same kind of sentence.
@@ -116,11 +119,35 @@ def main() -> int:
         "so a balance cap would hide exactly the number being measured.",
     )
     parser.add_argument("--max-items-per-sentence", type=int, default=10**9)
+    parser.add_argument(
+        "--cefr-ceiling",
+        choices=("A1", "A2", "B1", "B2"),
+        default=None,
+        help="Drop sentences whose vocabulary is above this level, using the same "
+        "budgeted rule the generation pipeline applies (VocabularyStore."
+        "check_ceiling_budget). Omit to measure the corpus without a level filter.",
+    )
     parser.add_argument("--json-out", type=Path, default=None, help="Write counts here.")
     args = parser.parse_args()
 
     sentences = read_sentences(args.corpus, args.format, args.limit, args.seed)
     print(f"sentences read and length-filtered: {len(sentences)}")
+
+    level_rejected = 0
+    if args.cefr_ceiling:
+        # Applied BEFORE tagging, deliberately: it is far cheaper than spaCy
+        # and it is the filter that decides whether a corpus sentence could
+        # ever be used at all, so measuring coverage after it is the number
+        # that actually matters for the product.
+        store = VocabularyStore.load(DEFAULT_VOCAB_PATH)
+        kept = [s for s in sentences if not store.validate_sentence(s, args.cefr_ceiling)]
+        level_rejected = len(sentences) - len(kept)
+        share = 100 * level_rejected / len(sentences) if sentences else 0.0
+        print(
+            f"above the {args.cefr_ceiling} vocabulary ceiling: {level_rejected} "
+            f"({share:.1f}%), leaving {len(kept)}"
+        )
+        sentences = kept
 
     validation = carrier_validation.validate_carriers(sentences)
     print(f"carrier-valid: {len(validation.accepted)}")
@@ -151,6 +178,8 @@ def main() -> int:
             json.dumps(
                 {
                     "corpus": str(args.corpus),
+                    "cefr_ceiling": args.cefr_ceiling,
+                    "above_ceiling": level_rejected,
                     "sentences_tagged": len(sentences),
                     "carrier_valid": len(validation.accepted),
                     "items": len(report.items),
