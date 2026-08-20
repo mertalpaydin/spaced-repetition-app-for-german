@@ -140,6 +140,7 @@ quality measure into a laundered defect"; the same reasoning applies here):
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Literal
@@ -489,10 +490,24 @@ def blank_sentences(
     *,
     max_items_per_topic: int = DEFAULT_MAX_ITEMS_PER_TOPIC,
     max_items_per_sentence: int = DEFAULT_MAX_ITEMS_PER_SENTENCE,
+    topic_ids: Iterable[str] | None = None,
 ) -> BlankingReport:
     """Run every sentence in ``sentences`` through tag -> select -> blank for
-    every topic in ``SELECTORS``, then deduplicate and cap the resulting
-    items for the whole run (module docstring).
+    every topic in ``SELECTORS`` (or, when ``topic_ids`` is given, only that
+    subset -- see below), then deduplicate and cap the resulting items for
+    the whole run (module docstring).
+
+    ``topic_ids``, when given, restricts which topics' selectors run over
+    ``sentences`` at all -- every other stage (carrier tagging, dedup, caps,
+    the uniqueness gate, the type-eligibility check) is unchanged. This is
+    what ``src.generation.blanking.orchestrator``'s per-topic demand loop
+    uses: a batch of sentences requested FOR one topic's own construction
+    hint is still only evidence for that one topic's demand, so only that
+    topic's selector should be asked to judge it, rather than every one of
+    the other 48 selectors also getting a look at a sentence they had no
+    hand in requesting. ``None`` (the default) preserves this function's
+    original behaviour exactly -- every existing caller that does not pass
+    ``topic_ids`` sees no change at all.
 
     Degrades cleanly with an explicit, countable skip reason when spaCy is
     unavailable (``"spacy_unavailable"``) or a given sentence fails to parse
@@ -509,9 +524,11 @@ def blank_sentences(
     ``_drop_cross_topic_duplicates`` resolves afterwards, not something this
     loop itself prevents.
     """
+    selectors = SELECTORS if topic_ids is None else {t: SELECTORS[t] for t in topic_ids}
+
     report = BlankingReport(sentences_requested=len(sentences))
     if not sentence_tagger.analysis_available():
-        report.skips_by_reason["spacy_unavailable"] += len(sentences) * len(SELECTORS)
+        report.skips_by_reason["spacy_unavailable"] += len(sentences) * len(selectors)
         return report
 
     raw_items: list[CandidateItem] = []
@@ -519,14 +536,14 @@ def blank_sentences(
     for raw in sentences:
         tagged = sentence_tagger.tag_sentence(raw)
         if tagged is None:
-            report.skips_by_reason["untaggable_sentence"] += len(SELECTORS)
+            report.skips_by_reason["untaggable_sentence"] += len(selectors)
             report.skip_details.extend(
-                SkipDetail(topic_id, raw, "untaggable_sentence") for topic_id in SELECTORS
+                SkipDetail(topic_id, raw, "untaggable_sentence") for topic_id in selectors
             )
             continue
         report.sentences_tagged += 1
 
-        for topic_id, selector in SELECTORS.items():
+        for topic_id, selector in selectors.items():
             candidates = selector(tagged)
             if not candidates:
                 report.skips_by_reason["no_candidate_for_topic"] += 1

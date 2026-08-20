@@ -22,7 +22,7 @@ from scripts.step6_blank_pilot import (
 )
 from src.contracts import BankItem
 from src.generation.batch_client import RejectedCandidateRecord
-from src.generation.blanking import sentence_source
+from src.generation.blanking import orchestrator, sentence_source
 from src.generation.blanking.pipeline import DroppedItem, blank_sentences
 from src.taxonomy.loader import load_taxonomy
 
@@ -139,8 +139,16 @@ def test_main_writes_review_and_rejected_files_offline(
         "argv",
         [
             "step6_blank_pilot.py",
-            "--sentences",
-            "10",
+            # A small, fast forced set rather than the pilot's own default
+            # (force every one of the 49 topics) -- this test only cares
+            # about the review/rejected file SHAPE, not full coverage, and
+            # the default would make this offline test slow.
+            "--force-topics",
+            "perfekt_sein,futur_i,nomen_plural,praepositionen_akkusativ",
+            "--per-topic-target",
+            "3",
+            "--max-retries-per-topic",
+            "1",
             "--review-file",
             str(review_path),
             "--rejected-file",
@@ -185,10 +193,11 @@ def test_main_writes_review_and_rejected_files_offline(
 
 class _FixedSentenceGenerator:
     """A ``sentence_source.SentenceGenerator`` that always returns the same
-    fixed list, regardless of theme/person/tense/register/structure --
-    lets a test pin exactly which raw sentences ``generate_sentence_pool``
-    has to work with, including a deliberately ungrammatical one, without
-    depending on the offline mock pool's own (unrelated) content."""
+    fixed list, regardless of theme/person/tense/register/structure/
+    construction -- lets a test pin exactly which raw sentences a topic's
+    own requests have to work with, including a deliberately ungrammatical
+    one, without depending on the offline mock pool's own (unrelated)
+    content."""
 
     def __init__(self, sentences: list[str]) -> None:
         self._sentences = sentences
@@ -203,28 +212,28 @@ class _FixedSentenceGenerator:
         tense: str | None = None,
         register: str | None = None,
         structure: str | None = None,
+        construction: str | None = None,
     ) -> list[str]:
         return list(self._sentences)
 
 
-def test_main_uses_generate_sentence_pool_not_a_single_flat_request(
+def test_main_drives_generation_through_the_demand_driven_orchestrator(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The pilot must draw from ``sentence_source.generate_sentence_pool``
-    (many small, varied batches), never a single ``generator.generate(...)``
-    call for the whole requested count -- the ~60-uniform-sentence pilot
-    skew this script existed to fix (module docstring)."""
+    """The pilot must drive generation from ``topic_demand.compute_demand``
+    and ``orchestrator.run_demand_driven_generation`` -- never a single flat
+    request for one general pool, and never a call per topic built by hand
+    in ``main()`` itself -- exactly once per run, over the whole demand
+    list this run computed (module docstring's CONTRACT CHANGE section)."""
     calls: list[dict[str, object]] = []
-    real_pool_fn = sentence_source.generate_sentence_pool
+    real_run_fn = orchestrator.run_demand_driven_generation
 
-    def _spy_generate_sentence_pool(
-        generator: object, cefr: str, total: int, **kwargs: object
-    ) -> object:
-        calls.append({"cefr": cefr, "total": total, **kwargs})
-        return real_pool_fn(generator, cefr, total, **kwargs)  # type: ignore[arg-type]
+    def _spy_run(generator: object, cefr: str, demands: list[object], **kwargs: object) -> object:
+        calls.append({"cefr": cefr, "demands": demands, **kwargs})
+        return real_run_fn(generator, cefr, demands, **kwargs)  # type: ignore[arg-type]
 
     monkeypatch.setattr(step6, "load_env_file", lambda *a, **k: {})
-    monkeypatch.setattr(sentence_source, "generate_sentence_pool", _spy_generate_sentence_pool)
+    monkeypatch.setattr(orchestrator, "run_demand_driven_generation", _spy_run)
     monkeypatch.delenv("GEMINI_FREE_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
@@ -233,8 +242,12 @@ def test_main_uses_generate_sentence_pool_not_a_single_flat_request(
         "argv",
         [
             "step6_blank_pilot.py",
-            "--sentences",
-            "10",
+            "--force-topics",
+            "perfekt_sein,futur_i",
+            "--per-topic-target",
+            "3",
+            "--max-retries-per-topic",
+            "1",
             "--review-file",
             str(tmp_path / "review.jsonl"),
             "--rejected-file",
@@ -246,11 +259,14 @@ def test_main_uses_generate_sentence_pool_not_a_single_flat_request(
 
     # No API key configured here either -> same not_run-forces-nonzero-exit
     # policy as test_main_writes_review_and_rejected_files_offline; this
-    # test only cares that generate_sentence_pool was called correctly, so
+    # test only cares that the demand-driven loop was called correctly, so
     # it does not otherwise care about the exit code's exact value.
     assert exit_code != 0
-    assert len(calls) == 1, "exactly one generate_sentence_pool call, not one per sentence"
-    assert calls[0]["total"] == 10
+    assert len(calls) == 1, "exactly one run_demand_driven_generation call per script run"
+    demanded = calls[0]["demands"]
+    assert isinstance(demanded, list)
+    demanded_topic_ids = {d.topic_id for d in demanded}
+    assert demanded_topic_ids == {"perfekt_sein", "futur_i"}
 
 
 def test_main_gates_a_carrier_invalid_sentence_before_it_reaches_a_selector(
@@ -262,6 +278,11 @@ def test_main_gates_a_carrier_invalid_sentence_before_it_reaches_a_selector(
     count must include it, and no accepted item's prompt may contain its
     text."""
     bad_sentence = "Auf dem Weg kauft ich im Supermarkt frisches Gemüse und Milch ein."
+    # Selected (test_blanking_selectors-style check, run once by hand) to be
+    # a real carrier for ``praepositionen_akkusativ`` -- forcing exactly
+    # that one topic means this generator's fixed pair is the only thing
+    # this run ever has to work with, and the good sentence alone satisfies
+    # the topic's demand of 1 on the first (and only) call.
     good_sentence = "Der Hund läuft schnell durch den Park."
     fixed_generator = _FixedSentenceGenerator([bad_sentence, good_sentence])
 
@@ -278,8 +299,12 @@ def test_main_gates_a_carrier_invalid_sentence_before_it_reaches_a_selector(
         "argv",
         [
             "step6_blank_pilot.py",
-            "--sentences",
-            "2",
+            "--force-topics",
+            "praepositionen_akkusativ",
+            "--per-topic-target",
+            "1",
+            "--max-retries-per-topic",
+            "0",
             "--review-file",
             str(review_path),
             "--rejected-file",
@@ -452,8 +477,12 @@ def test_main_returns_nonzero_and_says_why_when_verification_did_not_run(
         "argv",
         [
             "step6_blank_pilot.py",
-            "--sentences",
-            "10",
+            "--force-topics",
+            "perfekt_sein,futur_i,nomen_plural",
+            "--per-topic-target",
+            "3",
+            "--max-retries-per-topic",
+            "1",
             "--review-file",
             str(tmp_path / "review.jsonl"),
             "--rejected-file",
@@ -495,8 +524,12 @@ def test_main_returns_zero_when_verification_ran_even_with_model_rejections(
         "argv",
         [
             "step6_blank_pilot.py",
-            "--sentences",
-            "10",
+            "--force-topics",
+            "perfekt_sein,futur_i,nomen_plural",
+            "--per-topic-target",
+            "3",
+            "--max-retries-per-topic",
+            "1",
             "--review-file",
             str(tmp_path / "review.jsonl"),
             "--rejected-file",

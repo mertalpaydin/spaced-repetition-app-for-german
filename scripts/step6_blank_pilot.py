@@ -8,20 +8,43 @@ file in the same shape as ``data/pilot_review.jsonl`` (the LLM-direct
 pipeline's review file), and every skipped/rejected/dropped candidate, with
 its reason, to a second file mirroring ``data/pilot_rejected.jsonl``.
 
-## What "generate" means here
+## CONTRACT CHANGE (CLAUDE.md rule 8, flagged here rather than silently
+## changed): this script no longer builds one general, round-robin sentence
+## pool and harvests whatever topics fall out of it.
 
-Sentences come from ``sentence_source.generate_sentence_pool``, not one flat
-request: many small batches, each nudged toward a different theme,
-grammatical person, time frame, register, and sentence structure, so the
-pool actually has the person/tense variety a single uniform request cannot
-produce (see that module's own docstring for the pilot skew this fixes --
-44 items of ``pronomen_personal_nom`` and 38 of ``verb_praesens_regelm``
-against 1 each for three other topics, from a ~60-sentence, single-narrative
-pool). Every sentence in the pool has also passed
-``carrier_validation.validate_carrier`` before this script ever sees it --
-carrier validation gates the pool, not just this script's own bookkeeping;
-a sentence it rejects never reaches a selector, because
-``generate_sentence_pool`` never puts it in ``pool.sentences``.
+docs/audits/cycle-08-report.md found 18 of 49 topics ending a
+pilot run at zero, every one of them for the same reason
+(``no_candidate_for_topic``): the old ``generate_sentence_pool`` cycled
+themes and a construction hint round-robin, never keyed to which topic
+actually needed items, so a topic could go an entire run without a single
+request aimed at it. The project owner's own words: "if we are not passing a
+topic to the generator, what would happen during nightly top-up when we
+needed perfekt_sein exercises? we were going to pray that it produces some
+sentences with that topic."
+
+This script now drives generation from ``src.generation.blanking.
+topic_demand.compute_demand`` and ``src.generation.blanking.orchestrator.
+run_demand_driven_generation``: for every topic that has demand, in demand
+order, it requests sentences using THAT topic's own construction hint
+(varying theme/person/tense/register/structure across the requests), counts
+what the topic got, and retries (bounded) if it is still short -- see
+``orchestrator``'s own module docstring for the full loop. Because this
+script has no learner and (usually) no bank to read real stock from, its job
+is COVERAGE, not top-up: it defaults to forcing every one of the 49 topics,
+so a pilot run always shows what each topic's own construction hint
+currently produces, even for a topic that would have zero organic deficit
+against a real, stocked bank. ``--force-topics`` narrows this to a specific
+list for a targeted run (e.g. against a bank that already has stock, passed
+via ``--db``); ``--per-topic-target`` replaces the old ``--sentences`` flag
+(previously an overall sentence-pool size hint) with a per-topic UNSEEN-item
+target, because "how many sentences to request overall" is no longer a
+meaningful number once requests are keyed per topic -- the loop requests as
+many batches as each topic's own deficit and retry budget call for, not a
+fixed pool size split across 49 topics.
+
+Every sentence generated is still carrier-validated
+(``carrier_validation.validate_carriers``) before it ever reaches a
+selector, exactly as before -- see ``orchestrator``'s own docstring.
 
 ## What "blank" additionally does now
 
@@ -73,13 +96,22 @@ exit 0 again, regardless of why it did not execute.
 
 Run this from a terminal:
 
-    .venv/bin/python -m scripts.step6_blank_pilot --sentences 300
+    .venv/bin/python -m scripts.step6_blank_pilot
+    .venv/bin/python -m scripts.step6_blank_pilot \
+        --force-topics perfekt_sein,futur_i --db data/bank.db
 
 With no API key configured it runs entirely offline against the
 deterministic mock sentence pool (never a live call by accident); with
 GEMINI_FREE_API_KEY/GEMINI_PAID_API_KEY/GEMINI_API_KEY set it generates for
 real through ``src.llm.client.GeminiLlmClient``. Not wired into the bank or
-the verification chain yet -- that is a later cycle.
+the verification chain yet -- that is a later cycle (this script writes
+review/rejected JSONL files, it does not call ``bank.insert``).
+
+Before starting, the projected (worst-case) number of ``generate()`` calls
+this run could make is printed -- 49 topics at one batch each is already
+about 49 calls, and the free lane's daily quota is around 50 (CLAUDE.md 9),
+so the operator sees a run that will spill onto the paid lane coming, rather
+than discovering it in ``cost_log``.
 """
 
 from __future__ import annotations
@@ -93,13 +125,14 @@ from pathlib import Path
 
 from src.contracts import CEFR, BankItem, CandidateItem, Difficulty, Topic
 from src.generation.batch_client import RejectedCandidateRecord
-from src.generation.blanking import sentence_source, sentence_tagger
+from src.generation.blanking import orchestrator, sentence_source, sentence_tagger
 from src.generation.blanking.model_verification import (
     DEFAULT_VERIFICATION_BATCH_SIZE,
     ModelRejection,
     VerificationReport,
     verify_items,
 )
+from src.generation.blanking.orchestrator import DemandRunReport
 from src.generation.blanking.pipeline import (
     DEFAULT_MAX_ITEMS_PER_SENTENCE,
     DEFAULT_MAX_ITEMS_PER_TOPIC,
@@ -109,12 +142,19 @@ from src.generation.blanking.pipeline import (
     UniquenessSkip,
     blank_sentences,
 )
+from src.generation.blanking.topic_demand import (
+    DEFAULT_FORCED_FLOOR,
+    DEFAULT_TARGET_UNSEEN,
+    StockLookup,
+    compute_demand,
+)
 from src.generation.pilot import _write_rejected_file, _write_review_file
 from src.llm.env import load_env_file
 from src.taxonomy.facets import derive_facet
 from src.taxonomy.loader import load_taxonomy
 
 _VALID_CEFR: tuple[CEFR, ...] = ("A1", "A2", "B1", "B2")
+_VALID_DIFFICULTY: tuple[Difficulty, ...] = (1, 2, 3)
 
 DEFAULT_REVIEW_PATH = Path("data/blank_pilot_review.jsonl")
 DEFAULT_REJECTED_PATH = Path("data/blank_pilot_rejected.jsonl")
@@ -138,6 +178,15 @@ class _DetailedSkip:
     proposed_answer: str = ""
 
 
+def _skip_details_from_report(report: BlankingReport) -> list[_DetailedSkip]:
+    """``BlankingReport.skip_details`` onto this script's own
+    ``_DetailedSkip`` shape -- the one place this mapping happens, so
+    ``_blank_sentences_with_skip_detail`` (used directly by a fixed
+    sentence list) and ``main()`` (used against a ``BlankingReport`` the
+    demand-driven orchestrator already built) can never quietly diverge."""
+    return [_DetailedSkip(d.topic_id, d.sentence, d.reason) for d in report.skip_details]
+
+
 def _blank_sentences_with_skip_detail(
     sentences: list[str], difficulty: Difficulty = 1
 ) -> tuple[BlankingReport, list[_DetailedSkip]]:
@@ -149,11 +198,14 @@ def _blank_sentences_with_skip_detail(
     per-skip detail. It now does (``BlankingReport.skip_details``), so this
     is exactly the thin wrapper that duplication's own docstring said should
     replace it once that happened -- one loop, not two, so the two can never
-    quietly diverge.
+    quietly diverge. Not used by ``main()`` any more (the demand-driven loop
+    builds its own ``BlankingReport`` via ``orchestrator.
+    run_demand_driven_generation``), but kept as a real, tested utility for
+    a caller that already has a fixed sentence list and wants the old
+    all-topics-at-once behaviour (``topic_ids=None``) directly.
     """
     report = blank_sentences(sentences, difficulty=difficulty)
-    skips = [_DetailedSkip(d.topic_id, d.sentence, d.reason) for d in report.skip_details]
-    return report, skips
+    return report, _skip_details_from_report(report)
 
 
 def _blank_pilot_run_id(sentences: list[str], cefr: str, theme: str) -> str:
@@ -408,30 +460,181 @@ def _print_report(
         print(f"    - {reason}: {count}")
 
 
+def _print_projected_call_count(projected_calls: int, call_ceiling: int) -> None:
+    """Printed BEFORE generation starts (this task's own brief: "the
+    operator should see it coming rather than discover it in cost_log"): the
+    worst-case number of ``generate()`` calls this run could make, and the
+    explicit ceiling actually bounding it."""
+    print(
+        f"  Projected call count (worst case, every topic spending its full "
+        f"retry budget): {projected_calls}"
+    )
+    print(f"  Call ceiling for this run:         {call_ceiling}")
+
+
+def _print_demand_run_report(run_report: DemandRunReport, *, ran_live: bool) -> None:
+    """Print the demand-driven loop's own honest, per-topic report (task 4):
+    demand, items produced, retries used, and -- for every topic that fell
+    short -- WHICH of the three distinct reasons applied, kept visibly
+    separate rather than conflated into one "no items" line. A topic that
+    ends at zero is named explicitly, never silently absent from the
+    output."""
+    print("==========================================================")
+    print("  Step 6: generate-then-blank pilot (demand-driven)")
+    print("==========================================================")
+    live_note = "yes" if ran_live else "no (no API key configured; ran the offline mock pool)"
+    print(f"  Live model calls:                 {live_note}")
+    print(f"  Topics with demand this run:      {len(run_report.demands)}")
+    print(f"  Calls made:                       {run_report.calls_made}")
+    print(f"  Call ceiling hit:                 {run_report.call_ceiling_hit}")
+    print(
+        f"  Raw sentences requested (all topics, all attempts): "
+        f"{sum(t.sentences_requested for t in run_report.topic_reports)}"
+    )
+    print(f"  Duplicate sentences skipped:      {run_report.duplicates_skipped}")
+    rejected_total = sum(run_report.rejected_by_reason.values())
+    print(f"  Rejected by carrier validation:   {rejected_total}")
+    if not run_report.rejected_by_reason:
+        print("    (none)")
+    for reason, count in sorted(run_report.rejected_by_reason.items(), key=lambda kv: -kv[1]):
+        print(f"    - {reason}: {count}")
+    print(f"  Carrier-valid sentences collected: {len(run_report.sentences)}")
+    print(f"  Items produced (final, kept):     {run_report.blanking_report.total_items}")
+
+    print("  Per-topic demand report:")
+    print("    topic_id                                  demand  items  retries  status")
+    for t in run_report.topic_reports:
+        status = "met demand" if t.met_demand else ", ".join(t.shortfall_reasons)
+        print(
+            f"    {t.topic_id:<42} {t.demand.demand:>6} {t.items_produced:>6} "
+            f"{t.retries_used:>7}  {status}"
+        )
+
+    zero_topics = run_report.topics_with_zero_items
+    print(f"  Topics that ended this run with ZERO items: {len(zero_topics)}")
+    if not zero_topics:
+        print("    (none)")
+    for topic_id in zero_topics:
+        t = next(r for r in run_report.topic_reports if r.topic_id == topic_id)
+        print(f"    - {topic_id}: {', '.join(t.shortfall_reasons)}")
+
+    report = run_report.blanking_report
+    print("  Items dropped as cross-topic duplicates (balance, not quality;")
+    print("  keyed by the topic whose item was dropped, another topic kept it):")
+    if not report.cross_topic_duplicates_dropped:
+        print("    (none)")
+    for topic_id, count in sorted(
+        report.cross_topic_duplicates_dropped.items(), key=lambda kv: -kv[1]
+    ):
+        print(f"    - {topic_id}: {count}")
+
+    print("  Items dropped to the per-topic cap (balance, not quality):")
+    if not report.items_dropped_by_topic_cap:
+        print("    (none)")
+    for topic_id, count in sorted(report.items_dropped_by_topic_cap.items(), key=lambda kv: -kv[1]):
+        print(f"    - {topic_id}: {count}")
+
+    print("  Items dropped to the per-source-sentence cap (balance, not quality):")
+    if not report.items_dropped_by_sentence_cap:
+        print("    (none)")
+    for topic_id, count in sorted(
+        report.items_dropped_by_sentence_cap.items(), key=lambda kv: -kv[1]
+    ):
+        print(f"    - {topic_id}: {count}")
+
+    print("  Skips by uniqueness reason (the item was correct and built cleanly,")
+    print("  but another member of the blanked token's own closed class would")
+    print("  also have been grammatical there):")
+    if not report.skips_by_uniqueness:
+        print("    (none)")
+    for reason, count in sorted(report.skips_by_uniqueness.items(), key=lambda kv: -kv[1]):
+        print(f"    - {reason}: {count}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Step 6 generate-then-blank pilot.")
     parser.add_argument(
-        "--sentences",
+        "--per-topic-target",
         type=int,
-        default=sentence_source.DEFAULT_POOL_SIZE,
+        default=DEFAULT_TARGET_UNSEEN,
         help=(
-            "Target size of the generated sentence pool "
-            f"(default {sentence_source.DEFAULT_POOL_SIZE}, per "
-            "sentence_source.generate_sentence_pool)."
+            "Target UNSEEN-item stock per topic, fed to "
+            "topic_demand.compute_demand as target_unseen "
+            f"(default {DEFAULT_TARGET_UNSEEN}). Replaces the old "
+            "--sentences flag (an overall sentence-pool size hint): "
+            "generation is now driven per topic, not by one flat pool size, "
+            "so 'how many sentences to request in total' is no longer a "
+            "meaningful number -- see this module's own docstring."
         ),
     )
     parser.add_argument(
         "--cefr", type=str, default="A2", choices=list(_VALID_CEFR), help="CEFR level to request."
     )
     parser.add_argument(
+        "--difficulty",
+        type=int,
+        default=1,
+        choices=list(_VALID_DIFFICULTY),
+        help="Difficulty tier to blank at and to read/compute stock for (default 1).",
+    )
+    parser.add_argument(
         "--theme",
         type=str,
         default=None,
         help=(
-            "Pin the pool to a single theme handed to the model (never a grammar "
-            "topic). Default: cycle the full varied theme set "
-            "(sentence_source.DEFAULT_THEMES), which is what fixes the topic skew "
-            "a single-theme pool produces."
+            "Pin every request to a single theme handed to the model (never a "
+            "grammar topic). Default: cycle the full varied theme set "
+            "(sentence_source.DEFAULT_THEMES) across a topic's own requests."
+        ),
+    )
+    parser.add_argument(
+        "--db",
+        type=str,
+        default=None,
+        help=(
+            "Path to a real bank.db to read UNSEEN stock from (SqliteItemBank."
+            "stock). Default: none -- this pilot has no learner and usually no "
+            "bank, so every topic is treated as having zero stock. Pass this "
+            "for a targeted run against a bank that already has stock (with "
+            "--force-topics)."
+        ),
+    )
+    parser.add_argument(
+        "--force-topics",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated topic ids to force regardless of stock (demand at "
+            "least a small floor even at/above target -- the owner's own "
+            "instruction: 'during pilot you need to see exercises from "
+            "problematic topics ... even if those problematic have exercises, "
+            "ask sentences with those topics specifically'). Default: force "
+            "EVERY topic in scope, since this pilot's job is coverage, not "
+            "top-up. Pass an empty string to force nothing and rely purely on "
+            "computed deficits (requires --db to mean anything)."
+        ),
+    )
+    parser.add_argument(
+        "--max-retries-per-topic",
+        type=int,
+        default=orchestrator.DEFAULT_MAX_RETRIES_PER_TOPIC,
+        help=(
+            "Per-topic retry budget: how many extra batches a topic gets if it "
+            f"is still short of its demand (default "
+            f"{orchestrator.DEFAULT_MAX_RETRIES_PER_TOPIC}). A topic that "
+            "yields nothing across this budget stops being asked for the rest "
+            "of this run."
+        ),
+    )
+    parser.add_argument(
+        "--call-ceiling",
+        type=int,
+        default=None,
+        help=(
+            "Hard ceiling on total generate() calls this run may make. Default: "
+            "the projected worst case for this run's own demand list and retry "
+            "budget (printed before generation starts) -- so an explicit "
+            "ceiling is only needed to make a run STRICTER than that."
         ),
     )
     parser.add_argument(
@@ -483,23 +686,73 @@ def main() -> int:
     generator = sentence_source.build_sentence_generator(llm_client)
 
     themes = (args.theme,) if args.theme else sentence_source.DEFAULT_THEMES
-    theme_label = args.theme or "multi_theme_pool"
 
-    # ``validate=True`` (the default) is what actually gates blanking: a
-    # sentence carrier_validation rejects is never placed in
-    # ``pool.sentences``, so it never reaches ``blank_sentences`` or any
-    # selector at all -- see this module's own docstring.
-    pool = sentence_source.generate_sentence_pool(
-        generator, args.cefr, total=args.sentences, themes=themes
+    # This pilot has no learner and (by default) no bank -- coverage, not
+    # top-up, is its job (module docstring's CONTRACT CHANGE section). A
+    # real ``--db`` opts into reading actual UNSEEN stock for a targeted run
+    # against a bank that already has content.
+    stock_lookup: StockLookup
+    if args.db:
+        from src.bank.storage import SqliteItemBank
+
+        bank = SqliteItemBank(args.db)
+        stock_lookup = bank.stock
+        print(f"  Reading real stock from {args.db}.")
+    else:
+
+        def stock_lookup(topic_id: str, difficulty: Difficulty) -> int:
+            return 0
+
+        print("  No --db given: every topic is treated as having zero stock.")
+
+    # ``--force-topics``, when given, also scopes the run to exactly that
+    # topic list -- not just an addition on top of the full 49. Forcing a
+    # topic against the default zero-stock lookup (no ``--db``) cannot be
+    # distinguished from "restrict to these topics" anyway (every other
+    # topic would ALSO show a positive deficit against zero stock, so it
+    # would be requested too, defeating the point of naming a subset at
+    # all); against a real ``--db`` this also means "a targeted run" means
+    # what it says -- only the named topics, even if some other topic in the
+    # bank happens to be understocked too.
+    if args.force_topics is None:
+        # Flag omitted: this pilot's own default (module docstring's
+        # CONTRACT CHANGE section) -- coverage, not top-up, so every topic
+        # is both in scope and forced.
+        topic_universe: tuple[str, ...] = TOPIC_IDS
+        forced_topics: set[str] = set(TOPIC_IDS)
+    elif not args.force_topics.strip():
+        # Explicitly empty: force nothing, but still consider all 49 topics
+        # for their own computed deficit (meaningful only with --db; against
+        # the default zero-stock lookup every topic will show a deficit and
+        # this is equivalent to the default anyway).
+        topic_universe = TOPIC_IDS
+        forced_topics = set()
+    else:
+        # A specific list: scope the run to exactly these topics AND force
+        # them -- see the comment above ``if args.force_topics is None``
+        # for why forcing without scoping would not mean anything different
+        # against the default zero-stock lookup.
+        forced_topics = {t.strip() for t in args.force_topics.split(",") if t.strip()}
+        unknown_forced = forced_topics - set(TOPIC_IDS)
+        if unknown_forced:
+            print(f"Unknown --force-topics id(s), not in scope: {sorted(unknown_forced)}")
+            return 1
+        topic_universe = tuple(sorted(forced_topics))
+
+    demands = compute_demand(
+        list(topic_universe),
+        stock_lookup,
+        difficulty=args.difficulty,
+        target_unseen=args.per_topic_target,
+        forced=forced_topics,
+        forced_floor=DEFAULT_FORCED_FLOOR,
     )
-    sentences = pool.sentences
-    if not sentences:
+    if not demands:
         print(
-            "No sentences survived generation and carrier validation "
-            "(empty/unparseable model output, or every candidate was rejected "
-            "as unsound German); nothing to do."
+            "No topic has demand (every topic is at or above its target and "
+            "none was forced); nothing to generate."
         )
-        return 1
+        return 0
 
     if not sentence_tagger.analysis_available():
         print(
@@ -507,15 +760,41 @@ def main() -> int:
             "produced (degrading cleanly, not crashing). Install it "
             "(`python -m spacy download de_core_news_sm`) and re-run."
         )
-        print(f"  Sentences requested:   {pool.requested}")
-        print(f"  Sentences that survived carrier validation: {pool.accepted_count}")
+        print(f"  Topics with demand:    {len(demands)}")
         print(f"  Topics in scope:       {len(TOPIC_IDS)}")
         return 0
 
-    report, skips = _blank_sentences_with_skip_detail(sentences)
-    _print_report(report, pool, ran_live=ran_live)
+    projected_calls = orchestrator.projected_call_count(
+        demands, max_retries_per_topic=args.max_retries_per_topic
+    )
+    call_ceiling = args.call_ceiling if args.call_ceiling is not None else projected_calls
+    _print_projected_call_count(projected_calls, call_ceiling)
 
-    batch_id = _blank_pilot_run_id(sentences, args.cefr, theme_label)
+    run_report = orchestrator.run_demand_driven_generation(
+        generator,
+        args.cefr,
+        demands,
+        max_retries_per_topic=args.max_retries_per_topic,
+        call_ceiling=args.call_ceiling,
+        max_items_per_topic=args.max_items_per_topic,
+        max_items_per_sentence=args.max_items_per_sentence,
+        difficulty=args.difficulty,
+        themes=themes,
+    )
+    if not run_report.sentences:
+        print(
+            "No sentences survived generation and carrier validation "
+            "(empty/unparseable model output, or every candidate was rejected "
+            "as unsound German); nothing to do."
+        )
+        return 1
+
+    report = run_report.blanking_report
+    skips = _skip_details_from_report(report)
+    _print_demand_run_report(run_report, ran_live=ran_live)
+
+    theme_label = args.theme or "multi_theme_pool"
+    batch_id = _blank_pilot_run_id(run_report.sentences, args.cefr, theme_label)
     topics_by_id = {t.id: t for t in load_taxonomy()}
 
     accepted_items: list[BankItem] = []
