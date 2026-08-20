@@ -740,6 +740,196 @@ _STARVED_CONSTRUCTION_EXAMPLES: dict[str, tuple[str, ...]] = {
         "Sein Onkel, den ich letzten Sommer kennengelernt habe, lebt in Hamburg.",
         "Unsere Tante, die wir jedes Jahr besuchen, kocht sehr gut.",
     ),
+    # -- Appended by a later cycle (feat/generate-then-blank): one entry per
+    # remaining topic in ``CONSTRUCTION_HINTS`` (the 30 hints appended above),
+    # covering every one of the 49 topics in ``selectors.SELECTORS`` that had
+    # no construction hint before this cycle -- tenses, cases, prepositions,
+    # pronouns, adjective declension, and finite verb conjugation. Most of
+    # these are not "starved" in this dict's original, narrower sense (a
+    # general-purpose sentence pool already contains plenty of ordinary
+    # present-tense, Accusative, or personal-pronoun sentences -- see the
+    # module docstring's own "pool problem" section) -- reused as the one
+    # dict this module already has for "hand-written examples proven to
+    # produce a candidate, keyed by topic", per
+    # ``test_starved_construction_examples_cover_every_wired_construction_hint``'s
+    # own requirement that every hinted topic have entries here. Each
+    # example was run, individually, through
+    # ``carrier_validation.validate_carrier`` (accepted) and its own topic's
+    # selector in ``selectors.SELECTORS`` (candidate found) before being
+    # added here, exactly like every other entry in this dict; three
+    # confirmed failure modes worth recording so a future edit does not
+    # reintroduce them: a 2nd-singular modal or vowel-change form ("du
+    # kannst", "du darfst", "er isst") reproducibly mislemmatises to a
+    # non-word ("kannstn", "darfstn") or the unreduced surface form under
+    # this exact tagger, which fails ``verb_praesens_vokalwechsel``'s own
+    # "does this cell actually show the change" check or excludes the token
+    # from ``modalverben_praesens`` outright -- avoided below by using a
+    # 1st/3rd-person subject for every modal example and a 2nd/3rd-singular
+    # verb outside that mislemmatised set for every vowel-change example; an
+    # infinitival complement clause after "werden"/"möchten" ("... das
+    # Projekt beginnen.", "... einen Kaffee trinken.") is sometimes parsed
+    # as its own finite-verb-headed clause with no complementizer, which
+    # ``carrier_validation`` then rejects as ``missing_clause_connector`` --
+    # avoided by keeping the infinitive simple and not the sentence's own
+    # apparent second clause; and a fronted "Nachdem"/"Wenn" clause whose
+    # subject/verb the parser mis-resolves reproducibly rejects as
+    # ``subject_verb_disagreement`` for specific verb choices ("Nachdem sie
+    # gegessen hatte, ging sie spazieren.", "Wenn sie mich gefragt hätte,
+    # ...") even though the German itself is correct -- avoided below by
+    # picking a different verb for the same construction rather than fighting
+    # the tagger over a sentence this module cannot fix from its own side.
+    "perfekt_sein": (
+        "Meine Schwester ist gestern nach Berlin gefahren.",
+        "Er ist heute Morgen sehr früh aufgewacht.",
+        "Wir sind letzten Sommer nach Italien geflogen.",
+    ),
+    "perfekt_haben": (
+        "Ich habe heute Morgen das Frühstück gekocht.",
+        "Sie hat gestern Abend ihre Hausaufgaben gemacht.",
+        "Wir haben heute den ganzen Nachmittag im Garten gearbeitet.",
+    ),
+    "praeteritum_vollverben": (
+        "Der König lebte vor vielen hundert Jahren in einem großen Schloss.",
+        "Die Kinder spielten den ganzen Nachmittag im Garten.",
+        "Der Zug erreichte pünktlich um acht Uhr den Bahnhof.",
+    ),
+    "praeteritum_sein_haben_modal": (
+        "Der Bericht war sehr ausführlich und genau.",
+        "Die Familie hatte damals nur wenig Geld.",
+        "Sie wollte damals unbedingt Ärztin werden.",
+        "Er konnte als Kind sehr gut schwimmen.",
+    ),
+    "plusquamperfekt": (
+        "Nachdem er die Tür geschlossen hatte, setzte er sich hin.",
+        "Bevor der Zug ankam, hatten wir schon den Bahnsteig verlassen.",
+        "Nachdem wir das Haus verkauft hatten, zogen wir nach Berlin.",
+        "Nachdem sie den Brief gelesen hatte, rief sie ihre Schwester an.",
+    ),
+    "futur_i": (
+        "Ich werde dir morgen um acht Uhr helfen.",
+        "Sie wird nächste Woche ihre Prüfung ablegen.",
+        "Ich werde dir am Montag meine Antwort geben.",
+    ),
+    "konjunktiv_ii_irreal_gegenwart": (
+        "Wenn ich mehr Zeit hätte, würde ich öfter Sport machen.",
+        "Wenn er mehr Geld hätte, würde er ein neues Auto kaufen.",
+        "Wenn ich an deiner Stelle wäre, würde ich sofort absagen.",
+    ),
+    "konjunktiv_ii_vergangenheit": (
+        "Wenn ich früher losgefahren wäre, hätte ich den Zug nicht verpasst.",
+        "Wenn wir das Wetter gekannt hätten, hätten wir den Ausflug verschoben.",
+        "Wenn er mehr geübt hätte, hätte er die Prüfung bestanden.",
+    ),
+    "adjektiv_komparativ_superlativ": (
+        "Mein Bruder ist größer als ich.",
+        "Dieses Haus ist teurer als das andere.",
+        "Sie läuft am schnellsten von allen.",
+    ),
+    "adjektivdeklination_bestimmt": (
+        "Ich kenne den kleinen Hund aus der Nachbarschaft.",
+        "Die alte Frau wohnt neben uns.",
+        "Er hat das rote Auto gestern gewaschen.",
+    ),
+    "adjektivdeklination_unbestimmt": (
+        "Ich habe einen kleinen Hund gekauft.",
+        "Sie trägt ein rotes Kleid heute Abend.",
+        "Wir suchen eine neue Wohnung in der Stadt.",
+    ),
+    "adjektivdeklination_nullartikel": (
+        "Frisches Brot schmeckt besonders gut.",
+        "Kalte Milch trinke ich nicht so gern.",
+        "Guter Kaffee kostet hier ziemlich viel.",
+    ),
+    "nomen_plural": (
+        "Die Kinder spielen fröhlich im Garten.",
+        "Meine Eltern besuchen uns jedes Wochenende.",
+        "Die Bücher liegen auf dem Tisch.",
+    ),
+    "kasus_akkusativ_formen": (
+        "Ich sehe den Mann auf der Straße.",
+        "Wir besuchen einen alten Freund in München.",
+        "Sie liest das Buch jeden Abend.",
+    ),
+    "kasus_dativ_formen": (
+        "Ich danke meinem Kollegen für die Hilfe.",
+        "Sie gratuliert ihrer Freundin zum Geburtstag.",
+        "Wir schenken der Mutter einen Blumenstrauß.",
+    ),
+    "praepositionen_genitiv": (
+        "Trotz des starken Regens gingen wir spazieren.",
+        "Wegen des dichten Nebels fällt der Flug aus.",
+        "Statt eines Kuchens backte sie eine Torte.",
+    ),
+    "praepositionen_akkusativ": (
+        "Wir gehen heute Abend durch den Park.",
+        "Dieses Geschenk ist für meinen besten Freund.",
+        "Er kämpft immer für seine Familie.",
+    ),
+    "praepositionen_dativ": (
+        "Ich fahre morgen zu meiner Tante.",
+        "Wir fahren mit dem Zug zur Arbeit.",
+        "Er kommt gerade aus dem Büro.",
+    ),
+    "akkusativ_nach_praeposition": (
+        "Ich lege das Buch auf den Tisch.",
+        "Er hängt das Bild an die Wand.",
+        "Wir stellen die Kiste in den Keller.",
+    ),
+    "dativ_nach_praeposition": (
+        "Das Buch liegt auf dem Tisch.",
+        "Das Bild hängt an der Wand.",
+        "Die Kiste steht in dem Keller.",
+    ),
+    "pronomen_personal_nom": (
+        "Er kommt heute Abend zu Besuch.",
+        "Sie wohnt seit einem Jahr in Berlin.",
+        "Es regnet heute den ganzen Tag.",
+    ),
+    "pronomen_personal_akk": (
+        "Ich sehe ihn jeden Morgen im Bus.",
+        "Wir besuchen sie am Wochenende.",
+        "Er kennt mich schon seit der Schule.",
+    ),
+    "pronomen_personal_dat": (
+        "Ich gebe ihm mein altes Fahrrad.",
+        "Sie schenkt ihr einen schönen Blumenstrauß.",
+        "Wir schreiben ihnen jede Woche einen Brief.",
+    ),
+    "modalverben_praesens": (
+        "Ich will heute Abend noch arbeiten.",
+        "Wir wollen nächstes Jahr nach Spanien reisen.",
+        "Sie soll heute pünktlich kommen.",
+    ),
+    "verb_praesens_regelm": (
+        "Wir üben freitags regelmäßig Klavier.",
+        "Er kocht jeden Abend für seine Familie.",
+        "Sie lernt jeden Abend fleißig für die Prüfung.",
+    ),
+    "verb_praesens_vokalwechsel": (
+        "Du liest jeden Abend ein spannendes Buch.",
+        "Sie fährt jeden Tag mit dem Bus zur Arbeit.",
+        "Er sieht seinen Freund jeden Mittwoch.",
+    ),
+    "verb_sein_haben": (
+        "Ich bin heute sehr müde.",
+        "Er hat viel Zeit für seine Familie.",
+        "Wir sind gerade in der Küche.",
+    ),
+    "verben_trennbar_praesens": (
+        "Sie macht abends immer das Fenster zu.",
+        "Er räumt jeden Samstag die Küche auf.",
+        "Wir laden am Wochenende gern Freunde ein.",
+    ),
+    "verben_reflexiv_akk": (
+        "Ich freue mich sehr über das Geschenk.",
+        "Er ärgert sich über den Verkehr.",
+        "Wir treffen uns jeden Freitag im Park.",
+    ),
+    "verben_reflexiv_dat": (
+        "Ich kaufe mir ein neues Fahrrad.",
+        "Er stellt sich das Ergebnis genau vor.",
+        "Wir helfen uns gegenseitig bei den Hausaufgaben.",
+    ),
 }
 
 _MOCK_SENTENCE_POOL: tuple[str, ...] = _MOCK_SENTENCE_POOL_BASE + tuple(
@@ -1062,6 +1252,178 @@ CONSTRUCTION_HINTS: tuple[tuple[str, str], ...] = (
         "Information hinzu, die zeigt, dass genau du oder deine Gesprächspartnerin oft mit "
         "dieser Person zu tun hat -- zum Beispiel wen sie regelmäßig besucht, anruft oder "
         "trifft.",
+    ),
+    # -- Appended by a later cycle (feat/generate-then-blank): the loop over
+    # the topic list needs EVERY topic with a selector to have a construction
+    # hint (see this module's own top-of-file plan), not only the starved-
+    # construction and Nominative-article topics above. These 30 cover every
+    # remaining topic in ``selectors.SELECTORS`` that had no hint yet --
+    # tenses, cases, prepositions, pronouns, adjective declension, and finite
+    # verb conjugation -- confirmed reachable exactly like every hint above:
+    # each has hand-written examples in ``_STARVED_CONSTRUCTION_EXAMPLES``
+    # (despite most of these not being "starved" in that dict's original,
+    # narrower sense -- reused as the one dict this module already has for
+    # "hand-written examples proven to produce a candidate, keyed by topic"),
+    # every one individually run through ``carrier_validation.validate_carrier``
+    # (accepted) and its own topic's selector (candidate found) before being
+    # added, per ``tests/test_blanking_sentence_source.py``'s own per-topic
+    # parametrised proof.
+    (
+        "perfekt_sein",
+        "Erzähl im Gespräch, so wie man es einer Freundin oder einem Freund mündlich "
+        "berichten würde, dass eine Person irgendwohin gefahren, gegangen, geflogen oder "
+        "gekommen ist und inzwischen dort angekommen ist, oder dass sich ihr Zustand "
+        "verändert hat, zum Beispiel dass sie aufgewacht ist.",
+    ),
+    (
+        "perfekt_haben",
+        "Erzähl im Gespräch, so wie man es einer Freundin oder einem Freund mündlich "
+        "berichten würde, was jemand heute oder gestern schon erledigt, gemacht oder "
+        "geschafft hat.",
+    ),
+    (
+        "praeteritum_vollverben",
+        "Schreibe wie in einer Geschichte oder einem Zeitungsbericht, nicht wie in einem "
+        "Gespräch, und erzähle darin, was früher einmal geschah oder wie etwas ablief.",
+    ),
+    (
+        "praeteritum_sein_haben_modal",
+        "Schreibe wie in einer Geschichte oder einem schriftlichen Bericht und beschreibe "
+        "darin, wie jemand damals war, was jemand damals hatte, oder was jemand damals "
+        "wollte, konnte, musste oder durfte.",
+    ),
+    (
+        "plusquamperfekt",
+        "Erzähl von zwei vergangenen Ereignissen und mach deutlich, dass das eine schon "
+        "vorbei war, bevor das andere überhaupt begann.",
+    ),
+    (
+        "futur_i",
+        "Versprich einer bestimmten Person etwas für einen genau genannten späteren "
+        "Zeitpunkt, oder beschreibe einen festen Plan dafür.",
+    ),
+    (
+        "konjunktiv_ii_irreal_gegenwart",
+        "Beschreibe, was jetzt gerade anders wäre, wenn eine bestimmte Sache im Moment "
+        "anders wäre, als sie wirklich ist.",
+    ),
+    (
+        "konjunktiv_ii_vergangenheit",
+        "Beschreibe, wie etwas anders ausgegangen wäre, wenn eine frühere Situation anders "
+        "verlaufen wäre.",
+    ),
+    (
+        "adjektiv_komparativ_superlativ",
+        "Vergleiche zwei oder mehrere Dinge oder Personen miteinander und sag, welche davon "
+        "eine bestimmte Eigenschaft am stärksten hat.",
+    ),
+    (
+        "adjektivdeklination_bestimmt",
+        "Beschreibe eine ganz bestimmte, bereits bekannte Person oder Sache genauer, zum "
+        "Beispiel mit einer Farbe, einer Größe oder einer anderen Eigenschaft.",
+    ),
+    (
+        "adjektivdeklination_unbestimmt",
+        "Beschreibe eine neue, bisher noch nicht genannte Person oder Sache genauer und "
+        "erwähne sie zum ersten Mal, zum Beispiel mit einer Farbe, einer Größe oder einer "
+        "anderen Eigenschaft.",
+    ),
+    (
+        "adjektivdeklination_nullartikel",
+        "Beschreibe allgemein eine Menge einer Sache, ohne sie zu zählen oder eine einzelne "
+        "davon zu meinen, zum Beispiel eine Speise, ein Getränk oder ein Material, und füge "
+        "eine Eigenschaft davor hinzu.",
+    ),
+    (
+        "nomen_plural",
+        "Sprich über mehrere gleichartige Personen oder Dinge gleichzeitig, nicht nur über "
+        "eine einzelne.",
+    ),
+    (
+        "kasus_akkusativ_formen",
+        "Sag, was jemand mit einer Sache oder Person direkt macht, zum Beispiel was er "
+        "sieht, kauft, liest oder nimmt.",
+    ),
+    (
+        "kasus_dativ_formen",
+        "Sag, wem etwas gegeben, gezeigt, erklärt oder geholfen wird.",
+    ),
+    (
+        "praepositionen_genitiv",
+        "Schreib in einem ganz normalen, alltäglichen Ton -- nicht besonders förmlich -- "
+        "und nenne einen Grund, einen Zeitraum oder etwas, das trotzdem passiert oder "
+        "stattdessen gemacht wird.",
+    ),
+    (
+        "praepositionen_akkusativ",
+        "Sag, für wen etwas gedacht ist, wogegen jemand ist, wodurch jemand geht oder "
+        "fährt, ohne was jemand etwas tut, oder bis wann etwas dauert.",
+    ),
+    (
+        "praepositionen_dativ",
+        "Sag, bei wem jemand ist oder wohnt, mit wem oder womit jemand etwas macht, woher "
+        "etwas kommt, seit wann etwas so ist, oder zu wem jemand unterwegs ist.",
+    ),
+    (
+        "akkusativ_nach_praeposition",
+        "Beschreibe, wohin sich etwas oder jemand bewegt oder wohin etwas gelegt, gestellt "
+        "oder gehängt wird.",
+    ),
+    (
+        "dativ_nach_praeposition",
+        "Beschreibe, wo sich etwas oder jemand gerade befindet oder wo etwas bereits "
+        "liegt, steht oder hängt, ohne dass sich etwas dorthin bewegt.",
+    ),
+    (
+        "pronomen_personal_nom",
+        "Erwähne eine Person oder Sache noch einmal, ohne ihren Namen zu wiederholen, als "
+        "diejenige, die selbst etwas tut.",
+    ),
+    (
+        "pronomen_personal_akk",
+        "Erwähne eine Person oder Sache noch einmal, ohne ihren Namen zu wiederholen, als "
+        "diejenige, die jemand sieht, kennt, besucht oder auf eine andere Weise direkt "
+        "betrifft.",
+    ),
+    (
+        "pronomen_personal_dat",
+        "Erwähne eine Person noch einmal, ohne ihren Namen zu wiederholen, als diejenige, "
+        "der etwas gegeben, geschenkt oder geschickt wird.",
+    ),
+    (
+        "modalverben_praesens",
+        "Sag, was jemand gerade will, muss, darf, kann oder soll.",
+    ),
+    (
+        "verb_praesens_regelm",
+        "Beschreibe eine gewöhnliche Tätigkeit, die eine Person regelmäßig in ihrem Alltag macht.",
+    ),
+    (
+        "verb_praesens_vokalwechsel",
+        "Sprich eine einzelne andere Person direkt an, oder erzähle über eine einzelne "
+        "andere Person (er oder sie), was genau diese eine Person regelmäßig in ihrem "
+        "Alltag macht -- nie über dich selbst und nie über mehrere Personen gemeinsam.",
+    ),
+    (
+        "verb_sein_haben",
+        "Beschreibe knapp, wie jemand gerade ist oder was jemand gerade hat oder besitzt.",
+    ),
+    (
+        "verben_trennbar_praesens",
+        "Beschreibe eine gewöhnliche Alltagshandlung, bei der jemand morgens aufsteht, "
+        "abends aufräumt, jemanden anruft oder einlädt, oder das Licht anmacht oder "
+        "ausmacht.",
+    ),
+    (
+        "verben_reflexiv_akk",
+        "Beschreibe ein Gefühl oder eine Reaktion, die eine Person bei sich selbst auslöst "
+        "oder erlebt, zum Beispiel dass sie sich freut, sich ärgert, sich beeilt oder sich "
+        "mit jemandem trifft.",
+    ),
+    (
+        "verben_reflexiv_dat",
+        "Beschreibe, dass jemand sich selbst etwas kauft, sich etwas vorstellt, sich etwas "
+        "überlegt oder sich etwas leiht.",
     ),
 )
 

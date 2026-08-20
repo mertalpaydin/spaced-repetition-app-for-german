@@ -261,15 +261,21 @@ def test_construction_hints_cover_sixteen_topics_with_unique_ids() -> None:
     the seventeenth topic the audit named, is deliberately not among
     these), and every topic id is used exactly once.
 
-    19, not 16: a later cycle (feat/generate-then-blank) appended three more
+    49, not 16: a later cycle (feat/generate-then-blank) appended three more
     hints -- ``artikel_bestimmt_nom``, ``artikel_unbestimmt_kein_nom``,
     ``artikel_possessiv_nom`` -- for a different, later-diagnosed defect (see
-    ``CONSTRUCTION_HINTS``'s own comment above those three entries); the
-    original 16-topic audit's own count stays documented and unchanged
-    where it is quoted, this test's own number is the only thing updated."""
+    ``CONSTRUCTION_HINTS``'s own comment above those three entries), and a
+    still later cycle (the generate-then-topic-loop rebuild) appended 30 more
+    -- one per remaining topic in ``selectors.SELECTORS`` that had no
+    construction hint yet, so every topic the topic-loop generator iterates
+    over has one -- covering every one of the 49 topics in
+    ``selectors.SELECTORS``. The original 16-topic audit's own count stays
+    documented and unchanged where it is quoted, this test's own number is
+    the only thing updated."""
     ids = [topic_id for topic_id, _ in CONSTRUCTION_HINTS]
-    assert len(ids) == 19
-    assert len(set(ids)) == 19
+    assert len(ids) == 49
+    assert len(set(ids)) == 49
+    assert set(ids) == set(SELECTORS)
     for topic_id in ids:
         assert topic_id in SELECTORS, f"{topic_id!r} has no selector to ever fire on it"
 
@@ -647,9 +653,9 @@ def test_generate_sentence_pool_also_varies_construction() -> None:
     structure -- a pool that varied everything else but never asked for a
     relative clause or a passive would still leave those topics starved."""
     generator = _ScriptedGenerator()
-    # enough batches (ceil(200/10)=20) to cycle through every one of
-    # CONSTRUCTION_HINTS's now-19 entries at least once.
-    generate_sentence_pool(generator, "A2", total=200, batch_size=10)
+    # enough batches (ceil(500/10)=50) to cycle through every one of
+    # CONSTRUCTION_HINTS's now-49 entries at least once.
+    generate_sentence_pool(generator, "A2", total=500, batch_size=10)
     constructions = {call["construction"] for call in generator.calls}
     assert len(constructions) == len(CONSTRUCTION_HINTS)
 
