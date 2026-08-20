@@ -1803,3 +1803,98 @@ def test_praeteritum_sein_haben_modal_cues_every_candidate_now() -> None:
     _, aux_candidates = _select("praeteritum_sein_haben_modal", "Er war gestern sehr müde.")
     assert len(aux_candidates) == 1
     assert aux_candidates[0].cue == "sein"
+
+
+# ==============================================================================
+# docs/audits/cycle-08-report.md's capitalisation trap: a cue's own
+# first-letter case must match the accepted answer's, so a learner who types
+# exactly what the bracketed cue shows is never marked wrong for a case
+# mismatch the cue itself introduced. Two independent sources, closed by the
+# same rule at the same choke point (``selectors._citation_cue``, via
+# ``_cue_case_matched_to_answer``): the always-capitalised formal
+# ``Sie``-family possessive ("Ihr"/"Ihre"/"Ihren"/"Ihrer", ...), whose
+# paradigm is stored lowercase (``paradigms.family_forms`` lower-cases every
+# ein-word stem), and a gap sitting at the very start of a sentence, whose
+# answer is capitalised by German orthography rather than by anything about
+# the word itself. All four sentences below are the exact carriers
+# docs/audits/cycle-08-report.md named as live defects; each is pinned here
+# against the real spaCy pipeline, not a synthetic unit case, so a
+# regression in either the selector or ``blank_candidate`` itself is caught.
+# ==============================================================================
+
+
+def test_cue_case_matched_to_answer_uppercases_a_lowercase_cue() -> None:
+    assert selectors._cue_case_matched_to_answer("ihre", "Ihrer") == "Ihre"
+
+
+def test_cue_case_matched_to_answer_lowercases_an_uppercase_cue() -> None:
+    assert selectors._cue_case_matched_to_answer("Alt", "alte") == "alt"
+
+
+def test_cue_case_matched_to_answer_leaves_matching_case_alone() -> None:
+    assert selectors._cue_case_matched_to_answer("ihre", "ihrer") == "ihre"
+    assert selectors._cue_case_matched_to_answer("Zahn", "Zähne") == "Zahn"
+
+
+def test_cue_case_matched_to_answer_tolerates_an_empty_cue() -> None:
+    assert selectors._cue_case_matched_to_answer("", "Ihrer") == ""
+
+
+def test_praepositionen_dativ_cue_matches_the_formal_sie_possessives_case() -> None:
+    """docs/audits/cycle-08-report.md: 'Sie kochen oft zusammen mit ___
+    (ihre) Familie ...' -> 'Ihrer'. The formal register capitalises the
+    whole ``Ihr``-family; before this fix the cue came back lowercase
+    'ihre' (the paradigm table's own storage case, not the answer's),
+    handing a learner who typed exactly 'ihre' a capitalisation FAIL
+    against the strict-cased grader (``typo_grader.ScopedTypoGrader``)."""
+    item = _blank(
+        "praepositionen_dativ",
+        "Kochen Sie oft zusammen mit Ihrer Familie und laden Sie Freunde ein?",
+    )
+    assert item.proposed_answer == "Ihrer"
+    assert item.cue == "Ihre"
+    assert item.cue is not None
+    assert item.cue[:1].isupper() == item.proposed_answer[:1].isupper()
+
+
+def test_kasus_akkusativ_formen_cue_matches_the_formal_sie_possessives_case() -> None:
+    """docs/audits/cycle-08-report.md: 'Ihr Schwiegersohn repariert ___
+    Stuhl ...' (cue: ihr) -> 'Ihren'."""
+    item = _blank(
+        "kasus_akkusativ_formen",
+        "Ihr Schwiegersohn repariert Ihren Stuhl jedes Wochenende, "
+        "weil Sie das selbst nicht schaffen.",
+    )
+    assert item.proposed_answer == "Ihren"
+    assert item.cue == "Ihr"
+    assert item.cue is not None
+    assert item.cue[:1].isupper() == item.proposed_answer[:1].isupper()
+
+
+def test_adjektivdeklination_nullartikel_cue_matches_sentence_initial_capitalisation_alt() -> None:
+    """docs/audits/cycle-08-report.md: '___ (alt) Batterien können im
+    Supermarkt abgegeben werden.' -> 'Alte'. The gap opens the sentence, so
+    German orthography alone capitalises the answer; the cue must follow,
+    even though the adjective's own citation form ('alt') is ordinarily
+    lowercase."""
+    item = _blank(
+        "adjektivdeklination_nullartikel", "Alte Batterien können im Supermarkt abgegeben werden."
+    )
+    assert item.proposed_answer == "Alte"
+    assert item.cue == "Alt"
+    assert item.cue is not None
+    assert item.cue[:1].isupper() == item.proposed_answer[:1].isupper()
+
+
+def test_adjektivdeklination_nullartikel_cue_matches_sentence_initial_capitalisation_letzte() -> (
+    None
+):
+    """docs/audits/cycle-08-report.md: '___ (letzter) Woche hatte ich
+    plötzlich fiese Bauchschmerzen.' -> 'Letzte'."""
+    item = _blank(
+        "adjektivdeklination_nullartikel", "Letzte Woche hatte ich plötzlich fiese Bauchschmerzen."
+    )
+    assert item.proposed_answer == "Letzte"
+    assert item.cue == "Letzter"
+    assert item.cue is not None
+    assert item.cue[:1].isupper() == item.proposed_answer[:1].isupper()

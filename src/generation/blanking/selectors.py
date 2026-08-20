@@ -1925,6 +1925,41 @@ def _cue_is_real_word(cue: str) -> bool:
     return False
 
 
+def _cue_case_matched_to_answer(cue: str, surface: str) -> str:
+    """Capitalise (or lower-case) ``cue``'s first letter to match ``surface``
+    -- the answer the cue is standing in for -- 's own first-letter case.
+
+    docs/audits/cycle-08-report.md's capitalisation trap: a learner who
+    types exactly what the bracketed cue shows must never be marked wrong
+    for a case mismatch the cue itself introduced. Two distinct sources
+    confirmed live, both closed by the same one-line rule:
+
+    * The formal ``Sie``-family possessive ("Ihr", "Ihre", "Ihrer", ...) is
+      always capitalised, but ``paradigms.family_forms`` stores every
+      ein-word paradigm in lowercase (``match_ein_word`` lower-cases the
+      surface before matching a stem) -- so the derived citation form for
+      an answer like "Ihrer" came back "ihre", a plain lowercase mismatch
+      against a formal-register answer.
+    * A gap at the very start of a sentence capitalises its answer for a
+      reason that has nothing to do with the word itself (German
+      sentence-initial capitalisation, not the word's own citation form) --
+      "Alte" as the answer to a sentence-initial "___ (alt) Batterien ..."
+      cues "alt", lowercase, while the only acceptable typed answer starts
+      uppercase.
+
+    Mirrors ``blanker._match_case`` exactly (that function does the same
+    thing for a reconstructed distractor form against the token it
+    replaces), duplicated rather than imported: ``blanker.py`` already
+    imports from this module, so importing back would be circular, and the
+    rule itself is one line, not worth restructuring the module boundary
+    for."""
+    if not cue:
+        return cue
+    if surface[:1].isupper():
+        return cue[:1].upper() + cue[1:]
+    return cue[:1].lower() + cue[1:]
+
+
 def _citation_cue(lemma: str, surface: str) -> str | None:
     """A cue string from ``lemma``, unless it is letter-for-letter identical
     to ``surface`` (case-insensitively) -- "the cue must never equal the
@@ -1942,12 +1977,16 @@ def _citation_cue(lemma: str, surface: str) -> str | None:
     cue this module ever produces passes through (every ``cue=`` in this
     file is either a literal call to this function or delegates to one that
     is), so the dictionary reality check (``_cue_is_real_word``) belongs
-    here, once, rather than repeated at each of the call sites."""
+    here, once, rather than repeated at each of the call sites -- and so
+    does the capitalisation-matching fix above (docs/audits/
+    cycle-08-report.md): every cue this module ever hands to a learner is
+    matched to ``surface``'s own case here, once, rather than at each call
+    site."""
     if lemma.lower() == surface.lower():
         return None
     if not _cue_is_real_word(lemma):
         return None
-    return lemma
+    return _cue_case_matched_to_answer(lemma, surface)
 
 
 def _plural_noun_cue(token: Token) -> str | None:
