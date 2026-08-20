@@ -135,18 +135,33 @@ vocabulary ceiling Tatoeba still yields 81,100 candidates across 48 of the 49
 topics, missing only `zustandspassiv_zeiten`. Leipzig loses 83 percent of its
 sentences and still covers all 49.
 
-### The finding that matters most
+### Correction: one global ceiling is the wrong measurement
 
-**Grammar level and vocabulary level are independent, and the corpus lets us
-exploit that.** A Futur II sentence built entirely from A1 words is still a
-Futur II sentence. At the A1 ceiling Tatoeba yields 12 `futur_ii` candidates,
-6 `relativsatz_genitiv`, 10 `zustandspassiv`, and Leipzig adds more.
+The table above applies a single vocabulary ceiling to all 49 topics. **That is
+not what the product does and was never a requirement.** The owner's
+correction, and he is right: a B1 grammar topic should not be restricted to A1
+words. A learner's vocabulary is expected to grow alongside their grammar.
 
-That matters because this product interleaves grammar topics across levels
-against a learner whose vocabulary is fixed at their own level. Generation has
-to be asked for both at once and tends to raise the vocabulary when asked for
-harder grammar. Retrieval does not: filter for the words, search for the
-structure, and the two constraints stop fighting each other.
+`data/taxonomy.yaml` already assigns every topic its own level (18 A1, 13 A2,
+12 B1, 6 B2), and `scripts/step6_blank_pilot.py` already stamps each item with
+`cefr=topic.cefr`. So the filter that matters is **per topic, at that topic's
+own level**: an A1 topic's carriers filtered at A1, a B2 topic's at B2.
+
+Recomposed from the same runs on that rule, per 120,000 sentences per corpus:
+
+| | Tatoeba | Leipzig | Combined |
+|---|---:|---:|---:|
+| Candidates | 102,984 | 60,764 | **163,748** |
+| Topics covered | | | **49 of 49** |
+| Topics under 20 candidates | | | **1** |
+
+The only topic under 20 is `zustandspassiv_zeiten` (B2) at 6 combined, which
+becomes roughly 40 at full corpus scale. Every other topic is comfortably
+supplied at its own level.
+
+This is the number to quote. The single-ceiling table is kept above only
+because it is what was actually run, and because it shows the filter's cost
+per band.
 
 ### What is thin at A1 and A2, and whether it matters
 
