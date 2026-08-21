@@ -933,7 +933,7 @@ structure.
   also covers `bekommen`, `erhalten` and every other verb with a syncretic
   infinitive and participle.
 
-- [ ] **8.4 Konjunktiv II present taking the past, 3 items. Confidence:
+- [x] **8.4 Konjunktiv II present taking the past, 3 items. Confidence:
   medium, and one of the three needs investigating first.**
 
       Wenn ich ___ gehen wollen, hätte ich's gesagt.                  hätte
@@ -950,7 +950,149 @@ structure.
   until you understand why the existing one missed it.** Guessing here is how
   a class comes back for a fourth cycle.
 
-- [ ] **8.5 `kasus_dativ_formen` accepting three other cases, 3 items.
+  **Root cause of the second item, diagnosed before any fix was written, per
+  this task's own instruction.** `gehabt` is tagged `VAPP` by
+  `de_core_news_sm`, not `VVPP`. This tagger keys the Partizip-II TAG off the
+  LEMMA's own verb class (`haben`/`sein` always get `VAPP`, a modal always
+  gets `VMPP`) regardless of whether that lemma is functioning as an
+  auxiliary or as an ordinary content verb in this particular sentence --
+  `haben` used to mean "to have" ("die Zeit gehabt") still gets `VAPP`, the
+  same tag `haben`-as-auxiliary would get. `selectors._is_participle`'s
+  trustworthy-tag branch checked only `token.tag == "VVPP"`, and its shape
+  fallback is gated on `paradigms.PARTICIPLE_CONFUSABLE_TAGS`, which is
+  `{"VVIZU"}` only -- cycle 11's own unrelated fix for a different mistagging
+  pattern (a separable-prefix participle mistagged as a zu-infinitive).
+  `VAPP` was a member of neither set, so `_is_participle("gehabt")` was
+  simply `False`, and the clause-bounded bidirectional search added for TODO
+  1.2 -- which DID reach "gehabt"'s own position correctly, confirmed by
+  printing the tagger's tokens directly -- never recognised what it found
+  there. Ruled out, not assumed, the other two candidates this task's own
+  brief raised: the clause boundary was computed correctly (confirmed by
+  inspecting `_clause_span`'s own output for this sentence), and there is no
+  deliberate exclusion of an auxiliary's own participle anywhere in this
+  module -- the gap was purely in the TAG dimension of `_is_participle`'s
+  check, never a rule that fired on purpose. **TODO.md's own account of the
+  78d6d7f/TODO-1.2 fix (section 1.2's table) already claimed `_is_participle`
+  checks "tag `VVPP`/`VAPP`" -- that was inaccurate: `git show 78d6d7f`
+  confirms the code it introduced checked `VVPP` alone throughout.** Flagged
+  per CLAUDE.md rule 8 rather than left looking like a second, deliberate
+  regression.
+
+  Fixed: `_is_participle`'s trusted-tag branch now checks `VVPP`/`VAPP`/
+  `VMPP` (all three genuine STTS Partizip II tags this tagger emits, one per
+  verb class), and `_participle_lemma` now trusts the tagger's own `.lemma`
+  for the same three tags (confirmed directly: `gehabt`/VAPP -> `haben`,
+  `gewesen`/VAPP -> `sein`, `gewollt`/VMPP -> `wollen` -- an irregular
+  participle like `gewesen` has no shape-reconstruction fallback available,
+  so trusting `.lemma` is not merely convenient here, it is necessary). The
+  Ersatzinfinitiv is a new, independent marker,
+  `selectors._ersatzinfinitiv_in_clause`: a full-verb/auxiliary infinitive
+  (`VVINF`/`VAINF`) immediately followed by a modal's own infinitive
+  (`VMINF`) in the same clause. Both fixes are wired into
+  `_select_konjunktiv_ii_base`'s existing exclusion (so a past-marked clause
+  is excluded from `_irreal_gegenwart`/`_hoeflichkeit`, unchanged mechanism)
+  and into `_select_konjunktiv_ii_vergangenheit` (so the same clause is now
+  correctly ADMITTED there, not merely excluded from the other two).
+  Restricted to lemma `haben` only for the Ersatzinfinitiv path (both the
+  exclusion and the admission): a modal's own Perfekt/Plusquamperfekt always
+  takes `haben`, never `sein`, regardless of the governed verb's own normal
+  auxiliary -- this is also what keeps a genuine present-tense `würde ...
+  können`-shaped candidate (a `werden`-lemma candidate governing an ordinary
+  modal-infinitive complement, not an Ersatzinfinitiv at all) from being
+  wrongly excluded.
+
+  Over-firing risk named directly in this task's brief, checked and pinned:
+  `"Ich hätte gern ein Bier."`/`"Wenn ich Zeit hätte, hätte ich gern ein
+  Bier."` (no participle, no Ersatzinfinitiv) and `"Er könnte kommen, wenn er
+  wollte."` (a single bare infinitive, not the two-infinitive shape) both
+  survive as regression tests.
+
+  **Verified against real data, not only tests.** All three exact reported
+  sentences pinned in `tests/test_blanking_selectors.py`, each confirmed to
+  now produce a `konjunktiv_ii_vergangenheit` item end to end and NO
+  `konjunktiv_ii_irreal_gegenwart` candidate. `scripts.step7_corpus_pilot
+  --limit 20000`, before vs. after (raw, CEFR-filtered candidate counts, same
+  seed): `konjunktiv_ii_irreal_gegenwart` 26 -> 19, `konjunktiv_ii_
+  vergangenheit` 103 -> 129. Hand-checked every one of the 10 sampled
+  `konjunktiv_ii_irreal_gegenwart` survivors and all 10 sampled
+  `konjunktiv_ii_vergangenheit` items (the full balanced sample at this
+  scale, quota 10): every one is genuinely present- or past-tense
+  Konjunktiv II respectively, including one sample item that is itself a
+  new, previously-unreachable Ersatzinfinitiv with no `wenn`-clause at all
+  (`"Ohne ihre Hilfe hätten wir es nicht schaffen können."`) and two items
+  with mixed-tense conditionals (a past `wenn`-clause paired with a present
+  main-clause consequence, and vice versa) correctly kept in
+  `_irreal_gegenwart` because the BLANKED clause's own time reference,
+  not the sentence's other clause, is what the topic is about.
+
+  **A bonus, unplanned but correct fix, found only because the same
+  exclusion lives in the shared `_select_konjunktiv_ii_base`:**
+  `konjunktiv_ii_hoeflichkeit` lost one item, `"Hätte die Polizei die Morde
+  verhindern können?"` -- a question with the identical Ersatzinfinitiv shape
+  as the reported items, which used to satisfy every one of that topic's own
+  gates (ends in `?`, no `wenn`) and was wrongly treated as a polite request
+  when it is actually asking about PAST ability. Pinned as its own regression
+  test.
+
+  **A second, more serious defect found and fixed while verifying this task
+  against the corpus, not part of the three reported items:**
+  `selectors._select_perfekt` (`perfekt_haben`/`perfekt_sein`) used the
+  UNBOUNDED `_participle_after`, not the clause-bounded `_in_clause` variant
+  every other participle-reading selector in this module already uses.
+  TODO.md's own table for the 78d6d7f/TODO-1.2 fix claims this selector was
+  "already bidirectional since `_select_plusquamperfekt`'s own fix" -- that
+  claim is also inaccurate (confirmed by reading the code directly, the same
+  way the `_is_participle` claim above was checked, not re-trusted): only the
+  PARTICIPLE-LEMMA reading changed for this selector in that commit, not the
+  SEARCH BOUNDING, which stayed sentence-wide and forward-only. This almost
+  never mattered before, because a present-tense Perfekt's own participle is
+  overwhelmingly in the SAME clause as its aux. It started mattering the
+  moment `_is_participle` learned to recognise `VAPP`: `"Ich bin erstaunt,
+  dass es heute so warm geworden ist."` has no Perfekt at all ("bin" is an
+  ordinary present-tense copula with a predicate adjective), but the
+  unbounded search reached across the comma into the unrelated `dass`-clause's
+  own `geworden` (newly visible only because of the VAPP fix) and wrongly
+  manufactured a `perfekt_sein` candidate. Fixed by switching `_select_perfekt`
+  to the clause-bounded `_participle_after_in_clause`, the same fix already
+  applied to every sibling selector. Regression test pinned on this exact
+  sentence. This fix's own corpus effect, investigated rather than left as an
+  unexplained number (per this task's own verification requirement):
+  clause-bounding did not merely close the one sentence found above, it also
+  retroactively closed a PRE-EXISTING, unrelated defect class already present
+  before this task started -- 19 `perfekt_haben` items and 10 `perfekt_sein`
+  items in the same 20,000-line sample were cross-clause false positives from
+  the same unbounded search finding an ordinary VVPP participle (already
+  visible even before the VAPP fix) in an unrelated clause (for example
+  `"Ich habe den Eindruck, dass Tom in dich verliebt ist."`, wrongly claimed
+  as `perfekt_haben` off the unrelated `dass`-clause's own "verliebt"). All 19
+  and 10 are gone after the fix, most reassigned to `verb_sein_haben` (a
+  correct fallback: an ordinary present-tense `hat`/`ist` with nothing
+  forcing Perfekt), a handful newly admitted as genuine Perfekt items that
+  the old unbounded search's own confusion had been masking. Net CEFR-filtered
+  deltas at the same 20,000-line scale: `perfekt_haben` 771 -> 765,
+  `perfekt_sein` 108 -> 110, `verb_sein_haben` 516 -> 518, `plusquamperfekt`
+  20 -> 21 (one new, genuine Vorgangspassiv-Plusquamperfekt item, `"Tom war
+  ganz aus dem Häuschen, nachdem er befördert worden war."`, investigated
+  directly rather than assumed safe: the search now matches on `worden`
+  itself, whose own governing aux is unconditionally `sein` in every
+  Vorgangspassiv Perfekt/Plusquamperfekt regardless of the underlying verb,
+  so this is reliably correct even though it is not the code's originally
+  intended reasoning path), `futur_i` 166 -> 164 (a raw-selector diff showed
+  zero candidate-set change for `futur_i` itself -- the same
+  cross-topic-duplicate-resolution ripple TODO 1.2's own report already
+  documented for an analogous case, not a new mechanism).
+
+  Not part of this task's two scoped fixes and not attempted:
+  `_select_plusquamperfekt` itself still uses the unbounded `_participle_
+  after`/`_participle_before` (confirmed while investigating the above, not
+  guessed) rather than the clause-bounded variants -- a real, latent
+  candidate for the same class of defect, currently masked by Plusquamperfekt's
+  own `_has_anteriority_marker` gate rarely creating the wrong kind of
+  cross-clause reach in practice on this sample. Flagged here rather than
+  silently fixed, since touching it was not asked for and this task's own
+  scope is two items only.
+
+- [x] **8.5 `kasus_dativ_formen` accepting three other cases, 3 items.
   Confidence: medium, and it will cost volume.** A nominative (`einer nach
   dem anderen`), an accusative (`den Murks gelesen`) and a genitive
   (`Schlagzeuger der Band`) all landed in the dative topic. Corpus syntax is
@@ -961,6 +1103,49 @@ structure.
   FORCED: a dative-governing preposition, a dative-governing verb, or a
   genuine indirect-object position with a direct object present. Accept that
   this drops items whose case is real but unforced.
+
+  Fixed: `selectors._select_kasus_dativ_formen` wraps the existing
+  `_determiner_selector("Dat", ..., "forbidden")` base (unchanged, still
+  shared with `kasus_akkusativ_formen`/`kasus_genitiv_formen`) with a second
+  pass that requires the clause's own governing verb
+  (`_governing_verb_lemma`, "reject rather than guess" when it cannot be
+  resolved) to force the reading: either lexically Dative-only
+  (`paradigms.DATIVE_ONLY_VERBS`, a new closed list -- `helfen`, `danken`,
+  `gefallen`, `gehören`, `folgen`, `fehlen`... the standard German
+  pedagogical "Verben mit Dativ" class, the same kind of source
+  `DATIVE_REFLEXIVE_VERBS_*` already cites) or a ditransitive Dative-taking
+  verb (`paradigms.DITRANSITIVE_DATIVE_VERBS` -- `geben`, `zeigen`, `sagen`,
+  `schicken`...) WITH a genuine Accusative direct object also present in the
+  same clause (`_has_bare_accusative_object`, the same same-clause object
+  scan the reflexive-case-routing fix already relies on). A dative governed
+  by a preposition stays disjoint from this topic exactly as before -- the
+  base selector's own `"forbidden"` preposition gate is unchanged.
+  `paradigms.DATIVE_ONLY_VERBS` also carries `"antworen"` alongside the
+  correct `"antworten"`: confirmed directly against the tagger, this exact
+  model lemmatises `antworte`/`antworten` (1st person/plural forms) to
+  `antworen`, dropping the medial `t` (`antwortet`, 3rd singular, lemmatises
+  correctly) -- a tagger quirk kept alongside the correct spelling rather
+  than left for a future reader to rediscover.
+
+  All three reported sentences now correctly yield no `kasus_dativ_formen`
+  candidate, pinned as regression tests, along with a positive ditransitive
+  case (`"Er gibt seiner Schwester ein Buch."`) to confirm the forcing check
+  still admits genuine Dative items, not only reject them.
+
+  **Verified against real data, not only tests.**
+  `scripts.step7_corpus_pilot --limit 20000`, before vs. after (raw,
+  CEFR-filtered candidate count, same seed): `kasus_dativ_formen` 180 -> 34,
+  an 81 percent drop -- the expected volume cost, not a regression. Hand-
+  checked every one of the 10 sampled survivors (the full balanced sample at
+  this scale, quota 10): every one is genuinely Dative, five governed by a
+  Dative-only verb (`helfen` twice -- once bare, once `werden`-periphrased,
+  confirming the governing-verb resolution correctly walks through the aux to
+  its own infinitive --, `fehlen`, `gehören`, `danken`) and five ditransitive
+  with a genuine co-occurring Accusative object (`geben` x3, `sagen`,
+  `schicken`), including two where the Accusative object is a fronted
+  demonstrative pronoun ("Das ...") rather than a full noun phrase, confirmed
+  directly against the tagger to still be recognised as `Case=Acc` by the
+  same same-clause object scan.
 
 - [ ] **8.6 `relativsatz_nom_akk` taking an article inside an infinitive
   clause, 1 item. Confidence: high.** `fordern Experten, ___
@@ -1014,3 +1199,14 @@ structure.
 17 of the 19 have a fix I would stand behind. One (8.4's middle item) needs
 diagnosis before a fix is written. One (8.10) has no clean solution and is
 recorded as a known limit rather than papered over.
+
+**8.4 and 8.5 done**, applied and verified separately from the rest of this
+list per the owner's own request (these were the two rated medium
+confidence). 8.4's middle item is diagnosed above, not guessed at: `gehabt`
+is tagged `VAPP`, not `VVPP`, by this tagger, and `_is_participle`'s
+trusted-tag check only ever covered `VVPP`. Verifying 8.4 against the corpus
+also surfaced and fixed one defect outside the three originally reported
+items (`_select_perfekt`'s own unbounded, not clause-bounded, participle
+search -- see 8.4's own writeup for the full trace and corpus numbers). 8.1,
+8.2, 8.3, 8.6, 8.7, 8.8, 8.9 and 8.11 are unchanged, deliberately not
+attempted in this pass.

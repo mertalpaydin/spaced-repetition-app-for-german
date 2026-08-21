@@ -1203,6 +1203,116 @@ ACCUSATIVE_ONLY_REFLEXIVE_VERBS: frozenset[str] = frozenset(
 )
 
 # ==============================================================================
+# TODO.md 8.5: non-reflexive Dative-governing verbs, for ``kasus_dativ_
+# formen``'s own forcing check (``selectors._select_kasus_dativ_formen``).
+#
+# docs/audits/cycle-10-corpus-report.md found three items in this topic
+# that are not Dative at all -- a Nominative apposition ("einer nach dem
+# anderen"), an Accusative direct object ("den Murks gelesen") and a
+# Genitive noun complement ("Schlagzeuger der Band") -- every one of them
+# tagged ``Case=Dat`` by the tagger regardless. docs/audits/tagger-
+# accuracy-vs-gold.md measured Case as 6.08 percent conflicting and a
+# further 20.26 percent absent on this exact tagger, so the tag alone is
+# not evidence; the Dative reading has to be FORCED by the clause's own
+# structure, the same "never gate on a tag when the fact is derivable from
+# structure" remedy TODO.md 8's own preamble already names for this cycle.
+#
+# Two closed lists, the same kind of lexical fact ``DATIVE_REFLEXIVE_
+# VERBS_*``/``AUX_SEIN_LEMMAS``/``TRANSITIVE_LEMMAS`` already are, not
+# re-derived per sentence:
+#
+# * ``DATIVE_ONLY_VERBS`` -- verbs that take a Dative object and NEVER
+#   an Accusative one, so the mere fact that this verb governs the
+#   clause's own noun phrase is already proof the reading is Dative,
+#   with no further object check needed. Sourced from the standard German
+#   pedagogical "Verben mit Dativ" class (Dreyer/Schmitt, "Praktische
+#   Grammatik der deutschen Sprache"; Duden), the same source
+#   ``DATIVE_REFLEXIVE_VERBS_WITH_OBJECT``'s own comment cites. "antworen"
+#   is not a spelling variant of "antworten" -- it is this exact tagger's
+#   own confirmed lemma for "antworte"/"antworten" (dropping the medial
+#   "t"; "antwortet" lemmatises correctly to "antworten", the 1st-person/
+#   plural forms do not), kept alongside the correct spelling rather than
+#   left for a future reader to rediscover, the same "confirmed necessary,
+#   not just theoretical" posture TODO 1.2's own precedent set for a
+#   different tagger quirk.
+# * ``DITRANSITIVE_DATIVE_VERBS`` -- verbs that take BOTH a Dative
+#   (indirect object/recipient) and an Accusative (direct object) at once
+#   ("geben", "zeigen", "sagen"...). Governing one of these is only forced
+#   evidence of the DATIVE reading specifically when a genuine Accusative
+#   direct object is ALSO present in the same clause (checked via
+#   ``_has_bare_accusative_object``, the same same-clause object scan the
+#   reflexive-case-routing fix already uses) -- the clause's own dative
+#   NP is otherwise indistinguishable, by this module's own closed-class
+#   evidence, from any other noun phrase the verb happens to be near.
+DATIVE_ONLY_VERBS: frozenset[str] = frozenset(
+    {
+        "antworten",
+        "antworen",
+        "ähneln",
+        "auffallen",
+        "begegnen",
+        "beistehen",
+        "danken",
+        "dienen",
+        "drohen",
+        "einfallen",
+        "entgegenkommen",
+        "entkommen",
+        "entsprechen",
+        "fehlen",
+        "folgen",
+        "gebühren",
+        "gefallen",
+        "gehorchen",
+        "gehören",
+        "gelingen",
+        "genügen",
+        "gratulieren",
+        "helfen",
+        "imponieren",
+        "misslingen",
+        "missfallen",
+        "nützen",
+        "passen",
+        "schaden",
+        "schmecken",
+        "unterliegen",
+        "vertrauen",
+        "widersprechen",
+        "widerstehen",
+        "zuhören",
+        "zusehen",
+        "zustimmen",
+    }
+)
+DITRANSITIVE_DATIVE_VERBS: frozenset[str] = frozenset(
+    {
+        "anbieten",
+        "beibringen",
+        "bringen",
+        "empfehlen",
+        "erklären",
+        "erlauben",
+        "erzählen",
+        "geben",
+        "leihen",
+        "mitteilen",
+        "sagen",
+        "schenken",
+        "schicken",
+        "schreiben",
+        "senden",
+        "überreichen",
+        "verbieten",
+        "verkaufen",
+        "versprechen",
+        "verzeihen",
+        "wünschen",
+        "zeigen",
+    }
+)
+
+# ==============================================================================
 # Tense anchoring (docs/audits/cycle-06-report.md's next-cycle task): a bare
 # ``sein``/``haben``/``werden`` finite form ("ist"/"war", "hat"/"hatte",
 # "wird"/"wurde") is grammatical at EITHER tense in an ordinary sentence with

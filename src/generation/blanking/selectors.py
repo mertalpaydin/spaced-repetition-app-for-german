@@ -2354,28 +2354,63 @@ def _irregular_finite_selector(
     return select
 
 
+_TRUSTED_PARTICIPLE_TAGS: frozenset[str] = frozenset({"VVPP", "VAPP", "VMPP"})
+
+
 def _is_participle(token: Token) -> bool:
     """Whether ``token`` is a German past participle (Partizip II), by TAG
-    (``VVPP``, unchanged from before -- trustworthy for an ordinary
-    participle) OR by its own SPELLING when the tag is one this exact
-    tagger is confirmed to confuse with a participle on a separable-prefix
-    verb (``paradigms.PARTICIPLE_CONFUSABLE_TAGS``).
+    (``VVPP``/``VAPP``/``VMPP`` -- the three STTS Partizip II tags this
+    tagger assigns, one per verb class: full verb, auxiliary, modal -- all
+    trustworthy for an ordinary participle) OR by its own SPELLING when the
+    tag is one this exact tagger is confirmed to confuse with a participle
+    on a separable-prefix verb (``paradigms.PARTICIPLE_CONFUSABLE_TAGS``).
 
-    docs/audits/cycle-09-report.md / TODO.md 1.2's own caveat: a
-    separable-prefixed participle ("angebraten", "aufgeladen") is sometimes
-    tagged ``VVIZU`` (the zu-infinitive tag) instead of ``VVPP`` in exactly
-    the passive construction ("wird ... angebraten") this module's every
-    participle-reading selector searches for, which is why ``passiv_
-    praesens``/``passiv_praeteritum`` were two of the lowest-yield topics
-    out of 49 on both corpora in ``docs/audits/corpus-coverage.md`` despite
-    the present passive being one of the commonest constructions in German.
-    ``paradigms.is_participle_shape``'s own ge/zu discriminator is what
-    keeps a genuine zu-infinitive ("anzubraten", also tagged ``VVIZU``,
-    correctly) from being wrongly accepted here -- ``VVIZU`` is the correct
-    tag for that shape too, so this function does not treat the tag alone
-    as evidence either way, only as a signal that the SPELLING is worth
+    TODO.md 8.4: ``VAPP``/``VMPP`` were missing from the trusted-tag branch
+    until this fix, which is the confirmed root cause of a past Konjunktiv
+    II item ("wenn ich die Zeit dazu gehabt ___" -> "hätte") still landing
+    in ``konjunktiv_ii_irreal_gegenwart`` after cycle 11's clause-bounded
+    bidirectional participle search (TODO 1.2) was supposed to close
+    exactly this shape. ``gehabt`` -- the past participle of ``haben`` used
+    as an ordinary content verb ("to have"), not as an auxiliary -- is
+    tagged ``VAPP`` by this tagger, not ``VVPP``, because the tagger keys
+    the Partizip-II tag off the LEMMA's own verb class (auxiliary-class
+    lemmas ``haben``/``sein`` always get ``VAPP``, modal-class lemmas
+    always get ``VMPP``) regardless of whether that lemma is functioning as
+    an auxiliary or as a full verb in this particular sentence. The old
+    tag check (``token.tag == "VVPP"``) rejected ``gehabt`` outright, and
+    the shape fallback below never ran either, because it is gated on
+    ``PARTICIPLE_CONFUSABLE_TAGS`` (``VVIZU`` only, TODO 1.2's own separate
+    fix for a different mistagging pattern) -- ``VAPP`` is not a member of
+    that set. There was no deliberate exclusion of an auxiliary's own
+    participle anywhere in this module; it is a gap in the TAG dimension
+    of this check, not a rule that ever fired. Confirmed directly against
+    the tagger (not guessed): ``gehabt`` -> tag ``VAPP``, ``gewesen`` (the
+    identical shape for ``sein``) -> tag ``VAPP``, ``gewollt`` (a modal's
+    own participle) -> tag ``VMPP``.
+
+    (TODO.md's own account of the 78d6d7f/TODO-1.2 fix already describes
+    this function as checking "tag ``VVPP``/``VAPP``" -- that line was
+    aspirational, not accurate: ``git show 78d6d7f`` confirms the code it
+    actually introduced checked ``VVPP`` alone throughout. Flagged here
+    per CLAUDE.md rule 8 rather than left to look like a second, deliberate
+    regression.)
+
+    docs/audits/cycle-09-report.md / TODO.md 1.2's own caveat, unchanged by
+    this fix: a separable-prefixed participle ("angebraten", "aufgeladen")
+    is sometimes tagged ``VVIZU`` (the zu-infinitive tag) instead of
+    ``VVPP`` in exactly the passive construction ("wird ... angebraten")
+    this module's every participle-reading selector searches for, which is
+    why ``passiv_praesens``/``passiv_praeteritum`` were two of the
+    lowest-yield topics out of 49 on both corpora in ``docs/audits/
+    corpus-coverage.md`` despite the present passive being one of the
+    commonest constructions in German. ``paradigms.is_participle_shape``'s
+    own ge/zu discriminator is what keeps a genuine zu-infinitive
+    ("anzubraten", also tagged ``VVIZU``, correctly) from being wrongly
+    accepted here -- ``VVIZU`` is the correct tag for that shape too, so
+    this function does not treat the tag alone as evidence either way for
+    that one confusable tag, only as a signal that the SPELLING is worth
     checking."""
-    if token.tag == "VVPP":
+    if token.tag in _TRUSTED_PARTICIPLE_TAGS:
         return True
     return token.tag in paradigms.PARTICIPLE_CONFUSABLE_TAGS and paradigms.is_participle_shape(
         token.text
@@ -2384,17 +2419,26 @@ def _is_participle(token: Token) -> bool:
 
 def _participle_lemma(token: Token) -> str:
     """``token``'s own infinitive lemma, read off the tagger's own
-    ``.lemma`` when the tag itself already says ``VVPP`` (trustworthy for an
-    ordinary participle), or reconstructed from ``token``'s own SPELLING
+    ``.lemma`` when the tag itself already says ``VVPP``/``VAPP``/``VMPP``
+    (trustworthy for an ordinary participle -- confirmed directly for all
+    three, not assumed: ``gehabt``/``VAPP`` -> ``haben``, ``gewesen``/
+    ``VAPP`` -> ``sein``, ``gewollt``/``VMPP`` -> ``wollen``), or
+    reconstructed from ``token``'s own SPELLING
     (``paradigms.participle_shape_infinitive``) when it was only recognised
     as a participle via ``_is_participle``'s shape branch -- the tagger's
     own ``.lemma`` is not reduced at all for the two confirmed ``VVIZU``-
     mistagged cases (it is the bare, unchanged surface form), so it cannot
-    be trusted there the way it can for a correctly-tagged participle. Empty
-    string, never a guess, when neither source resolves -- callers already
-    treat an empty/unmatched lemma as "cannot verify, skip" exactly like an
-    ordinary tagger miss."""
-    if token.tag == "VVPP":
+    be trusted there the way it can for a correctly-tagged participle.
+    Trusting ``.lemma`` for ``VAPP``/``VMPP`` matters beyond the ``VVPP``
+    case: an irregular participle like ``gewesen`` has no entry in
+    ``paradigms.PARTICIPLE_II_TO_INFINITIVE`` and does not match the
+    regular ge-/-t shape reduction ``participle_shape_infinitive`` relies
+    on, so the shape fallback alone could not have recovered it even once
+    ``_is_participle`` learned to find it. Empty string, never a guess,
+    when neither source resolves -- callers already treat an empty/
+    unmatched lemma as "cannot verify, skip" exactly like an ordinary
+    tagger miss."""
+    if token.tag in _TRUSTED_PARTICIPLE_TAGS:
         return token.lemma.lower()
     return paradigms.participle_shape_infinitive(token.text) or ""
 
@@ -2556,7 +2600,30 @@ def _select_perfekt(sentence: TaggedSentence, *, aux_lemma: str) -> list[Candida
             continue
         if token.lemma.lower() != aux_lemma:
             continue
-        participle = _participle_after(sentence, token.i)
+        # TODO.md 8.4: clause-bounded, not sentence-wide -- a newly-exposed
+        # side effect of ``_is_participle``'s own VAPP/VMPP fix, found while
+        # verifying that fix against the corpus, not part of the reported
+        # defect itself. This selector's own participle search was still
+        # the OLD unbounded ``_participle_after`` (TODO.md's own account of
+        # cycle 11's fix claims this selector was "already bidirectional
+        # since ``_select_plusquamperfekt``'s own fix" -- that claim is
+        # imprecise: cycle 11 changed this selector's PARTICIPLE-LEMMA
+        # reading, not its SEARCH BOUNDING, which stayed sentence-wide,
+        # forward-only). This almost never mattered before, because a
+        # present-tense Perfekt's own participle is overwhelmingly in the
+        # SAME clause as its aux, with no anteriority marker forcing a
+        # subordinate clause the way Plusquamperfekt's own gate does. It
+        # matters now: "Ich bin erstaunt, dass es heute so warm geworden
+        # ist." has no Perfekt at all ("bin" is an ordinary present-tense
+        # copula with a predicate adjective) -- but the unbounded search
+        # reached across the comma into the unrelated "dass"-clause's own
+        # "geworden" (a VAPP-tagged participle, invisible before the VAPP
+        # fix and so never reached before it) and wrongly manufactured a
+        # perfekt_sein candidate for "bin". Bounding the search to "bin"'s
+        # own clause, the same clause-bounded search Plusquamperfekt/
+        # Konjunktiv II Vergangenheit/the passive selectors already use,
+        # closes this the same way it closed theirs.
+        participle = _participle_after_in_clause(sentence, token.i)
         if participle is None:
             continue
         part_lemma = _participle_lemma(participle)
@@ -2647,6 +2714,51 @@ def _select_plusquamperfekt(sentence: TaggedSentence) -> list[Candidate]:
 _KONJUNKTIV_II_LEMMAS: frozenset[str] = frozenset({"werden", "können", "haben", "sein"})
 
 
+# TODO.md 8.4: the Ersatzinfinitiv ("substitute infinitive"). When a modal
+# governs another verb in the Perfekt/Plusquamperfekt (and so, when the
+# governing aux is itself Konjunktiv II, in konjunktiv_ii_vergangenheit),
+# German replaces the modal's own past participle ("gewollt", "gekonnt")
+# with its bare infinitive: "Ich hätte gehen wollen", never "*Ich hätte
+# gehen gewollt". This is a real, general rule, not a one-off exception --
+# every German modal does this whenever it governs a further infinitive in
+# a compound tense. The construction therefore has NO participle anywhere
+# in its clause, so no participle test, however complete, can ever detect
+# it; the only surface marker is this exact shape, a bare full-verb (or
+# auxiliary) infinitive immediately followed by a modal's own infinitive.
+# ``_is_participle``'s VAPP/VMPP fix above closes the sibling defect where a
+# genuine participle (``gehabt``) was present but not recognised; this is
+# the other half TODO 8.4 names, where recognising the participle would not
+# have helped because there is none to recognise.
+def _ersatzinfinitiv_in_clause(sentence: TaggedSentence, start: int, end: int) -> bool:
+    """Whether the Ersatzinfinitiv shape -- a full-verb or auxiliary
+    infinitive (``VVINF``/``VAINF``) immediately followed by a modal's own
+    infinitive (``VMINF``) -- appears anywhere in ``[start, end)``.
+
+    Deliberately requires strict adjacency and a genuine modal infinitive as
+    the SECOND element, not merely "two infinitives somewhere in the
+    clause": German only ever elides a participle for the governing MODAL
+    itself ("wollen", "können", "müssen", "dürfen", "sollen", "möchten"),
+    and the elided element is always the last of the pair. This also keeps
+    an ordinary modal-plus-infinitive complement of a genuinely present-
+    tense ``würde``/``könnte`` candidate ("Er würde das gerne machen
+    können.", present-tense ability, not a past marker at all) from being
+    mistaken for this construction by the caller -- see this helper's own
+    caller sites for why lemma ``haben`` is additionally required there:
+    a modal's own Perfekt/Plusquamperfekt ALWAYS takes "haben" as its
+    auxiliary, regardless of the governed verb's own normal auxiliary
+    preference (an Ersatzinfinitiv can share a clause with a "wäre"/
+    "würde" candidate that governs it as an ordinary infinitive complement,
+    which is not itself in the past, so the auxiliary check is not
+    redundant with the shape check here -- both are needed, and are applied
+    together at each call site rather than folded into this function,
+    which answers only the shape question)."""
+    tokens = sentence.tokens[start:end]
+    for i in range(1, len(tokens)):
+        if tokens[i].tag == "VMINF" and tokens[i - 1].tag in _MODAL_INFINITIVE_TAGS:
+            return True
+    return False
+
+
 def _select_konjunktiv_ii_base(sentence: TaggedSentence) -> list[Candidate]:
     out: list[Candidate] = []
     for token in sentence.tokens:
@@ -2670,9 +2782,22 @@ def _select_konjunktiv_ii_base(sentence: TaggedSentence) -> list[Candidate]:
         # and let it through as if it were a bare, participle-less
         # Konjunktiv II -- its condition is in the past, so it belongs to
         # ``konjunktiv_ii_vergangenheit`` instead.
+        #
+        # TODO.md 8.4: the SAME exclusion, for the Ersatzinfinitiv shape
+        # ("hätte gehen wollen") -- no participle exists for a participle
+        # test to find, so this is a second, independent check, not a
+        # variant of the one above. Restricted to lemma "haben" because
+        # that is the only lemma an Ersatzinfinitiv construction's own
+        # matrix aux can ever be (a modal's Perfekt/Plusquamperfekt always
+        # takes "haben"); see ``_ersatzinfinitiv_in_clause``'s own
+        # docstring for why this guard, not the shape check alone, is what
+        # keeps a genuine present-tense "würde ... können" candidate from
+        # being wrongly excluded here.
+        clause_start, clause_end = _clause_span(sentence, token.i)
         if (
             _participle_after_in_clause(sentence, token.i) is not None
             or _participle_before_in_clause(sentence, token.i) is not None
+            or (lemma == "haben" and _ersatzinfinitiv_in_clause(sentence, clause_start, clause_end))
         ):
             continue
         if lemma == "werden":
@@ -2786,12 +2911,26 @@ def _select_konjunktiv_ii_vergangenheit(sentence: TaggedSentence) -> list[Candid
         participle = _participle_after_in_clause(sentence, token.i) or _participle_before_in_clause(
             sentence, token.i
         )
-        if participle is None:
-            continue
-        part_lemma = _participle_lemma(participle)
-        if part_lemma:
-            takes_sein = part_lemma in paradigms.AUX_SEIN_LEMMAS
-            if (lemma == "sein") != takes_sein:
+        if participle is not None:
+            part_lemma = _participle_lemma(participle)
+            if part_lemma:
+                takes_sein = part_lemma in paradigms.AUX_SEIN_LEMMAS
+                if (lemma == "sein") != takes_sein:
+                    continue
+        else:
+            # TODO.md 8.4: the Ersatzinfinitiv ("hätte gehen wollen", "hätte
+            # gewinnen können") has no participle at all to find above, so
+            # its own presence is the only marker this candidate is really
+            # ``konjunktiv_ii_vergangenheit``, not the participle-based
+            # branch this ``else`` replaces for that one shape. Lemma
+            # "haben" only -- see ``_ersatzinfinitiv_in_clause``'s own
+            # docstring for why (a modal's own Perfekt/Plusquamperfekt
+            # always takes "haben", never "sein", regardless of the
+            # governed verb's normal auxiliary).
+            clause_start, clause_end = _clause_span(sentence, token.i)
+            if lemma != "haben" or not _ersatzinfinitiv_in_clause(
+                sentence, clause_start, clause_end
+            ):
                 continue
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
@@ -3655,12 +3794,63 @@ def _select_artikel_possessiv_nom(sentence: TaggedSentence) -> list[Candidate]:
     return out
 
 
+_KASUS_DATIV_FORMEN_BASE: Selector = _determiner_selector("Dat", _ALL_ART_TYPES, "forbidden")
+
+
+def _select_kasus_dativ_formen(sentence: TaggedSentence) -> list[Candidate]:
+    """``kasus_dativ_formen``: bare (non-prepositional) Dative determiner
+    slots, on top of the same base selector every other ``kasus_*_formen``
+    topic uses, but requiring the Dative reading to be FORCED by structure.
+
+    TODO.md 8.5 / docs/audits/cycle-10-corpus-report.md: the base
+    selector's own ``_cell`` check trusts the tagger's ``Case`` feature
+    alone, which docs/audits/tagger-accuracy-vs-gold.md measured as 6.08
+    percent conflicting and a further 20.26 percent absent -- not evidence
+    on its own. Three corpus items confirmed the cost directly: a
+    Nominative apposition ("einer nach dem anderen"), an Accusative direct
+    object ("den Murks gelesen") and a Genitive noun complement
+    ("Schlagzeuger der Band") were all tagged ``Case=Dat`` and would
+    otherwise have been accepted.
+
+    A candidate is kept only when its own clause has exactly one governing
+    verb (``_governing_verb_lemma``, "reject rather than guess" when it
+    cannot be resolved -- an ``und``-joined pair of finite verbs, for
+    example) and that verb is either lexically Dative-only
+    (``paradigms.DATIVE_ONLY_VERBS``) or a ditransitive Dative-taking verb
+    WITH a genuine Accusative direct object also present in the same
+    clause (``paradigms.DITRANSITIVE_DATIVE_VERBS``, checked with
+    ``_has_bare_accusative_object``, the same same-clause object scan the
+    reflexive-case-routing fix already relies on). A dative governed by a
+    preposition is not this topic's job at all -- the base selector's own
+    ``"forbidden"`` preposition gate already keeps that disjoint from
+    ``dativ_nach_praeposition``/``praepositionen_dativ``, unchanged here.
+
+    This costs volume on purpose, per the owner's zero-defects standard:
+    every candidate whose Dative reading is real but not FORCED by one of
+    these two structural facts is skipped, with no attempt to recover it
+    by trusting the tag anyway."""
+    out: list[Candidate] = []
+    for candidate in _KASUS_DATIV_FORMEN_BASE(sentence):
+        token = sentence.tokens[candidate.token_index]
+        clause_start, clause_end = _clause_span(sentence, token.i)
+        verb_lemma = _governing_verb_lemma(sentence, clause_start, clause_end)
+        if verb_lemma is None:
+            continue
+        if verb_lemma in paradigms.DATIVE_ONLY_VERBS:
+            out.append(candidate)
+        elif verb_lemma in paradigms.DITRANSITIVE_DATIVE_VERBS and _has_bare_accusative_object(
+            sentence, token.i, clause_start, clause_end
+        ):
+            out.append(candidate)
+    return out
+
+
 SELECTORS: dict[str, Selector] = {
     "artikel_bestimmt_nom": _select_artikel_bestimmt_nom,
     "artikel_unbestimmt_kein_nom": _select_artikel_unbestimmt_kein_nom,
     "artikel_possessiv_nom": _select_artikel_possessiv_nom,
     "kasus_akkusativ_formen": _determiner_selector("Acc", _ALL_ART_TYPES, "forbidden"),
-    "kasus_dativ_formen": _determiner_selector("Dat", _ALL_ART_TYPES, "forbidden"),
+    "kasus_dativ_formen": _select_kasus_dativ_formen,
     "kasus_genitiv_formen": _determiner_selector("Gen", _ALL_ART_TYPES, "forbidden"),
     "akkusativ_nach_praeposition": _determiner_selector(
         "Acc", _ALL_ART_TYPES, _WECHSEL_PREPOSITIONEN

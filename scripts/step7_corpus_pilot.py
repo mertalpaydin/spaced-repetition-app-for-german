@@ -140,7 +140,9 @@ from src.generation.batch_client import RejectedCandidateRecord
 from src.generation.blanking import carrier_validation
 from src.generation.blanking.model_verification import (
     DEFAULT_VERIFICATION_BATCH_SIZE,
+    ItemVerdict,
     ModelRejection,
+    VerificationReport,
     verify_items,
 )
 from src.generation.blanking.pipeline import (
@@ -775,9 +777,30 @@ def main() -> int:
             continue
         bank_items.append(_to_bank_item(item, topic, provenance.source, provenance.line_id))
 
-    verification_report = verify_items(
-        bank_items, llm_client, batch_size=DEFAULT_VERIFICATION_BATCH_SIZE
-    )
+    try:
+        verification_report = verify_items(
+            bank_items, llm_client, batch_size=DEFAULT_VERIFICATION_BATCH_SIZE
+        )
+    except Exception as exc:  # noqa: BLE001 -- mirrors scripts/eval_verifier.py's own
+        # precedent (TODO 3.3): an API key IS configured in this container's
+        # own .env, so ``llm_client`` is not ``None`` and ``verify_items``
+        # actually attempts a call, but the outbound request hits this
+        # sandbox's proxy with a 403 -- an error shape none of
+        # ``verify_items``'s own five caught transport/budget exceptions
+        # cover, since it never reaches Gemini at all. Without this guard
+        # the script crashes here with a raw traceback before ever writing
+        # the review/rejected/report files below, which this task's own
+        # verification requirement depends on existing even when the model
+        # pass legitimately could not run -- degrading exactly as honestly
+        # as the already-documented no-client case, not silently and not by
+        # crashing.
+        verification_report = VerificationReport(
+            attempted=True,
+            verdicts=[
+                ItemVerdict(outcome="not_run", reason=f"transport_error:{type(exc).__name__}")
+                for _ in bank_items
+            ],
+        )
     report.verification_attempted = verification_report.attempted
     report.verified_count = verification_report.verified_count
     report.model_rejected_count = verification_report.rejected_count

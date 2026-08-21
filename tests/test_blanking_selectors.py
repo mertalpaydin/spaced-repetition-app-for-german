@@ -262,6 +262,62 @@ def test_kasus_dativ_formen_excludes_a_prepositional_dative() -> None:
     assert candidates == []
 
 
+def test_kasus_dativ_formen_finds_a_ditransitive_verbs_indirect_object() -> None:
+    """ "geben" takes both a Dative recipient and an Accusative direct
+    object -- forced here because "ein Buch" (Accusative, determiner
+    present) sits in the same clause; see ``paradigms.DITRANSITIVE_
+    DATIVE_VERBS``."""
+    item = _blank("kasus_dativ_formen", "Er gibt seiner Schwester ein Buch.")
+    assert item.prompt == "Er gibt ___ Schwester ein Buch."
+    assert item.proposed_answer == "seiner"
+
+
+# ==============================================================================
+# TODO.md 8.5 / docs/audits/cycle-10-corpus-report.md: three items that are
+# not Dative at all -- a Nominative apposition, an Accusative direct
+# object, a Genitive noun complement -- but were all tagged ``Case=Dat``
+# and accepted by the old tag-only check. ``kasus_dativ_formen`` now
+# requires the Dative reading to be FORCED by the clause's own governing
+# verb (``selectors._select_kasus_dativ_formen``); none of these three has
+# one, so all three now correctly yield no candidate at all.
+# ==============================================================================
+
+
+def test_kasus_dativ_formen_rejects_a_nominative_apposition_tagged_dative() -> None:
+    """ "einer nach dem anderen" ("one after another") is a fixed Nominative
+    apposition to the subject "Busse" -- "fahren ab" (to depart) governs no
+    Dative object at all, so this candidate is skipped: not in
+    ``DATIVE_ONLY_VERBS``, not in ``DITRANSITIVE_DATIVE_VERBS``."""
+    _, candidates = _select("kasus_dativ_formen", "Die Busse fuhren einer nach dem anderen ab.")
+    assert candidates == []
+
+
+def test_kasus_dativ_formen_rejects_an_accusative_direct_object_tagged_dative() -> None:
+    """ "den Murks" is the Accusative direct object of "gelesen" (lesen) --
+    "lesen" takes no Dative object at all, so this candidate is skipped
+    even though the tagger heads "den" ``Case=Dat``."""
+    _, candidates = _select(
+        "kasus_dativ_formen",
+        "Ich weiß, obwohl natürlich alle den Murks längst gelesen haben, dass es stimmt.",
+    )
+    assert candidates == []
+
+
+def test_kasus_dativ_formen_rejects_a_genitive_noun_complement_tagged_dative() -> None:
+    """ "der Band" is a Genitive complement of the noun "Schlagzeuger"
+    ("drummer of the band"), not governed by any verb at all -- the
+    clause's own governing verb is the copula "ist" with a predicate
+    adjective ("bekannt"), which has no participle/infinitive complement
+    for ``_governing_verb_lemma`` to resolve through, so it correctly
+    returns ``None`` and this candidate is skipped."""
+    _, candidates = _select(
+        "kasus_dativ_formen",
+        "Miley Cyrus und Maxx Morando, der als Schlagzeuger der Band Liily bekannt ist, "
+        "sind seit 2021 ein Paar.",
+    )
+    assert candidates == []
+
+
 def test_kasus_genitiv_formen_finds_possessive_genitive_articles() -> None:
     item = _blank("kasus_genitiv_formen", "Die Farbe der Blumen ist schön.")
     assert item.proposed_answer == "der"
@@ -1266,6 +1322,27 @@ def test_perfekt_haben_and_perfekt_sein_are_disjoint_by_aux_participle_consisten
     assert sein_candidates == []
 
 
+def test_perfekt_sein_does_not_reach_into_an_unrelated_clauses_participle() -> None:
+    """Found while verifying the TODO.md 8.4 VAPP fix against the corpus,
+    not part of the reported defect itself: ``_select_perfekt`` used the
+    unbounded ``_participle_after``, not the clause-bounded ``_in_clause``
+    variant every other participle-reading selector in this module
+    (Plusquamperfekt, Konjunktiv II Vergangenheit, the passives) already
+    uses. This almost never mattered before, because a present-tense
+    Perfekt's own participle is overwhelmingly in the SAME clause as its
+    aux -- until ``_is_participle`` learned to recognise ``VAPP`` ("gehabt",
+    "gewesen", "geworden" -- an auxiliary-class lemma's own Partizip II),
+    which gave the unbounded search a NEW token to wrongly reach for the
+    first time. "Ich bin erstaunt, dass es heute so warm geworden ist." has
+    no Perfekt at all: "bin" is an ordinary present-tense copula with a
+    predicate adjective ("erstaunt"), and "geworden" belongs to the
+    UNRELATED "dass"-clause's own "ist". Confirmed empirically against this
+    exact sentence (a genuine corpus item, not synthesised) before writing
+    the clause-bounding fix, not guessed."""
+    _, candidates = _select("perfekt_sein", "Ich bin erstaunt, dass es heute so warm geworden ist.")
+    assert candidates == []
+
+
 def test_perfekt_sein_fires_on_the_named_perfekt_plusquamperfekt_ambiguity_sentence() -> None:
     """The exact sentence named in this cycle's brief as a real, previously
     audited defect: "Gestern ___ wir nach Berlin gefahren" wrongly accepted
@@ -1316,6 +1393,25 @@ def test_konjunktiv_ii_hoeflichkeit_finds_a_polite_question() -> None:
 
 def test_konjunktiv_ii_hoeflichkeit_does_not_fire_on_a_wenn_clause() -> None:
     _, candidates = _select("konjunktiv_ii_hoeflichkeit", "Wenn ich Zeit hätte, würde ich kommen.")
+    assert candidates == []
+
+
+def test_konjunktiv_ii_hoeflichkeit_does_not_fire_on_a_past_ersatzinfinitiv_question() -> None:
+    """A bonus finding while verifying the TODO.md 8.4 Ersatzinfinitiv fix
+    against the corpus, not one of the three reported items itself:
+    "Hätte die Polizei die Morde verhindern können?" is a question-shaped
+    sentence with no "wenn", which used to satisfy every one of this
+    topic's own gates and land here as if it were a polite request ("Could
+    you help me?") -- but it is asking about PAST ability ("Could the
+    police HAVE prevented the murders?"), the exact same Ersatzinfinitiv
+    shape ("hätte ... verhindern können") as the three reported items, just
+    in a question. The fix generalises correctly: it lives in the shared
+    ``_select_konjunktiv_ii_base``, so it closes this shape for
+    ``konjunktiv_ii_hoeflichkeit`` too, not only for
+    ``konjunktiv_ii_irreal_gegenwart``."""
+    _, candidates = _select(
+        "konjunktiv_ii_hoeflichkeit", "Hätte die Polizei die Morde verhindern können?"
+    )
     assert candidates == []
 
 
@@ -1404,6 +1500,138 @@ def test_konjunktiv_ii_vergangenheit_finds_a_past_counterfactual() -> None:
     )
     surface = {tagged.tokens[c.token_index].text for c in candidates}
     assert surface == {"hätte", "wäre"}
+
+
+# ==============================================================================
+# TODO.md 8.4 / docs/audits/cycle-10-corpus-report.md: three past Konjunktiv
+# II items that landed in konjunktiv_ii_irreal_gegenwart instead of
+# konjunktiv_ii_vergangenheit.
+#
+# Two are the Ersatzinfinitiv ("hätte gehen wollen", "hätte gewinnen
+# können"): a modal governing another infinitive elides its OWN past
+# participle in favour of its bare infinitive, so the clause has no
+# participle at all for a participle test to find -- closed by
+# ``_ersatzinfinitiv_in_clause``, a new, independent marker.
+#
+# The third ("gehabt ___", the participle sitting BEFORE the aux in a
+# verb-final "wenn"-clause) is the one the task brief asked to be
+# diagnosed, not just patched. Root cause, confirmed directly against the
+# tagger, not guessed: "gehabt" (the past participle of "haben" used as an
+# ordinary content verb, not as an auxiliary) is tagged ``VAPP`` by
+# de_core_news_sm, not ``VVPP``. ``_is_participle``'s trustworthy-tag
+# branch checked ONLY ``token.tag == "VVPP"`` before this fix, and its
+# shape fallback is gated on ``PARTICIPLE_CONFUSABLE_TAGS`` (``VVIZU``
+# only, TODO 1.2's own unrelated fix for a different mistagging pattern) --
+# ``VAPP`` was a member of neither, so ``_is_participle("gehabt")`` was
+# simply ``False``, and cycle 11's clause-bounded bidirectional participle
+# search, which correctly reached "gehabt"'s own position, never
+# recognised what it found there. There was no deliberate exclusion of an
+# auxiliary's own participle anywhere in this module, and the clause
+# boundary was already computed correctly -- confirmed by testing both
+# alternatives directly (see ``selectors._is_participle``'s own docstring
+# for the full trace) before writing this fix, per the task brief's own
+# instruction not to guess.
+# ==============================================================================
+
+
+def test_konjunktiv_ii_vergangenheit_finds_the_ersatzinfinitiv_with_a_modal() -> None:
+    """ "Wenn ich hätte gehen wollen, hätte ich's gesagt." -- the FIRST
+    "hätte" ("hätte gehen wollen") is the Ersatzinfinitiv: two bare
+    infinitives, no participle anywhere in its own clause. Cycle 10's own
+    reported item blanks exactly this one, not the sentence's second
+    "hätte" (an ordinary participle-after case, already correctly
+    vergangenheit before this fix)."""
+    item = _blank("konjunktiv_ii_vergangenheit", "Wenn ich hätte gehen wollen, hätte ich's gesagt.")
+    assert item.prompt == "Wenn ich ___ gehen wollen, hätte ich's gesagt."
+    assert item.proposed_answer == "hätte"
+
+
+def test_konjunktiv_ii_vergangenheit_finds_the_ersatzinfinitiv_in_a_dass_clause() -> None:
+    """ "Tom glaubt, dass er das Rennen hätte gewinnen können, wenn er sich
+    etwas mehr angestrengt hätte." -- the FIRST "hätte" ("hätte gewinnen
+    können") is the Ersatzinfinitiv; the sentence's second "hätte" (wenn-
+    clause, participle "angestrengt" before it) is an ordinary, already-
+    correct vergangenheit candidate in its own right, pinned separately by
+    ``candidate_index=0`` here to confirm which one this test means."""
+    item = _blank(
+        "konjunktiv_ii_vergangenheit",
+        "Tom glaubt, dass er das Rennen hätte gewinnen können, wenn er sich etwas mehr "
+        "angestrengt hätte.",
+        candidate_index=0,
+    )
+    assert item.prompt == (
+        "Tom glaubt, dass er das Rennen ___ gewinnen können, wenn er sich etwas mehr "
+        "angestrengt hätte."
+    )
+    assert item.proposed_answer == "hätte"
+
+
+def test_konjunktiv_ii_vergangenheit_finds_an_auxiliarys_own_participle_before_the_aux() -> None:
+    """ "Ich wäre gerne ins Kino gegangen, wenn ich die Zeit dazu gehabt
+    hätte." -- root cause: "gehabt" is tagged VAPP (an auxiliary-class
+    lemma's own Partizip II), not VVPP, so it was invisible to
+    ``_is_participle`` before this fix even though the clause-bounded
+    backward search already reached it. The sentence's first candidate is
+    "wäre" (main clause, "gegangen" after it, unaffected by this fix);
+    ``candidate_index=1`` selects "hätte", the one this task's own brief
+    asked to be diagnosed."""
+    item = _blank(
+        "konjunktiv_ii_vergangenheit",
+        "Ich wäre gerne ins Kino gegangen, wenn ich die Zeit dazu gehabt hätte.",
+        candidate_index=1,
+    )
+    assert item.prompt == "Ich wäre gerne ins Kino gegangen, wenn ich die Zeit dazu gehabt ___."
+    assert item.proposed_answer == "hätte"
+
+
+def test_konjunktiv_ii_irreal_gegenwart_does_not_fire_on_the_ersatzinfinitiv() -> None:
+    """The negative counterpart of the Ersatzinfinitiv fix: neither of the
+    two reported Ersatzinfinitiv sentences should produce ANY
+    konjunktiv_ii_irreal_gegenwart candidate at all once the past marker is
+    recognised."""
+    _, candidates_a = _select(
+        "konjunktiv_ii_irreal_gegenwart", "Wenn ich hätte gehen wollen, hätte ich's gesagt."
+    )
+    assert candidates_a == []
+    _, candidates_c = _select(
+        "konjunktiv_ii_irreal_gegenwart",
+        "Tom glaubt, dass er das Rennen hätte gewinnen können, wenn er sich etwas mehr "
+        "angestrengt hätte.",
+    )
+    assert candidates_c == []
+
+
+def test_konjunktiv_ii_irreal_gegenwart_does_not_fire_on_a_haben_participle() -> None:
+    """The negative counterpart of the VAPP fix: "gehabt hätte" must no
+    longer be reachable through konjunktiv_ii_irreal_gegenwart at all --
+    without the fix, "hätte" survived the (blind) participle exclusion
+    check and was wrongly admitted here."""
+    _, candidates = _select(
+        "konjunktiv_ii_irreal_gegenwart",
+        "Ich wäre gerne ins Kino gegangen, wenn ich die Zeit dazu gehabt hätte.",
+    )
+    assert candidates == []
+
+
+def test_konjunktiv_ii_irreal_gegenwart_still_fires_without_a_past_marker() -> None:
+    """The over-firing risk the task brief named directly: a naive
+    double-infinitive or participle-absence rule could swallow a genuine
+    present-tense Konjunktiv II built on "hätte" with no participle and no
+    Ersatzinfinitiv anywhere -- "Wenn ich Zeit hätte, hätte ich gern ein
+    Bier." has neither, and both of its "hätte"s must survive as
+    konjunktiv_ii_irreal_gegenwart candidates, unchanged from before this
+    fix. "Er könnte kommen, wenn er wollte." is the brief's own second
+    named example: a single bare infinitive after a modal is not the
+    Ersatzinfinitiv's own two-infinitive shape, so it is untouched by the
+    ``lemma == "haben"``-gated exclusion either way."""
+    _, candidates = _select(
+        "konjunktiv_ii_irreal_gegenwart", "Wenn ich Zeit hätte, hätte ich gern ein Bier."
+    )
+    assert len(candidates) == 2
+    _, koennte_candidates = _select(
+        "konjunktiv_ii_irreal_gegenwart", "Er könnte kommen, wenn er wollte."
+    )
+    assert koennte_candidates == []
 
 
 # ==============================================================================
