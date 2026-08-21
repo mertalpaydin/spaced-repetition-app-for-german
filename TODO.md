@@ -704,7 +704,7 @@ selector cannot see it".
 
 ## 4.6 The run report must be written to a file
 
-- [ ] The per-topic demand report, the rejection breakdown and the model
+- [x] The per-topic demand report, the rejection breakdown and the model
   verification counts are printed to the console and nowhere else. After the
   cycle 9 run this cost a full round trip: the audit could not distinguish
   "the model never wrote this construction" from "the selector could not see
@@ -715,6 +715,57 @@ selector cannot see it".
   Write the whole report to `data/blank_pilot_report.json` alongside the two
   JSONL files, with the same numbers the console prints. Every future audit
   then starts from a file rather than from a request.
+
+  **Done for both pilots.** `scripts/step6_blank_pilot.py` gained
+  `_build_report_dict` and a `--report-file` flag (default
+  `data/blank_pilot_report.json`): it mirrors everything
+  `_print_demand_run_report` and `_print_verification_report` put on the
+  console, calls made/projected, rejected-by-reason, per-topic sentence and
+  item counts, cross-topic duplicate drops, uniqueness skips, and the
+  verification outcome. `scripts/step7_corpus_pilot.py` (4.7 below) writes
+  the same shape of report for corpus-sourced runs, to
+  `data/corpus_pilot_report.json`.
+
+### 4.7 Verify-only pilot over corpus-extracted sentences
+
+- [x] `scripts/step7_corpus_pilot.py`: the first pilot that judges
+  corpus-derived items instead of only counting them. Reads Tatoeba and
+  Leipzig sentences from disk (paths are CLI arguments, defaulting to the
+  owner's uploaded extracts), runs them through the existing carrier
+  validator and the 49 selectors (`pipeline.blank_sentences`, no generation
+  call anywhere in this script), takes a **balanced** per-topic sample
+  (`--per-topic-quota`, default 10, deterministic per `--seed`) so all 49
+  topics are represented rather than whichever topics a random cut happens
+  to favour, applies each item's OWN topic's CEFR vocabulary ceiling (not
+  one global ceiling, since the same carrier sentence can be eligible for a
+  B1 topic and ineligible for an A1 one) via
+  `VocabularyStore.validate_sentence`, then sends the sample through the
+  existing model verification backstop
+  (`model_verification.verify_items`). Corpus provenance
+  (`corpus_source`, `corpus_line_id`) is attached to every item via
+  `model_copy(update=...)` without overloading `source_sentence_id`, which
+  already means something else. Corpus reading is shared with
+  `scripts/eval_corpus_coverage.py` via the new `scripts/corpus_reading.py`
+  rather than duplicated. Outputs: `data/corpus_pilot_review.jsonl`,
+  `data/corpus_pilot_rejected.jsonl` (every drop, including model
+  rejections, with a reason), `data/corpus_pilot_report.json` (4.6).
+
+  Offline run, no API key available in this environment so the model
+  verification backstop legitimately did not run and the script exits
+  non-zero, per its own "fail loudly" design: at `--limit 40000` (80,000
+  corpus lines total, the brief's own suggested ceiling, checked rather than
+  assumed), 56,178 of 80,000 lines pass length and carrier validation in
+  about 8 minutes end to end. The balanced sample lands at 482 of a
+  possible 490 (49 topics x quota 10). Two topics fall short: `futur_ii`
+  (8 of 10, only 8 CEFR-eligible candidates existed in the whole corpus
+  scanned) and `zustandspassiv_zeiten` (4 of 10, only 4 existed) -- both
+  already flagged in 4.5 as the constructions closest to needing generation
+  rather than retrieval. Every other one of the 49 topics hit its quota of
+  10. **40,000 is far more than the sample needs**: a `--limit` of 3,000
+  per source (6,000 lines total) already samples 392, close to cycle 9's
+  428, in well under a minute. 40,000 only exists to close the last two
+  topics' shortfall as far as the corpus can, and even then does not fully
+  close `zustandspassiv_zeiten`.
 
 ---
 

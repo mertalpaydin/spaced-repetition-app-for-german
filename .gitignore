@@ -67,6 +67,12 @@ data/raw/
 data/generated/
 data/pilot_review.jsonl
 data/pilot_rejected.jsonl
+data/blank_pilot_review.jsonl
+data/blank_pilot_rejected.jsonl
+data/blank_pilot_report.json
+data/corpus_pilot_review.jsonl
+data/corpus_pilot_rejected.jsonl
+data/corpus_pilot_report.json
 
 # Node / Frontend / PWA
 node_modules/

@@ -42,7 +42,6 @@ from __future__ import annotations
 import argparse
 import collections
 import json
-import random
 from pathlib import Path
 
 from src.generation.blanking import carrier_validation
@@ -50,59 +49,35 @@ from src.generation.blanking.pipeline import blank_sentences
 from src.generation.blanking.selectors import SELECTORS
 from src.lexicon.vocabulary import VocabularyStore
 
+from scripts.corpus_reading import MAX_CHARS, MAX_WORDS, MIN_CHARS, MIN_WORDS, read_sentence_texts
+
 DEFAULT_VOCAB_PATH = Path("data/fixtures/corpus/vocab_levels.json")
 
-# Carrier-plausible bounds, matching scripts/eval_tagger_vs_gold.py so the two
-# measurements are talking about the same kind of sentence.
-MIN_CHARS = 25
-MAX_CHARS = 160
-MIN_WORDS = 5
-MAX_WORDS = 18
+# Re-exported so this module's own MIN_CHARS/MAX_CHARS/MIN_WORDS/MAX_WORDS
+# names keep working for anything importing them from here -- the real
+# values live in scripts.corpus_reading now, shared with
+# scripts.step7_corpus_pilot (that module's own docstring has the full
+# reuse-do-not-reimplement rationale).
+__all__ = [
+    "DEFAULT_VOCAB_PATH",
+    "MAX_CHARS",
+    "MAX_WORDS",
+    "MIN_CHARS",
+    "MIN_WORDS",
+    "main",
+    "read_sentences",
+]
 
 
 def read_sentences(path: Path, fmt: str, limit: int, seed: int) -> list[str]:
     """Read up to ``limit`` length-plausible sentences from ``path``.
 
-    Reads the whole file, filters, then samples, rather than taking the first
-    ``limit`` lines: both corpora are ordered (Tatoeba by contribution id,
-    Leipzig by source document), so a prefix is not a sample of the corpus.
+    Thin wrapper over ``scripts.corpus_reading.read_sentence_texts`` (see
+    that module's own docstring): this script never needed each line's own
+    corpus id, only the text, so it keeps this narrower signature rather than
+    having every call site unpack a ``CorpusLine`` it does not use.
     """
-    raw: list[str] = []
-    with path.open(encoding="utf-8", errors="replace") as handle:
-        for line in handle:
-            text = line.rstrip("\n")
-            if not text:
-                continue
-            if fmt == "tatoeba":
-                parts = text.split("\t")
-                if len(parts) < 3:
-                    continue
-                text = parts[2]
-            elif "\t" in text:
-                text = text.split("\t", 1)[1]
-            if not _plausible(text):
-                continue
-            raw.append(text)
-    random.Random(seed).shuffle(raw)
-    return raw[:limit]
-
-
-def _plausible(text: str) -> bool:
-    """Cheap pre-tagging filter: length, terminal punctuation, no markup.
-
-    Deliberately crude. Real judgement is carrier validation's job; this only
-    exists so the expensive tagging pass is not spent on obvious junk such as
-    Leipzig's price fragments and table rows.
-    """
-    if not (MIN_CHARS <= len(text) <= MAX_CHARS):
-        return False
-    if not text.endswith((".", "!", "?")):
-        return False
-    if not (MIN_WORDS <= len(text.split()) <= MAX_WORDS):
-        return False
-    # A sentence that opens mid-thought, or carries markup or tabular debris,
-    # cannot stand alone as a carrier no matter how well it tags.
-    return not any(ch in text for ch in "|<>[]{}\t")
+    return read_sentence_texts(path, fmt, limit, seed)
 
 
 def main() -> int:

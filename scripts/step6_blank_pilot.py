@@ -158,6 +158,7 @@ _VALID_DIFFICULTY: tuple[Difficulty, ...] = (1, 2, 3)
 
 DEFAULT_REVIEW_PATH = Path("data/blank_pilot_review.jsonl")
 DEFAULT_REJECTED_PATH = Path("data/blank_pilot_rejected.jsonl")
+DEFAULT_REPORT_PATH = Path("data/blank_pilot_report.json")
 
 
 @dataclass(frozen=True)
@@ -569,6 +570,79 @@ def _print_demand_run_report(run_report: DemandRunReport, *, ran_live: bool) -> 
         print(f"    - {reason}: {count}")
 
 
+def _build_report_dict(
+    run_report: DemandRunReport,
+    verification_report: VerificationReport,
+    *,
+    ran_live: bool,
+    review_file: str,
+    rejected_file: str,
+) -> dict[str, object]:
+    """Everything ``_print_demand_run_report`` and ``_print_verification_report``
+    print, as one JSON-serialisable dict (TODO 4.6). The cycle 9 pilot's own
+    per-topic demand report, rejection breakdown and verification counts
+    existed only on the console -- the owner had to paste them by hand, and
+    an agent later flagged the pasted figures as unsourced because they
+    existed in no committed file (TODO 1.8's own provenance note). This
+    function is the fix: one dict, built from the exact same report objects
+    the console printer reads, written to ``data/blank_pilot_report.json``
+    (``main()``, below) so every future audit starts from a file instead of
+    a request. Kept as its own function (not inlined in ``main()``) so a
+    test can assert its shape without parsing console output."""
+    report = run_report.blanking_report
+    already_met = [t for t in run_report.topic_reports if t.already_met_by_other_topics]
+    redistributed = [t for t in run_report.topic_reports if t.used_redistributed_budget]
+    return {
+        "run": {
+            "live": ran_live,
+            "topics_with_demand": len(run_report.demands),
+            "calls_made": run_report.calls_made,
+            "projected_calls": run_report.projected_calls,
+            "call_ceiling": run_report.call_ceiling,
+            "call_ceiling_hit": run_report.call_ceiling_hit,
+        },
+        "topics_skipped_already_met_by_other_topics": len(already_met),
+        "topics_served_from_redistributed_budget": len(redistributed),
+        "raw_sentences_requested": sum(t.sentences_requested for t in run_report.topic_reports),
+        "duplicates_skipped": run_report.duplicates_skipped,
+        "rejected_by_reason": dict(run_report.rejected_by_reason),
+        "carrier_valid_sentences": len(run_report.sentences),
+        "items_produced": report.total_items,
+        "per_topic": [
+            {
+                "topic_id": t.topic_id,
+                "demand": t.demand.demand,
+                "items_produced": t.items_produced,
+                "provisional_items": t.provisional_items,
+                "retries_used": t.retries_used,
+                "calls_made": t.calls_made,
+                "met_demand": t.met_demand,
+                "already_met_by_other_topics": t.already_met_by_other_topics,
+                "used_redistributed_budget": t.used_redistributed_budget,
+                "shortfall_reasons": t.shortfall_reasons,
+            }
+            for t in run_report.topic_reports
+        ],
+        "topics_with_zero_items": run_report.topics_with_zero_items,
+        "cross_topic_duplicates_dropped": dict(report.cross_topic_duplicates_dropped),
+        "items_dropped_by_topic_cap": dict(report.items_dropped_by_topic_cap),
+        "items_dropped_by_sentence_cap": dict(report.items_dropped_by_sentence_cap),
+        "skips_by_uniqueness": dict(report.skips_by_uniqueness),
+        "verification": {
+            "attempted": verification_report.attempted,
+            "verified_count": verification_report.verified_count,
+            "rejected_count": verification_report.rejected_count,
+            "rejected_reasons": dict(verification_report.rejected_reasons),
+            "not_run_count": verification_report.not_run_count,
+            "not_run_reasons": dict(verification_report.not_run_reasons),
+        },
+        "output_files": {
+            "review": review_file,
+            "rejected": rejected_file,
+        },
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Step 6 generate-then-blank pilot.")
     parser.add_argument(
@@ -691,6 +765,16 @@ def main() -> int:
         help=(
             "Where to write every skipped/rejected/dropped candidate, with its "
             "reason (same shape as data/pilot_rejected.jsonl)."
+        ),
+    )
+    parser.add_argument(
+        "--report-file",
+        type=str,
+        default=str(DEFAULT_REPORT_PATH),
+        help=(
+            "Where to write the machine-readable run report (TODO 4.6): every "
+            "number this script prints, so a future audit does not depend on "
+            "a console paste."
         ),
     )
     args = parser.parse_args()
@@ -864,8 +948,20 @@ def main() -> int:
 
     _print_verification_report(verification_report)
 
+    report_path = Path(args.report_file)
+    report_dict = _build_report_dict(
+        run_report,
+        verification_report,
+        ran_live=ran_live,
+        review_file=str(review_path),
+        rejected_file=str(rejected_path),
+    )
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report_dict, ensure_ascii=False, indent=2), encoding="utf-8")
+
     print(f"  Review file:           {review_path}")
     print(f"  Rejected file:         {rejected_path}")
+    print(f"  Report file:           {report_path}")
 
     if verification_report.not_run_count > 0:
         # The model verification backstop is the whole point of this
