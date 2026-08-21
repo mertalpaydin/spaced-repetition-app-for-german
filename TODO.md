@@ -880,3 +880,137 @@ without the owner saying so explicitly.
   49 topics after the change. Cost: none measured -- the false-negative
   guard fixture and the full non-live/non-simulation test suite (1,201
   tests) are unchanged in outcome, and mypy --strict / ruff are clean.
+
+---
+
+## 8. Fixes for the 19 corpus-pilot defects (cycle 10)
+
+From `docs/audits/cycle-10-corpus-report.md`, all 366 items audited by hand.
+Confidence is stated per item and is not decoration: two of these are not
+solved, and saying so up front is the point.
+
+**The pattern across four of the five classes:** a selector trusted a spaCy
+tag that `docs/audits/tagger-accuracy-vs-gold.md` measured as unreliable.
+Mood is 12.59 percent conflicting, Case 6.08 percent conflicting and a
+further 20.26 percent absent. The general remedy is the one that already
+worked for participles: never gate on a tag when the fact is derivable from
+structure.
+
+- [ ] **8.1 Reflexive case routing, 3 items. Confidence: high, and the fix is
+  newly possible.** `sich verbeugen`, `sich überzeugen lassen` and `sich zur
+  Wahl stellen` are accusative and landed in `verben_reflexiv_dat`. Cycle 11
+  fixed this class with a closed list of five verbs; none of these three is
+  on it, and German has hundreds, so the list approach is finished.
+
+  **Build the government lexicon from the corpus instead.** In 1M sentences,
+  a reflexive verb appears many times with an UNAMBIGUOUS pronoun: `ich
+  verbeuge mich` is accusative, `ich stelle mir vor` is dative. `mich`/`mir`
+  and `dich`/`dir` are not syncretic; `sich`, `uns` and `euch` are. Harvest
+  the unambiguous occurrences, derive each verb's case, and use that lexicon
+  when the pronoun in the item IS syncretic. Fall back to skipping the item
+  when the verb is not in the lexicon.
+
+  This was not possible before we had a corpus. It is now, and it is exactly
+  the kind of thing the corpus should be paying for.
+
+- [ ] **8.2 `zustandspassiv` taking the perfect of a motion verb, 2 items.
+  Confidence: high.** `dass wir hierher gezogen sind` is the perfect of
+  `ziehen`, we moved house. The selector sees `sein` plus a participle. The
+  discriminator already exists in the codebase: `paradigms.AUX_SEIN_LEMMAS`
+  lists the verbs that form their perfect with `sein`. If the participle's
+  verb is on that list, `sein` plus participle is a perfect, not a
+  Zustandspassiv.
+
+- [ ] **8.3 `passiv_praesens` taking Futur I, 2 items. Confidence: high.**
+  `Ich werde nie vergessen, wie ...` reads as a passive only because
+  `vergessen`'s infinitive and past participle are spelled identically. This
+  was recorded as a known residual when the participle fix landed and is now
+  live twice.
+
+  General rule, not a special case for one verb: **a German passive cannot
+  take an accusative object.** The `wie` clause here is the object of
+  `vergessen`. If the clause has a direct object, it is not a passive. That
+  also covers `bekommen`, `erhalten` and every other verb with a syncretic
+  infinitive and participle.
+
+- [ ] **8.4 Konjunktiv II present taking the past, 3 items. Confidence:
+  medium, and one of the three needs investigating first.**
+
+      Wenn ich ___ gehen wollen, hätte ich's gesagt.                  hätte
+      Ich wäre gerne ins Kino gegangen, wenn ich die Zeit gehabt ___. hätte
+      ... dass er das Rennen ___ gewinnen können, wenn ...            hätte
+
+  The first and third are the **Ersatzinfinitiv**: `hätte gehen wollen` has
+  no participle at all, it is two bare infinitives, so a participle test can
+  never catch it. Add the double-infinitive shape as a past marker.
+
+  The second one is the problem. `gehabt ___` is a participle before the
+  auxiliary, which is exactly the shape cycle 11's bidirectional search was
+  supposed to handle, and it still got through. **Do not write a fix for this
+  until you understand why the existing one missed it.** Guessing here is how
+  a class comes back for a fourth cycle.
+
+- [ ] **8.5 `kasus_dativ_formen` accepting three other cases, 3 items.
+  Confidence: medium, and it will cost volume.** A nominative (`einer nach
+  dem anderen`), an accusative (`den Murks gelesen`) and a genitive
+  (`Schlagzeuger der Band`) all landed in the dative topic. Corpus syntax is
+  far more varied than generated syntax and the selector's case test does not
+  survive it.
+
+  The tag alone cannot be trusted here. Require the dative reading to be
+  FORCED: a dative-governing preposition, a dative-governing verb, or a
+  genuine indirect-object position with a direct object present. Accept that
+  this drops items whose case is real but unforced.
+
+- [ ] **8.6 `relativsatz_nom_akk` taking an article inside an infinitive
+  clause, 1 item. Confidence: high.** `fordern Experten, ___
+  US-Seltene-Erden-Industrie wiederzubeleben` blanks an ordinary accusative
+  article. Require the clause the pronoun introduces to contain a FINITE
+  verb. An infinitive clause has none.
+
+- [ ] **8.7 `adjektivdeklination_bestimmt` with no article present, 1 item.
+  Confidence: high.** `bei den Studentinnen ___ Anklang gefunden` has no
+  article on `Anklang`; the `den` belongs to `Studentinnen`. Same family as
+  the nullartikel fix: the determiner must be inside the head noun's own
+  phrase, not merely earlier in the sentence. Note the answer was still
+  right, because strong and weak both give `-en` here, so this is a topic
+  attribution defect rather than a wrong answer.
+
+- [ ] **8.8 Two cues spelled the Swiss way, 2 items. Confidence: high.**
+  `mit ___ (schliessen) Augen` should cue `schließen`. This is not the
+  corpus, it is our own vendored dictionary, which was written through a
+  normaliser that turns every `ß` into `ss`, leaking into text the learner
+  reads. Fix at the point where a cue lemma is taken from that dictionary.
+  Do NOT blanket-convert `ss` to `ß`: that would break `muss`, `Fluss` and
+  every legitimately short-vowel word.
+
+- [ ] **8.9 `futur_ii` taking the present passive, 1 item. Confidence:
+  high.** Same shape error the `futur_i` fix already closed. Futur II is
+  `werden` plus participle plus `haben`/`sein` infinitive. Require the full
+  shape.
+
+- [ ] **8.10 `Strässchen` in a carrier, 1 item. NO FIX. This one is honest
+  and unsolved.** Standard German is `Sträßchen`. The Swiss rule added in
+  cycle 13 covers diphthongs before `ss` plus a closed list, and cannot cover
+  this: `ä` before `ss` is Swiss in `Strässchen` (long vowel) but perfectly
+  standard in `Fässer`, `Pässe`, `Gässchen` (short vowel). German
+  orthography does not mark vowel length reliably enough to decide it.
+
+  Options, none of them clean: add `Strässchen` and its neighbours to the
+  closed list, which is the list-maintenance treadmill we just abandoned for
+  reflexives; or drop Leipzig sources published in Switzerland, which costs
+  real volume for one defect in 366; or accept it and let the verifier catch
+  what it catches. **My recommendation is to accept it and say so in the
+  audit each time**, rather than pretend a rule exists.
+
+- [ ] **8.11 Lexical monotony. Not a defect, but it makes the item count
+  overstate what a learner gets.** Seven of ten `partizip_i_attributiv` items
+  use `laufend`; three of nine `verb_praesens_vokalwechsel` items are `gibt`.
+  Every one is correct. The sampler should diversify by lemma as well as by
+  topic: cap how many items in one topic may share a blanked lemma.
+
+### Scoreboard
+
+17 of the 19 have a fix I would stand behind. One (8.4's middle item) needs
+diagnosis before a fix is written. One (8.10) has no clean solution and is
+recorded as a known limit rather than papered over.
