@@ -565,11 +565,14 @@ _MOCK_SENTENCE_POOL_BASE: tuple[str, ...] = (
 # were rewritten, not weakened past the checks (CLAUDE.md 7) -- among the
 # confirmed failure modes, worth recording so a future edit does not
 # reintroduce them: a participle whose lemma is not in ``paradigms.
-# TRANSITIVE_LEMMAS``/``KNOWN_PARTICIPLE_FORMS`` (e.g. "unterschrieben",
-# "geschlossen" -- the latter lemmatises to "schließen", which does not
-# match the ASCII "schliessen" key in ``TRANSITIVE_LEMMAS``) never yields a
-# passive/Zustandspassiv candidate even though the sentence itself is
-# perfectly sound German; a separable verb's fused zu-infinitive
+# TRANSITIVE_LEMMAS``/``KNOWN_PARTICIPLE_FORMS`` (e.g. "unterschrieben")
+# never yields a passive/Zustandspassiv candidate even though the sentence
+# itself is perfectly sound German -- "geschlossen" used to be a second,
+# confirmed instance of exactly this (it lemmatises to "schließen", which
+# did not match the ASCII "schliessen" key ``TRANSITIVE_LEMMAS`` carried at
+# the time), but TODO.md 8.8 fixed that key -- see ``paradigms.py``'s own
+# comment on it -- so "geschlossen" is no longer an example of this gap;
+# a separable verb's fused zu-infinitive
 # ("aufzustehen", one token, tag ``VVIZU``) never matches
 # ``infinitiv_mit_zu``'s selector, which looks for a split ``PTKZU`` token
 # immediately before a plain ``VVINF`` token; an inserted phrase between an

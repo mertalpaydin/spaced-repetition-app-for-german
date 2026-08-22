@@ -1391,6 +1391,87 @@ def _reflexive_selector(fixed_case: str) -> Selector:
 _RELATIVE_PRONOUN_TAGS: frozenset[str] = frozenset({"PRELS", "PRELAT"})
 
 
+def _relative_clause_has_finite_verb(sentence: TaggedSentence, pronoun_index: int) -> bool:
+    """Whether the clause ``pronoun_index`` (a candidate relative pronoun)
+    introduces -- bounded the same way every other clause-scoped check in
+    this module is, ``_clause_span`` -- contains a genuine (non-infinitival)
+    verb.
+
+    TODO.md 8.6: an ordinary accusative/nominative ARTICLE can carry the
+    exact tag this selector otherwise trusts (``PRELS``) when it happens to
+    sit at the front of an INFINITIVE clause with no finite verb of its own
+    ("fordern Experten, ___ US-Seltene-Erden-Industrie wiederzubeleben, um
+    ..." -- "die" is a plain accusative article governing "Industrie", not
+    a relative pronoun at all; there is no antecedent for it to relativise
+    and no finite verb anywhere in the clause it sits in). A genuine
+    relative clause always has a finite verb; German has no infinitival
+    relative clause at all (unlike English "the man to see") -- so ANY
+    zu-infinitive found where a relative clause's own verb should be is
+    proof the "relative pronoun" reading is wrong, never a legitimate
+    reduced relative.
+
+    Deliberately NOT a ``VerbForm=="Fin"`` check: confirmed directly, this
+    tagger mistags a GENUINE finite relative-clause verb as non-finite far
+    more often than the module's own tagger-accuracy audit's headline
+    number would suggest -- every one of this package's own hand-written
+    relative-clause examples reproduces it ("die im Garten **spielen**"
+    (3rd-plural present, spelled identically to the infinitive) tags
+    ``VVINF``; "sehr **vertrauen**" likewise; "an der Universität
+    **studiert**" (3rd-singular present) tags ``VVPP``, not ``VVFIN``, in
+    every case). A ``VerbForm=="Fin"``-only check would have wrongly
+    rejected all three. What actually distinguishes the reported defect is
+    not finiteness, it is INFINITIVAL MARKING: this check instead asks
+    whether the clause has any ``VERB``/``AUX`` token that is NOT itself
+    part of a zu-infinitive construction -- fused
+    (``paradigms.is_fused_zu_infinitiv_shape``, the reported sentence's own
+    "wiederzubeleben", itself further mistagged ``VerbForm=Fin`` by this
+    same tagger, confirming a tag/morph check could not have worked either
+    way) or split (``PTKZU`` immediately before a bare infinitive tag,
+    ``_MODAL_INFINITIVE_TAGS``) -- which correctly finds a qualifying verb
+    in all three genuine examples above (none is infinitival) while still
+    correctly finding none in the reported sentence's own clause (its only
+    verb-shaped token is the zu-infinitive itself).
+
+    The entry filter accepts a token whose TAG (not only its POS) starts
+    with the STTS verb-tag letter "V". Confirmed directly against the real
+    corpus at pilot scale: the tagger sometimes mistags a genuine finite
+    clause verb's POS itself while its TAG still correctly says a finite
+    verb tag ("die man versenden musste": "versenden" is POS ADJ, TAG
+    VVINF, but "musste" right after it, the clause's real finite verb, is
+    POS ADJ, TAG VMFIN -- a POS-only filter skips it entirely). STTS never
+    uses a "V"-prefixed tag for anything but a verb, so widening the entry
+    filter this way cannot admit a non-verb token.
+
+    Deliberately NOT also excluding by a bare "tag ends INF/IZU/PP" rule:
+    tried directly, it broke the opposite direction -- this tagger mistags
+    a genuine 3rd-plural-present verb that happens to be SPELLED like its
+    own infinitive ("die im Garten spielen") as ``VVINF``, so excluding by
+    tag suffix throws away a real finite verb whenever the tagger's TAG
+    lies in that direction, exactly mirroring why this function does not
+    trust ``VerbForm=="Fin"`` either. The fused/split zu-infinitive checks
+    below are the only exclusion: they catch the reported sentence's own
+    "wiederzubeleben" (a genuine zu-infinitive the tagger mislabels as
+    finite by BOTH its tag and its morph) without needing to trust the
+    tagger's tag on any other token. A clause whose only verb-shaped token
+    is an untagged-as-such bare infinitive (no "zu", not preceded by
+    ``PTKZU``) still passes as "has a finite verb" here -- a known,
+    pre-existing gap (not introduced by the TAG-based widening above; the
+    original POS-only filter already had it) affecting only AcI-style bare
+    infinitive clauses, which the ``_RELATIVE_PRONOUN_TAGS`` entry check one
+    call site up practically never admits in the first place."""
+    _, clause_end = _clause_span(sentence, pronoun_index)
+    for i in range(pronoun_index, clause_end):
+        tok = sentence.tokens[i]
+        if tok.pos not in ("VERB", "AUX") and not tok.tag.startswith("V"):
+            continue
+        if paradigms.is_fused_zu_infinitiv_shape(tok.text):
+            continue
+        if tok.tag in _MODAL_INFINITIVE_TAGS and i > 0 and sentence.tokens[i - 1].tag == "PTKZU":
+            continue
+        return True
+    return False
+
+
 def _relative_pronoun_selector(fixed_cases: frozenset[str]) -> Selector:
     def select(sentence: TaggedSentence) -> list[Candidate]:
         out: list[Candidate] = []
@@ -1400,6 +1481,8 @@ def _relative_pronoun_selector(fixed_cases: frozenset[str]) -> Selector:
             case = token.morph.get("Case")
             number = token.morph.get("Number")
             if case is None or number is None or case not in fixed_cases:
+                continue
+            if not _relative_clause_has_finite_verb(sentence, token.i):
                 continue
             gender = token.morph.get("Gender") or _FACETS_UNK
             out.append(
@@ -2963,6 +3046,98 @@ def _select_konjunktiv_ii_vergangenheit(sentence: TaggedSentence) -> list[Candid
 # ------------------------------------------------------------------------
 
 
+# TODO.md 8.3: a German passive cannot take an accusative object -- if a
+# candidate ``werden``+participle's own clause (or the clause immediately
+# following it) supplies one, the reading is not a passive at all, it is
+# Futur I with the "participle" actually functioning as a bare infinitive.
+# This only matters for a participle whose surface spelling is IDENTICAL to
+# its own infinitive (checked at the one call site below, not here) --
+# "vergessen", "bekommen", "erhalten", "verlassen" and every other verb
+# with a syncretic infinitive/participle -- since only for those verbs does
+# "werden" + that form admit a genuine Futur I reading in the first place;
+# an ordinary participle ("geöffnet", "informiert", ...) is never also a
+# valid bare infinitive, so a passive candidate built on one is never at
+# risk of this confusion and is left alone regardless of what follows it.
+def _clause_takes_accusative_object(
+    sentence: TaggedSentence, clause_start: int, clause_end: int
+) -> bool:
+    """Whether an ordinary noun-phrase accusative object -- not a
+    reflexive pronoun, not a Dative, not a bare temporal accusative, not
+    the object of a preposition -- sits anywhere in ``[clause_start,
+    clause_end)``. The same shape ``_has_bare_accusative_object`` already
+    scans for the reflexive-case-routing/dative-forcing fixes (TODO 8.1/
+    8.5), reused here rather than re-derived, with one addition: a
+    reflexive pronoun (tag ``PRF``) is explicitly excluded from counting as
+    the passive's own forbidden object, confirmed necessary per this
+    task's own brief -- a "sich"/dative co-occurring with a genuine passive
+    ("Ihm wird ein Zimmer für sich eingerichtet.") must never be mistaken
+    for the accusative object that rules a passive reading out. Dative is
+    already excluded by construction (only ``Case=="Acc"`` is ever
+    checked), so a genuine Dative-object passive ("Ihm wird geholfen.") is
+    never at risk here either."""
+    for tok in sentence.tokens[clause_start:clause_end]:
+        if tok.pos not in ("NOUN", "PROPN", "PRON"):
+            continue
+        if tok.tag == "PRF":
+            continue
+        if tok.morph.get("Case") != "Acc":
+            continue
+        if tok.lemma.lower() in _TEMPORAL_ACCUSATIVE_LEMMAS:
+            continue
+        if _governed_by_adposition(sentence, tok.i):
+            continue
+        return True
+    return False
+
+
+# "ob" plus any interrogative pronoun/adverb (PronType=Int -- "wie", "was",
+# "wer", "wann", "wo", "warum", ...) mark a genuine embedded-question
+# clause, the shape a cognition verb like "vergessen"/"erfahren" takes as
+# its OWN, SOLE accusative-object argument. "dass" is deliberately NOT
+# included: a "dass"-clause is also how a ditransitive-shaped verb
+# ("informieren jemanden, dass...") keeps a SEPARATE complement clause
+# alongside an already-passivised accusative person -- "Ich werde
+# informiert, dass..." is a genuine passive, and "informiert" is not
+# syncretic anyway (this check is gated on that at its one call site), but
+# extending to "dass" was not needed for either reported item and is left
+# out rather than risk that shape for a verb this task did not check.
+_EMBEDDED_QUESTION_INTRODUCER_LEMMAS: frozenset[str] = frozenset({"ob"})
+
+
+def _followed_by_embedded_question_object(sentence: TaggedSentence, clause_end: int) -> bool:
+    """Whether ``clause_end`` (a clause-boundary comma index, ``_clause_
+    span``'s own return convention) is immediately followed by an embedded-
+    question/``ob`` clause with a genuine, non-copular finite verb of its
+    own -- confirmed on the two reported items ("wie ich dich ... gesehen
+    habe", "wie ich mit ihr Hawaii besucht habe") and checked NOT to fire
+    on a comparative/manner "wie"-clause ("Das Fenster wird geöffnet, wie
+    es üblich ist.") -- the introducing word tags identically (SCONJ,
+    PWAV, PronType=Int) in both shapes, so the two are told apart by the
+    embedded clause's own finite verb: a bare copula ("sein") predicating
+    an adjective is the manner-clause shape, never a genuine object clause
+    of the kind this check exists for."""
+    n = len(sentence.tokens)
+    if clause_end >= n or sentence.tokens[clause_end].tag != _CLAUSE_BOUNDARY_TAG:
+        return False
+    after = clause_end + 1
+    if after >= n:
+        return False
+    introducer = sentence.tokens[after]
+    if introducer.pos != "SCONJ":
+        return False
+    is_embedded_question = (
+        introducer.morph.get("PronType") == "Int"
+        or introducer.lemma.lower() in _EMBEDDED_QUESTION_INTRODUCER_LEMMAS
+    )
+    if not is_embedded_question:
+        return False
+    sub_start, sub_end = _clause_span(sentence, after)
+    return any(
+        t.pos in ("VERB", "AUX") and t.morph.get("VerbForm") == "Fin" and t.lemma.lower() != "sein"
+        for t in sentence.tokens[sub_start:sub_end]
+    )
+
+
 def _select_passiv(sentence: TaggedSentence, *, morph_tense: str) -> list[Candidate]:
     """Present/Präteritum Vorgangspassiv: ``werden`` plus a transitive past
     participle.
@@ -2993,8 +3168,19 @@ def _select_passiv(sentence: TaggedSentence, *, morph_tense: str) -> list[Candid
         participle = _participle_after_in_clause(sentence, token.i) or _participle_before_in_clause(
             sentence, token.i
         )
-        if participle is None or _participle_lemma(participle) not in paradigms.TRANSITIVE_LEMMAS:
+        if participle is None:
             continue
+        part_lemma = _participle_lemma(participle)
+        if not part_lemma or part_lemma not in paradigms.TRANSITIVE_LEMMAS:
+            continue
+        # TODO.md 8.3: gated on the syncretic shape -- see
+        # ``_clause_takes_accusative_object``'s own module comment for why.
+        if participle.text.lower() == part_lemma:
+            clause_start, clause_end = _clause_span(sentence, token.i)
+            if _clause_takes_accusative_object(sentence, clause_start, clause_end):
+                continue
+            if _followed_by_embedded_question_object(sentence, clause_end):
+                continue
         person, number = token.morph.get("Person"), token.morph.get("Number")
         if not person or not number:
             continue
@@ -3062,6 +3248,32 @@ def _select_passiv_modalverben(sentence: TaggedSentence) -> list[Candidate]:
     return out
 
 
+# TODO.md 8.2: "sein" plus a past participle is ambiguous between
+# Zustandspassiv ("das Auto ist repariert", a state resulting from a
+# transitive action) and the Perfekt of a "sein"-auxiliary motion/change-
+# of-state verb ("wir sind gezogen", we moved) -- ``_select_zustandspassiv``
+# used to check only ``paradigms.TRANSITIVE_LEMMAS`` membership, which
+# "ziehen" clears (it is genuinely transitive in its other reading, "einen
+# Wagen ziehen"), so "sind/ist ... gezogen" (moved house) was wrongly built
+# as a Zustandspassiv candidate. The discriminator is
+# ``paradigms.AUX_SEIN_LEMMAS`` itself -- the closed list of verbs whose
+# OWN Perfekt takes "sein" -- but "ziehen" is deliberately NOT added to
+# that shared set: it already lives in ``TRANSITIVE_LEMMAS`` too, and
+# ``_select_perfekt``'s own haben/sein branch (this module's comment above
+# ``AUX_SEIN_LEMMAS`` in ``paradigms.py``) relies on the two sets staying
+# DISJOINT to keep a genuine "Ich habe den Wagen gezogen." (transitive,
+# haben-Perfekt) correctly routed to ``perfekt_haben`` -- adding "ziehen"
+# to the shared set would silently break that. Zustandspassiv has no such
+# case to protect here: a genuine Zustandspassiv of transitive "ziehen"
+# ("Die Grenze ist neu gezogen.") is rare, and losing it to correctly
+# reject the far commoner "ist/sind ... gezogen" (moved) confusion is the
+# same "reject rather than guess" trade this module already makes
+# elsewhere (docs/audits/cycle-10-corpus-report.md 8.2). Scoped to a local
+# extension of the shared set, used only by the two Zustandspassiv
+# selectors below.
+_ZUSTANDSPASSIV_PERFEKT_MIT_SEIN_LEMMAS: frozenset[str] = paradigms.AUX_SEIN_LEMMAS | {"ziehen"}
+
+
 def _select_zustandspassiv(sentence: TaggedSentence) -> list[Candidate]:
     """Present-tense Zustandspassiv: ``sein`` plus a transitive past
     participle.
@@ -3084,7 +3296,15 @@ def _select_zustandspassiv(sentence: TaggedSentence) -> list[Candidate]:
         participle = _participle_after_in_clause(sentence, token.i) or _participle_before_in_clause(
             sentence, token.i
         )
-        if participle is None or _participle_lemma(participle) not in paradigms.TRANSITIVE_LEMMAS:
+        if participle is None:
+            continue
+        part_lemma = _participle_lemma(participle)
+        if not part_lemma or part_lemma not in paradigms.TRANSITIVE_LEMMAS:
+            continue
+        # TODO.md 8.2: see ``_ZUSTANDSPASSIV_PERFEKT_MIT_SEIN_LEMMAS``'s own
+        # comment above -- "sein" plus a motion/change-of-state verb's own
+        # participle is that verb's Perfekt, never a Zustandspassiv.
+        if part_lemma in _ZUSTANDSPASSIV_PERFEKT_MIT_SEIN_LEMMAS:
             continue
         if _clause_contains_worden(sentence, token.i):
             continue
@@ -3125,7 +3345,16 @@ def _select_zustandspassiv_zeiten(sentence: TaggedSentence) -> list[Candidate]:
         participle = _participle_after_in_clause(sentence, token.i) or _participle_before_in_clause(
             sentence, token.i
         )
-        if participle is None or _participle_lemma(participle) not in paradigms.TRANSITIVE_LEMMAS:
+        if participle is None:
+            continue
+        part_lemma = _participle_lemma(participle)
+        if not part_lemma or part_lemma not in paradigms.TRANSITIVE_LEMMAS:
+            continue
+        # TODO.md 8.2: see ``_ZUSTANDSPASSIV_PERFEKT_MIT_SEIN_LEMMAS``'s own
+        # comment above ``_select_zustandspassiv`` -- the identical
+        # Perfekt-vs-Zustandspassiv ambiguity applies to this selector's own
+        # Präteritum/Perfekt-Zustandspassiv shapes too.
+        if part_lemma in _ZUSTANDSPASSIV_PERFEKT_MIT_SEIN_LEMMAS:
             continue
         if _clause_contains_worden(sentence, token.i):
             continue
@@ -3216,6 +3445,23 @@ def _select_futur_i(sentence: TaggedSentence) -> list[Candidate]:
 
 
 def _select_futur_ii(sentence: TaggedSentence) -> list[Candidate]:
+    """``werden`` plus a participle plus a trailing ``haben``/``sein``
+    infinitive, all three in the SAME clause -- the full Futur II shape.
+
+    TODO.md 8.9: both the participle search and the trailing-aux-infinitive
+    search used to be UNBOUNDED (``_participle_after``/``_token_after``,
+    the same whole-rest-of-sentence forward-only search this module's own
+    passive/Zustandspassiv selectors already needed clause-bounding for --
+    see ``_select_passiv``'s own docstring). Confirmed live on the exact
+    reported sentence: "Die Konstruktion wird nach dem Fest an den
+    Meistbietenden verkauft und ist ab 1,5 Millionen Franken zu haben." is
+    an ordinary present passive ("wird ... verkauft") coordinated with an
+    unrelated second clause ("und ist ... zu haben") -- the unbounded aux
+    search walked straight past the coordinating "und" into that second,
+    unrelated clause and found its own "haben" (tag ``VAINF``, from "zu
+    haben"), wrongly completing what looked like the Futur II shape. Both
+    searches are now bounded to "werden"'s own clause (``_clause_span``),
+    the same fix already applied everywhere else in this module."""
     out: list[Candidate] = []
     for token in sentence.tokens:
         if token.morph.get("VerbForm") != "Fin":
@@ -3224,16 +3470,30 @@ def _select_futur_ii(sentence: TaggedSentence) -> list[Candidate]:
             continue
         if token.lemma.lower() != "werden":
             continue
-        participle = _participle_after(sentence, token.i)
+        _, clause_end = _clause_span(sentence, token.i)
+        participle = _participle_after_in_clause(sentence, token.i)
         if participle is None:
             continue
         part_lemma = _participle_lemma(participle)
         if not part_lemma:
             continue
         expected_aux = "sein" if part_lemma in paradigms.AUX_SEIN_LEMMAS else "haben"
-        final_aux = _token_after(
-            sentence, participle.i, lemma=expected_aux, tags=frozenset({"VAINF"})
-        )
+        # ``clause_end`` (``_clause_span``, comma-bounded) is not enough on
+        # its own here: TWO clauses joined by "und"/"oder" with NO comma
+        # between them (confirmed the exact reported shape -- "wird ...
+        # verkauft und ist ab 1,5 Millionen Franken zu haben" has no comma
+        # anywhere at all) are, by ``_clause_span``'s own documented
+        # design, a single span. The forward scan for the trailing aux
+        # infinitive additionally stops at the first coordinating
+        # conjunction, so it can never cross into that second, unrelated
+        # clause the way the old unbounded ``_token_after`` did.
+        final_aux = None
+        for t in sentence.tokens[participle.i + 1 : clause_end]:
+            if t.pos == "CCONJ":
+                break
+            if t.lemma.lower() == expected_aux and t.tag == "VAINF":
+                final_aux = t
+                break
         if final_aux is None:
             continue
         person, number = token.morph.get("Person"), token.morph.get("Number")
@@ -3428,12 +3688,44 @@ def _find_governing_declension_trigger(
         trigger = _preceding_declension_trigger(candidate)
         if trigger is not None:
             return j, trigger
-        if candidate.tag in ("KON", "$,"):
+        # TODO.md 8.7: used to stop only on ``candidate.tag in ("KON",
+        # "$,")`` -- a coordinating conjunction or a comma, never a VERB.
+        # ``_NOUN_PHRASE_BOUNDARY_POS`` (the same boundary set ``_noun_
+        # phrase_has_governing_determiner``'s own null-article walk already
+        # stops at) is a strict superset: "KON" is tagged pos ``CCONJ`` and
+        # "$," is tagged pos ``PUNCT``, both already inside this set, so
+        # this closes a real gap without narrowing the walk's existing
+        # reach. Confirmed necessary, not hypothetical: "Die Frisur hat bei
+        # den Studentinnen ___ Anklang gefunden." (docs/audits/
+        # cycle-10-corpus-report.md 8.7) had this walk cross an entire AUX
+        # ("hat") to reach the SENTENCE-INITIAL subject's own article
+        # ("Die"), wrongly reporting it as "Anklang"'s governing determiner
+        # -- the determiner must be inside the head noun's own phrase, not
+        # merely earlier in the sentence, the same principle the
+        # null-article walk already enforces.
+        if candidate.pos in _NOUN_PHRASE_BOUNDARY_POS:
             return None
         skipped = _skip_intervening_pp(sentence, j, start)
         if skipped != j:
             j = skipped
             continue
+        # Found while investigating this same 8.7 fix's own corpus impact
+        # (not one of the reported items itself, but a direct, confirmed
+        # side effect of un-masking it): a NOUN that ``_skip_intervening_pp``
+        # declined to consume is not part of ANY recognised PP-complement
+        # run (one ending in its own ``ADP`` head, the "von einem Maler"
+        # shape) -- it is a bare noun sitting on the walk's path, which
+        # means it is a DIFFERENT noun phrase's own head. "Das Leben
+        # besteht aus kleinen Handlungen und die Tugend aus kleinen
+        # Siegen.": walking back from the second "kleinen" (which governs
+        # "Siegen", no article of its own) used to cross clean past
+        # "Tugend" -- a noun with nothing to do with "Siegen" -- to reach
+        # "die", "Tugend"'s OWN article, and wrongly report it as
+        # "Siegen"'s governing determiner too. Exactly the 8.7 principle
+        # above, just via a plain intervening noun instead of a verb: the
+        # determiner must be inside the head noun's own phrase.
+        if candidate.pos == "NOUN":
+            return None
         j -= 1
     return None
 

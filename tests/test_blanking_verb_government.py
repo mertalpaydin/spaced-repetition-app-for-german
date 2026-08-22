@@ -32,7 +32,12 @@ def test_reflexive_verdict_falls_back_to_hand_list_when_fixture_missing(tmp_path
     missing = tmp_path / "does_not_exist.jsonl"
     assert verb_government.reflexive_verdict("helfen", path=missing) == "Dat"
     assert verb_government.reflexive_verdict("freuen", path=missing) == "Acc"
-    assert verb_government.reflexive_verdict("verbeugen", path=missing) is None
+    # TODO.md 8.1's own leftover: "verbeugen" was added to
+    # ``ACCUSATIVE_ONLY_REFLEXIVE_VERBS`` (see that fixture's own comment),
+    # so it now resolves "Acc" from the hand list, same as "freuen" above --
+    # a genuinely unlisted verb is used here instead to keep testing the
+    # "no opinion at all" fallback path this test is actually about.
+    assert verb_government.reflexive_verdict("tanzen", path=missing) is None
 
 
 def test_reflexive_verdict_falls_back_to_hand_list_when_verb_absent_from_fixture(
@@ -97,5 +102,10 @@ def test_committed_fixture_loads_and_produces_the_documented_hand_list_verdicts(
     assert verb_government.reflexive_verdict("ändern") == "Acc"
     assert verb_government.reflexive_verdict("ansammeln") == "Acc"
     assert verb_government.reflexive_verdict("beeilen") == "Acc"
+    # TODO.md 8.1's own leftover ("verbeugen"): the real committed fixture
+    # has zero entries for it (confirmed by grep -- zero usable corpus
+    # evidence ever reached the harvester, per this task's own writeup), so
+    # this resolves purely from the hand list, exactly like the five above.
+    assert verb_government.reflexive_verdict("verbeugen") == "Acc"
     assert verb_government.object_verdict("helfen") == "Dat"
     assert verb_government.object_verdict("gehören") == "Dat"

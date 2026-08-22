@@ -419,7 +419,32 @@ STRONG_VERBS: dict[str, _StrongVerb] = {
     "bleiben": _StrongVerb("blieb", "geblieben"),
     "fahren": _StrongVerb("fuhr", "gefahren"),
     "kommen": _StrongVerb("kam", "gekommen"),
-    "schliessen": _StrongVerb("schloss", "geschlossen"),
+    # TODO.md 8.8: this key used to be spelled "schliessen" (ASCII, the
+    # Swiss/keyboard-limited substitute for "ß"). The Präteritum/Partizip-II
+    # forms ("schloss"/"geschlossen") were always correct standard German
+    # (short-vowel "o", genuinely ``ss`` there) -- only the INFINITIVE
+    # itself needed the fix, since "ie" is a long-vowel diphthong and
+    # standard German never spells one of those followed by "ss" (see
+    # ``carrier_validation.py``'s own ``_SWISS_DIPHTHONG_SS_PATTERN``
+    # comment for the same rule stated the other way, as a corpus-carrier
+    # rejection). This key is looked up by two different callers with two
+    # different sources for their query key -- ``strong_praeteritum_form``/
+    # ``PARTICIPLE_II_TO_INFINITIVE`` against a real ``token.lemma`` (spaCy's
+    # own lemmatiser, confirmed directly to already return "schließen" with
+    # the correct ß, never "schliessen") -- so the ASCII spelling was a
+    # dead key for THAT caller (docs/audits/cycle-10-corpus-report.md 8.8;
+    # ``sentence_source.py``'s own comment already named this exact gap:
+    # "geschlossen" lemmatises to "schließen", which does not match the
+    # ASCII "schliessen" key), and a second caller,
+    # ``selectors._select_partizip_ii_attributiv_erweitert``, which inverts
+    # ``PARTICIPLE_II_TO_INFINITIVE`` to build the learner-facing CUE for an
+    # attributive participle -- for that caller the wrong key was not a
+    # dead lookup, it was a live one that handed a Swiss-spelled cue
+    # ("(schliessen)") straight to the learner. Fixing the key closes both:
+    # the lemma lookup and ``TRANSITIVE_LEMMAS`` (below) now agree with what
+    # the tagger actually produces, and the derived cue is correctly
+    # "schließen".
+    "schließen": _StrongVerb("schloss", "geschlossen"),
     "brechen": _StrongVerb("brach", "gebrochen"),
     "essen": _StrongVerb("ass", "gegessen"),
     "trinken": _StrongVerb("trank", "getrunken"),
@@ -784,7 +809,10 @@ AUX_SEIN_LEMMAS: frozenset[str] = frozenset(
 
 TRANSITIVE_LEMMAS: frozenset[str] = frozenset(
     {
-        "schliessen",
+        # TODO.md 8.8: was "schliessen" (ASCII) -- see ``STRONG_VERBS``'s own
+        # comment on that same key for why this needed to match spaCy's
+        # actual lemma ("schließen") to ever be reached at lookup time.
+        "schließen",
         "öffnen",
         "kochen",
         "schreiben",
@@ -1025,6 +1053,53 @@ def is_participle_shape(text: str) -> bool:
     return bool(_is_inseparable_prefixed(lower) and lower.endswith("t"))
 
 
+# ``_SEPARABLE_PREFIXES`` (``src.lexicon.lemmatizer.SEPARABLE_PREFIXES``,
+# reused unchanged everywhere else this module needs a prefix split) does
+# not include "wieder" -- confirmed directly: "wiederzubeleben" (the exact
+# TODO.md 8.6 reported sentence's own infinitive) does not split at all
+# against it. "wieder" is a genuine separable verb prefix ("wiederkommen",
+# "wiederfinden", and -- confirmed by the reported sentence's own usage --
+# "wiederbeleben"), so this is a real gap in that table for THIS narrower
+# question, not a typo to route around. Extended LOCALLY, for this one
+# function only, rather than added to the shared list: the shared list also
+# feeds participle-shape reconstruction and vocabulary compound-splitting
+# elsewhere, both out of this task's own scope to re-verify.
+_ZU_INFINITIV_PREFIXES_BY_LENGTH: tuple[str, ...] = tuple(
+    sorted({*_SEPARABLE_PREFIXES, "wieder"}, key=len, reverse=True)
+)
+
+
+def is_fused_zu_infinitiv_shape(text: str) -> bool:
+    """Whether ``text``'s own SPELLING is a fused zu-infinitive -- a
+    separable prefix with "zu" infixed before the stem ("wieder" + "zu" +
+    "beleben" -> "wiederzubeleben") -- independent of whatever tag a tagger
+    attached to it. Reuses the exact same infix check ``is_participle_
+    shape`` already performs (see its own docstring) to REJECT a
+    participle reading for this shape, exposed here as the positive fact
+    for a caller that needs it: TODO.md 8.6 confirmed this exact tagger
+    sometimes mistags a fused zu-infinitive as a genuine FINITE verb
+    (``VVFIN``, ``VerbForm=Fin``) -- not the already-known ``VVIZU``
+    confusion ``PARTICIPLE_CONFUSABLE_TAGS`` exists for -- so a caller
+    checking "does this clause have a genuine finite verb" by tag alone
+    needs a second, independent way to rule this shape out, exactly as
+    ``is_participle_shape`` already needed one for the participle
+    question.
+
+    Uses ``_ZU_INFINITIV_PREFIXES_BY_LENGTH`` (this function's own,
+    locally-extended prefix set -- see its own comment), not the shared
+    ``_split_separable_prefix``."""
+    lower = text.lower()
+    if not lower:
+        return False
+    for prefix in _ZU_INFINITIV_PREFIXES_BY_LENGTH:
+        if not (lower.startswith(prefix) and len(lower) > len(prefix)):
+            continue
+        remainder = lower[len(prefix) :]
+        if remainder.startswith("zu") and len(remainder) > 2:
+            return True
+    return False
+
+
 def _weak_participle_ending_to_infinitive(word: str) -> str | None:
     """``word`` (no "ge-", no separable prefix) with its participle ending
     reduced back to "-en", by the same dental-epenthesis rule
@@ -1213,8 +1288,26 @@ DATIVE_REFLEXIVE_VERBS: frozenset[str] = (
 # examples for exactly this reason (see that report's docstring above);
 # "ansammeln" and "beeilen" are the same class, confirmed against this
 # task's own reported items.
+# TODO.md 8.1's own leftover: "verbeugen" ("sich verbeugen", to bow) is
+# Accusative and was still landing in ``verben_reflexiv_dat``
+# (docs/audits/cycle-10-corpus-report.md). TODO 8.1's own corpus-built
+# lexicon (``verb_government.py``) could not reach it -- confirmed directly
+# by grepping both staged corpora for every occurrence of "verbeugen":
+# zero reach the harvester's own unambiguous-pronoun evidence at all, every
+# one either under the 5-word carrier-length filter, governed by a
+# preposition ("vor mir"), or sitting in an "und"-joined clause where
+# ``_governing_verb_lemma`` cannot resolve a single governing verb (the
+# reported item itself: "küsste" mistags ``ADJA`` in that exact position,
+# an unrelated, pre-existing tagger defect this task does not touch -- see
+# ``tests/test_blanking_selectors.py`` for the pinned regression). Added
+# here, by name, per this task's own instruction: a single verb named by a
+# hand audit, sourced the same way every other member of this list already
+# is (Dreyer/Schmitt, Duden), not a guess and not the list treadmill TODO
+# 8.1 itself retired -- the corpus lexicon still wins on conflict for every
+# verb it DOES have evidence for; this is the documented fallback for the
+# one verb it has none for at all.
 ACCUSATIVE_ONLY_REFLEXIVE_VERBS: frozenset[str] = frozenset(
-    {"freuen", "treffen", "ändern", "ansammeln", "beeilen"}
+    {"freuen", "treffen", "ändern", "ansammeln", "beeilen", "verbeugen"}
 )
 
 # ==============================================================================

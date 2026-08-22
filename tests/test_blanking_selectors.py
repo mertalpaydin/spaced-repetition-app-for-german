@@ -480,6 +480,63 @@ def test_adjektivdeklination_bestimmt_dative_ending_and_its_only_distractor() ->
     assert [d.text for d in item.distractors] == ["freundliche"]
 
 
+def test_adjektivdeklination_bestimmt_rejects_a_determiner_from_an_unrelated_noun_phrase() -> None:
+    """docs/audits/cycle-10-corpus-report.md 8.7: "Die Frisur hat bei den
+    Studentinnen guten Anklang gefunden." -- "guten Anklang" has no article
+    of its own; "den" belongs to "Studentinnen" inside the PP "bei den
+    Studentinnen", an entirely different noun phrase. The far-trigger walk
+    (``_find_governing_declension_trigger``) used to have no clause-
+    boundary stop condition at all -- confirmed live, it crossed the
+    finite AUX "hat" to reach the SENTENCE-INITIAL subject's own article
+    ("Die"), wrongly reporting "weak" declension. Fixed by stopping the
+    walk at ``_NOUN_PHRASE_BOUNDARY_POS`` (VERB/AUX/SCONJ/CCONJ/PUNCT), the
+    same boundary set the null-article selector's own
+    ``_noun_phrase_has_governing_determiner`` walk already uses -- a strict
+    superset of the walk's previous ``("KON", "$,")``-only stop, so the
+    positive far-trigger cases below (an inserted PP between a REAL
+    governing determiner and its own participle) are unaffected.
+
+    The item is DROPPED here, not rerouted to
+    ``adjektivdeklination_nullartikel``: ``_noun_phrase_has_governing_
+    determiner``'s own walk (unchanged by this fix) also finds "den" before
+    reaching the same AUX boundary, and -- unlike the far-trigger walk
+    above -- does not distinguish "a determiner belonging to an embedded
+    PP's own object" from "a determiner governing THIS noun phrase", so it
+    correctly-but-conservatively treats "Anklang" as not-provably-zero-
+    article either. Dropping is the right call here: "reject rather than
+    guess" applied to the SAME uncertainty this walk already accepts
+    elsewhere, not a new gap this task introduced."""
+    sentence = "Die Frisur hat bei den Studentinnen guten Anklang gefunden."
+    _, bestimmt_candidates = _select("adjektivdeklination_bestimmt", sentence)
+    assert bestimmt_candidates == []
+    _, nullartikel_candidates = _select("adjektivdeklination_nullartikel", sentence)
+    assert nullartikel_candidates == []
+
+
+def test_adjektivdeklination_bestimmt_rejects_a_determiner_from_a_sibling_noun() -> None:
+    """Found while verifying the 8.7 fix's own corpus impact, not one of
+    the nine reported items itself: "Das Leben besteht aus kleinen
+    Handlungen und die Tugend aus kleinen Siegen." -- the second "kleinen"
+    governs "Siegen", which has no article of its own ("aus kleinen
+    Siegen"). The far-trigger walk used to cross straight past "Tugend" (an
+    entirely unrelated NOUN sitting on the walk's path back from "Siegen")
+    to reach "die", "Tugend"'s OWN article, and wrongly report it as
+    "Siegen"'s governing determiner too -- the exact same "determiner must
+    be inside the head noun's own phrase" principle the 8.7 fix above
+    already established, just crossed via a bare noun instead of a
+    verb/AUX. Fixed by treating a NOUN the walk's own
+    ``_skip_intervening_pp`` declines to consume (it does not terminate in
+    an ADP within range, so it is not the "von einem Maler" shape) as a
+    hard stop, same as the verb/AUX boundary. The first "kleinen"
+    (governing "Handlungen", also article-less) is unaffected and still
+    correctly resolves to ``adjektivdeklination_nullartikel``."""
+    sentence = "Das Leben besteht aus kleinen Handlungen und die Tugend aus kleinen Siegen."
+    _, bestimmt_candidates = _select("adjektivdeklination_bestimmt", sentence)
+    assert bestimmt_candidates == []
+    item = _blank("adjektivdeklination_nullartikel", sentence)
+    assert item.proposed_answer == "kleinen"
+
+
 def test_adjektivdeklination_unbestimmt_finds_mixed_endings() -> None:
     assert (
         _blank("adjektivdeklination_unbestimmt", "Ein alter Baum steht im Garten.").proposed_answer
@@ -1126,6 +1183,26 @@ def test_verben_reflexiv_akk_routes_sich_ueberzeugen_lassen_cycle_10_regression(
     assert dat_candidates == []
 
 
+def test_verben_reflexiv_akk_routes_sich_verbeugen_leftover_from_8_1() -> None:
+    """TODO.md 8.1's own leftover, never fixed in that pass: "Tom verbeugte
+    sich und küsste Maria die Hand." still landed in ``verben_reflexiv_dat``
+    -- the corpus lexicon (TODO 8.1) reaches zero usable evidence for
+    "verbeugen" at all (confirmed by grepping both staged corpora directly),
+    so it fell through to the structural fallback, which had no forced
+    verdict either. Fixed by adding "verbeugen" to
+    ``paradigms.ACCUSATIVE_ONLY_REFLEXIVE_VERBS`` by name, per this task's
+    own instruction -- legitimate here, not the list treadmill TODO 8.1
+    retired, since it is one verb named by a hand audit with confirmed zero
+    corpus evidence, sourced the same way (Dreyer/Schmitt, Duden) every
+    other member of that list already is."""
+    sentence = "Tom verbeugte sich und küsste Maria die Hand."
+    item = _blank("verben_reflexiv_akk", sentence)
+    assert item.prompt == "Tom verbeugte ___ und küsste Maria die Hand."
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select("verben_reflexiv_dat", sentence)
+    assert dat_candidates == []
+
+
 # ==============================================================================
 # Cycle 3. relativsatz_nom_akk / _dativ / _genitiv -- relative pronoun by case.
 # ==============================================================================
@@ -1137,6 +1214,42 @@ def test_relativsatz_nom_akk_finds_nominative_and_accusative_relative_pronouns()
     assert nom.proposed_answer == "der"
     akk = _blank("relativsatz_nom_akk", "Das Buch, das ich lese, ist spannend.")
     assert akk.proposed_answer == "das"
+
+
+def test_relativsatz_nom_akk_rejects_an_article_inside_an_infinitive_clause() -> None:
+    """docs/audits/cycle-10-corpus-report.md 8.6: "Seit über einem
+    Jahrzehnt fordern Experten und Strategen, die US-Seltene-Erden-
+    Industrie wiederzubeleben, um die Abhängigkeit von China zu
+    verringern." -- "die" is tagged ``PRELS`` (the relative-pronoun tag),
+    but it is an ordinary accusative article governing "Industrie" inside
+    an INFINITIVE clause ("wiederzubeleben"), not a relative pronoun at
+    all: there is no antecedent for it and no finite verb anywhere in its
+    own clause. German has no infinitival relative clause, so requiring a
+    genuine (non-infinitival) verb in the clause the pronoun introduces
+    closes this."""
+    sentence = (
+        "Seit über einem Jahrzehnt fordern Experten und Strategen, die "
+        "US-Seltene-Erden-Industrie wiederzubeleben, um die Abhängigkeit von China "
+        "zu verringern."
+    )
+    _, candidates = _select("relativsatz_nom_akk", sentence)
+    assert candidates == []
+
+
+def test_relativsatz_nom_akk_still_fires_when_the_tagger_mistags_the_own_verb_non_finite() -> None:
+    """The negative counterpart of the 8.6 fix, confirmed necessary while
+    writing it: this tagger mistags a GENUINE relative-clause verb as
+    non-finite far more often than the module's own tagger-accuracy audit
+    would suggest -- "die im Garten spielen" tags "spielen" ``VVINF``
+    (3rd-plural present, spelled identically to the infinitive), not
+    ``VVFIN``. A ``VerbForm=="Fin"``-only fix for 8.6 would have wrongly
+    rejected this genuine relative clause; the fix instead checks for the
+    ABSENCE of a zu-infinitive marking, not the PRESENCE of ``VerbForm=
+    Fin``, which still correctly finds "spielen" as this clause's own
+    qualifying verb."""
+    item = _blank("relativsatz_nom_akk", "Ich mag die Kinder, die im Garten spielen.")
+    assert item.prompt == "Ich mag die Kinder, ___ im Garten spielen."
+    assert item.proposed_answer == "die"
 
 
 def test_relativsatz_dativ_finds_dative_relative_pronouns() -> None:
@@ -1757,6 +1870,70 @@ def test_passiv_praesens_finds_present_tense_vorgangspassiv() -> None:
     assert item.proposed_answer == "wird"
 
 
+# TODO.md 8.3 / docs/audits/cycle-10-corpus-report.md: "Ich werde nie
+# vergessen, wie ich dich zum ersten Mal gesehen habe." and its twin read
+# as passiv_praesens only because "vergessen"'s infinitive and past
+# participle are spelled identically. General rule, not a special case for
+# "vergessen": a German passive cannot take an accusative object, and the
+# "wie ..."-clause here is that object -- gated on the participle's own
+# surface being identical to its infinitive (the only shape this ambiguity
+# can arise for at all), so an ordinary, unambiguous participle candidate
+# is never at risk of the checks below.
+def test_passiv_praesens_rejects_vergessen_taking_an_embedded_question_object() -> None:
+    sentence_a = "Ich werde nie vergessen, wie ich dich zum ersten Mal gesehen habe."
+    _, candidates_a = _select("passiv_praesens", sentence_a)
+    assert candidates_a == []
+    sentence_b = "Ich werde nie vergessen, wie ich mit ihr Hawaii besucht habe."
+    _, candidates_b = _select("passiv_praesens", sentence_b)
+    assert candidates_b == []
+
+
+def test_passiv_praesens_rejects_a_syncretic_participle_with_ordinary_accusative() -> None:
+    """The same general rule, an ordinary noun-phrase object rather than an
+    embedded-question clause: "seinen Geburtstag" is a genuine same-clause
+    accusative object, so this is Futur I ("he will forget his birthday"),
+    not a passive ("he will be forgotten"). "vergessen" is, per
+    ``paradigms.TRANSITIVE_LEMMAS``, currently the only verb this
+    selector's own syncretic-participle gate can reach at all (confirmed
+    directly: no other member of that closed list has a participle
+    identical to its own infinitive) -- the CHECK itself is general (the
+    same mechanism the module comment above ``_clause_takes_accusative_
+    object`` describes for "bekommen"/"erhalten"/"verlassen"), only its
+    current real-world reach is narrow, and that narrowness is reported
+    honestly rather than tested against a verb the selector cannot
+    currently reach."""
+    _, candidates = _select("passiv_praesens", "Er wird seinen Geburtstag vergessen.")
+    assert candidates == []
+
+
+def test_passiv_praesens_still_accepts_a_syncretic_participle_with_a_dative() -> None:
+    """Guards the false-rejection risk this task's own brief named
+    directly for a Dative co-occurring with a genuine passive. "Das wird
+    dir nie vergessen." is the real, idiomatic German construction
+    ("jemandem etwas nicht vergessen" -- to hold something against/never
+    forget of someone) in its genuine passive form: "dir" is Dative, never
+    counted by ``_clause_takes_accusative_object`` (which only ever checks
+    ``Case=="Acc"``), so this must still be accepted."""
+    item = _blank("passiv_praesens", "Das wird dir nie vergessen.")
+    assert item.proposed_answer == "wird"
+
+
+def test_passiv_praesens_known_residual_dass_clause_object_of_vergessen_not_covered() -> None:
+    """An honest, documented residual, not a silent gap: "Er wird nie
+    vergessen, dass er sie liebt." has the identical ambiguity as the two
+    reported "wie"-clause items (a "dass"-clause is just as much
+    "vergessen"'s own sole accusative-object argument here), but "dass" is
+    deliberately excluded from ``_EMBEDDED_QUESTION_INTRODUCER_LEMMAS`` --
+    see that set's own comment for why (a "dass"-clause is also how a
+    ditransitive-shaped verb like "informieren" keeps a genuine SEPARATE
+    complement alongside an already-passivised accusative person, and this
+    task's own two reported items are both "wie", never "dass"). Pinned
+    here as a known, deliberately out-of-scope limitation rather than left
+    undocumented."""
+    item = _blank("passiv_praesens", "Er wird nie vergessen, dass er sie liebt.")
+    assert item.proposed_answer == "wird"
+
+
 def test_passiv_praeteritum_finds_past_tense_vorgangspassiv() -> None:
     item = _blank("passiv_praeteritum", "Das Auto wurde repariert.")
     assert item.proposed_answer == "wurde"
@@ -1824,6 +2001,51 @@ def test_zustandspassiv_rejects_a_vorgangspassiv_perfekt_with_worden() -> None:
         "worden ist, obwohl wir sofort darüber geschrieben haben.",
     )
     assert candidates == []
+
+
+def test_zustandspassiv_rejects_the_perfekt_of_a_sein_motion_verb() -> None:
+    """docs/audits/cycle-10-corpus-report.md 8.2: "Es ist fünf Jahre her,
+    dass wir hierher gezogen sind." and "Ich kann mich nicht erinnern,
+    wann er nach Boston gezogen ist." are both the Perfekt of "ziehen"
+    (moved house), not Zustandspassiv -- "ziehen" clears
+    ``TRANSITIVE_LEMMAS`` (it genuinely is transitive in its OTHER reading,
+    "einen Wagen ziehen"), so a transitivity test alone cannot decide it.
+    "ziehen" is deliberately NOT added to the shared ``paradigms.
+    AUX_SEIN_LEMMAS`` for this fix (see ``_ZUSTANDSPASSIV_PERFEKT_MIT_
+    SEIN_LEMMAS``'s own module comment) -- only a LOCAL extension used by
+    the two Zustandspassiv selectors."""
+    _, candidates_a = _select(
+        "zustandspassiv", "Es ist fünf Jahre her, dass wir hierher gezogen sind."
+    )
+    assert candidates_a == []
+    _, candidates_b = _select(
+        "zustandspassiv",
+        "Ich kann mich nicht erinnern, wann er nach Boston gezogen ist.",
+    )
+    assert candidates_b == []
+
+
+def test_zustandspassiv_still_finds_a_genuine_transitive_participle() -> None:
+    """The negative counterpart of the 8.2 fix: an ordinary Zustandspassiv
+    of a verb NOT in ``AUX_SEIN_LEMMAS`` at all must still fire, unaffected
+    by the new exclusion."""
+    item = _blank("zustandspassiv", "Das Auto ist repariert.")
+    assert item.proposed_answer == "ist"
+
+
+def test_perfekt_haben_still_accepts_ziehen_in_its_transitive_reading() -> None:
+    """Confirms the 8.2 fix did NOT add "ziehen" to the shared
+    ``paradigms.AUX_SEIN_LEMMAS`` -- ``_select_perfekt``'s own haben/sein
+    branch (``paradigms.py``'s own module comment above ``AUX_SEIN_
+    LEMMAS``) relies on that set staying disjoint from ``TRANSITIVE_
+    LEMMAS`` to keep a genuine transitive, haben-Perfekt "ziehen" ("to
+    pull/tow") correctly routed to ``perfekt_haben``, not silently
+    rerouted to ``perfekt_sein`` by a shared-set change made for an
+    unrelated selector."""
+    item = _blank("perfekt_haben", "Ich habe den Wagen gezogen.")
+    assert item.proposed_answer == "habe"
+    _, sein_candidates = _select("perfekt_sein", "Ich habe den Wagen gezogen.")
+    assert sein_candidates == []
 
 
 def test_zustandspassiv_zeiten_finds_past_tense_zustandspassiv() -> None:
@@ -2016,6 +2238,38 @@ def test_futur_i_does_not_fire_on_a_present_passive() -> None:
 
 def test_futur_ii_finds_werden_plus_participle_plus_haben() -> None:
     item = _blank("futur_ii", "Er wird das Buch gelesen haben.")
+    assert item.proposed_answer == "wird"
+
+
+def test_futur_ii_rejects_a_present_passive_with_a_coordinated_second_clause() -> None:
+    """docs/audits/cycle-10-corpus-report.md 8.9: "werden" plus a participle
+    used to be enough for futur_ii even when no "haben"/"sein" infinitive
+    ever followed -- here the participle ("verkauft") belongs to an ordinary
+    present passive, and the sentence's real "sein"-infinitive-looking word
+    ("zu haben") belongs to a second, "und"-coordinated clause with its own
+    subject ("ist ... zu haben"), not to the first clause's "wird" at all.
+    Fixed by requiring the full shape (werden + participle + haben/sein
+    infinitive) inside the same clause, additionally stopping the forward
+    search at the first coordinating conjunction because ``_clause_span``'s
+    comma-only boundary does not see "und" as a boundary on its own."""
+    sentence = (
+        "Die Konstruktion wird nach dem Fest an den Meistbietenden verkauft "
+        "und ist ab 1,5 Millionen Franken zu haben."
+    )
+    _, candidates = _select("futur_ii", sentence)
+    assert candidates == []
+    passiv_item = _blank("passiv_praesens", sentence)
+    assert passiv_item.proposed_answer == "wird"
+
+
+def test_futur_ii_still_finds_a_genuine_case_with_a_coordinated_second_clause() -> None:
+    """Negative counterpart of the 8.9 fix: a real Futur II (werden +
+    participle + haben/sein infinitive, all before any "und") must still be
+    found even when a second, unrelated clause is coordinated after it."""
+    item = _blank(
+        "futur_ii",
+        "Er wird das Buch gelesen haben, und sie wird es auch bald lesen.",
+    )
     assert item.proposed_answer == "wird"
 
 

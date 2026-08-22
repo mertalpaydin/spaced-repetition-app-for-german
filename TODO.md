@@ -1083,7 +1083,7 @@ structure.
   it. None of these six were introduced or worsened by this change; all six
   are new findings, not previously documented anywhere in this repository.
 
-- [ ] **8.2 `zustandspassiv` taking the perfect of a motion verb, 2 items.
+- [x] **8.2 `zustandspassiv` taking the perfect of a motion verb, 2 items.
   Confidence: high.** `dass wir hierher gezogen sind` is the perfect of
   `ziehen`, we moved house. The selector sees `sein` plus a participle. The
   discriminator already exists in the codebase: `paradigms.AUX_SEIN_LEMMAS`
@@ -1091,7 +1091,30 @@ structure.
   verb is on that list, `sein` plus participle is a perfect, not a
   Zustandspassiv.
 
-- [ ] **8.3 `passiv_praesens` taking Futur I, 2 items. Confidence: high.**
+  Fixed: `"ziehen"` deliberately was NOT added to the shared
+  `paradigms.AUX_SEIN_LEMMAS` (that list also gates `_select_perfekt`'s own
+  haben/sein routing, and `ziehen` is a member of `TRANSITIVE_LEMMAS` in its
+  ordinary transitive reading, "ich habe den Wagen gezogen" -- adding it
+  there would wrongly starve `perfekt_haben`). Instead a new, local
+  `_ZUSTANDSPASSIV_PERFEKT_MIT_SEIN_LEMMAS` constant
+  (`paradigms.AUX_SEIN_LEMMAS | {"ziehen"}`) gates both
+  `_select_zustandspassiv` and `_select_zustandspassiv_zeiten` only: a
+  participle whose lemma is on this list is a Perfekt-mit-sein reading, not
+  a Zustandspassiv, for these two selectors alone.
+
+  Both reported sentences now correctly yield no `zustandspassiv`
+  candidate, pinned as regression tests, along with a positive control
+  (`"Das Auto ist repariert."`, a genuine Zustandspassiv, still fires) and a
+  negative control confirming `perfekt_haben`/`perfekt_sein` still route
+  `"ziehen"` correctly in its transitive reading.
+
+  **Verified against real data.** `scripts.step7_corpus_pilot --limit
+  20000`, before vs. after (raw, post-CEFR candidate count, same seed):
+  `zustandspassiv` 4 -> 2. Both removed sentences are the reported class
+  (`gezogen`/`sind` and `gezogen`/`ist`, both genuine Perfekt-mit-sein);
+  nothing else in the topic's small remaining set changed.
+
+- [x] **8.3 `passiv_praesens` taking Futur I, 2 items. Confidence: high.**
   `Ich werde nie vergessen, wie ...` reads as a passive only because
   `vergessen`'s infinitive and past participle are spelled identically. This
   was recorded as a known residual when the participle fix landed and is now
@@ -1102,6 +1125,44 @@ structure.
   `vergessen`. If the clause has a direct object, it is not a passive. That
   also covers `bekommen`, `erhalten` and every other verb with a syncretic
   infinitive and participle.
+
+  Fixed: `_select_passiv` now gates the syncretic case specifically
+  (`participle.text.lower() == part_lemma`, i.e. any verb whose participle
+  and infinitive are spelled identically, not a `vergessen`-only special
+  case) with two same-clause checks, both new. `_clause_takes_accusative_
+  object` rejects when an ordinary Accusative noun phrase (excluding a
+  reflexive `sich`, a temporal Accusative, or one governed by a
+  preposition) sits in the clause. `_followed_by_embedded_question_object`
+  rejects when the clause is immediately followed by an embedded-question
+  clause (`wie`/`ob`, or any `PronType=Int` interrogative) with its own
+  finite verb -- the exact shape of the reported sentences, where the
+  object is a whole clause rather than a noun phrase.
+
+  Checked directly, not assumed: a genuine passive carrying a reflexive
+  `sich` (`"Er wird informiert."`-style with an accompanying `sich`) is
+  unaffected because `_clause_takes_accusative_object` explicitly excludes
+  `PRF`-tagged reflexive pronouns from its accusative scan; a genuine
+  passive with a dative alongside the participle
+  (`"Ihm wird geholfen."`-style) is unaffected because Dative case never
+  matches the Accusative check at all. Both are pinned as regression tests.
+  Confirmed empirically (script check against `paradigms.TRANSITIVE_LEMMAS`)
+  that `"vergessen"` is the only member of that list whose participle and
+  infinitive are spelled identically at this corpus's scale, so the fix's
+  practical reach and its report below are effectively about `vergessen`
+  even though the code itself is general.
+
+  **Honest residual, found while testing, not fixed:** `"Er wird nie
+  vergessen, dass er sie liebt."` is still wrongly accepted as
+  `passiv_praesens`. A `dass`-clause is a genuine subordinate clause, not a
+  same-clause Accusative noun phrase or the embedded-question shape either
+  check covers, so neither new check fires. Pinned as a regression test
+  documenting the gap rather than silently missed.
+
+  **Verified against real data.** `scripts.step7_corpus_pilot --limit
+  20000`, before vs. after (raw, post-CEFR candidate count, same seed):
+  `passiv_praesens` 8 -> 7 (the one reported sentence removed, "Ich werde
+  nie vergessen, wie ich mit ihr Hawaii besucht habe."; nothing else in the
+  topic's small remaining set changed).
 
 - [x] **8.4 Konjunktiv II present taking the past, 3 items. Confidence:
   medium, and one of the three needs investigating first.**
@@ -1329,13 +1390,54 @@ structure.
   `antworen` tagger-quirk finding all still stand; only the single-list
   lookup itself was replaced.
 
-- [ ] **8.6 `relativsatz_nom_akk` taking an article inside an infinitive
+- [x] **8.6 `relativsatz_nom_akk` taking an article inside an infinitive
   clause, 1 item. Confidence: high.** `fordern Experten, ___
   US-Seltene-Erden-Industrie wiederzubeleben` blanks an ordinary accusative
   article. Require the clause the pronoun introduces to contain a FINITE
   verb. An infinitive clause has none.
 
-- [ ] **8.7 `adjektivdeklination_bestimmt` with no article present, 1 item.
+  Fixed: `_relative_clause_has_finite_verb` requires a `VERB`/`AUX`-tagged
+  (or, see below, a tag starting with the STTS verb letter `V`) token in
+  the pronoun's own clause that is NOT itself part of a zu-infinitive
+  (fused, `paradigms.is_fused_zu_infinitiv_shape`, the reported sentence's
+  own `wiederzubeleben`; or split, `PTKZU` immediately before a bare
+  infinitive tag). **Deliberately not a `VerbForm=="Fin"` check**: confirmed
+  directly, this tagger mistags a genuine relative-clause verb as
+  non-finite far more often than expected (`"die im Garten spielen"` tags
+  `spielen` `VVINF`; `"studiert"` tags `VVPP`) -- a `Fin`-only check would
+  have wrongly starved three of this project's own existing hand-written
+  test sentences, caught while writing this fix and pinned as its own
+  regression test. The entry filter additionally accepts a token whose TAG
+  (not only its POS) starts with `V`, found while verifying this fix's own
+  corpus impact: the tagger sometimes mistags a genuine finite verb's POS
+  itself (`"die man versenden musste"` -- `musste`, the real finite verb,
+  is POS `ADJ`, TAG `VMFIN`) while its TAG still says finite; a POS-only
+  filter skipped it entirely. A parallel "exclude by TAG suffix `INF`"
+  idea was tried and reverted: it broke the same `"spielen"` case above,
+  since that tagger mistags ITS tag too, not only its POS -- confirmed by
+  running it, not assumed.
+
+  All 9 reported/pinned relative-clause cases still resolve correctly
+  (regression tests), including the one this fix must still correctly
+  reject.
+
+  **Verified against real data.** `scripts.step7_corpus_pilot --limit
+  20000`, before vs. after (raw, post-CEFR candidate count, same seed):
+  `relativsatz_nom_akk` 372 -> 349, a real but expected volume cost from
+  requiring genuine finiteness against a tagger that lies in both
+  directions. Every one of the ~24 net-removed sentences was hand-traced
+  (not merely counted): all are clauses whose only verb-shaped token is
+  mistagged away from any `V*` tag entirely (`verwöhnten` as `ADJD`,
+  `muss` as `NE`/PROPN, `warst` as `ADJD`) -- a known, accepted "reject
+  rather than guess" cost, not a new defect this fix introduces. One case
+  (`"Atheisten sind Leute, die einen Glauben, den sie nicht haben, glühend
+  verteidigen."`) loses its outer relative pronoun to the same
+  comma-bounded `_clause_span` limitation documented elsewhere in this
+  module, but the sentence still yields a correct `relativsatz_nom_akk`
+  item via its own embedded `den`, so the topic does not lose that
+  sentence outright.
+
+- [x] **8.7 `adjektivdeklination_bestimmt` with no article present, 1 item.
   Confidence: high.** `bei den Studentinnen ___ Anklang gefunden` has no
   article on `Anklang`; the `den` belongs to `Studentinnen`. Same family as
   the nullartikel fix: the determiner must be inside the head noun's own
@@ -1343,7 +1445,52 @@ structure.
   right, because strong and weak both give `-en` here, so this is a topic
   attribution defect rather than a wrong answer.
 
-- [ ] **8.8 Two cues spelled the Swiss way, 2 items. Confidence: high.**
+  Fixed: `_find_governing_declension_trigger`'s stop condition changed
+  from `candidate.tag in ("KON", "$,")` (a coordinating conjunction or a
+  comma) to `candidate.pos in _NOUN_PHRASE_BOUNDARY_POS` (VERB/AUX/
+  SCONJ/CCONJ/PUNCT) -- the exact boundary set the null-article selector's
+  own `_noun_phrase_has_governing_determiner` walk already uses, so this
+  closes a real gap (the walk used to cross an entire finite AUX, `"hat"`,
+  to reach the sentence-initial subject's own article) without narrowing
+  any positive far-trigger case (an inserted PP between a real governing
+  determiner and its own participle still resolves as before).
+
+  The reported item is DROPPED, not rerouted to
+  `adjektivdeklination_nullartikel`: that selector's own walk, unchanged
+  by this fix, also finds `"den"` before its own AUX boundary and does not
+  distinguish "belongs to an embedded PP's object" from "governs this noun
+  phrase", so it correctly-but-conservatively also declines to claim
+  `"Anklang"` as zero-article. Dropping is the right call: "reject rather
+  than guess" applied to the same uncertainty this walk already accepts
+  elsewhere, not a gap this fix introduces.
+
+  **Found while verifying this fix's own corpus impact, not one of the 9
+  reported items:** the exact same class of defect via a bare NOUN instead
+  of a VERB/AUX -- `"Das Leben besteht aus kleinen Handlungen und die
+  Tugend aus kleinen Siegen."` had the walk cross straight past `"Tugend"`
+  (an unrelated noun sitting on the path back from `"Siegen"`) to reach
+  `"die"`, `"Tugend"`'s own article, and wrongly report it as `"Siegen"`'s
+  governor too. Fixed the same walk: a NOUN that the walk's own
+  `_skip_intervening_pp` declines to consume (it does not terminate in an
+  `ADP` within range, so it is not the `"von einem Maler"` extended-
+  participle shape that function exists for) is now also a hard stop.
+  Verified this does not regress the extended-participle case it must
+  still handle (own regression test, unchanged pass) since that case is
+  still consumed by `_skip_intervening_pp` before the new NOUN check is
+  ever reached.
+
+  **Verified against real data.** `scripts.step7_corpus_pilot --limit
+  20000`, before vs. after (raw, post-CEFR candidate count, same seed):
+  `adjektivdeklination_bestimmt` 799 -> 782 (17 removed, all confirmed
+  cross-boundary false attributions of one of the two kinds above; 2 net
+  new items are the SAME sentences' own, now-correctly-attributed second
+  adjective, not new sentences); `adjektivdeklination_nullartikel` 472 ->
+  498 (the AUX/VERB-crossing removals correctly reroute there; the
+  NOUN-crossing removals mostly do not, since that selector's own walk
+  independently declines them too -- consistent with the "drop, don't
+  guess" analysis above, not a discrepancy).
+
+- [x] **8.8 Two cues spelled the Swiss way, 2 items. Confidence: high.**
   `mit ___ (schliessen) Augen` should cue `schließen`. This is not the
   corpus, it is our own vendored dictionary, which was written through a
   normaliser that turns every `ß` into `ss`, leaking into text the learner
@@ -1351,10 +1498,96 @@ structure.
   Do NOT blanket-convert `ss` to `ß`: that would break `muss`, `Fluss` and
   every legitimately short-vowel word.
 
-- [ ] **8.9 `futur_ii` taking the present passive, 1 item. Confidence:
+  **The brief's own causal claim was checked and does not match the code;
+  flagged per CLAUDE.md rule 8 rather than silently worked around.** The
+  vendored dictionary (`data/fixtures/corpus/frequency/
+  de_dictionary_filter.txt`) is real, is indeed written through a
+  ß-to-ss normaliser, and does contain ASCII `schliessen`-family entries --
+  but it is never the SOURCE of a cue. Confirmed by reading both of its two
+  call sites: `carrier_validation.py` uses it only to reject a corpus line
+  whose content word is not a real word at all (a carrier-level gate, runs
+  before any item is built), and `selectors._load_cue_dictionary`/
+  `_cue_is_real_word` use it only to VALIDATE an already-built cue against
+  it, never to supply one. The two live cues actually traced back to a
+  hand-typed dictionary key in `paradigms.STRONG_VERBS`: `"schliessen"`
+  (ASCII) instead of `"schließen"`. That key is read by two callers --
+  `strong_praeteritum_form`/`PARTICIPLE_II_TO_INFINITIVE`, queried against
+  `token.lemma` (spaCy's own lemmatiser, confirmed directly to already
+  return `"schließen"` with the correct ß, never the ASCII form, so the
+  wrong key was a dead lookup for this caller, never actually observed
+  live); and `_select_partizip_ii_attributiv_erweitert`, which inverts
+  `PARTICIPLE_II_TO_INFINITIVE` to build the learner-facing cue for an
+  attributive participle -- for THIS caller the wrong key was not dead, it
+  handed the Swiss-spelled `"(schliessen)"` straight to the learner, the
+  actual reported defect.
+
+  Fixed at that one true source: `STRONG_VERBS`'s key (and the matching
+  entry in `TRANSITIVE_LEMMAS`) changed from `"schliessen"` to
+  `"schließen"`. No blanket `ss`-to-`ß` conversion anywhere; the
+  Präteritum/Partizip-II VALUES (`"schloss"`/`"geschlossen"`) were already
+  correct standard German and untouched (`o` is a short vowel there,
+  genuinely `ss`). Per spaCy's own lemma (`"schließen"`), not a normalised
+  form -- the dictionary's normalised form is deliberately never used as a
+  cue SOURCE at all, only as a validity check downstream, matching the
+  brief's own instruction to prefer spaCy's lemma and let the dictionary
+  only validate.
+
+  **Adjacent, confirmed, NOT fixed (out of this item's 2-item scope):**
+  the same hand-typed-ASCII-key pattern still stands elsewhere in
+  `STRONG_VERBS` -- `"heissen"` (should be `"heißen"`) and the Präteritum
+  stems `"ass"`, `"sass"`, `"liess"`, `"vergass"` (should be `"aß"`,
+  `"saß"`, `"ließ"`, `"vergaß"`; `_SIBILANT_STEMS` also does not include
+  `"ß"`) -- none of these were among the 2 reported items, so none were
+  touched. A separate table, `src.lexicon.lemmatizer.IRREGULAR_LEMMAS`,
+  has the identical bug pattern (`"schloss"`/`"geschlossen"` both map to
+  `"schliessen"`) but is confirmed unreachable from the blanking cue path:
+  only `SEPARABLE_PREFIXES`, `compound_split_candidates`, and `normalise`
+  are ever imported from that module by `src/generation/blanking/`, never
+  `IRREGULAR_LEMMAS` or the `lemmatize()` function that reads it.
+
+  **Verified against real data.** `scripts.step7_corpus_pilot --limit
+  20000`, before vs. after (raw, post-CEFR candidate count, same seed):
+  both reported sentences (`"Das könnte ich mit geschlossenen Augen
+  machen."`, `"Die Patientin lag mit geschlossenen Augen im Bett."`) now
+  cue `"geschlossen"`, not `"(schliessen)"`, and their `partizip_ii_
+  attributiv_erweitert` -> `adjektivdeklination_nullartikel` reroute
+  (`partizip_ii_attributiv_erweitert` 5 -> 3, `adjektivdeklination_
+  nullartikel` gains both) is itself a correct side effect: with the key
+  fixed, `PARTICIPLE_II_TO_INFINITIVE` and `TRANSITIVE_LEMMAS` now agree
+  with the tagger's own lemma, and these two sentences' `"geschlossenen
+  Augen"` (a plain null-article dative plural, no inserted PP) no longer
+  passes `_select_partizip_ii_attributiv_erweitert`'s own extended-shape
+  requirement -- they were never a genuine extended attributive
+  participle to begin with.
+
+- [x] **8.9 `futur_ii` taking the present passive, 1 item. Confidence:
   high.** Same shape error the `futur_i` fix already closed. Futur II is
   `werden` plus participle plus `haben`/`sein` infinitive. Require the full
   shape.
+
+  Fixed: `_select_futur_ii` now bounds its participle search to the
+  clause (`_participle_after_in_clause`, same clause-bounding posture used
+  throughout this module) and, past the participle, requires the correct
+  `haben`/`sein` infinitive (chosen by `paradigms.AUX_SEIN_LEMMAS`
+  membership, same discriminator 8.2 above uses) to actually appear before
+  either the clause ends or a coordinating conjunction is hit. The
+  coordinating-conjunction stop was needed in addition to clause-bounding:
+  the reported sentence has no comma at all (`_clause_span`'s only
+  boundary signal), so `"und"` alone -- documented elsewhere in this
+  module as NOT a clause boundary without a preceding comma -- would
+  otherwise have let the search cross into the second, unrelated clause's
+  own `"...zu haben"` and still wrongly accept it.
+
+  Both a negative regression test (the reported sentence, plus its correct
+  `passiv_praesens` reading) and a positive control (a genuine Futur II
+  followed by an unrelated `"und"`-coordinated second clause) are pinned.
+
+  **Verified against real data.** `scripts.step7_corpus_pilot --limit
+  20000`, before vs. after (raw, post-CEFR candidate count, same seed):
+  `futur_ii` stayed at 4 (the topic has very little corpus support at this
+  scale either way; the reported sentence was never part of the sampled
+  4 to begin with -- confirmed directly against the pipeline, not
+  assumed), and correctly now resolves as `passiv_praesens` instead.
 
 - [ ] **8.10 `Strässchen` in a carrier, 1 item. NO FIX. This one is honest
   and unsolved.** Standard German is `Sträßchen`. The Swiss rule added in
@@ -1400,5 +1633,36 @@ to each (see 8.1's own writeup) rather than forced. Hand-checking 8.1
 against the corpus also surfaced six pre-existing, unrelated tagger/helper
 defects in `kasus_dativ_formen`/`verben_reflexiv_akk`/`verben_reflexiv_dat`,
 none introduced by this fix and all left unfixed as out of scope (8.1's own
-writeup has the full list). 8.2, 8.3, 8.6, 8.7, 8.8, 8.9 and 8.11 are
-unchanged, deliberately not attempted in this pass.
+writeup has the full list). 8.1's own remaining `verbeugen` leftover is now
+also fixed, in the same later pass as 8.2-8.9 below: added to the hand-
+curated `ACCUSATIVE_ONLY_REFLEXIVE_VERBS` seed list (legitimate here, one
+Dreyer/Schmitt/Duden-sourced verb named by a hand audit, not the list-
+treadmill 8.1 itself retired), since the corpus-built lexicon has zero
+usable evidence for it. Checked, not fixed: the sentence's own `"küsste"`
+mistagging (confirmed `ADJA`, a ditransitive `verb + proper-name + "die
+Hand"` shape, not the coordination-related cause originally guessed) does
+not block anything else in this sentence -- the only selector that would
+need `"küsste"` as a governing verb never runs here, since `"küsste"` is
+never the clause's OWN candidate token in any topic this sentence produces.
+
+**8.2, 8.3, 8.6, 8.7, 8.8 and 8.9 done**, each applied and verified
+against the real corpus pilot (see each item's own writeup above for its
+full before/after numbers and hand-traced explanation of every count that
+moved). Two adjacent, pre-existing defects were found and fixed alongside
+their host items because they are the exact same class of bug the host
+item was already being fixed for, confirmed by direct diagnosis rather
+than left to reappear the next audit cycle: a NOUN-crossing variant of
+8.7's own VERB/AUX-crossing bug (see 8.7's own writeup), and a TAG-based
+widening of 8.6's finite-verb check that recovers some, not all, of that
+fix's own tagger-mistagging cost (see 8.6's own writeup). One residual gap
+was found and deliberately left open, pinned as a regression test rather
+than silently missed: 8.3's fix does not cover a `dass`-clause object of a
+syncretic verb (`"Er wird nie vergessen, dass er sie liebt."` still wrongly
+resolves as `passiv_praesens`). 8.8's own investigation additionally
+corrected the brief's own causal claim about where the two Swiss-spelled
+cues actually came from (not the vendored dictionary at runtime, a
+hand-typed key in `paradigms.STRONG_VERBS`) and found, but deliberately did
+not fix, several adjacent instances of the identical ASCII-key pattern
+elsewhere in that same table and in a second, currently-unreachable table
+in `src.lexicon.lemmatizer`. 8.10 and 8.11 remain unattempted; 8.10 still
+has no clean solution and 8.11 was explicitly out of this pass's scope.
