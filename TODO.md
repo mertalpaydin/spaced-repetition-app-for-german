@@ -1603,11 +1603,105 @@ structure.
   what it catches. **My recommendation is to accept it and say so in the
   audit each time**, rather than pretend a rule exists.
 
-- [ ] **8.11 Lexical monotony. Not a defect, but it makes the item count
+- [x] **8.11 Lexical monotony. Not a defect, but it makes the item count
   overstate what a learner gets.** Seven of ten `partizip_i_attributiv` items
   use `laufend`; three of nine `verb_praesens_vokalwechsel` items are `gibt`.
   Every one is correct. The sampler should diversify by lemma as well as by
   topic: cap how many items in one topic may share a blanked lemma.
+
+  Fixed: `scripts/step7_corpus_pilot.py` gained `--max-items-per-lemma`
+  (default 3), keyed on a new `CandidateItem.blanked_lemma` field --
+  `blanker.py` reads it straight off the already-tagged token at the exact
+  point it builds each item (`token.lemma_`, lowercased), not off `cue`
+  (a citation-form hint present only for some candidate kinds, and for a
+  determiner never derived from the answer's own lemma at all) and not off
+  the unrelated, always-empty `carrier_lemmas` field a different corpus
+  path populates. Checked against the data, not assumed: for every candidate
+  kind that already carries a cue, the cue and `blanked_lemma` agree; most
+  candidate kinds (personal/reflexive/relative pronouns, plain adjective
+  declension, plural-noun-without-cue) never carry a cue at all, which is
+  the actual reason this needed its own field rather than reusing `cue`.
+
+  The sampler (`_sample_per_topic` / `_cap_and_backfill_one_topic`) walks
+  one deterministic shuffle of each topic's own candidate pool, keeping a
+  candidate while its lemma is under the cap and setting every skip aside;
+  if the cap-respecting pass alone falls short of quota, the freed slots
+  are backfilled from that same set-aside pool until quota is met, never
+  below what a plain quota-only sample would have kept. Every topic gets
+  new `TopicSampleResult` fields (`distinct_lemmas_in_pool`,
+  `distinct_lemmas_sampled`, `max_lemma_share_sampled`,
+  `lemma_diversity_capped`) written into `data/corpus_pilot_report.json`,
+  and the run prints which topics hit the floor and why.
+
+  **Why 3, not 2, checked against real data, not guessed.** Ran
+  `--limit 20000` at both `--max-items-per-lemma 2` and `--max-items-per-lemma
+  3` over the real corpora and compared every topic's post-cap worst
+  single-lemma share. The two are not simply "2 stricter than 3": a topic
+  whose whole candidate pool has only 2-4 distinct lemmas gets WORSE
+  monotony at cap 2 than at cap 3, because more of its items are pushed
+  through the coverage floor (filled in shuffle order, not evenly
+  rebalanced) rather than the cap itself -- `verben_reflexiv_akk` and
+  `verben_reflexiv_dat` (pool of 4 lemmas each) land at 5 of 10 for the
+  worst lemma under cap 2 versus 3 of 10 under cap 3; the three
+  `konjunktiv_ii_*` topics and `passiv_modalverben` show the same reversal.
+  A topic with real abundance (6 or more distinct lemmas in the pool -- 23
+  of the 49 topics, at this run's scale) does edge lower under cap 2 (2 of
+  10 instead of 3 of 10), but every one of those was already far from the
+  audit's own complaint. Cap 3 is the value that helps the topics where the
+  problem is actually severe without making them worse, at the cost of one
+  extra permitted repeat on the topics that were already healthy.
+
+  **Verified against real data**, `scripts.step7_corpus_pilot --limit
+  20000`, seed 7, before (the unmodified sampler) versus after (cap 3):
+
+  - Total sampled items: 470 before, 470 after, identical per topic for
+    all 49 topics -- capping never shrinks a topic, by construction of the
+    backfill and floor above.
+  - `partizip_i_attributiv` (the audit's own first example): candidates 14,
+    3 distinct lemmas in the whole pool. Before: 8 of 10 sampled items were
+    `laufend` (worse than the audit's own 7 of 10 -- corpus-sample
+    variance, not a regression). After: worst lemma down to 6 of 10, with
+    all 3 pool lemmas (`laufend`, `schreiend`, `lachend`) represented in
+    the sample instead of 1 or 2.
+  - `verb_praesens_vokalwechsel` (the audit's second example): candidates
+    310, 22 distinct lemmas in the pool. This run's own seed already drew a
+    healthy sample before any cap (`geben`/`nehmen` at 2 of 10 each, 8
+    distinct lemmas total) -- the cap does not need to and does not change
+    this topic's sample at all, which is exactly the intended no-op for a
+    topic that is not actually starved. The audit's own worse ratio (3 of
+    9) was a different run; the mechanism that would have caught it is the
+    same one confirmed working on `partizip_i_attributiv` above.
+  - 19 of 49 topics hit the coverage floor (`lemma_diversity_capped=True`
+    in the report) -- reported, not silently absorbed, per this project's
+    own standard. 10 of those are single-lemma-by-construction: the whole
+    candidate pool has exactly one distinct lemma because the topic's own
+    grammar blanks one fixed closed-class word regardless of context --
+    `artikel_bestimmt_nom`/`artikel_unbestimmt_kein_nom` (the determiner
+    family's own invariant citation form), `futur_i` (`werden`),
+    `infinitiv_um_zu` (`zu`), `passiv_praeteritum`/`perfekt_haben`/
+    `perfekt_sein`/`zustandspassiv` (the relevant auxiliary),
+    `relativsatz_dativ`/`relativsatz_nom_akk` (the relative-pronoun
+    family's own citation form). No cap value can diversify these; the
+    floor correctly keeps them at full quota anyway. The remaining 9 have
+    2-3 distinct lemmas in the pool (`infinitiv_mit_zu`, `plusquamperfekt`,
+    `relativsatz_genitiv`, `konjunktiv_ii_vergangenheit`,
+    `praepositionen_genitiv_gehoben`, `verb_sein_haben`,
+    `partizip_i_attributiv`, `konjunktiv_ii_hoeflichkeit`,
+    `konjunktiv_ii_irreal_gegenwart`) -- genuine corpus scarcity for these
+    constructions at this scale, not a sampler defect.
+  - Worst remaining offender among topics with real (3+) lemma diversity in
+    their pool: `praepositionen_genitiv_gehoben`, 7 of 10 on its worst
+    lemma, from a pool of only 11 candidates total for this rare B2
+    construction -- corpus scarcity, not something a smaller cap would fix
+    (confirmed above: cap 2 leaves it at 7 of 10 too, since its pool has
+    only 3 distinct lemmas either way).
+
+  This task's own brief described `Candidate.cue` as "usually already the
+  citation form and is the natural key" -- checked, not assumed: true
+  exactly where a cue exists (confirmed by direct comparison above), but
+  most candidate kinds never carry one, which is why the cap is keyed on
+  the new `blanked_lemma` field (populated for every candidate kind
+  uniformly, read straight off the tagged token) rather than on `cue`.
 
 ### Scoreboard
 
@@ -1664,5 +1758,15 @@ cues actually came from (not the vendored dictionary at runtime, a
 hand-typed key in `paradigms.STRONG_VERBS`) and found, but deliberately did
 not fix, several adjacent instances of the identical ASCII-key pattern
 elsewhere in that same table and in a second, currently-unreachable table
-in `src.lexicon.lemmatizer`. 8.10 and 8.11 remain unattempted; 8.10 still
-has no clean solution and 8.11 was explicitly out of this pass's scope.
+in `src.lexicon.lemmatizer`. 8.10 still has no clean solution and is
+recorded as a known limit rather than papered over.
+
+**8.11 done**, in a later pass than the 19-defect audit above (it was
+explicitly out of that pass's scope). `scripts/step7_corpus_pilot.py`'s
+balanced sampler now caps how many of a topic's sampled items may share a
+blanked lemma (default 3, `--max-items-per-lemma`), backfilling freed slots
+from other lemmas and never reducing a topic below the coverage a plain
+quota-only sample would have kept it at -- see 8.11's own writeup above for
+the full before/after numbers, why 3 rather than 2, and which topics could
+not diversify (and why that is corpus scarcity or the topic's own
+closed-class grammar, not a sampler defect).

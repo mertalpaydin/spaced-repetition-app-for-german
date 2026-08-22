@@ -129,7 +129,7 @@ from dataclasses import dataclass
 from src.contracts import CandidateItem, Difficulty, Distractor, ItemType
 from src.generation.blanking import paradigms
 from src.generation.blanking.selectors import Candidate, _cue_is_real_word
-from src.generation.blanking.sentence_tagger import TaggedSentence
+from src.generation.blanking.sentence_tagger import TaggedSentence, Token
 
 MAX_DISTRACTORS = 3
 
@@ -167,6 +167,19 @@ def _render_prompt(sentence: TaggedSentence, blank_index: int) -> str:
 def _source_sentence_id(sentence: TaggedSentence) -> str:
     digest = hashlib.sha256(sentence.text.encode("utf-8")).hexdigest()[:16]
     return f"sent_{digest}"
+
+
+def _blanked_lemma(token: Token) -> str | None:
+    """``CandidateItem.blanked_lemma``'s own value: ``token``'s spaCy lemma,
+    lowercased, or ``None`` when spaCy resolved nothing (an empty
+    ``lemma_``). Every outcome builder below already reads ``token`` off
+    ``sentence.tokens[candidate.token_index]`` to reconstruct and cross-check
+    the answer; this reuses that exact token rather than re-deriving
+    anything -- see ``CandidateItem.blanked_lemma``'s own docstring comment
+    (``src/contracts.py``) for why this is a distinct field from ``cue`` and
+    from ``carrier_lemmas``, and TODO.md 8.11 for what it exists for."""
+    lemma = token.lemma.strip().lower()
+    return lemma or None
 
 
 def _cue_equals_answer(cue: str | None, answer: str) -> bool:
@@ -262,6 +275,7 @@ def _determiner_outcome(
             distractors=distractors,
             cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
+            blanked_lemma=_blanked_lemma(token),
         ),
         None,
     )
@@ -332,6 +346,7 @@ def _adjective_outcome(
             distractors=distractors,
             cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
+            blanked_lemma=_blanked_lemma(token),
         ),
         None,
     )
@@ -368,6 +383,7 @@ def _degree_outcome(
             distractors=[],
             cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
+            blanked_lemma=_blanked_lemma(token),
         ),
         None,
     )
@@ -412,6 +428,7 @@ def _personal_pronoun_outcome(
             proposed_answer=token.text,
             distractors=distractors,
             source_sentence_id=_source_sentence_id(sentence),
+            blanked_lemma=_blanked_lemma(token),
         ),
         None,
     )
@@ -449,6 +466,7 @@ def _reflexive_pronoun_outcome(
             proposed_answer=token.text,
             distractors=distractors,
             source_sentence_id=_source_sentence_id(sentence),
+            blanked_lemma=_blanked_lemma(token),
         ),
         None,
     )
@@ -484,6 +502,7 @@ def _relative_pronoun_outcome(
             proposed_answer=token.text,
             distractors=distractors,
             source_sentence_id=_source_sentence_id(sentence),
+            blanked_lemma=_blanked_lemma(token),
         ),
         None,
     )
@@ -536,6 +555,7 @@ def _verb_form_outcome(
             distractors=distractors,
             cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
+            blanked_lemma=_blanked_lemma(token),
         ),
         None,
     )
@@ -589,6 +609,7 @@ def _irregular_aux_outcome(
             distractors=distractors,
             cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
+            blanked_lemma=_blanked_lemma(token),
         ),
         None,
     )
@@ -615,6 +636,7 @@ def _fixed_particle_outcome(
             proposed_answer=token.text,
             distractors=[],
             source_sentence_id=_source_sentence_id(sentence),
+            blanked_lemma=_blanked_lemma(token),
         ),
         None,
     )
@@ -643,6 +665,7 @@ def _plural_noun_outcome(
             distractors=[],
             cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
+            blanked_lemma=_blanked_lemma(token),
         ),
         None,
     )

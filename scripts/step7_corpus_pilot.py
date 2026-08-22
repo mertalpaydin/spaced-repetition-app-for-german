@@ -65,6 +65,38 @@ here rather than silently accepted) of not re-running cross-topic dedup once
 per topic's own filtered pool, which would undo the performance win this
 design exists for.
 
+## Lemma diversity within a topic (TODO.md 8.11)
+
+The balanced sampler above fixes topic coverage; it says nothing about what
+is INSIDE a topic's own quota. docs/audits/cycle-10-corpus-report.md's own
+finding: the corpus is Zipf-distributed, so an unweighted per-topic draw
+returns the same dominant lemma over and over -- 7 of 10
+``partizip_i_attributiv`` items blanking "laufend", 3 of 9
+``verb_praesens_vokalwechsel`` items blanking "gibt" in that cycle's own
+sample. Every one of those items is individually correct; a learner meeting
+"laufend" seven times in a ten-item topic is still learning far less than
+the item count suggests, and an audit sampled from that pool sees the same
+word instead of the topic's real range.
+
+``--max-items-per-lemma`` (default ``DEFAULT_MAX_ITEMS_PER_LEMMA``, see that
+constant's own comment for why 3) caps how many of a topic's SAMPLED items
+may share the same blanked lemma. Keyed on ``CandidateItem.blanked_lemma``
+-- the removed token's own spaCy lemma, set once in ``blanker.py`` at the
+exact point that token is already in hand, never re-derived here -- not on
+``cue`` (a citation-form hint the learner sees, absent for most candidate
+kinds, and for a determiner never derived from the answer's own lemma at
+all) and not on the unrelated, always-empty ``carrier_lemmas`` field a
+different corpus path populates. ``_cap_and_backfill_one_topic`` fills the
+slots a capped lemma frees from OTHER lemmas in the same pool (capping
+without backfilling would just shrink the topic), and never reduces a topic
+below what a plain quota-only sample would have kept it at: a topic whose
+candidate pool genuinely has too few distinct lemmas to fill its quota under
+the cap still fills its quota, with the cap relaxed only as far as that one
+topic needs -- reported per topic (``TopicSampleResult.
+lemma_diversity_capped``), never silently absorbed. Deterministic under
+``--seed`` exactly like the balanced sampler itself: one full, seeded
+shuffle of each topic's own candidate pool, walked once.
+
 ## Corpus provenance
 
 Every accepted item records ``corpus_source`` ("tatoeba" or "leipzig") and
@@ -131,6 +163,7 @@ import hashlib
 import json
 import random
 import sys
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -188,6 +221,34 @@ DEFAULT_LIMIT_PER_SOURCE = 40_000
 DEFAULT_PER_TOPIC_QUOTA = 10
 DEFAULT_SEED = 7
 
+# TODO.md 8.11: how many items in ONE topic's sample may share the same
+# blanked lemma -- docs/audits/cycle-10-corpus-report.md's own finding (7 of
+# 10 partizip_i_attributiv items blank "laufend", 3 of 9
+# verb_praesens_vokalwechsel items blank "gibt"). 3, not 2: run both at
+# --limit 20000 over the real corpora and compared every topic's own
+# post-cap worst single-lemma share, not guessed. The two are NOT simply
+# "2 stricter than 3" -- the coverage floor below makes a tighter cap
+# actively worse for a topic with only 2-4 distinct lemmas in its whole
+# candidate pool, because more of that topic's items are forced through the
+# floor (which fills in shuffle order, not evenly) rather than the cap
+# itself: at max-items-per-lemma=2, 6 such topics (``passiv_modalverben``,
+# ``verben_reflexiv_akk``/``_dat``, and the three ``konjunktiv_ii_*``
+# topics, pool sizes 2-4) land on a HIGHER worst-lemma-share than at 3 --
+# e.g. ``verben_reflexiv_akk`` at 5 of 10 with cap 2 versus 3 of 10 with cap
+# 3. For a topic with real abundance (6+ distinct lemmas in the pool -- 23
+# of them at this run's scale), cap 2 does edge out cap 3 (worst share 2 of
+# 10 instead of 3 of 10), but every one of those was already far from the
+# audit's own complaint. Cap 3 is the value that helps the SCARCE topics
+# (where the problem is worst) without over-constraining them, at the cost
+# of one extra permitted repeat on the already-healthy ones. The two
+# topics the audit actually named land identically either way
+# (``partizip_i_attributiv`` 6 of 10, ``verb_praesens_vokalwechsel`` 2 of
+# 10 -- the latter was already under either cap in this run's own sample),
+# so the choice between 2 and 3 is decided by every OTHER topic's own
+# numbers, not by the two named ones. See this task's own verification
+# writeup for the full before/after table.
+DEFAULT_MAX_ITEMS_PER_LEMMA = 3
+
 # Effectively uncapped, matching eval_corpus_coverage.py's own reasoning: a
 # topic/sentence cap here would throw away real candidates before this
 # script's own balanced sampler ever gets a chance to choose among them --
@@ -234,6 +295,22 @@ class TopicSampleResult:
     candidates: int
     quota: int
     sampled: int
+    # TODO.md 8.11: lemma-diversity diagnostics for this topic's own sample.
+    # ``distinct_lemmas_in_pool`` is computed over every CANDIDATE (before
+    # sampling), so it is the same number regardless of ``--max-items-per-
+    # lemma`` -- it answers "how much real variety did this topic ever have
+    # to draw from", independent of the cap. ``distinct_lemmas_sampled`` and
+    # ``max_lemma_share_sampled`` describe the SAMPLE actually kept.
+    # ``lemma_diversity_capped`` is ``True`` only when this topic's pool did
+    # not have enough distinct lemmas to fill its quota while respecting the
+    # cap, so the coverage floor (module docstring's own "never below the
+    # coverage the quota already guarantees" rule) had to keep a lemma past
+    # its cap rather than shrink the topic -- reported per-topic, never
+    # silently absorbed, exactly like ``shortfall`` below.
+    distinct_lemmas_in_pool: int = 0
+    distinct_lemmas_sampled: int = 0
+    max_lemma_share_sampled: int = 0
+    lemma_diversity_capped: bool = False
 
     @property
     def shortfall(self) -> int:
@@ -259,6 +336,7 @@ class CorpusPilotReport:
 
     seed: int = DEFAULT_SEED
     per_topic_quota: int = DEFAULT_PER_TOPIC_QUOTA
+    max_items_per_lemma: int = DEFAULT_MAX_ITEMS_PER_LEMMA
     limit_per_source: int = DEFAULT_LIMIT_PER_SOURCE
     ran_live: bool = False
     corpus_reads: list[CorpusReadStats] = field(default_factory=list)
@@ -288,6 +366,7 @@ class CorpusPilotReport:
             "run": {
                 "seed": self.seed,
                 "per_topic_quota": self.per_topic_quota,
+                "max_items_per_lemma": self.max_items_per_lemma,
                 "limit_per_source": self.limit_per_source,
                 "ran_live": self.ran_live,
             },
@@ -317,6 +396,10 @@ class CorpusPilotReport:
                     "quota": t.quota,
                     "sampled": t.sampled,
                     "shortfall": t.shortfall,
+                    "distinct_lemmas_in_pool": t.distinct_lemmas_in_pool,
+                    "distinct_lemmas_sampled": t.distinct_lemmas_sampled,
+                    "max_lemma_share_sampled": t.max_lemma_share_sampled,
+                    "lemma_diversity_capped": t.lemma_diversity_capped,
                 }
                 for t in self.topic_results
             ],
@@ -424,6 +507,75 @@ def _read_one_corpus(
     return read_corpus_lines(path, fmt, limit, seed)
 
 
+def _lemma_key(item: CandidateItem) -> str:
+    """The diversity-cap grouping key for one candidate (TODO.md 8.11):
+    ``CandidateItem.blanked_lemma`` when spaCy resolved one for the blanked
+    token -- see that field's own docstring (``src/contracts.py``) for why
+    this, and not ``cue`` or ``carrier_lemmas``, is the right key. Falls back
+    to the lowercased surface answer for the rare candidate whose token
+    lemmatised to nothing (checked against the real corpus, see this
+    module's own ``DEFAULT_MAX_ITEMS_PER_LEMMA`` comment: the fallback fires
+    for a small minority of items, never the common case, so it does not
+    itself reintroduce the monotony this cap exists to fix)."""
+    return item.blanked_lemma if item.blanked_lemma else item.proposed_answer.lower()
+
+
+def _cap_and_backfill_one_topic(
+    candidates: list[CandidateItem],
+    *,
+    quota: int,
+    max_items_per_lemma: int,
+    rng: random.Random,
+) -> tuple[list[CandidateItem], bool]:
+    """One topic's own sample, diversified by lemma (TODO.md 8.11). Only
+    ever called when ``len(candidates) > quota`` -- the caller
+    (``_sample_per_topic``) already takes every candidate, uncapped, when a
+    topic is AT OR UNDER quota, so "cap without shrinking" never has to
+    explain away a topic that had nothing spare to diversify with in the
+    first place.
+
+    Walks a full deterministic shuffle of ``candidates`` once, keeping a
+    candidate while its own lemma (``_lemma_key``) has not yet reached
+    ``max_items_per_lemma`` and setting every skipped-for-cap candidate
+    aside in ``reserve``, in the same shuffle order, rather than discarding
+    it. If the cap-respecting pass alone does not reach ``quota`` -- the
+    pool genuinely does not have enough DISTINCT lemmas to fill it any other
+    way -- the freed slots are filled from ``reserve``, in order, until
+    ``quota`` is met. Because ``len(candidates) > quota`` is guaranteed by
+    the caller, ``reserve`` always holds enough items to finish the job:
+    ``len(reserve) >= len(candidates) - quota >= quota - len(kept before
+    backfill)`` whenever the cap-respecting pass falls short. This is the
+    "prefer diversity, but never below the coverage the quota already
+    guarantees" rule from this task's own brief, and the second return value
+    (``True`` only when the backfill actually ran) is exactly "which topics
+    hit that condition" for the caller to report.
+    """
+    order = rng.sample(candidates, len(candidates))
+    lemma_counts: Counter[str] = Counter()
+    kept: list[CandidateItem] = []
+    reserve: list[CandidateItem] = []
+
+    for item in order:
+        if len(kept) == quota:
+            break
+        key = _lemma_key(item)
+        if lemma_counts[key] < max_items_per_lemma:
+            kept.append(item)
+            lemma_counts[key] += 1
+        else:
+            reserve.append(item)
+
+    floor_applied = len(kept) < quota
+    if floor_applied:
+        for item in reserve:
+            if len(kept) == quota:
+                break
+            kept.append(item)
+            lemma_counts[_lemma_key(item)] += 1
+
+    return kept, floor_applied
+
+
 def _sample_per_topic(
     items_by_topic: dict[str, list[CandidateItem]],
     candidates_before_cefr: dict[str, int],
@@ -433,6 +585,7 @@ def _sample_per_topic(
     *,
     quota: int,
     seed: int,
+    max_items_per_lemma: int = DEFAULT_MAX_ITEMS_PER_LEMMA,
 ) -> tuple[list[CandidateItem], list[TopicSampleResult]]:
     """The balanced sampler (module docstring's own section): up to ``quota``
     items per topic, every topic in ``topic_ids`` represented (even one with
@@ -445,6 +598,17 @@ def _sample_per_topic(
     "shortfall" for every topic this pipeline was never going to reach in
     the first place. ``topics_by_id`` is still the full taxonomy lookup (for
     each sampled topic's own ``cefr``).
+
+    TODO.md 8.11: within the ``quota``, no more than ``max_items_per_lemma``
+    sampled items may share the same blanked lemma (``_lemma_key``) -- see
+    ``_cap_and_backfill_one_topic`` for how the freed slots are filled from
+    OTHER lemmas rather than left empty, and for the coverage floor that
+    keeps a lemma-poor topic from being starved below what a plain
+    quota-only sampler would have kept it at. A topic AT OR UNDER quota
+    (the ``len(candidates) <= quota`` branch, unchanged from before this
+    cap existed) already takes every candidate it has regardless of lemma,
+    exactly as it always has -- there is nothing to diversify AWAY from
+    when nothing is being left out.
 
     Deterministic per (``seed``, topic id): a rerun with the same seed
     samples the exact same items from the exact same candidate LIST, because
@@ -461,12 +625,16 @@ def _sample_per_topic(
     for topic_id in sorted(topic_ids):
         topic = topics_by_id[topic_id]
         candidates = items_by_topic.get(topic_id, [])
+        rng = random.Random(f"{seed}:{topic_id}")
         if len(candidates) <= quota:
             chosen = list(candidates)
+            lemma_diversity_capped = False
         else:
-            rng = random.Random(f"{seed}:{topic_id}")
-            chosen = rng.sample(candidates, quota)
+            chosen, lemma_diversity_capped = _cap_and_backfill_one_topic(
+                candidates, quota=quota, max_items_per_lemma=max_items_per_lemma, rng=rng
+            )
         sampled.extend(chosen)
+        sampled_lemma_counts = Counter(_lemma_key(item) for item in chosen)
         results.append(
             TopicSampleResult(
                 topic_id=topic_id,
@@ -476,6 +644,10 @@ def _sample_per_topic(
                 candidates=len(candidates),
                 quota=quota,
                 sampled=len(chosen),
+                distinct_lemmas_in_pool=len({_lemma_key(item) for item in candidates}),
+                distinct_lemmas_sampled=len(sampled_lemma_counts),
+                max_lemma_share_sampled=max(sampled_lemma_counts.values(), default=0),
+                lemma_diversity_capped=lemma_diversity_capped,
             )
         )
     return sampled, results
@@ -625,6 +797,19 @@ def main() -> int:
         help="Corpus lines to scan PER SOURCE (default 40,000).",
     )
     parser.add_argument("--per-topic-quota", type=int, default=DEFAULT_PER_TOPIC_QUOTA)
+    parser.add_argument(
+        "--max-items-per-lemma",
+        type=int,
+        default=DEFAULT_MAX_ITEMS_PER_LEMMA,
+        help=(
+            "Cap on how many sampled items in one topic may share the same "
+            "blanked lemma (TODO.md 8.11; default 3). Freed slots are "
+            "backfilled from other lemmas; a topic with too few distinct "
+            "lemmas to fill its quota under the cap still fills its quota "
+            "(the cap never reduces a topic below what a plain quota-only "
+            "sample would have kept it at)."
+        ),
+    )
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--vocab-path", type=Path, default=DEFAULT_VOCAB_PATH)
     parser.add_argument("--review-file", type=str, default=str(DEFAULT_REVIEW_PATH))
@@ -639,6 +824,7 @@ def main() -> int:
     report = CorpusPilotReport(
         seed=args.seed,
         per_topic_quota=args.per_topic_quota,
+        max_items_per_lemma=args.max_items_per_lemma,
         limit_per_source=args.limit,
         ran_live=ran_live,
     )
@@ -740,23 +926,43 @@ def main() -> int:
         TOPIC_IDS,
         quota=args.per_topic_quota,
         seed=args.seed,
+        max_items_per_lemma=args.max_items_per_lemma,
     )
     report.topic_results = topic_results
     report.sampled_total = len(sampled_items)
 
     print("\n  Per-topic balanced sample:")
     print(
-        "    topic_id                                  cefr  candidates  quota  sampled  shortfall"
+        "    topic_id                                  cefr  candidates  quota  sampled  "
+        "shortfall  lemmas  max_share"
     )
     for t in topic_results:
         print(
             f"    {t.topic_id:<42} {t.cefr:>4} {t.candidates:>10} {t.quota:>6} "
-            f"{t.sampled:>8} {t.shortfall:>9}"
+            f"{t.sampled:>8} {t.shortfall:>9} {t.distinct_lemmas_sampled:>7} "
+            f"{t.max_lemma_share_sampled:>9}"
         )
     short = [t for t in topic_results if t.shortfall > 0]
     print(f"\n  Topics short of quota: {len(short)}")
     for t in short:
         print(f"    - {t.topic_id}: {t.candidates} of {t.quota} (shortfall {t.shortfall})")
+
+    # TODO.md 8.11: topics whose candidate pool did not have enough DISTINCT
+    # lemmas to fill its quota while respecting --max-items-per-lemma -- the
+    # coverage floor kept a lemma past the cap rather than shrink the topic
+    # (this task's own brief: "Report which topics hit that condition").
+    lemma_starved = [t for t in topic_results if t.lemma_diversity_capped]
+    print(
+        f"\n  Topics where the lemma cap could not be fully honoured "
+        f"(too few distinct lemmas, quota kept anyway): {len(lemma_starved)}"
+    )
+    for t in lemma_starved:
+        print(
+            f"    - {t.topic_id}: {t.distinct_lemmas_sampled} distinct lemma(s) "
+            f"for {t.sampled} item(s), max share {t.max_lemma_share_sampled} "
+            f"(cap {args.max_items_per_lemma}, pool had "
+            f"{t.distinct_lemmas_in_pool} distinct lemma(s) total)"
+        )
 
     bank_items: list[BankItem] = []
     for item in sampled_items:

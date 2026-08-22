@@ -402,3 +402,53 @@ def test_blank_sentences_keeps_a_nominative_pronoun_item_unaffected() -> None:
     report = blank_sentences(["Ich sehe den Mann auf der anderen Straßenseite."])
     assert report.items_by_topic.get("pronomen_personal_nom", 0) == 1
     assert not report.skips_by_uniqueness
+
+
+# --------------------------------------------------------------------------
+# TODO.md 8.11: CandidateItem.blanked_lemma, the diversity-cap key
+# --------------------------------------------------------------------------
+
+
+def test_blank_sentences_blanked_lemma_collapses_inflected_verb_forms() -> None:
+    """The cycle-10 audit's own second example: 'gibt' and (elsewhere)
+    'gab' are both the lexeme 'geben', not two different lemmas -- the
+    diversity cap this field feeds (TODO.md 8.11) only works if inflected
+    forms of the same verb collapse to one key."""
+    report = blank_sentences(["Es gibt heute viele Aufgaben in der Schule."])
+    item = next(i for i in report.items if i.topic_id == "verb_praesens_vokalwechsel")
+    assert item.proposed_answer == "gibt"
+    assert item.blanked_lemma == "geben"
+
+
+def test_blank_sentences_blanked_lemma_is_lowercased_for_a_capitalised_answer() -> None:
+    """A sentence-initial blanked token keeps its capitalised surface form
+    as ``proposed_answer`` (``_match_case``'s own job elsewhere), but the
+    lemma key must not fork on capitalisation alone -- 'Er' and 'er' are the
+    same lexeme for diversity-cap purposes."""
+    report = blank_sentences(["Er kommt heute später nach Hause."])
+    item = next(i for i in report.items if i.topic_id == "pronomen_personal_nom")
+    assert item.proposed_answer == "Er"
+    assert item.blanked_lemma == "er"
+
+
+def test_blank_sentences_blanked_lemma_matches_the_citation_cue_when_one_exists() -> None:
+    """Checked against the data, not assumed (this task's own brief): where
+    a selector already derives a citation-form cue, that cue and the
+    token's own spaCy lemma agree -- confirming the cue is a safe stand-in
+    ONLY where present, and that ``blanked_lemma`` is not a weaker,
+    redundant duplicate of it."""
+    report = blank_sentences(["Es gibt heute viele Aufgaben in der Schule."])
+    item = next(i for i in report.items if i.topic_id == "verb_praesens_vokalwechsel")
+    assert item.cue is not None
+    assert item.blanked_lemma == item.cue.lower()
+
+
+def test_blank_sentences_blanked_lemma_set_even_with_no_cue_at_all() -> None:
+    """The whole point of keying the diversity cap on ``blanked_lemma``
+    rather than ``cue``: most candidate kinds never carry a cue at all
+    (``pronomen_personal_nom`` here), and the cap still needs a real lemma
+    for them."""
+    report = blank_sentences(["Ich sehe den Mann auf der anderen Straßenseite."])
+    item = next(i for i in report.items if i.topic_id == "pronomen_personal_nom")
+    assert item.cue is None
+    assert item.blanked_lemma == "ich"

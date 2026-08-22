@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ from scripts.step7_corpus_pilot import (
     _carrier_hash_id,
     _cefr_rejection_to_record,
     _filter_candidates_by_topic_cefr,
+    _lemma_key,
     _sample_per_topic,
     _to_bank_item,
 )
@@ -39,7 +41,12 @@ def _topic(topic_id: str, cefr: CEFR) -> Topic:
 
 
 def _candidate(
-    topic_id: str, *, source_sentence_id: str = "sent_abc", prompt: str = "p", answer: str = "a"
+    topic_id: str,
+    *,
+    source_sentence_id: str = "sent_abc",
+    prompt: str = "p",
+    answer: str = "a",
+    lemma: str | None = None,
 ) -> CandidateItem:
     return CandidateItem(
         topic_id=topic_id,
@@ -48,6 +55,7 @@ def _candidate(
         prompt=prompt,
         proposed_answer=answer,
         source_sentence_id=source_sentence_id,
+        blanked_lemma=lemma,
     )
 
 
@@ -240,6 +248,148 @@ def test_topic_sample_result_shortfall_is_never_negative() -> None:
         sampled=10,
     )
     assert result.shortfall == 0
+
+
+# --------------------------------------------------------------------------
+# TODO.md 8.11: the per-lemma diversity cap, with backfill and a floor
+# --------------------------------------------------------------------------
+
+
+def test_lemma_key_uses_blanked_lemma_when_present() -> None:
+    item = _candidate("t", answer="läuft", lemma="laufen")
+    assert _lemma_key(item) == "laufen"
+
+
+def test_lemma_key_falls_back_to_lowercased_answer_when_no_lemma() -> None:
+    """The rare candidate whose token lemmatised to nothing at all still
+    needs a usable grouping key -- the lowercased surface answer, not a
+    shared placeholder that would wrongly lump every lemma-less candidate
+    into one artificial 'lemma'."""
+    item = _candidate("t", answer="Foo", lemma=None)
+    assert _lemma_key(item) == "foo"
+
+
+def test_sample_per_topic_caps_items_per_lemma_when_diversity_allows_it() -> None:
+    """3 distinct lemmas, 5 candidates each (15 total), quota 6, cap 2:
+    3 lemmas x cap 2 = 6 = quota exactly, so the cap should be fully
+    honoured with no floor backfill needed at all."""
+    candidates = []
+    for lemma in ("laufen", "geben", "nehmen"):
+        for i in range(5):
+            candidates.append(_candidate("t", source_sentence_id=f"{lemma}_{i}", lemma=lemma))
+    items_by_topic = {"t": candidates}
+    topics_by_id = {"t": _topic("t", "A1")}
+
+    sampled, results = _sample_per_topic(
+        items_by_topic, {}, {}, topics_by_id, ["t"], quota=6, seed=1, max_items_per_lemma=2
+    )
+
+    assert len(sampled) == 6
+    counts = Counter(_lemma_key(item) for item in sampled)
+    assert all(c <= 2 for c in counts.values())
+    assert results[0].distinct_lemmas_sampled == 3
+    assert results[0].max_lemma_share_sampled == 2
+    assert results[0].lemma_diversity_capped is False
+
+
+def test_sample_per_topic_backfills_freed_slots_to_still_meet_quota() -> None:
+    """2 distinct lemmas, 5 candidates each (10 total), quota 8, cap 2:
+    the cap alone (2 lemmas x cap 2 = 4) cannot reach quota 8, so the freed
+    slots must be backfilled from the SAME two lemmas (there is nothing
+    else to draw from) rather than leaving the topic short at 4."""
+    candidates = []
+    for lemma in ("laufen", "geben"):
+        for i in range(5):
+            candidates.append(_candidate("t", source_sentence_id=f"{lemma}_{i}", lemma=lemma))
+    items_by_topic = {"t": candidates}
+    topics_by_id = {"t": _topic("t", "A1")}
+
+    sampled, results = _sample_per_topic(
+        items_by_topic, {}, {}, topics_by_id, ["t"], quota=8, seed=1, max_items_per_lemma=2
+    )
+
+    # Capping without backfilling would have shrunk this topic to 4 -- the
+    # quota (8) must still be met from the two lemmas available.
+    assert len(sampled) == 8
+    assert results[0].sampled == 8
+    assert results[0].lemma_diversity_capped is True
+    counts = Counter(_lemma_key(item) for item in sampled)
+    assert set(counts) == {"laufen", "geben"}
+
+
+def test_sample_per_topic_never_starves_a_topic_with_one_dominant_lemma() -> None:
+    """The brief's own named condition: a topic whose entire candidate pool
+    is one lemma (e.g. a determiner-family topic, where every answer
+    lemmatises to the family's own citation form) must still fill its
+    quota -- never cut down to ``cap`` items just because diversity is
+    impossible."""
+    candidates = [_candidate("t", source_sentence_id=f"s{i}", lemma="der") for i in range(20)]
+    items_by_topic = {"t": candidates}
+    topics_by_id = {"t": _topic("t", "A1")}
+
+    sampled, results = _sample_per_topic(
+        items_by_topic, {}, {}, topics_by_id, ["t"], quota=10, seed=1, max_items_per_lemma=3
+    )
+
+    assert len(sampled) == 10
+    assert results[0].sampled == 10
+    assert results[0].shortfall == 0
+    assert results[0].distinct_lemmas_sampled == 1
+    assert results[0].max_lemma_share_sampled == 10
+    assert results[0].lemma_diversity_capped is True
+
+
+def test_sample_per_topic_lemma_cap_does_not_apply_when_already_under_quota() -> None:
+    """A topic at or under quota already takes everything it has (the
+    pre-existing behaviour) -- the lemma cap must never additionally shrink
+    a topic that had nothing spare to diversify with in the first place."""
+    candidates = [_candidate("t", source_sentence_id=f"s{i}", lemma="der") for i in range(4)]
+    items_by_topic = {"t": candidates}
+    topics_by_id = {"t": _topic("t", "A1")}
+
+    sampled, results = _sample_per_topic(
+        items_by_topic, {}, {}, topics_by_id, ["t"], quota=10, seed=1, max_items_per_lemma=1
+    )
+
+    assert sampled == candidates
+    assert results[0].lemma_diversity_capped is False
+
+
+def test_sample_per_topic_lemma_cap_is_deterministic_for_the_same_seed() -> None:
+    candidates = []
+    for lemma in ("laufen", "geben", "nehmen", "helfen"):
+        for i in range(6):
+            candidates.append(_candidate("t", source_sentence_id=f"{lemma}_{i}", lemma=lemma))
+    items_by_topic = {"t": candidates}
+    topics_by_id = {"t": _topic("t", "A1")}
+
+    first, _ = _sample_per_topic(
+        items_by_topic, {}, {}, topics_by_id, ["t"], quota=8, seed=7, max_items_per_lemma=2
+    )
+    second, _ = _sample_per_topic(
+        items_by_topic, {}, {}, topics_by_id, ["t"], quota=8, seed=7, max_items_per_lemma=2
+    )
+    third, _ = _sample_per_topic(
+        items_by_topic, {}, {}, topics_by_id, ["t"], quota=8, seed=8, max_items_per_lemma=2
+    )
+
+    assert [c.source_sentence_id for c in first] == [c.source_sentence_id for c in second]
+    assert {c.source_sentence_id for c in first} != {c.source_sentence_id for c in third}
+
+
+def test_sample_per_topic_default_lemma_cap_still_reports_distinct_lemmas() -> None:
+    """Every topic gets the lemma-diversity fields on its own
+    ``TopicSampleResult``, even a caller that does not pass
+    ``max_items_per_lemma`` explicitly (the CLI default applies)."""
+    candidates = [_candidate("t", source_sentence_id=f"s{i}", lemma="x") for i in range(3)]
+    items_by_topic = {"t": candidates}
+    topics_by_id = {"t": _topic("t", "A1")}
+
+    _, results = _sample_per_topic(items_by_topic, {}, {}, topics_by_id, ["t"], quota=10, seed=1)
+
+    assert results[0].distinct_lemmas_in_pool == 1
+    assert results[0].distinct_lemmas_sampled == 1
+    assert results[0].max_lemma_share_sampled == 3
 
 
 # --------------------------------------------------------------------------

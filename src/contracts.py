@@ -201,6 +201,24 @@ class CandidateItem(BaseModel):
     domain: str | None = "general"
     carrier_lemmas: list[str] = Field(default_factory=list)
     source_sentence_id: str | None = None
+    # TODO.md 8.11: the removed token's OWN lemma (spaCy's ``token.lemma_``,
+    # lowercased), set by ``src.generation.blanking.blanker`` at the exact
+    # point it already has the tagged token in hand -- never re-derived
+    # downstream. This is the lexeme identity of the blanked word itself
+    # ("laufen" for "läuft"/"lief", "laufend" for every declined form of that
+    # participle-adjective), not to be confused with two similarly-named but
+    # semantically different fields already on this model: ``cue`` is a
+    # citation-form HINT shown to the learner, present only for the
+    # candidate kinds cycle 5/6 wired a cue to, and for a determiner
+    # candidate never derived from the answer's own lemma at all (see
+    # ``blanker.py``'s "cue rule for determiner slots" section); and
+    # ``carrier_lemmas`` is an unrelated, whole-SENTENCE content-word list a
+    # different corpus path (``src.corpus.tatoeba``) populates -- always
+    # empty for every item this pipeline builds. ``None`` only when spaCy
+    # resolved no lemma at all for the token (rare); every LLM-direct
+    # (non-corpus) candidate also leaves this ``None``, since only the
+    # blanking path ever has a tagged token to read a lemma from.
+    blanked_lemma: str | None = None
     # docs/audits/generation-track-plan.md Cycle 3, and CLAUDE.md rule 2's
     # gloss-not-label resolution: a natural English translation of the
     # COMPLETE carrier sentence with the gap filled by the intended answer.
