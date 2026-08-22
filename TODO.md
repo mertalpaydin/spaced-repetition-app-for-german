@@ -10,56 +10,17 @@ work list. Do not do that again.
 
 ---
 
-## 1. Six defects found while hand-checking the 8.1 survivors
-
-Found in `kasus_dativ_formen`, `verben_reflexiv_akk` and `verben_reflexiv_dat`
-during the corpus lexicon work. Not caused by that fix, but live, and they
-would ship. Each was left out of scope at the time and is now on the list.
-
-Three are our own helpers:
-
-- [ ] **1.1 Object lookup does not skip a temporal phrase.**
-  `Er kauft sich jeden Abend eine Flasche Bier ...`
-  `_immediately_followed_by_object_np` looks for the object directly after the
-  reflexive and finds `jeden Abend` instead of `eine Flasche Bier`. The
-  temporal-accusative exclusion already exists elsewhere in the codebase
-  (`paradigms.TEMPORAL_ANCHOR_LEMMAS`, used by the reflexive routing fix);
-  reuse it rather than writing a second one.
-
-- [ ] **1.2 Preposition walk-back stops at a coordinating conjunction.**
-  `Ob es sich um ein und dasselbe Tier handelt ...`
-  `_governed_by_adposition` stops at the `und` inside `ein und dasselbe`
-  rather than continuing to `um`.
-
-- [ ] **1.3 Preposition walk-back cannot cross a multi-token proper name.**
-  `Hier setzt er sich ... gegen Fatih Celiksoy durch.`
-  Same helper, different failure. Confirmed present in both the before and
-  after samples, so it predates the lexicon work.
-
-Three are the tagger, and the first two matter beyond their own items:
-
-- [ ] **1.4 Second person in an inverted question tagged as first person.**
-  `Kannst du mich ...?` -> `Kannst` tagged `Person=1`.
-
-- [ ] **1.5 Same, on a vowel-change verb.**
-  `So also vergiltst du mir ...!` -> `vergiltst` tagged `Person=1`.
-
-  **1.4 and 1.5 expose a hole in our own measurement.**
-  `docs/audits/tagger-accuracy-vs-gold.md` sampled UD_German-HDT, which is
-  news prose and almost entirely declarative. Its 12.59 percent Mood and 6.08
-  percent Case conflict rates therefore say nothing about questions,
-  imperatives or second person, which is precisely the register a learner app
-  is full of. Re-measure against a treebank or corpus slice that actually
-  contains questions before trusting those numbers for this pipeline.
-
-- [ ] **1.6 Determiner-less plural dative tagged accusative.**
-  `Der Körper passt sich ... Temperaturänderungen an.`
-
----
-
-## 2. Known limits, recorded rather than solved
+## 1. Known limits, recorded rather than solved
 
 Not tasks. Do not "fix" these without a decision from the owner.
+
+- **`anpassen` cannot get a dative object cue.** `Der Körper passt sich ...
+  Temperaturänderungen an.` -- the determiner-less plural object is genuinely
+  dative, but the corpus lexicon has only 1 occurrence for `anpassen`
+  (threshold is 5), and separately `_governing_verb_lemma` reconstructs the
+  verb as `anpasst`, not `anpassen`, for this exact form, so a lookup would
+  fail even with enough evidence. Two compounding gaps, not one; see
+  `docs/audits/fix-log.md` section 9.6 for the full trace. Was TODO 1.6.
 
 - **`Strässchen` and Swiss orthography with `ä`.** Standard German is
   `Sträßchen`. The rule added for Swiss spelling covers diphthongs before
@@ -82,31 +43,31 @@ Not tasks. Do not "fix" these without a decision from the owner.
 
 ---
 
-## 3. Open work
+## 2. Open work
 
-- [ ] **3.1 Re-run the corpus pilot and audit it.** Confirms the section 8
+- [ ] **2.1 Re-run the corpus pilot and audit it.** Confirms the section 8
   fixes against a fresh sample. Command is in the session; outputs are
   `data/corpus_pilot_review.jsonl`, `_rejected.jsonl` and `_report.json`.
 
-- [ ] **3.2 Get real numbers out of `scripts/eval_verifier.py`.** The
+- [ ] **2.2 Get real numbers out of `scripts/eval_verifier.py`.** The
   adversarial set (38 confirmed defects, 31 confirmed clean) and the script
   both exist. They have never been run with a key, so the verifier's recall
   and false-positive rate are still unmeasured. Also test `--batch-size 5`
   against the default 20, to settle whether items late in a batch get less
   scrutiny.
 
-- [ ] **3.3 The AI generation pilot, last.** Owner's sequencing: corpus path
+- [ ] **2.3 The AI generation pilot, last.** Owner's sequencing: corpus path
   proven first, then generation for what the corpus cannot reach. On current
   evidence that is `futur_i`, `zustandspassiv_zeiten` and `futur_ii`, which
   are too rare even in 80,000 corpus sentences.
 
-- [ ] **3.4 Decide the split and write it down.** After 3.1 and 3.3: which
+- [ ] **2.4 Decide the split and write it down.** After 2.1 and 2.3: which
   topics are corpus-sourced, which are generated, and the rule for choosing.
   That becomes the standing generation policy.
 
 ---
 
-## 4. Owner changes that must never be overturned
+## 3. Owner changes that must never be overturned
 
 Pinned by tests. Do not change without the owner saying so explicitly.
 
@@ -120,7 +81,7 @@ have a pinning test that says to ask rather than update the assertion.
 
 ---
 
-## 5. Decisions the owner has made, so nobody relitigates them
+## 4. Decisions the owner has made, so nobody relitigates them
 
 - **Cue with the invariant citation form**, not a gender-agreed one. A cue
   equal to its answer is fine when the learner still had to work out case and

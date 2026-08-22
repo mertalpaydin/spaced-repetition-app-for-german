@@ -2826,3 +2826,130 @@ def test_adjektivdeklination_nullartikel_cue_matches_sentence_initial_capitalisa
     assert item.cue == "Letzter"
     assert item.cue is not None
     assert item.cue[:1].isupper() == item.proposed_answer[:1].isupper()
+
+
+# ==============================================================================
+# TODO.md 1.1/1.2/1.3/1.4/1.5 -- six defects found while hand-checking the
+# 8.1 survivors (docs/audits/fix-log.md 8.1's own six-item list), left out
+# of scope at the time and closed here. 1.6 (the ``anpassen``/
+# ``kasus_dativ_formen`` government-lexicon gap) is documented in
+# docs/audits/fix-log.md as not fixable within scope -- no code changed for
+# it, so no regression test for it either.
+# ==============================================================================
+
+
+def test_verben_reflexiv_dat_skips_a_temporal_np_to_find_the_real_object() -> None:
+    """TODO.md 1.1: "Er kauft sich jeden Abend eine Flasche Bier ..." --
+    ``_immediately_followed_by_object_np`` used to stop at "jeden Abend" (a
+    temporal accusative, correctly excluded from counting as an object)
+    instead of continuing on to "eine Flasche Bier", the real one, and so
+    never saw the object that forces "kaufen"'s Dative reading here."""
+    sentence = "Er kauft sich jeden Abend eine Flasche Bier zum Abendessen."
+    item = _blank("verben_reflexiv_dat", sentence)
+    assert item.proposed_answer == "sich"
+    _, akk_candidates = _select("verben_reflexiv_akk", sentence)
+    assert akk_candidates == []
+
+
+def test_verben_reflexiv_akk_walks_past_a_coordinated_determiner_to_find_um() -> None:
+    """TODO.md 1.2: "Ob es sich um ein und dasselbe Tier handelt ..." --
+    ``_governed_by_adposition`` used to stop at the bare "und" inside "ein
+    und dasselbe" and never reach "um", wrongly treating "Tier" as a bare
+    accusative object of "handeln" and promoting "sich" to Dative."""
+    sentence = "Ob es sich um ein und dasselbe Tier handelt, ist unklar."
+    item = _blank("verben_reflexiv_akk", sentence)
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select("verben_reflexiv_dat", sentence)
+    assert dat_candidates == []
+
+
+def test_verben_reflexiv_akk_walks_past_a_two_token_proper_name() -> None:
+    """TODO.md 1.3: "Hier setzt er sich ... gegen Fatih Celiksoy durch." --
+    ``_governed_by_adposition`` gave up at the first name token and never
+    reached "gegen", wrongly treating the second name token as a bare
+    accusative object and promoting "sich" to Dative. Confirmed present in
+    both the before and after corpus samples of the verb-government
+    lexicon work (docs/audits/fix-log.md 8.1), so this predates that fix
+    rather than being caused by it. This exact sentence also needs the
+    ``NN``-tagged-name-half fallback (see ``_governed_by_adposition``'s own
+    docstring): this tagger tags "Fatih" plain ``NOUN``, not ``PROPN``, in
+    this context."""
+    sentence = "Hier setzt er sich im Finale gegen Fatih Celiksoy durch."
+    item = _blank("verben_reflexiv_akk", sentence)
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select("verben_reflexiv_dat", sentence)
+    assert dat_candidates == []
+
+
+def test_governed_by_adposition_does_not_cross_an_unrelated_determined_noun() -> None:
+    """Negative control for TODO.md 1.3's own fix: walking past a bare
+    common noun tagged ``NN`` is only trusted once a genuine ``PROPN`` has
+    already been seen earlier in the SAME walk -- otherwise the walk must
+    not cross into a wholly separate, determiner-headed noun phrase.
+    "für seinen Bruder ein Auto": "Auto" is not governed by "für" ("Bruder"
+    is, and it has its own determiner, "seinen") -- checked directly
+    against the helper, not only through a selector's aggregate output."""
+    tagged = sentence_tagger.tag_sentence(
+        "Er kauft für seinen Bruder ein Auto und einen Fernseher."
+    )
+    assert tagged is not None
+    auto = next(t for t in tagged.tokens if t.text == "Auto")
+    bruder = next(t for t in tagged.tokens if t.text == "Bruder")
+    assert selectors._governed_by_adposition(tagged, auto.i) is False
+    assert selectors._governed_by_adposition(tagged, bruder.i) is True
+
+
+# ------------------------------------------------------------------------
+# TODO.md 1.4/1.5: a finite verb tagged Person=1 whose surface text ends in
+# "-st"/"-ßt" is never actually 1st person -- see
+# ``selectors._finite_verb_person``'s own module comment for the full
+# reasoning and the confirmed Person=3 exception. Both reported sentences
+# also carry OTHER, unrelated tagger defects (an unreduced lemma on both
+# forms -- "Kannst"/"vergiltst" instead of "können"/"vergelten" -- and
+# "vergiltst" additionally tagged Tense=Past instead of Pres) that keep
+# them from reaching a shipped item through the full pipeline regardless of
+# this fix; that is out of this task's six-defect scope, so the fix is
+# pinned directly against the tagged token and the correction function
+# rather than through a topic selector.
+# ------------------------------------------------------------------------
+
+
+def test_finite_verb_person_corrects_kannst_in_an_inverted_question() -> None:
+    tagged = sentence_tagger.tag_sentence("Kannst du mich morgen im Krankenhaus besuchen?")
+    assert tagged is not None
+    kannst = tagged.tokens[0]
+    assert kannst.text == "Kannst"
+    assert kannst.morph.get("Person") == "1"  # the raw tagger bug, unchanged
+    assert selectors._finite_verb_person(kannst) == "2"
+
+
+def test_finite_verb_person_corrects_vergiltst_in_an_inverted_exclamation() -> None:
+    tagged = sentence_tagger.tag_sentence("So also vergiltst du mir meine Freundlichkeit!")
+    assert tagged is not None
+    vergiltst = next(t for t in tagged.tokens if t.text == "vergiltst")
+    assert vergiltst.morph.get("Person") == "1"  # the raw tagger bug, unchanged
+    assert selectors._finite_verb_person(vergiltst) == "2"
+
+
+def test_finite_verb_person_does_not_touch_a_correctly_tagged_person_3() -> None:
+    """Every other tagged Person is returned unchanged, ``3`` included --
+    see the "passt" sibilant-stem case documented on
+    ``_finite_verb_person`` for why Person=3 is deliberately never
+    corrected. Confirmed against this exact sentence: unconditionally
+    overriding Person=3 broke ``verben_reflexiv_dat``'s own subject-
+    agreement check for "sich" (which requires Person=3) during this fix's
+    own development -- this is a regression guard for that, not a
+    hypothetical."""
+    tagged = sentence_tagger.tag_sentence("Der Körper passt sich schnell Temperaturänderungen an.")
+    assert tagged is not None
+    passt = next(t for t in tagged.tokens if t.text == "passt")
+    assert passt.morph.get("Person") == "3"
+    assert selectors._finite_verb_person(passt) == "3"
+
+
+def test_finite_verb_person_leaves_a_correctly_tagged_person_2_alone() -> None:
+    tagged = sentence_tagger.tag_sentence("Warum gehst du schon so früh nach Hause?")
+    assert tagged is not None
+    gehst = next(t for t in tagged.tokens if t.text == "gehst")
+    assert gehst.morph.get("Person") == "2"
+    assert selectors._finite_verb_person(gehst) == "2"

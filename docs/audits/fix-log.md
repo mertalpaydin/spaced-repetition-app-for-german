@@ -1779,3 +1779,273 @@ quota-only sample would have kept it at -- see 8.11's own writeup above for
 the full before/after numbers, why 3 rather than 2, and which topics could
 not diversify (and why that is corpus scarcity or the topic's own
 closed-class grammar, not a sampler defect).
+
+---
+
+## 9. The six 8.1-survivor defects (TODO.md 1.1-1.6)
+
+5 of 6 fixed and verified against real pipeline output. The sixth
+(`anpassen`/`kasus_dativ_formen`) is not fixable within this task's scope,
+for a documented reason, not left silently unfinished. All six were found
+during 8.1's own hand-check, listed at the end of 8.1's writeup above and
+carried into `TODO.md` unfixed; this closes them.
+
+### 9.1 Object lookup does not skip a temporal phrase
+
+`_immediately_followed_by_object_np` stopped at the first noun phrase found
+after a reflexive pronoun and returned "no object" the instant that phrase
+was an excluded temporal one -- "Er kauft sich jeden Abend eine Flasche
+Bier ..." stopped at "jeden Abend" and never looked past it to "eine
+Flasche Bier", the real object that forces `kaufen`'s Dative reading.
+
+Fixed: the scan now treats an excluded temporal noun phrase as something to
+skip past, not a dead end -- it resumes right after it and keeps walking
+the clause for a genuine object, exactly the fix TODO.md 1.1 asked for
+(reusing `_TEMPORAL_ACCUSATIVE_LEMMAS`, itself already built on
+`paradigms.TEMPORAL_ANCHOR_LEMMAS`, not a second list).
+
+Verified: `verben_reflexiv_dat` now correctly finds "sich" in the reported
+sentence (`verben_reflexiv_akk` correctly finds nothing there), pinned as
+`test_verben_reflexiv_dat_skips_a_temporal_np_to_find_the_real_object`.
+
+### 9.2 / 9.3 Preposition walk-back stops at a coordinating conjunction / cannot cross a multi-token proper name
+
+Same helper, `_governed_by_adposition`, two intervening shapes it gave up
+on instead of walking past:
+
+- "Ob es sich um ein und dasselbe Tier handelt ...": the walk from "Tier"
+  reached "dasselbe" fine, then stopped dead at the bare "und" inside "ein
+  und dasselbe" one token further back, never reaching "um". "Tier" was
+  then wrongly counted as a bare accusative object, promoting "sich" to a
+  Dative reading `handeln` does not have.
+- "Hier setzt er sich ... gegen Fatih Celiksoy durch.": neither name token
+  carries a tag the old walk recognised, so it gave up at the very first
+  one without considering there might be a second, let alone a preposition,
+  further back.
+
+Fixed properly, not as two special cases, per the brief's own instruction:
+the walk now tolerates everything that can legitimately sit between a
+preposition and its head noun --
+
+- a coordinating conjunction, but ONLY when the token immediately before it
+  is itself determiner-shaped (coordinating two determiners of the SAME
+  phrase, "ein und dasselbe"), so an arbitrary "und"/"oder" joining two
+  unrelated phrases is still correctly a wall;
+- a run of `PROPN`-tagged tokens (the straightforward multi-token-name
+  case); and, confirmed necessary by direct testing rather than assumed
+  sufficient, a bare `NN`-tagged token too, but ONLY once a genuine `PROPN`
+  has already been seen earlier in the SAME walk -- this exact tagger tags
+  only one half of some two-token foreign names `PROPN` ("Celiksoy") and
+  the other plain `NOUN` ("Fatih"), confirmed directly against the model,
+  not merely reasoned about. Unconditionally walking past any bare noun was
+  tried and rejected on a real counter-example found while building this:
+  "für seinen Bruder ein Auto" would wrongly let a walk from "Auto" cross
+  "Bruder" (which has its own determiner, "seinen", and heads its own,
+  separate NP) and reach "für" -- pinned as
+  `test_governed_by_adposition_does_not_cross_an_unrelated_determined_noun`.
+
+Verified: both reported sentences now correctly resolve `verben_reflexiv_akk`
+("sich", not `verben_reflexiv_dat`), pinned as
+`test_verben_reflexiv_akk_walks_past_a_coordinated_determiner_to_find_um`
+and `test_verben_reflexiv_akk_walks_past_a_two_token_proper_name`. Confirmed
+against the actual tagger (not assumed) that 1.3's own reported sentence
+needs the `NN`-fallback specifically: "Fatih" tags plain `NOUN` in the
+tested phrasing, not `PROPN`.
+
+### 9.4 / 9.5 Second person in an inverted question tagged as first person
+
+`de_core_news_sm` mistags a genuine 2nd-person-singular finite verb ending
+in `-st` as `Person=1` -- confirmed on both reported sentences ("Kannst du
+mich ...?", "So also vergiltst du mir ...!"). This project already relies
+on the identical shape fact: `carrier_validation._is_mistagged_du_st_form`
+uses it to rescue an inverted "du ...st?" carrier sentence from a false
+`subject_verb_disagreement` rejection. `selectors._finite_verb_person`
+applies the same test at the 16 sites in `selectors.py` that read a finite
+verb's own `Person` off `token.morph` to build a `Candidate` (every one of
+them; grepped, not sampled) -- a tagged `Person=1` on an `-st`/`-ßt`-ending
+form is overridden to `2`.
+
+**The brief's own exceptions were checked, not assumed clean, and one more
+was found by building this, not by reasoning about it in advance.** No
+1st- or 3rd-plural cell of any table this module trusts (`paradigms.py`'s
+rule-based endings, its closed strong/mixed Präteritum tables, or its
+irregular sein/haben/werden/modal tables) is ever spelled with a final
+`-st` -- 1st/3rd plural is always `-en`, no exception across any
+hand-verified irregular. So a tagged `Person=1` on an `-st`/`-ßt` form is
+*always* wrong and safe to correct unconditionally. **A tagged `Person=3`
+is a different story, and is deliberately NOT corrected**, found the hard
+way: a sibilant-stem verb's 2nd- and 3rd-singular present are the SAME
+surface string by a genuine German orthographic rule ("du/er passt",
+"du/er isst", "du/er reist") -- unconditionally overriding `Person=3` too
+flipped a correctly-tagged one ("Der Körper passt sich ... an.", subject
+"Der Körper", genuinely 3rd person) to wrong, and because
+`_finite_verb_person_number` (the sentence-wide subject-consensus function
+used by both the personal-pronoun and reflexive selectors) folded that
+wrong label into its own answer, it silently starved
+`verben_reflexiv_dat`'s own "sich" candidate for that exact sentence during
+this fix's own development -- caught by re-running the actual selectors
+against real output, not merely by reasoning about the paradigm, and now
+pinned as `test_finite_verb_person_does_not_touch_a_correctly_tagged_person_3`.
+Telling a genuinely mistagged 2nd-singular apart from a genuinely
+3rd-singular sibilant-stem form would need the verb's own reliable
+infinitive stem, which `token.lemma` cannot supply here (`passt`'s own
+lemma comes back as the unreduced `"passt"`, not `"passen"` -- exactly the
+kind of form this tagger lemmatises worst) -- left alone rather than
+guessed at, "reject rather than guess" applied to the correction itself.
+
+**Both reported sentences carry a second, unrelated, pre-existing tagger
+defect that keeps them from reaching a shipped item through the full
+pipeline regardless of this fix**, found while trying to drive them through
+`modalverben_praesens`/`verb_praesens_vokalwechsel` end to end: neither
+`Kannst` nor `vergiltst` gets its lemma reduced to the infinitive
+(`können`/`vergelten`) by this tagger's `EditTreeLemmatizer` -- `Kannst`'s
+own `.lemma` comes back as the literal, unreduced `"Kannst"` (in one tested
+context even `Kannst`'s own POS came back `PROPN`, not `VERB`, an even
+more severe mistagging), and `vergiltst`'s own `Tense` comes back `Past`,
+not `Pres`. Both are separate, pre-existing tagger defects this task's six
+do not include (the Lemma and Tense rows in the top-level audit's own table
+already document this class at 6.69% and 5.57% conflicting respectively) --
+flagged rather than silently absorbed. The regression tests for 9.4/9.5 are
+therefore pinned directly against the tagged token and
+`selectors._finite_verb_person`, not through a topic selector end to end:
+`test_finite_verb_person_corrects_kannst_in_an_inverted_question`,
+`test_finite_verb_person_corrects_vergiltst_in_an_inverted_exclamation`.
+
+**Measured, not merely fixed: how often this happens across real corpus
+text.** 20,000 length-plausible sentences each from Tatoeba and Leipzig,
+every finite verb ending in `-st` checked for a `Person=1` tag: Tatoeba
+(dialogic) 1.48% (74/5,008), Leipzig (news/web prose) 0.12% (3/2,524),
+combined 1.02% (77/7,532) -- more than ten times the rate on the
+declarative-register corpus, confirming the brief's own claim that HDT's
+12.59%-Mood/6.08%-Case top-level figures say nothing about this register.
+Written up as a dated addendum to `docs/audits/tagger-accuracy-vs-gold.md`
+rather than edited into the original numbers, so the original measurement
+stays intact and dated as what it actually covered.
+
+### 9.6 Determiner-less plural dative tagged accusative -- not fixable within scope
+
+"Der Körper passt sich ... Temperaturänderungen an.": confirmed directly
+against the tagger that `Temperaturänderungen` (a bare, determiner-less
+dative plural -- German marks nothing on this noun class to distinguish
+Dative from Accusative once the determiner that would have carried the
+Case feature is absent) is tagged `Case=Acc`, wrongly, in exactly the
+sentence shape reported; tagging the same sentence WITH a determiner
+("... den Temperaturänderungen an.") gets `Case=Dat` correctly, confirming
+the mistag is specifically the determiner-less shape's own fact, not a
+one-off.
+
+**Checked, as instructed, rather than assumed:** `anpassen` IS a row in
+`data/fixtures/verb_government/lexicon.v1.jsonl` (`build_verb_government.py`,
+TODO 8.1's own corpus lexicon), and the code already asks it --
+`selectors._select_kasus_dativ_formen` consults
+`verb_government.object_verdict`, and `selectors._reflexive_case`'s
+general-case branch consults `verb_government.reflexive_verdict`, both
+before ever falling back to structural guessing. The lexicon's own evidence
+for `anpassen`, though, is genuinely insufficient: `object.dat_count=1,
+acc_count=0, corpus_verdict="insufficient"`, `final.object=null` --
+`build_verb_government.py`'s own thresholds (`DEFAULT_MIN_COUNT=5`,
+`DEFAULT_MIN_RATIO=0.90`) correctly refuse to force a verdict from a single
+occurrence. Raw corpus frequency is not the bottleneck (`anpass`-family
+words appear 424 times across both staged corpora, 52 Tatoeba + 372
+Leipzig) -- the harvester's own method only counts UNAMBIGUOUS pronoun-case
+evidence (`mir`/`dir`/`ihm`/`ihnen` vs `mich`/`dich`/`ihn`), and almost none
+of `anpassen`'s real occurrences happen to use one. This is the same
+"corpus-frequent, evidence-scarce" gap already documented for `ausweichen`
+in `TODO.md` section 2, not a new kind of limit.
+
+**A second, compounding, genuinely separate reason this specific
+sentence's own government lookup can never resolve, even with more
+evidence:** `_governing_verb_lemma` reconstructs a separable verb's lemma
+by concatenating its stranded prefix onto the FINITE half's own
+`.lemma` ("sehe" + "an" -> "ansehen") -- but `passt`'s own `.lemma` comes
+back as the literal, unreduced `"passt"` (the same lemma-non-reduction
+defect found independently in 9.4/9.5's own writeup above, on a different
+verb), so this sentence's own governing-verb lookup resolves to
+`"anpasst"`, not `"anpassen"`, and would miss the lexicon regardless of how
+much evidence it held. Confirmed directly, not assumed: `_governing_verb_
+lemma(sentence, 0, len(sentence.tokens))` on the reported sentence returns
+`"anpasst"`.
+
+**Not fixed.** Hand-adding `anpassen` to a closed list was explicitly ruled
+out by this task's own brief, and it would only be one entry in a class the
+government-lexicon work already exists specifically to stop treating as a
+list-maintenance problem. The lemma-reconstruction defect is a separate,
+pre-existing tagger-integration gap outside this task's six, shared with
+9.4/9.5's own `Kannst`/`vergiltst` finding above, not something a `kasus_
+dativ_formen`-scoped fix should absorb silently. Recorded as a known limit
+in `TODO.md` section 2 rather than left implicit.
+
+### Verified against real pipeline output, not only tests
+
+`scripts/step7_corpus_pilot.py --limit 20000`, full before/after (a real
+`git stash`/`git stash pop` around the fix, not a partial revert, same
+seed): `verben_reflexiv_akk` 887 -> 889, `verben_reflexiv_dat` 177 -> 172,
+`kasus_dativ_formen` 69 -> 69 (unchanged -- confirms 9.6's own "not fixable"
+finding: nothing this task changed altered this topic's output).
+`pronomen_personal_dat` also moved, 94 -> 93, an unnamed seventh mover not
+in TODO.md 1.1-1.6 at all -- investigated rather than waved through:
+
+`pronomen_personal_dat`'s own ambiguous-pronoun-form check
+(`mich`/`dich`/`uns`/`euch`/`mir`/`dir`) and `verben_reflexiv_*`'s own
+identically-named check are mirror images of each other on the SAME
+sentence-wide subject fact (`_finite_verb_person_number`): the personal-
+pronoun selector claims an ambiguous form only when it does NOT match the
+subject, the reflexive selector only when it DOES. A mistagged subject
+Person therefore does not merely add or remove one candidate, it can hand
+the identical token to the WRONG topic outright. Traced every one of the 5
+sentences whose raw candidate set changed (not sampled -- found by scanning
+all 40,000 corpus lines' own selector output directly) to a concrete
+mechanism, not left as an unexplained number:
+
+- **A wrongly-shipped item, caught in the act.** "So also vergiltst du mir
+  meine Nettigkeit?" -- "vergiltst" (`vergelten`, a plain ditransitive verb,
+  "you repay ME my kindness") is not reflexive at all, but the BEFORE
+  pilot's own `review.jsonl` shows it sampled as a real `verben_reflexiv_dat`
+  item, `accepted_answers: ["mir"]`, `facet: "Person=1"` -- concrete, not
+  hypothetical, proof this defect was not merely losing items, it was
+  shipping a wrong one under the wrong topic. After the fix it correctly
+  resolves as `pronomen_personal_dat` instead, the topic this sentence's
+  grammar actually tests.
+- **Two correct recoveries.** "Du kannst bei mir wohnen." and "Du kannst
+  offen mit mir sprechen." -- "mir" is governed by a preposition (`bei`/
+  `mit`) in both, so `verben_reflexiv_dat` never claimed it either way
+  (`_governed_by_adposition` excludes it regardless of Person). But
+  `pronomen_personal_dat`'s own ambiguous-form check has no adposition
+  check of its own, only the subject-match one -- the mistagged subject
+  (wrongly `Person=1`, coincidentally matching `mir`) wrongly excluded a
+  genuine personal pronoun in both. Fixed subject Person (`2`) now
+  correctly includes both.
+- **One correct re-routing, net zero.** "Du kannst dir irgendeins
+  aussuchen." moves from `pronomen_personal_dat` (wrong: the subject now
+  genuinely matches "dir", so it is correctly deferred as "could be
+  reflexive") to `verben_reflexiv_dat` (right: "sich etwas aussuchen" is a
+  genuine dative-reflexive-with-object construction, resolved by the same
+  structural object-presence fallback `_reflexive_case` already uses for
+  verbs the lexicon has no opinion on).
+- **One correct loss, not a new defect.** "Den coolen Metallic-Look holst
+  du dir ... ins Haus." also correctly defers from `pronomen_personal_dat`
+  post-fix, but `verben_reflexiv_dat` does NOT pick it up -- confirmed why,
+  not left unexplained: `holst`'s own lemma is also unreduced (`"holst"`,
+  not `"holen"`, the same class of defect as 9.4-9.6's own findings), and
+  the sentence's own accusative object ("Den coolen Metallic-Look") is
+  independently mistagged `Case=Dat`, so `_reflexive_case`'s safety-net
+  check (the unambiguous spelling of "dir", `Dat`, disagreeing with the
+  structurally-derived `Acc`) correctly refuses to guess. This sentence's
+  item is genuinely lost, not merely moved -- but it was never a CORRECT
+  `pronomen_personal_dat` item to begin with (the fix's own job is
+  precisely to stop it being claimed there on a coincidence), and losing a
+  wrong item to two unrelated, pre-existing tagger defects is the "reject
+  rather than guess" posture working as designed, not a regression this
+  task introduced.
+
+No other topic among the 49 moved by a single item, checked by diffing the
+full before/after per-topic table, not spot-checked. All six of the
+task's own example sentences individually re-verified against the current
+selectors after the fix (`verben_reflexiv_akk`/`_dat` for 9.1-9.3,
+`selectors._finite_verb_person` directly for 9.4/9.5, `verb_government.
+object_verdict`/`reflexive_verdict` directly for 9.6).
+
+Full test suite (`uv run pytest -m "not live and not simulation"`), `ruff
+check`, `ruff format --check`, `mypy --strict src/` all clean after the
+fix, including 8 new regression tests built from the task's own six
+sentences.

@@ -805,6 +805,78 @@ _AMBIGUOUS_REFLEXIVE_FORMS: frozenset[str] = frozenset(
 )
 
 
+# TODO.md 1.4/1.5: de_core_news_sm mistags a genuine German 2nd-person-
+# singular "-st" finite verb form's own ``Person`` as ``1`` -- confirmed on
+# "Kannst du mich ...?" (``Kannst`` tagged ``Person=1``) and "So also
+# vergiltst du mir ...!" (``vergiltst`` tagged ``Person=1``), both inverted
+# word order (question / exclamation). ``carrier_validation.py``'s own
+# ``_is_mistagged_du_st_form`` already relies on the identical shape fact
+# to rescue an inverted "du ...st?" carrier sentence from a false
+# ``subject_verb_disagreement`` rejection; this is the same test, applied
+# wherever a selector in THIS module reads a finite verb's own ``Person``
+# to build a ``Candidate`` instead.
+#
+# **Person=1 is corrected unconditionally; Person=3 deliberately is not --
+# found to be a real asymmetry, not assumed.** No ``(Person, Number)`` cell
+# of any German verb (modal or lexical, regular or irregular, checked
+# against every closed table this module trusts, ``paradigms.py``) is EVER
+# 1st-singular with a final "-st"/"-ßt": 1st-singular is always "-e" by
+# rule, with no exception among the hand-verified irregulars either
+# (``bin``, ``habe``, ``kann``, ...). So a tagged ``Person=1`` on such a
+# form is always a plain tagger error, safe to override unconditionally.
+#
+# 3rd-singular is a different story, confirmed while regression-testing
+# this exact fix against a live sentence, not merely reasoned about: a
+# SIBILANT-STEM verb's 2nd- and 3rd-singular present are the SAME surface
+# string by a genuine German orthographic rule ("du/er isst", "du/er
+# reist", "du/er lässt", "du/er passt" -- the stem already ends in a
+# sibilant, so the regular "-st" ending contracts to a bare "-t" for both
+# cells alike). "Der Körper passt sich ... an." tags "passt" ``Person=3``
+# CORRECTLY (subject "Der Körper" is 3rd singular) -- blindly overriding
+# every "-st"-ending ``Person=3`` to ``Person=2`` flipped this one to
+# wrong, and because ``_finite_verb_person_number`` (below) folds that
+# label into the sentence's own subject consensus, the wrong label then
+# silently starved ``_reflexive_selector``'s ``subject[0] != "3"`` gate for
+# "sich" (Person is always 3 for that pronoun), losing the candidate
+# entirely -- confirmed by running the actual selector, not predicted.
+# Telling a genuine sibilant-stem 3rd-singular apart from a genuinely
+# mistagged 2nd-singular would need the verb's own INFINITIVE stem, which
+# ``token.lemma`` cannot be trusted for here -- this is exactly the shape
+# of token this tagger tends to lemmatise badly (``passt``'s own lemma
+# comes back as the unreduced ``"passt"``, not ``"passen"``, so a
+# stem-ending check against the lemma would itself be unreliable on the
+# very case that matters). Rather than guess at a stem this module has no
+# reliable way to read, ``Person=3`` is left exactly as tagged -- "reject
+# rather than guess" applied to the correction itself, not only to the
+# candidates it feeds.
+#
+# "weißt" ("du weißt") does NOT end in the plain ASCII letters "s"+"t" --
+# its final two characters are "ß"+"t" -- so it needs its own suffix, not a
+# case-folding trick (nothing in this module folds "ß" to "s" on a token's
+# surface text). Every other irregular named in TODO.md 1.4/1.5 ("bist",
+# "hast", "willst", "kannst", "musst") already ends in the plain "st"
+# suffix and needs no such extension.
+_FINITE_VERB_PERSON2_SUFFIXES: tuple[str, ...] = ("st", "ßt")
+
+
+def _finite_verb_person(token: Token) -> str | None:
+    """``token``'s own tagged ``Person``, corrected for the one confirmed
+    ``de_core_news_sm`` shape error above (TODO.md 1.4/1.5): a finite verb
+    tagged ``Person=1`` whose surface text ends in "-st"/"-ßt" is never
+    actually 1st person in German, so it is overridden to ``Person=2``
+    rather than trusted. Every other tagged value -- ``2`` (nothing to
+    correct), ``3`` (see the module comment above for why this is
+    deliberately left alone), or ``None`` -- is returned exactly as
+    tagged. This never invents a Person the tagger did not already assign,
+    and never touches anything but the one confirmed-always-wrong cell."""
+    person = token.morph.get("Person")
+    if person != "1":
+        return person
+    if token.text.strip().lower().endswith(_FINITE_VERB_PERSON2_SUFFIXES):
+        return "2"
+    return person
+
+
 def _finite_verb_person_number(sentence: TaggedSentence) -> tuple[str, str] | None:
     """The sentence's finite verb's own ``(Person, Number)``, if every
     finite verb in the sentence agrees on it, else ``None``. Used to tell a
@@ -820,7 +892,7 @@ def _finite_verb_person_number(sentence: TaggedSentence) -> tuple[str, str] | No
             continue
         if token.morph.get("VerbForm") != "Fin":
             continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if person and number:
             found.add((person, number))
     if len(found) == 1:
@@ -988,9 +1060,63 @@ _NP_INTERNAL_TAGS: frozenset[str] = frozenset({"ART", "PIAT", "PPOSAT", "ADJA", 
 
 
 def _governed_by_adposition(sentence: TaggedSentence, index: int) -> bool:
+    """Whether a preposition governs the noun phrase ``index`` sits inside,
+    found by walking BACKWARD from ``index`` over everything that can
+    legitimately sit between a preposition and its head noun, stopping the
+    instant something that actually ends the phrase is reached.
+
+    TODO.md 1.2/1.3: this used to stop at the first token whose TAG was not
+    one of ``_NP_INTERNAL_TAGS`` -- which is correct for an ordinary
+    determiner/adjective span, but treats two other legitimate in-between
+    shapes as a dead end instead of walking past them:
+
+    * **A coordinating conjunction joining two determiner-shaped tokens**
+      ("Ob es sich um ein und dasselbe Tier handelt ..."): the walk from
+      "Tier" reaches "dasselbe" (``PDAT``, already in ``_NP_INTERNAL_TAGS``)
+      fine, then stops dead at the bare "und" (``KON``) one token further
+      back, never reaching "um". A ``KON`` is only ever transparent here
+      when the token immediately before it is ALSO determiner-shaped
+      (``ein``) -- i.e. it is coordinating two determiners of the SAME noun
+      phrase, not joining this phrase to an unrelated one -- so an
+      arbitrary "und"/"oder" elsewhere is still correctly treated as a wall.
+    * **A multi-token proper name** ("Hier setzt er sich ... gegen Fatih
+      Celiksoy durch."): neither "Fatih" nor "Celiksoy" carries a tag in
+      ``_NP_INTERNAL_TAGS`` (both are nominal, not a determiner or
+      adjective), so the old walk gave up on the very first name token
+      without ever considering there might be a second one, let alone a
+      preposition, further back. Any run of ``PROPN`` tokens is walked
+      past in full, not just one -- and confirmed empirically (not merely
+      reasoned about) that this alone is not always enough: this exact
+      tagger sometimes tags only ONE half of a genuine two-token foreign
+      name ``PROPN``/``NE`` and the other half as an ordinary common noun
+      (``NN``/``NOUN``, no ``PROPN``/``NE`` in sight) -- "Fatih" tags plain
+      ``NOUN`` in some contexts, "Celiksoy" tags ``PROPN`` in the same
+      sentence. A bare ``NN`` is therefore ALSO walked past, but only once
+      a genuine ``PROPN`` has already been seen earlier in this same walk
+      (starting from ``index`` itself) -- never unconditionally, which
+      would let the walk cross into a wholly unrelated, separately
+      determined common-noun phrase ("für seinen Bruder ein Auto": walking
+      from "Auto" must never cross "Bruder" and reach "für", since "Bruder"
+      has its own determiner, "seinen", and heads its own separate NP).
+    """
     j = index - 1
-    while j >= 0 and sentence.tokens[j].tag in _NP_INTERNAL_TAGS:
-        j -= 1
+    seen_propn = sentence.tokens[index].pos == "PROPN"
+    while j >= 0:
+        tok = sentence.tokens[j]
+        if tok.tag in _NP_INTERNAL_TAGS:
+            j -= 1
+            continue
+        if tok.pos == "PROPN":
+            seen_propn = True
+            j -= 1
+            continue
+        if tok.tag == "NN" and seen_propn:
+            j -= 1
+            continue
+        if tok.tag == "KON" and j - 1 >= 0 and sentence.tokens[j - 1].tag in _NP_INTERNAL_TAGS:
+            j -= 1
+            continue
+        break
     return j >= 0 and sentence.tokens[j].pos == "ADP"
 
 
@@ -1048,21 +1174,34 @@ def _immediately_followed_by_object_np(
     Künstler.", where "Künstler" is a predicate, not an object, and "sich"
     really is Accusative) -- this narrows recall further but keeps the same
     "reject rather than guess" bias as the rest of this module.
+
+    TODO.md 1.1: "Er kauft sich jeden Abend eine Flasche Bier ..." used to
+    stop at the FIRST noun phrase found, "jeden Abend" -- a temporal
+    adverbial, excluded by ``_TEMPORAL_ACCUSATIVE_LEMMAS`` from counting as
+    an object, same as ``_has_bare_accusative_object`` already excludes it
+    -- and returned ``False`` there instead of continuing on to the real
+    object, "eine Flasche Bier", immediately after it. A temporal NP found
+    this way is now skipped, not treated as a dead end: the scan resumes
+    right after it and keeps looking for a genuine object NP, until one is
+    found, the clause ends, or a non-temporal dead end (a bare noun with no
+    determiner, an adposition, anything that is not a NOUN/PROPN) is hit.
     """
-    start = index + 1
-    if start >= clause_end:
-        return False
-    if sentence.tokens[start].pos == "ADP":
-        return False
-    j = start
-    while j < clause_end and sentence.tokens[j].tag in _NP_INTERNAL_TAGS:
-        j += 1
-    if j == start or j >= clause_end:
-        return False
-    tok = sentence.tokens[j]
-    if tok.pos not in ("NOUN", "PROPN"):
-        return False
-    return tok.lemma.lower() not in _TEMPORAL_ACCUSATIVE_LEMMAS
+    j = index + 1
+    while j < clause_end:
+        if sentence.tokens[j].pos == "ADP":
+            return False
+        start = j
+        while j < clause_end and sentence.tokens[j].tag in _NP_INTERNAL_TAGS:
+            j += 1
+        if j == start or j >= clause_end:
+            return False
+        tok = sentence.tokens[j]
+        if tok.pos not in ("NOUN", "PROPN"):
+            return False
+        if tok.lemma.lower() not in _TEMPORAL_ACCUSATIVE_LEMMAS:
+            return True
+        j += 1  # a temporal NP -- skip past it and keep looking
+    return False
 
 
 _CLAUSE_BOUNDARY_TAG = "$,"
@@ -1542,7 +1681,7 @@ def _select_verb_praesens_regelm(sentence: TaggedSentence) -> list[Candidate]:
             # direct table key), so the old bare-membership check let it
             # fall through to this topic by default.
             continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         if not _lexical_verb_answer_is_plausible(lemma):
@@ -1604,7 +1743,7 @@ def _select_verb_praesens_vokalwechsel(sentence: TaggedSentence) -> list[Candida
             continue
         if not paradigms.is_vokalwechsel_praesens_lemma(lemma):
             continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         actual_form = paradigms.vokalwechsel_praesens_form(lemma, person, number)
@@ -1691,7 +1830,7 @@ def _select_verben_trennbar_praesens(sentence: TaggedSentence) -> list[Candidate
             if paradigms.is_vokalwechsel_praesens_lemma(lemma)
             else "regular_praesens"
         )
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         if not _lexical_verb_answer_is_plausible(lemma):
@@ -2030,7 +2169,7 @@ def _select_praeteritum_vollverben(sentence: TaggedSentence) -> list[Candidate]:
             if not _lexical_verb_answer_is_plausible(lemma):
                 continue
             family = "regular_praeteritum"
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         cue = _citation_cue(lemma, token.text) if _lexical_verb_lemma_trustworthy(lemma) else None
@@ -2427,7 +2566,7 @@ def _irregular_finite_selector(
             lemma = token.lemma.lower()
             if lemma not in lemmas:
                 continue
-            person, number = token.morph.get("Person"), token.morph.get("Number")
+            person, number = _finite_verb_person(token), token.morph.get("Number")
             if not person or not number:
                 continue
             cue = _citation_cue(lemma, token.text)
@@ -2727,7 +2866,7 @@ def _select_perfekt(sentence: TaggedSentence, *, aux_lemma: str) -> list[Candida
             continue
         if aux_lemma == "haben" and takes_sein:
             continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         out.append(
@@ -2777,7 +2916,7 @@ def _select_plusquamperfekt(sentence: TaggedSentence) -> list[Candidate]:
         takes_sein = part_lemma in paradigms.AUX_SEIN_LEMMAS
         if (lemma == "sein") != takes_sein:
             continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         out.append(
@@ -2902,7 +3041,7 @@ def _select_konjunktiv_ii_base(sentence: TaggedSentence) -> list[Candidate]:
             )
             if not has_infinitive:
                 continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         out.append(
@@ -3025,7 +3164,7 @@ def _select_konjunktiv_ii_vergangenheit(sentence: TaggedSentence) -> list[Candid
                 sentence, clause_start, clause_end
             ):
                 continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         out.append(
@@ -3181,7 +3320,7 @@ def _select_passiv(sentence: TaggedSentence, *, morph_tense: str) -> list[Candid
                 continue
             if _followed_by_embedded_question_object(sentence, clause_end):
                 continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         out.append(
@@ -3227,7 +3366,7 @@ def _select_passiv_modalverben(sentence: TaggedSentence) -> list[Candidate]:
         tense = token.morph.get("Tense")
         if tense not in ("Pres", "Past"):
             continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         out.append(
@@ -3308,7 +3447,7 @@ def _select_zustandspassiv(sentence: TaggedSentence) -> list[Candidate]:
             continue
         if _clause_contains_worden(sentence, token.i):
             continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         out.append(
@@ -3358,7 +3497,7 @@ def _select_zustandspassiv_zeiten(sentence: TaggedSentence) -> list[Candidate]:
             continue
         if _clause_contains_worden(sentence, token.i):
             continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         if token.morph.get("Tense") == "Past":
@@ -3428,7 +3567,7 @@ def _select_futur_i(sentence: TaggedSentence) -> list[Candidate]:
         has_infinitive = any(t.tag in _MODAL_INFINITIVE_TAGS for t in clause_tokens)
         if not has_infinitive:
             continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         out.append(
@@ -3496,7 +3635,7 @@ def _select_futur_ii(sentence: TaggedSentence) -> list[Candidate]:
                 break
         if final_aux is None:
             continue
-        person, number = token.morph.get("Person"), token.morph.get("Number")
+        person, number = _finite_verb_person(token), token.morph.get("Number")
         if not person or not number:
             continue
         out.append(
