@@ -318,6 +318,51 @@ def test_kasus_dativ_formen_rejects_a_genitive_noun_complement_tagged_dative() -
     assert candidates == []
 
 
+# ==============================================================================
+# TODO 8.1: ``_select_kasus_dativ_formen``'s forcing check now consults the
+# corpus-built lexicon (``verb_government.object_verdict``) before falling
+# back to ``paradigms.DATIVE_ONLY_VERBS`` -- these are verbs TODO 8.5's own
+# 37-verb hand list never named, all forced by corpus evidence alone.
+# Sourced from the TODO 8.1 acceptance sentences.
+# ==============================================================================
+
+
+def test_kasus_dativ_formen_finds_glauben_a_dative_only_verb_the_lexicon_learned() -> None:
+    item = _blank("kasus_dativ_formen", "Ich glaube meinem Bruder jedes Wort.")
+    assert item.proposed_answer == "meinem"
+
+
+def test_kasus_dativ_formen_finds_raten_with_a_prepositional_complement() -> None:
+    """ "raten" governs a bare Dative object ("ihrer Freundin") plus a
+    prepositional phrase ("zu einem Anwalt") -- not a bare Accusative
+    object, so this is forced purely by "raten" itself being Dative-only
+    by corpus evidence, the same way ``DATIVE_ONLY_VERBS`` members always
+    were, never by the ditransitive accompanying-object check."""
+    item = _blank("kasus_dativ_formen", "Sie riet ihrer Freundin zu einem Anwalt.")
+    assert item.proposed_answer == "ihrer"
+
+
+def test_kasus_dativ_formen_finds_vorlesen_and_reichen_ditransitive_by_corpus_evidence() -> None:
+    """ "vorlesen" and "reichen" are not on ``DITRANSITIVE_DATIVE_VERBS``
+    either -- the corpus lexicon forces both directly (no accompanying-
+    object check needed), because their own Dative-pronoun evidence is
+    itself strongly one-sided (see the fixture's own counts)."""
+    item = _blank("kasus_dativ_formen", "Die Mutter las ihrem Sohn eine Geschichte vor.")
+    assert item.proposed_answer == "ihrem"
+    item2 = _blank("kasus_dativ_formen", "Er reichte seinem Nachbarn die Hand.")
+    assert item2.proposed_answer == "seinem"
+
+
+def test_kasus_dativ_formen_still_skips_a_free_dative_no_verb_forces() -> None:
+    """ "Meiner Schwester ist es viel zu kalt." -- the Dative is governed by
+    the predicate adjective "kalt", not by any verb ("ist" is a bare
+    copula) -- outside what a VERB-government lexicon can ever reach, by
+    construction, not a gap in this build. Confirmed left dropped, not
+    guessed at."""
+    _, candidates = _select("kasus_dativ_formen", "Meiner Schwester ist es viel zu kalt.")
+    assert candidates == []
+
+
 def test_kasus_genitiv_formen_finds_possessive_genitive_articles() -> None:
     item = _blank("kasus_genitiv_formen", "Die Farbe der Blumen ist schön.")
     assert item.proposed_answer == "der"
@@ -1015,6 +1060,69 @@ def test_verben_reflexiv_selectors_skip_when_the_governing_verb_is_undetermined(
     _, akk_candidates = _select("verben_reflexiv_akk", "Er kommt und wäscht sich.")
     assert akk_candidates == []
     _, dat_candidates = _select("verben_reflexiv_dat", "Er kommt und wäscht sich.")
+    assert dat_candidates == []
+
+
+# ==============================================================================
+# TODO 8.1 / docs/audits/cycle-10-corpus-report.md: reflexive case forced by
+# the corpus-built lexicon (data/fixtures/verb_government/lexicon.v1.jsonl,
+# scripts/build_verb_government.py), which replaces
+# ``paradigms.DATIVE_REFLEXIVE_VERBS_NO_OBJECT``/``ACCUSATIVE_ONLY_
+# REFLEXIVE_VERBS`` as the FIRST thing consulted for a verb not on
+# ``DATIVE_REFLEXIVE_VERBS_WITH_OBJECT`` (``_reflexive_case``), falling back
+# to the same structural object-presence scan only when the lexicon has no
+# opinion. The hand-listed verbs above (helfen/freuen/treffen/ändern/
+# ansammeln/beeilen) still resolve identically -- the fixture's own
+# ``final`` field is the merge, hand list winning on conflict -- so this
+# section pins genuinely NEW coverage the lexicon adds past those six.
+# ==============================================================================
+
+
+def test_verben_reflexiv_akk_routes_a_verb_the_lexicon_learned_from_the_corpus() -> None:
+    """ "schämen" is on no hand list at all; TODO 8.1's harvest found it
+    strongly Accusative-only from real corpus evidence (unlike the pre-
+    lexicon code, which reached the same answer here only via the
+    structural object-absence fallback -- see the ``schämt``/"für sein
+    Verhalten" test above). Confirms the lexicon path and the structural
+    fallback agree, not merely that one of them fires."""
+    item = _blank("verben_reflexiv_akk", "Er schämt sich für sein Verhalten.")
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select("verben_reflexiv_dat", "Er schämt sich für sein Verhalten.")
+    assert dat_candidates == []
+
+
+def test_verben_reflexiv_akk_flips_sich_zur_wahl_stellen_cycle_10_regression() -> None:
+    """docs/audits/cycle-10-corpus-report.md: "Man muss sich jedes Mal
+    wieder zur Wahl stellen." wrongly landed in ``verben_reflexiv_dat``
+    before this fix. "stellen" itself is genuinely mixed-government by
+    corpus evidence (both "sich hinstellen"-type Accusative and "sich
+    (Dat) eine Frage stellen"-type Dative constructions are real, and the
+    harvest confirms both occur), so the lexicon correctly leaves it
+    unforced ("mixed, stay mixed") -- what actually closes this defect is
+    the structural fallback it falls through to, now that "mal" ("jedes
+    Mal") is exempted from the bare-accusative-object scan the same way
+    "Uhr"/"Nachmittag"/the weekday names already are (a gap found while
+    verifying this exact sentence, not a case-government list problem)."""
+    sentence = "Man muss sich jedes Mal wieder zur Wahl stellen."
+    item = _blank("verben_reflexiv_akk", sentence)
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select("verben_reflexiv_dat", sentence)
+    assert dat_candidates == []
+
+
+def test_verben_reflexiv_akk_routes_sich_ueberzeugen_lassen_cycle_10_regression() -> None:
+    """docs/audits/cycle-10-corpus-report.md's third reported item: "...
+    lassen Sie sich von der knusprigen Textur überzeugen." was already
+    correctly Accusative before this task (the governing-verb lookup
+    resolves to "lassen", not "überzeugen", which the corpus lexicon
+    confirms is itself genuinely mixed-government and so correctly leaves
+    unforced -- see ``data/fixtures/verb_government/lexicon.v1.jsonl``'s
+    own "lassen" record) -- pinned here so TODO 8.1's wiring change is
+    confirmed not to have disturbed it."""
+    sentence = "... lassen Sie sich von der knusprigen Textur überzeugen."
+    item = _blank("verben_reflexiv_akk", sentence)
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select("verben_reflexiv_dat", sentence)
     assert dat_candidates == []
 
 

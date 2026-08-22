@@ -35,7 +35,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from src.generation.blanking import paradigms
+from src.generation.blanking import paradigms, verb_government
 from src.generation.blanking.paradigms import Cell
 from src.generation.blanking.sentence_tagger import TaggedSentence, Token
 from src.lexicon.frequency import FrequencyBander
@@ -934,6 +934,16 @@ _REFLEXIVE_CAPABLE_FORMS: frozenset[str] = frozenset(
 # time noun ``TEMPORAL_ANCHOR_LEMMAS`` does not carry either, since that
 # list's own words are all invariant adverbs/anchors, not every declinable
 # time noun a bare accusative NP can be built from).
+#
+# TODO 8.1: "mal" ("jedes Mal", "das erste Mal") is the same gap, found
+# while verifying this task's own cycle-10 acceptance sentence against real
+# output, not part of the case-government-list work this task was actually
+# scoped to -- flagged rather than silently folded in, the same posture
+# TODO 8.4's own writeup used for an adjacent defect found the same way.
+# "Man muss sich jedes Mal wieder zur Wahl stellen." wrongly forced Dative
+# because "Mal" (Case=Acc, correctly tagged) was counted as "stellen"'s own
+# accusative object; it is a count/occasion noun, not one, exactly the
+# class this set already exists to exempt.
 _TEMPORAL_ACCUSATIVE_LEMMAS: frozenset[str] = paradigms.TEMPORAL_ANCHOR_LEMMAS | frozenset(
     {
         "morgen",
@@ -950,6 +960,7 @@ _TEMPORAL_ACCUSATIVE_LEMMAS: frozenset[str] = paradigms.TEMPORAL_ANCHOR_LEMMAS |
         "nachmittag",
         "mittag",
         "vormittag",
+        "mal",
     }
     | {"montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag", "sonntag"}
 )
@@ -1211,62 +1222,22 @@ def _reflexive_case(sentence: TaggedSentence, token: Token) -> str | None:
     verb_lemma = _governing_verb_lemma(sentence, clause_start, clause_end)
     if verb_lemma is None:
         return None
-    if verb_lemma in paradigms.DATIVE_REFLEXIVE_VERBS_NO_OBJECT:
-        verb_case = "Dat"
-    elif verb_lemma in paradigms.ACCUSATIVE_ONLY_REFLEXIVE_VERBS:
-        # TODO.md 1.1: a verb known to be genuinely Accusative-reflexive-
-        # only never takes a further object at all, so the object scan
-        # below is not merely unnecessary for these, it is actively unsafe
-        # -- see ``paradigms.ACCUSATIVE_ONLY_REFLEXIVE_VERBS``'s own
-        # comment for the confirmed tagger-mistagging case ("viel Staub",
-        # the genuine Nominative subject of "sich ansammeln", tagged
-        # ``Case=Acc``) that a Case-based object scan cannot tell apart
-        # from a real object for exactly this verb.
-        verb_case = "Acc"
-    else:
-        # docs/audits/cycle-07-report.md defect 8: "sich (Dat) etwas tun" is
-        # not limited to the closed ``DATIVE_REFLEXIVE_VERBS_WITH_OBJECT``
-        # list -- it is the general benefactive-dative construction, and it
-        # applies to essentially any transitive verb, not only the handful
-        # the list happens to name. "den er sich frisch gekocht hatte" (a
-        # relative clause: "er hatte sich einen Kaffee gekocht", the
-        # accusative object fronted as the relative pronoun "den") is
-        # exactly this shape with "kochen", a verb the cycle-5 list never
-        # covered because it is not lexically dative-reflexive at all --
-        # this is the STRUCTURAL case the list was never meant to handle
-        # (see that list's own module comment in ``paradigms.py``: it names
-        # verbs "genuinely POLYSEMOUS between an Accusative-reflexive
-        # reading and a Dative one", which "kochen" is not -- "sich kochen"
-        # alone is not idiomatic Accusative-reflexive German at all, so
-        # restricting the object-presence check to that list only ever
-        # under-covers this construction, never over-covers it). Checking
-        # ``_has_bare_accusative_object`` for every verb not lexically
-        # Dative-only closes that gap: an accusative-reflexive verb
-        # genuinely never
-        # co-occurs with a further accusative object in its own clause (the
-        # cycle-4 report's own three counter-examples -- "sich freuen",
-        # "sich treffen", "sich ändern" -- are all intransitive-reflexive
-        # and simply never trip this check), so widening it costs nothing
-        # for those and closes this defect for every OTHER transitive verb.
-        #
-        # Widened to the CASE-based signal only (``_has_bare_accusative_
-        # object``), not the WORD-ORDER fallback (``_immediately_followed_
-        # by_object_np``): confirmed necessary while building this fix --
-        # "Er sagte, dass sich die Situation geändert hat." has "die
-        # Situation" (correctly tagged ``Case=Nom``, the genuine SUBJECT of
-        # this intransitive-reflexive verb) sitting immediately after
-        # "sich" purely from ordinary subordinate-clause word order (the
-        # reflexive object preceding a "heavy" subject), which the
-        # word-order fallback cannot tell apart from a genuine object NP by
-        # shape alone -- it was only ever vetted against verbs KNOWN to take
-        # this construction (the closed list below), never against every
-        # verb in German. The Case-based check alone already resolves
-        # "kochen" correctly (its own accusative object, the fronted
-        # relative pronoun "den", is directly Case-tagged and needs no
-        # word-order guess), so nothing is lost by keeping the fallback
-        # scoped to its original, narrower, already-vetted population.
+    if verb_lemma in paradigms.DATIVE_REFLEXIVE_VERBS_WITH_OBJECT:
+        # docs/audits/cycle-07-report.md defect 8: "sich (Dat) etwas tun" --
+        # a Dative reflexive standing beside its own separate Accusative
+        # object -- is genuinely POLYSEMOUS with a plain Accusative-
+        # reflexive reading when no such object is present ("sich
+        # vorstellen" alone = introduce oneself, Accusative; "sich (Dat)
+        # etwas vorstellen" = imagine something, Dative). A verb like this
+        # cannot be given a single scalar verdict the way the two lists
+        # below can -- TODO 8.1's corpus lexicon confirms this directly:
+        # these verbs show genuinely mixed corpus evidence (both "mich"/
+        # "dich" AND "mir"/"dir" occurring), which is what "mixed, stay
+        # mixed" (that task's own requirement) means in practice -- so this
+        # branch is untouched by the lexicon and still decides per
+        # occurrence, from whether an object is actually present.
         has_object = _has_bare_accusative_object(sentence, token.i, clause_start, clause_end)
-        if not has_object and verb_lemma in paradigms.DATIVE_REFLEXIVE_VERBS_WITH_OBJECT:
+        if not has_object:
             has_object = _immediately_followed_by_object_np(sentence, token.i, clause_end)
             if not has_object:
                 # TODO.md 1.1: "sich (Dat) etwas wünschen"'s object is not
@@ -1274,6 +1245,45 @@ def _reflexive_case(sentence: TaggedSentence, token: Token) -> str | None:
                 # ``_followed_by_dass_clause_object``'s own docstring.
                 has_object = _followed_by_dass_clause_object(sentence, clause_end)
         verb_case = "Dat" if has_object else "Acc"
+    else:
+        # TODO 8.1: ``paradigms.DATIVE_REFLEXIVE_VERBS_NO_OBJECT``/
+        # ``ACCUSATIVE_ONLY_REFLEXIVE_VERBS`` used to be checked here as
+        # two closed lists (one verb, five verbs). Three cycles of
+        # reflexive-routing defects were "fixed" by extending one of them,
+        # and each time the next corpus run found verbs neither list named
+        # (docs/audits/cycle-10-corpus-report.md: "sich verbeugen", "sich
+        # überzeugen lassen", "sich zur Wahl stellen", none of the five).
+        # ``verb_government.reflexive_verdict`` replaces both lists with a
+        # lexicon built from real corpus evidence (unambiguous Dative/
+        # Accusative pronoun occurrences, ``scripts/build_verb_
+        # government.py``), merged with -- and losing to on conflict --
+        # those same two hand lists, which it still consults directly as
+        # its own fallback if the fixture cannot be read at all. A verb the
+        # lexicon has no opinion on (insufficient or genuinely mixed
+        # corpus evidence, e.g. "kochen": rare enough as a bare reflexive
+        # that it never clears the lexicon's own count bar) falls through
+        # to the same structural object-presence check this function has
+        # always used for the general case.
+        lexicon_case = verb_government.reflexive_verdict(verb_lemma)
+        if lexicon_case is not None:
+            verb_case = lexicon_case
+        else:
+            # docs/audits/cycle-07-report.md defect 8's own general-case
+            # reasoning still applies to whatever the lexicon does not
+            # cover: an accusative-reflexive verb genuinely never co-occurs
+            # with a further accusative object in its own clause, so
+            # checking ``_has_bare_accusative_object`` for every verb here
+            # costs nothing for a true intransitive-reflexive and correctly
+            # promotes a benefactive-dative "sich" beside a real object
+            # ("den er sich frisch gekocht hatte", "kochen") to Dative.
+            # Case-based only, not the word-order/dass-clause fallbacks --
+            # those two remain scoped to the polysemous branch above
+            # (confirmed necessary there on "Er sagte, dass sich die
+            # Situation geändert hat.": the word-order fallback cannot
+            # tell a fronted heavy SUBJECT apart from a real object by
+            # shape alone), never vetted against every verb in German.
+            has_object = _has_bare_accusative_object(sentence, token.i, clause_start, clause_end)
+            verb_case = "Dat" if has_object else "Acc"
     unambiguous = _REFLEXIVE_CASE_BY_FORM.get(lower)
     if unambiguous is not None and unambiguous != verb_case:
         return None
@@ -3815,15 +3825,38 @@ def _select_kasus_dativ_formen(sentence: TaggedSentence) -> list[Candidate]:
     A candidate is kept only when its own clause has exactly one governing
     verb (``_governing_verb_lemma``, "reject rather than guess" when it
     cannot be resolved -- an ``und``-joined pair of finite verbs, for
-    example) and that verb is either lexically Dative-only
-    (``paradigms.DATIVE_ONLY_VERBS``) or a ditransitive Dative-taking verb
-    WITH a genuine Accusative direct object also present in the same
-    clause (``paradigms.DITRANSITIVE_DATIVE_VERBS``, checked with
-    ``_has_bare_accusative_object``, the same same-clause object scan the
-    reflexive-case-routing fix already relies on). A dative governed by a
-    preposition is not this topic's job at all -- the base selector's own
-    ``"forbidden"`` preposition gate already keeps that disjoint from
-    ``dativ_nach_praeposition``/``praepositionen_dativ``, unchanged here.
+    example) and that verb forces the Dative reading, one of two ways:
+
+    * ``verb_government.object_verdict`` -- TODO 8.1's corpus lexicon,
+      merged with (and losing to on conflict) ``paradigms.DATIVE_ONLY_
+      VERBS``, the hand list this used to be. 8.5's own fix shipped with
+      only 37 hand-named Dative-only verbs and one live sentence per verb
+      is nowhere near what 1M+ sentences of real evidence gives: "glauben"
+      (jemandem glauben), "ausweichen", "raten" and dozens more never made
+      any hand list, and 8.5's own accounting already showed the cost --
+      candidate volume for this topic fell 81 percent (180 -> 34) on the
+      cycle-10 sample, most of it verbs no list happened to name. No
+      further structural check is required once the lexicon (or the hand
+      list it falls back to) forces the verdict, matching how
+      ``DATIVE_ONLY_VERBS`` membership alone was always sufficient here.
+    * A ditransitive Dative-taking verb WITH a genuine Accusative direct
+      object also present in the same clause
+      (``paradigms.DITRANSITIVE_DATIVE_VERBS``, checked with
+      ``_has_bare_accusative_object``, the same same-clause object scan
+      the reflexive-case-routing fix already relies on) -- kept exactly as
+      8.5 built it. This hand list's own members are not simply folded
+      into the lexicon's binary verdict: a ditransitive verb's own object
+      pronoun evidence is genuinely mixed by construction (the recipient
+      is Dative, but the theme is sometimes itself an Accusative personal
+      pronoun -- "Ich gebe ihn dir." -- so "geben" correctly never clears
+      the lexicon's own ratio bar), which is exactly why this list needed
+      the extra accompanying-object confirmation in the first place; that
+      reasoning is untouched by this task.
+
+    A dative governed by a preposition is not this topic's job at all --
+    the base selector's own ``"forbidden"`` preposition gate already keeps
+    that disjoint from ``dativ_nach_praeposition``/``praepositionen_dativ``,
+    unchanged here.
 
     This costs volume on purpose, per the owner's zero-defects standard:
     every candidate whose Dative reading is real but not FORCED by one of
@@ -3836,7 +3869,7 @@ def _select_kasus_dativ_formen(sentence: TaggedSentence) -> list[Candidate]:
         verb_lemma = _governing_verb_lemma(sentence, clause_start, clause_end)
         if verb_lemma is None:
             continue
-        if verb_lemma in paradigms.DATIVE_ONLY_VERBS:
+        if verb_government.object_verdict(verb_lemma) == "Dat":
             out.append(candidate)
         elif verb_lemma in paradigms.DITRANSITIVE_DATIVE_VERBS and _has_bare_accusative_object(
             sentence, token.i, clause_start, clause_end

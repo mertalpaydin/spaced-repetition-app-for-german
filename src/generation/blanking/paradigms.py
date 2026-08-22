@@ -1094,6 +1094,21 @@ def participle_shape_infinitive(text: str) -> str | None:
 # exactly the kind of fact this cycle keeps as a closed list here rather than
 # re-deriving it per sentence).
 #
+# TODO 8.1: kept, not deleted -- a closed list cannot keep up with German's
+# hundreds of fixed-case-government verbs (three cycles of reflexive
+# defects were each "fixed" by extending one of the two simple lists below,
+# and each time the next corpus run found verbs neither one named), but
+# Dreyer/Schmitt and Duden are a better authority than corpus frequency for
+# the verbs they already cover. ``src.generation.blanking.verb_government``
+# now consults ``DATIVE_REFLEXIVE_VERBS_NO_OBJECT``/``ACCUSATIVE_ONLY_
+# REFLEXIVE_VERBS`` as a trusted seed that WINS on conflict, merged with a
+# corpus-built lexicon (``data/fixtures/verb_government/lexicon.v1.jsonl``,
+# ``scripts/build_verb_government.py``) that extends coverage far past
+# these two lists. ``DATIVE_REFLEXIVE_VERBS_WITH_OBJECT`` is not folded
+# into that lexicon at all -- its own polysemy (module comment below) is
+# not a fact a single verdict can represent, so ``selectors._reflexive_
+# case`` still decides those verbs the way it always has, per occurrence.
+#
 # docs/audits/cycle-04-report.md's second finding: ``uns``/``sich`` are
 # syncretic between Accusative and Dative, so the reflexive pronoun's own
 # surface form cannot decide which topic (``verben_reflexiv_akk`` vs
@@ -1203,8 +1218,21 @@ ACCUSATIVE_ONLY_REFLEXIVE_VERBS: frozenset[str] = frozenset(
 )
 
 # ==============================================================================
-# TODO.md 8.5: non-reflexive Dative-governing verbs, for ``kasus_dativ_
-# formen``'s own forcing check (``selectors._select_kasus_dativ_formen``).
+# TODO.md 8.5 (replaced by TODO 8.1's corpus lexicon -- see the module
+# comment above ``DATIVE_REFLEXIVE_VERBS_WITH_OBJECT`` for the general
+# reasoning, identical here): non-reflexive Dative-governing verbs, for
+# ``kasus_dativ_formen``'s own forcing check
+# (``selectors._select_kasus_dativ_formen``).
+#
+# ``DATIVE_ONLY_VERBS`` is kept as the trusted seed
+# ``verb_government.object_verdict`` merges corpus evidence into, winning
+# on conflict; ``DITRANSITIVE_DATIVE_VERBS`` is not folded into that
+# lexicon's binary verdict at all and stays consulted directly, unchanged
+# -- a ditransitive verb's own object-pronoun evidence is genuinely mixed
+# by construction (the recipient is Dative, the theme is sometimes itself
+# an Accusative personal pronoun -- "Ich gebe ihn dir."), so it correctly
+# never clears the lexicon's own ratio bar, which is exactly why this list
+# needs its accompanying-Accusative-object confirmation and always will.
 #
 # docs/audits/cycle-10-corpus-report.md found three items in this topic
 # that are not Dative at all -- a Nominative apposition ("einer nach dem
