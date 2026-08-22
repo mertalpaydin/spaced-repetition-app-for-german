@@ -2953,3 +2953,60 @@ def test_finite_verb_person_leaves_a_correctly_tagged_person_2_alone() -> None:
     gehst = next(t for t in tagged.tokens if t.text == "gehst")
     assert gehst.morph.get("Person") == "2"
     assert selectors._finite_verb_person(gehst) == "2"
+
+
+# TODO.md 1.6, reopened by the coordinator's own review after the six-item
+# pass: "unfixable" was wrong. de_core_news_sm leaves "passt"'s own lemma
+# completely unreduced ("passt", not "passen") rather than merely wrong, so
+# ``_governing_verb_lemma`` used to concatenate the separable particle onto
+# the BROKEN lemma ("an" + "passt" = "anpasst"), a lexicon key nothing could
+# ever match. Fixed two ways, per the coordinator's own instruction and in
+# the order given: (b) ``_reduce_unreduced_weak_finite_lemma`` repairs this
+# one confirmed failure shape mechanically (the same forward rule
+# ``paradigms.regular_praesens_form`` already conjugates with, reversed and
+# cross-checked against the real-word dictionary), which turned out to
+# benefit every weak verb sharing this failure, not only "anpassen" -- see
+# docs/audits/fix-log.md's own rebuilt-lexicon diff for the measurement.
+# (a) "anpassen" itself still clears no corpus threshold even after (b) (1
+# occurrence in the full corpus, confirmed by rebuilding
+# ``data/fixtures/verb_government/lexicon.v1.jsonl``), so it is also added
+# to ``paradigms.DATIVE_ONLY_VERBS`` by name, on the same hand-audit basis
+# TODO 8.1's own "verbeugen" precedent (commit fb3d721) already established.
+#
+# The reported sentence's own "..." elision hid a determiner: TODO.md 1.6's
+# title itself, "determiner-less plural dative", describes a shape
+# ``kasus_dativ_formen`` structurally cannot ever select from at all --
+# ``_determiner_selector`` only ever considers ART/PIAT/PPOSAT tokens
+# (``_DETERMINER_TAGS``), never a bare noun with no determiner whatsoever --
+# so the reported item must have had one; "den" is the natural
+# reconstruction, confirmed to reproduce the defect against the
+# pre-this-fix code and lexicon (``[]``, git-stash-confirmed) and to be
+# fixed against the current ones.
+def test_reduce_unreduced_weak_finite_lemma_repairs_passt_to_passen() -> None:
+    tagged = sentence_tagger.tag_sentence("Das passt mir nicht.")
+    assert tagged is not None
+    passt = next(t for t in tagged.tokens if t.text == "passt")
+    assert passt.tag == "VVFIN"
+    assert passt.lemma.lower() == "passt"
+    assert selectors._reduce_unreduced_weak_finite_lemma(passt) == "passen"
+
+
+def test_reduce_unreduced_weak_finite_lemma_declines_a_2sg_st_form() -> None:
+    """Gated to (Person=3, Number=Sing) only -- a 2nd-singular "-st" form is
+    a DIFFERENT, already-otherwise-handled tagger failure (TODO.md 1.4/1.5's
+    own Person mistag), not this function's job."""
+    tagged = sentence_tagger.tag_sentence("Du hilfst mir sehr.")
+    assert tagged is not None
+    hilfst = next(t for t in tagged.tokens if t.text == "hilfst")
+    assert selectors._reduce_unreduced_weak_finite_lemma(hilfst) is None
+
+
+def test_kasus_dativ_formen_reaches_anpassen_via_a_repaired_governing_lemma() -> None:
+    sentence = "Der Körper passt sich schnell den Temperaturänderungen an."
+    tagged = sentence_tagger.tag_sentence(sentence)
+    assert tagged is not None
+    passt = next(t for t in tagged.tokens if t.text == "passt")
+    assert passt.lemma.lower() == "passt"  # the confirmed unreduced-lemma shape itself
+    assert selectors._governing_verb_lemma(tagged, 0, len(tagged.tokens)) == "anpassen"
+    item = _blank("kasus_dativ_formen", sentence)
+    assert item.proposed_answer == "den"

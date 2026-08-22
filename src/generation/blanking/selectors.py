@@ -1242,6 +1242,53 @@ def _clause_span(sentence: TaggedSentence, index: int) -> tuple[int, int]:
 _IMPERATIVE_TAGS: frozenset[str] = frozenset({"VVIMP", "VAIMP", "VMIMP"})
 
 
+def _reduce_unreduced_weak_finite_lemma(token: Token) -> str | None:
+    """TODO.md 1.6: de_core_news_sm's EditTreeLemmatizer occasionally gives
+    up on a regular weak verb's 3rd-singular present form entirely, leaving
+    ``token.lemma_`` IDENTICAL to the surface text ("passt" -> lemma
+    "passt", not "passen") instead of merely reducing it wrongly (the
+    already-handled ``_MISLEMMATIZED_VERB_LEMMAS`` class, which is still
+    "en"-shaped, just the wrong word). Confirmed directly against this
+    model on "Der Körper passt sich schnell Temperaturänderungen an.":
+    ``passt`` tags ``VVFIN``, ``Person=3``, ``Number=Sing`` (correctly),
+    ``Tense=Past`` (a separate, confirmed-cosmetic mistag investigated and
+    reported in docs/audits/fix-log.md, not fixed here since nothing reads
+    ``Tense`` off this token), and ``lemma_`` equal to ``passt`` itself.
+
+    Only called from ``_governing_verb_lemma`` once that caller has already
+    confirmed the raw lemma is NOT infinitive-shaped
+    (``_looks_infinitive_shaped``); this function's own job is narrower:
+    given that the lemma is broken, try to repair it, mechanically, the
+    same way the codebase already conjugates a weak verb FORWARD
+    (``paradigms.regular_praesens_form``) -- reversed via
+    ``paradigms.candidate_weak_praesens_infinitives``, which forward-checks
+    its own candidates before returning them -- and cross-checked against
+    the real-word dictionary (``_cue_is_real_word``) before being trusted,
+    since forward-checking alone still accepts a wrong candidate for a
+    genuinely irregular verb (see that function's own docstring for the
+    "trägt" -> "trägen" example). Gated to the one (Person=3, Number=Sing)
+    cell this failure is confirmed in; every other case, or a candidate set
+    that is empty, ambiguous (more than one dictionary-real candidate), or
+    entirely unconfirmable (the dictionary itself failed to load, which
+    ``_cue_is_real_word`` degrades to "trust everything" -- exactly the
+    condition that makes more than one candidate look real at once here)
+    returns ``None``: "reject rather than guess" applied to lemma repair
+    itself, not only to candidate selection."""
+    if token.tag != "VVFIN":
+        return None
+    text = token.text.strip().lower()
+    lemma = token.lemma.strip().lower()
+    if not text or lemma != text:
+        return None
+    if token.morph.get("Person") != "3" or token.morph.get("Number") != "Sing":
+        return None
+    candidates = paradigms.candidate_weak_praesens_infinitives(text)
+    real = [c for c in candidates if _cue_is_real_word(c)]
+    if len(real) != 1:
+        return None
+    return real[0]
+
+
 def _governing_verb_lemma(
     sentence: TaggedSentence, clause_start: int, clause_end: int
 ) -> str | None:
@@ -1275,7 +1322,17 @@ def _governing_verb_lemma(
     (no comma before "und") looked like it had exactly one finite verb
     ("gebt"/"aufgeben") and this function wrongly resolved through it
     instead of returning ``None`` for the genuinely two-predicate clause it
-    actually is."""
+    actually is.
+
+    Also used by ``_select_kasus_dativ_formen`` as its lexicon-lookup key,
+    not only by the reflexive router -- which is what surfaced TODO.md 1.6:
+    a bare finite verb whose own lemma is not infinitive-shaped at all (see
+    ``_reduce_unreduced_weak_finite_lemma``) is repaired before being used
+    or concatenated with a separable prefix. An unrepairable lemma is still
+    returned, not rejected -- see that repair's own call site below for why
+    ``None`` here means something narrower than "the lemma is trustworthy",
+    and returning it anyway for an untrustworthy string is deliberate, not
+    an oversight."""
     finite = [
         t
         for t in sentence.tokens[clause_start:clause_end]
@@ -1303,6 +1360,41 @@ def _governing_verb_lemma(
         # ("angesehen", "ansehen") -- confirmed empirically that spaCy
         # lemmatises these correctly, unlike the bare-finite branch below.
         return non_finite.lemma.lower()
+    # TODO.md 1.6: before trusting ``lemma`` at all -- concatenated with a
+    # separable prefix or not -- confirm it is even infinitive-SHAPED.
+    # de_core_news_sm sometimes leaves a weak verb's finite form completely
+    # unreduced ("passt" -> lemma "passt", not "passen"), and concatenating
+    # a prefix onto THAT ("an" + "passt" = "anpasst") produces a lexicon
+    # lookup key that can never match, silently, with no signal that
+    # anything went wrong. ``_reduce_unreduced_weak_finite_lemma`` repairs
+    # the one confirmed shape of this failure (see its own docstring).
+    #
+    # A lemma the repair cannot confirm is used AS-IS below, exactly like
+    # the pre-1.6 behaviour, deliberately NOT rejected outright (``None``)
+    # here -- confirmed the hard way, by an actual regression this task
+    # caught before it shipped: this function's return value is not only a
+    # lexicon lookup key, it is also ``_reflexive_case``'s own signal that
+    # the clause's governing verb resolved AT ALL (a plain boolean fact,
+    # "was there exactly one finite verb here"), and several of its own
+    # callers (the structural accusative-object fallback, and every
+    # ``verb_government.*_verdict`` lookup, which already, harmlessly,
+    # returns ``None`` for a string absent from the lexicon) degrade
+    # correctly on a wrong-but-present lemma with NO further help from this
+    # function -- rejecting the resolution outright instead cost them that
+    # signal for no gain: "Er schämt sich für sein Verhalten." (lemma
+    # "schämtn", not infinitive-shaped, not this function's repairable
+    # shape) used to correctly resolve to Accusative via the structural
+    # fallback regardless of the wrong lemma string, and returning ``None``
+    # here broke exactly that. A caller that DOES need the string to be
+    # right for its own correctness (``_select_kasus_dativ_formen``) is
+    # already safe on a wrong string without any help from this function:
+    # a wrong lemma simply fails to match any lexicon entry, which is the
+    # same "no forced verdict" outcome as ``None`` would have produced for
+    # it, one level up.
+    if not _looks_infinitive_shaped(lemma):
+        reduced = _reduce_unreduced_weak_finite_lemma(finite[0])
+        if reduced is not None:
+            lemma = reduced
     # A separable-prefixed verb in PLAIN present/preterite main-clause word
     # order splits ("Ich sehe den Film an."), and confirmed empirically that
     # spaCy's own lemma for the finite half alone drops the prefix entirely
@@ -1946,6 +2038,25 @@ _MISLEMMATIZED_VERB_LEMMAS: frozenset[str] = frozenset(
 _BARE_N_INFINITIVE_STEM_SUFFIXES: tuple[str, ...] = ("el", "er")
 
 
+def _looks_infinitive_shaped(lemma: str) -> bool:
+    """The structural half of ``_lexical_verb_lemma_trustworthy``'s check 1,
+    pulled out on its own: ends "-en" (the overwhelming majority of German
+    infinitives), is "tun", or ends bare "-n" on a stem that itself ends
+    "-el"/"-er" (``_BARE_N_INFINITIVE_STEM_SUFFIXES`` -- "lächeln",
+    "wandern"). Purely a shape check, says nothing about whether the lemma
+    is the RIGHT infinitive (that is what ``_lexical_verb_lemma_
+    trustworthy``'s further checks are for) -- reused on its own, negated,
+    by ``_governing_verb_lemma`` as the trigger for its narrower repair
+    (TODO.md 1.6), which needs only "does this even look like an
+    infinitive", not the full cue-worthiness bar a displayed citation form
+    requires."""
+    return (
+        lemma.endswith("en")
+        or lemma == "tun"
+        or (lemma.endswith("n") and lemma[:-1].endswith(_BARE_N_INFINITIVE_STEM_SUFFIXES))
+    )
+
+
 def _lexical_verb_lemma_trustworthy(lemma: str) -> bool:
     """Whether ``lemma`` -- BEFORE any separable-prefix reconstruction -- is
     reliable enough to show a learner as an infinitive cue for a blanked
@@ -1988,13 +2099,8 @@ def _lexical_verb_lemma_trustworthy(lemma: str) -> bool:
        table instead."""
     if not lemma:
         return False
-    shaped = (
-        lemma.endswith("en")
-        or lemma == "tun"
-        or (lemma.endswith("n") and lemma[:-1].endswith(_BARE_N_INFINITIVE_STEM_SUFFIXES))
-    )
     return (
-        shaped
+        _looks_infinitive_shaped(lemma)
         and lemma not in _MISLEMMATIZED_VERB_LEMMAS
         and lemma not in paradigms.IRREGULAR_FINITE_INFLECTED_FORMS
     )

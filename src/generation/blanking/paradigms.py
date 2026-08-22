@@ -397,6 +397,40 @@ def regular_praeteritum_form(lemma: str, person: str, number: str) -> str | None
     return stem + ending
 
 
+def candidate_weak_praesens_infinitives(surface: str) -> frozenset[str]:
+    """TODO.md 1.6: candidate infinitives ``surface`` -- a 3rd-singular-
+    present verb form ending in "-t" -- could mechanically come from,
+    reached by reversing ``regular_praesens_form``'s own (Person=3,
+    Number=Sing) rule rather than by a second, independent un-conjugation
+    written from scratch. Up to two raw candidates are tried (the plain
+    strip, "passt" -> "pass" + "en" = "passen"; and, when ``surface`` ends
+    "-et", the epenthesis-stripped one, "arbeitet" -> "arbeit" + "en" =
+    "arbeiten"), and each is forward-checked against
+    ``regular_praesens_form`` itself before being offered -- so a caller
+    never receives a candidate this same forward rule would not itself
+    reproduce as ``surface``. This forward check alone is not sufficient to
+    pick a single right answer: both raw candidates for an "-et" surface
+    form forward-validate (the epenthesis rule and the plain rule can
+    coincide), and a genuinely irregular (strong/vokalwechsel) verb's
+    unreduced "-t" form can forward-validate on a WRONG candidate purely by
+    the accident that ``regular_praesens_form`` reapplies the regular
+    ending mechanically regardless of whether the verb is actually regular
+    ("trägt" -> candidate "trägen", which reconjugates back to "trägt"
+    despite not being a real word). A real-word check on top of this (this
+    module has no dictionary to consult) is therefore the caller's job, not
+    this function's -- see ``selectors._reduce_unreduced_weak_finite_lemma``,
+    the one caller, for how it is used and gated."""
+    surface = surface.strip().lower()
+    if not surface.endswith("t") or len(surface) < 3:
+        return frozenset()
+    raw = {surface[:-1] + "en"}
+    if surface.endswith("et") and len(surface) > 3:
+        raw.add(surface[:-2] + "en")
+    return frozenset(
+        candidate for candidate in raw if regular_praesens_form(candidate, "3", "Sing") == surface
+    )
+
+
 @dataclass(frozen=True)
 class _StrongVerb:
     """One irregular verb's principal parts beyond the infinitive: the
@@ -1356,6 +1390,32 @@ ACCUSATIVE_ONLY_REFLEXIVE_VERBS: frozenset[str] = frozenset(
 #   left for a future reader to rediscover, the same "confirmed necessary,
 #   not just theoretical" posture TODO 1.2's own precedent set for a
 #   different tagger quirk.
+#
+#   TODO.md 1.6: "anpassen" ("Der Körper passt sich schnell
+#   Temperaturänderungen an.") added by name, on the same basis as
+#   "verbeugen" above (a single verb named by a hand audit, not the list
+#   treadmill TODO 8.1 retired) -- fixing ``selectors._governing_verb_
+#   lemma``'s own unreduced-lemma bug (this same TODO item; see that
+#   function's docstring) makes this verb correctly REACHABLE by the
+#   corpus lexicon for the first time, but its own corpus evidence stays
+#   at 1 occurrence even after a full rebuild over both staged corpora --
+#   confirmed directly, not assumed, by actually rebuilding
+#   ``data/fixtures/verb_government/lexicon.v1.jsonl`` and diffing before
+#   and after: nowhere near ``build_verb_government.DEFAULT_MIN_COUNT``
+#   (5). "sich (Akk) etwas (Dat) anpassen" (adapt oneself to something) is
+#   a standard, Duden-attested dative-object construction. Unlike
+#   "verbeugen", "anpassen" is NOT single-sense -- it also has a plain
+#   transitive Accusative reading with no reflexive pronoun at all ("Sie
+#   passt Verträge an."), so this entry is not as clean a fit for "never
+#   an Accusative object" as this list's other members, and is accepted
+#   here on the strength of the case TAG rather than verb polysemy alone:
+#   every constructed test of the transitive sense tags its own bare
+#   plural object ``Case=Acc`` correctly (``Sie passt Verträge an.``, ``Die
+#   Firma passt Preise an.``, ``Wir passen Löhne an.``, ...), so this
+#   list's own membership is never actually reached for that sense unless
+#   the tagger ALSO mistags the object's Case -- a real but unconfirmed
+#   residual risk, flagged here rather than silently accepted, not
+#   evidence the addition is wrong.
 # * ``DITRANSITIVE_DATIVE_VERBS`` -- verbs that take BOTH a Dative
 #   (indirect object/recipient) and an Accusative (direct object) at once
 #   ("geben", "zeigen", "sagen"...). Governing one of these is only forced
@@ -1369,6 +1429,7 @@ DATIVE_ONLY_VERBS: frozenset[str] = frozenset(
     {
         "antworten",
         "antworen",
+        "anpassen",
         "ähneln",
         "auffallen",
         "begegnen",

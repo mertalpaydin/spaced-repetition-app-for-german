@@ -155,6 +155,30 @@ def test_regular_praesens_form_handles_the_sibilant_stem_2sg_exception() -> None
     assert paradigms.regular_praesens_form("reisen", "2", "Sing") == "reist"
 
 
+def test_candidate_weak_praesens_infinitives_reduces_a_plain_3sg_form() -> None:
+    """TODO.md 1.6: "passt" (de_core_news_sm's own unreduced lemma for
+    itself) has no epenthesis, so only the plain strip candidate is even
+    forward-checkable, and it is the correct one."""
+    assert paradigms.candidate_weak_praesens_infinitives("passt") == frozenset({"passen"})
+
+
+def test_candidate_weak_praesens_infinitives_offers_both_candidates_for_an_epenthesis_form() -> (
+    None
+):
+    """ "arbeitet" is genuinely ambiguous by forward-checking alone -- both
+    the epenthesis reading ("arbeiten") and the naive strip ("arbeiteen")
+    forward-reconstruct to "arbeitet" -- so both come back here; picking the
+    real one is ``selectors._reduce_unreduced_weak_finite_lemma``'s own job
+    (the real-word dictionary check), not this function's."""
+    assert paradigms.candidate_weak_praesens_infinitives("arbeitet") == frozenset(
+        {"arbeiten", "arbeiteen"}
+    )
+
+
+def test_candidate_weak_praesens_infinitives_rejects_a_non_t_final_surface() -> None:
+    assert paradigms.candidate_weak_praesens_infinitives("mache") == frozenset()
+
+
 def test_regular_praeteritum_form_conjugates_a_weak_verb() -> None:
     assert paradigms.regular_praeteritum_form("machen", "1", "Sing") == "machte"
     assert paradigms.regular_praeteritum_form("machen", "3", "Plur") == "machten"

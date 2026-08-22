@@ -1922,7 +1922,13 @@ Written up as a dated addendum to `docs/audits/tagger-accuracy-vs-gold.md`
 rather than edited into the original numbers, so the original measurement
 stays intact and dated as what it actually covered.
 
-### 9.6 Determiner-less plural dative tagged accusative -- not fixable within scope
+### 9.6 Determiner-less plural dative tagged accusative -- reopened and fixed, see section 10
+
+The "not fixable" verdict below was wrong. Left as originally written for the
+record (it correctly reports what was checked at the time and got the
+lexicon-evidence and lemma-reconstruction facts right), but section 10 below
+reopens it at the coordinator's own instruction, fixes both gaps, and
+supersedes its "Not fixed" conclusion.
 
 "Der Körper passt sich ... Temperaturänderungen an.": confirmed directly
 against the tagger that `Temperaturänderungen` (a bare, determiner-less
@@ -2049,3 +2055,292 @@ Full test suite (`uv run pytest -m "not live and not simulation"`), `ruff
 check`, `ruff format --check`, `mypy --strict src/` all clean after the
 fix, including 8 new regression tests built from the task's own six
 sentences.
+
+## 10. TODO 1.6, reopened: "unfixable" was wrong
+
+The coordinator rejected 9.6's own "not fixable" verdict, correctly. Both
+of the two compounding gaps 9.6 found are addressable, and the brief said
+so before this section confirmed it: fix the lemma-reconstruction bug
+first (it might lift `anpassen`'s own corpus evidence above threshold on
+its own), re-measure, and only add `anpassen` by hand if it still does not
+clear the bar.
+
+### 10.1 The lemma fix
+
+`_governing_verb_lemma` already reconstructs a separable verb's prefix by
+concatenation (`particle.lemma + finite_verb.lemma`), confirmed correct and
+left untouched. The actual bug is one step earlier: `passt`'s own `.lemma`
+comes back from `de_core_news_sm` as the literal, un-reduced `"passt"`, not
+`"passen"` -- confirmed directly, not assumed, by tagging the reported
+sentence and reading `token.lemma_` off the `passt` token itself. This is
+not a wrongly-reduced lemma (`_MISLEMMATIZED_VERB_LEMMAS`'s own class,
+still shaped like an infinitive, just the wrong word); it is not reduced at
+ALL, so it does not even pass the module's existing infinitive-shape check
+-- pulled out on its own as `_looks_infinitive_shaped` (previously inlined
+in `_lexical_verb_lemma_trustworthy`) so both functions share it rather
+than each carrying a copy.
+
+The repair, `selectors._reduce_unreduced_weak_finite_lemma`, is the SAME
+mechanical idiom this module already uses elsewhere for exactly this kind
+of "reverse a forward rule, then cross-check against a real-word list"
+problem (`_lexical_verb_answer_is_plausible`'s own frequency-list probe
+via `paradigms.regular_praesens_form`, mentioned by name in this file's own
+docstring at that call site as the precedent), not a new pattern invented
+for this one verb:
+
+1. `paradigms.candidate_weak_praesens_infinitives(surface)` generates up to
+   two candidates by reversing the weak-verb 3rd-singular-present rule
+   (`regular_praesens_form`'s own (Person=3, Number=Sing) cell) -- the
+   plain strip ("passt" -> "passen") and, when the surface ends "-et", the
+   epenthesis-stripped one ("arbeitet" -> "arbeiten") -- and FORWARD-checks
+   each one against that same rule before returning it, so a caller never
+   receives a candidate the rule itself would not reproduce.
+2. Forward-checking alone is not enough to pick a single answer: both
+   candidates for an "-et" surface forward-validate (confirmed by test:
+   `candidate_weak_praesens_infinitives("arbeitet") == {"arbeiten",
+   "arbeiteen"}`), and a genuinely irregular verb's un-reduced "-t" form can
+   forward-validate on a WRONG candidate purely because the forward rule
+   reapplies mechanically regardless of whether the verb is actually
+   regular (documented in that function's own docstring: "trägt" ->
+   "trägen", which reconjugates back to "trägt" despite not being a real
+   word). `selectors._reduce_unreduced_weak_finite_lemma` adds the real-word
+   dictionary check (`_cue_is_real_word`, already vendored and already used
+   for this exact class of question elsewhere in the same file) on top,
+   and only trusts the repair when EXACTLY one candidate is both forward-
+   valid and a real word.
+3. Gated to (Person=3, Number=Sing) only, the one cell this failure is
+   confirmed in -- a 2nd-singular "-st" form ("hilfst") is a DIFFERENT,
+   already-otherwise-handled failure (9.4/9.5's own Person mistag, or a
+   mislemmatised stem like "rufsen"), not this function's job, and is left
+   untouched (pinned by its own regression test).
+
+### 10.2 Measured, not assumed: does the lemma fix alone lift `anpassen`?
+
+Per the coordinator's own instruction, `scripts/build_verb_government.py`
+was actually re-run over the full, uncapped corpus (both staged sources,
+450,502 sentences total) with the fixed `_governing_verb_lemma`, and the
+resulting fixture diffed against the committed one line by line, not
+spot-checked:
+
+- **`anpassen` itself: unchanged, still 1 occurrence.** `object.dat_count`
+  stays at 1 before and after. The lemma fix does not, on its own, lift
+  `anpassen` above `DEFAULT_MIN_COUNT=5` -- gap (a) is still needed, exactly
+  as the coordinator allowed for.
+- **But the fix benefits every OTHER weak verb sharing this failure, which
+  is the more consequential finding.** `passen` itself (the plain, non-
+  separable verb, already on `paradigms.DATIVE_ONLY_VERBS`) consolidates
+  from a SPLIT evidence pool -- `dat_count=8` under its correct key
+  `"passen"`, plus a SEPARATE, duplicate `dat_count=18` under the broken key
+  `"passt"` (the exact same failure this task is fixing, already present in
+  the committed lexicon because the ORIGINAL corpus build used the SAME
+  buggy resolver) -- into one correct entry, `dat_count=26` (8 + 18 exactly).
+  Before the fix, a LIVE sentence like "Das passt mir nicht." also resolved
+  to the broken key `"passt"` at query time (confirmed directly via
+  `git stash`), which happened to still work by accident, because the
+  broken key existed as ITS OWN lexicon entry with its own, independently-
+  sufficient evidence. That coincidence is not general: it depends on the
+  live sentence's own broken lemma happening to match, character for
+  character, whatever broken lemma the ORIGINAL corpus build produced for
+  similar sentences, which is not guaranteed (a different sentence's own
+  incidental parse can turn the same verb into a differently-broken lemma
+  -- confirmed by "schämt"'s own broken lemma being `"schämtn"`, not
+  `"schämt"`, a different corruption of the same verb in a different
+  sentence). Fixing the true cause replaces this fragile coincidence with a
+  key that is actually correct.
+- **Net effect across the whole fixture, before vs after (final, post-
+  regression-fix version -- see 10.3):** total records 2753 -> 2719 (-34,
+  overwhelmingly duplicate broken-key entries folding into their real
+  verb's own record); of the 49 records that disappeared, only 4 carried a
+  forced verdict, and every one of those 4 (`passt`, `ausmacht`, `freut`,
+  `anruft`) is a `likely_lemma_quirk: true` entry with NO hand-list backing
+  at all, now correctly merged into its real infinitive (`passen`,
+  `ausmachen`, `freuen`, `anrufen` respectively -- all four confirmed to
+  have GAINED evidence under their real name, not lost it: e.g.
+  `ausmachen`'s own `dat_count` rises from 62 to 72). `verbeugen` newly
+  appears as its own record for the first time since commit `fb3d721`
+  added it to the hand list -- the committed fixture had never been
+  rebuilt since that commit, an unrelated, pre-existing staleness this
+  rebuild also happens to correct, not something this task caused.
+
+### 10.3 A self-caught regression: rejecting was too strong
+
+The first version of this fix made `_governing_verb_lemma` return `None`
+outright when a not-infinitive-shaped lemma could not be repaired, on the
+reasoning that nothing downstream could ever have used a broken
+concatenation like `"anpasst"` correctly anyway. Running the full test
+suite (not merely the six sentences) caught this as wrong before it
+shipped: `test_verben_reflexiv_akk_routes_a_verb_the_lexicon_learned_from_
+the_corpus` ("Er schämt sich für sein Verhalten.") and two others failed.
+
+The mechanism: `_governing_verb_lemma`'s return value is not ONLY a lexicon
+lookup key. `_reflexive_case` also uses "did this resolve to something at
+all" as a plain structural signal -- "was there exactly one governing verb
+in this clause" -- entirely independent of whether the STRING is
+trustworthy, before it ever falls through to
+`verb_government.reflexive_verdict` (which already, harmlessly, returns
+`None` for a string absent from the lexicon) and then to the structural
+accusative-object fallback. "Er schämt sich für sein Verhalten." resolves
+"schämt" to the broken lemma `"schämtn"` (not this fix's repairable shape:
+`lemma != text`, so `_reduce_unreduced_weak_finite_lemma` correctly
+declines rather than guesses) -- and used to correctly reach Accusative via
+the structural fallback regardless, exactly because the fallback never
+needed the STRING to be right, only for resolution to have happened at
+all. Returning `None` here threw away a signal two unrelated call sites
+depended on, for a caller (`_select_kasus_dativ_formen`) that was already
+safe on a wrong string without any help from this function: a wrong lemma
+simply fails to match any lexicon entry, the identical "no forced verdict"
+outcome `None` would have produced for it, one level up.
+
+Fixed by returning the ORIGINAL (possibly still wrong) lemma when repair
+fails, exactly matching the module's own pre-1.6 behaviour for that case --
+only a CONFIRMED, dictionary-validated repair is ever substituted; an
+unconfirmed one no longer costs anything it did not already cost before
+this task started. Re-ran the full suite after this correction: clean.
+Re-ran the lexicon rebuild once more against the corrected code (the
+number in 10.2 above is this final version, not the first, over-aggressive
+one) -- the first version's own rebuild had thrown away 604 records
+including 42 with a forced verdict, all traced to the identical "reject on
+sight" overcorrection; none of that loss survives in the version actually
+shipped.
+
+### 10.4 `anpassen` added by hand, on the `verbeugen` basis
+
+With corpus evidence still insufficient after 10.1-10.3, `anpassen` is
+added to `paradigms.DATIVE_ONLY_VERBS` by name -- the same basis section
+8's own "verbeugen" entry (commit `fb3d721`) already established as
+legitimate: a single verb named by a hand audit, not the list-maintenance
+treadmill the corpus lexicon exists to retire. "sich (Akk) etwas (Dat)
+anpassen" (adapt oneself to something) is a standard, Duden-attested
+dative-object construction.
+
+Flagged, not silently accepted: unlike `verbeugen` (single-sense,
+intransitive-reflexive, no other reading exists), `anpassen` is
+polysemous -- it also has a plain transitive Accusative reading with no
+reflexive pronoun at all ("Sie passt Verträge an."), so this list's own
+"never an Accusative object" premise is not as clean a fit here as for its
+other members. Checked, not assumed: every constructed test of the
+transitive sense tags its own bare plural object `Case=Acc` correctly
+("Sie passt Verträge an.", "Die Firma passt Preise an.", "Wir passen Löhne
+an.", ...), so `kasus_dativ_formen`'s own base selector (which only ever
+looks at tokens the tagger already calls `Case=Dat`) never actually reaches
+this list's membership for that sense unless the tagger ALSO mistags the
+object's Case -- a real but unconfirmed residual risk, recorded in the
+code comment at the point of addition rather than left implicit.
+
+### 10.5 The reported sentence needed a determiner it never had
+
+TODO.md 1.6's own title, "determiner-less plural dative", describes a
+shape `kasus_dativ_formen` cannot select from AT ALL, independent of
+anything this task touches: `_determiner_selector` (the base every
+`kasus_*_formen` topic shares) only ever considers `ART`/`PIAT`/`PPOSAT`
+tokens (`_DETERMINER_TAGS`) as candidates, never a bare noun. Confirmed
+directly: `_KASUS_DATIV_FORMEN_BASE` on the reported sentence's own text,
+verbatim, returns zero candidates regardless of any fix in this task,
+because there is no determiner token to select in the first place -- the
+topic is about which DETERMINER form a case takes, not about the noun
+itself.
+
+The `"..."` in TODO.md's own elided sentence text must therefore have
+hidden one. "den" is the natural reconstruction -- "Der Körper passt sich
+schnell den Temperaturänderungen an." -- and both directions were
+confirmed directly, not assumed: `git stash`-ed back to the pre-this-round
+code and lexicon, `_select_kasus_dativ_formen` on this reconstruction
+returns `[]`; on the current code and rebuilt lexicon, it returns the
+`den` candidate, and `blank_candidate` carries it all the way through to a
+shipped item (`proposed_answer="den"`, no skip).
+
+### 10.6 Verified against a real corpus pilot run, this round too
+
+`scripts/step7_corpus_pilot.py --limit 20000`, before (the already-
+committed section 9 state: 1.1-1.5 fixed, 1.6 not) against after (this
+round's fix, both gaps, rebuilt lexicon), same seed, diffed per topic
+across all 49: only `kasus_dativ_formen` moved, and only at the pre-CEFR
+pool stage -- `candidates_before_cefr` 264 -> 263. Its own post-CEFR count
+(69) and sampled count (10) are BOTH unchanged; the swing is absorbed
+entirely inside the pool, below the topic's own quota either way. The
+TODO.md 1.6 sentence itself is a hand-built example, not a verbatim corpus
+line, so its own fix does not have to show up as a net gain in a 40,000-
+line sample -- and per the module's own zero-defects standard, a swing
+inside an already-quota-satisfied pool is not itself something to explain
+away, only something to check does not hide a real loss. It does not:
+
+Isolated the exact item that moved by re-running the identical corpus-
+read/carrier-validate/`blank_sentences` call `step7` itself makes, once
+against the before state and once against after, diffing the two raw
+`kasus_dativ_formen` item lists directly (not the sampled/CEFR-filtered
+output) -- one item present before, absent after: "Außerdem eröffnen neue
+Monetarisierungsmodelle wie Mikrotransaktionen und Servicespiele ___
+Publishern weitere Einnahmequellen." (answer "den"). Traced to the
+identical lexicon-consolidation mechanism as 10.2: `eröffnen`'s own
+`object` evidence moves from `dat_count=9, acc_count=1` (ratio 0.900,
+clears `DEFAULT_MIN_RATIO=0.90` exactly) to `dat_count=8, acc_count=1`
+(ratio 0.889, just short) as the rebuild re-attributes one occurrence away
+from a key it was previously, coincidentally, sharing with `eröffnen`
+(the identical broken-duplicate-key pattern already confirmed for `passen`/
+`passt` in 10.2, here crossing `eröffnen` the other way across its own
+threshold rather than reinforcing it). The specific single corpus sentence
+responsible was not pinned down beyond this -- the lexicon build does not
+retain enough per-occurrence detail to do that without re-instrumenting
+the harvester -- but the mechanism is the same one confirmed repeatedly
+elsewhere in this section, and the direction (a MORE correctly attributed
+evidence pool, not a new source of evidence) is not in question. Not a
+functional regression: `eröffnen` was never on any hand list, and a verb
+sitting exactly on a corpus-derived ratio boundary moving either way as
+evidence gets consolidated more correctly is the threshold doing its job,
+not a defect in this fix.
+
+No other topic among the 49 moved at all, checked by diffing the full
+before/after per-topic table.
+
+### 10.7 Tense=Past on `passt`: checked, not fixed
+
+`passt` also tags `Tense=Past` for what is unambiguously a present-tense
+form (confirmed directly against the tagger; `Wir passen den Plan an.`
+correctly tags `Tense=Pres` on the same verb's own plural form, so this is
+not a blanket defect on the lemma, it is specific to this inflected shape).
+Not a new discovery: this is the SAME self-consistent "lemma AND Tense both
+wrong together" class already documented in this file for `"schalte"`/
+`"schalen"` (`selectors.py`'s own module comment, cited there by name),
+now separately confirmed on a second verb.
+
+Checked, as instructed, whether anything in THIS defect's own code path
+reads `Tense` off this token and would be misled: `grep`-confirmed zero
+references to `Tense` in `_governing_verb_lemma`, `_select_kasus_dativ_
+formen`, or `_reduce_unreduced_weak_finite_lemma` -- none of the three ever
+looks at it. No live defect for TODO 1.6 itself.
+
+Flagged, not fixed, because the instruction was to report unless it is
+causing a live defect within scope, and it is not: several PRESENT-TENSE
+lexical-verb selectors elsewhere in this same file DO gate directly on
+`token.morph.get("Tense") != "Pres"` (`_select_verb_praesens_regelm`,
+`_select_verb_praesens_vokalwechsel`, `_select_verben_trennbar_praesens`,
+among others), so a verb sharing this mistag -- confirmed for "passen"/
+"anpassen" here, already known for "schalten"/"einschalten" -- is silently
+excluded as a candidate for those topics whenever IT is the token being
+blanked, not merely when it is the governing verb of something else. This
+is real, but it is a different, pre-existing, general tagger-integration
+gap, not opened by this task and not one of TODO 1.1-1.6's own six items;
+fixing it would mean deciding how broadly to repair `Tense` itself (this
+task's own fix repairs a LEMMA, a narrower and differently-shaped problem),
+which the coordinator did not ask for here. Recorded for the owner to
+decide whether it becomes its own item, not absorbed into this one.
+
+### 10.8 Final state
+
+- `paradigms.py`: `candidate_weak_praesens_infinitives` (new); `anpassen`
+  added to `DATIVE_ONLY_VERBS` with its own polysemy caveat in the comment.
+- `selectors.py`: `_looks_infinitive_shaped` (pulled out of `_lexical_verb_
+  lemma_trustworthy`, now shared); `_reduce_unreduced_weak_finite_lemma`
+  (new); `_governing_verb_lemma` now attempts the repair and falls back to
+  the original lemma, never `None`, when repair is unconfirmed.
+- `data/fixtures/verb_government/lexicon.v1.jsonl`: rebuilt (golden
+  fixture, CLAUDE.md section 7 -- this entry is that required explanation:
+  regenerated because the resolver it is built from was fixed, not
+  regenerated casually; see 10.2-10.3 for the full diff).
+- 8 new regression tests across `tests/test_blanking_paradigms.py` and
+  `tests/test_blanking_selectors.py`, including the exact reconstructed
+  sentence from 10.5.
+- Full test suite, `ruff check`, `ruff format --check`, `mypy --strict
+  src/` all clean.
+- TODO.md's `anpassen` "known limit" entry (section 1) removed -- it is
+  fixed, not a recorded limit anymore.

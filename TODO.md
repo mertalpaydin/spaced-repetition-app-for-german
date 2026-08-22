@@ -14,14 +14,6 @@ work list. Do not do that again.
 
 Not tasks. Do not "fix" these without a decision from the owner.
 
-- **`anpassen` cannot get a dative object cue.** `Der Körper passt sich ...
-  Temperaturänderungen an.` -- the determiner-less plural object is genuinely
-  dative, but the corpus lexicon has only 1 occurrence for `anpassen`
-  (threshold is 5), and separately `_governing_verb_lemma` reconstructs the
-  verb as `anpasst`, not `anpassen`, for this exact form, so a lookup would
-  fail even with enough evidence. Two compounding gaps, not one; see
-  `docs/audits/fix-log.md` section 9.6 for the full trace. Was TODO 1.6.
-
 - **`Strässchen` and Swiss orthography with `ä`.** Standard German is
   `Sträßchen`. The rule added for Swiss spelling covers diphthongs before
   `ss` plus a closed list, and cannot decide `ä`: Swiss in `Strässchen` (long
