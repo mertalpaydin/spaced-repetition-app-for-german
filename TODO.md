@@ -97,8 +97,14 @@ Pinned by tests. Do not change without the owner saying so explicitly.
 
 - `RPM_MAX_RETRIES = 5`, `FREE_LANE_MAX_CONCURRENCY = 4`,
   `FREE_LANE_RATE_LIMIT_PER_MINUTE = 5` in `src/llm/client.py`.
-- `SERVER_ERROR_BACKOFF_SECONDS = 15.0`, `SERVER_ERROR_MAX_RETRIES = 5` in
-  `src/llm/client.py`. Applied by the owner after a pilot died on a 503.
+- `SERVER_ERROR_BACKOFF_SECONDS = 15.0` in `src/llm/client.py`. Applied by
+  the owner after a pilot died on a 503.
+- `SERVER_ERROR_MAX_RETRIES` in `src/llm/client.py`. The owner first set
+  this to 5, then raised it to **40** and added a free-to-paid lane
+  fallback once those retries are exhausted (roughly 10 minutes of retrying
+  before the fallback fires). Seen uncommitted in his working tree on
+  2026-08-23. Whatever value stands in his tree is the correct one. Do not
+  restore 5, and do not remove the fallback.
 
 Three separate cycles reverted an owner edit to this file. Both groups now
 have a pinning test that says to ask rather than update the assertion.
