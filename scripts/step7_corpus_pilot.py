@@ -170,7 +170,7 @@ from pathlib import Path
 
 from src.contracts import BankItem, CandidateItem, Topic
 from src.generation.batch_client import RejectedCandidateRecord
-from src.generation.blanking import carrier_validation
+from src.generation.blanking import carrier_validation, sentence_tagger
 from src.generation.blanking.model_verification import (
     DEFAULT_VERIFICATION_BATCH_SIZE,
     ItemVerdict,
@@ -425,6 +425,41 @@ class CorpusPilotReport:
         path.write_text(json.dumps(self.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _propn_surface_forms(text: str) -> frozenset[str]:
+    """Surface forms spaCy tagged ``PROPN`` in ``text`` -- the
+    ``VocabularyStore.check_ceiling_budget``/``validate_sentence``
+    ``proper_nouns`` carve-out (task/owner decision D3, docs/audits/
+    cycle-11-corpus-report.md): a news carrier's untagged proper noun
+    (``Herzogenaurach``, ``Ljubljana``, ``Klum``) should not be charged the
+    frequency fallback's worst-case band just for carrying no vocabulary
+    difficulty of its own.
+
+    Reuses ``sentence_tagger.tag_sentence`` -- ``lru_cache``d on the exact
+    sentence text (that module's own docstring) -- rather than a second
+    tagger. This function is called ONLY from ``_filter_candidates_by_topic_
+    cefr``, and only for a sentence that already has at least one
+    preliminary ceiling violation (see that function): the blanking stage
+    already tagged every carrier-valid sentence once, but its
+    ``CandidateItem`` output carries no tagging info to reuse directly (see
+    this module's own report -- re-tagging was investigated and rejected as
+    a blanket second pass; this lazy, violations-only call is the
+    alternative that was chosen instead), and the tag cache (maxsize 8192)
+    is far smaller than a full corpus pilot's sentence count, so a sentence
+    tagged early in the run is usually already evicted by the time this
+    runs -- meaning most calls here ARE a genuine second parse of that one
+    sentence, not a free cache hit. Bounding this to violating sentences
+    only (not to every candidate) is what keeps that cost proportional to
+    the rejection rate instead of the corpus size.
+
+    Returns an empty set (never raises) if spaCy is unavailable or the text
+    fails to parse, matching every other degrade contract in this package.
+    """
+    tagged = sentence_tagger.tag_sentence(text)
+    if tagged is None:
+        return frozenset()
+    return frozenset(tok.text for tok in tagged.tokens if tok.pos == "PROPN")
+
+
 @dataclass(frozen=True)
 class CefrFilterResult:
     """Everything ``_filter_candidates_by_topic_cefr`` produces: the survivors,
@@ -454,7 +489,13 @@ def _filter_candidates_by_topic_cefr(
     A pure function of its four arguments (no filesystem, no network, no
     clock) so ``tests/test_step7_corpus_pilot.py`` can exercise it directly,
     with a fake ``VocabularyStore`` and hand-built topics, rather than only
-    through a full ``main()`` run."""
+    through a full ``main()`` run.
+
+    Passes ``VocabularyStore``'s ``proper_nouns`` parameter (task/owner
+    decision D3) for a sentence that would otherwise be rejected, via
+    ``_propn_surface_forms`` -- see that function's own docstring for why
+    this is lazy (violations-only) rather than a second full spaCy tagging
+    pass over every candidate."""
     items_by_topic: dict[str, list[CandidateItem]] = {}
     candidates_before_cefr: dict[str, int] = {}
     cefr_rejected: dict[str, int] = {}
@@ -478,6 +519,19 @@ def _filter_candidates_by_topic_cefr(
             provenance_missing += 1
             continue
         violations = vocab_store.validate_sentence(provenance.text, topic.cefr)
+        if violations:
+            # Only reached for a sentence that already has a preliminary
+            # violation -- see ``_propn_surface_forms``'s own docstring for
+            # why this check is deliberately lazy rather than tagging every
+            # candidate up front. Removing a token can only ever shrink
+            # ``violations``, never add to it, so re-checking with the
+            # PROPN set found is always safe to do in place of the
+            # preliminary result, not just an optional refinement of it.
+            propn = _propn_surface_forms(provenance.text)
+            if propn:
+                violations = vocab_store.validate_sentence(
+                    provenance.text, topic.cefr, proper_nouns=propn
+                )
         if violations:
             cefr_rejected[item.topic_id] = cefr_rejected.get(item.topic_id, 0) + 1
             rejection_records.append(_cefr_rejection_to_record(item, violations, topic))

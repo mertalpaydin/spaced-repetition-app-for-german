@@ -2,10 +2,13 @@
 
 import json
 import re
+from collections.abc import Mapping
+from functools import lru_cache
 from pathlib import Path
 from typing import ClassVar, NamedTuple
 
 from src.contracts import CEFR
+from src.lexicon.frequency import FrequencyBander
 from src.lexicon.lemmatizer import compound_split_candidates, lemma_candidates, normalise
 
 #: Regex for the content tokens a ceiling/vocabulary check actually scores:
@@ -17,6 +20,26 @@ _CONTENT_TOKEN_RE = re.compile(r"\b[A-ZÄÖÜa-zäöüß]{3,}\b")
 #: sentence *context* (e.g. recovering a separable verb prefix elsewhere in
 #: the sentence), never scored directly.
 _ALL_TOKEN_RE = re.compile(r"\b[A-ZÄÖÜa-zäöüß]+\b")
+
+
+@lru_cache(maxsize=8)
+def _load_frequency_ranks(path: str) -> dict[str, int]:
+    """Load the ``{word} {count}`` frequency list at ``path`` into a
+    ``{normalised_word: rank}`` map, rank 1 = most frequent.
+
+    Reuses ``FrequencyBander.load_ranked_words`` (task: reuse the existing
+    loader, do not write a second one) rather than re-parsing the file.
+    ``lru_cache``d and module-level -- task: "load the ranks once and cache
+    them ... never per token, because ``check_ceiling_budget`` runs on every
+    candidate sentence." Keyed on the path as a plain ``str`` (stable and
+    hashable across however many differently-constructed ``Path`` objects
+    point at the same file) so this is, in practice, a lazy singleton for
+    the one canonical path every production ``VocabularyStore`` uses, while
+    still letting a test point it at a small fixture file of its own without
+    fighting the cache.
+    """
+    words = FrequencyBander.load_ranked_words(path)
+    return {word: rank for rank, word in enumerate(words, start=1)}
 
 
 class CeilingBudgetResult(NamedTuple):
@@ -324,8 +347,99 @@ class VocabularyStore:
     #: more bands above the ceiling is always rejected outright.
     CEILING_BUDGET_MAX_ONE_BAND_WORDS: ClassVar[int] = 2
 
-    def __init__(self, vocab: dict[str, CEFR] | None = None) -> None:
+    # -----------------------------------------------------------------
+    # Frequency fallback for a word this store cannot resolve (task/owner
+    # decision D3, docs/audits/cycle-11-corpus-report.md).
+    #
+    # The rule used to be: a word ``get_level``/``_best_resolved_rank`` finds
+    # no candidate for at all costs nothing against the ceiling budget --
+    # "unknown passes". Measured on corpus German that made the ceiling
+    # inert on over a third of accepted pilot items (122 of 337, 36.2%; see
+    # the report). The owner's fix, verbatim: "50,000 is too big a list for
+    # still A1. I would rather a leveled list like A1 against first 5000 and
+    # A2 against top 10k. I made the numbers up but something like that."
+    #
+    # So an unresolved word is now looked up by RANK in the frequency list
+    # this project already has on disk
+    # (data/fixtures/corpus/frequency/de_opensubtitles2018_top50k.txt) and
+    # given a pseudo CEFR band from that rank, fed into the SAME
+    # ``LEVEL_RANKS`` arithmetic ``_band_distance_over_ceiling`` already uses
+    # for a store-resolved word -- not a second, parallel pass/fail rule.
+    #
+    # The owner set the SHAPE here explicitly (four widening rank bands, the
+    # cheapest/most-frequent band mapped to the easiest CEFR level) and said
+    # outright the four boundary numbers below are a guess ("I made the
+    # numbers up"). Treat the shape as settled and these four constants as
+    # tunable against measurement, not as a design decision to re-litigate.
+    # -----------------------------------------------------------------
+
+    FREQUENCY_FALLBACK_A1_MAX_RANK: ClassVar[int] = 5_000
+    FREQUENCY_FALLBACK_A2_MAX_RANK: ClassVar[int] = 10_000
+    FREQUENCY_FALLBACK_B1_MAX_RANK: ClassVar[int] = 20_000
+    FREQUENCY_FALLBACK_B2_MAX_RANK: ClassVar[int] = 50_000
+
+    #: Pseudo rank for a word absent from the frequency list entirely (task:
+    #: "not in the list at all -> one band above B2"). CEFR
+    #: (``src.contracts``) has no level above B2 to name, so this is
+    #: expressed as a RANK, one higher than ``LEVEL_RANKS["B2"]`` (4), fed
+    #: into the existing ``best - LEVEL_RANKS[ceiling]`` arithmetic in
+    #: ``_band_distance_over_ceiling`` unchanged. That arithmetic gives
+    #: distance >= 2 (a hard violation, no budget applies) against every
+    #: ceiling A1 through B1, and exactly 1 (a budgeted, tolerable one-band
+    #: charge) against a B2 ceiling -- the more natural of the two readings
+    #: the task offered, since "one band above B2" is by definition only one
+    #: band over when the ceiling itself is B2.
+    FREQUENCY_FALLBACK_UNSEEN_RANK: ClassVar[int] = LEVEL_RANKS["B2"] + 1
+
+    #: Default location of the frequency list the fallback above reads
+    #: (data/fixtures/corpus/frequency/PROVENANCE.md), resolved relative to
+    #: this module's own file so it works regardless of the caller's cwd.
+    DEFAULT_FREQUENCY_RANKS_PATH: ClassVar[Path] = (
+        Path(__file__).resolve().parents[2]
+        / "data"
+        / "fixtures"
+        / "corpus"
+        / "frequency"
+        / "de_opensubtitles2018_top50k.txt"
+    )
+
+    def __init__(
+        self,
+        vocab: dict[str, CEFR] | None = None,
+        *,
+        frequency_ranks: Mapping[str, int] | None = None,
+        frequency_ranks_path: Path | str | None = None,
+    ) -> None:
+        """``frequency_ranks`` and ``frequency_ranks_path`` are both optional
+        and mutually exclusive in practice: pass a ready-made
+        ``{word: rank}`` mapping directly (what the unit tests do, for a
+        small, exact, file-free fixture) or point at an alternate frequency
+        file (rank-list format, see ``_load_frequency_ranks``); passing
+        neither uses the project's real frequency list at
+        ``DEFAULT_FREQUENCY_RANKS_PATH``, loaded lazily and cached (see
+        ``_load_frequency_ranks``) the first time an unresolved word is
+        actually looked up, never at construction time.
+        """
         self.vocab: dict[str, CEFR] = {normalise(k): v for k, v in (vocab or {}).items()}
+        self._frequency_ranks_override: dict[str, int] | None = (
+            {normalise(w): r for w, r in frequency_ranks.items()}
+            if frequency_ranks is not None
+            else None
+        )
+        self._frequency_ranks_path: Path = (
+            Path(frequency_ranks_path)
+            if frequency_ranks_path is not None
+            else self.DEFAULT_FREQUENCY_RANKS_PATH
+        )
+
+    @property
+    def _frequency_ranks(self) -> dict[str, int]:
+        """The ``{normalised_word: rank}`` map the fallback reads, loaded
+        (and cached, see ``_load_frequency_ranks``) at most once per
+        distinct path -- never per token, never per sentence."""
+        if self._frequency_ranks_override is not None:
+            return self._frequency_ranks_override
+        return _load_frequency_ranks(str(self._frequency_ranks_path))
 
     def get_level(self, word: str) -> CEFR | None:
         """Get the assigned CEFR level for a German word.
@@ -527,23 +641,66 @@ class VocabularyStore:
             return self.LEVEL_RANKS[compound_level]
         return None
 
+    def _frequency_fallback_rank(self, normalized_word: str) -> int:
+        """Pseudo numeric CEFR rank (see ``LEVEL_RANKS``) for a word the
+        CEFR store's own resolution (direct hit, inflectional candidate, or
+        compound split) found nothing for at all -- read instead off the
+        word's RANK in the general-purpose frequency corpus (task/owner
+        decision D3, see the class-level comment above
+        ``FREQUENCY_FALLBACK_A1_MAX_RANK``).
+
+        Never a lookup miss: a word absent from the frequency list gets
+        ``FREQUENCY_FALLBACK_UNSEEN_RANK``, one band worse than the
+        frequency list's own worst (B2) band.
+
+        ``normalized_word`` must already be ``normalise()``d -- same
+        contract as every other private helper in this class taking that
+        name.
+        """
+        rank = self._frequency_ranks.get(normalized_word)
+        if rank is None:
+            return self.FREQUENCY_FALLBACK_UNSEEN_RANK
+        if rank < self.FREQUENCY_FALLBACK_A1_MAX_RANK:
+            return self.LEVEL_RANKS["A1"]
+        if rank < self.FREQUENCY_FALLBACK_A2_MAX_RANK:
+            return self.LEVEL_RANKS["A2"]
+        if rank < self.FREQUENCY_FALLBACK_B1_MAX_RANK:
+            return self.LEVEL_RANKS["B1"]
+        if rank < self.FREQUENCY_FALLBACK_B2_MAX_RANK:
+            return self.LEVEL_RANKS["B2"]
+        return self.FREQUENCY_FALLBACK_UNSEEN_RANK
+
     def _band_distance_over_ceiling(
         self, word: str, ceiling: CEFR, context_tokens: list[str] | None = None
     ) -> int:
         """How many CEFR bands the easiest resolving reading of ``word``
-        sits above ``ceiling``. ``0`` for a function word, a proper noun, an
-        unresolved (unknown) word, or a word already at or below ceiling --
-        all of these are "no distance to charge against the budget".
+        sits above ``ceiling``. ``0`` for a function word, a proper noun, or
+        a word already at or below ceiling.
+
+        A word the CEFR store itself cannot resolve at all is NOT free any
+        more (task/owner decision D3: the previous "no distance to charge"
+        rule here left the ceiling inert on 36.2% of accepted pilot items
+        with at least one unexamined content word -- docs/audits/
+        cycle-11-corpus-report.md). Instead its band comes from
+        ``_frequency_fallback_rank``, a graduated rank-based estimate, not a
+        binary pass/fail -- so the exact same arithmetic below applies
+        whether ``best`` came from the vocabulary store or the frequency
+        fallback.
         """
         normalized = normalise(word)
         if normalized in self.FUNCTION_WORDS or normalized in self.PROPER_NOUNS:
             return 0
         best = self._best_resolved_rank(normalized, context_tokens)
         if best is None:
-            return 0
+            best = self._frequency_fallback_rank(normalized)
         return max(0, best - self.LEVEL_RANKS[ceiling])
 
-    def check_ceiling_budget(self, sentence: str, ceiling: CEFR) -> CeilingBudgetResult:
+    def check_ceiling_budget(
+        self,
+        sentence: str,
+        ceiling: CEFR,
+        proper_nouns: frozenset[str] | None = None,
+    ) -> CeilingBudgetResult:
         """Check ``sentence`` against ``ceiling`` with the budgeted rule.
 
         docs/audits/stage-04-a2-pilot-audit.md, "On the vocabulary ceiling":
@@ -557,15 +714,32 @@ class VocabularyStore:
         one-band-over word found is reported back via ``over_budget`` so a
         forgiven word stays visible on the result rather than disappearing
         silently.
+
+        ``proper_nouns`` (task/owner decision D3's PROPN carve-out, added
+        alongside the frequency fallback above): surface forms the CALLER's
+        own tagger already identified as ``PROPN`` in this sentence, skipped
+        exactly like ``FUNCTION_WORDS``/``PROPER_NOUNS`` are. Necessary
+        because that fallback makes an unresolved word chargeable again --
+        without this, a news carrier's untagged name (``Herzogenaurach``,
+        ``Ljubljana``, ``Klum``: nowhere near the top 50,000 frequency
+        ranks) would be charged the fallback's worst-case band for carrying
+        no vocabulary difficulty of its own. ``None`` (the default) skips
+        nothing extra beyond ``PROPER_NOUNS``, so every existing caller that
+        does not pass this argument sees no change in behaviour.
         """
         tokens = _CONTENT_TOKEN_RE.findall(sentence)
         all_tokens = _ALL_TOKEN_RE.findall(sentence)
+        proper_nouns_normalized = (
+            frozenset(normalise(p) for p in proper_nouns) if proper_nouns else frozenset()
+        )
 
         hard_violations: list[str] = []
         one_band_over: list[str] = []
         for token in tokens:
             normalized = normalise(token)
             if normalized in self.FUNCTION_WORDS or normalized in self.PROPER_NOUNS:
+                continue
+            if normalized in proper_nouns_normalized:
                 continue
             distance = self._band_distance_over_ceiling(token, ceiling, context_tokens=all_tokens)
             if distance >= 2:
@@ -580,10 +754,16 @@ class VocabularyStore:
 
         return CeilingBudgetResult(violations=violations, over_budget=one_band_over)
 
-    def validate_sentence(self, sentence: str, ceiling: CEFR) -> list[str]:
+    def validate_sentence(
+        self,
+        sentence: str,
+        ceiling: CEFR,
+        proper_nouns: frozenset[str] | None = None,
+    ) -> list[str]:
         """Return a list of words in the sentence that violate the budgeted
-        CEFR ceiling (see ``check_ceiling_budget``)."""
-        return self.check_ceiling_budget(sentence, ceiling).violations
+        CEFR ceiling (see ``check_ceiling_budget``). ``proper_nouns`` is
+        forwarded unchanged -- see that method's own docstring."""
+        return self.check_ceiling_budget(sentence, ceiling, proper_nouns).violations
 
     def save(self, path: Path | str) -> None:
         """Save vocabulary store to JSON."""

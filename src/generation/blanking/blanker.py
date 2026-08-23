@@ -412,6 +412,8 @@ def _personal_pronoun_outcome(
         return BlankOutcome(None, "personal_pronoun_cell_uncovered_by_paradigm")
     if reconstructed.lower() != token.text.lower():
         return BlankOutcome(None, "personal_pronoun_paradigm_mismatch")
+    if _cue_equals_answer(candidate.cue, token.text):
+        return BlankOutcome(None, "cue_equals_answer")
 
     family = paradigms.personal_pronoun_family_forms(candidate.person, candidate.number, gender)
     distractor_forms = sorted(
@@ -422,11 +424,12 @@ def _personal_pronoun_outcome(
     return BlankOutcome(
         CandidateItem(
             topic_id=topic_id,
-            type="cloze_free",
+            type=_cued_item_type(candidate.cue),
             difficulty=difficulty,
             prompt=_render_prompt(sentence, candidate.token_index),
             proposed_answer=token.text,
             distractors=distractors,
+            cue=candidate.cue,
             source_sentence_id=_source_sentence_id(sentence),
             blanked_lemma=_blanked_lemma(token),
         ),

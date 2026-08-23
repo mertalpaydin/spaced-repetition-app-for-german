@@ -883,14 +883,25 @@ _STARVED_CONSTRUCTION_EXAMPLES: dict[str, tuple[str, ...]] = {
         "Das Bild hängt an der Wand.",
         "Die Kiste steht in dem Keller.",
     ),
+    # docs/audits/cycle-11-corpus-report.md, owner decision D2. These two
+    # lists used to be built almost entirely from 3rd-person examples ("Er
+    # kommt heute Abend zu Besuch.", "Wir besuchen sie am Wochenende."), and
+    # every one of them is now correctly refused downstream: a 3rd-singular
+    # subject blank accepts "er", "sie" and "es" alike because no German
+    # verb form distinguishes them, and Accusative "sie" is spelled the same
+    # as its own Nominative so it cannot be cued without handing over the
+    # answer. An example sentence that cannot survive the pipeline is worse
+    # than no example, since its whole job is to show the generator a shape
+    # that works, so they are replaced with 1st and 2nd person and masculine
+    # 3rd person, which are the cells these two topics can actually ship.
     "pronomen_personal_nom": (
-        "Er kommt heute Abend zu Besuch.",
-        "Sie wohnt seit einem Jahr in Berlin.",
-        "Es regnet heute den ganzen Tag.",
+        "Ich komme heute Abend zu Besuch.",
+        "Du brauchst jeden Tag dein Fahrrad.",
+        "Ich arbeite jeden Tag im Garten.",
     ),
     "pronomen_personal_akk": (
         "Ich sehe ihn jeden Morgen im Bus.",
-        "Wir besuchen sie am Wochenende.",
+        "Sie besucht mich am Wochenende.",
         "Er kennt mich schon seit der Schule.",
     ),
     "pronomen_personal_dat": (

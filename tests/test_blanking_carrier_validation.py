@@ -814,6 +814,115 @@ def test_validate_carrier_accepts_a_genuine_noun_compound_absent_from_the_wordli
     assert result.accepted, result.reason
 
 
+# -- Colon-joined fragments: cycle-11 corpus report section 4 -------------
+#
+# Four of the six carrier defects that audit found share one shape: a colon
+# joining a fragment that is not a sentence (a caption glued onto a
+# headline, a page heading glued onto body text, a trailing quoted stub, a
+# headline glued onto its subheading). Each is answerable and each answer
+# is correct, so these are carrier-quality defects, not wrong-answer
+# defects -- carrier_validation's job either way.
+
+
+def test_validate_carrier_rejects_colon_glued_photo_caption() -> None:
+    result = cv.validate_carrier(
+        "Ein lachendes Mädchen auf einem Sofa (Symbolbild): Die Möbelhauskette "
+        "Møbelkompagniet eröffnet ihre erste Filiale in Deutschland."
+    )
+    assert not result.accepted
+    assert result.reason == cv.REASON_COLON_JOINED_FRAGMENT
+
+
+def test_validate_carrier_rejects_colon_glued_page_heading() -> None:
+    result = cv.validate_carrier(
+        "Mobilitätslösungen: Während Ihres Werkstattaufenthalts stellen wir "
+        "Ihnen kostenlose Mobilitätslösungen zur Verfügung."
+    )
+    assert not result.accepted
+    assert result.reason == cv.REASON_COLON_JOINED_FRAGMENT
+
+
+def test_validate_carrier_rejects_colon_glued_quoted_stub() -> None:
+    result = cv.validate_carrier(
+        "Der letzte Eintrag wurde in der vergangenen Saison gemacht: „2025 “."
+    )
+    assert not result.accepted
+    assert result.reason == cv.REASON_COLON_JOINED_FRAGMENT
+
+
+def test_validate_carrier_rejects_colon_glued_headline_and_subheading() -> None:
+    result = cv.validate_carrier(
+        "Auch beim Fahrrad ist der Bremsweg länger als gedacht: Reaktionstest "
+        "bei der Verkehrswacht."
+    )
+    assert not result.accepted
+    assert result.reason == cv.REASON_COLON_JOINED_FRAGMENT
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        # The only accepted zustandspassiv item in the cycle 11 run.
+        "Aber: Das Thema ist damit nicht beendet, sondern geht jetzt erst richtig los!",
+        # An elliptical predicate complement after the colon.
+        "Der Himmel Cuscos ist wie seine Frauen: völlig unberechenbar!",
+        # A colon introducing the alternatives an earlier clause asked about.
+        "Tom weiß nicht, wem er glauben soll: Johannes oder Maria.",
+        "Ich weiß nicht so recht, wem ich das Geschenk geben soll: dem Mädchen oder dem Jungen.",
+        # A determiner-less nominal AFTER the colon is ordinary elaboration.
+        "Für fünftausend Forint habe ich den Kindern Vögel gekauft: Kanarienvögel und Buchfinken.",
+        "Uns fehlt nur eine Kleinigkeit, um so frei zu sein, wie die Vögel sind: nur Zeit.",
+        # A determined noun phrase, before or after the colon.
+        "Für das Können gibt es nur einen Beweis: das Tun.",
+        "Der kleine Unterschied: Er denkt beim Lieben, sie liebt beim Denken.",
+        "Eine Ansage an alle Klassen: Der Unterricht fällt heute ab der dritten Stunde aus.",
+        "Er glaubt, von allen der Begabteste zu sein, ist es aber nicht: "
+        "ein typischer Fall von chronischer Selbstüberschätzung.",
+        # A prepositional phrase whose head noun does carry a determiner.
+        "Doch still, mich dünkt, ich wittre Morgenluft: kurz lass mich sein.",
+        # Quoted speech introduced by a colon.
+        "Als ich sie fragte, ob sie von der langen Wanderung müde war, sagte sie: "
+        '"irgendwie schon".',
+    ],
+)
+def test_validate_carrier_accepts_ordinary_german_colon_sentences(sentence: str) -> None:
+    """A colon is not itself a defect. The first version of this check
+    required every colon-delimited segment to be a clause; measured over
+    6,000 Tatoeba lines it rejected 12, and hand-checking every one found 11
+    to be ordinary correct German using a colon exactly as German uses it,
+    to introduce an elaboration of a clause that is already complete. Those
+    eleven, plus the "Aber:" sentence the original rule had to special-case,
+    are pinned here: a filter for scraped-web junk must not buy its
+    precision with correct German. See
+    ``_colon_joined_fragment_reason``'s own docstring.
+
+    Asserts on the colon reason specifically, not on overall acceptance:
+    several of these are independently rejected by older checks
+    (``missing_clause_connector``, ``no_subject_found``) for reasons that
+    have nothing to do with the colon, and pinning overall acceptance would
+    make this test fail whenever one of those unrelated checks changes."""
+    result = cv.validate_carrier(sentence)
+    assert result.reason != cv.REASON_COLON_JOINED_FRAGMENT
+
+
+def test_validate_carrier_rejects_a_parenthesised_stock_photo_marker_without_a_colon() -> None:
+    """The stock-photo marker is decisive on its own, colon or not: no
+    German sentence says "(Archivbild)". Found in the same Leipzig sweep as
+    the four colon shapes above."""
+    result = cv.validate_carrier(
+        "Seit dem 14. Februar liegt der Papst im Krankenhaus (Archivbild)."
+    )
+    assert not result.accepted
+    assert result.reason == cv.REASON_COLON_JOINED_FRAGMENT
+
+
+def test_validate_carrier_does_not_flag_an_ordinary_colon_free_sentence() -> None:
+    """No colon at all means ``_colon_joined_fragment_reason`` has nothing to
+    split on and must not touch the verdict."""
+    result = cv.validate_carrier("Der Zug fährt jeden Morgen pünktlich ab.")
+    assert result.accepted, result.reason
+
+
 # -- Regression: the new cycle-5 checks must not reject known-good German ---
 
 

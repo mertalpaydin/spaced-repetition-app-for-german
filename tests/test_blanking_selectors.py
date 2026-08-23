@@ -22,6 +22,7 @@ from src.generation.blanking import selectors, sentence_tagger
 from src.generation.blanking.blanker import blank_candidate
 from src.generation.blanking.pipeline import blank_sentences
 from src.generation.blanking.selectors import SELECTORS
+from src.generation.blanking.uniqueness import check_uniqueness
 
 pytestmark = pytest.mark.skipif(
     not sentence_tagger.analysis_available(),
@@ -840,11 +841,21 @@ def test_komparativ_superlativ_ignores_the_attributive_declined_superlative() ->
 
 
 def test_pronomen_personal_nom_finds_subject_pronouns() -> None:
-    er = _blank("pronomen_personal_nom", "Er kommt morgen aus Berlin.")
-    assert er.prompt == "___ kommt morgen aus Berlin."
-    assert er.proposed_answer == "Er"
-    sie = _blank("pronomen_personal_nom", "Sie sind sehr müde.")
-    assert sie.proposed_answer == "Sie"
+    """This test used to blank "Er kommt morgen aus Berlin." and "Sie sind
+    sehr müde.", and both are now correctly refused. They are the defect
+    docs/audits/cycle-11-corpus-report.md found, not the contract: "___
+    kommt morgen aus Berlin." accepts "Er", "Sie" and "Es" alike, and "___
+    sind sehr müde." accepts "Sie" and "Wir", because neither verb form
+    settles which pronoun was removed. Changing the gate to keep them would
+    be pinning a defect, so the sentences are replaced with two the verb
+    really does settle, and the two originals are pinned as rejections in
+    ``test_pronomen_personal_nom_drops_a_pronoun_the_sentence_does_not_settle``'s
+    own family of cases below."""
+    ich = _blank("pronomen_personal_nom", "Ich komme morgen aus Berlin.")
+    assert ich.prompt == "___ komme morgen aus Berlin."
+    assert ich.proposed_answer == "Ich"
+    du = _blank("pronomen_personal_nom", "Du brauchst einen Führerschein.")
+    assert du.proposed_answer == "Du"
 
 
 def test_pronomen_personal_akk_finds_object_pronouns() -> None:
@@ -3073,3 +3084,166 @@ def test_kasus_dativ_formen_reaches_anpassen_via_a_repaired_governing_lemma() ->
     assert selectors._governing_verb_lemma(tagged, 0, len(tagged.tokens)) == "anpassen"
     item = _blank("kasus_dativ_formen", sentence)
     assert item.proposed_answer == "den"
+
+
+# ==============================================================================
+# docs/audits/cycle-11-corpus-report.md, owner decisions D1 and D2.
+#
+# D1: an uncued auxiliary blank is not a well-formed exercise. Cycle 11
+# accepted 221 of 260 sampled items from cued topics (85%) against 116 of
+# 220 from uncued ones (53%), and every one of the twelve topics below 60%
+# was uncued. Five produced nothing at all.
+#
+# D2: nine of the seventeen items the two pronoun topics produced had more
+# than one correct answer. The Nominative topic gets an anchor gate (the
+# clause's own finite verb must settle the pronoun); the Accusative and
+# Dative topics get the Nominative-citation cue instead.
+# ==============================================================================
+
+
+@pytest.mark.parametrize(
+    ("topic_id", "sentence", "answer", "cue"),
+    [
+        ("futur_i", "Morgen werde ich nach Berlin fahren.", "werde", "werden"),
+        ("futur_ii", "Bis morgen werde ich das Buch gelesen haben.", "werde", "werden"),
+        ("perfekt_haben", "Ich habe sie gerade gefunden.", "habe", "haben"),
+        ("perfekt_sein", "Wir sind gestern nach Hause gegangen.", "sind", "sein"),
+        (
+            "plusquamperfekt",
+            "Nachdem ich meine Hausaufgaben gemacht hatte, ging ich ins Bett.",
+            "hatte",
+            "haben",
+        ),
+        (
+            "passiv_praesens",
+            "Ich will, dass dieser Brief jetzt geöffnet wird.",
+            "wird",
+            "werden",
+        ),
+        (
+            "passiv_praeteritum",
+            "Ljubljana wurde im Jahr fünfzehn gegründet.",
+            "wurde",
+            "werden",
+        ),
+        ("zustandspassiv", "Aber das Thema ist damit nicht beendet.", "ist", "sein"),
+        (
+            "konjunktiv_ii_irreal_gegenwart",
+            "Wenn ich du wäre, würde ich mich bewerben.",
+            "wäre",
+            "sein",
+        ),
+        (
+            "konjunktiv_ii_vergangenheit",
+            "Ich wäre an deiner Stelle nicht dorthin gegangen.",
+            "wäre",
+            "sein",
+        ),
+    ],
+)
+def test_auxiliary_topics_cue_the_auxiliarys_own_citation_form(
+    topic_id: str, sentence: str, answer: str, cue: str
+) -> None:
+    """D1. Without the cue, "Morgen ___ ich nach Berlin fahren." accepts
+    "werde", "will", "kann", "muss", "möchte" and "würde", all correct
+    German, of which the bank stores one. The cue removes the choice of a
+    different verb and leaves person, number and tense, which is what each
+    of these topics actually tests."""
+    item = _blank(topic_id, sentence)
+    assert item.proposed_answer == answer
+    assert item.cue == cue
+
+
+@pytest.mark.parametrize(
+    ("sentence", "answer"),
+    [
+        ("Ich sage das die ganze Zeit.", "Ich"),
+        ("Ich werde es gemäß Ihren Anweisungen ausführen.", "Ich"),
+        ("Du brauchst einen Führerschein, um ein Auto zu fahren.", "Du"),
+        ("Träumst du im Schlaf auch schon auf Esperanto?", "du"),
+    ],
+)
+def test_pronomen_personal_nom_keeps_a_pronoun_its_own_clause_verb_settles(
+    sentence: str, answer: str
+) -> None:  # noqa: D401
+    """D2, the keep half. "sage" and "werde" are 1st singular and nothing
+    else; "brauchst" and "Träumst" are 2nd singular and nothing else. The
+    last two matter most: this tagger lemmatises them "brauchsten" and
+    "Träumst" and tags both ``Person=3``, so paradigm reconstruction finds
+    nothing, and they survive only through
+    ``_st_form_is_unambiguous_second_singular``."""
+    tagged, candidates = _select("pronomen_personal_nom", sentence)
+    kept = [c for c in candidates if tagged.tokens[c.token_index].text == answer]
+    assert kept, f"expected a candidate for {answer!r} in {sentence!r}"
+    assert check_uniqueness(tagged, kept[0]).unique
+
+
+@pytest.mark.parametrize(
+    ("sentence", "answer"),
+    [
+        # "muss" is 1st AND 3rd singular: "Er muss Tom fragen ..." is equally
+        # good German. The subordinate clause's "komme" IS uniquely 1st
+        # singular and must not rescue this, which is why the gate is scoped
+        # to the pronoun's own clause.
+        ("Ich muss Tom fragen, wie ich zu seinem Haus komme.", "Ich"),
+        # "können" is 1st AND 3rd plural: "Sie können nicht viel tun ..."
+        ("Wir können nicht viel tun, bis wir Toms Erlaubnis haben.", "Wir"),
+        # 3rd singular: the verb never carries gender, so "sie" and "er" are
+        # both correct no matter how unambiguous "hat" is.
+        ("Tom hat mir die Bilder gezeigt, die er auf der Hochzeit gemacht hat.", "er"),
+        ("Sie hat ihren Pullover angezogen.", "Sie"),
+    ],
+)
+def test_pronomen_personal_nom_drops_a_pronoun_the_sentence_does_not_settle(
+    sentence: str, answer: str
+) -> None:
+    """D2, the drop half: the four defective items that topic shipped in
+    cycle 11. Each has more than one correct answer, so the learner types
+    good German and is marked wrong."""
+    tagged, candidates = _select("pronomen_personal_nom", sentence)
+    kept = [c for c in candidates if tagged.tokens[c.token_index].text == answer]
+    assert kept, f"expected a candidate for {answer!r} in {sentence!r}"
+    outcome = check_uniqueness(tagged, kept[0])
+    assert not outcome.unique, f"expected {answer!r} to be rejected as ambiguous in {sentence!r}"
+    assert outcome.reason == "nominative_pronoun_syncretic"
+
+
+@pytest.mark.parametrize(
+    ("topic_id", "sentence", "answer", "cue"),
+    [
+        ("pronomen_personal_akk", "Er war ins Lesen vertieft, als ich ihn besuchte.", "ihn", "er"),
+        ("pronomen_personal_akk", "Wenn du laut sprichst, kann ich dich hören.", "dich", "du"),
+        ("pronomen_personal_dat", "Erkläre mir bitte, wie ich zu seinem Haus komme.", "mir", "ich"),
+        (
+            "pronomen_personal_dat",
+            "Ich rate Ihnen, ins Ausland zu reisen, solange Sie jung sind.",
+            "Ihnen",
+            "Sie",
+        ),
+    ],
+)
+def test_oblique_pronoun_topics_cue_the_nominative_citation_form(
+    topic_id: str, sentence: str, answer: str, cue: str
+) -> None:
+    """D2, the cue half. The learner is told which person is meant and still
+    has to produce the case form, which is the whole of what these two
+    topics test. The last case also pins capitalisation: cue "Sie" (formal)
+    rather than "sie" is what tells the learner the answer is "Ihnen" and
+    not "ihnen"."""
+    item = _blank(topic_id, sentence, candidate_index=0)
+    assert item.proposed_answer == answer
+    assert item.cue == cue
+
+
+def test_st_form_second_singular_test_declines_a_sibilant_stem() -> None:
+    """The false-positive guard on ``_st_form_is_unambiguous_second_singular``.
+    "du reist" and "er reist" are the same string by a real German
+    orthographic rule, so "reist" must NOT be treated as uniquely 2nd
+    singular; "brauchst" must. The two are told apart by which
+    reconjugation is a real word, since the spelling alone cannot say
+    whether "brauchst" is "brauch"+"st" or "brauchs"+"t"."""
+    assert selectors._st_form_is_unambiguous_second_singular("brauchst")
+    assert selectors._st_form_is_unambiguous_second_singular("träumst")
+    assert not selectors._st_form_is_unambiguous_second_singular("reist")
+    assert not selectors._st_form_is_unambiguous_second_singular("passt")
+    assert not selectors._st_form_is_unambiguous_second_singular("isst")

@@ -390,3 +390,182 @@ Three fixes landed in this cycle (reflexive `CARD` walk-back, adjective cue
 round-trip, `blanked_lemma` serialisation). Three decisions are open and
 are listed in TODO section 2: the pronoun anchor and cue, the auxiliary
 cue, and the CEFR unknown-word policy.
+
+---
+
+# Addendum: the three open decisions, resolved and built
+
+The owner approved D1 and D2 as proposed, and set the shape of D3 himself:
+"50,000 is too big a list for still A1. I would rather a leveled list like
+A1 against first 5000 and A2 against top 10k." All three are built, plus
+the junk-text filter, which was mine to decide.
+
+## D1: the auxiliary cue
+
+`(werden)`, `(sein)` and `(haben)` are now printed for `futur_i`,
+`futur_ii`, `perfekt_haben`, `perfekt_sein`, `plusquamperfekt`,
+`passiv_praesens`, `passiv_praeteritum`, `passiv_modalverben`,
+`zustandspassiv`, `zustandspassiv_zeiten` and both Konjunktiv II topics,
+through the same `_citation_cue` choke point every other cue in the module
+passes through.
+
+A cell whose citation form is spelled the same as the answer gets no cue,
+which is the 1st and 3rd plural (`wir werden`, `sie haben`). Found in a dry
+run of the changed pipeline, not reasoned about: those items were still
+shipping, uncued, which is exactly the defect D1 exists to close ("Wir ___
+es genauso machen wie letztes Mal." takes `werden`, `wollen`, `können` and
+`müssen` alike). They are now rejected as `auxiliary_lexeme_uncued`.
+
+## D2: the pronoun topics
+
+**`pronomen_personal_akk` and `_dat` get the Nominative citation cue.**
+`(er)` for `ihn`, `(ich)` for `mir`, `(Sie)` for `Ihnen`. The cue names
+person, number and gender and leaves the learner the case, which is the
+whole of what these topics test. Cue and answer are always different words,
+so nothing is given away. The cue is round-tripped: declining the cued form
+back into the item's own case must reproduce the answer, or the item is
+dropped.
+
+Where the tagger leaves `Gender` unset on `ihm`, `er` is cued. Both readings
+of `ihm` (from `er` and from `es`) produce the same answer, so the choice
+cannot reach the learner. Feminine `ihr` is unaffected, because the round
+trip refuses a masculine cue there.
+
+**`pronomen_personal_nom` gets the anchor gate, in `uniqueness.py`.** That
+module already had a gate for this topic, from two closed facts: 1st and
+3rd plural share a form in every tense, and 1st and 3rd singular share one
+in the Präteritum. Cycle 11's four defects all came through the gap in what
+those two facts do not cover, so the check now asks the question directly:
+reconstruct the clause's own finite verb paradigm and require the surface
+form to sit at exactly one cell. That catches modals ("muss" is 1st and 3rd
+singular in the PRESENT, which a tense-based test cannot see), the plural
+syncretism and the Präteritum syncretism with one test instead of three
+special cases.
+
+Two escape hatches exist because the lemma is what fails here. "brauchst"
+lemmatises to "brauchsten" and "Träumst" to "Träumst", so paradigm
+reconstruction finds nothing and 2nd singular, the cell German marks most
+clearly and the one a learner app most needs, would be lost. Both cells are
+instead decided from the surface plus the dictionary: `brauchst` reduces to
+`brauchen` (a real word) and not to `brauchsen`, while `reist` reduces to
+`reisen` and not to `reien`, which is what tells a genuine 2nd singular
+apart from a sibilant-stem form that is 2nd AND 3rd. The same for
+1st-singular `-e` forms, where `antworte` lemmatises to `antworen`.
+
+**3rd person singular is now permanently unavailable to this topic.** No
+German verb form distinguishes `er` from `sie` from `es`, so the verb can
+never settle it, and recovering the intended one needs coreference this
+package does not have. That is a real price, recorded rather than worked
+around.
+
+**The anchor rescue is gone from the Nominative branch.** It scanned the
+whole sentence for another pronoun or possessive of the same person, and
+for a SUBJECT slot that is not evidence: "___ haben den Urlaubern eine
+Nachricht geschickt, obwohl Sie damals selbst sehr müde waren." was rescued
+by the second "Sie" and accepts "Wir" just as happily. It silently assumed
+coreference that neither a same-person pronoun in another clause nor a
+possessive supplies. It stays in place for the oblique cases, where it is
+now redundant anyway.
+
+## D3: the level-graduated vocabulary filter
+
+A content word the CEFR store cannot resolve used to cost nothing, which
+left the ceiling inert on 36.2% of accepted items. It is now looked up by
+rank in the vendored 50,000-word frequency list and given a band from that
+rank, feeding the same budget arithmetic a store-resolved word already goes
+through:
+
+| Frequency rank | Treated as |
+|---|---|
+| under 5,000 | A1 |
+| under 10,000 | A2 |
+| under 20,000 | B1 |
+| under 50,000 | B2 |
+| not in the list | one band above B2 |
+
+Words the caller's own tagger identified as proper nouns are skipped, so a
+news carrier's `Herzogenaurach` or `Ljubljana` is not charged the worst-case
+band for carrying no vocabulary difficulty. That skip is worth 9 items of
+the 337 on its own. The tagging is lazy, run only for a sentence that
+already has a preliminary violation, so its cost is proportional to the
+rejection rate rather than to the corpus size.
+
+Measured against the cycle 11 sample, the graduated version behaves as its
+shape predicts: it rejects markedly more at A1 (23.4% against a flat
+50,000-word rule's 15.6%) and at A2 (29.0% against 17.0%), and markedly
+less at B2 (3.8% against 30.8%).
+
+## The junk text
+
+Four Leipzig carriers, all colon-joined fragments. The first rule written
+for them required every colon-delimited segment to be a clause, and it was
+wrong: over 6,000 Tatoeba lines it rejected 12, and hand-checking every one
+found **11 to be ordinary correct German** using a colon exactly as German
+uses it, to elaborate on a clause that is already complete. "Der Himmel
+Cuscos ist wie seine Frauen: völlig unberechenbar!" and "Für das Können
+gibt es nur einen Beweis: das Tun." are not junk. Eleven good sentences lost
+per junk carrier caught is a worse trade than leaving the junk in.
+
+The shipped rule is four narrow shapes instead, each verified to reject none
+of those twelve:
+
+1. A parenthesised stock-photo or wire marker (`(Symbolbild)`,
+   `(Archivbild)`). Not German sentence material at all, and decisive with
+   or without a colon.
+2. A segment with no letters in it (the `„2025 “` stub).
+3. A LEADING determiner-less bare nominal (`Mobilitätslösungen:`). The
+   determiner is what separates this from good German that opens on a colon:
+   "Der kleine Unterschied: ...", "Eine Ansage an alle Klassen: ..." both
+   carry one.
+4. A determiner-less noun heading a prepositional phrase with no verb
+   (`: Reaktionstest bei der Verkehrswacht`). The preposition is what makes
+   this distinguishable from ordinary elaboration: "... Vögel gekauft:
+   Kanarienvögel und Buchfinken." has no determiner either and must stay.
+
+| | Before | After |
+|---|---:|---:|
+| Tatoeba lines rejected | 12 of 6,000 (0.20%) | **1 of 6,000 (0.02%)** |
+| Leipzig lines rejected | 140 of 6,000 (2.33%) | 63 of 6,000 (1.05%) |
+| Cycle 11 items rejected | 4 (plus collateral) | **exactly the 4** |
+
+The one remaining Tatoeba rejection is "Tatoeba: Weil eine Sprache mehr ist
+als die Summe ihrer Wörter.", a slogan, which is fair to lose.
+
+**One carrier defect is not fixed and cannot be.** "... dessen Bewohner im
+Wasserwald Spazieren gehen." should be lowercase `spazieren`. German
+nominalisation is fully productive, so "das Spazieren" is a real word and no
+dictionary can say the string is wrong; only its syntactic role next to
+"gehen" makes it wrong here, and neither the vendored word list nor the
+lemmatiser carries that signal. spaCy's own tag is circular, since it reads
+NOUN largely because of the capitalisation. Recorded as a limit.
+
+## What it costs, measured on the cycle 11 sample
+
+Every one of the 337 accepted items was re-run through the changed
+pipeline.
+
+| Stage | Items removed |
+|---|---:|
+| Carrier: colon and caption junk | 4 |
+| Selector: uncueable pronoun, reflexive re-routed | 4 |
+| Uniqueness: adjective cue could not round-trip | 8 |
+| Uniqueness: Nominative pronoun not settled | 4 |
+| CEFR vocabulary level | 81 |
+| **Surviving** | **236 of 337 (70%)** |
+
+**The first 20 removals are the defects.** They are the same 20 the audit
+identified by hand, found again by the code, with nothing else caught
+alongside them. Thirty-six surviving items gained a cue they did not have,
+and all thirty-six were hand-checked and are correct.
+
+**The 81 CEFR removals are not defects, they are the level decision.** That
+is the price of the leveled word lists, and it is the single largest cut in
+this round by a wide margin. The four rank boundaries are constants and
+tunable against measurement; the owner set the shape and said outright the
+numbers were a guess. If 70% retention is too steep, raising the A1 and A2
+boundaries is the first lever, and the second is applying the fallback only
+below B1.
+
+The next corpus run should be read against 236, not 337: a straight
+before-and-after on item count would compare a bank with 20 known defects
+and uncontrolled vocabulary to one without.

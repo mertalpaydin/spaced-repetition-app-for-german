@@ -350,14 +350,27 @@ def test_blank_sentences_keeps_a_cued_modal_verb_item() -> None:
     assert dropped[0].reason == "cross_topic_duplicate"
 
 
-def test_blank_sentences_skips_an_unanchored_dative_pronoun() -> None:
+def test_blank_sentences_keeps_an_unanchored_dative_pronoun_once_it_is_cued() -> None:
+    """This test used to assert the item was SKIPPED as
+    ``personal_pronoun_unanchored``, which was correct while the topic had
+    no cue: mir/ihm/ihr/uns/ihnen all fitted this slot. Cycle 11's owner
+    decision D2 gives the oblique pronoun topics a Nominative-citation cue
+    ("(Sie)" here), which names person, number and gender and leaves the
+    learner only the case to supply, so the slot now has exactly one answer.
+    The expectation is inverted rather than the cue withheld; see
+    ``uniqueness.check_uniqueness``'s ``personal_pronoun`` branch for why a
+    cue settles an oblique pronoun and deliberately does not settle a
+    Nominative one."""
     sentence = (
         "Das Restaurant hatte einen neuen Koch eingestellt, und das Essen schmeckte "
         "Ihnen ausgezeichnet."
     )
     report = blank_sentences([sentence])
-    assert report.items_by_topic.get("pronomen_personal_dat", 0) == 0
-    assert report.skips_by_uniqueness["personal_pronoun_unanchored"] >= 1
+    assert report.items_by_topic.get("pronomen_personal_dat", 0) == 1
+    assert not report.skips_by_uniqueness["personal_pronoun_unanchored"]
+    item = next(i for i in report.items if i.topic_id == "pronomen_personal_dat")
+    assert item.proposed_answer == "Ihnen"
+    assert item.cue == "Sie"
 
 
 def test_blank_sentences_keeps_a_carrier_anchored_dative_pronoun() -> None:
@@ -432,11 +445,18 @@ def test_blank_sentences_blanked_lemma_is_lowercased_for_a_capitalised_answer() 
     """A sentence-initial blanked token keeps its capitalised surface form
     as ``proposed_answer`` (``_match_case``'s own job elsewhere), but the
     lemma key must not fork on capitalisation alone -- 'Er' and 'er' are the
-    same lexeme for diversity-cap purposes."""
-    report = blank_sentences(["Er kommt heute später nach Hause."])
+    same lexeme for diversity-cap purposes.
+
+    Uses a 1st-person sentence rather than the "Er kommt heute später nach
+    Hause." this test used to use: cycle 11's owner decision D2 makes a
+    3rd-singular Nominative blank unshippable, since no German verb form
+    distinguishes "er" from "sie" from "es" and the item would accept three
+    answers while storing one. The capitalisation fact under test is
+    unchanged, so only the sentence moves."""
+    report = blank_sentences(["Ich komme heute später nach Hause."])
     item = next(i for i in report.items if i.topic_id == "pronomen_personal_nom")
-    assert item.proposed_answer == "Er"
-    assert item.blanked_lemma == "er"
+    assert item.proposed_answer == "Ich"
+    assert item.blanked_lemma == "ich"
 
 
 def test_blank_sentences_blanked_lemma_matches_the_citation_cue_when_one_exists() -> None:

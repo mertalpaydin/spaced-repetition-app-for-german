@@ -255,13 +255,18 @@ def test_main_drives_generation_through_the_demand_driven_orchestrator(
         ],
     )
 
-    exit_code = step6.main()
+    step6.main()
 
-    # No API key configured here either -> same not_run-forces-nonzero-exit
-    # policy as test_main_writes_review_and_rejected_files_offline; this
-    # test only cares that the demand-driven loop was called correctly, so
-    # it does not otherwise care about the exit code's exact value.
-    assert exit_code != 0
+    # This used to assert ``exit_code != 0``, on the reasoning that no API
+    # key means the verification pass cannot run and a run with unverified
+    # items must fail. That held only while this 24-sentence offline
+    # fixture happened to produce at least one item. Cycle 11's D1 gate
+    # (``auxiliary_lexeme_uncued``) correctly drops the single item it
+    # produced, so there is nothing left to leave unverified and the run
+    # exits 0. The exit code was never this test's subject, which its own
+    # comment said at the time; the orchestrator assertions below are. The
+    # not_run-forces-nonzero-exit policy itself is still covered by
+    # ``test_main_writes_review_and_rejected_files_offline``.
     assert len(calls) == 1, "exactly one run_demand_driven_generation call per script run"
     demanded = calls[0]["demands"]
     assert isinstance(demanded, list)

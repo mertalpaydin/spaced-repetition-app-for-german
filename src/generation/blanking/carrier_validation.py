@@ -510,6 +510,29 @@ positive regression trying to.
       standing limitation -- this task closed the specific lexemes TODO.md
       1.4 named, not the open class.
 
+12. **A colon joining a fragment that is not a sentence.** `docs/audits/
+    cycle-11-corpus-report.md` section 4 found four scraped-web Leipzig
+    carriers sharing one shape: a photo caption, a page heading, or a
+    headline glued onto an unrelated clause with a bare colon (a trailing
+    quoted stub is the fourth variant of the same shape). `multiple_sentences`
+    does not see this: `de_core_news_sm`'s parser-driven sentencizer does
+    not treat a mid-sentence colon as a sentence boundary, so these parse
+    as one `doc.sents` span.
+
+    The naive fix -- reject every carrier containing a colon -- has a
+    measured false-positive cost: one accepted `zustandspassiv` item,
+    `"Aber: Das Thema ist damit nicht beendet, sondern geht jetzt erst
+    richtig los!"`, a perfectly good sentence, and the only accepted item
+    of its topic in that run. `_colon_joined_fragment_reason` instead
+    splits on every colon outside a quoted span and requires each
+    resulting segment to independently be either a complete clause
+    (contains a finite verb -- the same `_is_finite` test section 2's
+    check already uses) or a single conjunction/adverb/particle token
+    ("Aber" is `CCONJ`). All four cycle-11 shapes fail that test on at
+    least one segment (a bare noun phrase, a one-word `NOUN` heading, or a
+    quoted `NUM` stub are none of the two allowed shapes); `"Aber: ..."`
+    passes it on both segments.
+
 ## Why this module loads its own spaCy pipeline
 
 ``src.taxonomy.tagger`` and ``src.generation.blanking.sentence_tagger`` both
@@ -570,6 +593,7 @@ REASON_SWISS_SPELLING = "swiss_spelling"
 REASON_DASS_AFTER_PHYSICAL_ACTION_VERB = "dass_after_physical_action_verb"
 REASON_FINITE_VERB_NOT_A_REAL_WORD = "finite_verb_not_a_real_word"
 REASON_CONTENT_WORD_NOT_A_REAL_WORD = "content_word_not_a_real_word"
+REASON_COLON_JOINED_FRAGMENT = "colon_joined_fragment"
 
 # STTS fine-grained tags for a finite verb: full verb, auxiliary, modal, and
 # their imperative counterparts (imperative is a finite mood, not a
@@ -624,6 +648,41 @@ _TAG_QUESTION_PATTERN = re.compile(r"\boder\s*\?['\"”’)]*\s*$", re.IGNORECAS
 
 _TERMINAL_PUNCTUATION = re.compile(r"[.!?…]['\"”’)]*\s*$")
 _MIN_TOKEN_COUNT = 3
+
+# Every character this module treats as a quotation mark, for the sole
+# purpose of tracking whether a colon sits inside a quoted span
+# (``_colon_joined_fragment_reason`` below). Deliberately a flat set with
+# no open/close pairing: German text in this corpus mixes low-9 ("„...")
+# and high-6/9 ('"..."'/'"..."') styles, and a single straight `"` is
+# ambiguous between the two roles anyway, so parity (has an odd or even
+# number of quote marks been seen so far) is tracked instead of matching a
+# specific opening mark to its closing one. This assumes quotes are
+# balanced, which real sentences overwhelmingly are.
+_QUOTE_CHARS: frozenset[str] = frozenset({'"', "„", "“", "”", "'", "‘", "’", "«", "»"})
+
+# Parenthesised stock-photo and wire-service markers. These are not German
+# sentence material at all, they are captioning furniture that survived the
+# scrape, and their presence is decisive on its own -- no German sentence
+# says "(Symbolbild)". Matched case-insensitively inside parentheses only,
+# so an ordinary sentence about a Foto or a Quelle is untouched.
+_SCRAPED_MEDIA_MARKERS: frozenset[str] = frozenset(
+    {
+        "symbolbild",
+        "symbolfoto",
+        "archivbild",
+        "archivfoto",
+        "foto",
+        "fotos",
+        "bild",
+        "bilder",
+        "quelle",
+        "anzeige",
+        "werbung",
+    }
+)
+_PARENTHESISED_MARKER = re.compile(
+    r"\(\s*(" + "|".join(sorted(_SCRAPED_MEDIA_MARKERS)) + r")\b[^)]*\)", re.IGNORECASE
+)
 
 # A fixed, closed list of literal Swiss-spelled surface forms of "heißen" --
 # not a general ss/ß rule (see module docstring section 6 for why a general
@@ -1178,6 +1237,153 @@ def _dangling_fragment_reason(tokens: list[SpacyToken]) -> str | None:
         if content_tokens[-1].tag_ == "KON" and _TAG_QUESTION_PATTERN.search(tokens[0].doc.text):
             return None
         return REASON_DANGLING_FRAGMENT
+    return None
+
+
+def _colon_split_boundaries(tokens: list[SpacyToken]) -> list[int]:
+    """Token indices of every colon that splits ``tokens`` outside a quoted
+    span, for ``_colon_joined_fragment_reason`` below.
+
+    Reads the boundary off the token stream, not the raw string: a
+    sentence-final ``)`` and ``:`` can tokenize as one combined punctuation
+    token ("Symbolbild):"), so a colon boundary is anywhere ``:`` occurs
+    inside a punctuation token's text, not only a bare ``":"`` token.
+    Quote state is a flat parity toggle on ``_QUOTE_CHARS`` (see that
+    constant's own comment for why no open/close pairing is attempted)."""
+    boundaries: list[int] = []
+    in_quotes = False
+    for tok in tokens:
+        if tok.text and all(ch in _QUOTE_CHARS for ch in tok.text):
+            in_quotes = not in_quotes
+            continue
+        if not in_quotes and tok.is_punct and ":" in tok.text:
+            boundaries.append(tok.i)
+    return boundaries
+
+
+def _segment_is_clause(segment: list[SpacyToken]) -> bool:
+    """Whether a colon-delimited segment stands on its own as a clause."""
+    return any(_is_finite(t) for t in segment)
+
+
+def _segment_has_no_letters(segment: list[SpacyToken]) -> bool:
+    """A segment with no alphabetic character anywhere in it: a bare date,
+    number or symbol stub left behind by a scrape (the cycle 11 audit's
+    ``Der letzte Eintrag wurde ... gemacht: "2025 ".``). No German
+    elaboration after a colon consists purely of digits and punctuation, so
+    unlike the ordinary noun-phrase elaboration this is decisive."""
+    return not any(ch.isalpha() for t in segment for ch in t.text)
+
+
+def _segment_is_bare_heading(segment: list[SpacyToken]) -> bool:
+    """A LEADING segment that is a bare nominal with no determiner at all:
+    a scraped page heading or section label glued onto body text
+    ("Mobilitaetsloesungen: Waehrend Ihres Werkstattaufenthalts ...").
+
+    The determiner is what separates this from the many perfectly good
+    German sentences that open with a colon-introduced noun phrase, all of
+    which carry one: "Der kleine Unterschied: Er denkt beim Lieben ...",
+    "Eine Ansage an alle Klassen: Der Unterricht faellt heute aus." Both
+    were rejected by an earlier, wider version of this check and are the
+    reason it is this narrow. Restricted to the LEADING segment because a
+    determiner-less nominal AFTER the colon is ordinary elaboration
+    ("... Voegel gekauft: Kanarienvoegel und Buchfinken.")."""
+    content = [t for t in segment if not t.is_punct]
+    if not content:
+        return False
+    if any(t.pos_ == "DET" for t in content):
+        return False
+    # Nominal parts of speech ONLY. A conjunction or an adverb in the
+    # leading segment is what a real German sentence opens with when it
+    # opens on a colon at all ("Aber: Das Thema ist damit nicht beendet
+    # ...", "Ausserdem: ..."), so a segment containing one is never a
+    # scraped heading and is left alone. This exclusion is the difference
+    # between rejecting 12 good Tatoeba sentences and rejecting 1.
+    return all(t.pos_ in ("NOUN", "PROPN", "NUM", "X", "ADJ") for t in content)
+
+
+def _segment_is_bare_subheading(segment: list[SpacyToken]) -> bool:
+    """A segment headed by a determiner-less noun that then carries a
+    prepositional phrase: the shape of a news subheading glued onto its own
+    headline ("... ist der Bremsweg laenger als gedacht: Reaktionstest bei
+    der Verkehrswacht.").
+
+    The preposition is what makes this distinguishable. A determiner-less
+    nominal on its own is ordinary German elaboration and must be kept
+    ("Kanarienvoegel und Buchfinken", "nur Zeit"); once it heads a full
+    prepositional phrase with no determiner and no verb, it is a headline
+    fragment rather than an elaboration of the clause before it. Every
+    good colon sentence found in 6,000 Tatoeba lines that does carry a
+    preposition also carries a determiner on its head noun ("ein typischer
+    Fall von chronischer Selbstueberschaetzung"), which is why the
+    determiner test comes first."""
+    content = [t for t in segment if not t.is_punct]
+    if not content:
+        return False
+    if content[0].pos_ not in ("NOUN", "PROPN"):
+        return False
+    if any(t.pos_ == "DET" for t in content[:1]):
+        return False
+    return any(t.pos_ == "ADP" for t in content)
+
+
+def _colon_joined_fragment_reason(tokens: list[SpacyToken]) -> str | None:
+    """Scraped-web carriers that glue a photo caption, a page heading or a
+    news subheading onto an unrelated clause with a bare colon
+    (``docs/audits/cycle-11-corpus-report.md`` section 4).
+    ``multiple_sentences`` cannot see this shape: ``de_core_news_sm``'s
+    parser-driven sentencizer does not treat a mid-sentence colon as a
+    sentence boundary the way it treats "." or "!", so these carriers parse
+    as one ``doc.sents`` span and reach this check still accepted.
+
+    **A colon is not itself a defect.** The first version of this check
+    required every colon-delimited segment to be a clause, allowing only a
+    lone conjunction ("Aber:") as an exception. Measured over 6,000 Tatoeba
+    lines it rejected 12, and hand-checking every one found 11 to be
+    ordinary, correct German using a colon exactly as German uses it, to
+    introduce an elaboration of a clause that is already complete: "Der
+    Himmel Cuscos ist wie seine Frauen: voellig unberechenbar!", "Fuer das
+    Koennen gibt es nur einen Beweis: das Tun.", "... wem er glauben soll:
+    Johannes oder Maria." Eleven good sentences lost per junk carrier
+    caught is a worse trade than leaving the junk in, and this project's
+    standard is that a filter must not buy precision with correct German.
+
+    So the clause requirement is gone. What is left are four narrow,
+    individually decisive shapes, each verified to reject none of those 12:
+
+    1. A parenthesised stock-photo or wire marker anywhere in the sentence
+       (``_SCRAPED_MEDIA_MARKERS``). Not German sentence material at all.
+    2. A segment with no letters in it (``_segment_has_no_letters``).
+    3. A LEADING determiner-less bare nominal (``_segment_is_bare_heading``).
+    4. A determiner-less noun heading a prepositional phrase, with no verb
+       (``_segment_is_bare_subheading``).
+
+    Shapes 2 to 4 are only ever consulted for a segment that is not itself
+    a clause, so an elaboration attached to a complete sentence is never
+    examined on its own account."""
+    if _PARENTHESISED_MARKER.search("".join(t.text_with_ws for t in tokens)):
+        return REASON_COLON_JOINED_FRAGMENT
+
+    boundaries = _colon_split_boundaries(tokens)
+    if not boundaries:
+        return None
+
+    segments: list[list[SpacyToken]] = []
+    start = 0
+    for boundary in boundaries:
+        segments.append(tokens[start:boundary])
+        start = boundary + 1
+    segments.append(tokens[start:])
+
+    for index, segment in enumerate(segments):
+        if _segment_is_clause(segment):
+            continue
+        if _segment_has_no_letters(segment):
+            return REASON_COLON_JOINED_FRAGMENT
+        if index == 0 and _segment_is_bare_heading(segment):
+            return REASON_COLON_JOINED_FRAGMENT
+        if _segment_is_bare_subheading(segment):
+            return REASON_COLON_JOINED_FRAGMENT
     return None
 
 
@@ -1746,6 +1952,10 @@ def validate_carrier(sentence: str) -> CarrierValidation:
     finite_verbs = [t for t in tokens if _is_finite(t)]
     if not finite_verbs:
         return CarrierValidation(sentence, False, REASON_NO_FINITE_VERB)
+
+    colon_fragment_reason = _colon_joined_fragment_reason(tokens)
+    if colon_fragment_reason is not None:
+        return CarrierValidation(sentence, False, colon_fragment_reason)
 
     for verb in finite_verbs:
         connector_reason = _clause_connector_reason(verb)

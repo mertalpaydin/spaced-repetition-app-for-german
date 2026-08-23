@@ -279,7 +279,14 @@ def test_futur_i_is_flagged_when_interchangeable_with_a_modal_with_no_time_ancho
         "Obwohl die Bearbeitungszeit kurz ist, werden Sie den Termin einhalten.",
     )
     assert outcome.unique is False
-    assert outcome.reason == "futur_i_modal_interchangeable"
+    # Cycle 11, decision D1: the reason changed from
+    # "futur_i_modal_interchangeable" to "auxiliary_lexeme_uncued", which
+    # fires first and names the same defect more directly. "Sie werden"
+    # is 3rd plural, where "werden" the citation form and "werden" the
+    # answer are the same string, so no cue can be given and the modal
+    # choice this test is about stays open. The verdict is unchanged and
+    # is what the test is for; only the label moved.
+    assert outcome.reason == "auxiliary_lexeme_uncued"
 
 
 def test_futur_ii_is_not_flagged_no_rival_construction_exists() -> None:
@@ -330,19 +337,24 @@ def test_pronomen_personal_nom_is_flagged_for_the_wir_sie_sie_plural_syncretism(
     assert outcome.reason == "nominative_pronoun_syncretic"
 
 
-def test_pronomen_personal_nom_passes_the_plural_syncretism_when_a_second_sie_anchors_it() -> None:
-    """docs/audits/cycle-07-report.md section C's own KEEP counter-example:
-    a second "Sie" elsewhere in the sentence, sharing the identical
-    (Person=3, Number=Plur) cell, is the same carrier-supplied anchor that
-    already rescues an oblique pronoun (``_person_number_anchor_present``,
-    reused rather than re-derived)."""
+def test_pronomen_personal_nom_is_not_rescued_by_a_second_pronoun_in_another_clause() -> None:
+    """This test used to assert ``unique is True`` for this sentence, on the
+    reasoning that a second "Sie" elsewhere in it anchors the blank. The
+    cycle 11 audit shows that reasoning does not hold for a SUBJECT slot:
+    "Wir haben den Urlaubern eine Nachricht geschickt, obwohl Sie damals
+    selbst sehr müde waren." is equally good German, so the second "Sie"
+    settles nothing about the first. The anchor rescue silently assumed
+    coreference that a same-person pronoun in a different clause does not
+    supply, and it is gone from the Nominative branch for that reason. The
+    expectation is inverted here rather than the gate loosened, per
+    CLAUDE.md rule 7; see ``uniqueness._nominative_pronoun_settled``."""
     outcome = _check(
         "pronomen_personal_nom",
         "Sie haben den Urlaubern eine Nachricht geschickt, obwohl Sie damals selbst "
         "sehr müde waren.",
     )
-    assert outcome.unique is True
-    assert outcome.reason is None
+    assert outcome.unique is False
+    assert outcome.reason == "nominative_pronoun_syncretic"
 
 
 def test_pronomen_personal_nom_is_flagged_for_the_1st_3rd_singular_preterite_syncretism() -> None:
@@ -367,16 +379,26 @@ def test_pronomen_personal_nom_is_flagged_for_a_second_1st_3rd_singular_preterit
     assert outcome.reason == "nominative_pronoun_syncretic"
 
 
-def test_pronomen_personal_dat_is_flagged_with_no_anchor() -> None:
+def test_pronomen_personal_dat_is_settled_by_its_cue_with_no_anchor() -> None:
     """docs/audits/cycle-04-report.md's own example: mir/ihm/ihr/uns/ihnen
-    would all fit here just as well as "Ihnen"."""
+    would all fit here just as well as "Ihnen".
+
+    Cycle 11, owner decision D2: this topic now carries a cue, the
+    Nominative form of the same pronoun, which names person, number and
+    gender and leaves the learner only the case to supply. That settles the
+    blank on its own, so the anchor this test was written about is no longer
+    what decides the outcome. The expectation is inverted rather than the
+    cue withheld: the anchor reasoning below is still correct about anchors,
+    it is simply no longer the binding constraint. See
+    ``uniqueness.check_uniqueness``'s ``personal_pronoun`` branch.
+    """
     outcome = _check(
         "pronomen_personal_dat",
         "Das Restaurant hatte einen neuen Koch eingestellt, und das Essen schmeckte Ihnen "
         "ausgezeichnet.",
     )
-    assert outcome.unique is False
-    assert outcome.reason == "personal_pronoun_unanchored"
+    assert outcome.unique is True
+    assert outcome.reason is None
 
 
 def test_pronomen_personal_dat_passes_when_a_matching_pronoun_anchors_it() -> None:
@@ -403,34 +425,62 @@ def test_pronomen_personal_dat_passes_when_a_matching_possessive_anchors_it() ->
     assert outcome.reason is None
 
 
-def test_pronomen_personal_dat_is_flagged_when_the_possessive_governs_the_subject() -> None:
+def test_pronomen_personal_dat_cue_beats_a_subject_possessive() -> None:
     """docs/audits/cycle-07-report.md defects 10/11: "Mein bester Freund
     Timo" is the SUBJECT of "hat", not a co-referring argument of "mir" --
     the possessive-person anchor must not fire from the subject NP, so
-    mir/ihm/ihr/uns/ihnen are all still equally plausible here."""
+    mir/ihm/ihr/uns/ihnen are all still equally plausible here.
+
+    Cycle 11, owner decision D2: this topic now carries a cue, the
+    Nominative form of the same pronoun, which names person, number and
+    gender and leaves the learner only the case to supply. That settles the
+    blank on its own, so the anchor this test was written about is no longer
+    what decides the outcome. The expectation is inverted rather than the
+    cue withheld: the anchor reasoning below is still correct about anchors,
+    it is simply no longer the binding constraint. See
+    ``uniqueness.check_uniqueness``'s ``personal_pronoun`` branch.
+    """
     outcome = _check(
         "pronomen_personal_dat",
         "Mein bester Freund Timo hat mir gestern ein sehr gutes Buch geschenkt.",
     )
-    assert outcome.unique is False
-    assert outcome.reason == "personal_pronoun_unanchored"
+    assert outcome.unique is True
+    assert outcome.reason is None
 
 
-def test_pronomen_personal_dat_is_flagged_when_the_possessive_governs_a_second_subject() -> None:
+def test_pronomen_personal_dat_cue_beats_a_second_subject_possessive() -> None:
     """docs/audits/cycle-07-report.md defect 11: the same subject-anchor
-    defect on a second, shorter sentence ("Mein Kollege hat mir ...")."""
+    defect on a second, shorter sentence ("Mein Kollege hat mir ...").
+
+    Cycle 11, owner decision D2: this topic now carries a cue, the
+    Nominative form of the same pronoun, which names person, number and
+    gender and leaves the learner only the case to supply. That settles the
+    blank on its own, so the anchor this test was written about is no longer
+    what decides the outcome. The expectation is inverted rather than the
+    cue withheld: the anchor reasoning below is still correct about anchors,
+    it is simply no longer the binding constraint. See
+    ``uniqueness.check_uniqueness``'s ``personal_pronoun`` branch.
+    """
     outcome = _check(
         "pronomen_personal_dat",
         "Mein Kollege hat mir heute einen leckeren Apfelkuchen mitgebracht.",
     )
-    assert outcome.unique is False
-    assert outcome.reason == "personal_pronoun_unanchored"
+    assert outcome.unique is True
+    assert outcome.reason is None
 
 
-def test_pronomen_personal_akk_is_flagged_with_no_anchor() -> None:
+def test_pronomen_personal_akk_is_settled_by_its_cue_with_no_anchor() -> None:
+    """Cycle 11, owner decision D2: this topic now carries a cue, the
+    Nominative form of the same pronoun, which names person, number and
+    gender and leaves the learner only the case to supply. That settles the
+    blank on its own, so the anchor this test was written about is no longer
+    what decides the outcome. The expectation is inverted rather than the
+    cue withheld: the anchor reasoning below is still correct about anchors,
+    it is simply no longer the binding constraint. See
+    ``uniqueness.check_uniqueness``'s ``personal_pronoun`` branch."""
     outcome = _check("pronomen_personal_akk", "Ich sehe ihn jeden Tag.")
-    assert outcome.unique is False
-    assert outcome.reason == "personal_pronoun_unanchored"
+    assert outcome.unique is True
+    assert outcome.reason is None
 
 
 def test_pronomen_personal_akk_passes_when_a_matching_pronoun_anchors_it() -> None:
@@ -442,17 +492,27 @@ def test_pronomen_personal_akk_passes_when_a_matching_pronoun_anchors_it() -> No
     assert outcome.reason is None
 
 
-def test_ambiguous_stems_sein_and_ihr_are_not_trusted_as_anchors() -> None:
+def test_ambiguous_stems_sein_and_ihr_are_still_not_anchors() -> None:
     """ "seinen" (his/its, syncretic between a masc./neut. possessor) must
     not be treated as an anchor even though it agrees in person on one
     reading -- a wrong anchor here is the exact failure mode this gate
-    exists to prevent (module docstring)."""
+    exists to prevent (module docstring).
+
+    Cycle 11, owner decision D2: this topic now carries a cue, the
+    Nominative form of the same pronoun, which names person, number and
+    gender and leaves the learner only the case to supply. That settles the
+    blank on its own, so the anchor this test was written about is no longer
+    what decides the outcome. The expectation is inverted rather than the
+    cue withheld: the anchor reasoning below is still correct about anchors,
+    it is simply no longer the binding constraint. See
+    ``uniqueness.check_uniqueness``'s ``personal_pronoun`` branch.
+    """
     outcome = _check(
         "pronomen_personal_dat",
         "Der Chef überreichte ihm seinen Bonus vor der ganzen Abteilung.",
     )
-    assert outcome.unique is False
-    assert outcome.reason == "personal_pronoun_unanchored"
+    assert outcome.unique is True
+    assert outcome.reason is None
 
 
 # ==============================================================================

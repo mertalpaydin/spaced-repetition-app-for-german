@@ -148,8 +148,12 @@ one accepted answer among several equally grammatical ones.
      package) -- but NOT in the Präsens, where the endings genuinely
      differ ("ich mache"/"er macht").
 
-  See ``_nominative_pronoun_syncretic`` for exactly which (person, number,
-  tense) combinations this covers. Where the verb form IS syncretic, this
+  Those two closed facts were the whole of this check until cycle 11
+  measured what they miss: modals ("ich muss"/"er muss", identical in the
+  PRESENT, which a tense-based test cannot see) and gender ("er"/"sie"/
+  "es", which no German verb form distinguishes in any tense). See
+  ``_nominative_pronoun_settled``, which replaced them with a direct
+  paradigm lookup. Where the verb form does NOT settle the pronoun, this
   module falls back to the same carrier-supplied anchor the oblique cases
   already use (``_person_number_anchor_present``, reused rather than
   re-derived -- a second pronoun or unambiguous possessive elsewhere in the
@@ -333,6 +337,7 @@ from src.generation.blanking.selectors import (
     Candidate,
     _clause_span,
     _determiner_head_noun,
+    _finite_verb_cell_is_unambiguous,
 )
 from src.generation.blanking.sentence_tagger import TaggedSentence, Token
 
@@ -737,44 +742,59 @@ def _person_number_anchor_present(sentence: TaggedSentence, candidate: Candidate
     return False
 
 
-def _clause_finite_verb(sentence: TaggedSentence, index: int) -> Token | None:
-    """The single finite verb sharing ``index``'s own clause
-    (``_clause_span``), or ``None`` if the clause has none or more than one
-    -- "reject rather than guess" applied to the same "exactly one finite
-    verb decides this" signal ``_governing_verb_lemma``/
-    ``_sibling_clause_tense_anchor`` already use elsewhere in this package,
-    reused here to find the verb whose ``Tense`` decides whether a
-    Nominative pronoun candidate's own (person, number) is syncretic
-    (``_nominative_pronoun_syncretic``)."""
-    start, end = _clause_span(sentence, index)
-    finite = [t for t in sentence.tokens[start:end] if t.morph.get("VerbForm") == "Fin"]
-    return finite[0] if len(finite) == 1 else None
+def _nominative_pronoun_settled(sentence: TaggedSentence, candidate: Candidate) -> bool:
+    """Whether the sentence itself determines WHICH subject pronoun was
+    removed from a blanked Nominative slot.
 
+    This replaces ``_nominative_pronoun_syncretic``, which asked the
+    narrower question "is this a known syncretic cell" from two closed
+    facts: (1|3, Plur) is always three-way ambiguous, and (1|3, Sing) is
+    ambiguous in the Past. Everything else it trusted unconditionally.
+    docs/audits/cycle-11-corpus-report.md found four of the eight items
+    that topic shipped had more than one correct answer, and all four came
+    through the gap in exactly that "everything else":
 
-def _nominative_pronoun_syncretic(sentence: TaggedSentence, candidate: Candidate) -> bool:
-    """Whether ``candidate``'s own (person, number) shares an identical
-    finite-verb form with another cell of the German personal-pronoun
-    paradigm, docs/audits/cycle-07-report.md section C's sixth uniqueness
-    reason -- see the module docstring's ``personal_pronoun`` bullet for the
-    two closed conjugation facts this checks:
+        ___ muss Tom fragen, wie ich zu seinem Haus komme.   (1, Sing), Present
+        ___ hat ihren Pullover angezogen.                    (3, Sing), Present
 
-    * ``(1, Plur)`` or ``(3, Plur)`` -- the wir/sie/Sie three-way ambiguity,
-      true in EVERY tense, so no verb lookup is needed to confirm it.
-    * ``(1, Sing)`` or ``(3, Sing)`` in the Präteritum or Konjunktiv II
-      (both surface as ``Tense=Past`` in this tagger's own morphology) --
-      NOT in the Präsens, where "ich mache"/"er macht" genuinely differ, so
-      this branch looks up the clause's own finite verb before deciding.
-      A clause whose finite verb cannot be resolved to exactly one token
-      (``_clause_finite_verb`` returns ``None``) is treated as NOT
-      syncretic here -- the pre-existing, unconditional trust this module
-      already gave every Nominative pronoun before this reason existed, kept
-      as the fallback rather than guessed into a new skip."""
+    "muss" is spelled the same at 1st and 3rd singular, which the
+    tense-based test cannot see because it is a fact about modals, not
+    about the Präteritum. And no German verb form of any tense distinguishes
+    "er" from "sie" from "es", so a 3rd-singular Nominative blank is never
+    settled by its verb at all.
+
+    So the question is asked directly instead. Two conditions, both
+    required.
+
+    **The clause's own finite verb must belong to this cell and no other.**
+    ``selectors._finite_verb_cell_is_unambiguous`` reconstructs the verb's
+    whole paradigm and looks the surface form up in it, which gets modals
+    ("muss" 1st and 3rd singular), the plural syncretism ("können" 1st and
+    3rd plural) and the Präteritum syncretism ("sagte") from one test
+    rather than three special cases. Scoped to the pronoun's own clause:
+    without that, "___ muss Tom fragen, wie ich zu seinem Haus komme."
+    passes on the SUBORDINATE clause's "komme", which is uniquely 1st
+    singular and says nothing about the main clause's subject.
+
+    **The pronoun must not be 3rd person singular.** Recovering "er" from
+    "sie" would need coreference over the antecedent, which this package
+    does not have and will not guess at. This cell is therefore
+    permanently unavailable to the topic, which is a real coverage price
+    and is recorded as such rather than worked around.
+
+    ``_person_number_anchor_present`` remains the rescue for a cell the
+    verb does not settle, exactly as before: another pronoun or an
+    unambiguous possessive elsewhere in the carrier can still fix who is
+    meant."""
     assert candidate.person is not None and candidate.number is not None
-    if candidate.number == "Plur" and candidate.person in ("1", "3"):
-        return True
-    if candidate.number == "Sing" and candidate.person in ("1", "3"):
-        verb = _clause_finite_verb(sentence, candidate.token_index)
-        return verb is not None and verb.morph.get("Tense") == "Past"
+    if candidate.number == "Sing" and candidate.person == "3":
+        return False
+    start, end = _clause_span(sentence, candidate.token_index)
+    for token in sentence.tokens[start:end]:
+        if token.morph.get("VerbForm") != "Fin":
+            continue
+        if _finite_verb_cell_is_unambiguous(token, candidate.person, candidate.number):
+            return True
     return False
 
 
@@ -798,6 +818,19 @@ def check_uniqueness(sentence: TaggedSentence, candidate: Candidate) -> Uniquene
         # the personal_pronoun argument below applies here too (the
         # ambiguity is over which CELL of the one paradigm, not which
         # lexeme), so this branch never even looks at ``candidate.cue``.
+        # Cycle 11, owner decision D1: these topics now cue the auxiliary's
+        # own citation form ("(werden)", "(sein)", "(haben)"). A candidate
+        # that reaches here with NO cue is one whose citation form is
+        # spelled the same as the answer, which is exactly the 1st/3rd
+        # plural cell ("wir werden", "sie haben") -- so the cue was
+        # withheld to avoid handing the answer over, and the slot is left
+        # open to every modal instead: "Wir ___ es genauso machen wie
+        # letztes Mal." takes "werden", "wollen", "können" and "müssen"
+        # alike. Found in a dry run of the changed pipeline, not reasoned
+        # about. Unlike the modal branch above, where the cue is a bonus,
+        # here its absence is itself the defect.
+        if not candidate.cue:
+            return UniquenessOutcome(False, "auxiliary_lexeme_uncued")
         if not _auxiliary_tense_anchor_present(sentence, candidate):
             return UniquenessOutcome(False, "auxiliary_tense_unanchored")
         # docs/audits/cycle-07-report.md defect 12: a SEPARATE, lexical
@@ -819,10 +852,40 @@ def check_uniqueness(sentence: TaggedSentence, candidate: Candidate) -> Uniquene
             # cycle-07-report.md section C), in which case the same
             # carrier-supplied anchor the oblique cases already use is
             # required. See module docstring.
-            if _nominative_pronoun_syncretic(sentence, candidate):
-                if _person_number_anchor_present(sentence, candidate):
-                    return UniquenessOutcome(True, None)
-                return UniquenessOutcome(False, "nominative_pronoun_syncretic")
+            # No anchor rescue here any more, unlike the oblique branch
+            # below. ``_person_number_anchor_present`` scans the whole
+            # sentence for another pronoun or possessive of the same person
+            # and number, and for a SUBJECT slot that is not evidence:
+            # "___ haben den Urlaubern eine Nachricht geschickt, obwohl Sie
+            # damals selbst sehr müde waren." was rescued by the second
+            # "Sie" and accepts "Wir" just as happily, and "___ habe meinen
+            # Aufsatz vergessen." would be rescued by "meinen" even though
+            # the essay's owner and the sentence's subject need not be the
+            # same person. Coreference is what the rescue silently assumed
+            # and neither shape supplies it. The verb is the only witness
+            # that actually constrains a subject, so it is now the only one
+            # consulted. The price is that 1st and 3rd person plural become
+            # unusable for this topic, which is a fact about German rather
+            # than about this code: nothing in "wir/sie/Sie haben"
+            # distinguishes them.
+            if _nominative_pronoun_settled(sentence, candidate):
+                return UniquenessOutcome(True, None)
+            return UniquenessOutcome(False, "nominative_pronoun_syncretic")
+        # An oblique pronoun's cue is the NOMINATIVE form of the same
+        # pronoun ("(er)" -> "ihn", "(Sie)" -> "Ihnen"), added for the
+        # owner's decision D2 (docs/audits/cycle-11-corpus-report.md). This
+        # module used to say, for the auxiliary and modal branches above,
+        # that a cue cannot rescue a personal pronoun because "the
+        # ambiguity is over which CELL of one paradigm, not which lexeme".
+        # That reasoning was written when no pronoun cue existed and it does
+        # not survive one: a Nominative citation form names the person, the
+        # number AND the gender, which is the whole of the cell except the
+        # case, and the case is exactly what the topic asks the learner to
+        # supply. Flagged here rather than silently changed, per CLAUDE.md
+        # rule 8, because it reverses a stated position in this module's own
+        # docstring. It does NOT extend to the Nominative branch above,
+        # where a cue really would be the answer.
+        if candidate.cue:
             return UniquenessOutcome(True, None)
         if _person_number_anchor_present(sentence, candidate):
             return UniquenessOutcome(True, None)

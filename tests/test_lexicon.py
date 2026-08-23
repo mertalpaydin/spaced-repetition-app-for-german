@@ -300,10 +300,88 @@ def test_closed_class_function_word_passes_a1_ceiling_despite_wordlist_tagging_i
 def test_closed_class_conjunction_sentence_passes_a1_ceiling() -> None:
     """End-to-end version of the parametrized check above: a full A1
     sentence built around a newly-whitelisted subordinator, where the
-    wordlist mistags the conjunction itself as B2, has zero violations."""
-    store = VocabularyStore({"bevor": "B2", "sobald": "B2", "haus": "A1", "gehen": "A1"})
+    wordlist mistags the conjunction itself as B2, has zero violations.
+
+    "räumen" is in the store here (unlike an earlier version of this test),
+    because of the frequency fallback (D3, docs/audits/cycle-11-corpus-
+    report.md): "räum" no longer resolves for free just because this tiny
+    mock store has never heard of it -- its real frequency rank (~10,900)
+    lands it in the B1 fallback band, which would trip the A1 ceiling and
+    mask what this test actually checks (the conjunction whitelist), not
+    what it is testing here.
+    """
+    store = VocabularyStore(
+        {"bevor": "B2", "sobald": "B2", "haus": "A1", "gehen": "A1", "räumen": "A1"}
+    )
     assert store.validate_sentence("Bevor du gehst, räum dein Haus auf.", "A1") == []
     assert store.validate_sentence("Sobald ich zu Hause bin, rufe ich an.", "A1") == []
+
+
+# ---------------------------------------------------------------------------
+# Frequency fallback for a word the CEFR store cannot resolve at all (D3)
+#
+# docs/audits/cycle-11-corpus-report.md, owner decision D3: the old rule --
+# an unresolved word charges 0 distance against the ceiling budget -- left
+# the ceiling inert on 36.2% of accepted pilot items. The replacement looks
+# an unresolved word up by RANK in the frequency corpus instead
+# (data/fixtures/corpus/frequency/de_opensubtitles2018_top50k.txt) and
+# grades it accordingly, via the SAME budgeted band-distance arithmetic a
+# store-resolved word already goes through. These tests inject a small,
+# synthetic ``frequency_ranks`` mapping directly (bypassing the real 50,000
+# line file) so the rank->band boundary is exact and independent of the
+# vendored fixture's contents; ``VocabularyStore(frequency_ranks={...})``
+# is empty of vocabulary, so every invented word here is guaranteed
+# unresolved by the store itself and must go through the fallback.
+# ---------------------------------------------------------------------------
+
+
+def test_frequency_fallback_mid_frequency_word_passes_b1_ceiling_fails_a1_ceiling() -> None:
+    """A word absent from the vocabulary store, ranked in the frequency
+    list's B1 fallback band (10,000 <= rank < 20,000), clears a B1 ceiling
+    (0 bands over) but is a hard violation at A1 (2 bands over -- past the
+    budget outright, not merely over it)."""
+    store = VocabularyStore(frequency_ranks={"klarenzig": 15_000})
+    assert store.check_ceiling_budget("Klarenzig ist da.", "B1").violations == []
+    assert store.check_ceiling_budget("Klarenzig ist da.", "A1").violations == ["Klarenzig"]
+
+
+def test_frequency_fallback_word_absent_from_frequency_list_hard_violation_at_a1() -> None:
+    """A word absent from BOTH the vocabulary store and the frequency list
+    entirely gets ``FREQUENCY_FALLBACK_UNSEEN_RANK`` (one band above B2),
+    a hard violation against an A1 ceiling -- this is the case the old
+    "unknown passes" rule handled by charging nothing at all."""
+    store = VocabularyStore(frequency_ranks={})
+    result = store.check_ceiling_budget("Dorbelant ist da.", "A1")
+    assert result.violations == ["Dorbelant"]
+
+
+def test_check_ceiling_budget_propn_parameter_skips_tagged_proper_noun() -> None:
+    """A surface form the caller's OWN tagger identified as ``PROPN`` (the
+    new ``proper_nouns`` parameter) is skipped entirely -- without it, the
+    same word (absent from both the store and the frequency list) would be
+    the fallback's worst-case hard violation."""
+    store = VocabularyStore(frequency_ranks={})
+    sentence = "Herzogenaurach ist da."
+    without_skip = store.check_ceiling_budget(sentence, "A1")
+    assert "Herzogenaurach" in without_skip.violations
+
+    with_skip = store.check_ceiling_budget(
+        sentence, "A1", proper_nouns=frozenset({"Herzogenaurach"})
+    )
+    assert "Herzogenaurach" not in with_skip.violations
+
+
+def test_validate_sentence_default_proper_nouns_none_unchanged_for_existing_caller() -> None:
+    """Calling ``validate_sentence`` the old two-argument way (no
+    ``proper_nouns`` at all) is identical to passing ``proper_nouns=None``
+    explicitly -- the new parameter is additive and every existing caller
+    that never learned about it sees no change in behaviour."""
+    store = VocabularyStore(frequency_ranks={})
+    sentence = "Herzogenaurach ist da."
+    assert store.validate_sentence(sentence, "A1") == store.validate_sentence(
+        sentence, "A1", proper_nouns=None
+    )
+    assert "Herzogenaurach" in store.validate_sentence(sentence, "A1")
 
 
 # ---------------------------------------------------------------------------

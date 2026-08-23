@@ -979,6 +979,159 @@ def _finite_verb_person_number(sentence: TaggedSentence) -> tuple[str, str] | No
     return None
 
 
+def _e_form_is_unambiguous_first_singular(token: Token) -> bool:
+    """Whether a present-indicative finite verb ending in "-e" can only be
+    1st singular, reconstructed from the SURFACE rather than the lemma.
+
+    The same lemma-error escape hatch as
+    ``_st_form_is_unambiguous_second_singular``, for the other cell German
+    marks unambiguously. "Ich antworte dem Lehrer" lemmatises "antworte" to
+    "antworen" under this tagger, a mislemmatisation this repository has
+    already documented elsewhere (see ``paradigms.DATIVE_ONLY_VERBS``'s own
+    "antworen" entry), so paradigm reconstruction from the lemma finds
+    nothing and a perfectly good item is lost.
+
+    A German regular present paradigm is -e/-st/-t/-en/-t/-en, so "-e"
+    occurs at exactly one cell. Restricted to the present indicative
+    deliberately: in the Präteritum "-e" is 1st AND 3rd singular ("ich/er
+    sagte"), which is the syncretism this whole check exists to catch.
+
+    The infinitive is rebuilt as ``surface + "n"`` and then forward-checked
+    against ``regular_praesens_form`` and against the dictionary, so a form
+    that does not actually conjugate back to itself is refused rather than
+    assumed."""
+    if token.morph.get("Mood") != "Ind" or token.morph.get("Tense") != "Pres":
+        return False
+    surface = token.text.lower()
+    if not surface.endswith("e") or len(surface) < 3:
+        return False
+    infinitive = surface + "n"
+    if paradigms.regular_praesens_form(infinitive, "1", "Sing") != surface:
+        return False
+    return _cue_is_real_word(infinitive)
+
+
+def _st_form_is_unambiguous_second_singular(surface: str) -> bool:
+    """Whether a finite verb spelled ``surface`` can only be 2nd singular,
+    decided from the spelling and a dictionary rather than from the lemma.
+
+    This exists because the lemma is exactly what fails here. "brauchst"
+    lemmatises to "brauchsten" and "Träumst" to "Träumst" under this
+    tagger, so paradigm reconstruction finds nothing for either, and 2nd
+    singular is the one cell German marks unambiguously and the one a
+    learner app full of "du" sentences most needs.
+
+    German's "-st" ending is 2nd singular, with one real exception: a stem
+    that already ends in a sibilant contracts the ending to a bare "-t" and
+    the result is spelled identically at 2nd and 3rd singular ("du/er
+    reist", "du/er passt"). Telling those apart needs the stem, and the
+    spelling alone cannot supply it: "brauchst" could parse as "brauch" +
+    "st" or as "brauchs" + "t", and nothing about the letters says which.
+
+    A dictionary can. Both parses are reconjugated into an infinitive and
+    checked for being a real German word (``_cue_is_real_word``, the same
+    check every cue in this module passes through):
+
+        brauchst -> "brauchen" real, "brauchsen" not      -> 2nd singular
+        reist    -> "reien" not,     "reisen" real        -> syncretic
+        passt    -> "pasen" not,     "passen" real        -> syncretic
+        isst     -> "isen" not,      "issen" not          -> undecidable
+
+    Only the first shape returns ``True``. Both-real and neither-real both
+    return ``False``, so an irregular this cannot reduce ("bist", "weißt")
+    is declined rather than guessed at, and the module's standing bias is
+    preserved: this narrows what ships, it never widens it."""
+    for suffix in ("st", "ßt"):
+        if not surface.endswith(suffix):
+            continue
+        second_singular = surface[:-2] + "en"
+        syncretic = surface[:-1] + "en"
+        if len(second_singular) < 4:
+            return False
+        return _cue_is_real_word(second_singular) and not _cue_is_real_word(syncretic)
+    return False
+
+
+def _finite_verb_cell_is_unambiguous(token: Token, person: str, number: str) -> bool:
+    """Whether ``token``'s own surface form belongs to exactly one
+    ``(Person, Number)`` cell of its own verb, so that seeing the verb tells
+    a reader which subject pronoun must stand in front of it.
+
+    docs/audits/cycle-11-corpus-report.md defect class 2, the owner's
+    decision D2. ``pronomen_personal_nom`` blanks the subject pronoun and
+    nothing in the code required the sentence to determine which pronoun it
+    was. "___ muss Tom fragen, wie ich zu seinem Haus komme." was shipped
+    with "Ich" as the only accepted answer, but "Er" and "Sie" are equally
+    correct German there, because "muss" is spelled the same at 1st and 3rd
+    singular. The learner types correct German and is marked wrong. Four of
+    the eight items that topic produced had this fault.
+
+    The whole verb paradigm is reconstructed and the surface form looked up
+    in it, rather than testing the ending: German's endings alone would
+    call "sagte" unique (it looks like the 1st-singular "-e") when it is
+    also the 3rd singular, and would have nothing to say about "bin" or
+    "seid". The irregular tables are tried first, then each regular family
+    resolver; a verb no table covers returns ``False``, which is this
+    module's standing "reject rather than guess" posture applied here too,
+    and matters because the lemma this reads is the tagger feature with the
+    highest measured conflict rate (docs/audits/tagger-accuracy-vs-gold.md,
+    6.69%).
+
+    One fallback exists for exactly the cell where that lemma error costs
+    the most: see ``_st_form_is_unambiguous_second_singular``."""
+    surface = token.text.lower()
+    if (person, number) == ("2", "Sing") and _st_form_is_unambiguous_second_singular(surface):
+        return True
+    if (person, number) == ("1", "Sing") and _e_form_is_unambiguous_first_singular(token):
+        return True
+    lemma = token.lemma
+    if not lemma:
+        return False
+    tense_mood = "SubjII" if token.morph.get("Mood") == "Sub" else token.morph.get("Tense")
+    tables: list[dict[tuple[str, str], str]] = []
+    if tense_mood:
+        irregular = paradigms.irregular_finite_family_forms(lemma, tense_mood)
+        if irregular is not None:
+            tables.append(irregular)
+    if not tables:
+        for family in paradigms.VERB_FAMILY_RESOLVERS:
+            family_table = paradigms.verb_family_forms(family, lemma)
+            if family_table.get((person, number), "").lower() == surface:
+                tables.append(family_table)
+                break
+    if not tables:
+        return False
+    table = tables[0]
+    matching = [cell for cell, form in table.items() if form.lower() == surface]
+    return matching == [(person, number)]
+
+
+def _oblique_pronoun_nominative_cue_form(
+    person: str, number: str, gender: str | None
+) -> str | None:
+    """The Nominative form to cue a blanked Accusative or Dative pronoun
+    with, or ``None`` when no single form can be named.
+
+    Most cells resolve directly. The one that does not is 3rd person
+    singular, where this tagger frequently leaves ``Gender`` unset on the
+    oblique form itself ("ihm" carries no Gender at all) because German
+    does not mark it there: "ihm" is the Dative of both "er" and "es".
+
+    That ambiguity does not reach the learner. Both readings produce the
+    SAME answer, so cueing either one asks for the same word and marks the
+    same thing right. "er" is used, and the item is dropped only if even
+    that cannot be resolved. The genuinely different cell, feminine "ihr",
+    is unaffected: the tagger does mark Gender there, and where it does not,
+    the masculine cue would ask for "ihm" while the answer is "ihr", so the
+    round trip below refuses it rather than shipping a wrong cue."""
+    direct = paradigms.personal_pronoun_form("Nom", person, number, gender or "Unk")
+    if direct is not None:
+        return direct
+    if (person, number) != ("3", "Sing"):
+        return None
+    return paradigms.personal_pronoun_form("Nom", person, number, "Masc")
+
+
 def _personal_pronoun_selector(fixed_case: str) -> Selector:
     def select(sentence: TaggedSentence) -> list[Candidate]:
         out: list[Candidate] = []
@@ -999,13 +1152,55 @@ def _personal_pronoun_selector(fixed_case: str) -> Selector:
                 subject = _finite_verb_person_number(sentence)
                 if subject is None or subject == (person, number):
                     continue  # could be reflexive here -- reject, don't guess
+            gender = token.morph.get("Gender")
+            if fixed_case == "Nom":
+                # The Nominative topic cannot be cued: the cue would BE the
+                # answer, leaving the learner nothing to work out, which is
+                # the one thing the owner's cue rule does not permit. Its
+                # own ambiguity gate lives in ``uniqueness.py`` instead,
+                # beside the one that was already there for it
+                # (``_nominative_pronoun_settled``), rather than as a second
+                # gate here for the same concern.
+                cue = None
+            else:
+                # Accusative and Dative get the cue instead, the same device
+                # the owner adopted for the article topics: the citation
+                # form is the NOMINATIVE of the same pronoun, so the learner
+                # is told which person is meant and still has to produce the
+                # case form, which is the whole of what these two topics
+                # test. "(er)" -> "ihn", "(ich)" -> "mir", "(Sie)" ->
+                # "Ihnen". Cue and answer are different words by
+                # construction (a Nominative form is never also an
+                # Accusative or Dative one for the same cell), so unlike the
+                # Nominative topic there is nothing given away.
+                nominative = _oblique_pronoun_nominative_cue_form(person, number, gender)
+                if nominative is None:
+                    continue
+                # Round-trip the cue, the same discipline the adjective cue
+                # uses: decline the cued Nominative form back into this
+                # item's own case and require it to reproduce the answer. A
+                # cue that asks for a different word than the one removed
+                # would mark a correct learner wrong, which is the exact
+                # defect class this whole change exists to close.
+                cued_gender = (
+                    "Masc" if gender is None and (person, number) == ("3", "Sing") else gender
+                )
+                back = paradigms.personal_pronoun_form(
+                    fixed_case, person, number, cued_gender or "Unk"
+                )
+                if back is None or back.lower() != lower:
+                    continue
+                cue = _citation_cue(nominative, token.text)
+                if cue is None:
+                    continue
             out.append(
                 Candidate(
                     token_index=token.i,
                     kind="personal_pronoun",
                     person=person,
                     number=number,
-                    gender=token.morph.get("Gender"),
+                    gender=gender,
+                    cue=cue,
                 )
             )
         return out
@@ -2641,6 +2836,38 @@ def _citation_cue(lemma: str, surface: str) -> str | None:
     return _cue_case_matched_to_answer(lemma, surface)
 
 
+def _auxiliary_cue(lemma: str, token: Token) -> str | None:
+    """The citation form of a blanked auxiliary or modal, shown to the
+    learner as "(werden)", "(sein)" or "(haben)".
+
+    docs/audits/cycle-11-corpus-report.md's strongest measured finding, and
+    the owner's decision D1 on it. A blanked auxiliary with no cue is not a
+    well-formed exercise: "Morgen ___ ich nach Berlin fahren." accepts
+    "werde", "will", "kann", "muss", "moechte" and "wuerde", all correct
+    German, of which the bank stores one. The cycle 11 verifier rejected
+    143 items and said so itself, in German, over and over: "Ohne Hinweis
+    sind neben 'werde' auch Modalverben wie 'kann', 'will' oder 'muss'
+    ebenso passend" -- "ohne Hinweis", without a cue.
+
+    Split by whether a topic cues at all, that run accepted 221 of 260
+    (85%) from cued topics against 116 of 220 (53%) from uncued ones, and
+    every one of the twelve topics below 60% was uncued. Five produced
+    nothing at all. The cue does not make the exercise easier in the way
+    that matters: the learner still has to supply person, number and tense,
+    which is the whole of what these topics test. It removes the choice of
+    a DIFFERENT verb, which no topic here ever meant to test.
+
+    Same device, same function, as the invariant determiner cue the owner
+    adopted for the article topics, which took ``artikel_bestimmt_nom``
+    from four cycles of producing nothing to 10 of 10 accepted in cycle 11.
+
+    Delegated to ``_citation_cue`` so an auxiliary whose citation form
+    happens to equal the answer ("wir werden", cue "werden") yields no cue
+    rather than a leak; ``blanker._irregular_aux_outcome`` then drops the
+    item on ``cue_equals_answer``, which is the safe outcome."""
+    return _citation_cue(lemma, token.text)
+
+
 def _plural_noun_cue(token: Token) -> str | None:
     """The citation form (nominative singular) for a blanked plural noun,
     taken from the tagger's own lemma -- the only source this cycle has for
@@ -3078,6 +3305,7 @@ def _select_perfekt(sentence: TaggedSentence, *, aux_lemma: str) -> list[Candida
                 person=person,
                 number=number,
                 tense_mood="Pres",
+                cue=_auxiliary_cue(aux_lemma, token),
             )
         )
     return out
@@ -3128,6 +3356,7 @@ def _select_plusquamperfekt(sentence: TaggedSentence) -> list[Candidate]:
                 person=person,
                 number=number,
                 tense_mood="Past",
+                cue=_auxiliary_cue(lemma, token),
             )
         )
     return out
@@ -3253,6 +3482,7 @@ def _select_konjunktiv_ii_base(sentence: TaggedSentence) -> list[Candidate]:
                 person=person,
                 number=number,
                 tense_mood="SubjII",
+                cue=_auxiliary_cue(lemma, token),
             )
         )
     return out
@@ -3376,6 +3606,7 @@ def _select_konjunktiv_ii_vergangenheit(sentence: TaggedSentence) -> list[Candid
                 person=person,
                 number=number,
                 tense_mood="SubjII",
+                cue=_auxiliary_cue(lemma, token),
             )
         )
     return out
@@ -3532,6 +3763,7 @@ def _select_passiv(sentence: TaggedSentence, *, morph_tense: str) -> list[Candid
                 person=person,
                 number=number,
                 tense_mood=morph_tense,
+                cue=_auxiliary_cue("werden", token),
             )
         )
     return out
@@ -3659,6 +3891,7 @@ def _select_zustandspassiv(sentence: TaggedSentence) -> list[Candidate]:
                 person=person,
                 number=number,
                 tense_mood="Pres",
+                cue=_auxiliary_cue("sein", token),
             )
         )
     return out
@@ -3710,6 +3943,7 @@ def _select_zustandspassiv_zeiten(sentence: TaggedSentence) -> list[Candidate]:
                     person=person,
                     number=number,
                     tense_mood="Past",
+                    cue=_auxiliary_cue("sein", token),
                 )
             )
         elif token.morph.get("Tense") == "Pres":
@@ -3779,6 +4013,7 @@ def _select_futur_i(sentence: TaggedSentence) -> list[Candidate]:
                 person=person,
                 number=number,
                 tense_mood="Pres",
+                cue=_auxiliary_cue("werden", token),
             )
         )
     return out
@@ -3847,6 +4082,7 @@ def _select_futur_ii(sentence: TaggedSentence) -> list[Candidate]:
                 person=person,
                 number=number,
                 tense_mood="Pres",
+                cue=_auxiliary_cue("werden", token),
             )
         )
     return out
