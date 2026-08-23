@@ -39,6 +39,24 @@ Not tasks. Do not "fix" these without a decision from the owner.
   costs are in `docs/audits/cycle-11-corpus-report.md` section 4; no rule
   is applied yet because the obvious one drops a good sentence.
 
+- **"Spazieren gehen" and a capitalised verb that should be lowercase.**
+  A single Leipzig source typo. German nominalisation is fully productive,
+  so "das Spazieren" is a real word and no dictionary can call the string
+  wrong; only its role beside "gehen" makes it wrong, and neither the
+  vendored word list nor the lemmatiser carries that signal. spaCy's own
+  tag is circular here (NOUN because of the capitalisation).
+
+- **3rd person singular is out of reach for `pronomen_personal_nom`.** No
+  German verb form distinguishes "er" from "sie" from "es", so the verb can
+  never settle a blanked 3rd-singular subject, and recovering the intended
+  one needs coreference this package does not have. The cell is dropped.
+
+- **The four CEFR frequency-rank boundaries are tunable, not settled.** The
+  owner set the shape (A1 against roughly the first 5,000 words, widening by
+  level) and said outright the numbers were a guess. They are constants in
+  `src/lexicon/vocabulary.py`. Raising A1 and A2 is the first lever if 70%
+  retention proves too steep.
+
 - **Anything the verifier catches twice becomes a deterministic rule.** A
   standing rule, not a task. The verifier is a discovery instrument and must
   never be the only thing between a known defect class and a learner.
@@ -47,17 +65,12 @@ Not tasks. Do not "fix" these without a decision from the owner.
 
 ## 2. Open work
 
-- [ ] **2.1 Decide the three open questions from the cycle 11 audit.** Each
-  has measured options in `docs/audits/cycle-11-corpus-report.md`; none can
-  be picked without the owner.
-  - **Auxiliary cue.** Cued topics accept at 85%, uncued at 53%, and all
-    twelve topics below 60% are uncued. Give `(werden)`/`(sein)`/`(haben)`
-    to the auxiliary topics, as `artikel_bestimmt_nom` already has.
-  - **Pronoun uniqueness.** 9 of 17 items in the two topics have more than
-    one correct answer. Anchor gate for `_nom`, nominative cue for `_akk`
-    and `_dat`. Recommendation is both.
-  - **CEFR unknown-word policy.** The ceiling does not examine 36% of
-    accepted items. The frequency fallback costs 20.8% of supply.
+- [ ] **2.1 Re-run the corpus pilot and audit it, against 236 not 337.** The
+  four cycle 11 changes (auxiliary cue, pronoun cue and anchor gate,
+  level-graduated vocabulary filter, junk-text carrier filter) are built and
+  measured: 236 of cycle 11's own 337 accepted items survive them. A
+  straight item-count comparison against 337 would compare a bank with 20
+  known defects and uncontrolled vocabulary to one without.
 
 - [ ] **2.2 Get real numbers out of `scripts/eval_verifier.py`.** The
   adversarial set (38 confirmed defects, 31 confirmed clean) and the script
