@@ -2344,3 +2344,52 @@ decide whether it becomes its own item, not absorbed into this one.
   src/` all clean.
 - TODO.md's `anpassen` "known limit" entry (section 1) removed -- it is
   fixed, not a recorded limit anymore.
+
+---
+
+## Cycle 11 (corpus pilot re-run): three fixes
+
+Full audit in `docs/audits/cycle-11-corpus-report.md`. 337 accepted items
+audited by hand; 24 defects in three classes; the five cycle 10 selector
+classes all clean.
+
+**`CARD` added to `_NP_INTERNAL_TAGS`** (`src/generation/blanking/
+selectors.py`). "Dabei habe es sich um zwei verschiedene Gruppen
+gehandelt." routed to `verben_reflexiv_dat`; `sich handeln um` is
+accusative. The backward walk from "Gruppen" to its governing preposition
+stopped at the cardinal "zwei" and never reached "um", so the PP's object
+counted as a bare accusative object and forced Dative. Measured over
+12,000 corpus sentences: `CARD` walls off 4.82% of all prepositional
+phrases, more than twice `ADV` (2.57%), which was deliberately not added
+because an adverb can also end a phrase. `handeln` cannot be covered by
+the government lexicon at all -- `sich handeln um` only ever occurs with
+the ambiguous `sich`, never with the unambiguous pronouns the lexicon is
+built from -- which is why the fix is structural. Both directions pinned
+by tests.
+
+**Adjective cue round-trip gate** (`_round_tripped_adjective_cue`). This
+tagger lemmatises the determiner-like adjectives to their own strong
+masculine Nominative form, so learners saw "(erster)", "(letzter)",
+"(anderer)", "(besonderer)" where every ordinary adjective in the same
+topic showed a bare base form. 8 of 337 items. The cue is now kept only if
+declining it at the item's own (declension, cell) reproduces the answer --
+`docs/audits/tagger-accuracy-vs-gold.md` recommendation 1, applied. Two
+real stem changes are exempted so the gate costs no recall: `hoch` to
+`hoh`, and the -el/-er e-elision, computed from the rule and restricted to
+-er after a vowel so "sauber" still round-trips. No cue is repaired by
+guessing a stem ("ander", "besonder" are not German words), so the item
+ships uncued and usually then fails the uniqueness gate: measured cost 8
+items, against 21 correctly cued adjective items kept.
+
+One test asserted `cue == "Letzter"` for the answer "Letzte". Its subject
+(capitalisation matching) is right and still covered by the "Alte"/"Alt"
+test beside it; the value it froze was this defect. Inverted rather than
+deleted, with the reason recorded in the test, per CLAUDE.md rule 7. A
+second test's incidental `not report.skips_by_uniqueness` assertion was
+narrowed for the same reason, its own pronoun subject untouched.
+
+**`blanked_lemma` serialised into the corpus pilot's review file**
+(`scripts/step7_corpus_pilot.py`). The diversity cap is keyed on it but it
+never reached the output, so lemma diversity could only be read from the
+report's aggregates and never audited item by item. One line, no behaviour
+change.

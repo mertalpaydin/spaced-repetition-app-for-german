@@ -480,6 +480,34 @@ def test_adjektivdeklination_bestimmt_dative_ending_and_its_only_distractor() ->
     assert [d.text for d in item.distractors] == ["freundliche"]
 
 
+def test_adjektivdeklination_cue_is_dropped_when_the_lemma_cannot_regenerate_the_answer() -> None:
+    """docs/audits/cycle-11-corpus-report.md defect class 3: this tagger
+    lemmatises the determiner-like adjectives to their own strong masculine
+    Nominative form, so "die erste halbe Stunde" was cued "(erster)" and
+    "andere Hobbys" was cued "(anderer)" while every ordinary adjective in
+    the same topic was cued with its bare base form. Neither can be declined
+    back into the answer, which is what makes the round-trip gate decide it
+    rather than a list of known-bad lemmas."""
+    item = _blank("adjektivdeklination_bestimmt", "Ich habe die erste halbe Stunde verpasst.")
+    assert item.proposed_answer == "erste"
+    assert item.cue is None
+    unbestimmt = _blank("adjektivdeklination_bestimmt", "Der Vorsitz der alten Treffen wechselt.")
+    assert unbestimmt.cue == "alt"
+
+
+def test_adjektivdeklination_cue_survives_a_stem_alternating_adjective() -> None:
+    """The false-negative half of the same gate. "hoch" -> "hohe" and
+    "teuer" -> "teure" are real German stem changes, not lemma errors, so
+    the round trip must accept them -- a gate that dropped these would buy
+    its precision by silently costing coverage on ordinary vocabulary."""
+    hoch = _blank("adjektivdeklination_bestimmt", "Er kritisierte die hohe Belastung.")
+    assert hoch.proposed_answer == "hohe"
+    assert hoch.cue == "hoch"
+    teuer = _blank("adjektivdeklination_bestimmt", "Sie kaufte die teure Uhr.")
+    assert teuer.proposed_answer == "teure"
+    assert teuer.cue == "teuer"
+
+
 def test_adjektivdeklination_bestimmt_rejects_a_determiner_from_an_unrelated_noun_phrase() -> None:
     """docs/audits/cycle-10-corpus-report.md 8.7: "Die Frisur hat bei den
     Studentinnen guten Anklang gefunden." -- "guten Anklang" has no article
@@ -908,6 +936,34 @@ def test_verben_reflexiv_akk_rejects_sich_followed_by_a_prepositional_phrase() -
     assert item.proposed_answer == "sich"
     _, dat_candidates = _select("verben_reflexiv_dat", "Er interessiert sich sehr für Musik.")
     assert dat_candidates == []
+
+
+def test_verben_reflexiv_akk_sees_past_a_cardinal_between_preposition_and_noun() -> None:
+    """docs/audits/cycle-11-corpus-report.md defect 1: "sich handeln um" is
+    Accusative, but "Dabei habe es sich um zwei verschiedene Gruppen
+    gehandelt." routed to ``verben_reflexiv_dat``. The backward walk from
+    "Gruppen" to its governing preposition stopped dead at the cardinal
+    "zwei" (``CARD``, then absent from ``_NP_INTERNAL_TAGS``), never reached
+    "um", and so counted the PP's own object as a bare accusative object of
+    "handeln" -- the one signal that forces Dative in the general case."""
+    sentence = "Dabei habe es sich um zwei verschiedene Gruppen gehandelt."
+    item = _blank("verben_reflexiv_akk", sentence)
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select("verben_reflexiv_dat", sentence)
+    assert dat_candidates == []
+
+
+def test_verben_reflexiv_dat_still_sees_an_object_np_that_opens_with_a_cardinal() -> None:
+    """The other direction of the same change: a cardinal that opens a
+    genuine bare object NP ("sich drei neue Bücher kaufen") must still count
+    as an object and still force Dative. Pinned so a future widening of
+    ``_NP_INTERNAL_TAGS`` cannot buy fewer false positives by trading them
+    for false negatives."""
+    sentence = "Er hat sich drei neue Bücher gekauft."
+    item = _blank("verben_reflexiv_dat", sentence)
+    assert item.proposed_answer == "sich"
+    _, akk_candidates = _select("verben_reflexiv_akk", sentence)
+    assert akk_candidates == []
 
 
 def test_verben_reflexiv_dat_rejects_a_reflexive_capable_form_governed_by_a_preposition() -> None:
@@ -2814,18 +2870,25 @@ def test_adjektivdeklination_nullartikel_cue_matches_sentence_initial_capitalisa
     assert item.cue[:1].isupper() == item.proposed_answer[:1].isupper()
 
 
-def test_adjektivdeklination_nullartikel_cue_matches_sentence_initial_capitalisation_letzte() -> (
-    None
-):
-    """docs/audits/cycle-08-report.md: '___ (letzter) Woche hatte ich
-    plötzlich fiese Bauchschmerzen.' -> 'Letzte'."""
+def test_adjektivdeklination_nullartikel_withholds_the_cue_for_an_inflected_lemma() -> None:
+    """This test used to assert ``item.cue == "Letzter"`` for the answer
+    "Letzte", added in cycle 8 to pin CAPITALISATION matching. Its subject
+    was right and is unchanged elsewhere (see the "Alte"/"Alt" test above,
+    which pins the same behaviour on an adjective whose lemma really is a
+    citation form); the VALUE it froze was not. "Letzter" is not the
+    citation form of "Letzte" -- it is this tagger's own strong masculine
+    Nominative lemma for it, the 6.69% lemma-conflict class measured in
+    docs/audits/tagger-accuracy-vs-gold.md, and cycle 11's corpus audit
+    found it and "(anderer)"/"(erster)"/"(besonderer)" reaching learners in
+    8 of 337 shipped items. Changing the assertion rather than the code
+    would have been pinning a defect, so the expectation is inverted here
+    and the reason recorded: no cue is correct, because there is no correct
+    cue to give ("letzt" is not a German word on its own)."""
     item = _blank(
         "adjektivdeklination_nullartikel", "Letzte Woche hatte ich plötzlich fiese Bauchschmerzen."
     )
     assert item.proposed_answer == "Letzte"
-    assert item.cue == "Letzter"
-    assert item.cue is not None
-    assert item.cue[:1].isupper() == item.proposed_answer[:1].isupper()
+    assert item.cue is None
 
 
 # ==============================================================================

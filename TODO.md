@@ -27,7 +27,17 @@ Not tasks. Do not "fix" these without a decision from the owner.
   es kalt` have no governing verb to look up. They stay dropped.
 
 - **`ausweichen` has no usable corpus evidence** and so is absent from the
-  lexicon. A real coverage gap, not a threshold artefact.
+  lexicon. A real coverage gap, not a threshold artefact. `handeln` is a
+  second, structural instance: `sich handeln um` only ever occurs with the
+  ambiguous `sich`, so the lexicon can never have an entry for it. Cycle 11
+  fixed that one item's routing structurally instead (`CARD` in the
+  preposition walk-back), not by adding evidence that cannot exist.
+
+- **Leipzig carries scraped-web artefacts that carrier validation does not
+  see**: a caption glued to a headline, a page heading glued to body text.
+  Four of 337 in cycle 11, all sharing a colon. Options and their measured
+  costs are in `docs/audits/cycle-11-corpus-report.md` section 4; no rule
+  is applied yet because the obvious one drops a good sentence.
 
 - **Anything the verifier catches twice becomes a deterministic rule.** A
   standing rule, not a task. The verifier is a discovery instrument and must
@@ -37,9 +47,17 @@ Not tasks. Do not "fix" these without a decision from the owner.
 
 ## 2. Open work
 
-- [ ] **2.1 Re-run the corpus pilot and audit it.** Confirms the section 8
-  fixes against a fresh sample. Command is in the session; outputs are
-  `data/corpus_pilot_review.jsonl`, `_rejected.jsonl` and `_report.json`.
+- [ ] **2.1 Decide the three open questions from the cycle 11 audit.** Each
+  has measured options in `docs/audits/cycle-11-corpus-report.md`; none can
+  be picked without the owner.
+  - **Auxiliary cue.** Cued topics accept at 85%, uncued at 53%, and all
+    twelve topics below 60% are uncued. Give `(werden)`/`(sein)`/`(haben)`
+    to the auxiliary topics, as `artikel_bestimmt_nom` already has.
+  - **Pronoun uniqueness.** 9 of 17 items in the two topics have more than
+    one correct answer. Anchor gate for `_nom`, nominative cue for `_akk`
+    and `_dat`. Recommendation is both.
+  - **CEFR unknown-word policy.** The ceiling does not examine 36% of
+    accepted items. The frequency fallback costs 20.8% of supply.
 
 - [ ] **2.2 Get real numbers out of `scripts/eval_verifier.py`.** The
   adversarial set (38 confirmed defects, 31 confirmed clean) and the script

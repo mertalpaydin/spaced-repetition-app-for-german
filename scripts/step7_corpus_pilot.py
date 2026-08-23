@@ -717,7 +717,18 @@ def _to_bank_item(
         source_sentence_id=item.source_sentence_id,
     )
     facet = derive_facet(bank_item, topic)
-    update: dict[str, object] = {"corpus_source": corpus_source, "corpus_line_id": corpus_line_id}
+    # ``blanked_lemma`` rides along the same ``extra="allow"`` route as the
+    # two provenance fields. docs/audits/cycle-11-corpus-report.md's own
+    # finding: the diversity cap is keyed on it (``_diversity_key``) but it
+    # was never serialised, so lemma diversity could only be checked from
+    # ``_report.json``'s aggregate counts and never audited item by item
+    # against the review file. Carrying it costs nothing and makes the cap
+    # falsifiable from the output alone.
+    update: dict[str, object] = {
+        "corpus_source": corpus_source,
+        "corpus_line_id": corpus_line_id,
+        "blanked_lemma": item.blanked_lemma,
+    }
     if facet != bank_item.facet:
         update["facet"] = facet
     return bank_item.model_copy(update=update)

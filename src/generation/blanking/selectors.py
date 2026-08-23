@@ -593,6 +593,72 @@ def _span_trusts_far_declension_trigger(span: tuple[Token, ...]) -> bool:
     return all(t.pos in _DECLENSION_TRANSPARENT_SPAN_POS for t in span)
 
 
+# Attributive stems that are NOT the citation form plus a declension
+# ending, so a naive "stem + ending == surface" round trip would wrongly
+# reject their perfectly good cue. Two closed groups, both real German
+# spelling rules rather than a list of observed exceptions:
+#
+#   * "hoch" alternates its stem outright when it inflects ("hohe", never
+#     "hoche"). It is the only adjective in German that does this.
+#   * A citation form ending in "-el", or in "-er" after a vowel or
+#     diphthong ("teuer", "sauer", "ungeheuer"), elides that "e" when an
+#     ending is added: "dunkel" -> "dunkle", "teuer" -> "teure". Computed,
+#     not enumerated, so an unlisted "-el" adjective is handled too. The
+#     "-er" branch is deliberately restricted to a preceding vowel: an
+#     ordinary consonant + "-er" does NOT elide ("sauber" -> "saubere",
+#     "bitter" -> "bittere"), and widening it would let the very lemma
+#     errors this gate exists to catch slip back through.
+_ADJECTIVE_STEM_ALTERNATIONS: dict[str, str] = {"hoch": "hoh"}
+_ELIDING_ER_PRECEDERS: tuple[str, ...] = ("a", "e", "i", "o", "u", "ä", "ö", "ü")
+
+
+def _adjective_stem_candidates(citation: str) -> tuple[str, ...]:
+    """Every stem ``citation`` could legitimately contribute to an inflected
+    attributive form: itself, its irregular alternation if it has one, and
+    its "e"-elided form if German's -el/-er elision rule applies."""
+    stems = [citation]
+    alternation = _ADJECTIVE_STEM_ALTERNATIONS.get(citation.lower())
+    if alternation is not None:
+        stems.append(alternation if citation.islower() else alternation.capitalize())
+    lower = citation.lower()
+    if lower.endswith("el") or (lower.endswith("er") and lower[-3:-2] in _ELIDING_ER_PRECEDERS):
+        stems.append(citation[:-2] + citation[-1])
+    return tuple(stems)
+
+
+def _round_tripped_adjective_cue(
+    lemma: str, surface: str, declension: Literal["weak", "mixed", "strong"], cell: Cell
+) -> str | None:
+    """``lemma`` as a cue, but only if declining it at this item's own
+    ``(declension, cell)`` actually reproduces ``surface``.
+
+    docs/audits/tagger-accuracy-vs-gold.md recommendation 1: "derive the
+    surface form back from the cue and require it to equal the answer".
+    Lemma is the tagger feature with the highest measured conflict rate
+    against gold that this module still reads (6.69%), and the cue is the
+    one place where a wrong lemma is put in front of a learner verbatim
+    rather than merely costing a candidate. A cue that cannot regenerate
+    the answer is not a citation form of the answer, whatever the tagger
+    called it, so it is dropped -- the item still ships, uncued, and the
+    uniqueness gate decides its fate exactly as it does for every other
+    uncued candidate. Deliberately NOT repaired by guessing at a stem: the
+    cycle 11 audit's own cases ("anderer", "besonderer") reduce to "ander"
+    and "besonder", which are not German words on their own, so there is no
+    correct cue to fall back to.
+
+    Compared case-insensitively: a gap that opens the sentence capitalises
+    its answer by orthography alone ("Alte Batterien ..."), which is a fact
+    about position, not about the lemma, and ``_citation_cue`` already
+    matches the cue's own case to the answer afterwards."""
+    ending = paradigms.adjective_ending(declension, cell)
+    if ending is None:
+        return None
+    target = surface.lower()
+    if not any(stem.lower() + ending == target for stem in _adjective_stem_candidates(lemma)):
+        return None
+    return _citation_cue(lemma, surface)
+
+
 def _adjective_selector(declension: Literal["weak", "mixed", "strong"]) -> Selector:
     def select(sentence: TaggedSentence) -> list[Candidate]:
         out: list[Candidate] = []
@@ -670,15 +736,28 @@ def _adjective_selector(declension: Literal["weak", "mixed", "strong"]) -> Selec
             # docs/audits/cycle-07-report.md section B: the adjective's own
             # uninflected positive base form, the same fact
             # ``partizip_i_attributiv``/``partizip_ii_attributiv_erweitert``
-            # already cue with (their own infinitive) -- here the lemma
-            # itself is already that base form (an ADJA's lemma is never the
-            # inflected surface form the way a verb's finite-form lemma can
-            # be), so no extra table lookup is needed. Delegated to
+            # already cue with (their own infinitive). Delegated to
             # ``_citation_cue`` for the same equals-the-answer guard and
             # dictionary reality check every other cue in this module goes
-            # through -- never equal in practice, since the base form always
-            # lacks the declension ending the inflected surface form carries.
-            cue = _citation_cue(token.lemma, token.text) if token.lemma else None
+            # through.
+            #
+            # This comment used to claim "an ADJA's lemma is never the
+            # inflected surface form the way a verb's finite-form lemma can
+            # be, so no extra table lookup is needed". The cycle 11 corpus
+            # audit disproved it: ``de_core_news_sm`` lemmatises the
+            # determiner-like adjectives to their own strong masculine
+            # NOMINATIVE form -- "andere" -> "anderer", "erste" -> "erster",
+            # "letzten" -> "letzter", "besondere" -> "besonderer" -- so the
+            # learner was shown "(erster)" and "(anderer)" where every other
+            # adjective in the same topic showed a bare base form ("(gut)",
+            # "(klein)"). That is docs/audits/tagger-accuracy-vs-gold.md's
+            # measured 6.69% lemma-conflict rate reaching a learner, and its
+            # own recommendation 1 (round-trip the cue) applied here.
+            cue = (
+                _round_tripped_adjective_cue(token.lemma, token.text, declension, cell)
+                if token.lemma
+                else None
+            )
             out.append(
                 Candidate(
                     token_index=token.i,
@@ -1056,7 +1135,23 @@ _APPOSITIONAL_QUANTIFIER_LEMMAS: frozenset[str] = frozenset({"alle", "beide"})
 # the determiner-shaped topics above (which only ever look at a bare
 # determiner immediately after its preposition, so one token back is
 # always enough there).
-_NP_INTERNAL_TAGS: frozenset[str] = frozenset({"ART", "PIAT", "PPOSAT", "ADJA", "PDAT"})
+#
+# ``CARD`` (a cardinal numeral: "um ZWEI verschiedene Gruppen", "fuer DREI
+# Tage") was the one missing member, found by the cycle 11 corpus audit:
+# "Dabei habe es sich um zwei verschiedene Gruppen gehandelt." routed to
+# ``verben_reflexiv_dat`` because the walk back from "Gruppen" stopped dead
+# at "zwei" and never reached "um", so the PP's own object counted as a
+# bare accusative object of "handeln" and forced Dative -- "sich handeln
+# um" is Accusative. Measured over 12,000 corpus sentences (6,000 Tatoeba
+# plus 6,000 Leipzig, the same reader ``step7_corpus_pilot.py`` uses):
+# ``CARD`` walls off 4.82% of all prepositional phrases seen, more than
+# twice the next candidate, and a cardinal between a preposition and its
+# head noun is always part of that noun phrase, never the end of it. The
+# next two by frequency (``ADV`` 2.57%, ``ADJD`` 0.84%) are NOT added: an
+# adverb can equally well END a phrase rather than sit inside one, so
+# walking past it would guess, which is the failure mode this module
+# exists to avoid.
+_NP_INTERNAL_TAGS: frozenset[str] = frozenset({"ART", "PIAT", "PPOSAT", "ADJA", "PDAT", "CARD"})
 
 
 def _governed_by_adposition(sentence: TaggedSentence, index: int) -> bool:

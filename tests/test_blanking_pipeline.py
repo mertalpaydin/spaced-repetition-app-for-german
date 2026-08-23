@@ -401,7 +401,15 @@ def test_blank_sentences_keeps_a_nominative_pronoun_item_unaffected() -> None:
     test_blank_sentences_max_items_per_topic_caps_a_dominant_topic)."""
     report = blank_sentences(["Ich sehe den Mann auf der anderen Straßenseite."])
     assert report.items_by_topic.get("pronomen_personal_nom", 0) == 1
-    assert not report.skips_by_uniqueness
+    # This used to assert ``not report.skips_by_uniqueness`` outright, which
+    # was collateral rather than this test's subject: the same sentence's
+    # "anderen" is now dropped as an uncued open-class adjective, because
+    # docs/audits/cycle-11-corpus-report.md's round-trip gate withholds the
+    # cue "(anderer)" -- this tagger's lemma for "anderen", and not a
+    # citation form of it. Losing that adjective item is the intended cost
+    # of not showing a learner a wrong citation form; the pronoun assertion
+    # above, which is what this test exists for, is unchanged.
+    assert set(report.skips_by_uniqueness) == {"adjective_lexeme_open_class"}
 
 
 # --------------------------------------------------------------------------
