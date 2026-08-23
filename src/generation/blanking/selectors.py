@@ -345,6 +345,66 @@ def _determiner_cue(token: Token, art_type: ArtFamily) -> str | None:
     return _cue_case_matched_to_answer(stem, token.text)
 
 
+def _clause_would_lose_its_subject(sentence: TaggedSentence, index: int) -> bool:
+    """Whether the noun phrase at ``index`` is the only thing in its clause
+    that could be the subject, which makes a Genitive reading of it
+    impossible: a German clause with a finite verb must have a Nominative
+    subject.
+
+    docs/audits/cycle-12-corpus-report.md defect 4. "Konstantin der Große
+    wird in der modernen historischen Forschung kontrovers diskutiert."
+    shipped as ``kasus_genitiv_formen``. The tagger is simply wrong here,
+    and confidently so: it reads "der Große" as ``Case=Gen|Gender=Fem``
+    when it is a Nominative masculine epithet and part of the subject. No
+    amount of care about the determiner itself catches that, because the
+    determiner's own features are the thing that is wrong.
+
+    The clause structure does catch it. If "der Große" were Genitive, this
+    clause would contain no Nominative at all, and no German clause with a
+    finite verb looks like that. So a Genitive candidate is rejected when
+    its own clause has no Nominative outside the candidate's own noun
+    phrase. Every genuine Genitive in the cycle 12 sample keeps its subject
+    somewhere else ("Der Bruder meines Vaters ist mein Onkel", "Tom lud die
+    Taschen in den Kofferraum seines Wagens"), so this costs none of them.
+
+    Two guards keep the premise honest, both found by measuring the rule
+    against the cycle 12 sample rather than by reasoning about it.
+
+    **Only for a Genitive that is NOT governed by a preposition** (the
+    caller applies this only under the "forbidden" preposition gate, which
+    is ``kasus_genitiv_formen`` alone). "... sich während eines Konzerts zu
+    unterhalten" and "... infolge des Bürgerkriegs in Syrien sprunghaft
+    anstiegen" were both rejected by an earlier version of this check and
+    are both perfectly good: a Genitive inside a prepositional phrase
+    cannot be the subject in the first place, so its clause losing one
+    proves nothing. The second is worth naming twice, because the reason
+    the clause looked subjectless is that the tagger labelled its actual
+    subject "die Flüchtlingszahlen" ``Case=Acc``.
+
+    **Only for a clause that has a finite verb.** An infinitive clause has
+    no subject by construction, so the premise does not hold there."""
+    clause_start, clause_end = _clause_span(sentence, index)
+    if not any(
+        token.morph.get("VerbForm") == "Fin" for token in sentence.tokens[clause_start:clause_end]
+    ):
+        return False
+    np_start, np_end = index, index + 1
+    while np_end < clause_end and sentence.tokens[np_end].tag in _NP_INTERNAL_TAGS:
+        np_end += 1
+    if np_end < clause_end and sentence.tokens[np_end].pos in ("NOUN", "PROPN"):
+        np_end += 1
+    while np_start - 1 >= clause_start and sentence.tokens[np_start - 1].pos in ("NOUN", "PROPN"):
+        np_start -= 1
+    for token in sentence.tokens[clause_start:clause_end]:
+        if np_start <= token.i < np_end:
+            continue
+        if token.pos not in ("NOUN", "PROPN", "PRON", "DET"):
+            continue
+        if token.morph.get("Case") == "Nom":
+            return False
+    return True
+
+
 def _determiner_selector(
     fixed_case: str,
     allowed_art_types: frozenset[ArtFamily],
@@ -365,6 +425,12 @@ def _determiner_selector(
                 if _preceded_by_adposition(sentence, token.i):
                     continue
             elif not _preceded_by_adposition_in(sentence, token.i, preposition_gate):
+                continue
+            if (
+                fixed_case == "Gen"
+                and isinstance(preposition_gate, str)
+                and _clause_would_lose_its_subject(sentence, token.i)
+            ):
                 continue
             out.append(
                 Candidate(
@@ -1106,6 +1172,35 @@ def _finite_verb_cell_is_unambiguous(token: Token, person: str, number: str) -> 
     return matching == [(person, number)]
 
 
+def _pronoun_case_contradicts_verb(sentence: TaggedSentence, index: int, fixed_case: str) -> bool:
+    """Whether the governing verb's own case contradicts the case this topic
+    claims for the pronoun at ``index``.
+
+    docs/audits/cycle-12-corpus-report.md defect 1. "Ich kann euch nicht
+    helfen." shipped as ``pronomen_personal_akk``. "euch" is spelled the
+    same in the Accusative and the Dative, so the tagger's guess decides,
+    and here it guessed Accusative; "helfen" governs the Dative and nothing
+    else, so the item taught the wrong case under the wrong topic.
+
+    The fact needed to catch it was already in the repository and simply
+    never consulted from here: ``paradigms.DATIVE_ONLY_VERBS``, the same
+    hand list ``_reflexive_case`` has always used for the reflexive
+    pronouns. The reflexive selectors derive case from the governing verb;
+    the personal-pronoun selectors trusted the tag. Now both consult it.
+
+    Deliberately one-directional. A verb on the Dative-only list rejects an
+    Accusative claim, because that list is a positive statement about the
+    verb. The reverse is not available: there is no comparable list of
+    verbs that can never take a Dative, and inferring one from absence
+    would reject every ordinary transitive verb that also licenses a free
+    or benefactive Dative ("Ich kaufe dir ein Buch")."""
+    clause_start, clause_end = _clause_span(sentence, index)
+    verb_lemma = _governing_verb_lemma(sentence, clause_start, clause_end)
+    if verb_lemma is None:
+        return False
+    return fixed_case == "Acc" and verb_lemma in paradigms.DATIVE_ONLY_VERBS
+
+
 def _oblique_pronoun_nominative_cue_form(
     person: str, number: str, gender: str | None
 ) -> str | None:
@@ -1152,6 +1247,10 @@ def _personal_pronoun_selector(fixed_case: str) -> Selector:
                 subject = _finite_verb_person_number(sentence)
                 if subject is None or subject == (person, number):
                     continue  # could be reflexive here -- reject, don't guess
+            if fixed_case in ("Acc", "Dat") and _pronoun_case_contradicts_verb(
+                sentence, token.i, fixed_case
+            ):
+                continue
             gender = token.morph.get("Gender")
             if fixed_case == "Nom":
                 # The Nominative topic cannot be cued: the cue would BE the
@@ -1348,6 +1447,10 @@ _APPOSITIONAL_QUANTIFIER_LEMMAS: frozenset[str] = frozenset({"alle", "beide"})
 # exists to avoid.
 _NP_INTERNAL_TAGS: frozenset[str] = frozenset({"ART", "PIAT", "PPOSAT", "ADJA", "PDAT", "CARD"})
 
+# Infinitives that turn a finite "wird"/"wurde" into a FUTURE auxiliary
+# rather than a passive one -- see ``_clause_ends_in_copular_infinitive``.
+_COPULAR_INFINITIVE_LEMMAS: frozenset[str] = frozenset({"sein", "bleiben", "werden"})
+
 
 def _governed_by_adposition(sentence: TaggedSentence, index: int) -> bool:
     """Whether a preposition governs the noun phrase ``index`` sits inside,
@@ -1410,6 +1513,50 @@ def _governed_by_adposition(sentence: TaggedSentence, index: int) -> bool:
     return j >= 0 and sentence.tokens[j].pos == "ADP"
 
 
+# Attributive relative/demonstrative genitives. "deren"/"dessen" directly
+# before a noun modify that noun ("deren Familien"), so they sit INSIDE the
+# noun phrase exactly like a possessive determiner. This tagger labels them
+# ``PDS`` (the SUBSTITUTING demonstrative) rather than ``PDAT``, which is
+# why they are not simply in ``_NP_INTERNAL_TAGS``: only the ones followed
+# by a noun are attributive, and the tag alone does not say.
+_ATTRIBUTIVE_GENITIVE_PRONOUNS: frozenset[str] = frozenset({"deren", "dessen"})
+
+
+def _coordinated_with_an_adposition_governed_noun(sentence: TaggedSentence, index: int) -> bool:
+    """Whether the noun at ``index`` is the second half of a coordination
+    whose first half sits inside a prepositional phrase, so that this noun
+    is inside that same phrase and is not a bare object either.
+
+    docs/audits/cycle-12-corpus-report.md defect 3. "Seit über 117 Jahren
+    engagieren sich alle Kinderfreunde fuer Kinder und deren Familien."
+    routed to ``verben_reflexiv_dat``; "sich engagieren" is Accusative.
+    "Kinder" is correctly seen as governed by "fuer", but "Familien" is
+    not: the walk back from it reaches "deren" (tagged ``PDS``, not an
+    ``_NP_INTERNAL_TAGS`` member) and stops, so "Familien" counted as a
+    bare Accusative object and forced the Dative reading.
+
+    Narrow on purpose, and narrower than widening ``_governed_by_adposition``
+    itself would be. That function is consulted from several places and a
+    coordination rule there would make the walk cross into genuinely
+    separate noun phrases: "Er sieht fuer Peter und Maria einen Film" must
+    keep "einen Film" as a real object. Here the check only ever REMOVES an
+    object signal, and only for a noun standing immediately after
+    "und"/"oder" whose left neighbour is itself prepositionally governed."""
+    j = index - 1
+    while j >= 0:
+        tok = sentence.tokens[j]
+        if tok.tag in _NP_INTERNAL_TAGS:
+            j -= 1
+            continue
+        if tok.text.lower() in _ATTRIBUTIVE_GENITIVE_PRONOUNS:
+            j -= 1
+            continue
+        break
+    if j < 1 or sentence.tokens[j].tag != "KON":
+        return False
+    return _governed_by_adposition(sentence, j - 1)
+
+
 def _has_bare_accusative_object(
     sentence: TaggedSentence, exclude_index: int, clause_start: int, clause_end: int
 ) -> bool:
@@ -1436,6 +1583,8 @@ def _has_bare_accusative_object(
         if other.lemma.lower() in _APPOSITIONAL_QUANTIFIER_LEMMAS:
             continue
         if _governed_by_adposition(sentence, other.i):
+            continue
+        if _coordinated_with_an_adposition_governed_noun(sentence, other.i):
             continue
         return True
     return False
@@ -2962,6 +3111,23 @@ def _select_nomen_plural(sentence: TaggedSentence) -> list[Candidate]:
 # ==============================================================================
 
 
+# Lemmas this tagger reports that are not the verb's actual infinitive, so
+# a cue built straight from them shows the learner a form that is not a
+# German citation form. "moechte" is reported as "moechten", which does not
+# exist: the infinitive is "moegen". The cycle 12 verifier caught this
+# twice in one run ("Der Hinweis 'moechten' ist keine korrekte Grundform
+# (Infinitiv), da die Grundform des Verbs 'moegen' lautet."), which is the
+# standing bar in TODO.md section 1 for turning a verifier catch into a
+# deterministic rule.
+_LEMMA_TO_TRUE_INFINITIVE: dict[str, str] = {"möchten": "mögen"}
+
+
+def _true_infinitive(lemma: str) -> str:
+    """``lemma`` corrected to the verb's real infinitive where this tagger
+    reports one that is not a German word (``_LEMMA_TO_TRUE_INFINITIVE``)."""
+    return _LEMMA_TO_TRUE_INFINITIVE.get(lemma.lower(), lemma)
+
+
 def _irregular_finite_selector(
     lemmas: frozenset[str], tense_mood: str, morph_tense: str, morph_mood: str
 ) -> Selector:
@@ -2997,7 +3163,7 @@ def _irregular_finite_selector(
             person, number = _finite_verb_person(token), token.morph.get("Number")
             if not person or not number:
                 continue
-            cue = _citation_cue(lemma, token.text)
+            cue = _citation_cue(_true_infinitive(lemma), token.text)
             out.append(
                 Candidate(
                     token_index=token.i,
@@ -3709,6 +3875,36 @@ def _followed_by_embedded_question_object(sentence: TaggedSentence, clause_end: 
     )
 
 
+def _clause_ends_in_copular_infinitive(sentence: TaggedSentence, index: int) -> bool:
+    """Whether the clause around ``index`` carries an infinitive of "sein",
+    "bleiben" or "werden" as well as its finite "wird"/"wurde".
+
+    docs/audits/cycle-12-corpus-report.md defect class 2. When one is
+    present, the finite form is the FUTURE auxiliary and the participle
+    belongs to the infinitive, not to it:
+
+        Die Ausstellung wird noch einen Monat geoeffnet bleiben.
+        Die Tuer des Hauses wird geschlossen sein.
+        ... dass das Buch von Paul gelesen werden wird.
+
+    All three are Futur I, and all three shipped as ``passiv_praesens`` in
+    cycle 12. They are the recurrence of the class cycle 10 found and cycle
+    11 cleared: a participle and a finite "werden" in one clause are not by
+    themselves a passive.
+
+    Clause-scoped, which is the whole of what makes this safe rather than
+    blunt. "Alles, was zu dumm ist, um gesprochen zu werden, wird gesungen."
+    does contain an infinitive "werden", inside its own "um ... zu" clause,
+    and is a genuine present passive; measured over the cycle 12 sample this
+    check rejects exactly the three defects above and none of the five
+    correct items in the same topic."""
+    clause_start, clause_end = _clause_span(sentence, index)
+    return any(
+        token.morph.get("VerbForm") == "Inf" and token.lemma.lower() in _COPULAR_INFINITIVE_LEMMAS
+        for token in sentence.tokens[clause_start:clause_end]
+    )
+
+
 def _select_passiv(sentence: TaggedSentence, *, morph_tense: str) -> list[Candidate]:
     """Present/Präteritum Vorgangspassiv: ``werden`` plus a transitive past
     participle.
@@ -3743,6 +3939,8 @@ def _select_passiv(sentence: TaggedSentence, *, morph_tense: str) -> list[Candid
             continue
         part_lemma = _participle_lemma(participle)
         if not part_lemma or part_lemma not in paradigms.TRANSITIVE_LEMMAS:
+            continue
+        if _clause_ends_in_copular_infinitive(sentence, token.i):
             continue
         # TODO.md 8.3: gated on the syncretic shape -- see
         # ``_clause_takes_accusative_object``'s own module comment for why.

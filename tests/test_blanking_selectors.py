@@ -2656,9 +2656,16 @@ def test_modalverben_praesens_cue_is_the_modals_own_infinitive() -> None:
 
 
 def test_modalverben_praesens_cue_handles_the_frozen_moechten_lemma() -> None:
+    """This test used to assert ``cue == "möchten"``, taking the tagger's
+    lemma at face value. "möchten" is not a German word: "möchte" is a
+    Konjunktiv II form of "mögen", and "mögen" is the infinitive. The cycle
+    12 verifier said so twice in one run, unprompted, which is TODO.md
+    section 1's own bar for turning a verifier catch into a deterministic
+    rule. The expectation is corrected rather than the rule dropped, per
+    CLAUDE.md rule 7."""
     _, candidates = _select("modalverben_praesens", "Ich möchte gern ein Eis.")
     assert len(candidates) == 1
-    assert candidates[0].cue == "möchten"
+    assert candidates[0].cue == "mögen"
 
 
 def test_modalverben_praesens_cue_is_none_when_it_would_equal_the_answer() -> None:
@@ -3247,3 +3254,133 @@ def test_st_form_second_singular_test_declines_a_sibilant_stem() -> None:
     assert not selectors._st_form_is_unambiguous_second_singular("reist")
     assert not selectors._st_form_is_unambiguous_second_singular("passt")
     assert not selectors._st_form_is_unambiguous_second_singular("isst")
+
+
+# ==============================================================================
+# docs/audits/cycle-12-corpus-report.md. Six defects in 396 accepted items,
+# every one a topic-routing or case-routing error rather than a wrong answer.
+# ==============================================================================
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Die Ausstellung wird noch einen weiteren Monat geöffnet bleiben.",
+        "Die Tür des Hauses wird geschlossen sein.",
+        "Ich sage, dass das Buch von Paul gelesen werden wird.",
+    ],
+)
+def test_passiv_praesens_rejects_a_futur_i_with_a_copular_infinitive(sentence: str) -> None:
+    """A participle plus a finite "wird" in one clause is not by itself a
+    passive: with an infinitive of "sein"/"bleiben"/"werden" also present,
+    the finite form is the FUTURE auxiliary and the participle belongs to
+    the infinitive. All three shipped as present passive in cycle 12."""
+    _, candidates = _select("passiv_praesens", sentence)
+    assert candidates == []
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        # An infinitive "werden" inside its own "um ... zu" clause must not
+        # disqualify a genuine passive in the main clause.
+        "Alles, was zu dumm ist, um gesprochen zu werden, wird gesungen.",
+        "Ich will, dass dieser Brief jetzt geöffnet wird.",
+    ],
+)
+def test_passiv_praesens_keeps_a_real_passive_despite_an_infinitive_elsewhere(
+    sentence: str,
+) -> None:
+    """The clause scoping is what makes the check above safe rather than
+    blunt; without it these two would go with the three defects."""
+    _, candidates = _select("passiv_praesens", sentence)
+    assert candidates
+
+
+def test_pronomen_personal_akk_rejects_a_pronoun_governed_by_a_dative_only_verb() -> None:
+    """ "Ich kann euch nicht helfen." shipped as an Accusative item. "euch"
+    is spelled the same in both cases so the tagger's guess decided it, and
+    "helfen" governs the Dative and nothing else. The fact was already in
+    ``paradigms.DATIVE_ONLY_VERBS``, the same list the reflexive selectors
+    have always consulted; the personal-pronoun selectors did not."""
+    _, candidates = _select("pronomen_personal_akk", "Ich kann euch nicht helfen.")
+    assert candidates == []
+
+
+def test_pronomen_personal_akk_keeps_a_pronoun_governed_by_an_ordinary_verb() -> None:
+    """The gate is one-directional and narrow: only a verb ON the
+    Dative-only list rejects an Accusative claim."""
+    item = _blank("pronomen_personal_akk", "Er kommt mich dann und wann besuchen.")
+    assert item.proposed_answer == "mich"
+
+
+def test_verben_reflexiv_akk_sees_a_coordinated_prepositional_object() -> None:
+    """ "sich engagieren" is Accusative, but "Seit über 117 Jahren engagieren
+    sich alle Kinderfreunde für Kinder und deren Familien." routed to
+    ``verben_reflexiv_dat``: "Familien" counted as a bare Accusative object
+    because the walk back from it stopped at "deren" (tagged PDS) and never
+    reached the "für" governing the coordination it belongs to."""
+    sentence = (
+        "Seit über 117 Jahren engagieren sich alle Kinderfreunde für Kinder und deren Familien."
+    )
+    item = _blank("verben_reflexiv_akk", sentence)
+    assert item.proposed_answer == "sich"
+    _, dat_candidates = _select("verben_reflexiv_dat", sentence)
+    assert dat_candidates == []
+
+
+def test_verben_reflexiv_dat_still_sees_a_genuine_bare_object() -> None:
+    """The other direction of the same change, pinned so a future widening
+    cannot trade false positives for false negatives."""
+    item = _blank("verben_reflexiv_dat", "Er kauft sich ein neues Auto.")
+    assert item.proposed_answer == "sich"
+
+
+def test_kasus_genitiv_formen_rejects_a_reading_that_leaves_its_clause_subjectless() -> None:
+    """ "Konstantin der Große wird ... diskutiert." shipped as a Genitive
+    item. The tagger reads "der Große" as ``Case=Gen|Gender=Fem`` when it is
+    a Nominative masculine epithet, and nothing about the determiner itself
+    can catch that. The clause can: if it were Genitive, this clause would
+    have no Nominative at all, which no German clause with a finite verb
+    does."""
+    _, candidates = _select(
+        "kasus_genitiv_formen",
+        "Konstantin der Große wird in der modernen historischen Forschung kontrovers diskutiert.",
+    )
+    assert candidates == []
+
+
+@pytest.mark.parametrize(
+    ("topic_id", "sentence"),
+    [
+        ("kasus_genitiv_formen", "Der Bruder meines Vaters ist mein Onkel."),
+        ("kasus_genitiv_formen", "Tom lud die Taschen in den Kofferraum seines Wagens."),
+        # A Genitive inside a prepositional phrase cannot be the subject in
+        # the first place, so its clause losing one proves nothing. The
+        # second sentence matters twice over: the reason its clause looks
+        # subjectless is that the tagger labelled the actual subject "die
+        # Flüchtlingszahlen" Case=Acc.
+        ("praepositionen_genitiv", "Es ist unhöflich, sich während eines Konzerts zu unterhalten."),
+        (
+            "praepositionen_genitiv_gehoben",
+            "Als die Flüchtlingszahlen ab 2015 infolge des Bürgerkriegs in Syrien sprunghaft "
+            "anstiegen, begann Ameri, selbst ehrenamtlich zu helfen.",
+        ),
+    ],
+)
+def test_genitive_subject_check_keeps_every_genuine_genitive(topic_id: str, sentence: str) -> None:
+    """The two guards on the check above, both found by measuring it against
+    the cycle 12 sample rather than by reasoning about it. An earlier version
+    rejected the last two."""
+    _, candidates = _select(topic_id, sentence)
+    assert candidates
+
+
+def test_modal_cue_uses_the_real_infinitive_for_moechte() -> None:
+    """This tagger lemmatises "möchte" to "möchten", which is not a German
+    word; the infinitive is "mögen". The cycle 12 verifier caught the cue
+    twice in one run, which is TODO.md section 1's own bar for turning a
+    verifier catch into a deterministic rule."""
+    item = _blank("modalverben_praesens", "Ich möchte eine Bar einrichten.")
+    assert item.proposed_answer == "möchte"
+    assert item.cue == "mögen"

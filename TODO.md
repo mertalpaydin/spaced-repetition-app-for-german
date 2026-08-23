@@ -58,6 +58,19 @@ Not tasks. Do not "fix" these without a decision from the owner.
   `src/lexicon/vocabulary.py`. Raising A1 and A2 is the first lever if 70%
   retention proves too steep.
 
+- **Three cycle 12 carrier defects, one each, no rule written.** A Leipzig
+  headline with no main clause ("Ein Film, der die Frage aufwirft, ..."); a
+  fixed construction filed as a tense ("Das Geschäft hat noch bis zum 19.
+  Mai geöffnet" is "is open", not the perfect of "öffnen"); and a Tatoeba
+  translation with German words in English order. Each needs a different
+  rule, each would be written on a single example, and cycle 11's colon
+  rule already showed what that costs. Left to the verifier.
+
+- **Leipzig carriers have no content filter.** Cycle 11 turned up a quote
+  about genocide, cycle 12 a report of a sledgehammer assault. Not grammar
+  defects. A blocklist applied to Leipzig only is cheap if the owner wants
+  one.
+
 - **Anything the verifier catches twice becomes a deterministic rule.** A
   standing rule, not a task. The verifier is a discovery instrument and must
   never be the only thing between a known defect class and a learner.
@@ -66,12 +79,13 @@ Not tasks. Do not "fix" these without a decision from the owner.
 
 ## 2. Open work
 
-- [ ] **2.1 Re-run the corpus pilot and audit it, against 236 not 337.** The
-  four cycle 11 changes (auxiliary cue, pronoun cue and anchor gate,
-  level-graduated vocabulary filter, junk-text carrier filter) are built and
-  measured: 236 of cycle 11's own 337 accepted items survive them. A
-  straight item-count comparison against 337 would compare a bank with 20
-  known defects and uncontrolled vocabulary to one without.
+- [ ] **2.1 Decide what to do about tense ambiguity on the modal topics.**
+  The cue names the verb, not the tense, so "(können)" leaves `kann`,
+  `konnte` and `könnte` all open. `modalverben_praesens` accepted 0 of 10 in
+  cycle 12 and `konjunktiv_ii_hoeflichkeit` 3 of 10, for that one reason.
+  Three options with their trade-offs are in
+  `docs/audits/cycle-12-corpus-report.md`; the recommendation is a required
+  time anchor in the carrier, reusing the check `futur_i` already has.
 
 - [ ] **2.2 Get real numbers out of `scripts/eval_verifier.py`.** The
   adversarial set (38 confirmed defects, 31 confirmed clean) and the script

@@ -2393,3 +2393,51 @@ narrowed for the same reason, its own pronoun subject untouched.
 never reached the output, so lemma diversity could only be read from the
 report's aggregates and never audited item by item. One line, no behaviour
 change.
+
+---
+
+## Cycle 12 (corpus pilot after the four decisions): five fixes
+
+Full audit in `docs/audits/cycle-12-corpus-report.md`. 396 accepted items
+audited by hand; 9 defects, none of them a wrong answer.
+
+**`_clause_ends_in_copular_infinitive`**: a finite "wird"/"wurde" sharing a
+clause with an infinitive of "sein"/"bleiben"/"werden" is the FUTURE
+auxiliary, not the passive one. Three items shipped as `passiv_praesens`
+that are Futur I. Clause scoping is what makes it safe: an infinitive
+"werden" inside its own "um ... zu" clause does not disqualify a genuine
+passive in the main clause, measured over the whole sample.
+
+**`_pronoun_case_contradicts_verb`**: "Ich kann euch nicht helfen." shipped
+as Accusative because "euch" is case-ambiguous and the tagger guessed.
+`paradigms.DATIVE_ONLY_VERBS` already knew "helfen"; the personal-pronoun
+selectors had never consulted it, though the reflexive selectors always
+had. One-directional by necessity: no list of never-Dative verbs exists,
+and inferring one from absence would reject every benefactive Dative.
+
+**`_coordinated_with_an_adposition_governed_noun`**: "sich engagieren" is
+Accusative but routed Dative, because "Familien" in "für Kinder und deren
+Familien" counted as a bare object. The walk back stops at "deren", which
+this tagger tags PDS rather than PDAT. Fixed inside
+`_has_bare_accusative_object` rather than by widening
+`_governed_by_adposition`, which is consulted from several places and would
+then cross into separate noun phrases.
+
+**`_clause_would_lose_its_subject`**: "Konstantin der Große" tagged
+`Case=Gen|Gender=Fem` and shipped as a Genitive item. Caught structurally:
+a German clause with a finite verb has a Nominative subject, so a Genitive
+reading that leaves none is wrong. Two guards added after measurement, both
+for real false positives an earlier version produced: preposition-governed
+Genitives are exempt (they cannot be subjects anyway), and infinitive
+clauses are exempt (they have no subject by construction, and one of the
+two false positives only looked subjectless because the tagger labelled
+"die Flüchtlingszahlen" Accusative).
+
+**`_true_infinitive`**: "möchte" lemmatises to "möchten", which is not a
+German word; the infinitive is "mögen". The verifier said so twice in one
+run, which is TODO section 1's own bar. An existing test had frozen
+"(möchten)" as the expected cue and is corrected with the reason in place,
+per rule 7.
+
+Re-running all 396 accepted items through the changed pipeline leaves 390:
+the 6 removed are exactly the 6 grammar defects, nothing else.
