@@ -137,3 +137,73 @@ have a pinning test that says to ask rather than update the assertion.
   `Er sagte das damals nicht` is a good carrier; only a blank on `er` is bad.
 - **Pilots forbid batch, not the paid lane.** Once free quota is spent they
   continue on paid, on demand.
+- **Every exercise shows its English translation, always.** Owner's call,
+  made on pedagogical grounds, not as a fallback for ambiguity. It follows
+  that the verifier may treat the translation as available to the learner
+  when judging whether an answer is unique.
+
+---
+
+## 5. Planned features, specified but not started
+
+Not defects. Recorded here so the spec is not lost between sessions.
+
+### 5.1 English translation on every exercise
+
+Decided (section 4). Three parts, in order:
+
+1. **Fetch Tatoeba's German-English export** and measure translation
+   accuracy on a hand-checked sample. The export does not mark INDIRECT
+   translations (German to X to English), which drift, so the sample must
+   count those specifically. This number decides whether the rest is worth
+   building.
+2. **Translate Leipzig carriers** with a dedicated translation API, not an
+   LLM. Azure Translator F0 is free for 2,000,000 characters a month,
+   permanently, no card. Leipzig carriers average 77 characters, so that is
+   about 26,000 sentences a month, and the backfill is one-off. A daily
+   scheduled job stays inside the free tier and never needs a paid call.
+   CLAUDE.md rule 4 requires every external model call to be visible to the
+   budget: wire the translation provider through `src/llm/client.py`'s cost
+   log, or amend the rule explicitly. Do not add a second, invisible
+   provider.
+3. **Show the translation in the app** (`web/index.html`, `web/app.js`).
+   This must land before or with any verifier relaxation that assumes the
+   learner can see it. Relaxing the verifier against information the
+   learner never gets would manufacture the non-unique-answer defect class
+   that cycles 11 and 12 closed.
+
+Then, and only then, loosen the verifier. A translation disambiguates
+**tense, number, person and definiteness**, so it can relax the auxiliary
+and tense gates. It does NOT mark German case, gender, adjective endings,
+reflexive case or preposition government, so it cannot relax those, and
+they are the majority of the gates. One gate at a time, each measured.
+
+### 5.2 Vocabulary FSRS
+
+Owner's spec, verbatim in substance:
+
+- **Identical in shape to the grammar trainer.** One or two sentences
+  depending on the word, the tracked word is the missing token, no cue,
+  just the English translation.
+- **Multi-word units are the one extension asked for**: separable verbs,
+  reflexive verbs, and verb-plus-preposition phrases (`warten auf`,
+  `sich interessieren für`).
+- **The unit must be taught, not memorised as a string.** `warten auf` has
+  to be recognised and presented as `wartet auf`, `wartete auf`, `warte
+  ... auf` and so on. A fixed-string match is explicitly not what is
+  wanted. The lemma-plus-preposition pair is the unit; the surface form
+  varies.
+
+### 5.3 Click a word to see it in context
+
+Replaces an earlier hover-for-a-word-gloss idea, which the owner withdrew
+after it turned out to need a German-English dictionary we do not have.
+
+Clicking a word in an exercise shows **several sentences from our own
+corpus containing that word, each with its English translation**. The
+learner reads the word in context, works out the meaning, and decides
+whether to add it to the vocabulary list.
+
+Needs no dictionary at all. It reuses the corpus and the translations 5.1
+already produces, plus the lemmatiser we already have to match inflected
+forms back to one word. Blocked on 5.1 only.
