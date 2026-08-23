@@ -87,19 +87,32 @@ Not tasks. Do not "fix" these without a decision from the owner.
   `docs/audits/cycle-12-corpus-report.md`; the recommendation is a required
   time anchor in the carrier, reusing the check `futur_i` already has.
 
-- [ ] **2.2 Get real numbers out of `scripts/eval_verifier.py`.** The
+- [ ] **2.2 Prove the verifier catches a WRONG English translation.** Owner's
+  requirement, and the condition the whole gloss plan rests on. The cycle 12
+  measurement hand-checked 120 Tatoeba pairs and found 2 wrong: one tense
+  (`Das Kind sah aus wie aus dem Ei gepellt.` / "The child looks as neat as
+  a pin.") and one determiner (`der Kuchen` / "this cake"). Both land on
+  grammar the gloss is supposed to disambiguate, so the verifier reading the
+  gloss against its own German sentence is what keeps a bad gloss out of the
+  bank. Build the adversarial set with **deliberately wrong translations
+  mixed into correct ones** (wrong tense, wrong determiner, wrong person,
+  wrong polarity) and measure how many it catches. A gloss check that does
+  not catch these is worse than no gloss check, because the verifier would
+  then be relaxing its uniqueness judgment on evidence it never validated.
+
+- [ ] **2.3 Get real numbers out of `scripts/eval_verifier.py`.** The
   adversarial set (38 confirmed defects, 31 confirmed clean) and the script
   both exist. They have never been run with a key, so the verifier's recall
   and false-positive rate are still unmeasured. Also test `--batch-size 5`
   against the default 20, to settle whether items late in a batch get less
   scrutiny.
 
-- [ ] **2.3 The AI generation pilot, last.** Owner's sequencing: corpus path
+- [ ] **2.4 The AI generation pilot, last.** Owner's sequencing: corpus path
   proven first, then generation for what the corpus cannot reach. On current
   evidence that is `futur_i`, `zustandspassiv_zeiten` and `futur_ii`, which
   are too rare even in 80,000 corpus sentences.
 
-- [ ] **2.4 Decide the split and write it down.** After 2.1 and 2.3: which
+- [ ] **2.5 Decide the split and write it down.** After 2.1 and 2.4: which
   topics are corpus-sourced, which are generated, and the rule for choosing.
   That becomes the standing generation policy.
 
@@ -141,6 +154,11 @@ have a pinning test that says to ask rather than update the assertion.
   made on pedagogical grounds, not as a fallback for ambiguity. It follows
   that the verifier may treat the translation as available to the learner
   when judging whether an answer is unique.
+- **Where a German sentence has several English translations, keep the
+  shortest.** 13.1% of Tatoeba's German sentences have more than one. A
+  short translation is the more literal one, and literal is what maps word
+  to word for a learner; a long one paraphrases, and paraphrase is where
+  tense and determiners drift.
 
 ---
 
