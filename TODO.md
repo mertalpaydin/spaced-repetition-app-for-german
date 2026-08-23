@@ -33,11 +33,12 @@ Not tasks. Do not "fix" these without a decision from the owner.
   fixed that one item's routing structurally instead (`CARD` in the
   preposition walk-back), not by adding evidence that cannot exist.
 
-- **Leipzig carries scraped-web artefacts that carrier validation does not
-  see**: a caption glued to a headline, a page heading glued to body text.
-  Four of 337 in cycle 11, all sharing a colon. Options and their measured
-  costs are in `docs/audits/cycle-11-corpus-report.md` section 4; no rule
-  is applied yet because the obvious one drops a good sentence.
+- **A colon is not itself a defect, so the junk-text filter is narrow on
+  purpose.** Requiring every colon-delimited segment to be a clause rejected
+  12 Tatoeba lines of which 11 are correct German. The shipped rule is four
+  specific shapes instead (`colon_joined_fragment`), and scraped-web junk
+  that does not match one of them still gets through. Widening it means
+  measuring against those 12 again first.
 
 - **"Spazieren gehen" and a capitalised verb that should be lowercase.**
   A single Leipzig source typo. German nominalisation is fully productive,
