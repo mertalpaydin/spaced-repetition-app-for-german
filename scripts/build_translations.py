@@ -5,6 +5,35 @@ store mapping one German carrier sentence to one English gloss, so the item
 pipeline can look a translation up at build time without ever calling out to
 a translation provider on the critical path (CLAUDE.md rule 3).
 
+## Two modes: whole corpus, or one carrier list
+
+The default mode reads the staged corpora (``--tatoeba``/``--leipzig``) and
+works through every length-plausible carrier in them. That is the right
+shape for a standing store and the wrong shape for a build. Measured: the
+two corpora hold 450,490 distinct carriers, Tatoeba glosses 200,555 of them
+for free, and the remaining 248,935 need about 17,000,000 characters of
+machine translation, which is roughly eight and a half months of Azure F0's
+2,000,000/month allowance.
+
+``--carriers-from PATH`` is the other mode, and it is the one a build should
+use. A single 396-item pilot needs a gloss for 396 sentences, 230 of which
+are already in the store, so 166 new translations and about 11,000
+characters: one run, inside one night's budget, instead of eight and a half
+months of nightly runs. The file is one German sentence per line, UTF-8,
+blank lines skipped and whitespace stripped; a line that parses as a JSON
+object is read for its ``german`` key and skipped if it has none, so the
+same flag accepts either a plain sentence list or a JSONL dump of items
+without a second flag for the difference.
+
+When ``--carriers-from`` is given it REPLACES corpus reading entirely:
+``--tatoeba`` and ``--leipzig`` are not read at all, and ``carriers_seen``
+is the count of distinct sentences in the given file. Everything downstream
+is identical: the store is still consulted first, the Tatoeba pair join
+still runs if ``--pairs``/``--links`` are given, and machine translation is
+still bounded by the same per-run character budget. The report records
+which mode produced it in ``carriers_source`` (``"corpora"``, or the path),
+so a stored gloss can be traced back to the run shape that wrote it.
+
 ## Three sources, in the owner's priority order (TODO.md section 4)
 
 1. **Already in the store.** Loaded first; anything present is never
@@ -68,12 +97,26 @@ that raises ``TranslationError`` (both providers refused, or Gemini
 returned nothing) spent no real Azure quota -- ``AzureTranslator`` itself
 only increments its own counter after a successful call, for the identical
 reason -- so it is not charged here either; those carriers stay out of the
-store and are retried on the next run. A batch's real Gemini spend, when
-the fallback fires, is unaffected by any of this: it is already logged
-through ``GeminiLlmClient``'s own cost log regardless of whether this
-script's run-level counter also counts it (CLAUDE.md rule 4), so a Gemini
-failure that already cost money is not swept under this script's separate
-"skipped for budget, free to retry" accounting.
+store and are retried on the next run.
+
+``characters_spent`` counts ONLY what Azure actually translated. A batch
+Azure refused and the Gemini fallback translated spent none of the F0
+allowance this counter exists to protect, so charging it there was simply
+wrong, and it contradicted the paragraph above, which already reasons
+correctly about the identical case for a failed batch. Those characters are
+reported separately as ``gemini_fallback_characters`` so the two are
+visible and never conflated. Gemini's real cost needs no accounting here at
+all: every fallback call goes through ``GeminiLlmClient`` and is already a
+row in the cost log (CLAUDE.md rule 4). What ``gemini_fallback_characters``
+adds is visibility into how much of a run's work Azure declined, which is
+the number that says whether the fallback is firing more than it should.
+
+The run's STOPPING condition still counts both, azure and fallback
+characters together, against ``--max-characters``. The budget's first job
+is protecting the F0 allowance, but its second is bounding one invocation's
+total work, and a Gemini-only run (no Azure key at all) would otherwise
+have no cap on a provider that genuinely costs money once its free lane
+closes.
 
 ## Batch size is chosen for BLAST RADIUS, not just throughput
 
@@ -226,6 +269,10 @@ class TranslationBackfillReport:
     batch_size: int
     store_path: str
     translator_mode: TranslatorMode = "none"
+    # "corpora" for the whole-corpus mode, or the --carriers-from path
+    # (module docstring, "Two modes"), so a stored gloss can be traced back
+    # to the run shape that produced it.
+    carriers_source: str = "corpora"
     carriers_seen: int = 0
     already_in_store: int = 0
     from_tatoeba: int = 0
@@ -233,7 +280,11 @@ class TranslationBackfillReport:
     skipped_for_budget: int = 0
     failed: int = 0
     failure_examples: list[str] = field(default_factory=list)
+    # Azure characters only (module docstring, "The character budget is per
+    # RUN"). What the Gemini fallback translated is counted separately, in
+    # gemini_fallback_characters, and never added here.
     characters_spent: int = 0
+    gemini_fallback_characters: int = 0
     azure_fallback_events: int = 0
     azure_fallback_examples: list[str] = field(default_factory=list)
     store_size_after: int = 0
@@ -248,6 +299,7 @@ class TranslationBackfillReport:
                 "batch_size": self.batch_size,
                 "store_path": self.store_path,
                 "translator_mode": self.translator_mode,
+                "carriers_source": self.carriers_source,
             },
             "carriers_seen": self.carriers_seen,
             "already_in_store": self.already_in_store,
@@ -257,6 +309,7 @@ class TranslationBackfillReport:
             "failed": self.failed,
             "failure_examples": self.failure_examples,
             "characters_spent": self.characters_spent,
+            "gemini_fallback_characters": self.gemini_fallback_characters,
             "azure_fallback_events": self.azure_fallback_events,
             "azure_fallback_examples": self.azure_fallback_examples,
             "store_size_after": self.store_size_after,
@@ -279,6 +332,44 @@ def _read_one_corpus(path: Path, fmt: str, label: str, limit: int, seed: int) ->
     lines = read_corpus_lines(path, fmt, limit, seed)
     print(f"  {label}: {len(lines):,} length-plausible lines read from {path}")
     return lines
+
+
+def _read_carriers_from_file(path: Path) -> dict[str, CorpusLine]:
+    """The ``--carriers-from`` mode's carrier set (module docstring, "Two
+    modes"): one German sentence per line, keyed by its own exact text so
+    duplicates collapse exactly the way the corpus mode's ``setdefault``
+    already makes them collapse.
+
+    A line that parses as a JSON OBJECT is read for its ``german`` key and
+    skipped if it has none. That single concession is what lets one flag
+    accept either a plain sentence list or a JSONL dump of items, with no
+    second flag to say which; anything that is not a JSON object is taken
+    literally as the sentence, so German text that merely contains braces or
+    digits is unaffected.
+
+    ``line_id`` is the empty string throughout: this file format carries no
+    corpus id, and ``_fill_from_tatoeba`` already falls back to an exact-text
+    match when a carrier has no id, so the Tatoeba join still works in this
+    mode.
+    """
+    carriers: dict[str, CorpusLine] = {}
+    with path.open(encoding="utf-8") as handle:
+        for raw_line in handle:
+            text = raw_line.strip()
+            if not text:
+                continue
+            if text.startswith("{"):
+                try:
+                    parsed = json.loads(text)
+                except json.JSONDecodeError:
+                    parsed = None
+                if isinstance(parsed, dict):
+                    german = parsed.get("german")
+                    if not isinstance(german, str) or not german.strip():
+                        continue
+                    text = german.strip()
+            carriers.setdefault(text, CorpusLine(line_id="", text=text))
+    return carriers
 
 
 def _shortest_translations(pairs: list[Pair]) -> tuple[dict[str, str], dict[str, str]]:
@@ -415,11 +506,24 @@ def _run_machine_translation(
         report.skipped_for_budget += len(still_todo)
         return
 
+    # Local, not read off the report: these three are what THIS call did,
+    # and the report's own counters may already be nonzero on entry (nothing
+    # forbids calling this twice against one report, and the
+    # skipped_for_budget arithmetic below silently produced a negative number
+    # if they were).
+    budget_spent = 0
+    translated_here = 0
+    failed_here = 0
+
     index = 0
     while index < len(still_todo):
         chunk = still_todo[index : index + batch_size]
         chunk_chars = sum(len(line.text) for line in chunk)
-        if report.characters_spent + chunk_chars > max_characters:
+        # Both azure and fallback characters gate the stop, even though only
+        # azure ones are reported as characters_spent: the budget bounds one
+        # invocation's total work as well as protecting the F0 allowance
+        # (module docstring).
+        if budget_spent + chunk_chars > max_characters:
             break
 
         failures_before = (
@@ -429,6 +533,7 @@ def _run_machine_translation(
             translations = translator.translate([line.text for line in chunk])
         except TranslationError as exc:
             report.failed += len(chunk)
+            failed_here += len(chunk)
             if len(report.failure_examples) < 10:
                 report.failure_examples.append(str(exc))
             index += len(chunk)
@@ -445,6 +550,7 @@ def _run_machine_translation(
             # in the translator, not here, so the exception TYPE is recorded
             # to make that diagnosable.
             report.failed += len(chunk)
+            failed_here += len(chunk)
             if len(report.failure_examples) < 10:
                 report.failure_examples.append(f"{type(exc).__name__}: {exc}")
             index += len(chunk)
@@ -464,11 +570,19 @@ def _run_machine_translation(
             store[line.text] = TranslationRecord(
                 german=line.text, english=english, source=source, written_at=now
             )
-        report.characters_spent += chunk_chars
+        if source == "azure":
+            report.characters_spent += chunk_chars
+        else:
+            # Azure never saw these characters, so they cost none of the F0
+            # allowance characters_spent exists to protect. Their real cost
+            # is already a cost_log row, written by GeminiLlmClient.
+            report.gemini_fallback_characters += chunk_chars
+        budget_spent += chunk_chars
         report.machine_translated += len(chunk)
+        translated_here += len(chunk)
         index += len(chunk)
 
-    report.skipped_for_budget += len(still_todo) - report.machine_translated - report.failed
+    report.skipped_for_budget += len(still_todo) - translated_here - failed_here
 
     if isinstance(translator, FallbackTranslator):
         report.azure_fallback_events = len(translator.failures)
@@ -486,6 +600,7 @@ def run_backfill(
     batch_size: int,
     seed: int,
     limit_per_source: int,
+    carriers_source: str = "corpora",
     now: datetime | None = None,
 ) -> TranslationBackfillReport:
     """The whole backfill, independent of argparse, the environment, and
@@ -505,6 +620,7 @@ def run_backfill(
         batch_size=batch_size,
         store_path=str(store_path),
         translator_mode=translator_mode,
+        carriers_source=carriers_source,
     )
     if translator_mode == "gemini_only":
         report.warnings.append(
@@ -563,6 +679,16 @@ def main() -> int:
     parser.add_argument("--leipzig", type=Path, default=DEFAULT_LEIPZIG_PATH)
     parser.add_argument("--skip-tatoeba", action="store_true")
     parser.add_argument("--skip-leipzig", action="store_true")
+    parser.add_argument(
+        "--carriers-from",
+        type=Path,
+        default=None,
+        help=(
+            "One German sentence per line (or a JSONL dump with a 'german' key). "
+            "Replaces corpus reading entirely: --tatoeba and --leipzig are not read. "
+            "This is the right mode for building one pilot's glosses."
+        ),
+    )
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT_PER_SOURCE)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument(
@@ -589,25 +715,41 @@ def main() -> int:
         parser.error("give either --pairs, or --links/--english, not both")
     if bool(args.links) != bool(args.english):
         parser.error("--links and --english must be given together")
+    if args.carriers_from and (args.skip_tatoeba or args.skip_leipzig):
+        # Meaningless rather than merely redundant: --carriers-from already
+        # means neither corpus is read, so a --skip flag alongside it can only
+        # mean the caller believes corpora are still in play.
+        parser.error(
+            "--carriers-from already replaces both corpora; drop --skip-tatoeba/--skip-leipzig"
+        )
 
     load_env_file()
 
+    carriers_source = "corpora"
     carriers: dict[str, CorpusLine] = {}
-    if not args.skip_tatoeba:
-        for line in _read_one_corpus(args.tatoeba, "tatoeba", "Tatoeba", args.limit, args.seed):
-            carriers.setdefault(line.text, line)
-    if not args.skip_leipzig:
-        for line in _read_one_corpus(args.leipzig, "lines", "Leipzig", args.limit, args.seed):
-            carriers.setdefault(line.text, line)
+    if args.carriers_from:
+        if not args.carriers_from.exists():
+            parser.error(f"--carriers-from file not found: {args.carriers_from}")
+        carriers_source = str(args.carriers_from)
+        carriers = _read_carriers_from_file(args.carriers_from)
+        print(f"  Carrier list: {len(carriers):,} distinct sentences from {args.carriers_from}")
+    else:
+        if not args.skip_tatoeba:
+            for line in _read_one_corpus(args.tatoeba, "tatoeba", "Tatoeba", args.limit, args.seed):
+                carriers.setdefault(line.text, line)
+        if not args.skip_leipzig:
+            for line in _read_one_corpus(args.leipzig, "lines", "Leipzig", args.limit, args.seed):
+                carriers.setdefault(line.text, line)
 
     if not carriers:
-        print("No carriers read from either source; nothing to do.")
+        print("No carriers read; nothing to do.")
         TranslationBackfillReport(
             seed=args.seed,
             limit_per_source=args.limit,
             max_characters=args.max_characters,
             batch_size=args.batch_size or 1,
             store_path=str(args.store),
+            carriers_source=carriers_source,
         ).write(Path(args.report_file))
         return 0
 
@@ -678,16 +820,21 @@ def main() -> int:
         batch_size=batch_size,
         seed=args.seed,
         limit_per_source=args.limit,
+        carriers_source=carriers_source,
     )
 
-    print(f"\n  Already in store:          {report.already_in_store:,}")
+    print(f"\n  Carriers source:           {report.carriers_source}")
+    print(f"  Already in store:          {report.already_in_store:,}")
     print(f"  Filled from Tatoeba pairs: {report.from_tatoeba:,}")
     print(f"  Machine translated:        {report.machine_translated:,}")
     print(f"  Skipped for budget:        {report.skipped_for_budget:,}")
     print(f"  Failed:                    {report.failed:,}")
     for example in report.failure_examples:
         print(f"    - {example}")
-    print(f"  Characters spent this run: {report.characters_spent:,} / {args.max_characters:,}")
+    total_characters = report.characters_spent + report.gemini_fallback_characters
+    print(f"  Characters this run:       {total_characters:,} / {args.max_characters:,}")
+    print(f"    of which Azure:          {report.characters_spent:,}")
+    print(f"    of which Gemini:         {report.gemini_fallback_characters:,}")
     print(f"  Azure-fallback events:     {report.azure_fallback_events:,}")
     print(f"  Store size after this run: {report.store_size_after:,}")
     for warning in report.warnings:
