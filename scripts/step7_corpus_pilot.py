@@ -116,6 +116,75 @@ formula (not importable: ``_source_sentence_id`` is private and takes a
 ``TaggedSentence``, this needs it before tagging, on a raw string), with a
 regression test pinning that the two never drift apart.
 
+## The English gloss (TODO.md 2.1b)
+
+Every item this project builds carries a ``gloss_en``, and until this change
+it was ``None`` on all 396 items of the last corpus pilot -- so nothing that
+consumes it had ever run on corpus-sourced content. Between the point where
+``bank_items`` is assembled and the verification call, each item's
+``gloss_en`` is filled with the English translation of ITS OWN CARRIER
+SENTENCE: the full, unblanked German sentence recovered through
+``provenance_by_hash``, never ``item.prompt``, which is the same sentence
+with the answer word replaced by ``___``. Glossing the prompt would attach a
+subtly wrong English sentence (one whose meaning is missing exactly the word
+the exercise is about) to every item in the bank, so
+``_populate_glosses`` takes the carrier from provenance and a test pins that
+it is not the prompt.
+
+Three sources, in ``scripts/build_translations.py``'s own priority order:
+
+1. The store on disk (``--translations``, default
+   ``build_translations.DEFAULT_STORE_PATH``), looked up by the carrier's
+   exact text -- the same key the store itself uses.
+2. Machine translation of whatever the store lacks, through
+   ``build_translations.translator_from_env`` (Azure primary, Gemini
+   fallback) and ``build_translations._run_machine_translation``, with the
+   new records written back into the store via ``_write_store_atomic`` so the
+   next run finds them for free. Both functions are imported, never
+   reimplemented: the store format, the whole-batch-boundary character
+   budget and the "a failed batch spent nothing" accounting are all that
+   module's, not a second copy of them here.
+3. Anything still untranslated stays ``None``, exactly as before.
+
+``--no-translate`` looks the store up and never calls out.
+``--max-translation-characters`` (default
+``build_translations.DEFAULT_MAX_CHARACTERS_PER_RUN``, 60,000) is a runaway
+guard, not a working limit: a 396-item pilot measures at about 166 new
+translations and about 11,000 characters, so the default is roughly five
+times the expected need. A ``TranslationError`` on a batch leaves that
+batch's items at ``gloss_en=None`` and the pilot continues to verification,
+matching this script's posture everywhere else (``_read_one_corpus``, the
+``verify_items`` guard).
+
+## What changes for an item once ``gloss_en`` stops being ``None``
+
+This is the risk in TODO.md 2.1b, and it is worth being exact about, because
+the answer for THIS script is not the answer for the generation pipeline.
+
+``src.verification.pipeline.VerificationPipeline`` -- whose ``_gloss_check``
+rejects an item whose gloss contradicts the answer's tense or person, and
+whose ``layer3_solver`` may now ACCEPT an item it previously rejected as an
+open lexical slot -- is not on this script's path at all. This pilot's only
+verification is ``model_verification.verify_items``, a model backstop that
+never reads ``gloss_en`` (``_format_item_block`` deliberately sends the model
+only the prompt, the cue and the answer). Populating the field therefore
+changes NOTHING here on its own, which would make the risk invisible rather
+than absent -- the same items go on to a bank whose other consumers do run
+that chain.
+
+So the check is run here, explicitly, as its own free deterministic pass
+between glossing and verification, through the exact seam the chain uses
+(``src.verification.pipeline.check_gloss``, which
+``VerificationPipeline._gloss_check`` now also calls, so the two can never
+drift). It is ALWAYS measured and reported; ``--no-gloss-check`` makes it
+non-enforcing, so a run can populate the gloss for the learner while leaving
+the consistency check inert, and still see exactly what it would have cost.
+Default is enforcing. ``rejected_by_gloss_check`` and its per-topic
+breakdown are printed prominently, not buried, because some of those
+rejections will be correct (the machine translation really is wrong) and
+some will be the check misreading a correct but loose translation, and only
+the per-topic shape tells the two apart.
+
 ## CLAUDE.md rule 2
 
 The topic id is never sent to the model. The verification pass
@@ -166,6 +235,7 @@ import sys
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
 from src.contracts import BankItem, CandidateItem, Topic
@@ -189,9 +259,24 @@ from src.generation.blanking.sentence_tagger import analysis_available
 from src.generation.pilot import _write_rejected_file, _write_review_file
 from src.lexicon.vocabulary import VocabularyStore
 from src.llm.env import load_env_file
+from src.llm.translation import AZURE_MAX_BATCH, Translator
 from src.taxonomy.facets import derive_facet
 from src.taxonomy.loader import load_taxonomy
+from src.verification.pipeline import check_gloss
 
+from scripts.build_translations import (
+    DEFAULT_MAX_CHARACTERS_PER_RUN,
+    TranslationBackfillReport,
+    TranslatorMode,
+    _default_batch_size,
+    _load_store,
+    _run_machine_translation,
+    _write_store_atomic,
+    translator_from_env,
+)
+from scripts.build_translations import (
+    DEFAULT_STORE_PATH as DEFAULT_TRANSLATION_STORE_PATH,
+)
 from scripts.corpus_reading import CorpusLine, read_corpus_lines
 
 DEFAULT_REVIEW_PATH = Path("data/corpus_pilot_review.jsonl")
@@ -328,6 +413,69 @@ class CorpusReadStats:
 
 
 @dataclass
+class GlossReport:
+    """TODO.md 2.1b: everything the gloss step did, and everything the gloss
+    check cost, as its own section of the run report and its own block of
+    printed output.
+
+    The three fill counters (``gloss_from_store``, ``gloss_newly_translated``,
+    ``gloss_missing``) are disjoint and always sum to ``items_total``, the
+    same "three disjoint counts that must sum" discipline
+    ``model_verification.VerificationReport`` already holds this package to.
+    """
+
+    store_path: str = ""
+    translator_mode: str = "none"
+    translation_batch_size: int = 0
+    max_translation_characters: int = 0
+    items_total: int = 0
+    gloss_from_store: int = 0
+    gloss_newly_translated: int = 0
+    gloss_missing: int = 0
+    carriers_needing_translation: int = 0
+    skipped_for_budget: int = 0
+    # Every character this run actually translated, Azure and Gemini
+    # fallback together -- the same total build_translations.py's own budget
+    # gates on (that script reports the two separately because only the
+    # Azure half spends the F0 allowance; this one has no F0 accounting to
+    # do, it only needs to know what the run cost against its own guard).
+    characters_spent: int = 0
+    translation_failures: int = 0
+    translation_failure_examples: list[str] = field(default_factory=list)
+    # ``False`` under --no-gloss-check: the check still RAN and its numbers
+    # below are still real, it simply did not remove any item. See the module
+    # docstring -- measuring is what makes the change reversible without
+    # making it invisible.
+    gloss_check_enforced: bool = True
+    items_gloss_checked: int = 0
+    rejected_by_gloss_check: int = 0
+    rejected_by_gloss_check_by_topic: dict[str, int] = field(default_factory=dict)
+    gloss_unverified_dimensions: int = 0
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "store_path": self.store_path,
+            "translator_mode": self.translator_mode,
+            "translation_batch_size": self.translation_batch_size,
+            "max_translation_characters": self.max_translation_characters,
+            "items_total": self.items_total,
+            "gloss_from_store": self.gloss_from_store,
+            "gloss_newly_translated": self.gloss_newly_translated,
+            "gloss_missing": self.gloss_missing,
+            "carriers_needing_translation": self.carriers_needing_translation,
+            "skipped_for_budget": self.skipped_for_budget,
+            "characters_spent": self.characters_spent,
+            "translation_failures": self.translation_failures,
+            "translation_failure_examples": self.translation_failure_examples,
+            "gloss_check_enforced": self.gloss_check_enforced,
+            "items_gloss_checked": self.items_gloss_checked,
+            "rejected_by_gloss_check": self.rejected_by_gloss_check,
+            "rejected_by_gloss_check_by_topic": self.rejected_by_gloss_check_by_topic,
+            "gloss_unverified_dimensions": self.gloss_unverified_dimensions,
+        }
+
+
+@dataclass
 class CorpusPilotReport:
     """Everything ``main()`` needs to print AND to write to
     ``data/corpus_pilot_report.json`` (TODO 4.6) -- one object, so the two
@@ -360,6 +508,7 @@ class CorpusPilotReport:
     accepted_total: int = 0
     review_file: str = ""
     rejected_file: str = ""
+    gloss: GlossReport = field(default_factory=GlossReport)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -405,6 +554,7 @@ class CorpusPilotReport:
             ],
             "sampled_total": self.sampled_total,
             "provenance_missing": self.provenance_missing,
+            "gloss": self.gloss.to_dict(),
             "verification": {
                 "attempted": self.verification_attempted,
                 "verified_count": self.verified_count,
@@ -849,6 +999,194 @@ def _cefr_rejection_to_record(
     )
 
 
+def _populate_glosses(
+    items: list[BankItem],
+    provenance_by_hash: dict[str, CorpusProvenance],
+    *,
+    store_path: Path,
+    translator: Translator | None,
+    translator_mode: TranslatorMode,
+    max_characters: int,
+    now: datetime,
+    batch_size: int = AZURE_MAX_BATCH,
+) -> tuple[list[BankItem], GlossReport]:
+    """TODO.md 2.1b: fill every item's ``gloss_en`` with the English
+    translation of its OWN CARRIER SENTENCE, from the store first and the
+    machine translator second, and return the re-stamped items plus the
+    numbers that make the step measurable.
+
+    The carrier is ``provenance_by_hash[item.source_sentence_id].text`` --
+    the complete, unblanked German sentence the corpus supplied. It is
+    emphatically NOT ``item.prompt``, which is that same sentence with the
+    answer replaced by ``___``: translating the prompt would produce fluent
+    English for a sentence missing exactly the word the exercise is about,
+    and would attach that to every item in the bank. See the module
+    docstring, and ``tests/test_step7_corpus_pilot.py``'s own test for this.
+
+    ``translator``/``now``/``store_path`` are injected (CLAUDE.md section 8:
+    network and clock are dependencies, not ambient facts) so a test drives
+    the whole function with a fake translator, a ``tmp_path`` store and a
+    fixed timestamp, never the network. ``translator=None`` is the
+    ``--no-translate`` path and also the no-credentials path: the store is
+    still consulted, nothing is called, and whatever the store lacks stays
+    ``None``.
+
+    Never raises on a translation failure. ``_run_machine_translation``
+    already converts a ``TranslationError`` on one batch into a counted
+    failure and moves to the next batch, leaving those carriers out of the
+    store; this function simply reports what it was told and leaves the
+    corresponding items at ``gloss_en=None``.
+    """
+    report = GlossReport(
+        store_path=str(store_path),
+        translator_mode=translator_mode,
+        translation_batch_size=batch_size,
+        max_translation_characters=max_characters,
+        items_total=len(items),
+    )
+
+    carriers: list[str | None] = []
+    for item in items:
+        provenance = (
+            provenance_by_hash.get(item.source_sentence_id)
+            if item.source_sentence_id is not None
+            else None
+        )
+        carriers.append(provenance.text if provenance is not None else None)
+
+    store = _load_store(store_path)
+    # Captured BEFORE translation so "came from the store" and "this run
+    # translated it" stay honestly distinguishable afterwards -- the
+    # translation step writes into the same dict.
+    in_store_before = frozenset(store)
+
+    needed: dict[str, CorpusLine] = {}
+    for item, carrier in zip(items, carriers, strict=True):
+        if carrier is None or carrier in in_store_before:
+            continue
+        provenance = provenance_by_hash[item.source_sentence_id or ""]
+        needed.setdefault(carrier, CorpusLine(line_id=provenance.line_id, text=carrier))
+    report.carriers_needing_translation = len(needed)
+
+    if needed:
+        # build_translations.py's own machine-translation step, imported
+        # rather than reimplemented (module docstring): the whole-batch-
+        # boundary character budget, the "a failed batch spent nothing"
+        # accounting, the azure/gemini source labelling and the
+        # TranslationError degradation all come from there unchanged. Its
+        # report object is this call's only output channel, so one is built
+        # here purely to receive those counters; the fields that describe a
+        # corpus backfill run (seed, limit_per_source) are not meaningful
+        # for a pilot and are left at zero rather than invented.
+        backfill = TranslationBackfillReport(
+            seed=0,
+            limit_per_source=0,
+            max_characters=max_characters,
+            batch_size=batch_size,
+            store_path=str(store_path),
+            translator_mode=translator_mode,
+            carriers_source="step7_corpus_pilot",
+        )
+        _run_machine_translation(
+            list(needed.values()),
+            translator,
+            max_characters=max_characters,
+            batch_size=batch_size,
+            store=store,
+            report=backfill,
+            now=now,
+        )
+        report.characters_spent = backfill.characters_spent + backfill.gemini_fallback_characters
+        report.translation_failures = backfill.failed
+        report.translation_failure_examples = list(backfill.failure_examples)
+        report.skipped_for_budget = backfill.skipped_for_budget
+        if backfill.machine_translated:
+            _write_store_atomic(store_path, store)
+
+    glossed: list[BankItem] = []
+    for item, carrier in zip(items, carriers, strict=True):
+        record = store.get(carrier) if carrier is not None else None
+        if record is None:
+            report.gloss_missing += 1
+            glossed.append(item)
+            continue
+        if carrier in in_store_before:
+            report.gloss_from_store += 1
+        else:
+            report.gloss_newly_translated += 1
+        glossed.append(item.model_copy(update={"gloss_en": record.english}))
+
+    return glossed, report
+
+
+@dataclass(frozen=True)
+class GlossCheckOutcome:
+    """One item's verdict from the gloss consistency pass, by position in the
+    list handed to ``_run_gloss_check``. ``reason`` is ``None`` for an item
+    that passed OR carried no gloss at all -- the two are told apart by
+    ``checked`` , since only an item with a gloss is ever checked."""
+
+    index: int
+    topic_id: str
+    checked: bool
+    reason: str | None
+    error_type: str | None
+    unverified_dimensions: int
+
+
+def _run_gloss_check(
+    items: Sequence[BankItem], topics_by_id: dict[str, Topic]
+) -> list[GlossCheckOutcome]:
+    """Run ``src.verification.pipeline.check_gloss`` -- the exact function
+    ``VerificationPipeline._gloss_check`` calls -- over every item, and
+    return one outcome per item, in order.
+
+    Pure and offline: ``check_gloss`` is free and deterministic, and it
+    returns immediately for an item whose ``gloss_en`` is ``None``, so this
+    pass costs nothing at all on a run where no gloss was found.
+
+    This function only JUDGES. Whether a rejection is acted on is
+    ``main()``'s decision (``--no-gloss-check``), which is what keeps the
+    change reversible without making it invisible.
+    """
+    outcomes: list[GlossCheckOutcome] = []
+    for index, item in enumerate(items):
+        topic = topics_by_id.get(item.topic_id)
+        answer = item.accepted_answers[0] if item.accepted_answers else ""
+        rejection, unverified = check_gloss(item.prompt, answer, item.gloss_en, topic)
+        outcomes.append(
+            GlossCheckOutcome(
+                index=index,
+                topic_id=item.topic_id,
+                checked=bool(item.gloss_en and item.gloss_en.strip()),
+                reason=rejection.reason if rejection is not None else None,
+                error_type=rejection.error_type if rejection is not None else None,
+                unverified_dimensions=unverified,
+            )
+        )
+    return outcomes
+
+
+def _gloss_rejection_to_record(
+    item: BankItem, outcome: GlossCheckOutcome
+) -> RejectedCandidateRecord:
+    """One item the gloss consistency check rejected. Carries the offending
+    ``gloss_en`` in its own field so the rejected file is diagnosable without
+    re-deriving the translation -- a gloss rejection whose row does not show
+    the English sentence is not diagnosable at all."""
+    return RejectedCandidateRecord(
+        topic_id=item.topic_id,
+        type=item.type,
+        difficulty=item.difficulty,
+        prompt=item.prompt,
+        proposed_answer=" / ".join(item.accepted_answers),
+        layer_failed=None,
+        error_type=outcome.error_type or "pedagogical_flaw",
+        reason=outcome.reason,
+        gloss_en=item.gloss_en,
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Step 7: corpus-sourced verify-only pilot.")
     parser.add_argument("--tatoeba", type=Path, default=DEFAULT_TATOEBA_PATH)
@@ -877,6 +1215,46 @@ def main() -> int:
     )
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--vocab-path", type=Path, default=DEFAULT_VOCAB_PATH)
+    parser.add_argument(
+        "--translations",
+        type=Path,
+        default=DEFAULT_TRANSLATION_STORE_PATH,
+        help=(
+            "The German-to-English gloss store (TODO.md 2.1b), looked up by "
+            "the carrier sentence's exact text. Anything this run has to "
+            "translate is written back here, so the next run finds it free."
+        ),
+    )
+    parser.add_argument(
+        "--no-translate",
+        action="store_true",
+        help=(
+            "Look the translation store up but never call a translation "
+            "provider. Items the store lacks keep gloss_en = None."
+        ),
+    )
+    parser.add_argument(
+        "--max-translation-characters",
+        type=int,
+        default=DEFAULT_MAX_CHARACTERS_PER_RUN,
+        help=(
+            "Runaway guard on this run's machine translation, in characters, "
+            "stopping at a whole-batch boundary exactly as "
+            "build_translations.py does. A 396-item pilot measures at about "
+            "11,000 characters, so the default is roughly five times the "
+            "expected need and should never bind in practice."
+        ),
+    )
+    parser.add_argument(
+        "--no-gloss-check",
+        action="store_true",
+        help=(
+            "Populate gloss_en for the learner but do not let the gloss "
+            "consistency check REJECT anything. The check still runs and its "
+            "numbers are still reported, so the cost of turning it back on "
+            "stays visible. Default: the check is enforcing."
+        ),
+    )
     parser.add_argument("--review-file", type=str, default=str(DEFAULT_REVIEW_PATH))
     parser.add_argument("--rejected-file", type=str, default=str(DEFAULT_REJECTED_PATH))
     parser.add_argument("--report-file", type=str, default=str(DEFAULT_REPORT_PATH))
@@ -1048,6 +1426,61 @@ def main() -> int:
             continue
         bank_items.append(_to_bank_item(item, topic, provenance.source, provenance.line_id))
 
+    # ---------------------------------------------------------------
+    # TODO.md 2.1b: the English gloss, then the gloss consistency check.
+    # Both sit here, between bank-item assembly and the model backstop:
+    # the gloss is part of the finished item, and the check is free and
+    # deterministic, so it runs before anything is spent on a model call.
+    # ---------------------------------------------------------------
+    translator: Translator | None
+    translator_mode: TranslatorMode
+    if args.no_translate:
+        translator, translator_mode = None, "none"
+        print("\n  Gloss: --no-translate given; the store is read but nothing is translated.")
+    else:
+        translator, translator_mode = translator_from_env(llm_client)
+        if translator_mode == "gemini_only":
+            print(
+                "\n  *** GLOSS: NO AZURE KEY CONFIGURED, translating Gemini-only. "
+                "Quality is lower than the dedicated translation engine, and Gemini "
+                "calls are not free once its own free lane closes. ***"
+            )
+        elif translator_mode == "none":
+            print(
+                "\n  *** GLOSS: NO TRANSLATOR CONFIGURED (no AZURE_TRANSLATOR_KEY and "
+                "no Gemini key). Only the store can supply a gloss this run. ***"
+            )
+
+    bank_items, gloss_report = _populate_glosses(
+        bank_items,
+        provenance_by_hash,
+        store_path=args.translations,
+        translator=translator,
+        translator_mode=translator_mode,
+        max_characters=args.max_translation_characters,
+        now=datetime.now(UTC),
+        batch_size=_default_batch_size(translator_mode),
+    )
+    gloss_report.gloss_check_enforced = not args.no_gloss_check
+    report.gloss = gloss_report
+
+    gloss_outcomes = _run_gloss_check(bank_items, topics_by_id)
+    gloss_rejections = [o for o in gloss_outcomes if o.reason is not None]
+    gloss_report.items_gloss_checked = sum(1 for o in gloss_outcomes if o.checked)
+    gloss_report.rejected_by_gloss_check = len(gloss_rejections)
+    gloss_report.rejected_by_gloss_check_by_topic = dict(
+        Counter(o.topic_id for o in gloss_rejections)
+    )
+    gloss_report.gloss_unverified_dimensions = sum(o.unverified_dimensions for o in gloss_outcomes)
+
+    gloss_rejection_records: list[RejectedCandidateRecord] = []
+    if gloss_report.gloss_check_enforced and gloss_rejections:
+        gloss_rejection_records = [
+            _gloss_rejection_to_record(bank_items[o.index], o) for o in gloss_rejections
+        ]
+        rejected_indices = {o.index for o in gloss_rejections}
+        bank_items = [item for i, item in enumerate(bank_items) if i not in rejected_indices]
+
     try:
         verification_report = verify_items(
             bank_items, llm_client, batch_size=DEFAULT_VERIFICATION_BATCH_SIZE
@@ -1088,6 +1521,7 @@ def main() -> int:
 
     rejected_records = (
         cefr_rejection_records
+        + gloss_rejection_records
         + [_uniqueness_skip_to_record(s) for s in blanking_report.uniqueness_skips]
         + [
             _dropped_item_to_record(d)
@@ -1104,6 +1538,52 @@ def main() -> int:
     _write_rejected_file(rejected_path, rejected_records, batch_id)
     report.review_file = str(review_path)
     report.rejected_file = str(rejected_path)
+
+    # TODO.md 2.1b: printed BEFORE the verification block and never folded
+    # into it. The gloss check is a rejection cause now, and this task's own
+    # brief is explicit that its numbers must be prominent rather than
+    # buried -- some of these rejections are the machine translation really
+    # being wrong, and some are the check misreading a correct but loose
+    # translation, and nobody can tell which without seeing the shape.
+    print("\n  English gloss (TODO.md 2.1b):")
+    print(f"    Store:                {gloss_report.store_path}")
+    print(f"    Translator mode:      {gloss_report.translator_mode}")
+    print(f"    Items:                {gloss_report.items_total}")
+    print(f"      from the store:     {gloss_report.gloss_from_store}")
+    print(f"      newly translated:   {gloss_report.gloss_newly_translated}")
+    print(f"      still without one:  {gloss_report.gloss_missing}")
+    print(
+        f"    Characters spent:     {gloss_report.characters_spent:,} of "
+        f"{gloss_report.max_translation_characters:,} "
+        f"(batch size {gloss_report.translation_batch_size})"
+    )
+    if gloss_report.skipped_for_budget:
+        print(f"    Left for a later run: {gloss_report.skipped_for_budget}")
+    print(f"    Translation failures: {gloss_report.translation_failures}")
+    for example in gloss_report.translation_failure_examples:
+        print(f"      - {example}")
+
+    print("\n  Gloss consistency check:")
+    print(
+        "    Mode:                 "
+        + (
+            "ENFORCING (a contradicting gloss rejects the item)"
+            if gloss_report.gloss_check_enforced
+            else "MEASURED ONLY (--no-gloss-check; nothing was rejected)"
+        )
+    )
+    print(f"    Items with a gloss:   {gloss_report.items_gloss_checked}")
+    print(f"    REJECTED BY GLOSS:    {gloss_report.rejected_by_gloss_check}")
+    for topic_id, count in sorted(
+        gloss_report.rejected_by_gloss_check_by_topic.items(), key=lambda kv: (-kv[1], kv[0])
+    ):
+        print(f"      - {topic_id}: {count}")
+    print(f"    Unverified dims:      {gloss_report.gloss_unverified_dimensions}")
+    if gloss_report.gloss_unverified_dimensions:
+        print(
+            "      (a dimension the gloss neither confirmed nor contradicted: "
+            "not a pass, and never counted as one)"
+        )
 
     print("\n  Model verification pass:")
     if not verification_report.attempted:

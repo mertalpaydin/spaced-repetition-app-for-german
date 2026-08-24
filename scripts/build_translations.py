@@ -671,6 +671,47 @@ def run_backfill(
     return report
 
 
+def translator_from_env(
+    gemini_client: GeminiLlmClient | None,
+) -> tuple[Translator | None, TranslatorMode]:
+    """The three-source translator this script's own priority order names
+    (module docstring, source 3), built from the environment: Azure primary
+    with a Gemini fallback when both are configured, either one alone when
+    only one is, and ``None`` when neither is.
+
+    Public and separate from ``main()`` so a second caller gets EXACTLY this
+    construction rather than a lookalike. ``scripts/step7_corpus_pilot.py``
+    (TODO.md 2.1b) fills one pilot's glosses through the same store and the
+    same translator, and a divergence between the two -- a different
+    fallback wiring, a different Gemini model -- would mean two glosses of
+    the same sentence could differ by which script happened to write it
+    first. The mode is returned alongside because callers key both their
+    batch size (``_default_batch_size``) and their "which provider wrote
+    this record" labelling on it.
+
+    Says nothing on the console: the Gemini-only and no-translator cases each
+    warrant a loud warning, but what that warning should say differs per
+    caller, so it stays with the caller.
+    """
+    azure = azure_from_env(llm_client=gemini_client)
+    mode = _translator_mode(azure, gemini_client)
+    if mode == "fallback":
+        assert azure is not None and gemini_client is not None
+        return (
+            FallbackTranslator(
+                primary=azure,
+                fallback=GeminiTranslator(llm_client=gemini_client, model=MODEL_GENERATE),
+            ),
+            mode,
+        )
+    if mode == "azure_only":
+        return azure, mode
+    if mode == "gemini_only":
+        assert gemini_client is not None
+        return GeminiTranslator(llm_client=gemini_client, model=MODEL_GENERATE), mode
+    return None, mode
+
+
 def _translator_mode(
     azure: AzureTranslator | None, gemini_client: GeminiLlmClient | None
 ) -> TranslatorMode:
@@ -805,32 +846,19 @@ def main() -> int:
         print("  No --pairs or --links/--english given; skipping the Tatoeba-translation step.")
 
     gemini_client = client_from_env()
-    azure = azure_from_env(llm_client=gemini_client)
-    mode = _translator_mode(azure, gemini_client)
-
-    translator: Translator | None
-    if mode == "fallback":
-        assert azure is not None and gemini_client is not None
-        translator = FallbackTranslator(
-            primary=azure, fallback=GeminiTranslator(llm_client=gemini_client, model=MODEL_GENERATE)
-        )
-    elif mode == "azure_only":
-        translator = azure
-    elif mode == "gemini_only":
-        assert gemini_client is not None
+    translator, mode = translator_from_env(gemini_client)
+    if mode == "gemini_only":
         print(
             "\n  *** NO AZURE KEY CONFIGURED: running Gemini-only. Quality is lower "
             "than the dedicated translation engine, and Gemini calls are not free "
             "once its own free lane closes. ***\n"
         )
-        translator = GeminiTranslator(llm_client=gemini_client, model=MODEL_GENERATE)
-    else:
+    elif mode == "none":
         print(
             "\n  *** NO TRANSLATOR CONFIGURED: no AZURE_TRANSLATOR_KEY and no Gemini "
             "key. Machine translation is skipped entirely this run; only the "
             "Tatoeba-translation step (if given) will fill the store. ***\n"
         )
-        translator = None
 
     batch_size = args.batch_size if args.batch_size is not None else _default_batch_size(mode)
 

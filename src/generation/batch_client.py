@@ -568,6 +568,13 @@ class RejectedCandidateRecord(BaseModel):
     layer_failed: int | None
     error_type: str | None
     reason: str | None
+    # TODO.md 2.1b: the English gloss the rejected candidate carried, when it
+    # carried one. Purely additive (defaults to ``None``, so every existing
+    # producer is unaffected), and worth carrying because the gloss is now
+    # itself a rejection CAUSE: a rejected-file row whose reason begins
+    # "Gloss validation failed:" is undiagnosable without the offending
+    # English sentence in the same row.
+    gloss_en: str | None = None
 
 
 class VerifiedIngestResult(BaseModel):
