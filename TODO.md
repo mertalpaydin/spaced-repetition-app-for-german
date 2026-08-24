@@ -87,6 +87,12 @@ Not tasks. Do not "fix" these without a decision from the owner.
   `docs/audits/cycle-12-corpus-report.md`; the recommendation is a required
   time anchor in the carrier, reusing the check `futur_i` already has.
 
+- [ ] **2.1b Wire `gloss_en` through the pilot.** The item schema already
+  carries a `gloss_en` field and it is `None` on all 396 cycle 12 items.
+  `scripts/step7_corpus_pilot.py` needs to write out its sampled carriers
+  (for `build_translations.py --carriers-from`) and read the glosses back
+  into that field. Blocks 5.1 step 3 and 2.2.
+
 - [ ] **2.2 Prove the verifier catches a WRONG English translation.** Owner's
   requirement, and the condition the whole gloss plan rests on. The cycle 12
   measurement hand-checked 120 Tatoeba pairs and found 2 wrong: one tense
@@ -175,15 +181,30 @@ Decided (section 4). Three parts, in order:
    translations (German to X to English), which drift, so the sample must
    count those specifically. This number decides whether the rest is worth
    building.
-2. **Translate Leipzig carriers** with a dedicated translation API, not an
-   LLM. Azure Translator F0 is free for 2,000,000 characters a month,
-   permanently, no card. Leipzig carriers average 77 characters, so that is
-   about 26,000 sentences a month, and the backfill is one-off. A daily
-   scheduled job stays inside the free tier and never needs a paid call.
-   CLAUDE.md rule 4 requires every external model call to be visible to the
-   budget: wire the translation provider through `src/llm/client.py`'s cost
-   log, or amend the rule explicitly. Do not add a second, invisible
-   provider.
+2. **Translate the rest** with a dedicated translation API, not an LLM.
+   Built and run once. `scripts/build_translations.py`, backed by
+   `src/llm/translation.py` (Azure Translator F0 primary, Gemini fallback),
+   every call logged through `src/llm/client.py` per CLAUDE.md rule 4.
+
+   **First run, 2026-08-24, and what it settled.** 450,490 distinct
+   carriers were read. Tatoeba's own pairs glossed 200,555 of them at zero
+   cost, in one pass, permanently. 1,000 more were machine translated.
+   248,935 were left.
+
+   Those 248,935 are about 17,000,000 characters, which is roughly eight
+   and a half months of the free tier. That kills the whole-corpus
+   backfill: the earlier "six weeks" estimate assumed only the
+   carrier-valid subset, and carrier validation only removes about 30%
+   (55,939 of 80,000 in cycle 12), so it does not rescue the number.
+
+   **The fix is to translate per build, not per corpus.** Measured against
+   cycle 12's own 396 accepted items: 230 of their carriers already have a
+   Tatoeba gloss, so a whole pilot needs 166 new translations, about 11,000
+   characters, one run. `--carriers-from` on `build_translations.py` is
+   that mode. The whole-corpus mode stays for feature 5.3, which does want
+   many corpus sentences glossed, and the free Tatoeba 200,555 already
+   covers 5.3 without another paid character.
+
 3. **Show the translation in the app** (`web/index.html`, `web/app.js`).
    This must land before or with any verifier relaxation that assumes the
    learner can see it. Relaxing the verifier against information the

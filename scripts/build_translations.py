@@ -334,7 +334,7 @@ def _read_one_corpus(path: Path, fmt: str, label: str, limit: int, seed: int) ->
     return lines
 
 
-def _read_carriers_from_file(path: Path) -> dict[str, CorpusLine]:
+def _read_carriers_from_file(path: Path) -> tuple[dict[str, CorpusLine], int]:
     """The ``--carriers-from`` mode's carrier set (module docstring, "Two
     modes"): one German sentence per line, keyed by its own exact text so
     duplicates collapse exactly the way the corpus mode's ``setdefault``
@@ -351,8 +351,17 @@ def _read_carriers_from_file(path: Path) -> dict[str, CorpusLine]:
     corpus id, and ``_fill_from_tatoeba`` already falls back to an exact-text
     match when a carrier has no id, so the Tatoeba join still works in this
     mode.
+
+    Returns the carriers AND the number of JSON objects skipped for having no
+    usable ``german`` key, because silence there is the dangerous failure
+    mode: this project's own item JSONL (``data/corpus_pilot_review.jsonl``)
+    carries ``prompt`` and ``accepted_answers``, not ``german``, so feeding it
+    here directly would skip every single line and finish with an empty
+    carrier set, a clean exit code and nothing said. The caller reports the
+    count and refuses a run whose whole input was skipped.
     """
     carriers: dict[str, CorpusLine] = {}
+    skipped_json_objects = 0
     with path.open(encoding="utf-8") as handle:
         for raw_line in handle:
             text = raw_line.strip()
@@ -366,10 +375,11 @@ def _read_carriers_from_file(path: Path) -> dict[str, CorpusLine]:
                 if isinstance(parsed, dict):
                     german = parsed.get("german")
                     if not isinstance(german, str) or not german.strip():
+                        skipped_json_objects += 1
                         continue
                     text = german.strip()
             carriers.setdefault(text, CorpusLine(line_id="", text=text))
-    return carriers
+    return carriers, skipped_json_objects
 
 
 def _shortest_translations(pairs: list[Pair]) -> tuple[dict[str, str], dict[str, str]]:
@@ -731,8 +741,22 @@ def main() -> int:
         if not args.carriers_from.exists():
             parser.error(f"--carriers-from file not found: {args.carriers_from}")
         carriers_source = str(args.carriers_from)
-        carriers = _read_carriers_from_file(args.carriers_from)
+        carriers, skipped_json_objects = _read_carriers_from_file(args.carriers_from)
         print(f"  Carrier list: {len(carriers):,} distinct sentences from {args.carriers_from}")
+        if skipped_json_objects:
+            print(
+                f"  WARNING: {skipped_json_objects:,} JSON lines had no usable 'german' key "
+                "and were skipped."
+            )
+        if not carriers and skipped_json_objects:
+            # Never a quiet success. An items JSONL keyed on something other
+            # than 'german' skips every line, and without this the run would
+            # write an empty report and exit 0 as though it had finished.
+            parser.error(
+                f"every line of {args.carriers_from} was a JSON object with no 'german' key. "
+                "This file format needs one German sentence per line, or JSON objects "
+                "carrying a 'german' field."
+            )
     else:
         if not args.skip_tatoeba:
             for line in _read_one_corpus(args.tatoeba, "tatoeba", "Tatoeba", args.limit, args.seed):

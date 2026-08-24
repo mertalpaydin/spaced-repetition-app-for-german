@@ -530,7 +530,7 @@ def test_read_carriers_from_file_plain_sentences_reads_every_line(tmp_path: Path
     path = tmp_path / "carriers.txt"
     path.write_text("Der Hund läuft.\nDie Katze schläft.\n", encoding="utf-8")
 
-    carriers = _read_carriers_from_file(path)
+    carriers, _ = _read_carriers_from_file(path)
 
     assert set(carriers) == {"Der Hund läuft.", "Die Katze schläft."}
     # No corpus id exists in this format; _fill_from_tatoeba falls back to an
@@ -546,7 +546,7 @@ def test_read_carriers_from_file_jsonl_takes_the_german_key(tmp_path: Path) -> N
         encoding="utf-8",
     )
 
-    carriers = _read_carriers_from_file(path)
+    carriers, _ = _read_carriers_from_file(path)
 
     assert set(carriers) == {"Der Hund läuft.", "Die Katze schläft."}
 
@@ -563,7 +563,7 @@ def test_read_carriers_from_file_json_object_without_german_key_is_skipped(
         encoding="utf-8",
     )
 
-    carriers = _read_carriers_from_file(path)
+    carriers, _ = _read_carriers_from_file(path)
 
     assert set(carriers) == {"Der Hund läuft."}
 
@@ -575,7 +575,7 @@ def test_read_carriers_from_file_blank_lines_and_duplicates_collapse(tmp_path: P
         encoding="utf-8",
     )
 
-    carriers = _read_carriers_from_file(path)
+    carriers, _ = _read_carriers_from_file(path)
 
     assert set(carriers) == {"Der Hund läuft.", "Die Katze schläft."}
     assert len(carriers) == 2
@@ -589,7 +589,7 @@ def test_read_carriers_from_file_non_json_line_with_a_brace_is_taken_literally(
     path = tmp_path / "carriers.txt"
     path.write_text("{das ist kein JSON}\n", encoding="utf-8")
 
-    carriers = _read_carriers_from_file(path)
+    carriers, _ = _read_carriers_from_file(path)
 
     assert set(carriers) == {"{das ist kein JSON}"}
 
@@ -673,6 +673,52 @@ def test_main_carriers_from_missing_file_is_a_usage_error(
         main()
 
     assert exc_info.value.code == 2
+
+
+def test_main_carriers_from_jsonl_with_no_german_key_anywhere_is_a_usage_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The realistic way to misuse this flag, and the one that would otherwise
+    pass silently. This project's own item dump
+    (``data/corpus_pilot_review.jsonl``) is keyed on ``prompt`` and
+    ``accepted_answers``, not ``german``, so pointing ``--carriers-from`` at it
+    skips every line. Without this check the run would write an empty report
+    and exit 0, which reads as "the build has all its glosses" when in fact it
+    translated nothing at all."""
+    path = tmp_path / "items.jsonl"
+    path.write_text(
+        '{"id": "a1", "prompt": "Der Hund ___ schnell.", "accepted_answers": ["läuft"]}\n'
+        '{"id": "a2", "prompt": "Die Katze ___.", "accepted_answers": ["schläft"]}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sys, "argv", ["build_translations.py", "--carriers-from", str(path)])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 2
+
+
+def test_read_carriers_from_file_reports_how_many_json_objects_it_skipped(
+    tmp_path: Path,
+) -> None:
+    """The count is what makes a PARTIAL mismatch visible. A file that is
+    half plain sentences and half foreign JSON still produces carriers, so it
+    never trips the usage error above; the caller prints this number instead,
+    and a nonzero one says the file is not the shape its author thought."""
+    path = tmp_path / "mixed.jsonl"
+    path.write_text(
+        "Der Hund läuft.\n"
+        '{"prompt": "no german key"}\n'
+        '{"german": "Die Katze schläft."}\n'
+        '{"item_id": "x"}\n',
+        encoding="utf-8",
+    )
+
+    carriers, skipped = _read_carriers_from_file(path)
+
+    assert set(carriers) == {"Der Hund läuft.", "Die Katze schläft."}
+    assert skipped == 2
 
 
 def test_load_store_malformed_line_skipped_not_fatal(tmp_path: Path) -> None:
