@@ -1273,7 +1273,10 @@ def test_main_gloss_check_rejects_a_contradicting_gloss_and_counts_it_by_topic(
     present, a machine translation that contradicts the answer's tense or
     person REJECTS an item that previously passed. That rejection must be
     counted under its own name and broken down by topic, never folded into
-    the model verifier's rejection reasons."""
+    the model verifier's rejection reasons.
+
+    Enforcing is opt-in, so this test asks for it explicitly. The default is
+    measure-only, covered by the next test."""
     # A past-tense English gloss for a present-tense carrier: consistent
     # German, contradicting English.
     report = _run_main_with_glosses(
@@ -1281,6 +1284,7 @@ def test_main_gloss_check_rejects_a_contradicting_gloss_and_counts_it_by_topic(
         monkeypatch,
         _tiny_corpora,
         store={_CARRIER: "The dog was running and it did not stop."},
+        extra_args=["--enforce-gloss-check"],
     )
     gloss = report["gloss"]
     assert isinstance(gloss, dict)
@@ -1317,25 +1321,27 @@ def test_main_gloss_check_rejects_a_contradicting_gloss_and_counts_it_by_topic(
     assert all(row["prompt"] not in review_prompts for row in gloss_rows)
 
 
-def test_main_no_gloss_check_still_measures_but_rejects_nothing(
+def test_main_gloss_check_defaults_to_measuring_without_rejecting_anything(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
 ) -> None:
-    """The reversibility seam: same store, same contradicting gloss, but the
-    check is inert. The gloss still reaches the learner, no item is dropped,
-    and the number of items the check WOULD have rejected is still reported
-    -- turning the check back on must never be a leap in the dark."""
+    """The default, and the reversibility seam: same store, same
+    contradicting gloss, but the check does not act. The gloss still reaches
+    the learner, no item is dropped, and the number of items the check WOULD
+    have rejected is still reported. Enforcing must never be a leap in the
+    dark, and a brand new rejection path must not switch itself on before a
+    run has priced it."""
     enforced = _run_main_with_glosses(
         tmp_path / "on",
         monkeypatch,
         _tiny_corpora,
         store={_CARRIER: "The dog was running and it did not stop."},
+        extra_args=["--enforce-gloss-check"],
     )
     relaxed = _run_main_with_glosses(
         tmp_path / "off",
         monkeypatch,
         _tiny_corpora,
         store={_CARRIER: "The dog was running and it did not stop."},
-        extra_args=["--no-gloss-check"],
     )
 
     on_gloss = enforced["gloss"]

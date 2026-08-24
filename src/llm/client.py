@@ -222,6 +222,30 @@ class CostLogRow(BaseModel):
     purpose: str = "generation"
 
 
+#: Where ``GeminiLlmClient`` writes its cost log unless told otherwise, named
+#: here so a non-Gemini provider can append to the SAME file without owning a
+#: client. See ``append_cost_row``.
+DEFAULT_COST_LOG_PATH = Path(".cache/cost_log.jsonl")
+
+
+def append_cost_row(row: CostLogRow, path: Path | str = DEFAULT_COST_LOG_PATH) -> None:
+    """Append one audit row to the cost log.
+
+    Exists because CLAUDE.md rule 4 is about VISIBILITY, not about money, and
+    the log had a hole in exactly that: ``AzureTranslator`` logs through a
+    ``GeminiLlmClient`` it is handed, so a run configured with an Azure key
+    and no Gemini key translated real sentences and wrote no row at all. Azure
+    F0 costs nothing, which is why the hole was easy to miss and why it is
+    still a hole: an audit that silently omits a whole provider is not an
+    audit. This is the one write path, shared by ``GeminiLlmClient._log_cost``
+    and by any provider that has no client to write through.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(row.model_dump_json() + "\n")
+
+
 class GeminiLlmClient:
     """The single entry point for all LLM calls in the application.
 
@@ -426,9 +450,7 @@ class GeminiLlmClient:
 
     def _log_cost(self, row: CostLogRow) -> None:
         self.cost_records.append(row)
-        self.cost_log_path.parent.mkdir(parents=True, exist_ok=True)
-        with self.cost_log_path.open("a", encoding="utf-8") as f:
-            f.write(row.model_dump_json() + "\n")
+        append_cost_row(row, self.cost_log_path)
 
     def _estimate_cost(
         self, model: str, prompt_tokens: int, completion_tokens: int, lane: Lane

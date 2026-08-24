@@ -20,6 +20,11 @@ None of these tests touch the network (CLAUDE.md 158):
 - No test ever points ``GeminiLlmClient`` at the real
   ``.cache/cost_log.jsonl``; every client built here is given an explicit
   ``cost_log_path`` under ``tmp_path``.
+- ``AzureTranslator`` now writes a row even with no client at all, so the
+  same protection has to cover the clientless path too. The autouse
+  ``_redirect_default_cost_log`` fixture below points the module default at
+  ``tmp_path`` for EVERY test in this file, so a test that forgets to pass
+  ``cost_log_path`` still cannot append to the repository's real audit file.
 """
 
 import io
@@ -32,6 +37,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from src.llm import translation as translation_module
 from src.llm.client import GeminiLlmClient
 from src.llm.translation import (
     AZURE_COST_LOG_MODEL,
@@ -45,6 +51,21 @@ from src.llm.translation import (
     _parse_azure_payload,
     azure_from_env,
 )
+
+
+@pytest.fixture(autouse=True)
+def _redirect_default_cost_log(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """No test in this file may append to the repository's own cost log.
+
+    ``AzureTranslator._log`` resolves ``DEFAULT_COST_LOG_PATH`` at call time
+    precisely so this fixture can exist; if the constant were bound as the
+    dataclass default it would be captured at import and unreachable from
+    here, and every offline test that successfully translates would leave a
+    row in the real audit file."""
+    monkeypatch.setattr(
+        translation_module, "DEFAULT_COST_LOG_PATH", tmp_path / "default_cost_log.jsonl"
+    )
+
 
 # ----------------------------------------------------------------------
 # Shared fakes
@@ -292,16 +313,29 @@ def test_azure_translator_translate_success_logs_one_cost_log_row(
     assert len(on_disk) == 1
 
 
-def test_azure_translator_translate_with_no_llm_client_does_not_crash(
-    monkeypatch: pytest.MonkeyPatch,
+def test_azure_translator_translate_with_no_llm_client_still_writes_a_cost_row(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    """CLAUDE.md rule 4 is about VISIBILITY, not about money. An earlier
+    version returned early without a client, so a run configured with an
+    Azure key and no Gemini key translated real sentences and left no trace
+    in the log at all. F0 being free is why that was easy to miss and is not
+    why it was acceptable: an audit that silently omits a whole provider is
+    not an audit."""
     captured: list[urllib.request.Request] = []
     monkeypatch.setattr(urllib.request, "urlopen", _echo_urlopen(captured))
-    translator = AzureTranslator(api_key="k", llm_client=None)
+    log_path = tmp_path / "cost_log.jsonl"
+    translator = AzureTranslator(api_key="k", llm_client=None, cost_log_path=log_path)
 
     result = translator.translate(["Hallo Welt."])
 
     assert result == ["EN:Hallo Welt."]
+    rows = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines() if line]
+    assert len(rows) == 1
+    assert rows[0]["model"] == AZURE_COST_LOG_MODEL
+    assert rows[0]["lane"] == "free"
+    assert rows[0]["purpose"] == "translation"
+    assert rows[0]["prompt_tokens"] == len("Hallo Welt.")
 
 
 # ----------------------------------------------------------------------

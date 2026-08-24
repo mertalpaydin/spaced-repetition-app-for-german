@@ -176,14 +176,30 @@ So the check is run here, explicitly, as its own free deterministic pass
 between glossing and verification, through the exact seam the chain uses
 (``src.verification.pipeline.check_gloss``, which
 ``VerificationPipeline._gloss_check`` now also calls, so the two can never
-drift). It is ALWAYS measured and reported; ``--no-gloss-check`` makes it
-non-enforcing, so a run can populate the gloss for the learner while leaving
-the consistency check inert, and still see exactly what it would have cost.
-Default is enforcing. ``rejected_by_gloss_check`` and its per-topic
-breakdown are printed prominently, not buried, because some of those
-rejections will be correct (the machine translation really is wrong) and
-some will be the check misreading a correct but loose translation, and only
-the per-topic shape tells the two apart.
+drift).
+
+**It is measure-only by default.** The check always runs and its numbers are
+always printed; ``--enforce-gloss-check`` is what lets it actually drop an
+item. That default is deliberate and is the owner's standing bar, not
+timidity: this is a brand new rejection path on a script that has never had
+one, judging machine translations whose quality on this corpus is not yet
+measured, and turning it on blind would trade an unknown number of false
+negatives for an unknown number of true ones. A fix must not increase false
+negatives while decreasing false positives. One measure-only run tells us
+exactly what enforcing would cost, per topic, for free; then it is a
+decision rather than a gamble.
+
+``rejected_by_gloss_check`` and its per-topic breakdown are printed
+prominently, not buried, because some of those rejections would be correct
+(the machine translation really is wrong) and some would be the check
+misreading a correct but loose translation, and only the per-topic shape
+tells the two apart.
+
+One known limit of the check itself, found while building this: it compares
+the gloss against the ANSWER's own tense and person features, so it only
+bites on items whose answer carries that morphology. A wrong gloss on an
+item that blanks a determiner or an adjective ending passes it untouched.
+That caps its recall structurally, and it bears directly on TODO.md 2.2.
 
 ## CLAUDE.md rule 2
 
@@ -1246,13 +1262,13 @@ def main() -> int:
         ),
     )
     parser.add_argument(
-        "--no-gloss-check",
+        "--enforce-gloss-check",
         action="store_true",
         help=(
-            "Populate gloss_en for the learner but do not let the gloss "
-            "consistency check REJECT anything. The check still runs and its "
-            "numbers are still reported, so the cost of turning it back on "
-            "stays visible. Default: the check is enforcing."
+            "Let the gloss consistency check REJECT items, not just report "
+            "them. Default is measure-only: the check always runs and its "
+            "numbers are always printed, but nothing is dropped for it until "
+            "a run has shown what enforcing would cost."
         ),
     )
     parser.add_argument("--review-file", type=str, default=str(DEFAULT_REVIEW_PATH))
@@ -1461,7 +1477,7 @@ def main() -> int:
         now=datetime.now(UTC),
         batch_size=_default_batch_size(translator_mode),
     )
-    gloss_report.gloss_check_enforced = not args.no_gloss_check
+    gloss_report.gloss_check_enforced = args.enforce_gloss_check
     report.gloss = gloss_report
 
     gloss_outcomes = _run_gloss_check(bank_items, topics_by_id)
@@ -1567,9 +1583,9 @@ def main() -> int:
     print(
         "    Mode:                 "
         + (
-            "ENFORCING (a contradicting gloss rejects the item)"
+            "ENFORCING (--enforce-gloss-check; a contradicting gloss rejects the item)"
             if gloss_report.gloss_check_enforced
-            else "MEASURED ONLY (--no-gloss-check; nothing was rejected)"
+            else "MEASURED ONLY (the default; nothing was rejected for its gloss)"
         )
     )
     print(f"    Items with a gloss:   {gloss_report.items_gloss_checked}")

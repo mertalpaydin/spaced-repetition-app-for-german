@@ -57,9 +57,15 @@ import urllib.request
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Protocol
 
-from src.llm.client import CostLogRow, GeminiLlmClient
+from src.llm.client import (
+    DEFAULT_COST_LOG_PATH,
+    CostLogRow,
+    GeminiLlmClient,
+    append_cost_row,
+)
 
 #: Azure's own global endpoint. A resource created with Region "Global" needs
 #: no region header; a region-locked one needs ``Ocp-Apim-Subscription-Region``
@@ -161,6 +167,18 @@ class AzureTranslator:
     monthly_character_budget: int = AZURE_F0_MONTHLY_CHARACTERS
     characters_used: int = 0
     timeout_seconds: float = 30.0
+
+    #: Where a row goes when no ``llm_client`` was supplied to write it
+    #: through. Same file the client itself uses, so one log holds every
+    #: provider (CLAUDE.md rule 4).
+    #:
+    #: ``None`` means ``DEFAULT_COST_LOG_PATH``, resolved at call time rather
+    #: than bound here as a default VALUE. Same reasoning as ``urlopen``
+    #: below: binding it captures the path at import, which would leave a test
+    #: no way to redirect the log away from the real ``.cache/cost_log.jsonl``
+    #: and would have every offline test append rows to the repository's own
+    #: audit file.
+    cost_log_path: Path | None = None
 
     #: Throughput self-limit, enforced before every real HTTP call. Set to 0
     #: or below to disable pacing entirely (a non-F0 resource, or a test that
@@ -343,20 +361,29 @@ class AzureTranslator:
         ``prompt_tokens``: the field is the request-side size in the unit the
         provider bills, and inventing a token estimate would put a fiction in
         an audit record.
+
+        A row is written whether or not an ``llm_client`` was supplied. An
+        earlier version returned early without one, which meant a run
+        configured with an Azure key and no Gemini key translated real
+        sentences and left no trace in the log at all. CLAUDE.md rule 4 is
+        about visibility, not about money, so "it was free anyway" does not
+        excuse the gap. With a client the row also lands in that client's own
+        in-memory ``cost_records``, which is why that path is preferred when
+        one is available.
         """
-        if self.llm_client is None:
-            return
-        self.llm_client._log_cost(  # noqa: SLF001 -- the one writer for this log
-            CostLogRow(
-                timestamp=datetime.now(UTC),
-                model=AZURE_COST_LOG_MODEL,
-                lane="free",
-                prompt_tokens=characters,
-                completion_tokens=0,
-                cost_usd=0.0,
-                purpose="translation",
-            )
+        row = CostLogRow(
+            timestamp=datetime.now(UTC),
+            model=AZURE_COST_LOG_MODEL,
+            lane="free",
+            prompt_tokens=characters,
+            completion_tokens=0,
+            cost_usd=0.0,
+            purpose="translation",
         )
+        if self.llm_client is not None:
+            self.llm_client._log_cost(row)  # noqa: SLF001 -- the one writer for this log
+            return
+        append_cost_row(row, self.cost_log_path or DEFAULT_COST_LOG_PATH)
 
 
 def _parse_azure_payload(payload: object, *, expected: int) -> list[str]:

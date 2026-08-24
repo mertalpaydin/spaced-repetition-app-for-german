@@ -87,11 +87,24 @@ Not tasks. Do not "fix" these without a decision from the owner.
   `docs/audits/cycle-12-corpus-report.md`; the recommendation is a required
   time anchor in the carrier, reusing the check `futur_i` already has.
 
-- [ ] **2.1b Wire `gloss_en` through the pilot.** The item schema already
-  carries a `gloss_en` field and it is `None` on all 396 cycle 12 items.
-  `scripts/step7_corpus_pilot.py` needs to write out its sampled carriers
-  (for `build_translations.py --carriers-from`) and read the glosses back
-  into that field. Blocks 5.1 step 3 and 2.2.
+- [ ] **2.1b Decide whether the gloss check enforces.** The wiring is done:
+  `step7_corpus_pilot.py` now fills `gloss_en` from the translation store,
+  translating and storing whatever the store lacks. The consistency check
+  (a gloss whose tense or person contradicts the answer) **runs and reports
+  but does not reject**, by default. `--enforce-gloss-check` turns it into
+  a real rejection. It is measure-only because it is a brand new rejection
+  path judging machine translations of unmeasured quality on this corpus,
+  and switching it on blind would trade unknown false negatives for unknown
+  true ones. Next pilot prints `rejected_by_gloss_check` and its per-topic
+  breakdown. That number is the decision.
+
+  Known limit of the check, found while building it: it compares the gloss
+  against the **answer's** own tense and person, so it only bites on items
+  whose answer carries that morphology. A wrong gloss on an item that
+  blanks a determiner or an adjective ending passes untouched. Verified on
+  a real example: one carrier with a deliberately wrong past-tense gloss
+  produced two items, and only the one answering a verb was caught. This
+  caps its recall structurally and bears directly on 2.2.
 
 - [ ] **2.2 Prove the verifier catches a WRONG English translation.** Owner's
   requirement, and the condition the whole gloss plan rests on. The cycle 12
