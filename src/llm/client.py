@@ -271,11 +271,10 @@ class GeminiLlmClient:
 
     # 5xx server overload is transient and carries no structured retry delay
     # (confirmed live: "503 UNAVAILABLE... currently experiencing high
-    # demand" with a plain-text body, no RetryInfo). A few short retries on
-    # the same lane clears it in practice; this is not a quota signal and
-    # must never touch the RPD lane-closing path.
+    # demand" with a plain-text body, no RetryInfo). Retries for up to 10
+    # minutes on the current lane before falling back from free to paid.
     SERVER_ERROR_BACKOFF_SECONDS: float = 15.0
-    SERVER_ERROR_MAX_RETRIES: int = 5
+    SERVER_ERROR_MAX_RETRIES: int = 40
 
     # ``generate_many``'s free-lane path fires independent items concurrently
     # instead of serially -- each is still just one HTTP round-trip, so wall
@@ -1088,8 +1087,17 @@ class GeminiLlmClient:
                     ) from exc
                 lane = "paid"
                 mode = self._mode_for_lane(lane)
-            except ServerUnavailableError:
+            except ServerUnavailableError as exc:
                 if server_attempts >= self.SERVER_ERROR_MAX_RETRIES:
+                    if lane == "free":
+                        if self.forbid_paid_lane:
+                            raise PaidLaneForbiddenError(
+                                self._paid_lane_forbidden_message(ref_time)
+                            ) from exc
+                        lane = "paid"
+                        mode = self._mode_for_lane(lane)
+                        server_attempts = 0
+                        continue
                     raise
                 server_attempts += 1
                 self._sleep(self.SERVER_ERROR_BACKOFF_SECONDS)

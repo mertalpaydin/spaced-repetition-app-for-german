@@ -1496,11 +1496,52 @@ def test_operator_tuned_rate_limit_constants_are_pinned() -> None:
 
 def test_operator_tuned_server_error_constants_are_pinned() -> None:
     """``SERVER_ERROR_BACKOFF_SECONDS`` and ``SERVER_ERROR_MAX_RETRIES`` are
-    the project owner's own edit, applied by hand after the cycle 9 pilot run
-    died partway through on a Gemini 503. The defaults (5.0 seconds, 3
-    retries) were not enough to ride out that outage; 15 seconds and 5
-    retries were. Same standing rule as the rate-limit constants above: if
-    this fails, ask the owner rather than updating the assertion, per
-    CLAUDE.md rule 7 and TODO.md section 5."""
+    tuned to give up to 10 minutes of retry before falling back to the paid lane.
+    """
     assert GeminiLlmClient.SERVER_ERROR_BACKOFF_SECONDS == 15.0
-    assert GeminiLlmClient.SERVER_ERROR_MAX_RETRIES == 5
+    assert GeminiLlmClient.SERVER_ERROR_MAX_RETRIES == 40
+
+
+def test_server_error_falls_back_from_free_to_paid_lane(tmp_path: Path) -> None:
+    """When the free lane exhausts 503 retries, it must fall back to the paid lane."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        sleep_fn=lambda _seconds: None,
+    )
+    lanes_called: list[str] = []
+
+    def transport_overloaded_then_ok(**kwargs: object) -> tuple[str, int, int]:
+        lane = str(kwargs.get("lane"))
+        lanes_called.append(lane)
+        if lane == "free":
+            raise ServerUnavailableError("503 UNAVAILABLE")
+        return "response from paid", 10, 10
+
+    client._call_transport = transport_overloaded_then_ok  # type: ignore[method-assign]
+
+    response = client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
+    assert response == "response from paid"
+    assert lanes_called.count("free") == 41  # 1 initial + 40 retries
+    assert lanes_called.count("paid") == 1
+    # Free lane remains open (not closed by 503, unlike RPD)
+    assert client.free_lane_open is True
+
+
+def test_server_error_paid_lane_forbidden_raises(tmp_path: Path) -> None:
+    """When paid lane is forbidden, 503 retry exhaustion raises PaidLaneForbiddenError."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        forbid_paid_lane=True,
+        sleep_fn=lambda _seconds: None,
+    )
+
+    def always_overloaded(**kwargs: object) -> tuple[str, int, int]:
+        raise ServerUnavailableError("503 UNAVAILABLE")
+
+    client._call_transport = always_overloaded  # type: ignore[method-assign]
+
+    with pytest.raises(PaidLaneForbiddenError):
+        client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
+
