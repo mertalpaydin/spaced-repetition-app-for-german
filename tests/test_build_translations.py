@@ -13,6 +13,7 @@ resumability mechanism under test.
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -23,13 +24,20 @@ from scripts.build_translations import (
     TranslationRecord,
     _default_batch_size,
     _load_store,
+    _read_carriers_from_file,
     _shortest_translations,
     _write_store_atomic,
+    main,
     run_backfill,
 )
 from scripts.corpus_reading import CorpusLine
 from scripts.eval_tatoeba_translation_quality import Pair
-from src.llm.translation import AZURE_MAX_BATCH, TranslationError, Translator
+from src.llm.translation import (
+    AZURE_MAX_BATCH,
+    FallbackTranslator,
+    TranslationError,
+    Translator,
+)
 
 
 def _carrier(text: str, line_id: str = "") -> CorpusLine:
@@ -204,7 +212,14 @@ def test_run_backfill_max_characters_exceeded_stops_cleanly_and_reports_skipped(
     assert report.machine_translated == 2
     assert report.skipped_for_budget == 3
     assert report.failed == 0
-    assert report.characters_spent == one_length * 2
+    # The stop itself is unchanged, but the accounting behind it is now split:
+    # this run is gemini_only, so Azure translated nothing and characters_spent
+    # (which exists to protect the F0 monthly allowance) must stay at zero,
+    # while the characters really translated show up as Gemini's. The budget
+    # still stops the run on the two counters combined, which is why 2 of 5
+    # carriers land here exactly as before.
+    assert report.characters_spent == 0
+    assert report.gemini_fallback_characters == one_length * 2
 
     store = _load_store(store_path)
     assert len(store) == 2
@@ -408,6 +423,302 @@ def test_default_batch_size_gemini_only_mode_returns_one() -> None:
 def test_default_batch_size_fallback_mode_returns_azure_max_batch() -> None:
     assert _default_batch_size("fallback") == AZURE_MAX_BATCH
     assert _default_batch_size("azure_only") == AZURE_MAX_BATCH
+
+
+# ==============================================================================
+# Azure characters and Gemini fallback characters are never conflated
+#
+# The per-run budget exists to protect Azure's monthly F0 allowance, so a
+# batch Azure refused and Gemini translated spent none of it. The script used
+# to charge those characters to characters_spent anyway, contradicting its own
+# module docstring, which already reasons correctly about the identical case
+# for a failed batch.
+# ==============================================================================
+
+
+def test_run_backfill_fallback_batch_counts_gemini_characters_not_azure_ones(
+    tmp_path: Path,
+) -> None:
+    store_path = tmp_path / "de_en.jsonl"
+    text = "Hallo Welt."
+    carriers = {text: _carrier(text, "1")}
+    translator = FallbackTranslator(
+        primary=FailingTranslator(), fallback=FakeTranslator(prefix="GEM: ")
+    )
+
+    report = run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        tatoeba_pairs=[],
+        max_characters=10_000,
+        batch_size=100,
+        seed=7,
+        limit_per_source=1000,
+    )
+
+    assert report.machine_translated == 1
+    assert report.characters_spent == 0
+    assert report.gemini_fallback_characters == len(text)
+    assert report.azure_fallback_events == 1
+    assert _load_store(store_path)[text].source == "gemini"
+
+
+def test_run_backfill_azure_batch_counts_azure_characters_not_gemini_ones(
+    tmp_path: Path,
+) -> None:
+    store_path = tmp_path / "de_en.jsonl"
+    text = "Hallo Welt."
+    carriers = {text: _carrier(text, "1")}
+    translator = FallbackTranslator(
+        primary=FakeTranslator(prefix="AZ: "), fallback=FakeTranslator(prefix="GEM: ")
+    )
+
+    report = run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        tatoeba_pairs=[],
+        max_characters=10_000,
+        batch_size=100,
+        seed=7,
+        limit_per_source=1000,
+    )
+
+    assert report.characters_spent == len(text)
+    assert report.gemini_fallback_characters == 0
+    assert _load_store(store_path)[text].source == "azure"
+
+
+def test_run_backfill_report_json_carries_both_character_counters(tmp_path: Path) -> None:
+    store_path = tmp_path / "de_en.jsonl"
+    text = "Hallo Welt."
+    translator = FallbackTranslator(
+        primary=FailingTranslator(), fallback=FakeTranslator(prefix="GEM: ")
+    )
+
+    report = run_backfill(
+        carriers={text: _carrier(text, "1")},
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        tatoeba_pairs=[],
+        max_characters=10_000,
+        batch_size=100,
+        seed=7,
+        limit_per_source=1000,
+    )
+    written = report.to_dict()
+
+    assert written["characters_spent"] == 0
+    assert written["gemini_fallback_characters"] == len(text)
+
+
+# ==============================================================================
+# --carriers-from: the per-carrier mode
+#
+# The whole-corpus backfill is the wrong shape for the item pipeline: 248,935
+# carriers still need machine translation at roughly 17,000,000 characters,
+# about eight and a half months of the F0 monthly allowance, while one 396-item
+# pilot needs 166 new translations and about 11,000 characters.
+# ==============================================================================
+
+
+def test_read_carriers_from_file_plain_sentences_reads_every_line(tmp_path: Path) -> None:
+    path = tmp_path / "carriers.txt"
+    path.write_text("Der Hund läuft.\nDie Katze schläft.\n", encoding="utf-8")
+
+    carriers, _ = _read_carriers_from_file(path)
+
+    assert set(carriers) == {"Der Hund läuft.", "Die Katze schläft."}
+    # No corpus id exists in this format; _fill_from_tatoeba falls back to an
+    # exact-text match when line_id is empty, which is what makes that safe.
+    assert all(line.line_id == "" for line in carriers.values())
+
+
+def test_read_carriers_from_file_jsonl_takes_the_german_key(tmp_path: Path) -> None:
+    path = tmp_path / "items.jsonl"
+    path.write_text(
+        '{"item_id": "a1", "german": "Der Hund läuft.", "tag_id": "x"}\n'
+        '{"item_id": "a2", "german": "Die Katze schläft."}\n',
+        encoding="utf-8",
+    )
+
+    carriers, _ = _read_carriers_from_file(path)
+
+    assert set(carriers) == {"Der Hund läuft.", "Die Katze schläft."}
+
+
+def test_read_carriers_from_file_json_object_without_german_key_is_skipped(
+    tmp_path: Path,
+) -> None:
+    """Skipped rather than taken literally: storing the raw JSON text as a
+    German sentence would put an untranslatable line in the store and spend
+    real characters on it."""
+    path = tmp_path / "items.jsonl"
+    path.write_text(
+        '{"item_id": "a1", "prompt": "no german key here"}\n{"german": "Der Hund läuft."}\n',
+        encoding="utf-8",
+    )
+
+    carriers, _ = _read_carriers_from_file(path)
+
+    assert set(carriers) == {"Der Hund läuft."}
+
+
+def test_read_carriers_from_file_blank_lines_and_duplicates_collapse(tmp_path: Path) -> None:
+    path = tmp_path / "carriers.txt"
+    path.write_text(
+        "\n  Der Hund läuft.  \n\nDie Katze schläft.\nDer Hund läuft.\n   \n",
+        encoding="utf-8",
+    )
+
+    carriers, _ = _read_carriers_from_file(path)
+
+    assert set(carriers) == {"Der Hund läuft.", "Die Katze schläft."}
+    assert len(carriers) == 2
+
+
+def test_read_carriers_from_file_non_json_line_with_a_brace_is_taken_literally(
+    tmp_path: Path,
+) -> None:
+    """Only a line that really parses as a JSON OBJECT gets the ``german``-key
+    treatment. German text that merely opens with a brace is a sentence."""
+    path = tmp_path / "carriers.txt"
+    path.write_text("{das ist kein JSON}\n", encoding="utf-8")
+
+    carriers, _ = _read_carriers_from_file(path)
+
+    assert set(carriers) == {"{das ist kein JSON}"}
+
+
+def test_run_backfill_carrier_list_with_empty_line_ids_still_joins_tatoeba_by_text(
+    tmp_path: Path,
+) -> None:
+    """``--carriers-from`` produces carriers with no ``line_id`` at all, so
+    the Tatoeba join has to fall back to an exact-text match. Verified here
+    rather than assumed, because the per-carrier mode relies on it for the
+    free half of its glosses."""
+    store_path = tmp_path / "de_en.jsonl"
+    carriers = {"Ich bin müde.": _carrier("Ich bin müde.", "")}
+    pairs = [Pair(german_id="1", german="Ich bin müde.", english="I am tired.")]
+
+    report = run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=None,
+        translator_mode="none",
+        tatoeba_pairs=pairs,
+        max_characters=1000,
+        batch_size=100,
+        seed=7,
+        limit_per_source=1000,
+        carriers_source="carriers.txt",
+    )
+
+    assert report.from_tatoeba == 1
+    assert report.carriers_source == "carriers.txt"
+    assert _load_store(store_path)["Ich bin müde."].english == "I am tired."
+
+
+def test_main_carriers_from_with_skip_tatoeba_is_a_usage_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The combination is meaningless: ``--carriers-from`` already means
+    neither corpus is read, so a ``--skip`` flag beside it can only mean the
+    caller thinks corpora are still in play. argparse's own error path exits
+    2 before anything reads the environment or builds a client."""
+    path = tmp_path / "carriers.txt"
+    path.write_text("Der Hund läuft.\n", encoding="utf-8")
+    monkeypatch.setattr(
+        sys, "argv", ["build_translations.py", "--carriers-from", str(path), "--skip-tatoeba"]
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 2
+
+
+def test_main_carriers_from_with_skip_leipzig_is_a_usage_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "carriers.txt"
+    path.write_text("Der Hund läuft.\n", encoding="utf-8")
+    monkeypatch.setattr(
+        sys, "argv", ["build_translations.py", "--carriers-from", str(path), "--skip-leipzig"]
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 2
+
+
+def test_main_carriers_from_missing_file_is_a_usage_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An explicitly given path that does not exist is a mistake worth
+    stopping for, unlike a missing staged corpus (which only warns): a silent
+    zero-carrier run would look like a completed build."""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["build_translations.py", "--carriers-from", str(tmp_path / "nope.txt")],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 2
+
+
+def test_main_carriers_from_jsonl_with_no_german_key_anywhere_is_a_usage_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The realistic way to misuse this flag, and the one that would otherwise
+    pass silently. This project's own item dump
+    (``data/corpus_pilot_review.jsonl``) is keyed on ``prompt`` and
+    ``accepted_answers``, not ``german``, so pointing ``--carriers-from`` at it
+    skips every line. Without this check the run would write an empty report
+    and exit 0, which reads as "the build has all its glosses" when in fact it
+    translated nothing at all."""
+    path = tmp_path / "items.jsonl"
+    path.write_text(
+        '{"id": "a1", "prompt": "Der Hund ___ schnell.", "accepted_answers": ["läuft"]}\n'
+        '{"id": "a2", "prompt": "Die Katze ___.", "accepted_answers": ["schläft"]}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sys, "argv", ["build_translations.py", "--carriers-from", str(path)])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 2
+
+
+def test_read_carriers_from_file_reports_how_many_json_objects_it_skipped(
+    tmp_path: Path,
+) -> None:
+    """The count is what makes a PARTIAL mismatch visible. A file that is
+    half plain sentences and half foreign JSON still produces carriers, so it
+    never trips the usage error above; the caller prints this number instead,
+    and a nonzero one says the file is not the shape its author thought."""
+    path = tmp_path / "mixed.jsonl"
+    path.write_text(
+        "Der Hund läuft.\n"
+        '{"prompt": "no german key"}\n'
+        '{"german": "Die Katze schläft."}\n'
+        '{"item_id": "x"}\n',
+        encoding="utf-8",
+    )
+
+    carriers, skipped = _read_carriers_from_file(path)
+
+    assert set(carriers) == {"Der Hund läuft.", "Die Katze schläft."}
+    assert skipped == 2
 
 
 def test_load_store_malformed_line_skipped_not_fatal(tmp_path: Path) -> None:

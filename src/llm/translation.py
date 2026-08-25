@@ -17,6 +17,20 @@ LLM would cost real money for a worse result.
 `gemini-3.5-live-translate-preview` was considered and does not apply: it is
 audio only, over the Live API websocket, and rejects text input outright.
 
+## Two different Azure ceilings
+
+F0 has an ALLOWANCE (2,000,000 characters a month) and a THROUGHPUT limit
+(2,000,000 characters an hour, metered as a sliding window, so roughly
+33,300 a minute). They fail differently and must be handled differently.
+Hitting the allowance is terminal for the month; hitting the throughput
+limit is an HTTP 429 that clears on its own in seconds. The owner's first
+real backfill hit the second one, sending about 56,275 characters in ten
+back-to-back requests, and the run treated it as a provider outage: 100 of
+its 1,000 sentences went to the paid Gemini fallback over a rate limit that
+a short wait would have cleared. ``AzureTranslator`` therefore paces itself
+under ``AZURE_F0_CHARACTERS_PER_MINUTE`` and retries a 429 in place. The
+fallback stays what it is for: a genuinely spent quota, or an outage.
+
 ## Rule 4 and the budget
 
 CLAUDE.md rule 4 exists so that no external model call is invisible to the
@@ -37,14 +51,21 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Protocol
 
-from src.llm.client import CostLogRow, GeminiLlmClient
+from src.llm.client import (
+    DEFAULT_COST_LOG_PATH,
+    CostLogRow,
+    GeminiLlmClient,
+    append_cost_row,
+)
 
 #: Azure's own global endpoint. A resource created with Region "Global" needs
 #: no region header; a region-locked one needs ``Ocp-Apim-Subscription-Region``
@@ -61,6 +82,21 @@ AZURE_MAX_BATCH = 100
 #: Azure so a nightly job can stop cleanly at its own budget rather than
 #: discovering the ceiling as a 403 halfway through a batch.
 AZURE_F0_MONTHLY_CHARACTERS = 2_000_000
+
+#: The F0 tier's throughput ceiling, expressed per minute. Microsoft documents
+#: F0 as 2,000,000 characters per HOUR, consumed as a sliding window, and its
+#: own guidance is to spread that quota evenly rather than burst; 2,000,000/60
+#: is 33,333, rounded down here. Measured need for this constant: the owner's
+#: first real backfill sent about 56,275 characters in ten back-to-back
+#: requests within seconds and Azure answered HTTP 429 (error code 429001,
+#: "the client has exceeded request limits"). That is throughput, not a bad
+#: key and not a spent monthly allowance, so it is paced against rather than
+#: failed over.
+AZURE_F0_CHARACTERS_PER_MINUTE = 33_300
+
+#: The width of the pacing window, in seconds. Matches the unit
+#: ``AZURE_F0_CHARACTERS_PER_MINUTE`` is expressed in.
+_PACING_WINDOW_SECONDS = 60.0
 
 #: What a translation row is called in ``cost_log.jsonl``. Not a Gemini model
 #: string, deliberately: reading the log should make it obvious which rows are
@@ -113,6 +149,15 @@ class AzureTranslator:
     exists so a nightly job can stop at ``monthly_character_budget`` on its own
     terms. It does not survive a restart, so a caller running more than once a
     month must persist its own total; ``scripts/build_translations.py`` does.
+
+    ``characters_per_minute`` is a different ceiling entirely, and the two are
+    not interchangeable: the monthly one is an allowance, this one is
+    THROUGHPUT. F0 meters characters against a sliding hourly window, so a run
+    can be far inside its monthly allowance and still be refused with HTTP 429
+    for sending too much too fast, which is exactly what happened on the first
+    real backfill (see ``AZURE_F0_CHARACTERS_PER_MINUTE``). A 429 is retryable
+    and must never cost a paid fallback call, so this class both paces itself
+    below the limit and retries the 429s that pacing does not prevent.
     """
 
     api_key: str
@@ -122,6 +167,34 @@ class AzureTranslator:
     monthly_character_budget: int = AZURE_F0_MONTHLY_CHARACTERS
     characters_used: int = 0
     timeout_seconds: float = 30.0
+
+    #: Where a row goes when no ``llm_client`` was supplied to write it
+    #: through. Same file the client itself uses, so one log holds every
+    #: provider (CLAUDE.md rule 4).
+    #:
+    #: ``None`` means ``DEFAULT_COST_LOG_PATH``, resolved at call time rather
+    #: than bound here as a default VALUE. Same reasoning as ``urlopen``
+    #: below: binding it captures the path at import, which would leave a test
+    #: no way to redirect the log away from the real ``.cache/cost_log.jsonl``
+    #: and would have every offline test append rows to the repository's own
+    #: audit file.
+    cost_log_path: Path | None = None
+
+    #: Throughput self-limit, enforced before every real HTTP call. Set to 0
+    #: or below to disable pacing entirely (a non-F0 resource, or a test that
+    #: is not exercising pacing).
+    characters_per_minute: int = AZURE_F0_CHARACTERS_PER_MINUTE
+
+    #: How many times a RETRYABLE HTTP status (429, or any 5xx) is tried
+    #: again before the batch is finally reported as failed. Total attempts
+    #: are therefore ``max_retries + 1``.
+    max_retries: int = 5
+
+    #: Flat wait between those attempts. Flat rather than exponential
+    #: deliberately: the thing being waited out is a sliding-window quota
+    #: refilling at a known rate, not a contended lock, so a fixed pause
+    #: sized to the window is both predictable and enough.
+    retry_backoff_seconds: float = 20.0
 
     #: The network call, injected so a caller can replace it (CLAUDE.md
     #: section 8: anything touching the network is an injected dependency).
@@ -134,6 +207,66 @@ class AzureTranslator:
     #: monkeypatches the module-level name, and that is the more common way
     #: to fake this. Both approaches work now.
     urlopen: Callable[..., Any] | None = None
+
+    #: The clock and the wait, injected for the same reason and in the same
+    #: shape as ``urlopen`` above (CLAUDE.md section 8 lists the clock
+    #: alongside the network). Both default to ``None`` and resolve at call
+    #: time rather than binding ``time.sleep``/``time.monotonic`` as default
+    #: VALUES, which would capture them at import and silently defeat a test
+    #: that monkeypatches the module-level names instead. A test drives
+    #: pacing and retry backoff through these with no real waiting at all.
+    sleep: Callable[[float], None] | None = None
+    monotonic: Callable[[], float] | None = None
+
+    #: (timestamp, characters) for the sends inside the current pacing
+    #: window. In-process only, like ``characters_used``: a fresh nightly
+    #: process starts with an empty window, which is correct, since a window
+    #: that old has long since drained.
+    _recent_sends: list[tuple[float, int]] = field(default_factory=list, repr=False)
+
+    def _sleep_fn(self) -> Callable[[float], None]:
+        return self.sleep if self.sleep is not None else time.sleep
+
+    def _monotonic_fn(self) -> Callable[[], float]:
+        return self.monotonic if self.monotonic is not None else time.monotonic
+
+    def _pace(self, characters: int) -> None:
+        """Wait, if needed, so this batch stays inside ``characters_per_minute``.
+
+        Keeps the last ``_PACING_WINDOW_SECONDS`` of sends and, when this
+        batch would push the window over the limit, sleeps just long enough
+        for as many of the OLDEST entries to age out as it takes to make
+        room. Not a loop over the clock: the wait is computed once from the
+        entries themselves, so a faked ``sleep`` that does not advance a
+        faked ``monotonic`` cannot spin here.
+        """
+        if self.characters_per_minute <= 0:
+            return
+        monotonic = self._monotonic_fn()
+        now = monotonic()
+        self._recent_sends = [
+            entry for entry in self._recent_sends if entry[0] > now - _PACING_WINDOW_SECONDS
+        ]
+        in_window = sum(chars for _, chars in self._recent_sends)
+        if self._recent_sends and in_window + characters > self.characters_per_minute:
+            needed = in_window + characters - self.characters_per_minute
+            freed = 0
+            wait = 0.0
+            for timestamp, chars in self._recent_sends:  # oldest first
+                freed += chars
+                wait = timestamp + _PACING_WINDOW_SECONDS - now
+                if freed >= needed:
+                    break
+            if wait > 0:
+                self._sleep_fn()(wait)
+                # A real monotonic clock has moved at least ``wait`` by now;
+                # a faked one may not have, so take the later of the two
+                # rather than trusting either alone.
+                now = max(monotonic(), now + wait)
+                self._recent_sends = [
+                    entry for entry in self._recent_sends if entry[0] > now - _PACING_WINDOW_SECONDS
+                ]
+        self._recent_sends.append((now, characters))
 
     def translate(self, sentences: Sequence[str]) -> list[str]:
         if not sentences:
@@ -163,36 +296,61 @@ class AzureTranslator:
 
         body = json.dumps([{"Text": s} for s in sentences]).encode("utf-8")
         request = urllib.request.Request(url, data=body, headers=headers, method="POST")
-        opener = self.urlopen if self.urlopen is not None else urllib.request.urlopen
-        try:
-            with opener(request, timeout=self.timeout_seconds) as response:
-                payload = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")[:400]
-            raise TranslationError(f"Azure returned HTTP {exc.code}: {detail}") from exc
-        except urllib.error.URLError as exc:
-            raise TranslationError(f"Azure unreachable: {exc.reason}") from exc
-        except json.JSONDecodeError as exc:
-            # A 200 whose body is not JSON. Real in practice: a proxy or
-            # captive portal can answer with an HTML error page and the
-            # correct status code. This is the parsing contract failing, not
-            # a retryable outage, so it does NOT fall back to another
-            # provider.
-            raise TranslationProtocolError(f"Azure response was not JSON: {exc}") from exc
-        except TranslationError:
-            raise
-        except Exception as exc:  # noqa: BLE001 -- see below
-            # Everything a Translator raises must be a TranslationError, so
-            # that one unforeseen transport exception cannot crash a
-            # six-week unattended backfill before it writes its store. Found
-            # while building scripts/build_translations.py, which had to add
-            # its own blanket guard to work around this gap.
-            raise TranslationError(f"Azure transport failure: {exc}") from exc
+        payload = self._post_with_retry(request, characters)
 
         translations = _parse_azure_payload(payload, expected=len(sentences))
         self.characters_used += characters
         self._log(characters)
         return translations
+
+    def _post_with_retry(self, request: urllib.request.Request, characters: int) -> object:
+        """One paced, retried HTTP POST, returning the decoded JSON payload.
+
+        Retries HTTP 429 and any 5xx, ``max_retries`` times, with a flat
+        ``retry_backoff_seconds`` between attempts. Every other status raises
+        at once: a 401 or a 403 is a bad key, a wrong region or a genuinely
+        spent allowance, and repeating it just wastes the run's time before
+        failing the same way.
+
+        A 429 in particular MUST be retried rather than fall through to
+        ``FallbackTranslator``. The first real backfill spent 100 of its
+        1,000 sentences on a paid Gemini call because of one transient rate
+        limit, which is the opposite of what the fallback exists for.
+        """
+        opener = self.urlopen if self.urlopen is not None else urllib.request.urlopen
+        attempt = 0
+        while True:
+            attempt += 1
+            self._pace(characters)
+            try:
+                with opener(request, timeout=self.timeout_seconds) as response:
+                    payload: object = json.loads(response.read().decode("utf-8"))
+                return payload
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", errors="replace")[:400]
+                retryable = exc.code == 429 or exc.code >= 500
+                if retryable and attempt <= self.max_retries:
+                    self._sleep_fn()(self.retry_backoff_seconds)
+                    continue
+                raise TranslationError(f"Azure returned HTTP {exc.code}: {detail}") from exc
+            except urllib.error.URLError as exc:
+                raise TranslationError(f"Azure unreachable: {exc.reason}") from exc
+            except json.JSONDecodeError as exc:
+                # A 200 whose body is not JSON. Real in practice: a proxy or
+                # captive portal can answer with an HTML error page and the
+                # correct status code. This is the parsing contract failing,
+                # not a retryable outage, so it does NOT retry and does NOT
+                # fall back to another provider.
+                raise TranslationProtocolError(f"Azure response was not JSON: {exc}") from exc
+            except TranslationError:
+                raise
+            except Exception as exc:  # noqa: BLE001 -- see below
+                # Everything a Translator raises must be a TranslationError,
+                # so that one unforeseen transport exception cannot crash a
+                # six-week unattended backfill before it writes its store.
+                # Found while building scripts/build_translations.py, which
+                # had to add its own blanket guard to work around this gap.
+                raise TranslationError(f"Azure transport failure: {exc}") from exc
 
     def _log(self, characters: int) -> None:
         """Write a ``cost_log`` row so this provider is visible to the budget.
@@ -203,20 +361,29 @@ class AzureTranslator:
         ``prompt_tokens``: the field is the request-side size in the unit the
         provider bills, and inventing a token estimate would put a fiction in
         an audit record.
+
+        A row is written whether or not an ``llm_client`` was supplied. An
+        earlier version returned early without one, which meant a run
+        configured with an Azure key and no Gemini key translated real
+        sentences and left no trace in the log at all. CLAUDE.md rule 4 is
+        about visibility, not about money, so "it was free anyway" does not
+        excuse the gap. With a client the row also lands in that client's own
+        in-memory ``cost_records``, which is why that path is preferred when
+        one is available.
         """
-        if self.llm_client is None:
-            return
-        self.llm_client._log_cost(  # noqa: SLF001 -- the one writer for this log
-            CostLogRow(
-                timestamp=datetime.now(UTC),
-                model=AZURE_COST_LOG_MODEL,
-                lane="free",
-                prompt_tokens=characters,
-                completion_tokens=0,
-                cost_usd=0.0,
-                purpose="translation",
-            )
+        row = CostLogRow(
+            timestamp=datetime.now(UTC),
+            model=AZURE_COST_LOG_MODEL,
+            lane="free",
+            prompt_tokens=characters,
+            completion_tokens=0,
+            cost_usd=0.0,
+            purpose="translation",
         )
+        if self.llm_client is not None:
+            self.llm_client._log_cost(row)  # noqa: SLF001 -- the one writer for this log
+            return
+        append_cost_row(row, self.cost_log_path or DEFAULT_COST_LOG_PATH)
 
 
 def _parse_azure_payload(payload: object, *, expected: int) -> list[str]:

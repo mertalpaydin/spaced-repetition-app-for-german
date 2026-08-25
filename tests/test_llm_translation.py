@@ -20,6 +20,11 @@ None of these tests touch the network (CLAUDE.md 158):
 - No test ever points ``GeminiLlmClient`` at the real
   ``.cache/cost_log.jsonl``; every client built here is given an explicit
   ``cost_log_path`` under ``tmp_path``.
+- ``AzureTranslator`` now writes a row even with no client at all, so the
+  same protection has to cover the clientless path too. The autouse
+  ``_redirect_default_cost_log`` fixture below points the module default at
+  ``tmp_path`` for EVERY test in this file, so a test that forgets to pass
+  ``cost_log_path`` still cannot append to the repository's real audit file.
 """
 
 import io
@@ -32,6 +37,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from src.llm import translation as translation_module
 from src.llm.client import GeminiLlmClient
 from src.llm.translation import (
     AZURE_COST_LOG_MODEL,
@@ -45,6 +51,21 @@ from src.llm.translation import (
     _parse_azure_payload,
     azure_from_env,
 )
+
+
+@pytest.fixture(autouse=True)
+def _redirect_default_cost_log(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """No test in this file may append to the repository's own cost log.
+
+    ``AzureTranslator._log`` resolves ``DEFAULT_COST_LOG_PATH`` at call time
+    precisely so this fixture can exist; if the constant were bound as the
+    dataclass default it would be captured at import and unreachable from
+    here, and every offline test that successfully translates would leave a
+    row in the real audit file."""
+    monkeypatch.setattr(
+        translation_module, "DEFAULT_COST_LOG_PATH", tmp_path / "default_cost_log.jsonl"
+    )
+
 
 # ----------------------------------------------------------------------
 # Shared fakes
@@ -292,16 +313,29 @@ def test_azure_translator_translate_success_logs_one_cost_log_row(
     assert len(on_disk) == 1
 
 
-def test_azure_translator_translate_with_no_llm_client_does_not_crash(
-    monkeypatch: pytest.MonkeyPatch,
+def test_azure_translator_translate_with_no_llm_client_still_writes_a_cost_row(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    """CLAUDE.md rule 4 is about VISIBILITY, not about money. An earlier
+    version returned early without a client, so a run configured with an
+    Azure key and no Gemini key translated real sentences and left no trace
+    in the log at all. F0 being free is why that was easy to miss and is not
+    why it was acceptable: an audit that silently omits a whole provider is
+    not an audit."""
     captured: list[urllib.request.Request] = []
     monkeypatch.setattr(urllib.request, "urlopen", _echo_urlopen(captured))
-    translator = AzureTranslator(api_key="k", llm_client=None)
+    log_path = tmp_path / "cost_log.jsonl"
+    translator = AzureTranslator(api_key="k", llm_client=None, cost_log_path=log_path)
 
     result = translator.translate(["Hallo Welt."])
 
     assert result == ["EN:Hallo Welt."]
+    rows = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines() if line]
+    assert len(rows) == 1
+    assert rows[0]["model"] == AZURE_COST_LOG_MODEL
+    assert rows[0]["lane"] == "free"
+    assert rows[0]["purpose"] == "translation"
+    assert rows[0]["prompt_tokens"] == len("Hallo Welt.")
 
 
 # ----------------------------------------------------------------------
@@ -702,6 +736,233 @@ def test_fallback_translator_does_not_fall_back_on_a_protocol_error() -> None:
     with pytest.raises(TranslationProtocolError):
         fallback.translate(["Hallo."])
     assert fallback.failures == []
+
+
+# ----------------------------------------------------------------------
+# AzureTranslator: retry on a rate limit, and pacing so it does not recur
+#
+# Measured need: the owner's first real backfill machine translated 1,000
+# sentences, 900 by Azure and 100 by Gemini, with exactly one fallback event
+# whose recorded message was ``Azure returned HTTP 429: {"error":
+# {"code":429001,...}}``. The run had sent about 56,275 characters in ten
+# back-to-back requests, tripping F0's sliding hourly window (2,000,000
+# characters an hour, so roughly 33,300 a minute). A rate limit is retryable
+# and must not cost a paid Gemini call; without pacing it is also guaranteed
+# to recur on every future run.
+# ----------------------------------------------------------------------
+
+
+class _SequencedAzure:
+    """A fake ``urlopen`` answering a scripted sequence of HTTP statuses.
+
+    ``None`` in the sequence means "answer normally" (echoing one ``EN:``
+    translation per input sentence); an int raises that status. The last
+    entry repeats forever, so a one-element ``[429]`` script is "429 on every
+    attempt". Counts its own calls, which is the attempt count the retry
+    tests assert on.
+    """
+
+    def __init__(self, statuses: Sequence[int | None]) -> None:
+        self.statuses = list(statuses)
+        self.attempts = 0
+
+    def __call__(
+        self, request: urllib.request.Request, timeout: float | None = None
+    ) -> _FakeAzureResponse:
+        self.attempts += 1
+        status = self.statuses[min(self.attempts - 1, len(self.statuses) - 1)]
+        if status is not None:
+            raise urllib.error.HTTPError(
+                request.full_url,
+                status,
+                "scripted failure",
+                Message(),
+                io.BytesIO(b'{"error":{"code":429001,"message":"exceeded request limits"}}'),
+            )
+        body = json.loads(request.data.decode("utf-8"))  # type: ignore[union-attr]
+        return _FakeAzureResponse([{"translations": [{"text": f"EN:{i['Text']}"}]} for i in body])
+
+
+class _NeverCalledTranslator:
+    """A fallback that fails the test if it is ever reached."""
+
+    def translate(self, sentences: Sequence[str]) -> list[str]:
+        raise AssertionError("the Gemini fallback must not be reached")
+
+
+def test_azure_translator_429_then_success_returns_translation_without_fallback() -> None:
+    """The exact shape of the observed incident, and the whole point of the
+    change: one transient 429 followed by a successful retry must produce the
+    translation from Azure, never from the paid fallback."""
+    sleeps: list[float] = []
+    opener = _SequencedAzure([429, None])
+    azure = AzureTranslator(api_key="k", urlopen=opener, sleep=sleeps.append)
+    translator = FallbackTranslator(primary=azure, fallback=_NeverCalledTranslator())
+
+    result = translator.translate(["Hallo Welt."])
+
+    assert result == ["EN:Hallo Welt."]
+    assert opener.attempts == 2
+    assert sleeps == [azure.retry_backoff_seconds]
+    assert translator.failures == []
+
+
+def test_azure_translator_429_on_every_attempt_exhausts_max_retries_and_raises() -> None:
+    sleeps: list[float] = []
+    opener = _SequencedAzure([429])
+    translator = AzureTranslator(
+        api_key="k", urlopen=opener, sleep=sleeps.append, max_retries=3, retry_backoff_seconds=7.0
+    )
+
+    with pytest.raises(TranslationError) as exc_info:
+        translator.translate(["Hallo Welt."])
+
+    assert "429" in str(exc_info.value)
+    # One first attempt plus max_retries retries, and one backoff between each
+    # consecutive pair of them.
+    assert opener.attempts == translator.max_retries + 1
+    assert sleeps == [7.0, 7.0, 7.0]
+
+
+def test_azure_translator_500_is_retried() -> None:
+    """A 5xx is the provider's own fault and is transient by definition;
+    burning the paid fallback on one is the same mistake as burning it on a
+    429."""
+    sleeps: list[float] = []
+    opener = _SequencedAzure([500, None])
+    translator = AzureTranslator(api_key="k", urlopen=opener, sleep=sleeps.append)
+
+    assert translator.translate(["Hallo Welt."]) == ["EN:Hallo Welt."]
+    assert opener.attempts == 2
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_azure_translator_auth_status_raises_immediately_without_retry(status: int) -> None:
+    """A 401 is a bad key and a 403 is a wrong region or a genuinely spent
+    allowance. Neither clears by waiting, so retrying only delays the same
+    failure; these must still raise on the first attempt."""
+    sleeps: list[float] = []
+    opener = _SequencedAzure([status])
+    translator = AzureTranslator(api_key="k", urlopen=opener, sleep=sleeps.append)
+
+    with pytest.raises(TranslationError) as exc_info:
+        translator.translate(["Hallo Welt."])
+
+    assert str(status) in str(exc_info.value)
+    assert opener.attempts == 1
+    assert sleeps == []
+
+
+def _fake_clock() -> tuple[Callable[[], float], Callable[[float], None], list[float]]:
+    """A monotonic clock and a sleep that advances it, plus the list of
+    durations slept. No real waiting happens anywhere in these tests."""
+    now = [1_000.0]
+    slept: list[float] = []
+
+    def monotonic() -> float:
+        return now[0]
+
+    def sleep(seconds: float) -> None:
+        slept.append(seconds)
+        now[0] += seconds
+
+    return monotonic, sleep, slept
+
+
+def test_azure_translator_pacing_two_batches_over_the_minute_limit_sleeps() -> None:
+    """Pacing is what stops the 429 recurring at all. Two batches whose
+    combined size exceeds ``characters_per_minute`` inside one window must
+    wait for the window to drain rather than firing back to back, which is
+    exactly what the observed run did (about 56,275 characters in ten
+    requests within seconds)."""
+    monotonic, sleep, slept = _fake_clock()
+    opener = _SequencedAzure([None])
+    translator = AzureTranslator(
+        api_key="k",
+        urlopen=opener,
+        sleep=sleep,
+        monotonic=monotonic,
+        characters_per_minute=50,
+    )
+    batch = ["A" * 40]
+
+    translator.translate(batch)
+    translator.translate(batch)
+
+    assert opener.attempts == 2
+    assert len(slept) == 1
+    assert slept[0] > 0
+
+
+def test_azure_translator_pacing_two_small_batches_do_not_sleep() -> None:
+    monotonic, sleep, slept = _fake_clock()
+    opener = _SequencedAzure([None])
+    translator = AzureTranslator(
+        api_key="k",
+        urlopen=opener,
+        sleep=sleep,
+        monotonic=monotonic,
+        characters_per_minute=50,
+    )
+
+    translator.translate(["A" * 10])
+    translator.translate(["B" * 10])
+
+    assert opener.attempts == 2
+    assert slept == []
+
+
+def test_azure_translator_pacing_entries_older_than_the_window_do_not_delay() -> None:
+    """The window slides. A batch sent more than a minute ago has already
+    aged out and must not hold the next one back, or a long overnight run
+    would pace itself against its own ancient history."""
+    now = [1_000.0]
+    slept: list[float] = []
+    opener = _SequencedAzure([None])
+    translator = AzureTranslator(
+        api_key="k",
+        urlopen=opener,
+        sleep=slept.append,
+        monotonic=lambda: now[0],
+        characters_per_minute=50,
+    )
+
+    translator.translate(["A" * 40])
+    now[0] += 61.0
+    translator.translate(["B" * 40])
+
+    assert slept == []
+
+
+def test_azure_translator_protocol_error_is_not_retried_and_does_not_fall_back() -> None:
+    """The distinction that already existed and must survive the retry work:
+    a malformed body means the parsing contract is broken, so it is neither
+    worth retrying (every future response is malformed the same way) nor
+    worth hiding behind a second provider."""
+
+    class _Body:
+        calls = 0
+
+        def read(self) -> bytes:
+            type(self).calls += 1
+            return b"<html>Proxy error</html>"
+
+        def __enter__(self) -> "_Body":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+    sleeps: list[float] = []
+    azure = AzureTranslator(api_key="k", urlopen=lambda *a, **k: _Body(), sleep=sleeps.append)
+    translator = FallbackTranslator(primary=azure, fallback=_NeverCalledTranslator())
+
+    with pytest.raises(TranslationProtocolError):
+        translator.translate(["Hallo."])
+
+    assert _Body.calls == 1
+    assert sleeps == []
+    assert translator.failures == []
 
 
 def test_gemini_translator_transport_failure_becomes_a_translation_error() -> None:

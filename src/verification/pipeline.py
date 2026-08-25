@@ -1,5 +1,6 @@
 """Verification pipeline orchestrating the quality verification chain and kill gate."""
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -60,6 +61,61 @@ GateStatus = Literal["passed", "tripped", "unmeasured"]
 # length is the second line of defence for the (rarer) case where the gap
 # itself happens to sit inside a shared opening.
 _CARRIER_NEAR_DUPLICATE_MIN_RUN = 4
+
+#: The prefix every gloss-driven rejection's ``VerificationResult.reason``
+#: carries, so a caller counting "how many items did the GLOSS reject" can
+#: tell those apart from every other rejection reason without matching on
+#: the free-text detail that follows. Exported rather than inlined because
+#: ``scripts/step7_corpus_pilot.py`` reports exactly that number and must
+#: not carry its own copy of this string.
+GLOSS_REJECTION_PREFIX = "Gloss validation failed: "
+
+
+@dataclass(frozen=True)
+class GlossRejection:
+    """One item's gloss-driven rejection: the ``reason`` (already carrying
+    :data:`GLOSS_REJECTION_PREFIX`) and the ``error_type`` the more specific
+    of the three gloss failure shapes maps to."""
+
+    reason: str
+    error_type: str
+
+
+def check_gloss(
+    prompt: str, answer: str, gloss_en: str | None, topic: Topic | None
+) -> tuple[GlossRejection | None, int]:
+    """Validate a PRESENT ``gloss_en`` against the German answer's own
+    computed tense/person features, via ``gloss_validation.
+    validate_gloss_consistency``.
+
+    Returns ``(rejection_or_None, unverified_dimension_count)``. An absent or
+    blank gloss is a clean no-op (``(None, 0)``) -- this function validates
+    what is there and has no opinion on whether a gloss was REQUIRED (that is
+    ``gloss_validation.check_requirement``'s separate, broader policy
+    question). Free and deterministic: no network, no clock, no filesystem.
+
+    Lifted out of ``VerificationPipeline._gloss_check`` (which now calls it)
+    so that a caller which is NOT running the full verification chain --
+    ``scripts/step7_corpus_pilot.py``, whose only model-backed pass is
+    ``generation.blanking.model_verification.verify_items`` -- can run the
+    identical check, with the identical reason prefix and the identical
+    error-type mapping, instead of growing a second, drifting copy of it.
+    """
+    if gloss_en is None or not gloss_en.strip():
+        return None, 0
+
+    result = validate_gloss_consistency(prompt, answer, gloss_en, topic)
+    if result.consistent:
+        return None, len(result.unverified_dimensions)
+
+    reason = result.reason or "Gloss is inconsistent with the answer."
+    if "bare answer token" in reason:
+        error_type = "answer_leak"
+    elif "leaks grammar terminology" in reason:
+        error_type = "topic_leak"
+    else:
+        error_type = "pedagogical_flaw"
+    return GlossRejection(reason=f"{GLOSS_REJECTION_PREFIX}{reason}", error_type=error_type), 0
 
 
 def _shared_gap_anchored_run(prompt_a: str, prompt_b: str) -> int:
@@ -240,31 +296,26 @@ class VerificationPipeline:
         (``_with_gloss_unverified``), regardless of which later layer
         produces it -- an unverified dimension must never quietly vanish
         just because the item went on to pass everything else.
-        """
-        if item.gloss_en is None or not item.gloss_en.strip():
-            return None, 0
 
-        result = validate_gloss_consistency(item.prompt, item.proposed_answer, item.gloss_en, topic)
-        if not result.consistent:
-            reason = result.reason or "Gloss is inconsistent with the answer."
-            if "bare answer token" in reason:
-                error_type = "answer_leak"
-            elif "leaks grammar terminology" in reason:
-                error_type = "topic_leak"
-            else:
-                error_type = "pedagogical_flaw"
+        The judgment itself lives in the module-level :func:`check_gloss`, so
+        a caller outside this class (``scripts/step7_corpus_pilot.py``) can
+        run the identical check without going through the whole chain; this
+        method only wraps its verdict in a ``VerificationResult``.
+        """
+        rejection, unverified = check_gloss(item.prompt, item.proposed_answer, item.gloss_en, topic)
+        if rejection is not None:
             return (
                 VerificationResult(
                     item=item,
                     passed=False,
                     accepted=False,
                     layer_failed=1,
-                    reason=f"Gloss validation failed: {reason}",
-                    error_type=error_type,
+                    reason=rejection.reason,
+                    error_type=rejection.error_type,
                 ),
                 0,
             )
-        return None, len(result.unverified_dimensions)
+        return None, unverified
 
     @staticmethod
     def _with_gloss_unverified(result: VerificationResult, count: int) -> VerificationResult:

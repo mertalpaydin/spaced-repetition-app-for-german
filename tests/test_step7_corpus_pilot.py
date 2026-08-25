@@ -9,17 +9,23 @@ from __future__ import annotations
 import json
 import sys
 from collections import Counter
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 import scripts.step7_corpus_pilot as step7
+from scripts.build_translations import TranslationRecord, _load_store
 from scripts.step7_corpus_pilot import (
     CorpusProvenance,
     TopicSampleResult,
     _carrier_hash_id,
     _cefr_rejection_to_record,
     _filter_candidates_by_topic_cefr,
+    _gloss_rejection_to_record,
     _lemma_key,
+    _populate_glosses,
+    _run_gloss_check,
     _sample_per_topic,
     _to_bank_item,
 )
@@ -27,6 +33,9 @@ from src.contracts import CEFR, BankItem, CandidateItem, Topic
 from src.generation.blanking.pipeline import TOPIC_IDS, blank_sentences
 from src.generation.blanking.sentence_tagger import analysis_available
 from src.lexicon.vocabulary import VocabularyStore
+from src.llm.translation import TranslationError
+from src.taxonomy.loader import load_taxonomy
+from src.verification.pipeline import GLOSS_REJECTION_PREFIX
 
 pytestmark = pytest.mark.skipif(
     not analysis_available(),
@@ -465,6 +474,14 @@ def _clear_gemini_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("GEMINI_FREE_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    # TODO.md 2.1b: main() now also builds a TRANSLATOR from the environment
+    # (``build_translations.translator_from_env`` -> ``azure_from_env``,
+    # which reads ``os.environ`` directly). Leaving this key set would let a
+    # developer whose shell happens to carry it turn these offline tests
+    # into real Azure HTTP calls, which CLAUDE.md section 7 forbids
+    # outright. Cleared here rather than in each test so no future test can
+    # forget it.
+    monkeypatch.delenv("AZURE_TRANSLATOR_KEY", raising=False)
     # main() calls load_env_file() unconditionally, which would otherwise
     # refill the just-cleared vars from this container's real .env (same
     # reasoning as tests/test_step6_blank_pilot.py's identical no-op).
@@ -485,6 +502,12 @@ def test_main_offline_writes_review_rejected_and_report_files(
         "argv",
         [
             "step7_corpus_pilot.py",
+            # TODO.md 2.1b: never the real default store -- a developer with
+            # a populated data/fixtures/translations/de_en.jsonl would
+            # otherwise get glosses (and therefore live gloss checks) these
+            # tests do not control.
+            "--translations",
+            str(tmp_path / "translations.jsonl"),
             "--tatoeba",
             str(tatoeba),
             "--leipzig",
@@ -542,6 +565,12 @@ def test_main_all_49_topics_represented_even_with_shortfalls(
         "argv",
         [
             "step7_corpus_pilot.py",
+            # TODO.md 2.1b: never the real default store -- a developer with
+            # a populated data/fixtures/translations/de_en.jsonl would
+            # otherwise get glosses (and therefore live gloss checks) these
+            # tests do not control.
+            "--translations",
+            str(tmp_path / "translations.jsonl"),
             "--tatoeba",
             str(tatoeba),
             "--leipzig",
@@ -610,6 +639,12 @@ def test_main_uses_fake_verifier_and_reports_rejections_honestly(
         "argv",
         [
             "step7_corpus_pilot.py",
+            # TODO.md 2.1b: never the real default store -- a developer with
+            # a populated data/fixtures/translations/de_en.jsonl would
+            # otherwise get glosses (and therefore live gloss checks) these
+            # tests do not control.
+            "--translations",
+            str(tmp_path / "translations.jsonl"),
             "--tatoeba",
             str(tatoeba),
             "--leipzig",
@@ -659,6 +694,12 @@ def test_main_missing_corpus_file_degrades_instead_of_crashing(
         "argv",
         [
             "step7_corpus_pilot.py",
+            # TODO.md 2.1b: never the real default store -- a developer with
+            # a populated data/fixtures/translations/de_en.jsonl would
+            # otherwise get glosses (and therefore live gloss checks) these
+            # tests do not control.
+            "--translations",
+            str(tmp_path / "translations.jsonl"),
             "--tatoeba",
             str(tmp_path / "does_not_exist.tsv"),
             "--skip-leipzig",
@@ -677,3 +718,746 @@ def test_main_missing_corpus_file_degrades_instead_of_crashing(
     assert exit_code == 1
     assert "WARNING" in captured.out
     assert "nothing to do" in captured.out.lower()
+
+
+# --------------------------------------------------------------------------
+# TODO.md 2.1b: the English gloss
+#
+# Every test here is offline. The translator is a fake that records what it
+# was asked to translate (CLAUDE.md section 7: a unit test that makes a real
+# API call is a defect), and the store is a tmp_path file so the real
+# data/fixtures/translations/de_en.jsonl is never read or written.
+# --------------------------------------------------------------------------
+
+_CARRIER = "Der Hund läuft schnell durch den Park."
+_BLANKED_PROMPT = "Der Hund ___ schnell durch den Park."
+
+
+class _FakeTranslator:
+    """Records every batch it was handed and answers deterministically.
+
+    ``fail_on`` makes ``translate`` raise ``TranslationError`` for any batch
+    containing that sentence, which is how the degrade path is exercised
+    without a provider.
+    """
+
+    def __init__(self, *, fail_on: str | None = None) -> None:
+        self.batches: list[list[str]] = []
+        self.fail_on = fail_on
+
+    def translate(self, sentences: Sequence[str]) -> list[str]:
+        batch = list(sentences)
+        self.batches.append(batch)
+        if self.fail_on is not None and self.fail_on in batch:
+            raise TranslationError("fake provider refused this batch")
+        return [f"EN::{s}" for s in batch]
+
+    @property
+    def sentences_seen(self) -> list[str]:
+        return [s for batch in self.batches for s in batch]
+
+
+def _stored(store_path: Path, records: dict[str, str], source: str = "tatoeba") -> None:
+    """Write a translation store containing exactly ``records``."""
+    store_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        TranslationRecord(
+            german=german,
+            english=english,
+            source=source,  # type: ignore[arg-type]
+            written_at=datetime(2026, 1, 1, tzinfo=UTC),
+        ).model_dump_json()
+        for german, english in records.items()
+    ]
+    store_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _glossable_item(
+    *, prompt: str = _BLANKED_PROMPT, carrier: str = _CARRIER, topic_id: str = "topic_a"
+) -> tuple[BankItem, dict[str, CorpusProvenance]]:
+    """One BankItem plus the provenance map that carries ITS OWN carrier
+    sentence, joined the way ``main()`` joins them (the carrier's content
+    hash, not a corpus id)."""
+    source_id = _carrier_hash_id(carrier)
+    item = BankItem(
+        id="corpus_test",
+        topic_id=topic_id,
+        tag_id=topic_id,
+        type="cloze_free",
+        difficulty=1,
+        cefr="A1",
+        prompt=prompt,
+        accepted_answers=["läuft"],
+        source_sentence_id=source_id,
+    )
+    return item, {source_id: CorpusProvenance("tatoeba", "42", carrier)}
+
+
+def test_populate_glosses_carrier_in_store_uses_that_gloss_and_calls_no_translator(
+    tmp_path: Path,
+) -> None:
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "The dog runs quickly through the park."})
+    item, provenance = _glossable_item()
+    translator = _FakeTranslator()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 24, tzinfo=UTC),
+    )
+
+    assert glossed[0].gloss_en == "The dog runs quickly through the park."
+    assert translator.batches == [], "a carrier already in the store must never be translated"
+    assert report.gloss_from_store == 1
+    assert report.gloss_newly_translated == 0
+    assert report.gloss_missing == 0
+    assert report.characters_spent == 0
+    assert report.carriers_needing_translation == 0
+
+
+def test_populate_glosses_carrier_missing_from_store_is_translated_and_written_back(
+    tmp_path: Path,
+) -> None:
+    """The store is the resumability mechanism (build_translations.py's own
+    'the store itself is the pointer'): a gloss this run had to pay for must
+    be on disk afterwards, with the right ``source``, so the next run gets it
+    for free."""
+    store_path = tmp_path / "store.jsonl"
+    item, provenance = _glossable_item()
+    translator = _FakeTranslator()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 24, tzinfo=UTC),
+    )
+
+    assert glossed[0].gloss_en == f"EN::{_CARRIER}"
+    assert translator.sentences_seen == [_CARRIER]
+    assert report.gloss_newly_translated == 1
+    assert report.gloss_from_store == 0
+    assert report.gloss_missing == 0
+    assert report.characters_spent == len(_CARRIER)
+
+    written = _load_store(store_path)
+    assert set(written) == {_CARRIER}
+    assert written[_CARRIER].english == f"EN::{_CARRIER}"
+    # Azure was the primary and it did not fail over, so the record must say
+    # azure -- not "gemini", and not the untouched "tatoeba" default.
+    assert written[_CARRIER].source == "azure"
+
+
+def test_populate_glosses_gemini_only_mode_records_gemini_as_the_source(tmp_path: Path) -> None:
+    store_path = tmp_path / "store.jsonl"
+    item, provenance = _glossable_item()
+
+    _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=_FakeTranslator(),
+        translator_mode="gemini_only",
+        max_characters=100_000,
+        now=datetime(2026, 8, 24, tzinfo=UTC),
+        batch_size=1,
+    )
+
+    assert _load_store(store_path)[_CARRIER].source == "gemini"
+
+
+def test_populate_glosses_no_translator_leaves_a_store_missing_item_at_none(
+    tmp_path: Path,
+) -> None:
+    """The ``--no-translate`` path: main() passes ``translator=None``, the
+    store is still consulted, and anything it lacks stays ``None`` rather
+    than being invented or crashing."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {"Ein ganz anderer Satz.": "A completely different sentence."})
+    item, provenance = _glossable_item()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=None,
+        translator_mode="none",
+        max_characters=100_000,
+        now=datetime(2026, 8, 24, tzinfo=UTC),
+    )
+
+    assert glossed[0].gloss_en is None
+    assert report.gloss_missing == 1
+    assert report.gloss_from_store == 0
+    assert report.gloss_newly_translated == 0
+    assert report.characters_spent == 0
+    assert report.skipped_for_budget == 1
+    # The store must be left exactly as it was -- nothing to add, so nothing
+    # rewritten.
+    assert set(_load_store(store_path)) == {"Ein ganz anderer Satz."}
+
+
+def test_populate_glosses_translation_error_leaves_that_batch_at_none_without_raising(
+    tmp_path: Path,
+) -> None:
+    """A refused batch must degrade, never crash: those items keep
+    ``gloss_en=None``, the failure is counted with an example message, and
+    every OTHER batch's translations still land."""
+    store_path = tmp_path / "store.jsonl"
+    other_carrier = "Die Sonne scheint heute hell über der Stadt."
+    bad_item, bad_provenance = _glossable_item()
+    good_item, good_provenance = _glossable_item(
+        prompt="Die Sonne ___ heute hell über der Stadt.", carrier=other_carrier
+    )
+    provenance = {**bad_provenance, **good_provenance}
+    translator = _FakeTranslator(fail_on=_CARRIER)
+
+    glossed, report = _populate_glosses(
+        [bad_item, good_item],
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 24, tzinfo=UTC),
+        # One carrier per batch, so the refusal is isolated to the first.
+        batch_size=1,
+    )
+
+    assert glossed[0].gloss_en is None
+    assert glossed[1].gloss_en == f"EN::{other_carrier}"
+    assert report.translation_failures == 1
+    assert report.translation_failure_examples
+    assert "refused" in report.translation_failure_examples[0]
+    assert report.gloss_missing == 1
+    assert report.gloss_newly_translated == 1
+    # A refused batch spent no real quota, so it is not charged.
+    assert report.characters_spent == len(other_carrier)
+    assert set(_load_store(store_path)) == {other_carrier}
+
+
+def test_populate_glosses_character_budget_stops_at_a_whole_batch_boundary(
+    tmp_path: Path,
+) -> None:
+    """build_translations.py's own rule, inherited unchanged: a run stops
+    once the NEXT batch would exceed the budget, and never attempts a partial
+    batch to top the remainder up."""
+    store_path = tmp_path / "store.jsonl"
+    carriers = [f"Der Hund laeuft heute wirklich sehr schnell Nummer {i}." for i in range(6)]
+    items: list[BankItem] = []
+    provenance: dict[str, CorpusProvenance] = {}
+    for i, carrier in enumerate(carriers):
+        item, prov = _glossable_item(carrier=carrier)
+        items.append(item.model_copy(update={"id": f"corpus_{i}"}))
+        provenance.update(prov)
+
+    per_batch = sum(len(c) for c in carriers[:2])
+    translator = _FakeTranslator()
+
+    glossed, report = _populate_glosses(
+        items,
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        # Room for two whole batches of 2 and then some, but not for a
+        # third: the third must not be started, and must NOT be trimmed to
+        # whatever the remainder would afford.
+        max_characters=per_batch * 2 + 10,
+        now=datetime(2026, 8, 24, tzinfo=UTC),
+        batch_size=2,
+    )
+
+    assert [len(batch) for batch in translator.batches] == [2, 2]
+    assert report.gloss_newly_translated == 4
+    assert report.gloss_missing == 2
+    assert report.skipped_for_budget == 2
+    assert report.characters_spent == per_batch * 2
+    assert [g.gloss_en is not None for g in glossed] == [True, True, True, True, False, False]
+
+
+def test_populate_glosses_glosses_the_carrier_sentence_never_the_blanked_prompt(
+    tmp_path: Path,
+) -> None:
+    """THE test for this task.
+
+    ``item.prompt`` is the carrier with the answer word replaced by ``___``.
+    Translating THAT would attach fluent English for a sentence missing
+    exactly the word the exercise is about, to every item in the bank -- a
+    defect that is invisible in every count and wrong in every row. Pinned
+    from both directions at once:
+
+    - the store is seeded with a DECOY record keyed on the blanked prompt,
+      so a lookup that used the prompt would find it and silently win;
+    - the translator records what it was asked for, so a run that fell
+      through to translation with the prompt would be caught there too.
+    """
+    store_path = tmp_path / "store.jsonl"
+    _stored(
+        store_path,
+        {
+            _CARRIER: "THE CARRIER GLOSS",
+            _BLANKED_PROMPT: "THE PROMPT GLOSS (must never be chosen)",
+        },
+    )
+    item, provenance = _glossable_item()
+    translator = _FakeTranslator()
+
+    glossed, _report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 24, tzinfo=UTC),
+    )
+
+    assert glossed[0].gloss_en == "THE CARRIER GLOSS"
+    assert glossed[0].prompt == _BLANKED_PROMPT, "the prompt itself must be left alone"
+    assert translator.batches == []
+
+    # And the same thing again with an empty store, so the translation path
+    # is checked too rather than only the lookup path.
+    empty_store = tmp_path / "empty.jsonl"
+    fresh_translator = _FakeTranslator()
+    glossed_fresh, _ = _populate_glosses(
+        [item],
+        provenance,
+        store_path=empty_store,
+        translator=fresh_translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 24, tzinfo=UTC),
+    )
+    assert fresh_translator.sentences_seen == [_CARRIER]
+    assert all("___" not in s for s in fresh_translator.sentences_seen)
+    assert glossed_fresh[0].gloss_en == f"EN::{_CARRIER}"
+
+
+def test_populate_glosses_item_without_provenance_stays_at_none(tmp_path: Path) -> None:
+    item, _ = _glossable_item()
+    glossed, report = _populate_glosses(
+        [item],
+        {},
+        store_path=tmp_path / "store.jsonl",
+        translator=_FakeTranslator(),
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 24, tzinfo=UTC),
+    )
+    assert glossed[0].gloss_en is None
+    assert report.gloss_missing == 1
+
+
+def test_populate_glosses_fill_counters_are_disjoint_and_sum_to_items_total(
+    tmp_path: Path,
+) -> None:
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "The dog runs."})
+    stored_item, stored_prov = _glossable_item()
+    new_carrier = "Ein Mann steht vor der Tuer und wartet."
+    new_item, new_prov = _glossable_item(prompt="Ein Mann ___ vor der Tuer.", carrier=new_carrier)
+    orphan_item, _ = _glossable_item(carrier="Diesen Satz kennt niemand.")
+
+    _glossed, report = _populate_glosses(
+        [stored_item, new_item, orphan_item],
+        {**stored_prov, **new_prov},
+        store_path=store_path,
+        translator=_FakeTranslator(),
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 24, tzinfo=UTC),
+    )
+
+    assert report.items_total == 3
+    assert report.gloss_from_store == 1
+    assert report.gloss_newly_translated == 1
+    assert report.gloss_missing == 1
+    assert (
+        report.gloss_from_store + report.gloss_newly_translated + report.gloss_missing
+        == report.items_total
+    )
+
+
+# --------------------------------------------------------------------------
+# TODO.md 2.1b: the gloss consistency check, and its reporting
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def _real_topics() -> dict[str, Topic]:
+    return {t.id: t for t in load_taxonomy()}
+
+
+def _futur_item(gloss_en: str | None) -> BankItem:
+    """A Futur I item whose topic fixes ``Tense``, so the gloss check has
+    something determinate to check (see gloss_validation's own tests, which
+    use this exact carrier/answer/gloss pair for the same reason)."""
+    return BankItem(
+        id="corpus_futur",
+        topic_id="futur_i",
+        tag_id="futur_i",
+        type="cloze_free",
+        difficulty=1,
+        cefr="A2",
+        prompt="Nächstes Jahr ___ (werden) ich nach Spanien reisen.",
+        accepted_answers=["werde"],
+        gloss_en=gloss_en,
+    )
+
+
+def test_run_gloss_check_counts_a_contradicting_gloss_as_a_rejection(
+    _real_topics: dict[str, Topic],
+) -> None:
+    """A present-tense gloss for a future-tense target contradicts the
+    answer, and a wrong gloss actively teaches the wrong thing -- so it is a
+    rejection, carrying the shared prefix a caller counts on."""
+    outcomes = _run_gloss_check([_futur_item("I travel to Spain.")], _real_topics)
+
+    assert len(outcomes) == 1
+    assert outcomes[0].checked is True
+    assert outcomes[0].reason is not None
+    assert outcomes[0].reason.startswith(GLOSS_REJECTION_PREFIX)
+    assert outcomes[0].error_type == "pedagogical_flaw"
+    assert outcomes[0].topic_id == "futur_i"
+
+
+def test_run_gloss_check_accepts_a_consistent_gloss(_real_topics: dict[str, Topic]) -> None:
+    outcomes = _run_gloss_check([_futur_item("Next year I will travel to Spain.")], _real_topics)
+    assert outcomes[0].reason is None
+    assert outcomes[0].checked is True
+
+
+def test_run_gloss_check_is_a_no_op_for_an_item_with_no_gloss(
+    _real_topics: dict[str, Topic],
+) -> None:
+    """The pre-2.1b state of every corpus item: no gloss, nothing checked,
+    nothing rejected. This is the baseline the whole task moves away from."""
+    outcomes = _run_gloss_check([_futur_item(None)], _real_topics)
+    assert outcomes[0].checked is False
+    assert outcomes[0].reason is None
+    assert outcomes[0].unverified_dimensions == 0
+
+
+def test_gloss_rejection_to_record_carries_the_offending_gloss() -> None:
+    item = _futur_item("I travel to Spain.")
+    outcome = _run_gloss_check([item], {t.id: t for t in load_taxonomy()})[0]
+    record = _gloss_rejection_to_record(item, outcome)
+
+    assert record.gloss_en == "I travel to Spain."
+    assert record.reason is not None
+    assert record.reason.startswith(GLOSS_REJECTION_PREFIX)
+    assert record.topic_id == "futur_i"
+
+
+def _run_main_with_glosses(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    corpora: tuple[Path, Path],
+    *,
+    store: dict[str, str],
+    extra_args: list[str] | None = None,
+) -> dict[str, object]:
+    """Run ``main()`` end to end, offline, against a controlled store and a
+    fake verifier that accepts everything, and return the written report."""
+    from src.generation.blanking.model_verification import ItemVerdict, VerificationReport
+
+    tatoeba, leipzig = corpora
+    _clear_gemini_env(monkeypatch)
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, store)
+
+    def _fake_verify_items(
+        items: list[BankItem], llm_client: object, *, batch_size: int = 20
+    ) -> VerificationReport:
+        return VerificationReport(
+            attempted=True, verdicts=[ItemVerdict(outcome="verified") for _ in items]
+        )
+
+    monkeypatch.setattr(step7, "verify_items", _fake_verify_items)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "step7_corpus_pilot.py",
+            "--translations",
+            str(store_path),
+            "--no-translate",
+            "--tatoeba",
+            str(tatoeba),
+            "--leipzig",
+            str(leipzig),
+            "--limit",
+            "100",
+            "--per-topic-quota",
+            "10",
+            "--review-file",
+            str(tmp_path / "review.jsonl"),
+            "--rejected-file",
+            str(tmp_path / "rejected.jsonl"),
+            "--report-file",
+            str(tmp_path / "report.json"),
+            *(extra_args or []),
+        ],
+    )
+    assert step7.main() == 0
+    loaded: dict[str, object] = json.loads((tmp_path / "report.json").read_text())
+    return loaded
+
+
+def test_main_no_translate_reports_a_gloss_section_and_calls_no_translator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """``--no-translate`` with an empty store: every item keeps
+    ``gloss_en=None`` (the pre-2.1b state), and the report says so in its own
+    section instead of leaving it unstated."""
+    report = _run_main_with_glosses(tmp_path, monkeypatch, _tiny_corpora, store={})
+    gloss = report["gloss"]
+    assert isinstance(gloss, dict)
+
+    assert gloss["translator_mode"] == "none"
+    assert gloss["gloss_from_store"] == 0
+    assert gloss["gloss_newly_translated"] == 0
+    assert gloss["gloss_missing"] == gloss["items_total"]
+    assert gloss["characters_spent"] == 0
+    assert gloss["rejected_by_gloss_check"] == 0
+    assert gloss["items_gloss_checked"] == 0
+
+    review_rows = [
+        json.loads(line) for line in (tmp_path / "review.jsonl").read_text().splitlines() if line
+    ]
+    assert review_rows
+    for row in review_rows:
+        assert "gloss_en" in row
+        assert row["gloss_en"] is None
+
+
+def test_main_store_hit_attaches_the_gloss_to_the_review_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """A carrier the store knows must reach the review file's own
+    ``gloss_en``, which is what the learner-facing bank actually reads."""
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: "The dog runs quickly through the park."},
+    )
+    gloss = report["gloss"]
+    assert isinstance(gloss, dict)
+    assert isinstance(gloss["gloss_from_store"], int)
+    assert gloss["gloss_from_store"] >= 1
+
+    review_rows = [
+        json.loads(line) for line in (tmp_path / "review.jsonl").read_text().splitlines() if line
+    ]
+    glossed = [r for r in review_rows if r["gloss_en"] is not None]
+    assert glossed, "expected at least one item drawn from the glossed carrier"
+    for row in glossed:
+        assert row["gloss_en"] == "The dog runs quickly through the park."
+
+
+def test_main_gloss_check_rejects_a_contradicting_gloss_and_counts_it_by_topic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The risk this task exists to make visible: the moment a gloss is
+    present, a machine translation that contradicts the answer's tense or
+    person REJECTS an item that previously passed. That rejection must be
+    counted under its own name and broken down by topic, never folded into
+    the model verifier's rejection reasons.
+
+    Enforcing is opt-in, so this test asks for it explicitly. The default is
+    measure-only, covered by the next test."""
+    # A past-tense English gloss for a present-tense carrier: consistent
+    # German, contradicting English.
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: "The dog was running and it did not stop."},
+        extra_args=["--enforce-gloss-check"],
+    )
+    gloss = report["gloss"]
+    assert isinstance(gloss, dict)
+    by_topic = gloss["rejected_by_gloss_check_by_topic"]
+    assert isinstance(by_topic, dict)
+    assert isinstance(gloss["rejected_by_gloss_check"], int)
+
+    assert gloss["gloss_check_enforced"] is True
+    assert gloss["rejected_by_gloss_check"] >= 1
+    assert sum(by_topic.values()) == gloss["rejected_by_gloss_check"]
+
+    rejected_rows = [
+        json.loads(line) for line in (tmp_path / "rejected.jsonl").read_text().splitlines() if line
+    ]
+    gloss_rows = [
+        r for r in rejected_rows if (r["reason"] or "").startswith(GLOSS_REJECTION_PREFIX)
+    ]
+    assert len(gloss_rows) == gloss["rejected_by_gloss_check"]
+    for row in gloss_rows:
+        assert row["gloss_en"] == "The dog was running and it did not stop."
+
+    # An unrelated rejection must NOT be counted here: this run's other
+    # rejected rows (CEFR ceiling, uniqueness, cross-topic duplicates) all
+    # carry a reason that is not a gloss reason.
+    unrelated = [r for r in rejected_rows if r not in gloss_rows]
+    assert all(not (r["reason"] or "").startswith(GLOSS_REJECTION_PREFIX) for r in unrelated)
+
+    # And a rejected item must not also appear in the review file.
+    review_prompts = {
+        json.loads(line)["prompt"]
+        for line in (tmp_path / "review.jsonl").read_text().splitlines()
+        if line
+    }
+    assert all(row["prompt"] not in review_prompts for row in gloss_rows)
+
+
+def test_main_gloss_check_defaults_to_measuring_without_rejecting_anything(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The default, and the reversibility seam: same store, same
+    contradicting gloss, but the check does not act. The gloss still reaches
+    the learner, no item is dropped, and the number of items the check WOULD
+    have rejected is still reported. Enforcing must never be a leap in the
+    dark, and a brand new rejection path must not switch itself on before a
+    run has priced it."""
+    enforced = _run_main_with_glosses(
+        tmp_path / "on",
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: "The dog was running and it did not stop."},
+        extra_args=["--enforce-gloss-check"],
+    )
+    relaxed = _run_main_with_glosses(
+        tmp_path / "off",
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: "The dog was running and it did not stop."},
+    )
+
+    on_gloss = enforced["gloss"]
+    off_gloss = relaxed["gloss"]
+    assert isinstance(on_gloss, dict) and isinstance(off_gloss, dict)
+
+    assert off_gloss["gloss_check_enforced"] is False
+    # Measured identically...
+    assert off_gloss["rejected_by_gloss_check"] == on_gloss["rejected_by_gloss_check"]
+    assert (
+        off_gloss["rejected_by_gloss_check_by_topic"]
+        == on_gloss["rejected_by_gloss_check_by_topic"]
+    )
+    assert isinstance(off_gloss["rejected_by_gloss_check"], int)
+    assert off_gloss["rejected_by_gloss_check"] >= 1
+    # ...but acted on only when enforcing.
+    assert isinstance(enforced["accepted_total"], int)
+    assert isinstance(relaxed["accepted_total"], int)
+    assert relaxed["accepted_total"] > enforced["accepted_total"]
+
+    rejected_rows = [
+        json.loads(line)
+        for line in (tmp_path / "off" / "rejected.jsonl").read_text().splitlines()
+        if line
+    ]
+    assert not [r for r in rejected_rows if (r["reason"] or "").startswith(GLOSS_REJECTION_PREFIX)]
+
+
+def test_main_prints_the_gloss_rejection_count_prominently(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    _tiny_corpora: tuple[Path, Path],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """This task's own instruction: the gloss numbers must be visible in the
+    printed output, not only in the JSON, and must not be buried inside the
+    model-verification block."""
+    _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: "The dog was running and it did not stop."},
+    )
+    out = capsys.readouterr().out
+
+    assert "REJECTED BY GLOSS:" in out
+    assert "Gloss consistency check:" in out
+    assert "English gloss (TODO.md 2.1b):" in out
+    assert out.index("Gloss consistency check:") < out.index("Model verification pass:")
+
+
+def test_main_translation_failure_still_reaches_verification(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """A refused translation batch must not stop the pilot: the items it
+    could not gloss stay at ``None`` and the run still verifies and writes
+    every file, exactly as a missing corpus file already degrades."""
+    from src.generation.blanking.model_verification import ItemVerdict, VerificationReport
+
+    tatoeba, leipzig = _tiny_corpora
+    _clear_gemini_env(monkeypatch)
+    verified: list[int] = []
+
+    def _fake_verify_items(
+        items: list[BankItem], llm_client: object, *, batch_size: int = 20
+    ) -> VerificationReport:
+        verified.append(len(items))
+        return VerificationReport(
+            attempted=True, verdicts=[ItemVerdict(outcome="verified") for _ in items]
+        )
+
+    always_fails = _FakeTranslator(fail_on=None)
+
+    def _boom(sentences: Sequence[str]) -> list[str]:
+        always_fails.batches.append(list(sentences))
+        raise TranslationError("provider is down")
+
+    always_fails.translate = _boom  # type: ignore[method-assign]
+
+    monkeypatch.setattr(step7, "verify_items", _fake_verify_items)
+    monkeypatch.setattr(step7, "translator_from_env", lambda client: (always_fails, "fallback"))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "step7_corpus_pilot.py",
+            "--translations",
+            str(tmp_path / "store.jsonl"),
+            "--tatoeba",
+            str(tatoeba),
+            "--leipzig",
+            str(leipzig),
+            "--limit",
+            "100",
+            "--per-topic-quota",
+            "10",
+            "--review-file",
+            str(tmp_path / "review.jsonl"),
+            "--rejected-file",
+            str(tmp_path / "rejected.jsonl"),
+            "--report-file",
+            str(tmp_path / "report.json"),
+        ],
+    )
+
+    assert step7.main() == 0
+
+    report = json.loads((tmp_path / "report.json").read_text())
+    gloss = report["gloss"]
+    assert always_fails.batches, "the translator really was called"
+    assert gloss["translation_failures"] > 0
+    assert gloss["translation_failure_examples"]
+    assert gloss["gloss_missing"] == gloss["items_total"]
+    assert gloss["characters_spent"] == 0
+    # The pilot reached verification anyway, with every item still in hand.
+    assert verified == [report["sampled_total"]]
+    assert report["accepted_total"] == report["sampled_total"]
+    # Nothing was written to the store: a failed batch stores nothing.
+    assert not (tmp_path / "store.jsonl").exists()
