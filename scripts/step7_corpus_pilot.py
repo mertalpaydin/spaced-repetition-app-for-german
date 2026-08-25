@@ -293,7 +293,7 @@ from scripts.build_translations import (
 from scripts.build_translations import (
     DEFAULT_STORE_PATH as DEFAULT_TRANSLATION_STORE_PATH,
 )
-from scripts.corpus_reading import CorpusLine, read_corpus_lines
+from scripts.corpus_reading import CorpusLine, default_corpus_path, read_corpus_lines
 
 DEFAULT_REVIEW_PATH = Path("data/corpus_pilot_review.jsonl")
 DEFAULT_REJECTED_PATH = Path("data/corpus_pilot_rejected.jsonl")
@@ -305,12 +305,8 @@ DEFAULT_VOCAB_PATH = Path("data/fixtures/corpus/vocab_levels.json")
 # a runnable default is worth more than an empty required argument, exactly
 # the trade-off ``step6_blank_pilot.py`` and ``eval_corpus_coverage.py`` make
 # for their own defaults.
-DEFAULT_TATOEBA_PATH = Path(
-    "/mnt/user-data/uploads/Language_Learning_App/data/raw/_extract/tatoeba_deu.tsv"
-)
-DEFAULT_LEIPZIG_PATH = Path(
-    "/mnt/user-data/uploads/Language_Learning_App/data/raw/_extract/leipzig_sample.txt"
-)
+DEFAULT_TATOEBA_PATH = default_corpus_path("tatoeba_deu.tsv")
+DEFAULT_LEIPZIG_PATH = default_corpus_path("leipzig_sample.txt")
 
 # 40,000 sentences per source, the brief's own default, on the claim that it
 # is "plenty to fill a 10-per-topic quota for all but the rarest topics" --

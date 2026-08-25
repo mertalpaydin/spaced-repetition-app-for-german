@@ -207,19 +207,15 @@ from src.llm.translation import (
     azure_from_env,
 )
 
-from scripts.corpus_reading import CorpusLine, read_corpus_lines
+from scripts.corpus_reading import CorpusLine, default_corpus_path, read_corpus_lines
 from scripts.eval_tatoeba_translation_quality import Pair, read_links_and_english, read_pairs_file
 
 # Matches step7_corpus_pilot.py's and build_verb_government.py's own defaults
 # for these two staged corpora -- the only place either file actually exists
 # in this environment (checked at build time; data/raw/_extract/ itself does
 # not exist here, only under this uploads mount).
-DEFAULT_TATOEBA_PATH = Path(
-    "/mnt/user-data/uploads/Language_Learning_App/data/raw/_extract/tatoeba_deu.tsv"
-)
-DEFAULT_LEIPZIG_PATH = Path(
-    "/mnt/user-data/uploads/Language_Learning_App/data/raw/_extract/leipzig_sample.txt"
-)
+DEFAULT_TATOEBA_PATH = default_corpus_path("tatoeba_deu.tsv")
+DEFAULT_LEIPZIG_PATH = default_corpus_path("leipzig_sample.txt")
 DEFAULT_STORE_PATH = Path("data/fixtures/translations/de_en.jsonl")
 DEFAULT_REPORT_PATH = Path("data/translation_backfill_report.json")
 

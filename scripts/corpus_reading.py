@@ -35,6 +35,39 @@ MAX_WORDS = 18
 CorpusFormat = str
 
 
+# Where the staged corpora live, in preference order. The repository's own
+# ``data/raw/_extract/`` comes FIRST: that is where a checkout actually keeps
+# them, and it is the only one of the two that exists on the owner's machine.
+# The second is the sandbox mount an agent sees, which is where these files
+# were staged when the scripts that read them were built.
+#
+# Both entries exist because hardcoding only the sandbox path is exactly the
+# bug this function was written for: three scripts defaulted to the mount, and
+# on the owner's machine every one of them printed "corpus not found" twice
+# and then "nothing to do", with a clean exit code and no other explanation.
+# A default that only works in the sandbox where the code was written is not a
+# default, it is a trap.
+_CORPUS_SEARCH_ROOTS: tuple[Path, ...] = (
+    Path("data/raw/_extract"),
+    Path("/mnt/user-data/uploads/Language_Learning_App/data/raw/_extract"),
+)
+
+
+def default_corpus_path(filename: str) -> Path:
+    """The first search root that actually holds ``filename``.
+
+    Falls back to the FIRST root when the file is in none of them, so the
+    "not found" message a caller prints names the path a user can act on
+    (their own repository) rather than a sandbox mount that means nothing on
+    their machine.
+    """
+    for root in _CORPUS_SEARCH_ROOTS:
+        candidate = root / filename
+        if candidate.exists():
+            return candidate
+    return _CORPUS_SEARCH_ROOTS[0] / filename
+
+
 @dataclass(frozen=True)
 class CorpusLine:
     """One corpus line that survived the length-plausibility filter: its own

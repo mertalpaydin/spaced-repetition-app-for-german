@@ -136,14 +136,10 @@ from src.generation.blanking.carrier_validation import _load_dictionary
 from src.generation.blanking.sentence_tagger import TaggedSentence, analysis_available, tag_sentence
 from src.lexicon.lemmatizer import normalise
 
-from scripts.corpus_reading import CorpusLine, read_corpus_lines
+from scripts.corpus_reading import CorpusLine, default_corpus_path, read_corpus_lines
 
-DEFAULT_TATOEBA_PATH = Path(
-    "/mnt/user-data/uploads/Language_Learning_App/data/raw/_extract/tatoeba_deu.tsv"
-)
-DEFAULT_LEIPZIG_PATH = Path(
-    "/mnt/user-data/uploads/Language_Learning_App/data/raw/_extract/leipzig_sample.txt"
-)
+DEFAULT_TATOEBA_PATH = default_corpus_path("tatoeba_deu.tsv")
+DEFAULT_LEIPZIG_PATH = default_corpus_path("leipzig_sample.txt")
 DEFAULT_OUT_PATH = Path("data/fixtures/verb_government/lexicon.v1.jsonl")
 
 # Effectively "all of it" -- both staged corpora are well under this after
