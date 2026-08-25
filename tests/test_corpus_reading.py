@@ -6,12 +6,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+from scripts import corpus_reading
 from scripts.corpus_reading import (
     MAX_CHARS,
     MAX_WORDS,
     MIN_CHARS,
     MIN_WORDS,
     CorpusLine,
+    default_corpus_path,
     is_plausible_carrier,
     read_corpus_lines,
     read_sentence_texts,
@@ -117,3 +120,58 @@ def test_read_sentence_texts_discards_the_id(tmp_path: Path) -> None:
 
     texts = read_sentence_texts(path, "tatoeba", limit=10, seed=1)
     assert texts == [_PLAUSIBLE]
+
+
+# ==============================================================================
+# default_corpus_path
+#
+# Measured need: three scripts hardcoded the sandbox mount these files were
+# staged at while they were being built. On the owner's own machine every one
+# of them printed "corpus not found" twice, then "nothing to do", then exited
+# 0. A default that only works where the code was written is a trap, not a
+# default.
+# ==============================================================================
+
+
+def test_default_corpus_path_prefers_the_repository_copy_over_the_sandbox_mount(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The repository's own data/raw/_extract is where a checkout actually
+    keeps these files, and it is the only root that exists on the owner's
+    machine, so it must win whenever it holds the file."""
+    repo_root = tmp_path / "repo"
+    mount_root = tmp_path / "mount"
+    for root in (repo_root, mount_root):
+        root.mkdir(parents=True)
+        (root / "tatoeba_deu.tsv").write_text("x", encoding="utf-8")
+    monkeypatch.setattr(corpus_reading, "_CORPUS_SEARCH_ROOTS", (repo_root, mount_root))
+
+    assert default_corpus_path("tatoeba_deu.tsv") == repo_root / "tatoeba_deu.tsv"
+
+
+def test_default_corpus_path_falls_through_to_a_later_root_when_the_first_lacks_the_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "repo"
+    mount_root = tmp_path / "mount"
+    repo_root.mkdir(parents=True)
+    mount_root.mkdir(parents=True)
+    (mount_root / "leipzig_sample.txt").write_text("x", encoding="utf-8")
+    monkeypatch.setattr(corpus_reading, "_CORPUS_SEARCH_ROOTS", (repo_root, mount_root))
+
+    assert default_corpus_path("leipzig_sample.txt") == mount_root / "leipzig_sample.txt"
+
+
+def test_default_corpus_path_missing_everywhere_names_the_first_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The fallback is the FIRST root, not the last, so the "not found"
+    message a caller prints names a path the user can act on (their own
+    repository) rather than a sandbox mount that means nothing to them. This
+    is the exact failure the owner hit, and the message is the whole fix for
+    it."""
+    repo_root = tmp_path / "repo"
+    mount_root = tmp_path / "mount"
+    monkeypatch.setattr(corpus_reading, "_CORPUS_SEARCH_ROOTS", (repo_root, mount_root))
+
+    assert default_corpus_path("tatoeba_deu.tsv") == repo_root / "tatoeba_deu.tsv"
