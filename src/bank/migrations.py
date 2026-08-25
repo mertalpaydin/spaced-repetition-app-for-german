@@ -140,6 +140,21 @@ CREATE INDEX IF NOT EXISTS idx_items_tag_id ON items(tag_id, difficulty);
 """
 
 
+# Version 4: `items` gains `gloss_en`, the English translation of the whole
+# carrier sentence. Exactly the same class of defect v3 fixed: the field is
+# declared on ``BankItem``, filled by the pilot (scripts/step7_corpus_pilot.py
+# ``_populate_glosses``), and then silently discarded by a round trip through
+# this table because no column existed to hold it. TODO.md section 4 makes the
+# gloss learner-facing on every exercise, so it has to survive into the export
+# the PWA reads. Plain `ALTER TABLE ADD COLUMN`: every pre-existing row
+# backfills to NULL, which is the honest value -- those items were banked
+# before any translation ran, and ``gloss_en = None`` is what the client is
+# built to degrade cleanly on.
+MIGRATION_V4_SQL = """
+ALTER TABLE items ADD COLUMN gloss_en TEXT;
+"""
+
+
 def run_migrations(db_path: Path | str) -> None:
     """Apply all pending migrations to the specified SQLite database."""
     conn = sqlite3.connect(str(db_path))
@@ -165,5 +180,10 @@ def run_migrations(db_path: Path | str) -> None:
                 conn.executescript(MIGRATION_V3_SQL)
                 cur.execute("INSERT INTO schema_version (version) VALUES (3);")
                 current_version = 3
+
+            if current_version < 4:
+                conn.executescript(MIGRATION_V4_SQL)
+                cur.execute("INSERT INTO schema_version (version) VALUES (4);")
+                current_version = 4
     finally:
         conn.close()

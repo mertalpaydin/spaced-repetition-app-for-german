@@ -15,7 +15,8 @@
       accepted_answers: ["Ich"],
       distractors: [{text: "Du"}, {text: "Er"}, {text: "Wir"}],
       rule_hint: "Subjekt in der 1. Person Singular ist 'Ich'.",
-      facet: "sg1"
+      facet: "sg1",
+      gloss_en: "I am called Max and come from Germany."
     },
     {
       id: "bank_a1_002",
@@ -28,7 +29,8 @@
       accepted_answers: ["arbeitet"],
       distractors: [{text: "arbeite"}, {text: "arbeitest"}, {text: "arbeiten"}],
       rule_hint: "Endung bei er/sie/es im Präsens ist '-t'.",
-      facet: "sg3"
+      facet: "sg3",
+      gloss_en: "He works in the office every day."
     },
     {
       id: "bank_a2_001",
@@ -41,7 +43,8 @@
       accepted_answers: ["dem"],
       distractors: [{text: "den"}, {text: "des"}, {text: "das"}],
       rule_hint: "Wechselpräposition auf + Dativ bei Wo? (Lage).",
-      facet: "masc_dat"
+      facet: "masc_dat",
+      gloss_en: "The book is lying on the table."
     },
     {
       id: "bank_a2_002",
@@ -54,7 +57,8 @@
       accepted_answers: ["den"],
       distractors: [{text: "dem"}, {text: "des"}, {text: "das"}],
       rule_hint: "Wechselpräposition auf + Akkusativ bei Wohin? (Richtung).",
-      facet: "masc_acc"
+      facet: "masc_acc",
+      gloss_en: "He is putting the book on the table."
     },
     {
       id: "bank_b1_001",
@@ -67,7 +71,8 @@
       accepted_answers: ["weil", "da"],
       distractors: [{text: "denn"}, {text: "deshalb"}, {text: "obwohl"}],
       rule_hint: "Kausalsatz mit weil schickt das Verb ans Ende.",
-      facet: "kausal"
+      facet: "kausal",
+      gloss_en: "I am staying at home today because I am ill."
     },
     {
       id: "bank_b1_002",
@@ -80,7 +85,8 @@
       accepted_answers: ["würde"],
       distractors: [{text: "werde"}, {text: "wurde"}, {text: "wäre"}],
       rule_hint: "Konjunktiv II Ersatzform: würde + Infinitiv.",
-      facet: "irreal"
+      facet: "irreal",
+      gloss_en: "If I had time, I would like to travel."
     }
   ];
 
@@ -406,6 +412,7 @@
   const navSettingsBtn = document.getElementById('nav-settings-btn');
 
   const promptBox = document.getElementById('exercise-prompt');
+  const glossBox = document.getElementById('exercise-gloss');
   const cuedArea = document.getElementById('cued-area');
   const cuedWord = document.getElementById('cued-word');
   const textInputArea = document.getElementById('text-input-area');
@@ -559,6 +566,8 @@
     }
     promptBox.innerHTML = promptHtml;
 
+    renderGloss(item);
+
     if (item.cue) {
       cuedArea.style.display = 'block';
       cuedWord.textContent = item.cue;
@@ -575,6 +584,41 @@
     userAnswerInput.focus();
 
     updateHintUI();
+  }
+
+  // English gloss (TODO.md section 4, feature 5.1 step 3).
+  //
+  // "Every exercise shows its English translation, always." Shown BEFORE the
+  // learner answers, and left up afterwards -- it is not a reward and not a
+  // hint tier. Two reasons it has to be visible up front rather than revealed
+  // with the feedback:
+  //
+  //   1. The owner's decision is pedagogical, not a fallback for ambiguity. A
+  //      translation the learner only sees once the answer is graded teaches
+  //      nothing at the moment comprehension is needed.
+  //   2. TODO.md 5.1 lets the verifier treat the translation as available to
+  //      the learner when it judges whether a gap has a unique answer, and
+  //      that relaxation is the very next task. If the gloss appeared only
+  //      after grading, the verifier would be relaxing its uniqueness gates
+  //      against evidence the learner did not have while answering, which is
+  //      exactly the non-unique-answer defect class cycles 11 and 12 closed.
+  //
+  // Yes, the gloss often contains an English word that maps onto the blanked
+  // German token. That is intended: a translation disambiguates tense, number,
+  // person and definiteness, which is the entire point. It still marks none of
+  // German case, gender, adjective endings, reflexive case or preposition
+  // government, which is where the exercises actually live.
+  //
+  // `gloss_en` is null on every bank row exported before the translation
+  // backfill, so a missing gloss must cost nothing: the node is emptied and
+  // hidden outright, never rendered as an empty bordered box or the string
+  // "null". Written with textContent, never innerHTML -- a gloss is generated
+  // content and must not be able to inject markup into the exercise card.
+  function renderGloss(item) {
+    if (!glossBox) return;
+    const gloss = item && typeof item.gloss_en === 'string' ? item.gloss_en.trim() : '';
+    glossBox.textContent = gloss;
+    glossBox.hidden = gloss === '';
   }
 
   function updateHintUI() {

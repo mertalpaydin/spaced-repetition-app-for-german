@@ -50,6 +50,7 @@ def sample_bank_item() -> BankItem:
         ],
         rule_hint="Wechselpräposition auf + Dativ bei Wo?",
         carrier_lemmas=["Buch", "liegen", "Tisch"],
+        gloss_en="The book is lying on the table.",
     )
 
 
@@ -436,11 +437,66 @@ def test_export_round_trip_is_lossless(temp_bank: SqliteItemBank) -> None:
         domain="alltag",
         carrier_lemmas=["wohnen", "Jahr"],
         source_sentence_id="sent_042",
+        gloss_en="He has been living here for three years.",
     )
     temp_bank.insert_item(item)
     round_tripped = temp_bank.get_item("lossless_01")
     assert round_tripped is not None
     assert round_tripped.model_dump() == item.model_dump()
+
+
+def test_bank_round_trip_preserves_gloss_en(temp_bank: SqliteItemBank) -> None:
+    """``gloss_en`` must survive sqlite, and a row banked without one must come
+    back as ``None`` rather than an empty string.
+
+    Until migration v4 the ``items`` table had no column for this field at all,
+    so every insert silently discarded the English translation the pilot had
+    already paid to produce. The client cannot show what the bank threw away
+    (TODO.md 5.1 step 3), which makes this the first of two places the field
+    was being dropped; ``test_export_carries_gloss_en_to_the_client_bundle``
+    covers the second.
+    """
+    glossed = _make_item("gloss_present_01")
+    temp_bank.insert_item(glossed.model_copy(update={"gloss_en": "The book is on the table."}))
+    unglossed = _make_item("gloss_absent_01")
+    temp_bank.insert_item(unglossed)
+
+    present = temp_bank.get_item("gloss_present_01")
+    absent = temp_bank.get_item("gloss_absent_01")
+    assert present is not None and absent is not None
+    assert present.gloss_en == "The book is on the table."
+    assert absent.gloss_en is None
+
+
+def test_export_carries_gloss_en_to_the_client_bundle(
+    temp_bank: SqliteItemBank, tmp_path: Path
+) -> None:
+    """The exported JSON the PWA fetches must carry ``gloss_en``.
+
+    ``EXPORTED_BANK_ITEM_FIELDS`` is an explicit allowlist, so a field absent
+    from it is dropped on the way to the browser however faithfully the rest of
+    the pipeline carried it. The gloss is learner-facing (TODO.md section 4,
+    "Every exercise shows its English translation, always"), so it belongs in
+    the bundle; an item banked without one exports an explicit ``null``, which
+    is what web/app.js degrades on.
+    """
+    assert "gloss_en" in EXPORTED_BANK_ITEM_FIELDS
+    glossed = _make_item("exported_gloss_01").model_copy(
+        update={"gloss_en": "The book is on the table."}
+    )
+    temp_bank.insert_item(glossed)
+    temp_bank.insert_item(_make_item("exported_gloss_02"))
+
+    export_dir = tmp_path / "export"
+    BankExporter.export_to_directory(temp_bank, export_dir)
+
+    with (export_dir / "all_items.json").open("r", encoding="utf-8") as f:
+        exported = {item["id"]: item for item in json.load(f)}
+
+    assert exported["exported_gloss_01"]["gloss_en"] == "The book is on the table."
+    assert "gloss_en" in exported["exported_gloss_02"]
+    assert exported["exported_gloss_02"]["gloss_en"] is None
+    assert BankExporter.validate_export(export_dir) is True
 
 
 def test_export_contains_no_internal_fields(temp_bank: SqliteItemBank, tmp_path: Path) -> None:
