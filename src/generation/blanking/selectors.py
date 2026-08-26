@@ -1145,14 +1145,38 @@ def _finite_verb_cell_is_unambiguous(token: Token, person: str, number: str) -> 
 
     One fallback exists for exactly the cell where that lemma error costs
     the most: see ``_st_form_is_unambiguous_second_singular``."""
+    return _finite_verb_cells(token, person, number) == [(person, number)]
+
+
+def _finite_verb_cells(token: Token, person: str, number: str) -> list[tuple[str, str]]:
+    """Every ``(Person, Number)`` cell of its own verb that ``token``'s
+    surface form occupies, or an empty list where no table in ``paradigms``
+    covers the verb at all.
+
+    The enumeration ``_finite_verb_cell_is_unambiguous`` was originally
+    written around, split out so a second caller can ask the softer
+    question. ``src.generation.gloss_validation`` needs the CELLS, not just
+    whether there is one of them: an English gloss of "Wenn ich mehr Zeit
+    hätte, ..." has to be allowed to say either "I" or "he", because
+    "hätte" is both, and knowing only that the form is ambiguous does not
+    say which two pronouns are on the table.
+
+    ``(person, number)`` is still an input, not just an output: it is the
+    probe used to identify WHICH regular family table describes this verb
+    when the irregular tables do not cover it.
+
+    An empty list means undecidable, and every caller must treat it as such
+    rather than as "no cells match" -- the same "reject rather than guess"
+    posture the ``False`` return of ``_finite_verb_cell_is_unambiguous``
+    already carries."""
     surface = token.text.lower()
     if (person, number) == ("2", "Sing") and _st_form_is_unambiguous_second_singular(surface):
-        return True
+        return [("2", "Sing")]
     if (person, number) == ("1", "Sing") and _e_form_is_unambiguous_first_singular(token):
-        return True
+        return [("1", "Sing")]
     lemma = token.lemma
     if not lemma:
-        return False
+        return []
     tense_mood = "SubjII" if token.morph.get("Mood") == "Sub" else token.morph.get("Tense")
     tables: list[dict[tuple[str, str], str]] = []
     if tense_mood:
@@ -1166,10 +1190,9 @@ def _finite_verb_cell_is_unambiguous(token: Token, person: str, number: str) -> 
                 tables.append(family_table)
                 break
     if not tables:
-        return False
+        return []
     table = tables[0]
-    matching = [cell for cell, form in table.items() if form.lower() == surface]
-    return matching == [(person, number)]
+    return [cell for cell, form in table.items() if form.lower() == surface]
 
 
 def _pronoun_case_contradicts_verb(sentence: TaggedSentence, index: int, fixed_case: str) -> bool:

@@ -57,8 +57,19 @@
           <span id="card-diff-badge" class="difficulty-badge">Stufe 1</span>
         </div>
 
-        <div id="exercise-prompt" class="prompt-box">
-          Das Buch liegt auf <span class="gap-blank">___</span> Tisch.
+        <!--
+          The German sentence and its English translation are one unit, so
+          they sit in one tightly spaced group rather than as two siblings
+          separated by the card's own 1.5rem gap. #exercise-gloss ships empty
+          and [hidden]: app.js fills it from the item's gloss_en on every
+          render, and an item without a gloss leaves it hidden, which costs no
+          box, no placeholder text and no vertical space.
+        -->
+        <div class="prompt-group">
+          <div id="exercise-prompt" class="prompt-box">
+            Das Buch liegt auf <span class="gap-blank">___</span> Tisch.
+          </div>
+          <p id="exercise-gloss" class="gloss-box" lang="en" hidden></p>
         </div>
 
         <div id="cued-area" class="cued-box" style="display: none;">

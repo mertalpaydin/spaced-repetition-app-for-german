@@ -793,15 +793,25 @@ def test_layer3_open_lexical_slot_still_rejects_a_genuinely_different_lexeme_dis
     assert "ginge" in (reason or "")
 
 
-def test_layer3_open_lexical_slot_still_rejects_when_gloss_contradicts_the_answer(
+def test_layer3_open_lexical_slot_still_rejects_when_the_gloss_verifies_nothing(
     konjunktiv_topic: Topic,
 ) -> None:
-    """A gloss that fails its OWN mechanical consistency check (here: no
-    conditional marker at all, contradicting Konjunktiv II) must never be
-    trusted to resolve anything -- the rejection fires exactly as if no
-    gloss were present."""
+    """A gloss that does not GENUINELY CONFIRM the topic's fixed dimension
+    must never be trusted to resolve anything -- the rejection fires exactly
+    as if no gloss were present.
+
+    This test used to phrase that as "a gloss that CONTRADICTS the answer",
+    with "My sister said that she comes immediately." as the contradiction.
+    It is not one, and the first pilot with real glosses is what showed
+    that: English has no conditional tense, so present or past marking is
+    not evidence against a German Konjunktiv II (see
+    ``src/generation/gloss_validation.py``'s ``_BUCKET_CONTRADICTED_BY``).
+    The gate's actual protection is the stronger one and is what is asserted
+    here: the dimension must come back CHECKED and NOT unverified, so a
+    gloss with no tense evidence at all still leaves the rejection standing.
+    """
     solver = Layer3AdversarialSolver()
-    item = _konjunktiv_item(["kommt"], gloss_en="My sister said that she comes immediately.")
+    item = _konjunktiv_item(["kommt"], gloss_en="My sister, on the subject of her arrival.")
     passed, reason, error_type = solver.validate(item, topic=konjunktiv_topic)
     assert not passed
     assert error_type == "ambiguity"

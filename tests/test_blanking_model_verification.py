@@ -49,6 +49,7 @@ def _bank_item(
     answer: str = "trinke",
     cue: str | None = None,
     rule_hint: str | None = "Präsens, regelmäßig",
+    gloss_en: str | None = None,
 ) -> BankItem:
     return BankItem(
         id=f"blank_{topic_id}_{answer}",
@@ -61,6 +62,7 @@ def _bank_item(
         accepted_answers=[answer],
         cue=cue,
         rule_hint=rule_hint,
+        gloss_en=gloss_en,
     )
 
 
@@ -688,3 +690,82 @@ def test_verification_report_counts_always_sum_to_item_count() -> None:
     report = verify_items(items, fake, batch_size=20)  # type: ignore[arg-type]
     total = report.verified_count + report.rejected_count + report.not_run_count
     assert total == len(items) == len(report.verdicts)
+
+
+# ---------------------------------------------------------------------------
+# The English gloss reaches the verifier (TODO.md 5.1, "then, and only then,
+# loosen the verifier").
+#
+# Measured need, from the owner's first gloss-enabled pilot: 44 of the 105
+# model rejections, 42%, said the answer was not unique because another TENSE
+# would fit the sentence equally well. Examples, verbatim from that run:
+#
+#   "Neben 'Könnten' ist 'Können' ... eine ebenso richtige Loesung."
+#   "Ohne zeitlichen Kontext ist neben dem Praesens 'kann' auch das
+#    Praeteritum 'konnte' eine ebenso richtige Loesung."
+#
+# The learner sees the English translation on every exercise, so in each of
+# those cases the tense was never actually open. The verifier was judging a
+# harder task than the one being shipped, purely because the prompt did not
+# carry the field.
+# ---------------------------------------------------------------------------
+
+
+def test_format_item_block_includes_the_english_gloss_when_present() -> None:
+    prompt = build_batch_prompt([_bank_item(gloss_en="I drink coffee every morning.")])
+    assert "Englische Übersetzung: I drink coffee every morning." in prompt
+
+
+def test_format_item_block_says_so_explicitly_when_there_is_no_gloss() -> None:
+    """States the absence rather than omitting the line. A missing line
+    would leave the model to guess whether a translation existed and was
+    withheld, and the instruction tells it to judge uniqueness without one
+    in exactly this case."""
+    prompt = build_batch_prompt([_bank_item(gloss_en=None)])
+    assert "Englische Übersetzung: (keine)" in prompt
+
+
+def test_format_item_block_treats_a_whitespace_only_gloss_as_absent() -> None:
+    prompt = build_batch_prompt([_bank_item(gloss_en="   ")])
+    assert "Englische Übersetzung: (keine)" in prompt
+
+
+def test_build_batch_prompt_keeps_each_items_gloss_with_its_own_task() -> None:
+    """A batch is judged item by item, so a gloss landing on the wrong task
+    would attach correct-looking English to the wrong German and quietly
+    corrupt every uniqueness judgment after it."""
+    prompt = build_batch_prompt(
+        [
+            _bank_item(answer="trinke", gloss_en="I drink coffee every morning."),
+            _bank_item(
+                answer="gewinnen",
+                prompt="Ich denke, dass Tom ___ wird.",
+                gloss_en="I believe Tom is going to take first place.",
+            ),
+        ]
+    )
+    first = prompt.index("Aufgabe 1:")
+    second = prompt.index("Aufgabe 2:")
+    assert first < prompt.index("I drink coffee every morning.") < second
+    assert second < prompt.index("I believe Tom is going to take first place.")
+
+
+def test_instruction_de_live_bounds_what_the_translation_may_settle() -> None:
+    """The relaxation has to be bounded or it manufactures the defect class
+    cycles 11 and 12 closed. A translation settles tense, person, number and
+    definiteness; it says nothing about German case, gender, adjective
+    endings, reflexives or preposition government, and the instruction must
+    say so in as many words rather than leaving the model to infer it."""
+    assert "Englische Übersetzung" in _INSTRUCTION_DE_LIVE
+    for bounded in ("Zeitform", "Person", "Zahl", "Bestimmtheit"):
+        assert bounded in _INSTRUCTION_DE_LIVE
+    for excluded in ("Fall", "Genus", "Adjektivendungen", "Reflexivpronomen", "Präposition"):
+        assert excluded in _INSTRUCTION_DE_LIVE
+
+
+def test_instruction_de_live_still_names_no_grammar_topic_after_the_gloss_change() -> None:
+    """Rule 2 does not relax because a new paragraph was useful. The first
+    draft of that paragraph explained the example by saying the translation
+    shows the 'Futur', which this guard caught; it now describes the timing
+    without naming the tense."""
+    assert _contains_forbidden_word(_INSTRUCTION_DE_LIVE) is None

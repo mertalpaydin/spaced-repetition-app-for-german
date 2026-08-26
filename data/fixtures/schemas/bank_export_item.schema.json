@@ -63,6 +63,7 @@
       "items": { "type": "string" }
     },
     "domain": { "type": ["string", "null"] },
-    "source_sentence_id": { "type": ["string", "null"] }
+    "source_sentence_id": { "type": ["string", "null"] },
+    "gloss_en": { "type": ["string", "null"] }
   }
 }

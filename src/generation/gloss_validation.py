@@ -88,14 +88,68 @@ closed-list fallback path (see below), which under-detects on purpose
 rather than over-claims.
 
 Person/Number checks the same way: the German answer's own (Person, Number)
-must show up SOMEWHERE in the gloss (a subject pronoun, or -- spaCy path
-only -- a finite verb's own agreement morphology, which also catches a
-proper-noun subject like "Anna lives..." with no literal pronoun at all).
-Gender is deliberately NOT checked (whether a German 3rd-singular target
-glosses as "he", "she" or "it"): the task's own worked examples (1sg -> "I",
-3pl -> "they") never need it, and getting it right would require aligning
-the gloss's subject specifically to the German sentence's subject, which
-this module does not attempt.
+must show up SOMEWHERE in the gloss (a subject pronoun, a finite verb's own
+agreement morphology, or -- spaCy path only -- a NOMINAL subject, which
+supplies third person without any pronoun being present at all). Gender is
+deliberately NOT checked (whether a German 3rd-singular target glosses as
+"he", "she" or "it"): the task's own worked examples (1sg -> "I", 3pl ->
+"they") never need it, and getting it right would require aligning the
+gloss's subject specifically to the German sentence's subject, which this
+module does not attempt.
+
+### What the first real pilot measured, and what it changed here
+
+The first pilot with English glosses populated ran this check in
+measure-only mode over 376 accepted items. It flagged 34 of them. The owner
+read all 34 by hand: exactly ONE was a real defect (a Tatoeba pairing whose
+English sentence is about something else entirely), and 33 were this check
+being wrong. Enforcing it as it stood would have thrown away 33 good items
+to catch 1 bad one. Four distinct faults produced those 33, and each is
+corrected below rather than suppressed:
+
+1. **English contractions were invisible.** The gloss was tokenised with
+   ``[A-Za-z']+``, which glues "wouldn't", "could've" and "I'll" into single
+   tokens that match no marker list, so plainly future/perfect/conditional
+   glosses were read as present. :func:`_english_word_readings` now splits
+   the clitic off and expands it to the SET of words it can stand for
+   ("'d" -> would OR had, "'s" -> is OR has). A set, not a single reading:
+   this check's job is to catch contradiction, not to prove agreement, so
+   matching any member is the correct disposition of a genuine ambiguity.
+2. **English marks the subjunctive with its past forms.** German Konjunktiv
+   II maps onto English past-form subjunctives ("If I were you", "I wish I
+   was pretty") and onto modal pasts, and -- in "als ob" clauses, wishes and
+   polite requests -- onto the plain present or future ("als würden Sie mich
+   nicht kennen" -> "you don't know me"). English simply has no dedicated
+   conditional tense. So a ``conditional`` target is CONFIRMED by
+   conditional, past or perfect marking and CONTRADICTED by nothing; a gloss
+   showing only present or future marking comes back UNVERIFIED, which is
+   the honest verdict rather than a false rejection. See
+   :data:`_BUCKET_CONTRADICTED_BY`.
+3. **The person check demanded a pronoun that often should not be there,
+   and was fooled by German syncretism.** Two independent faults, fixed
+   independently: a NOMINAL subject in the gloss ("I think Tom will win",
+   "everything will go well", "Most of the staff has left") now supplies
+   third-person evidence on its own, and a German finite-verb cell that is
+   syncretic between persons ("hätte" is 1st AND 3rd singular, "sind" is
+   1st AND 3rd plural, "kommt" is 3rd singular AND 2nd plural) cannot
+   constrain the gloss at all and is skipped entirely rather than checked
+   against the tagger's arbitrary pick of one reading. That second half
+   reuses ``src.generation.blanking.selectors.
+   _finite_verb_cell_is_unambiguous`` -- the machinery this repository
+   already built for exactly that question -- rather than growing a second
+   copy of it.
+4. **German match strings were being found inside English text.** The
+   grammar-terminology blocklist and the bare-answer-token check are both
+   lists of GERMAN strings, and the gloss is English; German and English
+   share a lot of spellings. English "fall" was matched against German
+   "Fall" (grammatical case) and English "war" against German "war" (was).
+   Both checks keep their real job -- a gloss must not hand the learner the
+   German answer, and must not name the grammar topic -- but a match on a
+   spelling that is also an ordinary English word is no longer evidence of
+   either. See :data:`_ENGLISH_SHARED_SPELLINGS`.
+
+The honest cost of 2, 3 and 4 is stated with each one: every fix trades some
+detection away, and the traded-away detection is named where it is traded.
 """
 
 from __future__ import annotations
@@ -113,6 +167,9 @@ from src.taxonomy import tagger as de_tagger
 
 if TYPE_CHECKING:
     from spacy.language import Language
+
+    from src.generation.blanking.sentence_tagger import TaggedSentence
+    from src.generation.blanking.sentence_tagger import Token as GermanToken
 
 logger = logging.getLogger(__name__)
 
@@ -342,17 +399,69 @@ _BUCKET_SATISFIED_BY: dict[_TenseBucket, frozenset[_TenseBucket]] = {
     # sentence ("he lived" / "he has lived" both correctly translate
     # Perfekt in casual register) -- so either English bucket satisfies
     # either German one. This is the one place "past" and "perfect" are
-    # treated as interchangeable; present/future/conditional are not
-    # collapsed into anything else.
+    # treated as interchangeable; present/future are not collapsed into
+    # anything else.
     "present": frozenset({"present"}),
     "past": frozenset({"past", "perfect"}),
     "perfect": frozenset({"past", "perfect"}),
     "future": frozenset({"future"}),
-    "conditional": frozenset({"conditional"}),
+    # English marks irrealis with its PAST forms, not with a tense of its
+    # own: "If I were you", "I wish I was pretty", "if he'd wanted to",
+    # "Even if you had asked me". A German Konjunktiv II target is therefore
+    # confirmed by past and perfect marking exactly as much as by an
+    # explicit modal.
+    "conditional": frozenset({"conditional", "past", "perfect"}),
 }
 
+#: Which English marking positively CONTRADICTS each German bucket. Not the
+#: complement of :data:`_BUCKET_SATISFIED_BY`: marking that is neither
+#: confirming nor contradicting comes back UNVERIFIED, which is the module's
+#: standing posture (see the docstring) and the only honest verdict where
+#: the two languages genuinely do not line up.
+#:
+#: Two entries are deliberately narrower than the complement:
+#:
+#: - ``conditional`` contradicts NOTHING. Beyond the past forms above,
+#:   German Konjunktiv II also renders as a plain English present in "als
+#:   ob" clauses ("Warum tun Sie so, als würden Sie mich nicht kennen?" ->
+#:   "Why are you pretending you don't know me?") and as a plain future in
+#:   polite requests ("Würden Sie ...?" -> "Will you ...?"). There is no
+#:   English tense marking that is evidence AGAINST a Konjunktiv II, so this
+#:   dimension reports confirmation when it finds it and unverified
+#:   otherwise. The cost, stated plainly: a genuinely wrong gloss of a
+#:   Konjunktiv II item is no longer caught on the tense dimension.
+#: - ``perfect`` is contradicted only by ``future``. The German Perfekt's
+#:   own finite verb is PRESENT-tense ("hat", "ist") and the construction,
+#:   not the finite form, carries the past reference; resultative uses gloss
+#:   straight into an English present ("Das Geschäft hat noch bis zum 19.
+#:   Mai geöffnet." -> "The store is open until May 19."). A genuinely
+#:   past-marked German finite verb (Präteritum, Plusquamperfekt) is a
+#:   different matter and still contradicts a present-only gloss -- that is
+#:   the ``past`` row, and it is what catches the one real defect the pilot
+#:   found.
+_BUCKET_CONTRADICTED_BY: dict[_TenseBucket, frozenset[_TenseBucket]] = {
+    "present": frozenset({"past", "perfect", "future", "conditional"}),
+    "past": frozenset({"present", "future", "conditional"}),
+    "perfect": frozenset({"future"}),
+    "future": frozenset({"present", "past", "perfect", "conditional"}),
+    "conditional": frozenset(),
+}
 
-def _german_tense_bucket(feats: dict[str, str] | None, topic: Topic | None) -> _TenseBucket | None:
+#: Surface forms of "mögen"'s lexicalised Konjunktiv II. Morphologically
+#: these are what spaCy calls Mood=Ind|Tense=Pres (and every modal-verb
+#: topic's ``morph_spec`` says Tense: Pres), but their MEANING is polite
+#: conditional and their correct English gloss is "would like to". Reading
+#: them as a present target made "Ich möchte ... besuchen." / "I would like
+#: to visit ..." a contradiction, which it plainly is not.
+_MOECHTE_FORMS = frozenset({"möchte", "möchtest", "möchten", "möchtet"})
+
+
+def _german_tense_bucket(
+    feats: dict[str, str] | None,
+    topic: Topic | None,
+    answer_token: GermanToken | None = None,
+    sentence: TaggedSentence | None = None,
+) -> _TenseBucket | None:
     """Which tense bucket the German target belongs to, or ``None`` if
     undeterminable (no tense-like dimension applies to this topic/answer at
     all -- most Case/Gender-only topics).
@@ -371,6 +480,31 @@ def _german_tense_bucket(feats: dict[str, str] | None, topic: Topic | None) -> _
     declared Mood. The topic's fixed value is the ground truth it was
     generated against; the tagger is only ever consulted for a dimension
     the topic itself leaves unfixed.
+
+    ``answer_token`` and ``sentence`` (the lemma-keeping
+    ``blanking.sentence_tagger`` analysis of the gap-filled prompt, or
+    ``None`` where it is unavailable) supply the two facts neither the
+    ``morph_spec`` nor the answer's own FEATS can express, both of which the
+    first glossed pilot got wrong:
+
+    - **An attributive Partizip II carries no sentence tense.** "Die von Eva
+      Waser in Luzern gegründete private Institution erhält ..." has an
+      Aspect=Perf target ("gegründete") inside a sentence whose finite verb
+      is something else entirely, and its gloss's tense ("... will receive
+      ...") is the MAIN clause's, not the participle's. spaCy tags such a
+      declined participle ``ADJ``; for an adjective the tense dimension is
+      simply not determinable and this returns ``None``.
+    - **"haben" + Partizip II is a Perfekt whatever the topic says about the
+      auxiliary's own form.** ``verb_sein_haben`` fixes Tense: Pres because
+      it teaches the PRESENT forms of "haben"; in "was er begonnen hat" that
+      present-tense "hat" is the auxiliary of a Perfekt, and the English
+      gloss is a simple past ("what he started"). The declared Pres
+      describes the form, the construction describes the time reference, and
+      it is the time reference this check compares against. Restricted to
+      "haben" deliberately: "sein" + Partizip II is ambiguous between a
+      Perfekt ("ist gegangen") and a Zustandspassiv ("ist geöffnet"), and
+      "werden" + Partizip II is a present passive, so neither may be
+      rewritten this way.
     """
     feats = feats or {}
     morph_spec = (topic.morph_spec or {}) if topic is not None else {}
@@ -385,6 +519,21 @@ def _german_tense_bucket(feats: dict[str, str] | None, topic: Topic | None) -> _
     mood = _pick("Mood")
     tense = _pick("Tense")
     aspect = _pick("Aspect")
+
+    if answer_token is not None:
+        if answer_token.pos == "ADJ":
+            return None
+        if answer_token.text.lower() in _MOECHTE_FORMS:
+            return "conditional"
+    if (
+        answer_token is not None
+        and sentence is not None
+        and answer_token.lemma == "haben"
+        and answer_token.morph.get("VerbForm") == "Fin"
+        and answer_token.morph.get("Tense") == "Pres"
+        and _sentence_has_past_participle(sentence)
+    ):
+        return "perfect"
 
     if mood == "SubjII":
         return "conditional"
@@ -410,6 +559,60 @@ def de_tagger_unk() -> str:
     return UNK
 
 
+def _tag_gap_filled_sentence(
+    prompt: str, answer: str
+) -> tuple[TaggedSentence | None, GermanToken | None]:
+    """The gap-filled prompt tagged by ``blanking.sentence_tagger``, plus the
+    one token that IS the answer, or ``(None, None)`` wherever that is not
+    possible (no gap, empty answer, tagger unavailable, no aligning token).
+
+    ``src.taxonomy.tagger.tag_answer`` -- which this module already uses for
+    the answer's FEATS -- deliberately excludes spaCy's lemmatizer, so its
+    ``TaggedAnswer`` has no lemma at all, and both new German-side rules
+    here need one (``_german_tense_bucket``'s "haben + Partizip II" test,
+    and ``_person_cell_is_syncretic``'s paradigm reconstruction). The
+    blanking package's tagger keeps the lemmatizer for exactly that reason,
+    so it is the tagger to ask.
+
+    ``de_tagger._fill_gap`` is reused rather than reimplemented: a
+    ``cloze_cued`` prompt keeps its bracketed cue after the gap ("... das
+    ___ (groß) Fenster."), that cue is not part of the sentence's grammar,
+    and leaving it in visibly derails the parse. Duplicating that stripping
+    rule here is how the two copies would drift.
+    """
+    from src.generation.blanking import sentence_tagger
+
+    answer = answer.strip()
+    if not answer:
+        return None, None
+    filled = de_tagger._fill_gap(prompt, answer)
+    if filled is None:
+        return None, None
+    text, start, end = filled
+    sentence = sentence_tagger.tag_sentence(text)
+    if sentence is None:
+        return None, None
+
+    offset = 0
+    for token in sentence.tokens:
+        token_start = offset
+        token_end = token_start + len(token.text)
+        if token_start < end and token_end > start:
+            return sentence, token
+        offset = token_end + len(token.whitespace)
+    return sentence, None
+
+
+def _sentence_has_past_participle(sentence: TaggedSentence) -> bool:
+    """Whether ``sentence`` contains a verbal Partizip II. ``pos == "VERB"``
+    is required alongside ``VerbForm=Part``: a participle spaCy has tagged
+    ``ADJ`` is an attributive adjective ("ein gekochtes Ei"), not the second
+    half of a periphrastic verb form."""
+    return any(
+        token.pos == "VERB" and token.morph.get("VerbForm") == "Part" for token in sentence.tokens
+    )
+
+
 # ---- Gloss -> detected tense buckets ----------------------------------------
 
 _FUTURE_MARKERS = frozenset({"will", "shall", "gonna"})
@@ -424,6 +627,60 @@ _PERFECT_AUX_CLOSED_LIST = frozenset({"has", "have", "had"})
 _PAST_ED_FALSE_POSITIVES = frozenset({"bored", "tired", "interested", "excited"})
 _PAST_ED_PATTERN = re.compile(r"^[a-z]{4,}ed$")
 
+#: Every English enclitic this module expands, mapped to the full words it
+#: can stand for. ``'d`` and ``'s`` are genuinely ambiguous ("I'd" is "I
+#: would" or "I had", "he's" is "he is" or "he has"), so each expands to a
+#: SET and a match against ANY member counts. That is the right disposition
+#: of the ambiguity for THIS check, whose job is catching a contradiction
+#: rather than proving agreement: forcing a single reading would invent a
+#: contradiction out of a coin flip. It is also safe in the classification
+#: below, which tests the confirming set BEFORE the contradicting one, so an
+#: over-generated reading can only ever turn "unverified" into "consistent",
+#: never a real confirmation into a rejection.
+#:
+#: Without this the gloss tokeniser (``[A-Za-z']+``, which keeps the
+#: apostrophe) glued "wouldn't", "could've" and "I'll" into single tokens
+#: that matched no marker list at all, which is why the first glossed pilot
+#: read "I'll be lonely after you've gone." as present tense.
+_CONTRACTION_READINGS: dict[str, frozenset[str]] = {
+    "n't": frozenset({"not"}),
+    "'ll": frozenset({"will"}),
+    "'ve": frozenset({"have"}),
+    "'re": frozenset({"are"}),
+    "'d": frozenset({"would", "had"}),
+    "'s": frozenset({"is", "has"}),
+    "'m": frozenset({"am"}),
+}
+
+
+def _token_readings(token: str) -> frozenset[str]:
+    """Every full English word ``token`` (already lowercased) can stand for,
+    peeling off enclitics from the right: "wouldn't" -> would, not;
+    "could've" -> could, have; "he'd" -> he, would, had. A token with no
+    enclitic is its own single reading."""
+    readings: set[str] = set()
+    rest = token
+    while True:
+        for clitic, expansions in _CONTRACTION_READINGS.items():
+            if len(rest) > len(clitic) and rest.endswith(clitic):
+                readings |= expansions
+                rest = rest[: -len(clitic)]
+                break
+        else:
+            break
+    if rest and rest != "'":
+        readings.add(rest)
+    return frozenset(readings)
+
+
+def _english_word_readings(gloss: str) -> frozenset[str]:
+    """Every full English word any token of ``gloss`` can stand for, with
+    enclitics expanded (:func:`_token_readings`)."""
+    readings: set[str] = set()
+    for token in re.findall(r"[A-Za-z']+", gloss.lower()):
+        readings |= _token_readings(token)
+    return frozenset(readings)
+
 
 def _gloss_tense_buckets(gloss: str) -> tuple[frozenset[_TenseBucket], _AnalysisSource]:
     """Every tense bucket detectable ANYWHERE in ``gloss``, plus which
@@ -431,12 +688,12 @@ def _gloss_tense_buckets(gloss: str) -> tuple[frozenset[_TenseBucket], _Analysis
     just yields an empty set (surfaced by the caller as "unverified").
     """
     tokens = re.findall(r"[A-Za-z']+", gloss.lower())
-    token_set = set(tokens)
+    readings = _english_word_readings(gloss)
 
     buckets: set[_TenseBucket] = set()
-    if token_set & _FUTURE_MARKERS:
+    if readings & _FUTURE_MARKERS:
         buckets.add("future")
-    if token_set & _CONDITIONAL_MARKERS:
+    if readings & _CONDITIONAL_MARKERS:
         buckets.add("conditional")
 
     nlp = _load_en_model()
@@ -451,8 +708,15 @@ def _gloss_tense_buckets(gloss: str) -> tuple[frozenset[_TenseBucket], _Analysis
                     buckets.add("present")
                 elif feats.get("Tense") == "Past":
                     buckets.add("past")
-                if tok.lower_ in _PERFECT_AUX_CLOSED_LIST:
-                    has_perfect_aux = True
+            # Not gated on VerbForm=Fin: in "Tom could've won" spaCy reads
+            # the "'ve" as an infinitive under the modal, and it is still the
+            # perfect auxiliary. Gated on POS instead, which is what keeps a
+            # possessive "'s" ("Tom's book", tagged PART) from being read as
+            # "has".
+            if tok.pos_ in ("AUX", "VERB") and _token_readings(tok.lower_) & (
+                _PERFECT_AUX_CLOSED_LIST
+            ):
+                has_perfect_aux = True
             if tok.tag_ == "VBN":
                 has_participle = True
         if has_perfect_aux and has_participle:
@@ -465,11 +729,11 @@ def _gloss_tense_buckets(gloss: str) -> tuple[frozenset[_TenseBucket], _Analysis
     # is/does), returning no evidence (-> UNVERIFIED downstream) rather
     # than guess from a suffix, since a bare "-s" ending is indistinguishable
     # from an ordinary plural noun without a real tagger.
-    if token_set & _PRESENT_AUX_CLOSED_LIST:
+    if readings & _PRESENT_AUX_CLOSED_LIST:
         buckets.add("present")
-    if token_set & _PAST_AUX_CLOSED_LIST:
+    if readings & _PAST_AUX_CLOSED_LIST:
         buckets.add("past")
-    has_perfect_aux_cl = bool(token_set & _PERFECT_AUX_CLOSED_LIST)
+    has_perfect_aux_cl = bool(readings & _PERFECT_AUX_CLOSED_LIST)
     has_past_participle_guess = any(
         _PAST_ED_PATTERN.match(t) and t not in _PAST_ED_FALSE_POSITIVES for t in tokens
     )
@@ -490,6 +754,11 @@ _EXPECTED_PRONOUNS: dict[tuple[str, str], frozenset[str]] = {
     ("3", "Sing"): frozenset({"he", "she", "it"}),
     ("3", "Plur"): frozenset({"they"}),
 }
+
+#: spaCy dependency labels for a clause's subject. ``expl`` ("there is ...")
+#: is deliberately excluded: an expletive is not a referential subject and
+#: says nothing about the German target's person.
+_SUBJECT_DEPS = frozenset({"nsubj", "nsubjpass", "csubj", "csubjpass"})
 
 _SIE_TOKEN = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ]+")
 
@@ -536,6 +805,28 @@ def _gloss_person_number_pairs(
     all), so a bare Person=2 with no Number yields BOTH ("2", "Sing") and
     ("2", "Plur") rather than being dropped for lacking a Number reading
     that does not exist in English to begin with.
+
+    spaCy path, second source: a NOMINAL subject. "I think Tom will win.",
+    "Are you sure everything will go well?", "I want this letter to be
+    opened now." and "Tom went swimming with us yesterday." are all correct
+    glosses of a German 3rd-singular target, and the first pilot rejected
+    every one of them, because the only pronoun anywhere in each gloss
+    belongs to a DIFFERENT clause ("I", "you", "us") and the German target's
+    own person was nowhere to be seen. It was there: the subject is a noun
+    ("Tom", "everything", "this letter"), and an English subject that is a
+    noun rather than a pronoun is third person by definition. Every
+    ``nsubj``/``nsubjpass``/``csubj`` token that carries no ``Person``
+    feature of its own therefore contributes third person, in BOTH numbers.
+
+    Third person with no number claim, deliberately. A nominal subject's
+    English number is not evidence about the German subject's: spaCy marks
+    the head of a coordination ("Howes' kite and board were found" -> "kite",
+    Number=Sing) and of a partitive ("Most of the staff has left" -> "Most",
+    no Number at all) in ways that say nothing about the German plural on
+    the other side. Reading a number off one of those turns a correct gloss
+    into a rejection, which is what the pilot measured. A PRONOUN subject is
+    a different matter: English personal pronouns mark number honestly, and
+    those keep their exact (Person, Number).
     """
     tokens = re.findall(r"[A-Za-z']+", gloss.lower())
     nlp = _load_en_model()
@@ -551,6 +842,9 @@ def _gloss_person_number_pairs(
             elif person == "2":
                 pairs.add((person, "Sing"))
                 pairs.add((person, "Plur"))
+            elif not person and tok.dep_ in _SUBJECT_DEPS:
+                pairs.add(("3", "Sing"))
+                pairs.add(("3", "Plur"))
         return frozenset(pairs), "spacy"
 
     pairs = set()
@@ -561,17 +855,226 @@ def _gloss_person_number_pairs(
     return frozenset(pairs), "closed_list"
 
 
+def _german_person_cells(
+    answer_token: GermanToken | None, person: str, number: str
+) -> list[tuple[str, str]] | None:
+    """Every (Person, Number) cell the German answer could occupy, or
+    ``None`` where that is undecidable and the person dimension therefore
+    cannot be checked at all.
+
+    This is the second half of the pilot's person-check failure, and it is
+    the larger half. "Wenn ich mehr Zeit ___, würde ich mehr studieren."
+    has "hätte" as its answer; German's 1st and 3rd singular Konjunktiv II
+    are spelled identically, the tagger picked 3rd, and the gloss ("If I had
+    more time, I would study more.") correctly says "I". The same syncretism
+    rejected "sind"/"waren" (1st and 3rd plural) and "kommt" (3rd singular
+    and 2nd plural) items.
+
+    ``selectors._finite_verb_cells`` already answers exactly this question,
+    for exactly this reason (docs/audits/cycle-11-corpus-report.md defect
+    class 2, where a syncretic verb made a blanked subject pronoun
+    unrecoverable), by reconstructing the whole paradigm and looking the
+    surface form up in it. It is reused here rather than reimplemented;
+    ``uniqueness.py`` already imports its sibling the same way.
+
+    Enumerating the cells rather than merely skipping every ambiguous one
+    is what keeps the check's real job. "Wohnen sie in Hamburg?" glossed
+    "Does she live in Hamburg?" is still rejected: "wohnen" is 1st OR 3rd
+    plural, and "she" is neither. Only a gloss that matches ONE of the
+    readings the German form genuinely has is let through.
+
+    ``None`` (undecidable) is returned where there is no answer token at all
+    (tagger unavailable, no aligning token) or the verb's paradigm is not in
+    any table -- the skip-rather-than-guess direction. A NON-finite answer
+    (a pronoun, an article, an adjective ending) is not a verb cell at all,
+    and keeps the tagger's own single reading exactly as before.
+    """
+    if answer_token is None:
+        return None
+    if answer_token.morph.get("VerbForm") != "Fin":
+        return [(person, number)]
+
+    from src.generation.blanking.selectors import _finite_verb_cells
+
+    cells = _finite_verb_cells(answer_token, person, number)
+    return cells or None
+
+
+def _impersonal_es_promoted_pronouns(sentence: TaggedSentence | None) -> frozenset[str]:
+    """The English subject pronouns a German impersonal-"es" clause may
+    legitimately be glossed with, beyond the ones its own verb agreement
+    predicts.
+
+    German builds a whole family of constructions on a dummy nominative
+    "es" whose English translation has a completely different subject: the
+    experiencer, which German leaves in the accusative or dative, becomes
+    the English subject. "Würde es dich stören, das Fenster zu öffnen?" is
+    "Would you mind opening the window?"; "Es gefällt mir." is "I like it.".
+    The German verb agrees with "es" (3rd singular), so demanding "he", "she"
+    or "it" in the gloss rejects the only natural English rendering there
+    is -- which is what the first glossed pilot did.
+
+    Gated on a nominative "es" actually being present, so an ordinary
+    transitive sentence with an oblique pronoun ("Er gibt mir das Buch.")
+    gains nothing and keeps being checked normally. Deliberately coarse in
+    one respect: this module has no dependency parse of the German (the
+    blanking tagger excludes the parser), so "es" is looked for anywhere in
+    the sentence rather than specifically as the answer's own subject. That
+    errs towards accepting, which is the direction a check with a measured
+    33-to-1 false-positive rate should err in.
+    """
+    if sentence is None:
+        return frozenset()
+    if not any(
+        token.text.lower() == "es" and token.morph.get("Case") in (None, "Nom")
+        for token in sentence.tokens
+    ):
+        return frozenset()
+
+    promoted: set[str] = set()
+    for token in sentence.tokens:
+        if token.pos != "PRON" or token.morph.get("Case") not in ("Acc", "Dat"):
+            continue
+        person = token.morph.get("Person")
+        number = token.morph.get("Number")
+        if person and number:
+            promoted |= _EXPECTED_PRONOUNS.get((person, number), frozenset())
+    return frozenset(promoted)
+
+
+def _expected_gloss_pronouns(
+    prompt: str,
+    sentence: TaggedSentence | None,
+    answer_token: GermanToken | None,
+    person: str,
+    number: str,
+) -> frozenset[str] | None:
+    """Every English subject pronoun that would be consistent with the
+    German answer, or ``None`` if the person dimension is not checkable for
+    this answer at all (see :func:`_german_person_cells`)."""
+    cells = _german_person_cells(answer_token, person, number)
+    if cells is None:
+        return None
+
+    expected: set[str] = set()
+    for cell in cells:
+        if cell == ("3", "Plur"):
+            expected |= _third_plural_expected_pronouns(prompt)
+        else:
+            expected |= _EXPECTED_PRONOUNS.get(cell, frozenset())
+    if ("3", "Sing") in cells:
+        expected |= _impersonal_es_promoted_pronouns(sentence)
+    return frozenset(expected) or None
+
+
+#: German strings that are also ordinary English words, so that finding one
+#: of them in an ENGLISH gloss is no evidence of a German leak. Used by both
+#: string-matching checks in this module -- the bare-answer-token check and
+#: the grammar-terminology check -- because both suffer the identical fault:
+#: they match German strings against English text.
+#:
+#: The list is scoped, not general. It covers only what can actually be
+#: matched here: the grammar terms on ``PromptBuilder``'s own blocklist and
+#: metalanguage stems ("fall" = Kasus, "modus", "form"), and the shapes this
+#: taxonomy's ANSWER slots can take -- articles, pronouns, prepositions,
+#: adjective forms and finite verb forms. It contains no nouns, because no
+#: topic in this taxonomy blanks a noun.
+#:
+#: The cost, stated plainly: an answer that really was left untranslated in
+#: the gloss is no longer caught if its spelling happens to be on this list
+#: ("war", "will", "man", "hat", ...). The pilot measured that trade at 2
+#: false rejections against 0 observed true ones, and a shared-spelling hit
+#: is exactly the case where the string in the gloss teaches the learner
+#: nothing about the German answer. Add to the list when a new false
+#: rejection is measured, not pre-emptively.
+_ENGLISH_SHARED_SPELLINGS = frozenset(
+    {
+        # grammar terminology (PromptBuilder blocklist / metalanguage stems)
+        "fall",
+        "form",
+        "modus",
+        # function words
+        "am",
+        "an",
+        "die",
+        "den",
+        "in",
+        "man",
+        "so",
+        "was",
+        # finite verb forms
+        "band",
+        "bin",
+        "half",
+        "hat",
+        "rang",
+        "rate",
+        "sang",
+        "sank",
+        "sprang",
+        "stand",
+        "war",
+        "will",
+        # adjective forms
+        "arm",
+        "warm",
+        "wild",
+    }
+)
+
+
+def _is_german_only(term: str) -> bool:
+    """Whether ``term`` is a German string with no ordinary English word of
+    the same spelling, so that finding it in an English gloss really is
+    evidence of German text (see :data:`_ENGLISH_SHARED_SPELLINGS`)."""
+    return term.strip().lower() not in _ENGLISH_SHARED_SPELLINGS
+
+
 def _contains_answer_leak(gloss: str, answer: str) -> bool:
     """True if the bare German ``answer`` token itself appears in ``gloss``
-    as a whole word -- the answer is only ever legitimately a German word,
-    so its literal appearance in an English translation is a leak, not a
-    coincidence (a German inflected verb form or article is not also an
-    English word by chance)."""
+    as a whole word AND that spelling is not also an ordinary English word.
+
+    The original rule ("the answer is only ever a German word, so its
+    literal appearance in an English translation is a leak") rested on a
+    premise that is simply false: German and English share a great many
+    spellings, and the first glossed pilot rejected "The summit meeting at
+    Lancaster House was initially planned as just one of several on the
+    Ukraine war." because the German answer was "war" (= "was"). The English
+    noun "war" hands the learner nothing.
+
+    The check keeps its real job. A genuine leak is an untranslated German
+    word sitting in English text where no English word of that spelling
+    fits: "He wohnt in Berlin." still fires, because "wohnt" is not English.
+    What no longer fires is a match on a spelling both languages have --
+    see :data:`_ENGLISH_SHARED_SPELLINGS` for the list and its cost.
+    """
     answer = answer.strip()
     if not answer:
         return False
+    if not _is_german_only(answer):
+        return False
     pattern = r"(?<![A-Za-zÀ-ÖØ-öø-ÿ])" + re.escape(answer) + r"(?![A-Za-zÀ-ÖØ-öø-ÿ])"
     return re.search(pattern, gloss, flags=re.IGNORECASE) is not None
+
+
+def _gloss_topic_leaks(gloss: str) -> list[str]:
+    """Grammar-terminology leaks in an ENGLISH gloss.
+
+    ``PromptBuilder.check_for_topic_leaks`` is a list of GERMAN metalanguage
+    matched as whole words, and it must stay that way: on a German prompt
+    "Fall" really does name the grammatical case and really is a leak. Run
+    unchanged against an English gloss it misfires on shared spellings, and
+    the first glossed pilot duly rejected "Ministers usually fall on the
+    good side like sandwiches." for the English verb "fall".
+
+    The correction is not to weaken the blocklist but to read it in the
+    right language: in English text, a hit on a spelling that is an ordinary
+    English word is not evidence that the gloss names a grammar topic. The
+    English reader of "fall" gets "fall", not "Kasus". Terms with no English
+    homograph ("dativ", "perfekt", "konjunktiv", ...) are unaffected and
+    still reject.
+    """
+    return [term for term in PromptBuilder.check_for_topic_leaks(gloss) if _is_german_only(term)]
 
 
 def validate_gloss_consistency(
@@ -596,7 +1099,7 @@ def validate_gloss_consistency(
             analysis_source="unavailable",
         )
 
-    leaked_terms = PromptBuilder.check_for_topic_leaks(stripped)
+    leaked_terms = _gloss_topic_leaks(stripped)
     if leaked_terms:
         return GlossCheckResult(
             consistent=False,
@@ -616,18 +1119,19 @@ def validate_gloss_consistency(
 
     tagged = de_tagger.tag_answer(prompt, answer)
     de_feats = tagged.feats if tagged is not None else {}
+    sentence, answer_token = _tag_gap_filled_sentence(prompt, answer)
 
     checked: list[GlossDimension] = []
     unverified: list[GlossDimension] = []
     reasons: list[str] = []
     source: Literal["spacy", "closed_list", "unavailable"] = "unavailable"
 
-    target_bucket = _german_tense_bucket(de_feats, topic)
+    target_bucket = _german_tense_bucket(de_feats, topic, answer_token, sentence)
     if target_bucket is not None:
         checked.append("tense")
         detected, tense_source = _gloss_tense_buckets(stripped)
         source = tense_source
-        verdict = _classify(_BUCKET_SATISFIED_BY[target_bucket], detected)
+        verdict = _classify_tense(target_bucket, detected)
         if verdict == "unverified":
             unverified.append("tense")
         elif verdict == "inconsistent":
@@ -640,12 +1144,9 @@ def validate_gloss_consistency(
     de_person = de_feats.get("Person")
     de_number = de_feats.get("Number")
     if de_person and de_person != unk and de_number and de_number != unk:
-        checked.append("person")
-        if de_person == "3" and de_number == "Plur":
-            expected: frozenset[str] | None = _third_plural_expected_pronouns(prompt)
-        else:
-            expected = _EXPECTED_PRONOUNS.get((de_person, de_number))
+        expected = _expected_gloss_pronouns(prompt, sentence, answer_token, de_person, de_number)
         if expected is not None:
+            checked.append("person")
             detected_pairs, person_source = _gloss_person_number_pairs(stripped)
             if source == "unavailable":
                 source = person_source
@@ -682,6 +1183,23 @@ def _classify(expected: frozenset[str], detected: frozenset[str]) -> _DimensionV
     if detected & expected:
         return "consistent"
     return "inconsistent"
+
+
+def _classify_tense(target: _TenseBucket, detected: frozenset[_TenseBucket]) -> _DimensionVerdict:
+    """Presence-based classification for the tense dimension, where -- unlike
+    person -- "not confirming" and "contradicting" are two different things
+    (see :data:`_BUCKET_CONTRADICTED_BY`).
+
+    Confirmation is tested FIRST, so a gloss that shows both the expected
+    marking and something else is consistent, exactly as before. Only a
+    gloss that shows positively contradicting marking and no confirming
+    marking at all is inconsistent; anything else is unverified.
+    """
+    if detected & _BUCKET_SATISFIED_BY[target]:
+        return "consistent"
+    if detected & _BUCKET_CONTRADICTED_BY[target]:
+        return "inconsistent"
+    return "unverified"
 
 
 # ==============================================================================

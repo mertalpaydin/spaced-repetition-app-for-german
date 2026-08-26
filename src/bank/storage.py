@@ -52,8 +52,9 @@ class SqliteItemBank:
                     INSERT OR IGNORE INTO items (
                         id, topic_id, tag_id, dimension, type, difficulty, cefr, prompt, cue,
                         accepted_answers_json, rule_hint, facet, confusion_group,
-                        block_id, block_position, domain, source_sentence_id, source_batch_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        block_id, block_position, domain, source_sentence_id, gloss_en,
+                        source_batch_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         item.id,
@@ -73,6 +74,7 @@ class SqliteItemBank:
                         item.block_position,
                         item.domain,
                         item.source_sentence_id,
+                        item.gloss_en,
                         source_batch_id,
                     ),
                 )
@@ -404,6 +406,7 @@ class SqliteItemBank:
             block_position=row["block_position"] if "block_position" in keys else None,
             domain=row["domain"] if "domain" in keys else None,
             source_sentence_id=row["source_sentence_id"] if "source_sentence_id" in keys else None,
+            gloss_en=row["gloss_en"] if "gloss_en" in keys else None,
             carrier_lemmas=carrier_lemmas,
         )
 

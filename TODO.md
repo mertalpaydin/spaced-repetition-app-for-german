@@ -79,32 +79,56 @@ Not tasks. Do not "fix" these without a decision from the owner.
 
 ## 2. Open work
 
-- [ ] **2.1 Decide what to do about tense ambiguity on the modal topics.**
+- [ ] **2.1 Measure what the gloss did to the modal and tense topics.**
   The cue names the verb, not the tense, so "(können)" leaves `kann`,
-  `konnte` and `könnte` all open. `modalverben_praesens` accepted 0 of 10 in
-  cycle 12 and `konjunktiv_ii_hoeflichkeit` 3 of 10, for that one reason.
-  Three options with their trade-offs are in
-  `docs/audits/cycle-12-corpus-report.md`; the recommendation is a required
-  time anchor in the carrier, reusing the check `futur_i` already has.
+  `konnte` and `könnte` all open. Cycle 13 quantified the cost exactly: 44
+  of 105 model rejections, 42%, named a tense or time alternative as an
+  equally good answer, concentrated in `passiv_modalverben` (7),
+  `verb_praesens_regelm` (5), `verb_praesens_vokalwechsel` (5),
+  `modalverben_praesens` (4), `praeteritum_*` (8), `zustandspassiv` (4).
 
-- [ ] **2.1b Decide whether the gloss check enforces.** The wiring is done:
-  `step7_corpus_pilot.py` now fills `gloss_en` from the translation store,
+  The verifier now receives the English gloss and is told an alternative
+  the translation rules out is not a second correct answer. That should
+  recover most of those 44 without a time anchor in the carrier. Next
+  pilot decides it. If a large share survives, the recommendation from
+  `docs/audits/cycle-12-corpus-report.md` stands: require a time anchor,
+  reusing the check `futur_i` already has.
+
+- [ ] **2.1b Decide whether the gloss check enforces.** Wiring done.
+  `step7_corpus_pilot.py` fills `gloss_en` from the translation store,
   translating and storing whatever the store lacks. The consistency check
   (a gloss whose tense or person contradicts the answer) **runs and reports
-  but does not reject**, by default. `--enforce-gloss-check` turns it into
-  a real rejection. It is measure-only because it is a brand new rejection
-  path judging machine translations of unmeasured quality on this corpus,
-  and switching it on blind would trade unknown false negatives for unknown
-  true ones. Next pilot prints `rejected_by_gloss_check` and its per-topic
-  breakdown. That number is the decision.
+  but does not reject**, by default; `--enforce-gloss-check` makes it real.
 
-  Known limit of the check, found while building it: it compares the gloss
-  against the **answer's** own tense and person, so it only bites on items
-  whose answer carries that morphology. A wrong gloss on an item that
-  blanks a determiner or an adjective ending passes untouched. Verified on
-  a real example: one carrier with a deliberately wrong past-tense gloss
-  produced two items, and only the one answering a verb was caught. This
-  caps its recall structurally and bears directly on 2.2.
+  **Cycle 13 measured it and the first reading was damning: 34 flags on
+  376 accepted items, of which 33 were the check being wrong and 1 was a
+  real defect.** Four bugs, all now fixed: English contractions were not
+  read as tense marking, so "I'll be lonely" counted as present; English
+  marks the subjunctive with its past forms, which a German conditional
+  target treated as a contradiction; the person check demanded an English
+  pronoun even where the subject is a noun, and was fooled by German 1st
+  and 3rd singular being identical in Konjunktiv II; and German match
+  strings were being found inside English text, so "Ministers usually
+  fall" leaked the grammar term "Fall" and "the Ukraine war" leaked the
+  answer "war". Re-measured after the fix: **1 flag on 376**, and it is
+  the real defect.
+
+  Still measure-only. One flag is not enough evidence to enforce, and the
+  surviving catch is lucky rather than designed: the bad Tatoeba pairing
+  (`Nachdem der Vorfall an die Öffentlichkeit gekommen war ...` glossed
+  `The trouble is that I don't have much money now.`) is caught only
+  because the unrelated English happens to be present tense. The signal
+  that actually separates it from the 33 is that it shares no proper noun
+  or numeral with its German. **A content-overlap check is the one to
+  build for bad pairings, and it is a different check from this one.**
+
+  Known limit that remains: the check compares the gloss against the
+  **answer's** own tense and person, so it only bites on items whose
+  answer carries that morphology. A wrong gloss on an item that blanks a
+  determiner or an adjective ending passes untouched. Verified on a real
+  example: one carrier with a deliberately wrong past-tense gloss produced
+  two items, and only the one answering a verb was caught. This caps its
+  recall structurally and bears directly on 2.2.
 
 - [ ] **2.2 Prove the verifier catches a WRONG English translation.** Owner's
   requirement, and the condition the whole gloss plan rests on. The cycle 12
@@ -218,17 +242,36 @@ Decided (section 4). Three parts, in order:
    many corpus sentences glossed, and the free Tatoeba 200,555 already
    covers 5.3 without another paid character.
 
-3. **Show the translation in the app** (`web/index.html`, `web/app.js`).
-   This must land before or with any verifier relaxation that assumes the
-   learner can see it. Relaxing the verifier against information the
-   learner never gets would manufacture the non-unique-answer defect class
-   that cycles 11 and 12 closed.
+3. **Show the translation in the app.** Done. It renders under the German
+   sentence, before the learner answers and still visible after grading,
+   and an item without a gloss renders nothing at all.
 
-Then, and only then, loosen the verifier. A translation disambiguates
-**tense, number, person and definiteness**, so it can relax the auxiliary
-and tense gates. It does NOT mark German case, gender, adjective endings,
-reflexive case or preposition government, so it cannot relax those, and
-they are the majority of the gates. One gate at a time, each measured.
+   Building it found that `gloss_en` was being dropped TWICE on the way to
+   the browser: the `items` table had no `gloss_en` column, so any item
+   carrying one lost it on insert, and `EXPORTED_BANK_ITEM_FIELDS` is an
+   explicit allowlist that filtered it out of the bundle as well. Fixed by
+   migration v4 plus the allowlist entry. Nothing in `data/bank.db` has a
+   glossed row yet, because the pilot writes items to a review JSONL and
+   not to the bank; the export will carry them once a glossed pilot is
+   banked.
+
+4. **Give the verifier the gloss.** Done, and licensed by step 3 landing
+   first: relaxing against information the learner never gets would
+   manufacture the non-unique-answer defect class cycles 11 and 12 closed.
+   The item block now carries `Englische Übersetzung:` (or `(keine)`), and
+   question 2 says an alternative the translation rules out is not a
+   second correct answer.
+
+   The relaxation is bounded in the instruction itself, in as many words:
+   a translation settles **tense, person, number and definiteness** only.
+   It says nothing about German case, gender, adjective endings, reflexive
+   pronouns or preposition government, and must never rule an alternative
+   out on those. Those are the majority of the gates and stay untouched.
+
+   Unmeasured until the next pilot. Expected recovery is most of the 44
+   tense-ambiguity rejections in item 2.1. If accepted items rise and no
+   new wrong-answer defect appears in the audit, this is settled; if a
+   wrong answer does appear, the bound above is where to look first.
 
 ### 5.2 Vocabulary FSRS
 

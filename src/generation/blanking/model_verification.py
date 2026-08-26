@@ -273,7 +273,15 @@ _INSTRUCTION_EN_REFERENCE_ONLY = (
     "actually use just as naturally; a technically-grammatical but stilted "
     "or dated option (e.g. the relative pronoun 'welcher' where 'der/die/"
     "das' is the plain modern choice) does not disqualify the proposed "
-    "answer, but a genuinely equally idiomatic alternative does; (3) look "
+    "answer, but a genuinely equally idiomatic alternative does. Learners "
+    "also see the English translation of the full sentence, printed with "
+    "the task, so weigh it here: an alternative the translation rules out "
+    "is not a second correct answer. A translation settles ONLY tense, "
+    "person, number and definiteness; it says nothing about German case, "
+    "gender, adjective endings, reflexive pronouns or which preposition a "
+    "verb governs, and must never rule an alternative out on those. Where "
+    "the task says no translation is present, judge this question without "
+    "one; (3) look "
     "at EVERY SINGLE WORD in the complete sentence: is it a word that "
     "actually exists in German and that a native speaker would really use? "
     "Freely-formed compounds are completely normal German and must NOT be "
@@ -343,6 +351,21 @@ _INSTRUCTION_DE_LIVE = (
     "richtige Lösung; eine Alternative, die genauso alltäglich und "
     "natürlich ist wie die vorgeschlagene Antwort, zählt dagegen sehr "
     "wohl.\n"
+    "   Die Lernenden sehen zu jeder Aufgabe auch die englische "
+    "Übersetzung des vollständigen Satzes; sie steht oben bei der "
+    "Aufgabe. Beziehe sie in Frage 2 mit ein: Eine Alternative, die "
+    "die englische Übersetzung ausschließt, zählt NICHT als zweite "
+    "richtige Lösung. Bei 'Ich denke, dass Tom gewinnen ___.' mit der "
+    "Übersetzung 'I think Tom will win.' scheiden 'kann' und 'wollte' "
+    "also aus, weil die Übersetzung eindeutig zeigt, dass das Geschehen "
+    "noch bevorsteht. Die "
+    "Übersetzung klärt allerdings NUR Zeitform, Person, Zahl und "
+    "Bestimmtheit. Über den deutschen Fall, das Genus, "
+    "Adjektivendungen, das Reflexivpronomen und die Präposition, die "
+    "ein Verb verlangt, sagt eine englische Übersetzung nichts; dort "
+    "darf sie eine Alternative niemals ausschließen. Steht bei der "
+    "Aufgabe 'Englische Übersetzung: (keine)', beantworte Frage 2 ohne "
+    "Übersetzung, genau wie bisher.\n"
     "3. Sieh dir JEDES EINZELNE WORT im vollständigen Satz an: Ist es ein "
     "Wort, das es im Deutschen wirklich gibt und das ein/e "
     "Muttersprachler/in tatsächlich so verwenden würde? Frei gebildete, "
@@ -517,17 +540,38 @@ class VerificationReport:
 
 
 def _format_item_block(number: int, item: BankItem) -> str:
-    """One numbered task block: the gap, the cue if any, and the stated
-    answer -- and NOTHING else. Deliberately excludes every other
-    ``BankItem`` field (``topic_id``, ``rule_hint``, ``facet``,
+    """One numbered task block: the gap, the cue if any, the English gloss,
+    and the stated answer -- and NOTHING else. Deliberately excludes every
+    other ``BankItem`` field (``topic_id``, ``rule_hint``, ``facet``,
     ``confusion_group``, ``domain``, ``carrier_lemmas``): several of those
     (``rule_hint`` especially) describe the grammar being tested, and
     sending them would be exactly the topic leak CLAUDE.md rule 2 forbids,
     now aimed at a model prompt instead of a learner-facing one -- the
     model must judge the item the way a learner actually would, seeing only
-    what a learner sees."""
+    what a learner sees.
+
+    ``gloss_en`` belongs in that set for the same reason, in the opposite
+    direction: as of TODO.md 5.1 step 3 the app shows the English
+    translation on EVERY exercise, always, so a learner really does see it
+    and a verifier judging uniqueness without it is judging a harder task
+    than the one being shipped. Measured on the owner's own gloss-enabled
+    pilot: 44 of the 105 model rejections, 42%, named a tense or time
+    alternative as an equally good answer, and the translation names the
+    tense outright. This is the one field whose absence was making the
+    judgment WRONG rather than leaky.
+
+    A gloss is a plain English sentence, so it cannot name a German grammar
+    topic in the way ``rule_hint`` does, and rule 2 is not at risk. What IS
+    at risk is over-relaxation, which is why the instruction bounds what a
+    translation is allowed to settle (tense, person, number, definiteness)
+    and names what it can never settle (case, gender, adjective endings,
+    reflexives, preposition government). An item without a gloss says so
+    explicitly rather than omitting the line, so the model is never left
+    guessing whether a translation existed and was withheld."""
     lines = [f"Aufgabe {number}:", f"Lücke: {item.prompt}"]
     lines.append(f"Hinweis: ({item.cue})" if item.cue else "Hinweis: (kein Hinweis)")
+    gloss = (item.gloss_en or "").strip()
+    lines.append(f"Englische Übersetzung: {gloss}" if gloss else "Englische Übersetzung: (keine)")
     lines.append(f"Vorgeschlagene Antwort: {' / '.join(item.accepted_answers)}")
     return "\n".join(lines)
 

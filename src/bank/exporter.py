@@ -18,7 +18,8 @@ from src.contracts import BankItem
 # onto an item earlier in the pipeline would ship straight to the client.
 # Every field here is part of the stage 5 contract (02-content-pipeline.md)
 # or is already consumed by web/app.js (topic_id for topic partitioning,
-# rule_hint for hint level 3); nothing else is ever exported.
+# rule_hint for hint level 3, gloss_en for the English translation shown with
+# every exercise); nothing else is ever exported.
 EXPORTED_BANK_ITEM_FIELDS: frozenset[str] = frozenset(
     {
         "id",
@@ -40,6 +41,10 @@ EXPORTED_BANK_ITEM_FIELDS: frozenset[str] = frozenset(
         "carrier_lemmas",
         "domain",
         "source_sentence_id",
+        # TODO.md section 4: "Every exercise shows its English translation,
+        # always." The client cannot show what the export does not ship, so
+        # this field is learner-facing, not internal, and belongs here.
+        "gloss_en",
     }
 )
 

@@ -20,6 +20,7 @@ from src.generation.gloss_validation import (
     _gloss_person_number_pairs,
     _gloss_tense_buckets,
     _lemma_at_gap,
+    _token_readings,
     category_fallback_reason,
     check_requirement,
     english_analysis_available,
@@ -30,6 +31,7 @@ from src.generation.gloss_validation import (
     validate_gloss_consistency,
 )
 from src.taxonomy.loader import load_taxonomy
+from src.verification.pipeline import check_gloss
 
 
 @pytest.fixture(scope="module")
@@ -325,7 +327,7 @@ def test_future_target_requires_a_future_marker(futur_i: Topic) -> None:
     assert inconsistent_result.consistent is False
 
 
-def test_konjunktiv_ii_target_requires_a_conditional_marker(
+def test_konjunktiv_ii_target_accepts_a_conditional_marker(
     konjunktiv_hoeflichkeit: Topic,
 ) -> None:
     consistent_result = validate_gloss_consistency(
@@ -336,13 +338,38 @@ def test_konjunktiv_ii_target_requires_a_conditional_marker(
     )
     assert consistent_result.consistent is True
 
-    inconsistent_result = validate_gloss_consistency(
+
+def test_konjunktiv_ii_target_does_not_reject_a_present_indicative_gloss(
+    konjunktiv_hoeflichkeit: Topic,
+) -> None:
+    """This assertion is the REVERSE of the one this test used to make, and
+    the reversal is deliberate.
+
+    The old test asserted that a Konjunktiv II target with a present-tense
+    gloss ("Könnten Sie mir bitte helfen?" / "Do you help me?") is
+    INCONSISTENT. The first pilot with real glosses falsified the rule that
+    assertion encodes. "Warum tun Sie so, als würden Sie mich nicht kennen?"
+    / "Why are you pretending you don't know me?" has exactly that shape --
+    Konjunktiv II target, present-only English marking -- and is a perfectly
+    good item. German Konjunktiv II is a MOOD; English has no conditional
+    tense to compare it against, and renders it with past forms, with
+    modals, or with a plain present in "als ob" clauses, wishes and polite
+    requests. There is no English tense marking that is evidence AGAINST a
+    Konjunktiv II, so no verdict of "inconsistent" is available here.
+
+    The check does not silently pass such a gloss either: the dimension
+    comes back UNVERIFIED, which is what the module reports rather than
+    claims. ``gloss_resolves_lexical_ambiguity`` treats unverified as "no
+    evidence", so nothing downstream reads this as a confirmation.
+    """
+    result = validate_gloss_consistency(
         "___ (können) Sie mir bitte helfen?",
         "Könnten",
         "Do you help me?",
         konjunktiv_hoeflichkeit,
     )
-    assert inconsistent_result.consistent is False
+    assert result.consistent is True
+    assert "tense" in result.unverified_dimensions
 
 
 def test_perfekt_target_accepts_either_simple_past_or_present_perfect_gloss(
@@ -654,10 +681,58 @@ def test_gloss_resolves_lexical_ambiguity_false_without_a_gloss() -> None:
 
 
 def test_gloss_resolves_lexical_ambiguity_false_when_gloss_contradicts_the_answer() -> None:
+    """The item under test moved topic, and the move is deliberate.
+
+    This used to be a Konjunktiv II item glossed "My sister said that she
+    comes immediately.", asserted to contradict its "käme" answer. It no
+    longer does, and the change is a correction rather than a loss: English
+    has no conditional tense, so present or past marking is not evidence
+    against a Konjunktiv II (see
+    ``test_konjunktiv_ii_target_does_not_reject_a_present_indicative_gloss``
+    for the pilot item that forced that). A contradiction is simply not
+    expressible on a Konjunktiv II target any more, so the gate's real
+    protection -- a gloss that DOES contradict must not license dropping
+    layer3's rejection -- is asserted where it still is expressible: a Futur
+    I target glossed in the simple past.
+
+    The distractor is a form of the SAME verb ("wirst" beside "werde"), so
+    the lemma half of the gate passes and only the gloss half can make this
+    ``False``.
+    """
+    topics = {t.id: t for t in load_taxonomy()}
+    topic = topics["futur_i"]
+    item = CandidateItem(
+        topic_id="futur_i",
+        type="cloze_free",
+        difficulty=2,
+        prompt="Nächstes Jahr ___ ich nach Spanien reisen.",
+        proposed_answer="werde",
+        distractors=[Distractor(text="wirst")],
+        gloss_en="Last year I travelled to Spain.",
+    )
+    gap_pos = item.prompt.index("___")
+    assert (
+        validate_gloss_consistency(
+            item.prompt, item.proposed_answer, item.gloss_en or "", topic
+        ).consistent
+        is False
+    )
+    assert gloss_resolves_lexical_ambiguity(item, topic, ["wirst"], gap_pos) is False
+
+
+def test_gloss_resolves_lexical_ambiguity_false_when_the_gloss_verifies_nothing() -> None:
+    """The other half of the gate's protection, on the Konjunktiv II item
+    the contradiction case used to live on: a gloss that supplies NO tense
+    evidence at all is unverified, and unverified must never be read as a
+    resolved ambiguity."""
     topics = {t.id: t for t in load_taxonomy()}
     topic = topics["konjunktiv_ii_irreal_gegenwart"]
-    item = _konjunktiv_gloss_item(["kommt"], "My sister said that she comes immediately.")
+    item = _konjunktiv_gloss_item(["kommt"], "My sister, on the subject of her arrival.")
     gap_pos = item.prompt.index("___")
+    result = validate_gloss_consistency(
+        item.prompt, item.proposed_answer, item.gloss_en or "", topic
+    )
+    assert "tense" in result.unverified_dimensions
     assert gloss_resolves_lexical_ambiguity(item, topic, ["kommt"], gap_pos) is False
 
 
@@ -687,3 +762,324 @@ def test_gloss_resolves_lexical_ambiguity_false_with_no_heterogeneous_distractor
     item = _konjunktiv_gloss_item([], "My sister said that she would come immediately.")
     gap_pos = item.prompt.index("___")
     assert gloss_resolves_lexical_ambiguity(item, topic, [], gap_pos) is False
+
+
+# ==============================================================================
+# Pilot regression corpus
+#
+# The first pilot with English glosses populated ran this check in
+# measure-only mode over 376 accepted items and flagged 34. The owner read
+# all 34 by hand: exactly ONE is a real defect. The other 33 are quoted here
+# verbatim -- the German prompt, the German answer and the machine
+# translation exactly as they appear in ``data/corpus_pilot_review.jsonl`` --
+# because they are the measurement this module's four corrections were
+# derived from, and a regression on any one of them is a regression on the
+# whole 33-to-1 argument.
+#
+# These run through ``src.verification.pipeline.check_gloss``, the same seam
+# ``VerificationPipeline._gloss_check`` and ``scripts/step7_corpus_pilot.py``
+# call, so what is asserted here is what the pilot would actually do.
+# ==============================================================================
+
+PILOT_FALSE_REJECTIONS: list[tuple[str, str, str, str]] = [
+    (
+        "adjektivdeklination_bestimmt",
+        "Minister fallen wie Butterbrote gewöhnlich auf die ___ Seite.",
+        "gute",
+        "Ministers usually fall on the good side like sandwiches.",
+    ),
+    (
+        "futur_i",
+        "Ich ___ einsam sein, nachdem du gegangen bist.",
+        "werde",
+        "I'll be lonely after you've gone.",
+    ),
+    (
+        "futur_i",
+        "Ich denke, dass er kommen ___.",
+        "wird",
+        "I think he'll come.",
+    ),
+    (
+        "futur_i",
+        "Wenn du etwas Geld brauchst, ___ ich dir etwas leihen.",
+        "werde",
+        "If you need any money, I'll lend you some.",
+    ),
+    (
+        "futur_i",
+        "Ich denke, dass Tom gewinnen ___.",
+        "wird",
+        "I think Tom will win.",
+    ),
+    (
+        "futur_i",
+        "Bist du sicher, dass alles gut gehen ___?",
+        "wird",
+        "Are you sure everything will go well?",
+    ),
+    (
+        "konjunktiv_ii_hoeflichkeit",
+        "___ es dich stören, das Fenster zu öffnen?",
+        "Würde",
+        "Would you mind opening the window?",
+    ),
+    (
+        "konjunktiv_ii_hoeflichkeit",
+        "Warum tun Sie so, als ___ Sie mich nicht kennen?",
+        "würden",
+        "Why are you pretending you don't know me?",
+    ),
+    (
+        "konjunktiv_ii_irreal_gegenwart",
+        "Tom ___ um Längen nicht so reich, wenn er Maria nicht geheiratet hätte.",
+        "wäre",
+        "Tom certainly wouldn't be anywhere near as rich as he is if he hadn't married Mary.",
+    ),
+    (
+        "konjunktiv_ii_irreal_gegenwart",
+        "Schön wär’s, wenn ich hübsch ___.",
+        "wäre",
+        "I wish I was pretty.",
+    ),
+    (
+        "konjunktiv_ii_irreal_gegenwart",
+        "Wenn ich du ___, würde ich nicht mit ihm sprechen.",
+        "wäre",
+        "If I were you, I wouldn't talk to him.",
+    ),
+    (
+        "konjunktiv_ii_irreal_gegenwart",
+        "Wenn ich mehr Zeit ___, würde ich mehr studieren.",
+        "hätte",
+        "If I had more time, I would study more.",
+    ),
+    (
+        "konjunktiv_ii_irreal_gegenwart",
+        "Wenn ich Platz ___, würde ich mir einen größeren Fernseher kaufen.",
+        "hätte",
+        "I'd buy a larger TV if I had room for it.",
+    ),
+    (
+        "konjunktiv_ii_irreal_gegenwart",
+        "Wenn ich viel Geld ___, würde ich mir ein Haus am Meer kaufen.",
+        "hätte",
+        "If I had a lot of money, I would buy a house by the sea.",
+    ),
+    (
+        "konjunktiv_ii_irreal_gegenwart",
+        "Wenn ich im Lotto gewänne, ___ ich mir ein neues Auto kaufen.",
+        "würde",
+        "If I won the lottery, I'd buy you a new car.",
+    ),
+    (
+        "konjunktiv_ii_vergangenheit",
+        "Auch wenn du mich um Hilfe gebeten hättest, ___ ich dir nicht geholfen.",
+        "hätte",
+        "Even if you had asked me for help, I wouldn't have helped you.",
+    ),
+    (
+        "konjunktiv_ii_vergangenheit",
+        "Wenn ich deine Hilfe gewollt ___, dann hätte ich darum gebeten.",
+        "hätte",
+        "If I'd wanted your help, I'd have asked for it.",
+    ),
+    (
+        "konjunktiv_ii_vergangenheit",
+        "Ich ___ gerne ins Kino gegangen, wenn ich die Zeit dazu gehabt hätte.",
+        "wäre",
+        "I would've gone to the movies if I'd had the time.",
+    ),
+    (
+        "konjunktiv_ii_vergangenheit",
+        "Tom ___ gewinnen können, wenn er es gewollt hätte.",
+        "hätte",
+        "Tom could've won if he'd wanted to.",
+    ),
+    (
+        "konjunktiv_ii_vergangenheit",
+        "Ich wusste, dass ich dir eine stärkere Dosis ___ geben sollen.",
+        "hätte",
+        "I knew I should've given you a stronger dose.",
+    ),
+    (
+        "modalverben_praesens",
+        "Ich ___ mit euch noch ein anderes Unternehmen besuchen.",
+        "möchte",
+        "I would like to visit another company with you.",
+    ),
+    (
+        "partizip_ii_attributiv_erweitert",
+        "Die von Eva Waser in Luzern ___ private Institution erhält 40'000 Franken.",
+        "gegründete",
+        "The private institution founded by Eva Waser in Lucerne will receive 40,000 Swiss francs.",
+    ),
+    (
+        "partizip_ii_attributiv_erweitert",
+        "Die Zahl der neu nach Deutschland ___ Flüchtlinge sinkt laut einem Bericht drastisch.",
+        "gekommenen",
+        "According to a report, the number of new refugees arriving in Germany "
+        "is falling drastically.",
+    ),
+    (
+        "passiv_praesens",
+        "Ich will, dass dieser Brief jetzt geöffnet ___.",
+        "wird",
+        "I want this letter to be opened now.",
+    ),
+    (
+        "perfekt_haben",
+        "Das Geschäft am Neuen Wall 17 ___ noch bis zum 19. Mai geöffnet.",
+        "hat",
+        "The store at Neuer Wall 17 is open until May 19.",
+    ),
+    (
+        "perfekt_haben",
+        "Ich ___ schon drei Briefe geschrieben.",
+        "habe",
+        "I've already written three letters.",
+    ),
+    (
+        "perfekt_sein",
+        "Tom ___ gestern mit uns schwimmen gegangen.",
+        "ist",
+        "Tom went swimming with us yesterday.",
+    ),
+    (
+        "perfekt_sein",
+        "Die meisten Mitarbeiter ___ gegangen.",
+        "sind",
+        "Most of the staff has left.",
+    ),
+    (
+        "plusquamperfekt",
+        "Nachdem wir eine Weile gegangen ___, kamen wir zum See.",
+        "waren",
+        "After we had walked for some time, we came to the lake.",
+    ),
+    (
+        "verb_sein_haben",
+        "Lasst Tom zu Ende führen, was er begonnen ___!",
+        "hat",
+        "Let Tom finish what he started.",
+    ),
+    (
+        "verb_sein_haben",
+        "Die Maschinen, die in seiner Firma hergestellt werden, ___ besser als unsere.",
+        "sind",
+        "Machines that his company produces are superior to ours.",
+    ),
+    (
+        "verben_trennbar_praesens",
+        "Man ___ dort von hier aus nicht hin.",
+        "kommt",
+        "You can't get there from here.",
+    ),
+    (
+        "zustandspassiv_zeiten",
+        "Das Spitzentreffen im Lancaster House ___ zunächst nur als eines von "
+        "mehreren zum Ukraine-Krieg geplant.",
+        "war",
+        "The summit meeting at Lancaster House was initially planned as just one "
+        "of several on the Ukraine war.",
+    ),
+]
+
+#: The one item in that set of 34 that is a genuine defect: a Tatoeba
+#: pairing whose English sentence is about something else entirely. The
+#: German is a Plusquamperfekt ("war ... gekommen") and the gloss is a bare
+#: present with no past reference anywhere in it. Every correction in this
+#: module has to leave this one still rejected -- that is the whole point of
+#: correcting the rules rather than switching the check off.
+PILOT_REAL_DEFECT: tuple[str, str, str, str] = (
+    "plusquamperfekt",
+    "Nachdem der Vorfall an die Öffentlichkeit gekommen ___, klärte der "
+    "Sender wohl ein Missverständnis.",
+    "war",
+    "The trouble is that I don't have much money now.",
+)
+
+
+@pytest.mark.parametrize(
+    ("topic_id", "prompt", "answer", "gloss_en"),
+    PILOT_FALSE_REJECTIONS,
+    ids=[f"{row[0]}::{row[1][:40]}" for row in PILOT_FALSE_REJECTIONS],
+)
+def test_pilot_flagged_item_is_no_longer_rejected(
+    topics: dict[str, Topic], topic_id: str, prompt: str, answer: str, gloss_en: str
+) -> None:
+    rejection, _unverified = check_gloss(prompt, answer, gloss_en, topics.get(topic_id))
+    assert rejection is None, rejection.reason if rejection else ""
+
+
+def test_pilot_real_defect_is_still_rejected(topics: dict[str, Topic]) -> None:
+    """The unrelated-English-sentence pairing must keep being caught."""
+    topic_id, prompt, answer, gloss_en = PILOT_REAL_DEFECT
+    rejection, _unverified = check_gloss(prompt, answer, gloss_en, topics.get(topic_id))
+    assert rejection is not None
+    assert rejection.error_type == "pedagogical_flaw"
+    assert "'past'-tense" in rejection.reason
+
+
+# ==============================================================================
+# Both leak checks still do their real job on English text
+#
+# The pilot corpus above pins the two FALSE firings ("fall" the English verb
+# matched against German "Fall" = Kasus, "war" the English noun matched
+# against German "war" = was). These pin the other direction: a German
+# string that has no ordinary English spelling still rejects, so neither
+# check was switched off, only taught which language it is reading.
+# ==============================================================================
+
+
+def test_untranslated_german_answer_in_the_gloss_is_still_an_answer_leak(
+    praesens: Topic,
+) -> None:
+    """A gloss that leaves the German answer standing in the English hands
+    the learner the answer. "wohnt" is not an English word of any spelling,
+    so nothing exempts it."""
+    rejection, _unverified = check_gloss(
+        "Er ___ (wohnen) in Hamburg.",
+        "wohnt",
+        "He wohnt in Hamburg.",
+        praesens,
+    )
+    assert rejection is not None
+    assert rejection.error_type == "answer_leak"
+
+
+def test_german_grammar_terminology_in_the_gloss_is_still_a_topic_leak(
+    praeteritum: Topic,
+) -> None:
+    """A gloss naming the grammar topic breaks CLAUDE.md rule 2 exactly as a
+    prompt would. "Präteritum" and "Dativ" have no English homograph, so the
+    shared-spelling exemption does not reach them."""
+    rejection, _unverified = check_gloss(
+        "Er ___ (wohnen) letztes Jahr in Hamburg.",
+        "wohnte",
+        "He lived in Hamburg last year (Präteritum).",
+        praeteritum,
+    )
+    assert rejection is not None
+    assert rejection.error_type == "topic_leak"
+
+
+@pytest.mark.parametrize(
+    ("token", "expected"),
+    [
+        ("i'll", {"i", "will"}),
+        ("wouldn't", {"would", "not"}),
+        ("could've", {"could", "have"}),
+        ("he'd", {"he", "would", "had"}),
+        ("she's", {"she", "is", "has"}),
+        ("you've", {"you", "have"}),
+        ("i'm", {"i", "am"}),
+        ("they're", {"they", "are"}),
+        ("lonely", {"lonely"}),
+    ],
+)
+def test_contraction_expands_to_every_word_it_can_stand_for(token: str, expected: set[str]) -> None:
+    """ "'d" and "'s" are genuinely ambiguous, so both readings are produced
+    and a match against either counts -- this check catches contradictions,
+    it does not prove agreement."""
+    assert set(_token_readings(token)) == expected
