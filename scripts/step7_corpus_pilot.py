@@ -498,6 +498,10 @@ class CorpusPilotReport:
     per_topic_quota: int = DEFAULT_PER_TOPIC_QUOTA
     max_items_per_lemma: int = DEFAULT_MAX_ITEMS_PER_LEMMA
     limit_per_source: int = DEFAULT_LIMIT_PER_SOURCE
+    # Recorded so two runs that differ ONLY in this can be told apart from
+    # the report alone (TODO.md 2.3, 2.1c). Without it, an A/B on batch size
+    # is two files with no note of which is which.
+    verification_batch_size: int = DEFAULT_VERIFICATION_BATCH_SIZE
     ran_live: bool = False
     corpus_reads: list[CorpusReadStats] = field(default_factory=list)
     length_filtered_total: int = 0
@@ -529,6 +533,7 @@ class CorpusPilotReport:
                 "per_topic_quota": self.per_topic_quota,
                 "max_items_per_lemma": self.max_items_per_lemma,
                 "limit_per_source": self.limit_per_source,
+                "verification_batch_size": self.verification_batch_size,
                 "ran_live": self.ran_live,
             },
             "corpus_reads": [
@@ -1258,6 +1263,19 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--verification-batch-size",
+        type=int,
+        default=DEFAULT_VERIFICATION_BATCH_SIZE,
+        help=(
+            "How many items ride in one model-verification prompt. TODO.md "
+            "2.3 and 2.1c: the verifier agreed with itself only about 92%% of "
+            "the time on the naturalness question across two cycles, and the "
+            "first hypothesis is that items late in a large batch get less "
+            "scrutiny. Run this against the default 20 with everything else "
+            "held fixed to settle it."
+        ),
+    )
+    parser.add_argument(
         "--enforce-gloss-check",
         action="store_true",
         help=(
@@ -1281,6 +1299,7 @@ def main() -> int:
         per_topic_quota=args.per_topic_quota,
         max_items_per_lemma=args.max_items_per_lemma,
         limit_per_source=args.limit,
+        verification_batch_size=args.verification_batch_size,
         ran_live=ran_live,
     )
 
@@ -1495,7 +1514,7 @@ def main() -> int:
 
     try:
         verification_report = verify_items(
-            bank_items, llm_client, batch_size=DEFAULT_VERIFICATION_BATCH_SIZE
+            bank_items, llm_client, batch_size=args.verification_batch_size
         )
     except Exception as exc:  # noqa: BLE001 -- mirrors scripts/eval_verifier.py's own
         # precedent (TODO 3.3): an API key IS configured in this container's
