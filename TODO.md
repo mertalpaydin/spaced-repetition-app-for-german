@@ -58,13 +58,36 @@ Not tasks. Do not "fix" these without a decision from the owner.
   `src/lexicon/vocabulary.py`. Raising A1 and A2 is the first lever if 70%
   retention proves too steep.
 
-- **Three cycle 12 carrier defects, one each, no rule written.** A Leipzig
-  headline with no main clause ("Ein Film, der die Frage aufwirft, ..."); a
-  fixed construction filed as a tense ("Das Geschäft hat noch bis zum 19.
-  Mai geöffnet" is "is open", not the perfect of "öffnen"); and a Tatoeba
+- **Two cycle 12 carrier defects, one each, no rule written.** A fixed
+  construction filed as a tense ("Das Geschäft hat noch bis zum 19. Mai
+  geöffnet" is "is open", not the perfect of "öffnen"); and a Tatoeba
   translation with German words in English order. Each needs a different
   rule, each would be written on a single example, and cycle 11's colon
-  rule already showed what that costs. Left to the verifier.
+  rule already showed what that costs. Left to the verifier. The third
+  defect this item used to carry, the Leipzig headline with no main clause
+  ("Ein Film, der die Frage aufwirft, ..."), was caught a second time in
+  cycle 13 and is now the deterministic rule `no_main_clause_verb`; see the
+  fix log's cycle 13 section for the measurement.
+
+- **Collocation errors are the verifier's job and cannot be a rule here.**
+  Cycle 13 found five of them among the eight items the verifier caught in
+  one run and missed in the next ("einen Erfolg erreichen", "Eindruck
+  über", "schnaubten wegen ihres Gehalts"). Every one needs a collocation
+  lexicon (which verbs take which nouns, which nouns take which
+  prepositions) that this repository does not have and that no structural
+  check substitutes for. Recorded so the standing "caught twice becomes a
+  rule" rule is not read as applying to them.
+
+- **Caption residue in parentheses cannot be told from journalistic
+  apposition by structure.** "Masi Pfand (am Ball) befindet sich ..." is
+  scraped caption furniture; "Friedrich Merz (CDU) hat ... telefoniert." is
+  correct German, and the two have the identical parse. The structural rule
+  (a short verbless parenthesised insert between a proper-noun subject and
+  its finite verb) was measured over 40,000 Leipzig lines in cycle 13: of
+  the 150 hits the module otherwise accepts, 23 are position markers and
+  127 are party affiliations, ages, abbreviation glosses and goal minutes.
+  Widening `_PARENTHESISED_MARKER`'s closed list lexeme by lexeme is the
+  only safe direction, and only for a phrase a pilot actually turns up.
 
 - **Leipzig carriers have no content filter.** Cycle 11 turned up a quote
   about genocide, cycle 12 a report of a sledgehammer assault. Not grammar
@@ -79,20 +102,47 @@ Not tasks. Do not "fix" these without a decision from the owner.
 
 ## 2. Open work
 
-- [ ] **2.1 Measure what the gloss did to the modal and tense topics.**
-  The cue names the verb, not the tense, so "(können)" leaves `kann`,
-  `konnte` and `könnte` all open. Cycle 13 quantified the cost exactly: 44
-  of 105 model rejections, 42%, named a tense or time alternative as an
-  equally good answer, concentrated in `passiv_modalverben` (7),
-  `verb_praesens_regelm` (5), `verb_praesens_vokalwechsel` (5),
-  `modalverben_praesens` (4), `praeteritum_*` (8), `zustandspassiv` (4).
+- [x] **2.1 Tense ambiguity on the modal topics. Settled by the gloss.**
+  The cue names the verb, not the tense, so "(können)" left `kann`,
+  `konnte` and `könnte` all open. Cycle 13 measured the cost: 44 of 105
+  model rejections, 42%, named a tense or time alternative as an equally
+  good answer.
 
-  The verifier now receives the English gloss and is told an alternative
-  the translation rules out is not a second correct answer. That should
-  recover most of those 44 without a time anchor in the carrier. Next
-  pilot decides it. If a large share survives, the recommendation from
-  `docs/audits/cycle-12-corpus-report.md` stands: require a time anchor,
-  reusing the check `futur_i` already has.
+  Cycle 14, same 475 candidates, with the verifier now reading the English
+  gloss: **tense rejections 44 to 6, total rejections 105 to 42, accepted
+  376 to 437.** The six survivors all cite the translation as their
+  evidence ("Die englische Übersetzung 'are to' verlangt Präsens", "passend
+  zur englischen Übersetzung ('didn't want')"), which is the check working,
+  not failing. No time anchor in the carrier is needed. The recommendation
+  in `docs/audits/cycle-12-corpus-report.md` is withdrawn.
+
+- [ ] **2.1c The model verifier is not stable run to run, and that is now
+  the largest open risk.** Cycle 14 diffed its accepted set against cycle
+  13's on the identical 475 candidates. 64 items were newly accepted. 56 of
+  those are explained by the gloss (37 were tense rejections, 19 other
+  Frage 2 ambiguity). **The other 8 were rejected last run for bad GERMAN,
+  which the gloss says nothing about, and accepted this run.** Every one of
+  the 8 was a correct rejection last time:
+
+  - `Masi Pfand (am Ball) befindet sich ...` scraped caption residue
+  - `Sie erreichte einen großen Erfolg ...` unidiomatic collocation
+  - `Ja", gesteht Norris, ...` opens mid-quotation
+  - `Erst am 6. November 2021 wurde damals ...` date plus "damals"
+  - `... war mein Eindruck über die jeweiligen Landsleute klar.` wrong preposition
+  - `Sie schnaubten wegen ihres kleinen Gehalts.` unidiomatic
+  - `... Bilder anhand der Google-Bildersuche entlarvt werden.` wrong collocation
+  - `Ein Film, der die Frage aufwirft, ...` no main clause
+
+  Two now have deterministic rules (`opens_mid_quotation`,
+  `no_main_clause_verb`), five are collocation errors no rule here can
+  reach (section 1), one is too narrow to rule. So the verifier remains the
+  only thing between roughly six defects a cycle and a learner, and it
+  agrees with itself about 92% of the time on this judgment.
+
+  **2.3 is the experiment that bears on this**: batch size 20 versus 5, to
+  see whether items late in a batch get less scrutiny. If they do, this is
+  a cheap fix. If they do not, the options are asking the naturalness
+  question in its own call, or asking it twice and rejecting on either no.
 
 - [ ] **2.1b Decide whether the gloss check enforces.** Wiring done.
   `step7_corpus_pilot.py` fills `gloss_en` from the translation store,
@@ -112,6 +162,23 @@ Not tasks. Do not "fix" these without a decision from the owner.
   fall" leaked the grammar term "Fall" and "the Ukraine war" leaked the
   answer "war". Re-measured after the fix: **1 flag on 376**, and it is
   the real defect.
+
+  **A second pilot with those four fixes in place measured 3 flags on 437
+  accepted items, and all 3 were again the check being wrong.** Three more
+  bugs, all now fixed: impersonal `man` is grammatically 3rd singular but
+  has no English pronoun counterpart (`In der Schule kann man nicht
+  rauchen.` / "You can't smoke at school." demanded he/she/it), so a
+  nominative `man` now widens the expected pronoun set to you/we/they and
+  promotes an oblique object to subject the way impersonal `es` already
+  did; an English modal carries no tense feature at all, so a German modal
+  target glossed with one (`Schüler sollten nicht arbeiten ...` /
+  "Students should not work ...") can be confirmed but never contradicted,
+  the same treatment Konjunktiv II already gets; and the English noun
+  "will" was read as the future auxiliary (`... nach Gottes Willen ...` /
+  "According to God's will, ..."), now settled by asking the English
+  tagger this module already loads whether every "will" in the gloss is a
+  NOUN. Re-measured after those three: **0 flags on 437, and still exactly
+  1 flag on 376, still the real defect.**
 
   Still measure-only. One flag is not enough evidence to enforce, and the
   surviving catch is lucky rather than designed: the bad Tatoeba pairing

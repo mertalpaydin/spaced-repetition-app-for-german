@@ -533,6 +533,148 @@ positive regression trying to.
     quoted `NUM` stub are none of the two allowed shapes); `"Aber: ..."`
     passes it on both segments.
 
+## Cycle 13: two rules the model verifier had been carrying alone, and one
+## rejected on measurement
+
+The cycle 13 pilot accepted eight items the verifier had correctly rejected
+the run before. The verifier is a model call and is not stable run to run,
+so CLAUDE.md's standing rule applies: what it catches twice becomes a
+deterministic rule. Five of the eight are collocation errors ("einen Erfolg
+erreichen", "Eindruck über") that no rule can catch without a collocation
+lexicon this repository does not have; they stay the verifier's job. The
+remaining three had a mechanical shape and were each measured over the real
+staged corpora (`scripts.corpus_reading.read_corpus_lines`, seed 7, 40,000
+lines per source, the pilot's own reading), against the standard section 12
+set: **a rule that buys precision with correct German does not ship.**
+
+13. **A sentence that opens inside a quotation.** `Ja", gesteht Norris, der
+    aber auch betont, dass das eben ein "Risiko" mit sich gebracht hätte.`
+    The verifier's own words: "Am Satzanfang fehlt das öffnende
+    Anführungszeichen". A carrier whose first quote mark is a CLOSING one
+    is a slice cut out of a longer scraped sentence, and the stray mark is
+    visible to a learner.
+
+    The check is typographic, not arithmetic (`_opens_mid_quotation`): a
+    quote is opening when nothing, whitespace, or an opening bracket
+    precedes it, and closing when a non-space precedes it and whitespace,
+    punctuation or end-of-string follows. Only the FIRST double-quote
+    character in the sentence is inspected. Single quotes are excluded
+    entirely, because German writes the apostrophe with the same glyph.
+
+    **Measured, 40,000 lines per corpus: 0 Tatoeba rejections, 378
+    Leipzig** (77 of which are carriers the rest of this module currently
+    accepts).
+
+    Two weaker variants were measured and are NOT what ships:
+
+    * **Odd count of straight `"`.** 1 Tatoeba rejection, and it is
+      correct German: `„Komm auf die Erde zurück!", flüsterte sie ihm ins
+      Ohr.` -- a real German sentence that opens with `„` and closes with
+      `"`, mixing the two conventions. Exactly the failure mode
+      `_QUOTE_CHARS`' own comment predicts for parity counting.
+    * **Odd count of any double-quote character.** 0 Tatoeba rejections
+      too, but 1,021 Leipzig, of which 645 are the opposite shape: a
+      grammatically complete German sentence that OPENS a quotation and
+      whose closing mark fell on a later sentence in the source
+      (`«Es gab überall Kellner in der Villa.`). Nothing is wrong with
+      that German, so rejecting it buys no correctness and costs carriers.
+      The trailing-opener shape is deliberately left accepted.
+
+14. **A headline with no main clause.** `Ein Film, der die Frage aufwirft,
+    wie man sich im Jahr 2025 eigentlich richtig hassen kann.` The
+    verifier's own words: "Es handelt sich nicht um einen vollständigen
+    Hauptsatz, sondern um ein Satzfragment ohne finites Vollverb im
+    übergeordneten Satz." A noun phrase plus a relative clause, no
+    main-clause verb. Leipzig is full of these. This is the one TODO.md
+    section 1 had already recorded as a cycle 12 defect, so it had been
+    caught twice and was overdue.
+
+    `REASON_NO_FINITE_VERB` cannot catch it: the relative clause supplies a
+    finite verb, and that check asks only whether the sentence contains one
+    anywhere. `_no_main_clause_verb_reason` asks whether the MAIN clause
+    does.
+
+    **The unguarded form of this idea is a disaster, and measuring it is
+    the only reason that is known.** "The ROOT token is not a verb"
+    rejected **658 Tatoeba lines in 40,000**, overwhelmingly correct
+    German: `de_core_news_sm` mistags bare informal imperatives as nouns
+    ("Geh zu ihm und grüße ihn in meinem Namen!", "Renn so schnell, wie du
+    kannst.", "Bestrafe die Bösen und rette die Schwachen."), and roots
+    ordinary declaratives on the wrong token often enough to matter ("Hast
+    du dieses Wochenende Zeit?" roots on "Zeit"). Four guards, each added
+    against a specific measured false positive, bring it down:
+
+    * ROOT tagged `NN`/`NE` as well as `pos_` `NOUN`/`PROPN` (kills "Das
+      war's, was ich von meiner Tochter erwartet habe.", which tags
+      `NOUN`/`VVFIN`).
+    * Every `rc` child genuinely introduced by a relative PRONOUN
+      (`PRELS`/`PRELAT`), not merely carrying the `rc` arc. German left
+      dislocation puts a resumptive demonstrative where a relative pronoun
+      would sit and the parser labels the following main clause `rc` all
+      the same: "Die Zunge, die ist biegsam, eigenwillig und nicht
+      fügsam." (`PDS`), "Die Kuh, die zuerst kommt, die trinkt sauberes
+      Wasser!" (`ART`).
+    * A determiner on the head noun AND the sentence's first token being
+      that noun phrase's own `nk` dependent. This is what removes the
+      mistagged-imperative class: "Mach das Beste, was du kannst!" parses
+      with "Mach" as a `sb` child of the ROOT noun, so token 0 is not part
+      of the noun phrase.
+    * No finite verb on the ROOT outside the relative clause, directly or
+      through a coordinator: "Mein Vater, der noch lebt, und mein
+      Großvater waren Sprachlehrer." parses its main clause as a conjunct
+      of the ROOT noun.
+
+    **Measured, 40,000 lines per corpus: 2 Tatoeba rejections, 71
+    Leipzig.** Of the two Tatoeba lines, one (`Die Leute, die nie lachen
+    sind keine ernsthaften Leute.` -- correct grammar, missing the comma
+    that must close a German relative clause) is ALREADY rejected today as
+    `missing_clause_connector`, so this rule newly rejects exactly ONE
+    Tatoeba line in 40,000: `Die einzige Waffe, die keine Waffe der Gewalt
+    ist: die Wahrheit.` -- an aphorism, and genuinely a noun phrase with no
+    main clause, which is what the rule says about it. 43 of the 71
+    Leipzig hits are carriers this module currently accepts.
+
+    A fifth guard was measured and deliberately NOT added: requiring each
+    relative clause to be verb-final within its own non-clausal span, which
+    a real German relative clause always is. It removes the Tatoeba count
+    from 2 to 1 and two Leipzig false positives, but costs three genuine
+    Leipzig catches ("Ein Muster, das sich leider nicht nur bei
+    Fischkonflikten beobachten lässt.", "Ein Ort, der nicht ist, nicht aber
+    ein Ort, der kein Ort ist.", "Ein junger Mann, der ähnlich alt ist wie
+    Quirlefix selbst und der in das bunte Treiben hineingeboren wurde.").
+    Net negative, and it would have made the check harder to justify for
+    nothing.
+
+15. **Caption residue in parentheses: measured, and DROPPED.** The third
+    cycle 13 shape was `Masi Pfand (am Ball) befindet sich aktuell in einer
+    sehr guten Form.` -- a sports-caption position marker that
+    `_PARENTHESISED_MARKER`'s closed list will never contain, because there
+    are hundreds of such phrases. The proposed generalisation was
+    structural rather than lexical: a short parenthesised insert with no
+    finite verb, sitting between a proper-noun subject and its finite verb.
+
+    **The structure does not separate caption furniture from correct
+    German, and the measurement says so plainly.** 0 Tatoeba rejections
+    (Tatoeba barely uses parentheses at all, so that number is not
+    evidence of safety), 209 Leipzig, of which 150 are carriers this module
+    currently accepts. Hand-reading all 150: **23 are caption position
+    markers** ("(links)", "(r.)", "(l.)", "(Mitte)", "(vorn)", "(hinten)",
+    "(am Ball)") and **127 are ordinary, grammatical journalistic
+    apposition** -- party affiliation ("(CDU)", "(SPD)", "(SPÖ)",
+    "(Grüne)"), age ("(43)", "(29)"), an abbreviation gloss ("(MCP)",
+    "(DGB)"), or a goal minute ("(82.)"). "Bundeskanzler Friedrich Merz
+    (CDU) hat am Sonntag mit dem israelischen Ministerpräsidenten Benjamin
+    Netanjahu telefoniert." is correct German by any standard, and it has
+    the identical parse shape as "(am Ball)".
+
+    That is five and a half correct sentences discarded per piece of junk
+    caught, the same trade the section-12 colon rule was thrown away for
+    (eleven per one). What actually separates the two groups is lexical --
+    a closed list of position words -- which is precisely the
+    never-complete list this rule existed to avoid. **No rule ships for
+    this shape. It stays the verifier's job**, recorded in TODO.md
+    section 1 rather than left implicit.
+
 ## Why this module loads its own spaCy pipeline
 
 ``src.taxonomy.tagger`` and ``src.generation.blanking.sentence_tagger`` both
@@ -594,6 +736,8 @@ REASON_DASS_AFTER_PHYSICAL_ACTION_VERB = "dass_after_physical_action_verb"
 REASON_FINITE_VERB_NOT_A_REAL_WORD = "finite_verb_not_a_real_word"
 REASON_CONTENT_WORD_NOT_A_REAL_WORD = "content_word_not_a_real_word"
 REASON_COLON_JOINED_FRAGMENT = "colon_joined_fragment"
+REASON_OPENS_MID_QUOTATION = "opens_mid_quotation"
+REASON_NO_MAIN_CLAUSE_VERB = "no_main_clause_verb"
 
 # STTS fine-grained tags for a finite verb: full verb, auxiliary, modal, and
 # their imperative counterparts (imperative is a finite mood, not a
@@ -659,6 +803,27 @@ _MIN_TOKEN_COUNT = 3
 # specific opening mark to its closing one. This assumes quotes are
 # balanced, which real sentences overwhelmingly are.
 _QUOTE_CHARS: frozenset[str] = frozenset({'"', "„", "“", "”", "'", "‘", "’", "«", "»"})
+
+# The DOUBLE-quote subset of ``_QUOTE_CHARS``, for the "sentence opens
+# mid-quotation" check (module docstring section 13). The single-quote
+# characters are deliberately excluded: German writes an apostrophe with the
+# identical glyph ("Wie geht's?", "Mach' es so, wie man es dir sagte." --
+# both real Tatoeba lines), so a rule that read one as a quotation mark
+# would fire on ordinary correct German.
+#
+# "„" and "»" can only ever OPEN a quotation in German typography, so a
+# sentence whose first quote character is one of them is never opening
+# mid-quotation, regardless of what follows. Every other member is
+# genuinely ambiguous on its own: a straight '"' is used for both roles,
+# and '“'/'”' are a German CLOSER and an English OPENER respectively
+# depending on which convention the source used. Role is therefore decided
+# by typography, not by the character (see ``_opens_mid_quotation``).
+_DOUBLE_QUOTE_CHARS: frozenset[str] = frozenset({'"', "„", "“", "”", "«", "»"})
+_OPENING_ONLY_QUOTE_CHARS: frozenset[str] = frozenset({"„", "»"})
+
+# Characters that may legitimately sit immediately before an OPENING quote
+# without whitespace between them, e.g. '(„Titel“)'.
+_QUOTE_OPENING_PREDECESSORS = "([{<"
 
 # Parenthesised stock-photo and wire-service markers. These are not German
 # sentence material at all, they are captioning furniture that survived the
@@ -907,12 +1072,45 @@ def _has_swiss_diphthong_spelling(text: str) -> bool:
     return False
 
 
+def _opens_mid_quotation(text: str) -> bool:
+    """Whether ``text``'s FIRST double-quote character sits in closing
+    typographic position -- the sentence begins inside a quotation that was
+    never opened, so it is a slice out of a longer scraped sentence
+    (module docstring section 13).
+
+    Role is read off typography rather than off the character itself,
+    because a straight ``"`` is used for both roles in this corpus and
+    ``_QUOTE_CHARS``' own comment already records that no open/close
+    pairing is attempted anywhere in this module. A quote is OPENING when
+    nothing, whitespace, or an opening bracket precedes it; CLOSING when a
+    non-space precedes it AND whitespace, punctuation, or end-of-string
+    follows. Anything else (a quote glued between two alphanumerics, e.g.
+    an inch mark) is not classified at all and stops the scan, since this
+    check only ever wants a verdict on the very first quote.
+
+    Only the first quote is inspected on purpose. Counting quotes and
+    testing parity was measured as the weaker alternative and is NOT what
+    ships -- see module docstring section 13."""
+    for index, char in enumerate(text):
+        if char not in _DOUBLE_QUOTE_CHARS:
+            continue
+        if char in _OPENING_ONLY_QUOTE_CHARS:
+            return False
+        previous = text[index - 1] if index > 0 else ""
+        following = text[index + 1] if index + 1 < len(text) else ""
+        if not previous or previous.isspace() or previous in _QUOTE_OPENING_PREDECESSORS:
+            return False
+        return not following or following.isspace() or not following.isalnum()
+    return False
+
+
 def _sentence_shape_reason(text: str) -> str | None:
     """Cheap, parser-free structural checks: capitalisation, terminal
-    punctuation, and the Swiss-spelling checks (module docstring sections 6
+    punctuation, the Swiss-spelling checks (module docstring sections 6
     and 7, and the general diphthong rule docs/audits/cycle-09-report.md
-    1.4 adds). Run before spaCy touches the sentence at all, since none of
-    these need a parse to decide."""
+    1.4 adds), and the unbalanced-opening-quotation check (section 13).
+    Run before spaCy touches the sentence at all, since none of these need
+    a parse to decide."""
     stripped = text.strip()
     first_alpha = next((ch for ch in stripped if ch.isalpha()), None)
     if first_alpha is not None and not first_alpha.isupper():
@@ -928,6 +1126,8 @@ def _sentence_shape_reason(text: str) -> str | None:
         or _has_swiss_diphthong_spelling(stripped)
     ):
         return REASON_SWISS_SPELLING
+    if _opens_mid_quotation(stripped):
+        return REASON_OPENS_MID_QUOTATION
     return None
 
 
@@ -1385,6 +1585,100 @@ def _colon_joined_fragment_reason(tokens: list[SpacyToken]) -> str | None:
         if _segment_is_bare_subheading(segment):
             return REASON_COLON_JOINED_FRAGMENT
     return None
+
+
+# STTS tags for a genuine RELATIVE pronoun ("der"/"die"/"das"/"welcher" as
+# a relative, "dessen"/"deren" attributively). Deliberately excludes ``PDS``
+# and ``ART``, which is the whole point of the test in
+# ``_has_relative_pronoun``: German left dislocation ("Die Zunge, die ist
+# biegsam ...", "Die Kuh, die zuerst kommt, die trinkt sauberes Wasser!" --
+# both real Tatoeba lines) puts a resumptive DEMONSTRATIVE in exactly the
+# position a relative pronoun would occupy, and de_core_news_sm labels the
+# following main clause "rc" all the same. The tag is what separates the two.
+_RELATIVE_PRONOUN_TAGS: frozenset[str] = frozenset({"PRELS", "PRELAT"})
+
+# Determiner tags that count as "this nominal is a full noun phrase" for
+# the headline check. Wider than ``_ATTRIBUTIVE_DETERMINER_TAGS`` (which the
+# adjective-declension check uses) by the two demonstrative/indefinite
+# determiner tags ``PDAT``/``PIDAT``: that check needs a determiner it can
+# read an ending paradigm off, this one only needs to know a determiner is
+# there at all.
+_HEADLINE_DETERMINER_TAGS: frozenset[str] = frozenset({"ART", "PIAT", "PPOSAT", "PDAT", "PIDAT"})
+
+
+def _has_relative_pronoun(clause_verb: SpacyToken) -> bool:
+    """Whether the clause headed by ``clause_verb`` is actually introduced
+    by a relative pronoun, somewhere before the verb itself (directly, "der
+    ... aufwirft", or inside a pied-piped prepositional phrase, "in dem ...
+    unterstützt wurden"). See ``_RELATIVE_PRONOUN_TAGS`` for why the tag,
+    not the surface word, is the test."""
+    return any(
+        t.tag_ in _RELATIVE_PRONOUN_TAGS and t.i < clause_verb.i for t in clause_verb.subtree
+    )
+
+
+def _no_main_clause_verb_reason(tokens: list[SpacyToken]) -> str | None:
+    """A headline: a noun phrase plus a relative clause, with no main clause
+    at all (module docstring section 14).
+
+    ``REASON_NO_FINITE_VERB`` cannot see this, because the relative clause
+    supplies a finite verb and that check only asks whether the SENTENCE
+    contains one anywhere. The question here is whether the MAIN clause
+    does.
+
+    Every condition below was added because measurement demanded it, not
+    for symmetry -- the unguarded version of this check ("the ROOT is a
+    nominal") rejected 658 Tatoeba lines in 40,000 and was almost entirely
+    wrong. See the module docstring for the measurement; in short:
+
+    * ``NN``/``NE`` tag as well as ``NOUN``/``PROPN`` POS -- "Das war's"
+      tags ``pos_="NOUN"`` with ``tag_="VVFIN"``, a contradiction of the
+      same kind ``_is_finite`` already refuses to act on.
+    * A relative-PRONOUN-introduced clause, not merely an ``rc`` arc --
+      left dislocation ("Die Zunge, die ist biegsam ...") produces the arc
+      without the pronoun.
+    * A determiner on the head noun, and the sentence's very first token
+      being that noun phrase's own dependent -- de_core_news_sm
+      systematically mistags a bare informal imperative as a noun (the
+      module docstring says so already, for a different check), and "Mach
+      das Beste, was du kannst!" parses with "Mach" as a ``sb`` child of
+      the ROOT noun. A real headline opens on its own determiner.
+    * No finite verb hanging off the ROOT outside the relative clause,
+      directly or through a coordinator -- "Mein Vater, der noch lebt, und
+      mein Großvater waren Sprachlehrer." has its main clause parsed as a
+      conjunct of the ROOT noun.
+    """
+    if not tokens:
+        return None
+    roots = [t for t in tokens if t.dep_ == "ROOT"]
+    if len(roots) != 1:
+        return None
+    root = roots[0]
+    if root.pos_ not in ("NOUN", "PROPN") or root.tag_ not in ("NN", "NE"):
+        return None
+
+    relative_clauses = [c for c in root.children if c.dep_ == "rc"]
+    if not relative_clauses:
+        return None
+    if not all(_has_relative_pronoun(rc) for rc in relative_clauses):
+        return None
+
+    if not any(c.dep_ == "nk" and c.tag_ in _HEADLINE_DETERMINER_TAGS for c in root.children):
+        return None
+    first = tokens[0]
+    if first.dep_ != "nk" or first.head.i != root.i:
+        return None
+
+    for child in root.children:
+        if child.dep_ == "rc":
+            continue
+        if _is_finite(child):
+            return None
+        if child.dep_ == "cd" and any(
+            _is_finite(grandchild) for grandchild in child.children if grandchild.dep_ == "cj"
+        ):
+            return None
+    return REASON_NO_MAIN_CLAUSE_VERB
 
 
 def _reverse_form_to_cells(cell_to_form: dict[Cell, str]) -> dict[str, tuple[Cell, ...]]:
@@ -1956,6 +2250,10 @@ def validate_carrier(sentence: str) -> CarrierValidation:
     colon_fragment_reason = _colon_joined_fragment_reason(tokens)
     if colon_fragment_reason is not None:
         return CarrierValidation(sentence, False, colon_fragment_reason)
+
+    main_clause_reason = _no_main_clause_verb_reason(tokens)
+    if main_clause_reason is not None:
+        return CarrierValidation(sentence, False, main_clause_reason)
 
     for verb in finite_verbs:
         connector_reason = _clause_connector_reason(verb)
