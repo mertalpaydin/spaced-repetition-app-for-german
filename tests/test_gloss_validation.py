@@ -1022,6 +1022,159 @@ def test_pilot_real_defect_is_still_rejected(topics: dict[str, Topic]) -> None:
 
 
 # ==============================================================================
+# Second pilot regression corpus
+#
+# The owner reran the pilot with all four of the above corrections in place:
+# 437 accepted items, 3 flags, and reading all 3 by hand found every one of
+# them to be this check being wrong again. They are quoted here verbatim,
+# exactly as the first pilot's 33 are above, for exactly the same reason.
+# ==============================================================================
+
+SECOND_PILOT_FALSE_REJECTIONS: list[tuple[str, str, str, str]] = [
+    (
+        "modalverben_praesens",
+        "In der Schule ___ man nicht rauchen.",
+        "kann",
+        "You can't smoke at school.",
+    ),
+    (
+        "praeteritum_sein_haben_modal",
+        "Schüler ___ nicht arbeiten, wenn sie zur Schule gehen.",
+        "sollten",
+        "Students should not work if they are going to school.",
+    ),
+    (
+        "passiv_modalverben",
+        "Er ___ nach Gottes Willen nicht getötet werden.",
+        "darf",
+        "According to God's will, he must not be killed.",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("topic_id", "prompt", "answer", "gloss_en"),
+    SECOND_PILOT_FALSE_REJECTIONS,
+    ids=[f"{row[0]}::{row[1][:40]}" for row in SECOND_PILOT_FALSE_REJECTIONS],
+)
+def test_second_pilot_flagged_item_is_no_longer_rejected(
+    topics: dict[str, Topic], topic_id: str, prompt: str, answer: str, gloss_en: str
+) -> None:
+    rejection, _unverified = check_gloss(prompt, answer, gloss_en, topics.get(topic_id))
+    assert rejection is None, rejection.reason if rejection else ""
+
+
+# ------------------------------------------------------------------------------
+# ... and none of the three corrections is a blanket suppression: each one
+# still catches a genuine contradiction of its own kind.
+# ------------------------------------------------------------------------------
+
+
+def test_impersonal_man_still_rejects_a_first_person_gloss(praesens: Topic) -> None:
+    """Impersonal "man" widens the expected pronoun set to the English
+    renderings it genuinely has (you / one / people / we / a passive), NOT
+    to everything. A first-person gloss of a "man" sentence with no oblique
+    1st-person pronoun in the German to promote is still a contradiction."""
+    rejection, _unverified = check_gloss(
+        "Hier ___ man Deutsch.", "spricht", "I speak German here.", praesens
+    )
+    assert rejection is not None
+    assert rejection.error_type == "pedagogical_flaw"
+    assert "Person=3|Number=Sing" in rejection.reason
+
+
+def test_impersonal_man_accepts_the_you_rendering(praesens: Topic) -> None:
+    """The other half of the same widening: "you" for a 3rd-singular "man"
+    target is correct English and must pass."""
+    rejection, _unverified = check_gloss(
+        "Hier ___ man Deutsch.", "spricht", "You speak German here.", praesens
+    )
+    assert rejection is None
+
+
+def test_impersonal_man_promotes_a_dative_object_the_way_impersonal_es_does(
+    topics: dict[str, Topic],
+) -> None:
+    """ "Man hat mir gesagt ..." is "I was told ...": German leaves the
+    experiencer dative and English promotes it to subject, exactly as the
+    impersonal-"es" family does. A first-person gloss is correct HERE, and
+    the promotion is what tells the two cases apart."""
+    rejection, _unverified = check_gloss(
+        "Man ___ mir gesagt, dass er kommt.",
+        "hat",
+        "I was told that he is coming.",
+        topics.get("perfekt_haben"),
+    )
+    assert rejection is None
+
+
+def test_modal_target_glossed_without_an_english_modal_is_still_checked(
+    topics: dict[str, Topic],
+) -> None:
+    """The modal exemption is gated on the gloss actually rendering the
+    modal WITH an English modal. "He is not able to come." is a periphrastic
+    rendering that carries tense honestly, so a Präteritum target glossed
+    that way is still a contradiction."""
+    rejection, _unverified = check_gloss(
+        "Er ___ nicht kommen.",
+        "konnte",
+        "He is not able to come.",
+        topics.get("praeteritum_sein_haben_modal"),
+    )
+    assert rejection is not None
+    assert "'past'-tense" in rejection.reason
+
+
+def test_non_modal_target_is_unaffected_by_the_modal_exemption(praesens: Topic) -> None:
+    """A present-tense NON-modal target glossed as a plain past is still
+    rejected -- the exemption reaches modal targets only, and a modal
+    somewhere in the gloss does not license anything on its own."""
+    rejection, _unverified = check_gloss(
+        "Er ___ jeden Tag Deutsch.",
+        "lernt",
+        "He could not study German every day, so he studied English.",
+        praesens,
+    )
+    assert rejection is not None
+    assert "'present'-tense" in rejection.reason
+
+
+def test_possessed_noun_will_is_not_read_as_the_future_auxiliary() -> None:
+    """ "God's will" is a noun and marks no tense at all. Asserted on the
+    bucket detector directly, so it pins fix 3 independently of the modal
+    exemption that also happens to cover this pilot item."""
+    detected, _source = _gloss_tense_buckets("According to God's will, he must not be killed.")
+    assert "future" not in detected
+
+
+def test_auxiliary_will_is_still_read_as_the_future_auxiliary() -> None:
+    """The other direction, and the one that matters: an ordinary future
+    gloss must keep reading as future."""
+    detected, _source = _gloss_tense_buckets("Tom will win.")
+    assert "future" in detected
+
+
+def test_a_gloss_with_both_a_noun_will_and_an_auxiliary_will_is_still_future() -> None:
+    """Requiring EVERY "will" token to be nominal is what keeps a real
+    future auxiliary visible in a sentence that also contains the noun."""
+    detected, _source = _gloss_tense_buckets("It is the will of God that he will not be killed.")
+    assert "future" in detected
+
+
+def test_future_target_still_rejects_a_gloss_whose_only_will_is_a_noun(futur_i: Topic) -> None:
+    """The noun-"will" correction must not become a way for a future item to
+    pass on a gloss with no future marking in it at all."""
+    rejection, _unverified = check_gloss(
+        "Tom ___ das Testament schreiben.",
+        "wird",
+        "Tom wrote his last will yesterday.",
+        futur_i,
+    )
+    assert rejection is not None
+    assert "'future'-tense" in rejection.reason
+
+
+# ==============================================================================
 # Both leak checks still do their real job on English text
 #
 # The pilot corpus above pins the two FALSE firings ("fall" the English verb

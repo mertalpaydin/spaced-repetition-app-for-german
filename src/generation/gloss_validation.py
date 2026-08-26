@@ -150,6 +150,60 @@ corrected below rather than suppressed:
 
 The honest cost of 2, 3 and 4 is stated with each one: every fix trades some
 detection away, and the traded-away detection is named where it is traded.
+
+### What the SECOND glossed pilot measured, and what it changed here
+
+The owner reran the pilot with all four corrections above in place: 437
+accepted items, 3 flags, and reading all 3 by hand found the same verdict
+as before -- every one of them was this check being wrong, none was a real
+defect. Three more distinct faults produced them, each corrected below on
+the same terms (extend the existing seam, name the cost):
+
+5. **Impersonal "man" has no English pronoun counterpart.** "In der Schule
+   ___ man nicht rauchen." / "You can't smoke at school." was rejected for
+   showing no "he", "she" or "it". "man" is grammatically 3rd singular and
+   drives 3rd-singular agreement, but English renders it as "you", "one",
+   "people", "we", or a passive with the German object promoted to subject
+   ("Man hat mir gesagt ..." -> "I was told ..."). This is the same shape as
+   fault 3's nominal-subject seam and as the impersonal-"es" promotion:
+   the German morphology genuinely does not predict the English pronoun. A
+   nominative "man" therefore widens the expected set (see
+   :data:`_MAN_GLOSS_PRONOUNS` and :func:`_impersonal_promoted_pronouns`)
+   rather than being checked against the 3rd-singular table. The cost: for
+   a "man" item only a gloss whose ONLY person marking is first-person, with
+   no oblique 1st-person pronoun in the German to promote, is still caught.
+6. **English modals do not inflect for tense, so they cannot confirm or
+   contradict a German modal's.** "Schüler ___ nicht arbeiten, wenn sie zur
+   Schule gehen." (answer "sollten", a Präteritum form) / "Students should
+   not work if they are going to school." was rejected as a past target
+   glossed present. "should" IS the only English rendering of that
+   "sollten", and spaCy assigns an English modal no ``Tense`` feature at
+   all -- so every tense bucket detected in such a gloss comes from some
+   OTHER clause ("are going to school"), which is not evidence about the
+   target. This is exactly the Konjunktiv II problem of fault 2, and it gets
+   the same treatment: where the German target is a modal verb AND the gloss
+   renders it with an English modal, the tense dimension can be CONFIRMED
+   but never CONTRADICTED, so a non-matching gloss comes back UNVERIFIED.
+   See :func:`_modal_tense_is_indeterminable`. The cost, stated plainly: a
+   genuinely wrong gloss of a modal item is no longer caught on the tense
+   dimension whenever the gloss happens to contain any English modal. A
+   modal item glossed WITHOUT an English modal ("Er konnte nicht kommen." ->
+   "He is not able to come.") still is, because "is able to" does carry
+   tense.
+7. **The English noun "will" was read as the future auxiliary.** "Er ___
+   nach Gottes Willen nicht getötet werden." / "According to God's will, he
+   must not be killed." was rejected as a present target glossed future.
+   "God's will" is a noun. This is the same family as fault 4 but a
+   different mechanism: not a German string matched inside English, but
+   English-internal homography, so :data:`_ENGLISH_SHARED_SPELLINGS` cannot
+   reach it. The correction is to ask the English tagger this module ALREADY
+   loads (``en_core_web_sm``, needed for the tense and person morphology
+   anyway) what part of speech each "will" is, and to count "will" as a
+   future marker unless EVERY token in the gloss that could read as "will"
+   is a ``NOUN``. See :func:`_future_will_is_only_a_noun`. This runs on the
+   spaCy path only; the closed-list fallback keeps reading every "will" as
+   future, which is the same under-detection-versus-over-claiming trade that
+   path already documents everywhere else.
 """
 
 from __future__ import annotations
@@ -167,6 +221,7 @@ from src.taxonomy import tagger as de_tagger
 
 if TYPE_CHECKING:
     from spacy.language import Language
+    from spacy.tokens import Doc
 
     from src.generation.blanking.sentence_tagger import TaggedSentence
     from src.generation.blanking.sentence_tagger import Token as GermanToken
@@ -455,6 +510,86 @@ _BUCKET_CONTRADICTED_BY: dict[_TenseBucket, frozenset[_TenseBucket]] = {
 #: to visit ..." a contradiction, which it plainly is not.
 _MOECHTE_FORMS = frozenset({"möchte", "möchtest", "möchten", "möchtet"})
 
+#: English modal auxiliaries, used ONLY as the closed-list fallback for
+#: :func:`_gloss_has_english_modal` where the English tagger is unavailable.
+#: "ca", "wo" and "sha" are not typos: the gloss tokeniser peels the "n't"
+#: enclitic off the RIGHT (:func:`_token_readings`), so "can't", "won't" and
+#: "shan't" leave those stems behind rather than their full forms.
+_ENGLISH_MODALS = frozenset(
+    {
+        "can",
+        "ca",
+        "could",
+        "may",
+        "might",
+        "must",
+        "shall",
+        "sha",
+        "should",
+        "will",
+        "wo",
+        "would",
+        "ought",
+    }
+)
+
+
+def _german_modal_lemmas() -> frozenset[str]:
+    """The German modal verbs, from ``blanking.paradigms``' own closed set
+    rather than a second copy of it, plus "mögen"/"möchten" which that set
+    deliberately omits (see ``blanking.uniqueness._MODAL_LEMMAS``, which
+    extends it the same way). Imported lazily for the same reason every
+    other ``blanking`` import in this module is: to keep this module's import
+    cost to what its own callers need."""
+    from src.generation.blanking import paradigms
+
+    return paradigms.MODAL_LEMMAS | frozenset({"mögen", "möchten"})
+
+
+def _gloss_has_english_modal(gloss: str) -> bool:
+    """Whether ``gloss`` renders anything with an English modal auxiliary.
+    Uses the English tagger's ``MD`` tag where it is available (which also
+    catches the "ca" of "can't" without the closed list having to know about
+    enclitic stems) and falls back to :data:`_ENGLISH_MODALS` otherwise."""
+    nlp = _load_en_model()
+    if nlp is not None:
+        return any(tok.tag_ == "MD" for tok in nlp(gloss))
+    return bool(_english_word_readings(gloss) & _ENGLISH_MODALS)
+
+
+def _modal_tense_is_indeterminable(answer_token: GermanToken | None, gloss: str) -> bool:
+    """Whether the German target's tense is simply not readable off this
+    gloss, because the target is a MODAL verb and the gloss renders it with
+    an English modal.
+
+    English modals do not inflect for tense the way German ones do: "should"
+    is the correct and only rendering of the Präteritum "sollten" in
+    "Schüler sollten nicht arbeiten, wenn sie zur Schule gehen.", and spaCy
+    assigns an English ``MD`` token no ``Tense`` feature at all. Every tense
+    bucket :func:`_gloss_tense_buckets` finds in such a gloss therefore comes
+    from some OTHER clause -- "are going to school", in that example -- and
+    says nothing whatsoever about the modal the item is actually testing.
+    The second glossed pilot's rejection of exactly that item is what this
+    corrects.
+
+    This is the same shape of problem as Konjunktiv II (see
+    :data:`_BUCKET_CONTRADICTED_BY`, whose ``conditional`` row contradicts
+    nothing for the same reason) and gets the same treatment: the caller
+    keeps CONFIRMATION -- a gloss that does show the expected marking still
+    passes on the evidence -- and drops CONTRADICTION, so a non-matching
+    gloss comes back UNVERIFIED instead of rejected.
+
+    Gated on an English modal actually being present, deliberately, so the
+    narrower catch survives: "Er konnte nicht kommen." glossed "He is not
+    able to come." has no modal in it, the periphrastic "is able to" does
+    carry tense honestly, and that contradiction still fires.
+    """
+    if answer_token is None:
+        return False
+    if (answer_token.lemma or "").lower() not in _german_modal_lemmas():
+        return False
+    return _gloss_has_english_modal(gloss)
+
 
 def _german_tense_bucket(
     feats: dict[str, str] | None,
@@ -682,6 +817,36 @@ def _english_word_readings(gloss: str) -> frozenset[str]:
     return frozenset(readings)
 
 
+def _future_will_is_only_a_noun(doc: Doc) -> bool:
+    """Whether every token of ``doc`` that could read as the word "will" is
+    tagged a ``NOUN``, so that the lexical future-marker scan below must not
+    count it.
+
+    The second glossed pilot rejected "Er ___ nach Gottes Willen nicht
+    getötet werden." / "According to God's will, he must not be killed." as
+    a present target glossed future, because "will" is on
+    :data:`_FUTURE_MARKERS` and the scan is purely lexical. "God's will" is
+    an ordinary English noun and marks no tense whatsoever.
+
+    This is English-internal homography, not the German-string-inside-English
+    fault :data:`_ENGLISH_SHARED_SPELLINGS` handles, so that list cannot fix
+    it: "will" genuinely IS an English future auxiliary as well, and
+    exempting the spelling outright would blind the check to every real
+    future gloss ("Tom will win."). The distinction is a part-of-speech one,
+    and this module already loads an English tagger for the tense and person
+    morphology it cannot do without, so asking that tagger is not a new
+    dependency -- it is the one source of the answer already present.
+
+    Requires ALL such tokens to be nominal, not merely one: "It is the will
+    of God that he will not be killed." contains both, and the auxiliary is
+    real future marking that must survive. Enclitics count as candidates too
+    (``_token_readings("I'll")`` includes "will"), and spaCy tags "'ll"
+    ``AUX``, so a contracted future is never mistaken for a noun.
+    """
+    candidates = [tok for tok in doc if "will" in _token_readings(tok.lower_)]
+    return bool(candidates) and all(tok.pos_ == "NOUN" for tok in candidates)
+
+
 def _gloss_tense_buckets(gloss: str) -> tuple[frozenset[_TenseBucket], _AnalysisSource]:
     """Every tense bucket detectable ANYWHERE in ``gloss``, plus which
     analysis path produced it. Never raises; an unparseable or empty gloss
@@ -690,15 +855,18 @@ def _gloss_tense_buckets(gloss: str) -> tuple[frozenset[_TenseBucket], _Analysis
     tokens = re.findall(r"[A-Za-z']+", gloss.lower())
     readings = _english_word_readings(gloss)
 
+    nlp = _load_en_model()
+    doc = nlp(gloss) if nlp is not None else None
+    if doc is not None and _future_will_is_only_a_noun(doc):
+        readings -= {"will"}
+
     buckets: set[_TenseBucket] = set()
     if readings & _FUTURE_MARKERS:
         buckets.add("future")
     if readings & _CONDITIONAL_MARKERS:
         buckets.add("conditional")
 
-    nlp = _load_en_model()
-    if nlp is not None:
-        doc = nlp(gloss)
+    if doc is not None:
         has_perfect_aux = False
         has_participle = False
         for tok in doc:
@@ -900,35 +1068,69 @@ def _german_person_cells(
     return cells or None
 
 
-def _impersonal_es_promoted_pronouns(sentence: TaggedSentence | None) -> frozenset[str]:
-    """The English subject pronouns a German impersonal-"es" clause may
+#: The English subject pronouns an impersonal "man" clause can legitimately
+#: be glossed with, beyond the "he"/"she"/"it" its 3rd-singular agreement
+#: predicts. "man" is grammatically third person singular and is rendered in
+#: English as "you" ("You can't smoke at school."), "one" ("One cannot smoke
+#: at school."), "people" or "we" -- and as a passive with no personal
+#: subject at all ("Smoking is not allowed at school."), whose nominal
+#: subject :func:`_gloss_person_number_pairs` already reads as third person.
+#: "one" needs no entry here for the same reason: spaCy gives it no
+#: ``Person`` feature, so it too arrives as a nominal third-person subject.
+_MAN_GLOSS_PRONOUNS = frozenset({"you", "we", "they"})
+
+
+def _has_impersonal_man(sentence: TaggedSentence | None) -> bool:
+    """Whether ``sentence`` has an impersonal nominative "man" in it.
+
+    Matched as a PRONOUN specifically, so the noun "Mann" (a different
+    spelling anyway) and any other reading cannot trigger it, and on the
+    same "anywhere in the sentence" basis as the impersonal-"es" test below,
+    for the same reason: this module has no dependency parse of the German.
+    """
+    if sentence is None:
+        return False
+    return any(
+        token.pos == "PRON"
+        and token.text.lower() == "man"
+        and token.morph.get("Case") in (None, "Nom")
+        for token in sentence.tokens
+    )
+
+
+def _impersonal_promoted_pronouns(sentence: TaggedSentence | None) -> frozenset[str]:
+    """The English subject pronouns a German impersonal clause may
     legitimately be glossed with, beyond the ones its own verb agreement
     predicts.
 
     German builds a whole family of constructions on a dummy nominative
-    "es" whose English translation has a completely different subject: the
-    experiencer, which German leaves in the accusative or dative, becomes
-    the English subject. "Würde es dich stören, das Fenster zu öffnen?" is
-    "Would you mind opening the window?"; "Es gefällt mir." is "I like it.".
-    The German verb agrees with "es" (3rd singular), so demanding "he", "she"
-    or "it" in the gloss rejects the only natural English rendering there
-    is -- which is what the first glossed pilot did.
+    subject whose English translation has a completely different subject:
+    the experiencer, which German leaves in the accusative or dative,
+    becomes the English subject. With "es": "Würde es dich stören, das
+    Fenster zu öffnen?" is "Would you mind opening the window?"; "Es gefällt
+    mir." is "I like it.". With "man" the same promotion happens through the
+    English passive: "Man hat mir gesagt, dass ..." is "I was told that
+    ...". The German verb agrees with the dummy subject (3rd singular), so
+    demanding "he", "she" or "it" in the gloss rejects the only natural
+    English rendering there is -- which is what the first glossed pilot did
+    for "es" and the second did for "man".
 
-    Gated on a nominative "es" actually being present, so an ordinary
-    transitive sentence with an oblique pronoun ("Er gibt mir das Buch.")
-    gains nothing and keeps being checked normally. Deliberately coarse in
-    one respect: this module has no dependency parse of the German (the
-    blanking tagger excludes the parser), so "es" is looked for anywhere in
-    the sentence rather than specifically as the answer's own subject. That
-    errs towards accepting, which is the direction a check with a measured
-    33-to-1 false-positive rate should err in.
+    Gated on a nominative "es" or "man" actually being present, so an
+    ordinary transitive sentence with an oblique pronoun ("Er gibt mir das
+    Buch.") gains nothing and keeps being checked normally. Deliberately
+    coarse in one respect: this module has no dependency parse of the German
+    (the blanking tagger excludes the parser), so the dummy subject is looked
+    for anywhere in the sentence rather than specifically as the answer's own
+    subject. That errs towards accepting, which is the direction a check with
+    a measured 33-to-1 false-positive rate should err in.
     """
     if sentence is None:
         return frozenset()
-    if not any(
+    has_impersonal_es = any(
         token.text.lower() == "es" and token.morph.get("Case") in (None, "Nom")
         for token in sentence.tokens
-    ):
+    )
+    if not has_impersonal_es and not _has_impersonal_man(sentence):
         return frozenset()
 
     promoted: set[str] = set()
@@ -963,7 +1165,9 @@ def _expected_gloss_pronouns(
         else:
             expected |= _EXPECTED_PRONOUNS.get(cell, frozenset())
     if ("3", "Sing") in cells:
-        expected |= _impersonal_es_promoted_pronouns(sentence)
+        expected |= _impersonal_promoted_pronouns(sentence)
+        if _has_impersonal_man(sentence):
+            expected |= _MAN_GLOSS_PRONOUNS
     return frozenset(expected) or None
 
 
@@ -1131,7 +1335,11 @@ def validate_gloss_consistency(
         checked.append("tense")
         detected, tense_source = _gloss_tense_buckets(stripped)
         source = tense_source
-        verdict = _classify_tense(target_bucket, detected)
+        verdict = _classify_tense(
+            target_bucket,
+            detected,
+            contradiction_possible=not _modal_tense_is_indeterminable(answer_token, stripped),
+        )
         if verdict == "unverified":
             unverified.append("tense")
         elif verdict == "inconsistent":
@@ -1185,7 +1393,12 @@ def _classify(expected: frozenset[str], detected: frozenset[str]) -> _DimensionV
     return "inconsistent"
 
 
-def _classify_tense(target: _TenseBucket, detected: frozenset[_TenseBucket]) -> _DimensionVerdict:
+def _classify_tense(
+    target: _TenseBucket,
+    detected: frozenset[_TenseBucket],
+    *,
+    contradiction_possible: bool = True,
+) -> _DimensionVerdict:
     """Presence-based classification for the tense dimension, where -- unlike
     person -- "not confirming" and "contradicting" are two different things
     (see :data:`_BUCKET_CONTRADICTED_BY`).
@@ -1194,10 +1407,16 @@ def _classify_tense(target: _TenseBucket, detected: frozenset[_TenseBucket]) -> 
     marking and something else is consistent, exactly as before. Only a
     gloss that shows positively contradicting marking and no confirming
     marking at all is inconsistent; anything else is unverified.
+
+    ``contradiction_possible=False`` is the per-ITEM counterpart of
+    :data:`_BUCKET_CONTRADICTED_BY`'s empty ``conditional`` row: where the
+    German target's tense is not readable off this particular gloss at all
+    (:func:`_modal_tense_is_indeterminable`), confirmation still counts and
+    contradiction is downgraded to UNVERIFIED rather than invented.
     """
     if detected & _BUCKET_SATISFIED_BY[target]:
         return "consistent"
-    if detected & _BUCKET_CONTRADICTED_BY[target]:
+    if contradiction_possible and detected & _BUCKET_CONTRADICTED_BY[target]:
         return "inconsistent"
     return "unverified"
 

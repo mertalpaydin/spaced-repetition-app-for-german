@@ -136,6 +136,23 @@ Not tasks. Do not "fix" these without a decision from the owner.
   answer "war". Re-measured after the fix: **1 flag on 376**, and it is
   the real defect.
 
+  **A second pilot with those four fixes in place measured 3 flags on 437
+  accepted items, and all 3 were again the check being wrong.** Three more
+  bugs, all now fixed: impersonal `man` is grammatically 3rd singular but
+  has no English pronoun counterpart (`In der Schule kann man nicht
+  rauchen.` / "You can't smoke at school." demanded he/she/it), so a
+  nominative `man` now widens the expected pronoun set to you/we/they and
+  promotes an oblique object to subject the way impersonal `es` already
+  did; an English modal carries no tense feature at all, so a German modal
+  target glossed with one (`Schüler sollten nicht arbeiten ...` /
+  "Students should not work ...") can be confirmed but never contradicted,
+  the same treatment Konjunktiv II already gets; and the English noun
+  "will" was read as the future auxiliary (`... nach Gottes Willen ...` /
+  "According to God's will, ..."), now settled by asking the English
+  tagger this module already loads whether every "will" in the gloss is a
+  NOUN. Re-measured after those three: **0 flags on 437, and still exactly
+  1 flag on 376, still the real defect.**
+
   Still measure-only. One flag is not enough evidence to enforce, and the
   surviving catch is lucky rather than designed: the bad Tatoeba pairing
   (`Nachdem der Vorfall an die Öffentlichkeit gekommen war ...` glossed
