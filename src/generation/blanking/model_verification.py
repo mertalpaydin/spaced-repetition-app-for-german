@@ -146,6 +146,40 @@ call goes through that one wrapper) so cost accounting, the spend ceiling,
 and the two-lane routing apply exactly as they do to every other call in the
 app.
 
+## Repeated passes, and why they must bypass the cache
+
+``verify_items`` takes ``use_cache``, forwarded straight to
+``generate_many``, defaulting to ``True``. It exists for
+``scripts/step7_corpus_pilot.py --verification-passes N``, which runs this
+pass over the SAME items more than once and rejects an item that ANY pass
+rejects.
+
+That flag exists because the verifier is not deterministic on this corpus.
+The owner ran the identical 475 candidates at batch size 20 and at batch
+size 5, everything else held fixed: 444 accepted / 31 rejected against
+438 accepted / 37 rejected. The counts hide the finding. Diffed item by
+item, 9 items were accepted at 20 and rejected at 5, and 3 were accepted
+at 5 and rejected at 20, and all 12 were read by hand and all 12 are
+genuinely bad (fragmented quotations, "Eindruck über", an archaic Dante
+line, wrong word order, a Swiss-formatted number, a genuine tense
+ambiguity the gloss does not settle). Neither run catches everything; the
+union of two runs catches all 12. 2.5% of the items were decided by which
+run you happened to look at.
+
+``src/llm/cache.py`` is content-addressed on a hash of the full request,
+and a second pass over the same items builds a byte-identical prompt. With
+the cache left on, pass 2 would replay pass 1's verdict exactly, log a
+``lane="cache"`` row, and report zero disagreements no matter how unstable
+the verifier actually is -- a feature that costs nothing, changes nothing,
+and looks like it worked. Pass 1 keeps the cache (that is the crash-rerun
+idempotency CLAUDE.md section 9 asks it for); every pass after it passes
+``use_cache=False``.
+
+The cost is real and is not hidden: measured from the owner's own
+``cost_log``, one pilot cycle is about $0.18 at batch size 20 and about
+$0.36 at batch size 5, against a 5 EUR/month ceiling. Each extra pass
+roughly adds one more of whichever figure applies.
+
 ## Degrading honestly
 
 Two failure modes this module is deliberately built never to produce, both
@@ -690,6 +724,7 @@ def verify_items(
     llm_client: GeminiLlmClient | None,
     *,
     batch_size: int = DEFAULT_VERIFICATION_BATCH_SIZE,
+    use_cache: bool = True,
 ) -> VerificationReport:
     """Run the model verification pass over ``items``, batched
     ``batch_size`` at a time, and return a report whose three counts
@@ -703,6 +738,22 @@ def verify_items(
     raised ``generate_many`` call leaves no partial per-batch result to
     salvage. A per-batch malformed response degrades only that batch's own
     items, leaving every other, well-formed batch's real verdicts intact.
+
+    ``use_cache`` is forwarded verbatim to ``generate_many`` and defaults to
+    ``True``, which is the behaviour every existing caller already had and
+    the idempotency guarantee CLAUDE.md section 9 asks the local cache to
+    provide: a rerun after a crash must not re-buy what already landed.
+
+    It is a parameter at all for exactly one caller, the repeated-pass
+    verification in ``scripts/step7_corpus_pilot.py``. ``src/llm/cache.py``
+    is content-addressed on a hash of the full request, and a second pass
+    over the same items builds a byte-identical prompt. Left on, a repeated
+    pass would therefore replay pass 1's cached verdict, log a
+    ``lane="cache"`` row, cost nothing and prove nothing -- an experiment
+    measuring the cache instead of the verifier. A caller asking a model to
+    judge the same items a SECOND time is asking for a second independent
+    sample, so it passes ``use_cache=False`` and the cache is bypassed on
+    that pass only.
     """
     if not items:
         return VerificationReport(attempted=llm_client is not None)
@@ -716,7 +767,7 @@ def verify_items(
 
     try:
         response_texts = llm_client.generate_many(
-            prompts, model=MODEL_VERIFY, purpose="item_verification"
+            prompts, model=MODEL_VERIFY, purpose="item_verification", use_cache=use_cache
         )
     except _DEGRADE_EXCEPTION_TYPES as exc:
         degrade_reason = next(

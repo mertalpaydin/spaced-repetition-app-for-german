@@ -151,7 +151,9 @@ def test_main_catches_a_transport_error_honestly(
     crash with a raw traceback."""
 
     class _AlwaysFailsClient:
-        def generate_many(self, prompts: list[str], model: str, purpose: str) -> list[str]:
+        def generate_many(
+            self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+        ) -> list[str]:
             raise RuntimeError("simulated network failure")
 
     monkeypatch.setattr(
@@ -180,7 +182,9 @@ def test_main_end_to_end_with_a_fake_client_reports_recall_and_fpr(
     calls: list[int] = []
 
     class _ScriptedClient:
-        def generate_many(self, prompts: list[str], model: str, purpose: str) -> list[str]:
+        def generate_many(
+            self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+        ) -> list[str]:
             call_index = len(calls)
             calls.append(call_index)
             out = []

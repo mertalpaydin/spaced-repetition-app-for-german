@@ -69,15 +69,26 @@ def _bank_item(
 class _FakeVerifyLlmClient:
     """Records every ``generate_many`` call and returns a canned response per
     call, standing in for ``GeminiLlmClient`` at the seam ``verify_items``
-    calls (``.generate_many(prompts, model=..., purpose=...)``)."""
+    calls (``.generate_many(prompts, model=..., purpose=..., use_cache=...)``).
+
+    ``use_cache`` is recorded, not merely tolerated: it is the one argument
+    that decides whether a repeated verification pass asks the model again or
+    silently replays a cached verdict (see this module's own "Repeated
+    passes" docstring section and ``scripts/step7_corpus_pilot.py``'s
+    ``run_verification_passes``), so a fake that swallowed it would let that
+    whole feature regress to a no-op without a test noticing."""
 
     def __init__(self, responses: list[str] | None = None, error: Exception | None = None) -> None:
         self._responses = responses
         self._error = error
         self.calls: list[dict[str, object]] = []
 
-    def generate_many(self, prompts: list[str], model: str, purpose: str) -> list[str]:
-        self.calls.append({"prompts": list(prompts), "model": model, "purpose": purpose})
+    def generate_many(
+        self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+    ) -> list[str]:
+        self.calls.append(
+            {"prompts": list(prompts), "model": model, "purpose": purpose, "use_cache": use_cache}
+        )
         if self._error is not None:
             raise self._error
         assert self._responses is not None
@@ -591,6 +602,44 @@ def test_verify_items_batches_at_roughly_twenty_per_call() -> None:
     assert call["purpose"] == "item_verification"
     assert report.verified_count == 45
     assert report.not_run_count == 0
+
+
+# ---------------------------------------------------------------------------
+# verify_items: the cache switch (TODO.md 2.3)
+#
+# ``src/llm/cache.py`` is content-addressed on a hash of the full request, so
+# a second verification pass over identical items builds a byte-identical
+# prompt and would be answered from the cache: same verdict, zero cost, a
+# ``lane="cache"`` cost_log row, and a repeated-pass feature that looks like
+# it worked while measuring nothing at all. These two tests pin the switch
+# that prevents it at the ``verify_items`` seam; the step7 tests pin that the
+# repeated-pass runner actually flips it per pass.
+# ---------------------------------------------------------------------------
+
+
+def test_verify_items_uses_the_cache_by_default() -> None:
+    """The default must stay ``True``: a rerun after a crash must not re-buy
+    what already landed, which is what CLAUDE.md section 9 asks the local
+    cache for in the first place."""
+    items = [_bank_item()]
+    fake = _FakeVerifyLlmClient(responses=[_verdict_response([(True, None)])])
+
+    verify_items(items, fake)  # type: ignore[arg-type]
+
+    assert fake.calls[0]["use_cache"] is True
+
+
+def test_verify_items_bypasses_the_cache_when_asked_to() -> None:
+    """``use_cache=False`` must reach ``generate_many``, not be swallowed by
+    the default argument on the way. Without this the whole
+    ``--verification-passes`` feature is one default away from silently
+    replaying pass 1's verdict on every later pass."""
+    items = [_bank_item()]
+    fake = _FakeVerifyLlmClient(responses=[_verdict_response([(True, None)])])
+
+    verify_items(items, fake, use_cache=False)  # type: ignore[arg-type]
+
+    assert fake.calls[0]["use_cache"] is False
 
 
 def test_verify_items_verified_and_rejected_mix() -> None:
