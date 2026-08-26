@@ -102,20 +102,47 @@ Not tasks. Do not "fix" these without a decision from the owner.
 
 ## 2. Open work
 
-- [ ] **2.1 Measure what the gloss did to the modal and tense topics.**
-  The cue names the verb, not the tense, so "(können)" leaves `kann`,
-  `konnte` and `könnte` all open. Cycle 13 quantified the cost exactly: 44
-  of 105 model rejections, 42%, named a tense or time alternative as an
-  equally good answer, concentrated in `passiv_modalverben` (7),
-  `verb_praesens_regelm` (5), `verb_praesens_vokalwechsel` (5),
-  `modalverben_praesens` (4), `praeteritum_*` (8), `zustandspassiv` (4).
+- [x] **2.1 Tense ambiguity on the modal topics. Settled by the gloss.**
+  The cue names the verb, not the tense, so "(können)" left `kann`,
+  `konnte` and `könnte` all open. Cycle 13 measured the cost: 44 of 105
+  model rejections, 42%, named a tense or time alternative as an equally
+  good answer.
 
-  The verifier now receives the English gloss and is told an alternative
-  the translation rules out is not a second correct answer. That should
-  recover most of those 44 without a time anchor in the carrier. Next
-  pilot decides it. If a large share survives, the recommendation from
-  `docs/audits/cycle-12-corpus-report.md` stands: require a time anchor,
-  reusing the check `futur_i` already has.
+  Cycle 14, same 475 candidates, with the verifier now reading the English
+  gloss: **tense rejections 44 to 6, total rejections 105 to 42, accepted
+  376 to 437.** The six survivors all cite the translation as their
+  evidence ("Die englische Übersetzung 'are to' verlangt Präsens", "passend
+  zur englischen Übersetzung ('didn't want')"), which is the check working,
+  not failing. No time anchor in the carrier is needed. The recommendation
+  in `docs/audits/cycle-12-corpus-report.md` is withdrawn.
+
+- [ ] **2.1c The model verifier is not stable run to run, and that is now
+  the largest open risk.** Cycle 14 diffed its accepted set against cycle
+  13's on the identical 475 candidates. 64 items were newly accepted. 56 of
+  those are explained by the gloss (37 were tense rejections, 19 other
+  Frage 2 ambiguity). **The other 8 were rejected last run for bad GERMAN,
+  which the gloss says nothing about, and accepted this run.** Every one of
+  the 8 was a correct rejection last time:
+
+  - `Masi Pfand (am Ball) befindet sich ...` scraped caption residue
+  - `Sie erreichte einen großen Erfolg ...` unidiomatic collocation
+  - `Ja", gesteht Norris, ...` opens mid-quotation
+  - `Erst am 6. November 2021 wurde damals ...` date plus "damals"
+  - `... war mein Eindruck über die jeweiligen Landsleute klar.` wrong preposition
+  - `Sie schnaubten wegen ihres kleinen Gehalts.` unidiomatic
+  - `... Bilder anhand der Google-Bildersuche entlarvt werden.` wrong collocation
+  - `Ein Film, der die Frage aufwirft, ...` no main clause
+
+  Two now have deterministic rules (`opens_mid_quotation`,
+  `no_main_clause_verb`), five are collocation errors no rule here can
+  reach (section 1), one is too narrow to rule. So the verifier remains the
+  only thing between roughly six defects a cycle and a learner, and it
+  agrees with itself about 92% of the time on this judgment.
+
+  **2.3 is the experiment that bears on this**: batch size 20 versus 5, to
+  see whether items late in a batch get less scrutiny. If they do, this is
+  a cheap fix. If they do not, the options are asking the naturalness
+  question in its own call, or asking it twice and rejecting on either no.
 
 - [ ] **2.1b Decide whether the gloss check enforces.** Wiring done.
   `step7_corpus_pilot.py` fills `gloss_en` from the translation store,
