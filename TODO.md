@@ -139,10 +139,56 @@ Not tasks. Do not "fix" these without a decision from the owner.
   only thing between roughly six defects a cycle and a learner, and it
   agrees with itself about 92% of the time on this judgment.
 
-  **2.3 is the experiment that bears on this**: batch size 20 versus 5, to
-  see whether items late in a batch get less scrutiny. If they do, this is
-  a cheap fix. If they do not, the options are asking the naturalness
-  question in its own call, or asking it twice and rejecting on either no.
+  **The batch-size experiment has now been run, and it did not find what it
+  was looking for. It found something better.** The identical 475 candidates
+  were verified at batch size 20 and at batch size 5, everything else held
+  fixed:
+
+  ```
+  batch 20:  444 accepted, 31 rejected
+  batch  5:  438 accepted, 37 rejected
+  ```
+
+  A 6-item difference in the totals, which reads like noise. Diffed item by
+  item it is not:
+
+  - **9 items were accepted at batch 20 and rejected at batch 5.**
+  - **3 items were accepted at batch 5 and rejected at batch 20.**
+
+  All 12 were read by hand. **Every one of the 12 is a genuinely bad item**
+  (fragmented quotations, a wrong preposition in "Eindruck über", an archaic
+  Dante line, wrong word order, a Swiss-formatted number, genuine tense
+  ambiguity the gloss does not settle). So batch size is not the lever:
+  neither size catches everything, and 12 defects in 475 items, 2.5%, are
+  decided by which run you happen to look at. The union of the two runs
+  catches all 12; either run alone does not.
+
+  **That makes the third option the one to build, and it is built.**
+  `scripts/step7_corpus_pilot.py --verification-passes N` runs the
+  verification pass N times over the same items and rejects an item that ANY
+  pass rejects: union of rejections, intersection of acceptances, the reason
+  kept from the first pass that rejected. Default 1, which is byte-for-byte
+  the previous behaviour. Passes after the first bypass the local response
+  cache (`verify_items(use_cache=False)`), without which an identical prompt
+  would replay pass 1's verdict for free and the whole feature would measure
+  nothing. The report now carries `verification_passes`, each pass's own
+  counts, how many rejections were unique to that pass,
+  `rejected_by_any_pass` and **`pass_disagreements`** -- items at least one
+  pass rejected and at least one accepted, which is the direct measure of
+  this instability and the number to watch.
+
+  Cost, against the 5 EUR/month ceiling and measured from `cost_log`: about
+  $0.18 per pilot cycle at batch size 20, about $0.36 at batch size 5. Two
+  passes roughly doubles whichever is chosen. A later pass that cannot run
+  (`BudgetExceeded`) degrades: the run reports what it managed, says the
+  pass did not run, and keeps the passes that did.
+
+  **What is still open here:** the flag makes the union measurable, it does
+  not yet say how many passes are worth buying. Run `--verification-passes
+  2` once at batch 20 and read `pass_disagreements` against the 12 this
+  experiment found by hand. Asking the naturalness question in its own
+  separate call is still untried and is the next option if two passes are
+  not enough.
 
 - [ ] **2.1b Decide whether the gloss check enforces.** Wiring done.
   `step7_corpus_pilot.py` fills `gloss_en` from the translation store,
@@ -213,9 +259,34 @@ Not tasks. Do not "fix" these without a decision from the owner.
 - [ ] **2.3 Get real numbers out of `scripts/eval_verifier.py`.** The
   adversarial set (38 confirmed defects, 31 confirmed clean) and the script
   both exist. They have never been run with a key, so the verifier's recall
-  and false-positive rate are still unmeasured. Also test `--batch-size 5`
-  against the default 20, to settle whether items late in a batch get less
-  scrutiny.
+  and false-positive rate are still unmeasured. **This half of 2.3 is still
+  open.**
+
+  **The batch-size half is done and is answered: batch size is not the
+  lever.** 475 identical candidates at batch 20 gave 444 accepted / 31
+  rejected, at batch 5 gave 438 accepted / 37 rejected. Item by item, 9 were
+  accepted at 20 and rejected at 5 and 3 went the other way, and all 12 were
+  read by hand and all 12 are genuinely bad items. Items late in a large
+  batch are not the problem; the verifier is simply unstable on about 2.5%
+  of this corpus, in both directions. See 2.1c for the full finding.
+
+  **What that produced:** `scripts/step7_corpus_pilot.py
+  --verification-passes N` (default 1, unchanged behaviour), which runs the
+  verification pass N times over the same items and rejects on ANY pass's
+  rejection. The union of two passes is the instrument that catches all 12;
+  either run alone does not. Passes after the first bypass the response
+  cache on purpose, since an identical prompt would otherwise replay the
+  first pass's verdict. `pass_disagreements` in the run report is the number
+  to watch: it is how unstable the verifier was on that run's own items.
+  Cost against the 5 EUR/month ceiling, from `cost_log`: about $0.18 per
+  cycle at batch 20, about $0.36 at batch 5, roughly doubled per extra pass.
+
+  `scripts/eval_verifier.py` itself does not have this flag. It runs against
+  a fixed 69-item adversarial set with known ground truth, where the honest
+  measurement is a single pass's own recall and false-positive rate; adding
+  a union there would measure the union rather than the verifier. If the
+  recall run below shows the same instability, that is the point to decide
+  whether the eval should report both.
 
 - [ ] **2.4 The AI generation pilot, last.** Owner's sequencing: corpus path
   proven first, then generation for what the corpus cannot reach. On current

@@ -619,7 +619,11 @@ def test_main_uses_fake_verifier_and_reports_rejections_honestly(
     _clear_gemini_env(monkeypatch)
 
     def _fake_verify_items(
-        items: list[BankItem], llm_client: object, *, batch_size: int = 20
+        items: list[BankItem],
+        llm_client: object,
+        *,
+        batch_size: int = 20,
+        use_cache: bool = True,
     ) -> VerificationReport:
         verdicts = [ItemVerdict(outcome="rejected", reason="nicht plausibel") for _ in items]
         rejections = [
@@ -1167,6 +1171,9 @@ def _run_main_with_glosses(
     store: dict[str, str],
     extra_args: list[str] | None = None,
     batch_sizes: list[int] | None = None,
+    use_cache_values: list[bool] | None = None,
+    reject_per_pass: list[dict[int, str]] | None = None,
+    pass_errors: dict[int, Exception] | None = None,
 ) -> dict[str, object]:
     """Run ``main()`` end to end, offline, against a controlled store and a
     fake verifier that accepts everything, and return the written report.
@@ -1175,22 +1182,75 @@ def _run_main_with_glosses(
     handed ``verify_items``. The fake verifier has to be the one recording it:
     a test that patches ``step7.verify_items`` itself before calling this
     helper is silently overwritten by the patch below, which is exactly the
-    kind of test that passes while measuring nothing."""
-    from src.generation.blanking.model_verification import ItemVerdict, VerificationReport
+    kind of test that passes while measuring nothing.
+
+    ``use_cache_values`` records the same way, for the ``use_cache`` argument
+    each pass was called with (TODO.md 2.3): pass 1 must get ``True`` and
+    every later pass ``False``, or a repeated pass just replays the cached
+    verdict and measures nothing at all.
+
+    ``reject_per_pass``, when given, makes each pass reject a chosen set of
+    items instead of accepting everything: entry ``i`` is consulted for pass
+    ``i + 1`` and maps an item's POSITION in the item list to that pass's own
+    rejection reason. A position absent from the mapping is verified by that
+    pass. Position, not prompt text, because the corpus fixture's own item
+    set is derived by the real pipeline and a test should not have to predict
+    which sentence becomes which item to make two passes disagree. Every pass
+    receives the same list in the same order, so a position means the same
+    item in every pass.
+
+    ``pass_errors`` maps a 1-based pass number to an exception that pass
+    raises, for the degrade-honestly cases."""
+    from src.generation.blanking.model_verification import (
+        ItemVerdict,
+        ModelRejection,
+        VerificationReport,
+    )
 
     tatoeba, leipzig = corpora
     _clear_gemini_env(monkeypatch)
     store_path = tmp_path / "store.jsonl"
     _stored(store_path, store)
 
+    calls: list[int] = []
+
     def _fake_verify_items(
-        items: list[BankItem], llm_client: object, *, batch_size: int = 20
+        items: list[BankItem],
+        llm_client: object,
+        *,
+        batch_size: int = 20,
+        use_cache: bool = True,
     ) -> VerificationReport:
+        pass_number = len(calls) + 1
+        calls.append(pass_number)
         if batch_sizes is not None:
             batch_sizes.append(batch_size)
-        return VerificationReport(
-            attempted=True, verdicts=[ItemVerdict(outcome="verified") for _ in items]
-        )
+        if use_cache_values is not None:
+            use_cache_values.append(use_cache)
+        if pass_errors is not None and pass_number in pass_errors:
+            raise pass_errors[pass_number]
+
+        rejections_for_this_pass: dict[int, str] = {}
+        if reject_per_pass is not None and pass_number <= len(reject_per_pass):
+            rejections_for_this_pass = reject_per_pass[pass_number - 1]
+
+        verdicts: list[ItemVerdict] = []
+        rejections: list[ModelRejection] = []
+        for position, item in enumerate(items):
+            if position in rejections_for_this_pass:
+                reason = rejections_for_this_pass[position]
+                verdicts.append(ItemVerdict(outcome="rejected", reason=reason))
+                rejections.append(
+                    ModelRejection(
+                        topic_id=item.topic_id,
+                        prompt=item.prompt,
+                        accepted_answers=tuple(item.accepted_answers),
+                        reason=reason,
+                    )
+                )
+            else:
+                verdicts.append(ItemVerdict(outcome="verified"))
+        return VerificationReport(attempted=True, verdicts=verdicts, rejections=rejections)
 
     monkeypatch.setattr(step7, "verify_items", _fake_verify_items)
     monkeypatch.setattr(
@@ -1415,7 +1475,11 @@ def test_main_translation_failure_still_reaches_verification(
     verified: list[int] = []
 
     def _fake_verify_items(
-        items: list[BankItem], llm_client: object, *, batch_size: int = 20
+        items: list[BankItem],
+        llm_client: object,
+        *,
+        batch_size: int = 20,
+        use_cache: bool = True,
     ) -> VerificationReport:
         verified.append(len(items))
         return VerificationReport(
@@ -1517,3 +1581,490 @@ def test_main_verification_batch_size_is_passed_through_to_verify_items(
     run = report["run"]
     assert isinstance(run, dict)
     assert run["verification_batch_size"] == 5
+
+
+# ==============================================================================
+# --verification-passes (TODO.md 2.3, 2.1c)
+#
+# The owner ran the identical 475 candidates at batch size 20 and at batch size
+# 5, everything else held fixed: 444 accepted / 31 rejected against 438
+# accepted / 37 rejected. Diffed item by item, 9 items were accepted at 20 and
+# rejected at 5 and 3 went the other way, and all 12 were read by hand and all
+# 12 are genuinely bad items. Neither run catches everything and the union of
+# two catches all of them, which is what this flag builds. The tests below pin
+# the union rule, the disagreement count that measures why it is needed, the
+# cache bypass without which a repeated pass measures nothing, and the
+# degrade-honestly behaviour of a pass that cannot run.
+# ==============================================================================
+
+
+def _multi_pass(report: dict[str, object]) -> dict[str, object]:
+    verification = report["verification"]
+    assert isinstance(verification, dict)
+    multi_pass = verification["multi_pass"]
+    assert isinstance(multi_pass, dict)
+    return multi_pass
+
+
+def test_main_verification_passes_defaults_to_one_cached_pass(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The default must be today's behaviour exactly: one pass, cache ON,
+    nothing extra bought. Every additional pass is another full cycle's spend
+    against a 5 EUR/month ceiling, so this default is a cost guarantee, not
+    just a convenience."""
+    from scripts.step7_corpus_pilot import DEFAULT_VERIFICATION_PASSES
+
+    seen_cache: list[bool] = []
+    report = _run_main_with_glosses(
+        tmp_path, monkeypatch, _tiny_corpora, store={}, use_cache_values=seen_cache
+    )
+
+    assert DEFAULT_VERIFICATION_PASSES == 1
+    assert seen_cache == [True]
+    run = report["run"]
+    assert isinstance(run, dict)
+    assert run["verification_passes"] == 1
+
+    multi_pass = _multi_pass(report)
+    assert multi_pass["passes_requested"] == 1
+    assert multi_pass["pass_disagreements"] == 0
+    per_pass = multi_pass["per_pass"]
+    assert isinstance(per_pass, list)
+    assert len(per_pass) == 1
+    assert per_pass[0]["use_cache"] is True
+
+
+def test_main_verification_passes_bypasses_the_cache_on_every_pass_after_the_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The trap this whole feature can fall into. ``src/llm/cache.py`` is
+    content-addressed on a hash of the full request, so pass 2 over identical
+    items builds a byte-identical prompt. With the cache left on it would hit,
+    return pass 1's verdict verbatim, log a ``lane="cache"`` row and report
+    zero disagreements no matter how unstable the verifier is -- a feature one
+    default argument away from being silently inert. Pass 1 keeps the cache
+    (CLAUDE.md 9: a rerun after a crash must still be cheap); every later pass
+    must not."""
+    seen_cache: list[bool] = []
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--verification-passes", "3"],
+        use_cache_values=seen_cache,
+    )
+
+    assert seen_cache == [True, False, False]
+    per_pass = _multi_pass(report)["per_pass"]
+    assert isinstance(per_pass, list)
+    assert [p["use_cache"] for p in per_pass] == [True, False, False]
+
+
+def test_run_verification_passes_reaches_generate_many_with_the_right_cache_flag() -> None:
+    """The same guarantee as above, but end to end through the REAL
+    ``verify_items`` and down to the client seam, with nothing about the cache
+    faked out in between. The test above proves the runner asks for the right
+    thing; this one proves ``verify_items`` does not swallow it on the way to
+    ``generate_many``, which is the exact regression a default argument
+    produces."""
+    items = [
+        BankItem(
+            id="pass_item_1",
+            topic_id="verb_praesens_regelm",
+            tag_id="verb_praesens_regelm",
+            type="cloze_free",
+            difficulty=1,
+            cefr="A2",
+            prompt="Ich ___ jeden Morgen Kaffee.",
+            accepted_answers=["trinke"],
+        )
+    ]
+
+    class _CacheRecordingClient:
+        def __init__(self) -> None:
+            self.use_cache_seen: list[bool] = []
+
+        def generate_many(
+            self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+        ) -> list[str]:
+            self.use_cache_seen.append(use_cache)
+            return [
+                json.dumps(
+                    {
+                        "verdicts": [
+                            {
+                                "index": i + 1,
+                                "valid": True,
+                                "woerter_echt": True,
+                                "hinweis_korrekt": True,
+                                "reason": None,
+                            }
+                            for i in range(prompt.count("Lücke: "))
+                        ]
+                    }
+                )
+                for prompt in prompts
+            ]
+
+    client = _CacheRecordingClient()
+    result = step7.run_verification_passes(
+        items,
+        client,  # type: ignore[arg-type]
+        batch_size=20,
+        passes=2,
+    )
+
+    assert client.use_cache_seen == [True, False]
+    assert result.combined.verified_count == 1
+
+
+def test_main_two_passes_reject_an_item_only_the_second_pass_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """Union of rejections. This is the 9-versus-3 finding's own shape: an
+    item pass 1 waved through and pass 2 caught is a defect either way, and
+    the run must reject it."""
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--verification-passes", "2"],
+        reject_per_pass=[{}, {0: "nur Durchgang 2 hat es gesehen"}],
+    )
+
+    verification = report["verification"]
+    assert isinstance(verification, dict)
+    assert verification["rejected_count"] == 1
+    assert verification["rejected_reasons"] == {"nur Durchgang 2 hat es gesehen": 1}
+
+    multi_pass = _multi_pass(report)
+    assert multi_pass["rejected_by_any_pass"] == 1
+    assert multi_pass["pass_disagreements"] == 1
+    per_pass = multi_pass["per_pass"]
+    assert isinstance(per_pass, list)
+    assert per_pass[0]["rejected"] == 0
+    assert per_pass[1]["rejected"] == 1
+    assert per_pass[1]["rejected_only_by_this_pass"] == 1
+
+    # The union rule has to reach the bank, not just the counters: the item
+    # only pass 2 rejected must be absent from the review file the run ships.
+    sampled_total = report["sampled_total"]
+    assert isinstance(sampled_total, int)
+    review_rows = [
+        line for line in (tmp_path / "review.jsonl").read_text().splitlines() if line.strip()
+    ]
+    assert len(review_rows) == sampled_total - 1
+    assert report["accepted_total"] == sampled_total - 1
+
+
+def test_main_two_passes_reject_an_item_only_the_first_pass_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The other direction of the same rule, and the reason it is its own
+    test: a union implemented as "whatever the last pass said" would pass the
+    test above and fail this one."""
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--verification-passes", "2"],
+        reject_per_pass=[{0: "nur Durchgang 1 hat es gesehen"}, {}],
+    )
+
+    verification = report["verification"]
+    assert isinstance(verification, dict)
+    assert verification["rejected_count"] == 1
+    assert verification["rejected_reasons"] == {"nur Durchgang 1 hat es gesehen": 1}
+
+    multi_pass = _multi_pass(report)
+    assert multi_pass["rejected_by_any_pass"] == 1
+    assert multi_pass["pass_disagreements"] == 1
+    per_pass = multi_pass["per_pass"]
+    assert isinstance(per_pass, list)
+    assert per_pass[0]["rejected_only_by_this_pass"] == 1
+    assert per_pass[1]["rejected_only_by_this_pass"] == 0
+
+
+def test_main_two_passes_keep_an_item_both_passes_accepted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """Intersection of acceptances. Two passes must not invent a rejection
+    out of agreement."""
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--verification-passes", "2"],
+    )
+
+    verification = report["verification"]
+    assert isinstance(verification, dict)
+    assert verification["rejected_count"] == 0
+    assert verification["not_run_count"] == 0
+    assert verification["verified_count"] == report["sampled_total"]
+    assert report["accepted_total"] == report["sampled_total"]
+
+    multi_pass = _multi_pass(report)
+    assert multi_pass["rejected_by_any_pass"] == 0
+    assert multi_pass["pass_disagreements"] == 0
+
+
+def test_main_pass_disagreements_counts_only_the_items_the_passes_disagreed_about(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The number the whole feature exists to produce. Item 0 is rejected by
+    both passes (agreement, not a disagreement), items 1 and 2 by exactly one
+    pass each (two disagreements). Three rejections in the union, two
+    disagreements -- a count that merely echoed the union would get this
+    wrong."""
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--verification-passes", "2"],
+        reject_per_pass=[
+            {0: "beide Durchgänge", 1: "nur Durchgang 1"},
+            {0: "beide Durchgänge", 2: "nur Durchgang 2"},
+        ],
+    )
+
+    multi_pass = _multi_pass(report)
+    assert multi_pass["rejected_by_any_pass"] == 3
+    assert multi_pass["pass_disagreements"] == 2
+    per_pass = multi_pass["per_pass"]
+    assert isinstance(per_pass, list)
+    assert per_pass[0]["rejected"] == 2
+    assert per_pass[1]["rejected"] == 2
+    assert per_pass[0]["rejected_only_by_this_pass"] == 1
+    assert per_pass[1]["rejected_only_by_this_pass"] == 1
+
+    verification = report["verification"]
+    assert isinstance(verification, dict)
+    assert verification["rejected_count"] == 3
+
+
+def test_main_pass_disagreements_is_zero_when_both_passes_agree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """Zero disagreements is a real measurement (the verifier was stable on
+    these items), not a missing one, so it must be reported rather than
+    inferred from an absent key."""
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--verification-passes", "2"],
+        reject_per_pass=[{0: "beide Durchgänge"}, {0: "beide Durchgänge"}],
+    )
+
+    multi_pass = _multi_pass(report)
+    assert multi_pass["rejected_by_any_pass"] == 1
+    assert multi_pass["pass_disagreements"] == 0
+    per_pass = multi_pass["per_pass"]
+    assert isinstance(per_pass, list)
+    assert per_pass[0]["rejected_only_by_this_pass"] == 0
+    assert per_pass[1]["rejected_only_by_this_pass"] == 0
+
+
+def test_main_a_later_pass_that_cannot_run_degrades_without_losing_the_passes_that_did(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """``BudgetExceeded`` on pass 2 against a 5 EUR/month ceiling is the
+    expected way this flag stops, not an exotic one. The run must report what
+    it managed and say so: pass 1's real verdicts survive, pass 2 is recorded
+    as not-run, ``passes_completed`` falls below ``passes_requested``, and the
+    run still writes every file and exits 0 because every item really was
+    verified once."""
+    from src.llm.client import BudgetExceeded
+
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--verification-passes", "2"],
+        reject_per_pass=[{0: "Durchgang 1 hat es abgelehnt"}, {}],
+        pass_errors={2: BudgetExceeded("ceiling reached")},
+    )
+
+    verification = report["verification"]
+    assert isinstance(verification, dict)
+    assert verification["rejected_count"] == 1
+    assert verification["not_run_count"] == 0
+    assert verification["rejected_reasons"] == {"Durchgang 1 hat es abgelehnt": 1}
+
+    multi_pass = _multi_pass(report)
+    assert multi_pass["passes_requested"] == 2
+    assert multi_pass["passes_completed"] == 1
+    assert multi_pass["rejected_by_any_pass"] == 1
+    assert multi_pass["pass_disagreements"] == 0
+    per_pass = multi_pass["per_pass"]
+    assert isinstance(per_pass, list)
+    assert per_pass[1]["not_run"] == report["sampled_total"]
+    assert per_pass[1]["not_run_reasons"] == {
+        "transport_error:BudgetExceeded": report["sampled_total"]
+    }
+
+
+def test_main_a_first_pass_that_cannot_run_still_uses_the_pass_that_did(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """Symmetric to the test above. An item pass 1 could not judge and pass 2
+    verified has still been verified once, so it is verified -- reporting it
+    as not-run would be the same conflation of "nothing objected" and "a model
+    read this" that ``model_verification`` exists to prevent, only inverted."""
+    from src.llm.client import ServerUnavailableError
+
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--verification-passes", "2"],
+        reject_per_pass=[{}, {0: "Durchgang 2 hat es abgelehnt"}],
+        pass_errors={1: ServerUnavailableError("503")},
+    )
+
+    verification = report["verification"]
+    assert isinstance(verification, dict)
+    assert verification["not_run_count"] == 0
+    assert verification["rejected_count"] == 1
+
+    multi_pass = _multi_pass(report)
+    assert multi_pass["passes_completed"] == 1
+    per_pass = multi_pass["per_pass"]
+    assert isinstance(per_pass, list)
+    assert per_pass[0]["not_run"] == report["sampled_total"]
+
+
+def test_main_every_pass_failing_still_fails_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The existing fail-loudly rule is unchanged by this flag: an item NO
+    pass could judge is not-run, and a run whose backstop did not execute is
+    not a valid pilot run. ``_run_main_with_glosses`` asserts exit 0, so this
+    one drives ``main()`` itself."""
+    from src.generation.blanking.model_verification import VerificationReport
+    from src.llm.client import BudgetExceeded
+
+    tatoeba, leipzig = _tiny_corpora
+    _clear_gemini_env(monkeypatch)
+
+    def _always_fails(
+        items: list[BankItem],
+        llm_client: object,
+        *,
+        batch_size: int = 20,
+        use_cache: bool = True,
+    ) -> VerificationReport:
+        raise BudgetExceeded("ceiling reached")
+
+    monkeypatch.setattr(step7, "verify_items", _always_fails)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "step7_corpus_pilot.py",
+            "--translations",
+            str(tmp_path / "translations.jsonl"),
+            "--no-translate",
+            "--tatoeba",
+            str(tatoeba),
+            "--leipzig",
+            str(leipzig),
+            "--limit",
+            "100",
+            "--per-topic-quota",
+            "2",
+            "--verification-passes",
+            "2",
+            "--review-file",
+            str(tmp_path / "review.jsonl"),
+            "--rejected-file",
+            str(tmp_path / "rejected.jsonl"),
+            "--report-file",
+            str(tmp_path / "report.json"),
+        ],
+    )
+
+    assert step7.main() == 1
+
+    report: dict[str, object] = json.loads((tmp_path / "report.json").read_text())
+    verification = report["verification"]
+    assert isinstance(verification, dict)
+    assert verification["not_run_count"] == report["sampled_total"]
+    multi_pass = _multi_pass(report)
+    assert multi_pass["passes_completed"] == 0
+
+
+def test_main_prints_every_pass_number_not_just_the_totals(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The totals are exactly what hid the finding in the batch-size
+    experiment: 444/31 against 438/37 reads as a 6-item difference and is
+    actually a 12-item disagreement. So every per-pass number and the
+    disagreement count go on the console, not only into the report file."""
+    tatoeba, leipzig = _tiny_corpora
+    _clear_gemini_env(monkeypatch)
+    from src.generation.blanking.model_verification import ItemVerdict, VerificationReport
+
+    def _fake_verify_items(
+        items: list[BankItem],
+        llm_client: object,
+        *,
+        batch_size: int = 20,
+        use_cache: bool = True,
+    ) -> VerificationReport:
+        return VerificationReport(
+            attempted=True, verdicts=[ItemVerdict(outcome="verified") for _ in items]
+        )
+
+    monkeypatch.setattr(step7, "verify_items", _fake_verify_items)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "step7_corpus_pilot.py",
+            "--translations",
+            str(tmp_path / "translations.jsonl"),
+            "--no-translate",
+            "--tatoeba",
+            str(tatoeba),
+            "--leipzig",
+            str(leipzig),
+            "--limit",
+            "100",
+            "--per-topic-quota",
+            "2",
+            "--verification-passes",
+            "2",
+            "--review-file",
+            str(tmp_path / "review.jsonl"),
+            "--rejected-file",
+            str(tmp_path / "rejected.jsonl"),
+            "--report-file",
+            str(tmp_path / "report.json"),
+        ],
+    )
+
+    import io
+    from contextlib import redirect_stdout
+
+    buffer = io.StringIO()
+    with redirect_stdout(buffer):
+        exit_code = step7.main()
+    out = buffer.getvalue()
+
+    assert exit_code == 0
+    assert "Verification passes (TODO.md 2.3): 2" in out
+    assert "Pass 1 (cache on):" in out
+    assert "Pass 2 (cache BYPASSED):" in out
+    assert "REJECTED BY ANY PASS:" in out
+    assert "PASS DISAGREEMENTS:" in out

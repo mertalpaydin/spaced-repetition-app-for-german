@@ -201,6 +201,68 @@ bites on items whose answer carries that morphology. A wrong gloss on an
 item that blanks a determiner or an adjective ending passes it untouched.
 That caps its recall structurally, and it bears directly on TODO.md 2.2.
 
+## Repeated verification passes (TODO.md 2.3, 2.1c)
+
+``--verification-passes N`` runs the model verification pass N times over
+the same items and rejects an item that ANY pass rejects: union of
+rejections, intersection of acceptances, the reason kept from the first
+pass that rejected. Default 1, which is byte-for-byte the behaviour every
+run before this flag had.
+
+It exists because the verifier is not deterministic on this corpus. The
+owner ran the identical 475 candidates at batch size 20 and at batch size
+5, everything else held fixed:
+
+    batch 20:  444 accepted, 31 rejected
+    batch  5:  438 accepted, 37 rejected
+
+The counts hide the finding. Diffed item by item, 9 items were accepted at
+batch 20 and rejected at batch 5, and 3 were accepted at batch 5 and
+rejected at batch 20. All 12 were read by hand and all 12 are genuinely bad
+items: fragmented quotations, a wrong preposition in "Eindruck über", an
+archaic Dante line, wrong word order, a Swiss-formatted number, a genuine
+tense ambiguity the gloss does not settle. Neither batch size catches
+everything; the two runs together catch strictly more than either alone.
+12 defects in 475 items, 2.5%, were decided by which run you happened to
+look at, and the union of two passes is the instrument that catches all of
+them.
+
+**Passes after the first bypass the local cache, deliberately.**
+``src/llm/cache.py`` is content-addressed on a hash of the full request and
+a repeated pass over identical items builds a byte-identical prompt. Left
+on, pass 2 would hit the cache, return pass 1's verdict verbatim, log a
+``lane="cache"`` row, cost nothing and report zero disagreements no matter
+how unstable the verifier actually is -- a feature that looks like it
+worked while measuring nothing. Pass 1 keeps the cache, because a rerun
+after a crash must still be cheap (CLAUDE.md section 9); every later pass
+passes ``use_cache=False`` through ``verify_items`` to ``generate_many``.
+
+**What it costs.** Measured from the owner's own ``cost_log``, against a
+5 EUR/month ceiling: about $0.18 per pilot cycle at batch size 20, about
+$0.36 at batch size 5. Each extra pass adds roughly one more of whichever
+batch size the run uses, so ``--verification-passes 2`` roughly doubles it.
+Nobody should enable this without knowing that, which is why the number is
+in the flag's own help text as well as here.
+
+**A later pass that cannot run degrades, it does not crash.**
+``BudgetExceeded`` (or any of ``verify_items``'s other four caught
+transport failures, or the sandbox-proxy error this script has always
+guarded against) on pass 2 leaves pass 1's real verdicts intact: the run
+reports what it managed, prints that the pass did not run, and records
+``passes_completed`` below ``passes_requested`` in the report file. An item
+one pass verified and another could not judge is verified, not not-run --
+the opposite conflation would be as dishonest as the one
+``model_verification`` exists to prevent. An item NO pass could judge stays
+not-run and still fails the run.
+
+The report carries ``verification_passes`` in its ``run`` block beside
+``verification_batch_size``, each pass's own verified/rejected/not-run
+counts plus how many rejections were unique to that pass,
+``rejected_by_any_pass`` (the union, which is the number that decides the
+run) and ``pass_disagreements`` (how many items at least one pass rejected
+and at least one accepted -- the direct measure of verifier instability,
+and the reason the flag exists).
+
 ## CLAUDE.md rule 2
 
 The topic id is never sent to the model. The verification pass
@@ -259,6 +321,7 @@ from src.generation.batch_client import RejectedCandidateRecord
 from src.generation.blanking import carrier_validation, sentence_tagger
 from src.generation.blanking.model_verification import (
     DEFAULT_VERIFICATION_BATCH_SIZE,
+    REASON_NO_CLIENT,
     ItemVerdict,
     ModelRejection,
     VerificationReport,
@@ -274,6 +337,7 @@ from src.generation.blanking.sentence_source import client_from_env
 from src.generation.blanking.sentence_tagger import analysis_available
 from src.generation.pilot import _write_rejected_file, _write_review_file
 from src.lexicon.vocabulary import VocabularyStore
+from src.llm.client import GeminiLlmClient
 from src.llm.env import load_env_file
 from src.llm.translation import AZURE_MAX_BATCH, Translator
 from src.taxonomy.facets import derive_facet
@@ -317,6 +381,13 @@ DEFAULT_LEIPZIG_PATH = default_corpus_path("leipzig_sample.txt")
 DEFAULT_LIMIT_PER_SOURCE = 40_000
 DEFAULT_PER_TOPIC_QUOTA = 10
 DEFAULT_SEED = 7
+
+# TODO.md 2.3/2.1c: how many times the model verification pass runs over the
+# SAME items. 1 is today's behaviour exactly -- one pass, cache on, byte-for-
+# byte what every previous run did -- and the default stays 1 because every
+# extra pass is another full cycle's spend against a 5 EUR/month ceiling. See
+# ``run_verification_passes`` for what N > 1 buys and what it costs.
+DEFAULT_VERIFICATION_PASSES = 1
 
 # TODO.md 8.11: how many items in ONE topic's sample may share the same
 # blanked lemma -- docs/audits/cycle-10-corpus-report.md's own finding (7 of
@@ -425,6 +496,236 @@ class CorpusReadStats:
 
 
 @dataclass
+class PassOutcome:
+    """One model-verification pass's own numbers, kept separately from every
+    other pass's (TODO.md 2.3). ``rejected`` is what THIS pass alone decided;
+    ``rejected_only_by_this_pass`` is the subset no other pass rejected, which
+    is what makes a pass's marginal contribution visible rather than implied
+    by a difference of totals."""
+
+    index: int
+    attempted: bool
+    use_cache: bool
+    verified: int = 0
+    rejected: int = 0
+    not_run: int = 0
+    rejected_only_by_this_pass: int = 0
+    not_run_reasons: dict[str, int] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "pass": self.index,
+            "attempted": self.attempted,
+            "use_cache": self.use_cache,
+            "verified": self.verified,
+            "rejected": self.rejected,
+            "not_run": self.not_run,
+            "rejected_only_by_this_pass": self.rejected_only_by_this_pass,
+            "not_run_reasons": self.not_run_reasons,
+        }
+
+
+@dataclass
+class MultiPassVerification:
+    """The result of ``run_verification_passes``: the combined report the rest
+    of the run consumes, plus the per-pass numbers that are the entire point
+    of running more than one pass.
+
+    ``pass_disagreements`` is the measurement TODO.md 2.3 actually wants: how
+    many items at least one pass rejected AND at least one pass accepted. It
+    is the direct measure of how unstable the verifier is on this corpus. A
+    single-pass run has nothing to disagree with, so it is always 0 there."""
+
+    combined: VerificationReport
+    passes: list[PassOutcome] = field(default_factory=list)
+    rejected_by_any_pass: int = 0
+    pass_disagreements: int = 0
+
+    @property
+    def passes_requested(self) -> int:
+        return len(self.passes)
+
+    @property
+    def passes_completed(self) -> int:
+        """Passes that produced at least one real verdict. A pass that
+        degraded wholesale (``BudgetExceeded`` on a later pass, a transport
+        error) counts as requested but not completed, and the run says so
+        rather than quietly reporting a two-pass union it never measured."""
+        return sum(1 for p in self.passes if p.verified or p.rejected)
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "passes_requested": self.passes_requested,
+            "passes_completed": self.passes_completed,
+            "rejected_by_any_pass": self.rejected_by_any_pass,
+            "pass_disagreements": self.pass_disagreements,
+            "per_pass": [p.to_dict() for p in self.passes],
+        }
+
+
+def _one_verification_pass(
+    items: Sequence[BankItem],
+    llm_client: GeminiLlmClient | None,
+    *,
+    batch_size: int,
+    use_cache: bool,
+) -> VerificationReport:
+    """One call to ``verify_items``, wrapped in this script's own long-standing
+    catch-all guard (see ``main()``'s original comment, preserved here
+    verbatim in spirit): an API key IS configured in this container's own
+    ``.env``, so ``llm_client`` is not ``None`` and ``verify_items`` really
+    attempts a call, but the outbound request hits this sandbox's proxy with a
+    403 -- an error shape none of ``verify_items``'s own five caught
+    transport/budget exceptions cover, since it never reaches Gemini at all.
+    Without the guard the script crashes with a raw traceback before writing
+    the review/rejected/report files, which this task's verification
+    requirement depends on existing even when the model pass legitimately
+    could not run.
+
+    Guarding each pass INDIVIDUALLY, rather than the whole loop, is what makes
+    a later pass's failure degrade instead of erasing the passes that already
+    succeeded: ``BudgetExceeded`` on pass 2 leaves pass 1's real verdicts
+    intact and reports pass 2 as not-run, which is what the brief for
+    ``--verification-passes`` asks for."""
+    try:
+        return verify_items(items, llm_client, batch_size=batch_size, use_cache=use_cache)
+    except Exception as exc:  # noqa: BLE001 -- mirrors scripts/eval_verifier.py's own precedent
+        return VerificationReport(
+            attempted=True,
+            verdicts=[
+                ItemVerdict(outcome="not_run", reason=f"transport_error:{type(exc).__name__}")
+                for _ in items
+            ],
+        )
+
+
+def run_verification_passes(
+    items: Sequence[BankItem],
+    llm_client: GeminiLlmClient | None,
+    *,
+    batch_size: int,
+    passes: int,
+) -> MultiPassVerification:
+    """Run the model verification pass ``passes`` times over the SAME items and
+    combine the results by union of rejections (TODO.md 2.3, 2.1c).
+
+    **Why more than one pass.** The owner ran the identical 475 candidates at
+    batch size 20 and at batch size 5, everything else held fixed: 444
+    accepted / 31 rejected against 438 accepted / 37 rejected. The totals hide
+    the finding. Diffed item by item, 9 items were accepted at 20 and rejected
+    at 5, and 3 were accepted at 5 and rejected at 20; all 12 were read by
+    hand and all 12 are genuinely bad items (fragmented quotations, a wrong
+    preposition in "Eindruck über", an archaic Dante line, wrong word order, a
+    Swiss-formatted number, a genuine tense ambiguity the gloss does not
+    settle). Neither run catches everything. The union of two runs catches all
+    12. 12 defects in 475 items, 2.5%, were decided by which run you happened
+    to look at, and the union of two passes is the instrument that catches
+    them all.
+
+    **The combination rule.** An item is rejected if ANY pass rejected it:
+    union of rejections, intersection of acceptances. The recorded reason is
+    the one from the FIRST pass that rejected it. A pass that could not run
+    contributes nothing in either direction rather than poisoning the item to
+    not-run -- an item one pass verified and another could not judge has still
+    been verified once, and reporting it as unverified would be the same
+    conflation of "nothing objected" and "a model read this" that
+    ``model_verification``'s own docstring exists to prevent, just inverted.
+    An item NO pass could judge stays not-run, with the first such pass's
+    reason, and still fails the run at the bottom of ``main()``.
+
+    **The cache.** Pass 1 runs with the cache on; every later pass runs with
+    it OFF. ``src/llm/cache.py`` is content-addressed on a hash of the full
+    request and a repeated pass builds a byte-identical prompt, so a cached
+    pass 2 would replay pass 1's verdict exactly, log a ``lane="cache"`` row,
+    cost nothing, and report zero disagreements no matter how unstable the
+    verifier really is. Pass 1 keeps the cache because that is the crash-rerun
+    idempotency CLAUDE.md section 9 asks the cache for in the first place.
+
+    **The cost.** Measured from the owner's own ``cost_log``: about $0.18 per
+    pilot cycle at batch size 20, about $0.36 at batch size 5, against a
+    5 EUR/month ceiling. Each additional pass adds roughly one more of
+    whichever figure applies. ``passes <= 1`` short-circuits to exactly one
+    cached pass, which is the behaviour every run before this flag had."""
+    effective_passes = max(1, passes)
+    reports: list[VerificationReport] = []
+    outcomes: list[PassOutcome] = []
+
+    for pass_index in range(1, effective_passes + 1):
+        use_cache = pass_index == 1
+        report = _one_verification_pass(
+            items, llm_client, batch_size=batch_size, use_cache=use_cache
+        )
+        reports.append(report)
+        outcomes.append(
+            PassOutcome(
+                index=pass_index,
+                attempted=report.attempted,
+                use_cache=use_cache,
+                verified=report.verified_count,
+                rejected=report.rejected_count,
+                not_run=report.not_run_count,
+                not_run_reasons=dict(report.not_run_reasons),
+            )
+        )
+
+    combined_verdicts: list[ItemVerdict] = []
+    combined_rejections: list[ModelRejection] = []
+    rejected_by_any = 0
+    disagreements = 0
+    rejecting_pass_positions: list[int] = []
+
+    for position, item in enumerate(items):
+        per_pass = [
+            report.verdicts[position] for report in reports if len(report.verdicts) == len(items)
+        ]
+        rejecting = [i for i, v in enumerate(per_pass) if v.outcome == "rejected"]
+        verifying = [i for i, v in enumerate(per_pass) if v.outcome == "verified"]
+
+        if rejecting:
+            rejected_by_any += 1
+            if verifying:
+                disagreements += 1
+            if len(rejecting) == 1:
+                rejecting_pass_positions.append(rejecting[0])
+            reason = per_pass[rejecting[0]].reason or "Kein Grund vom Modell angegeben."
+            combined_verdicts.append(ItemVerdict(outcome="rejected", reason=reason))
+            combined_rejections.append(
+                ModelRejection(
+                    topic_id=item.topic_id,
+                    prompt=item.prompt,
+                    accepted_answers=tuple(item.accepted_answers),
+                    reason=reason,
+                )
+            )
+        elif verifying:
+            combined_verdicts.append(ItemVerdict(outcome="verified"))
+        else:
+            first_not_run = next((v for v in per_pass if v.outcome == "not_run"), None)
+            combined_verdicts.append(
+                ItemVerdict(
+                    outcome="not_run",
+                    reason=(first_not_run.reason if first_not_run else None) or REASON_NO_CLIENT,
+                )
+            )
+
+    unique_counts = Counter(rejecting_pass_positions)
+    for position, outcome in enumerate(outcomes):
+        outcome.rejected_only_by_this_pass = unique_counts.get(position, 0)
+
+    combined = VerificationReport(
+        attempted=any(report.attempted for report in reports),
+        verdicts=combined_verdicts,
+        rejections=combined_rejections,
+    )
+    return MultiPassVerification(
+        combined=combined,
+        passes=outcomes,
+        rejected_by_any_pass=rejected_by_any,
+        pass_disagreements=disagreements,
+    )
+
+
+@dataclass
 class GlossReport:
     """TODO.md 2.1b: everything the gloss step did, and everything the gloss
     check cost, as its own section of the run report and its own block of
@@ -502,6 +803,11 @@ class CorpusPilotReport:
     # the report alone (TODO.md 2.3, 2.1c). Without it, an A/B on batch size
     # is two files with no note of which is which.
     verification_batch_size: int = DEFAULT_VERIFICATION_BATCH_SIZE
+    # TODO.md 2.3: how many times the verification pass ran over the same
+    # items. Sits beside ``verification_batch_size`` for the same reason it
+    # does -- two runs that differ only in this must be tellable apart from
+    # the report file alone.
+    verification_passes: int = DEFAULT_VERIFICATION_PASSES
     ran_live: bool = False
     corpus_reads: list[CorpusReadStats] = field(default_factory=list)
     length_filtered_total: int = 0
@@ -521,6 +827,7 @@ class CorpusPilotReport:
     not_run_count: int = 0
     rejected_reasons: dict[str, int] = field(default_factory=dict)
     not_run_reasons: dict[str, int] = field(default_factory=dict)
+    multi_pass: MultiPassVerification | None = None
     accepted_total: int = 0
     review_file: str = ""
     rejected_file: str = ""
@@ -534,6 +841,7 @@ class CorpusPilotReport:
                 "max_items_per_lemma": self.max_items_per_lemma,
                 "limit_per_source": self.limit_per_source,
                 "verification_batch_size": self.verification_batch_size,
+                "verification_passes": self.verification_passes,
                 "ran_live": self.ran_live,
             },
             "corpus_reads": [
@@ -579,6 +887,17 @@ class CorpusPilotReport:
                 "not_run_count": self.not_run_count,
                 "rejected_reasons": self.rejected_reasons,
                 "not_run_reasons": self.not_run_reasons,
+                # TODO.md 2.3. Always present, even for a single-pass run,
+                # so a consumer never has to branch on whether the key
+                # exists; a one-pass run reports one pass and zero
+                # disagreements, which is a real measurement, not a gap.
+                "multi_pass": (
+                    self.multi_pass.to_dict()
+                    if self.multi_pass is not None
+                    else MultiPassVerification(
+                        combined=VerificationReport(attempted=False)
+                    ).to_dict()
+                ),
             },
             "accepted_total": self.accepted_total,
             "output_files": {
@@ -1276,6 +1595,28 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--verification-passes",
+        type=int,
+        default=DEFAULT_VERIFICATION_PASSES,
+        help=(
+            "How many times the model verification pass runs over the SAME "
+            "items. An item is rejected if ANY pass rejects it (union of "
+            "rejections, intersection of acceptances). Default 1, which is "
+            "today's behaviour exactly. Why more than 1: the identical 475 "
+            "candidates verified at batch size 20 and at batch size 5 gave "
+            "444/31 and 438/37, but item by item 9 were accepted at 20 and "
+            "rejected at 5 while 3 went the other way, and all 12 were read "
+            "by hand and all 12 are genuinely bad items -- so neither run "
+            "catches everything and the union catches all of them. COST, "
+            "measured from cost_log against a 5 EUR/month ceiling: about "
+            "$0.18 per pilot cycle at batch size 20 and about $0.36 at batch "
+            "size 5, and each extra pass adds roughly one more of whichever "
+            "applies. Passes after the first bypass the local response cache "
+            "on purpose (an identical prompt would otherwise replay pass 1's "
+            "verdict for free and measure nothing)."
+        ),
+    )
+    parser.add_argument(
         "--enforce-gloss-check",
         action="store_true",
         help=(
@@ -1300,6 +1641,7 @@ def main() -> int:
         max_items_per_lemma=args.max_items_per_lemma,
         limit_per_source=args.limit,
         verification_batch_size=args.verification_batch_size,
+        verification_passes=args.verification_passes,
         ran_live=ran_live,
     )
 
@@ -1512,30 +1854,19 @@ def main() -> int:
         rejected_indices = {o.index for o in gloss_rejections}
         bank_items = [item for i, item in enumerate(bank_items) if i not in rejected_indices]
 
-    try:
-        verification_report = verify_items(
-            bank_items, llm_client, batch_size=args.verification_batch_size
-        )
-    except Exception as exc:  # noqa: BLE001 -- mirrors scripts/eval_verifier.py's own
-        # precedent (TODO 3.3): an API key IS configured in this container's
-        # own .env, so ``llm_client`` is not ``None`` and ``verify_items``
-        # actually attempts a call, but the outbound request hits this
-        # sandbox's proxy with a 403 -- an error shape none of
-        # ``verify_items``'s own five caught transport/budget exceptions
-        # cover, since it never reaches Gemini at all. Without this guard
-        # the script crashes here with a raw traceback before ever writing
-        # the review/rejected/report files below, which this task's own
-        # verification requirement depends on existing even when the model
-        # pass legitimately could not run -- degrading exactly as honestly
-        # as the already-documented no-client case, not silently and not by
-        # crashing.
-        verification_report = VerificationReport(
-            attempted=True,
-            verdicts=[
-                ItemVerdict(outcome="not_run", reason=f"transport_error:{type(exc).__name__}")
-                for _ in bank_items
-            ],
-        )
+    # TODO.md 2.3: one pass by default (byte-for-byte the previous behaviour,
+    # cache on), N passes unioned when asked for. The per-pass transport guard
+    # that used to sit here inline now lives in ``_one_verification_pass``, so
+    # a later pass failing degrades that pass alone instead of erasing the
+    # passes that already produced real verdicts.
+    multi_pass = run_verification_passes(
+        bank_items,
+        llm_client,
+        batch_size=args.verification_batch_size,
+        passes=args.verification_passes,
+    )
+    verification_report = multi_pass.combined
+    report.multi_pass = multi_pass
     report.verification_attempted = verification_report.attempted
     report.verified_count = verification_report.verified_count
     report.model_rejected_count = verification_report.rejected_count
@@ -1626,6 +1957,36 @@ def main() -> int:
     print(f"    Not run:   {verification_report.not_run_count}")
     for reason, count in sorted(report.not_run_reasons.items(), key=lambda kv: -kv[1]):
         print(f"      - {reason}: {count}")
+
+    # TODO.md 2.3. Printed in full, not just the totals: the totals are what
+    # hid the finding in the batch-size experiment (444/31 versus 438/37 look
+    # like a 6-item difference and are actually a 12-item disagreement), so
+    # every per-pass number and the disagreement count are on the console as
+    # well as in the report file.
+    print(f"\n  Verification passes (TODO.md 2.3): {multi_pass.passes_requested}")
+    print(f"    Passes that produced verdicts: {multi_pass.passes_completed}")
+    for outcome in multi_pass.passes:
+        cache_note = "cache on" if outcome.use_cache else "cache BYPASSED"
+        print(
+            f"    Pass {outcome.index} ({cache_note}): "
+            f"verified {outcome.verified}, rejected {outcome.rejected}, "
+            f"not run {outcome.not_run}"
+        )
+        print(f"      rejected only by this pass: {outcome.rejected_only_by_this_pass}")
+        for reason, count in sorted(outcome.not_run_reasons.items(), key=lambda kv: -kv[1]):
+            print(f"      - not run: {reason}: {count}")
+        if outcome.index > 1 and not (outcome.verified or outcome.rejected):
+            print(
+                "      *** THIS PASS DID NOT RUN. The union below is over the "
+                "passes that did, and is not the N-pass result asked for. ***"
+            )
+    print(f"    REJECTED BY ANY PASS:   {multi_pass.rejected_by_any_pass}")
+    print(f"    PASS DISAGREEMENTS:     {multi_pass.pass_disagreements}")
+    if multi_pass.passes_requested > 1:
+        print(
+            "      (items at least one pass rejected and at least one pass "
+            "accepted: the direct measure of verifier instability on this corpus)"
+        )
 
     print(f"\n  Review file:   {review_path}")
     print(f"  Rejected file: {rejected_path}")
