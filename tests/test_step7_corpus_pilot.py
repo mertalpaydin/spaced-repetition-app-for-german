@@ -1166,9 +1166,16 @@ def _run_main_with_glosses(
     *,
     store: dict[str, str],
     extra_args: list[str] | None = None,
+    batch_sizes: list[int] | None = None,
 ) -> dict[str, object]:
     """Run ``main()`` end to end, offline, against a controlled store and a
-    fake verifier that accepts everything, and return the written report."""
+    fake verifier that accepts everything, and return the written report.
+
+    ``batch_sizes``, when given, receives the ``batch_size`` this run actually
+    handed ``verify_items``. The fake verifier has to be the one recording it:
+    a test that patches ``step7.verify_items`` itself before calling this
+    helper is silently overwritten by the patch below, which is exactly the
+    kind of test that passes while measuring nothing."""
     from src.generation.blanking.model_verification import ItemVerdict, VerificationReport
 
     tatoeba, leipzig = corpora
@@ -1179,6 +1186,8 @@ def _run_main_with_glosses(
     def _fake_verify_items(
         items: list[BankItem], llm_client: object, *, batch_size: int = 20
     ) -> VerificationReport:
+        if batch_sizes is not None:
+            batch_sizes.append(batch_size)
         return VerificationReport(
             attempted=True, verdicts=[ItemVerdict(outcome="verified") for _ in items]
         )
@@ -1461,3 +1470,50 @@ def test_main_translation_failure_still_reaches_verification(
     assert report["accepted_total"] == report["sampled_total"]
     # Nothing was written to the store: a failed batch stores nothing.
     assert not (tmp_path / "store.jsonl").exists()
+
+
+# ==============================================================================
+# --verification-batch-size (TODO.md 2.3, and 2.1c which made it urgent)
+#
+# Cycle 13 and cycle 14 ran the identical 475 candidates. 8 items that cycle 13
+# correctly rejected for bad German were accepted by cycle 14, and the English
+# gloss added in between says nothing about German naturalness, so the verifier
+# simply changed its mind: it agrees with itself about 92% of the time on that
+# judgment. The first hypothesis is that items late in a 20-item prompt get
+# less scrutiny than early ones, and the way to settle it is to hold everything
+# else fixed and vary only this. That is not possible without the flag.
+# ==============================================================================
+
+
+def test_main_verification_batch_size_defaults_to_the_module_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    from src.generation.blanking.model_verification import DEFAULT_VERIFICATION_BATCH_SIZE
+
+    report = _run_main_with_glosses(tmp_path, monkeypatch, _tiny_corpora, store={})
+    run = report["run"]
+    assert isinstance(run, dict)
+    assert run["verification_batch_size"] == DEFAULT_VERIFICATION_BATCH_SIZE
+
+
+def test_main_verification_batch_size_is_passed_through_to_verify_items(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The flag has to reach the call, not just the report. A flag that is
+    recorded but not applied would make the A/B look like it ran while both
+    arms actually used the default, which is the worst possible outcome for an
+    experiment whose whole purpose is to compare two batch sizes."""
+    seen: list[int] = []
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--verification-batch-size", "5"],
+        batch_sizes=seen,
+    )
+
+    assert seen == [5]
+    run = report["run"]
+    assert isinstance(run, dict)
+    assert run["verification_batch_size"] == 5
