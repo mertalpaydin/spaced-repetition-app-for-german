@@ -923,6 +923,215 @@ def test_validate_carrier_does_not_flag_an_ordinary_colon_free_sentence() -> Non
     assert result.accepted, result.reason
 
 
+# -- Cycle 13: a carrier that opens inside a quotation ---------------------
+#
+# Module docstring section 13. The cycle 13 pilot accepted eight items the
+# verifier had correctly rejected the run before; this is one of the three
+# with a mechanical shape. Measured over the real staged corpora (seed 7,
+# 40,000 lines per source): 0 Tatoeba rejections, 378 Leipzig. Every GOOD
+# carrier pinned below is a real Tatoeba line from that same sample, not an
+# invented one.
+
+
+def test_validate_carrier_rejects_a_carrier_that_opens_inside_a_quotation() -> None:
+    """The pilot carrier itself. The verifier's own words last run: "Am
+    Satzanfang fehlt das öffnende Anführungszeichen"."""
+    result = cv.validate_carrier(
+        'Ja", gesteht Norris, der aber auch betont, dass das eben ein "Risiko" '
+        "mit sich gebracht hätte."
+    )
+    assert not result.accepted
+    assert result.reason == cv.REASON_OPENS_MID_QUOTATION
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        # A quotation opened with a straight '"' at position 0 and closed
+        # with the same character mid-sentence -- the exact shape a naive
+        # "is there a closing quote before an opening one" test gets wrong.
+        '"Gut, in Ordnung", stimmte Willie endlich zu.',
+        # Balanced straight quotes around a title, mid-sentence.
+        'Die Dinosaurier in dem Film "Jurassic Park" waren lebensecht.',
+        # German low-9 opening quote, sentence-initial.
+        "„Würde“ ist die konditionale Form von dem, was einer ist.",
+        # German low-9 opening quote, mid-sentence.
+        "Slowenien heißt auf Slowenisch „Slowenija“.",
+        # Guillemets, which German uses opening-first ("»...«").
+        "Nach Duden soll man »heute Morgen« schreiben, auch wenn das wohl "
+        "reichlich bescheuert sein dürfte.",
+        # Mixed conventions: German „ opening, English ” closing. The rule
+        # must read the FIRST mark, which is unambiguously an opener.
+        "Diese Zeitung wurde von westeuropäischen Deutschen wegen ihrer "
+        "„schlampigen, vereinfachten und russifizierten Sprache” scharf kritisiert.",
+    ],
+)
+def test_validate_carrier_accepts_real_tatoeba_quotation_sentences(sentence: str) -> None:
+    """Six real Tatoeba lines carrying quotation marks, all correct German.
+    Asserts overall acceptance, since none of them trips any other check
+    either."""
+    result = cv.validate_carrier(sentence)
+    assert result.accepted, f"expected accept, got reason={result.reason!r}"
+
+
+def test_validate_carrier_does_not_count_quote_parity() -> None:
+    """The measured counterexample to the weaker variant of this rule.
+    Counting straight '"' characters and rejecting an odd total rejects this
+    real Tatoeba line, which is correct German that simply mixes the German
+    opening mark with the straight closing one. This is why
+    ``_opens_mid_quotation`` reads the first mark's typographic ROLE instead
+    of counting -- see module docstring section 13."""
+    result = cv.validate_carrier('„Komm auf die Erde zurück!", flüsterte sie ihm ins Ohr.')
+    assert result.accepted, result.reason
+
+
+def test_validate_carrier_does_not_read_an_apostrophe_as_a_quotation_mark() -> None:
+    """German writes the apostrophe with the same glyph as a single quote,
+    so the single-quote characters are excluded from ``_DOUBLE_QUOTE_CHARS``
+    entirely. Real Tatoeba line."""
+    result = cv.validate_carrier("Mach' es so, wie man es dir sagte.")
+    assert result.reason != cv.REASON_OPENS_MID_QUOTATION
+
+
+def test_validate_carrier_leaves_a_trailing_unclosed_quotation_alone() -> None:
+    """The deliberate other half of the decision, pinned so a later
+    widening has to argue with it: a sentence that OPENS a quotation and
+    never closes it (the closing mark fell on a later sentence in the
+    source) is grammatically complete German, so it is left accepted.
+    Rejecting this shape as well costs 645 more Leipzig lines and buys no
+    correctness -- module docstring section 13."""
+    result = cv.validate_carrier("«Es gab überall Kellner in der Villa.")
+    assert result.reason != cv.REASON_OPENS_MID_QUOTATION
+
+
+# -- Cycle 13: a headline with no main clause ------------------------------
+#
+# Module docstring section 14, and the one TODO.md section 1 had already
+# recorded as a cycle 12 defect, so it had been caught twice. Measured over
+# the real staged corpora (seed 7, 40,000 lines per source): 2 Tatoeba
+# rejections, 71 Leipzig. One of the two Tatoeba lines is already rejected
+# by an older check, so this rule newly rejects exactly one Tatoeba line in
+# 40,000. Every GOOD carrier pinned below is a real Tatoeba line from that
+# same sample.
+
+
+def test_validate_carrier_rejects_a_headline_with_no_main_clause() -> None:
+    """The pilot carrier itself. The verifier's own words: "Es handelt sich
+    nicht um einen vollständigen Hauptsatz, sondern um ein Satzfragment ohne
+    finites Vollverb im übergeordneten Satz." ``REASON_NO_FINITE_VERB`` does
+    not catch it, because the relative clause supplies a finite verb."""
+    result = cv.validate_carrier(
+        "Ein Film, der die Frage aufwirft, wie man sich im Jahr 2025 "
+        "eigentlich richtig hassen kann."
+    )
+    assert not result.accepted
+    assert result.reason == cv.REASON_NO_MAIN_CLAUSE_VERB
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Die Frau, die gestern angerufen hat, ist schon da.",
+        "Der Mann, der bei mir nebenan wohnt, ist Arzt.",
+        "Ein Kind, das einen Elternteil verloren hat, nennt man Halbwaise.",
+        "Die Studentin, die da hinten lernt, ist eine Freundin von mir.",
+        "Ein Mensch, der die Fähigkeit zum Staunen verloren hat, ist so gut wie tot.",
+        "Der Junge, den ich liebe, liebt mich nicht.",
+        "Dieses Buch, das ich zweimal gelesen habe, war ein Geschenk von Peter.",
+    ],
+)
+def test_validate_carrier_accepts_a_relative_clause_with_a_real_main_clause(
+    sentence: str,
+) -> None:
+    """The structurally identical GOOD shape: the same determiner + noun +
+    relative clause opening, followed by a main clause that this rule must
+    find. Seven real Tatoeba lines."""
+    result = cv.validate_carrier(sentence)
+    assert result.accepted, f"expected accept, got reason={result.reason!r}"
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        # de_core_news_sm mistags a bare informal imperative as a noun and
+        # roots the sentence on the OBJECT, which is why this rule requires
+        # the sentence's first token to belong to the ROOT's own noun
+        # phrase: here it is "Mach"/"Tadele"/"Küsse", an "sb"/"mo" child.
+        "Mach das Beste, was du kannst!",
+        "Tadele nicht den Ofen, in den du deine Erbtante geschoben hast.",
+        "Küsse deinen Vati, wie es sich gehört!",
+        # Left dislocation: a resumptive DEMONSTRATIVE sits where a relative
+        # pronoun would, and the parser labels the following main clause
+        # "rc". The relative-pronoun tag test is what saves these.
+        "Die Zunge, die ist biegsam, eigenwillig und nicht fügsam.",
+        "Die Kuh, die zuerst kommt, die trinkt sauberes Wasser!",
+        # The main clause parsed as a conjunct of the ROOT noun.
+        "Mein Vater, der noch lebt, und mein Großvater waren Sprachlehrer.",
+        # pos_="NOUN" with tag_="VVFIN", a contradiction this module already
+        # refuses to act on elsewhere (``_is_finite``).
+        "Das war's, was ich von meiner Tochter erwartet habe.",
+    ],
+)
+def test_validate_carrier_does_not_flag_measured_headline_false_positives(
+    sentence: str,
+) -> None:
+    """Six of the seven false positives that the unguarded version of this
+    check produced on 40,000 real Tatoeba lines, one per guard the shipped
+    version carries. Asserts on the headline reason specifically rather than
+    on overall acceptance: two of them are independently rejected by older,
+    unrelated checks, and pinning acceptance would make this test fail
+    whenever one of those changes."""
+    result = cv.validate_carrier(sentence)
+    assert result.reason != cv.REASON_NO_MAIN_CLAUSE_VERB
+
+
+def test_validate_carrier_headline_rule_costs_one_tatoeba_aphorism() -> None:
+    """The single measured cost of this rule across 40,000 Tatoeba lines,
+    recorded rather than hidden. This aphorism is well-formed written German
+    as an aphorism, and it genuinely is a noun phrase with a relative clause
+    and no main clause, which is exactly what the rule says about it. Pinned
+    so the cost stays visible and a later change to it is noticed."""
+    result = cv.validate_carrier("Die einzige Waffe, die keine Waffe der Gewalt ist: die Wahrheit.")
+    assert not result.accepted
+    assert result.reason == cv.REASON_NO_MAIN_CLAUSE_VERB
+
+
+# -- Cycle 13: the caption-parenthetical rule, measured and NOT shipped -----
+
+
+def test_validate_carrier_caption_parenthetical_remains_a_documented_gap() -> None:
+    """Module docstring section 15. "(am Ball)" is a sports-caption position
+    marker, so this carrier is scraped captioning furniture rather than
+    German sentence material, and it is NOT caught. The structural rule
+    proposed for it -- a short verbless parenthesised insert between a
+    proper-noun subject and its finite verb -- was measured over 40,000
+    Leipzig lines: 150 of its 209 hits are carriers this module otherwise
+    accepts, and hand-reading all 150 found 23 caption position markers
+    against 127 ordinary grammatical journalistic appositions ("(CDU)",
+    "(43)", "(MCP)", "(82.)"). Five and a half correct sentences discarded
+    per piece of junk caught is the same trade the colon rule was thrown
+    away for, so no rule ships and this stays the verifier's job.
+
+    This test exists so a future change that silently starts catching this
+    sentence is noticed and section 15 is revisited, not so this sentence is
+    endorsed as good carrier material."""
+    result = cv.validate_carrier(
+        "Masi Pfand (am Ball) befindet sich aktuell in einer sehr guten Form."
+    )
+    assert result.accepted, (
+        "if this now fails, a caption-parenthetical rule has appeared -- "
+        "re-run the section 15 measurement and update the docstring, not "
+        "only this test"
+    )
+
+
+def test_new_cycle_13_reason_constants_are_exported_with_stable_values() -> None:
+    """Callers and tests key off these strings, exactly as they do for every
+    older reason constant in this module."""
+    assert cv.REASON_OPENS_MID_QUOTATION == "opens_mid_quotation"
+    assert cv.REASON_NO_MAIN_CLAUSE_VERB == "no_main_clause_verb"
+
+
 # -- Regression: the new cycle-5 checks must not reject known-good German ---
 
 

@@ -2441,3 +2441,167 @@ per rule 7.
 
 Re-running all 396 accepted items through the changed pipeline leaves 390:
 the 6 removed are exactly the 6 grammar defects, nothing else.
+
+---
+
+## Cycle 13: two carrier rules the verifier had been carrying alone, and one dropped on measurement
+
+The cycle 13 pilot accepted 437 items. Diffing them against the previous run
+found **8 items the model verifier had correctly rejected last run for bad
+German and accepted this run.** The verifier is a model call and is not
+stable run to run, so CLAUDE.md's standing rule applies: what it catches
+twice becomes a deterministic rule.
+
+Five of the eight are collocation errors ("einen Erfolg erreichen",
+"Eindruck über", "schnaubten wegen ihres Gehalts") that no rule can catch
+without a collocation lexicon this repository does not have. They stay the
+verifier's job and are recorded in `TODO.md` section 1 rather than left
+implicit. Three had a mechanical shape.
+
+Every rule below was measured over the real staged corpora before it
+shipped, using the pilot's own reader (`scripts.corpus_reading.
+read_corpus_lines`, seed 7, 40,000 lines from each of `tatoeba_deu.tsv` and
+`leipzig_sample.txt`), against the standard the section 12 colon rule set:
+**a filter must not buy its precision with correct German.** Tatoeba is
+human-written and mostly correct, so every Tatoeba rejection was read by
+hand.
+
+### Shipped: `opens_mid_quotation`
+
+`Ja", gesteht Norris, der aber auch betont, dass das eben ein "Risiko" mit
+sich gebracht hätte.` The verifier's own words last run: "Am Satzanfang
+fehlt das öffnende Anführungszeichen". A carrier whose first quote mark is a
+closing one is a slice cut out of a longer scraped sentence, and the stray
+mark is visible to a learner.
+
+The check is typographic rather than arithmetic (`_opens_mid_quotation`): a
+quote is opening when nothing, whitespace or an opening bracket precedes it,
+closing when a non-space precedes it and whitespace, punctuation or
+end-of-string follows. Only the first double-quote character is inspected.
+Single quotes are excluded entirely, because German writes the apostrophe
+with the same glyph.
+
+| corpus | lines read | rejected | of those, accepted by the rest of the module today |
+|---|---|---|---|
+| Tatoeba | 40,000 | **0** | 0 |
+| Leipzig | 40,000 | 378 | 77 |
+
+**Tatoeba rejections: none.** Nothing to hand-read.
+
+Two weaker variants were measured and are not what shipped:
+
+- **Odd count of straight `"`.** 1 Tatoeba rejection, 405 Leipzig. The
+  Tatoeba line is correct German: `„Komm auf die Erde zurück!", flüsterte
+  sie ihm ins Ohr.` -- it opens with `„` and closes with `"`, mixing the two
+  conventions. Exactly the failure `_QUOTE_CHARS`' own comment predicts for
+  parity counting.
+- **Odd count of any double-quote character.** 0 Tatoeba, 1,021 Leipzig, of
+  which 645 are the opposite shape: a grammatically complete German sentence
+  that OPENS a quotation whose closing mark fell on a later sentence in the
+  source (`«Es gab überall Kellner in der Villa.`, `Schnitzenbaumer
+  bestätigt das: „Die Kommunalwahl ist ein Wettbewerb aller.`). Nothing is
+  wrong with that German, so rejecting it buys no correctness and costs
+  carriers. The trailing-opener shape is deliberately left accepted, pinned
+  by a test.
+
+### Shipped: `no_main_clause_verb`
+
+`Ein Film, der die Frage aufwirft, wie man sich im Jahr 2025 eigentlich
+richtig hassen kann.` The verifier's own words: "Es handelt sich nicht um
+einen vollständigen Hauptsatz, sondern um ein Satzfragment ohne finites
+Vollverb im übergeordneten Satz." A noun phrase plus a relative clause, no
+main-clause verb. This is the one `TODO.md` section 1 had already recorded
+as a cycle 12 defect, so it had been caught twice and was overdue.
+`REASON_NO_FINITE_VERB` cannot see it: the relative clause supplies a finite
+verb, and that check asks only whether the sentence contains one anywhere.
+
+**The unguarded form of the idea is a disaster, and measuring it is the only
+reason that is known.** "The ROOT token is not a verb" rejected **658
+Tatoeba lines in 40,000**, overwhelmingly correct German: `de_core_news_sm`
+mistags bare informal imperatives as nouns ("Geh zu ihm und grüße ihn in
+meinem Namen!", "Renn so schnell, wie du kannst.", "Bestrafe die Bösen und
+rette die Schwachen.") and roots ordinary declaratives on the wrong token
+often enough to matter ("Hast du dieses Wochenende Zeit?" roots on "Zeit").
+Four guards, each added against a named measured false positive, bring it
+down: ROOT tagged `NN`/`NE` as well as `NOUN`/`PROPN`; every `rc` child
+genuinely introduced by a relative PRONOUN (`PRELS`/`PRELAT`); a determiner
+on the head noun plus the sentence's first token being that noun phrase's
+own `nk` dependent; and no finite verb on the ROOT outside the relative
+clause, directly or through a coordinator.
+
+| corpus | lines read | rejected | of those, accepted by the rest of the module today |
+|---|---|---|---|
+| Tatoeba | 40,000 | **2** | 1 |
+| Leipzig | 40,000 | 71 | 43 |
+
+**Both Tatoeba rejections, verbatim, hand-read:**
+
+1. `Die Leute, die nie lachen sind keine ernsthaften Leute.` -- correct
+   grammar; the comma that must close a German relative clause is missing,
+   which is what makes the parser attach the main verb "sind" inside the
+   relative clause. **Already rejected today** as
+   `missing_clause_connector`, so this rule costs nothing here.
+2. `Die einzige Waffe, die keine Waffe der Gewalt ist: die Wahrheit.` -- an
+   aphorism. Well-formed written German as an aphorism, and genuinely a noun
+   phrase with a relative clause and no main clause, which is exactly what
+   the rule says about it. **This is the rule's entire measured cost: one
+   newly rejected Tatoeba line in 40,000.** Pinned by a test so it stays
+   visible.
+
+A fifth guard was measured and deliberately not added: requiring each
+relative clause to be verb-final within its own non-clausal span, which a
+real German relative clause always is. It takes Tatoeba from 2 to 1 and
+removes two Leipzig false positives, but costs three genuine Leipzig catches
+("Ein Muster, das sich leider nicht nur bei Fischkonflikten beobachten
+lässt.", "Ein Ort, der nicht ist, nicht aber ein Ort, der kein Ort ist.",
+"Ein junger Mann, der ähnlich alt ist wie Quirlefix selbst und der in das
+bunte Treiben hineingeboren wurde."). Net negative.
+
+### Measured and DROPPED: caption residue in parentheses
+
+`Masi Pfand (am Ball) befindet sich aktuell in einer sehr guten Form.`
+"(am Ball)" is a sports-caption position marker that
+`_PARENTHESISED_MARKER`'s closed list will never contain, because there are
+hundreds of such phrases. The proposed generalisation was structural rather
+than lexical: a short parenthesised insert with no finite verb, sitting
+between a proper-noun subject and its finite verb.
+
+| corpus | lines read | rejected | of those, accepted by the rest of the module today |
+|---|---|---|---|
+| Tatoeba | 40,000 | 0 | 0 |
+| Leipzig | 40,000 | 209 | 150 |
+
+**The 0 on Tatoeba is not evidence of safety.** Tatoeba barely uses
+parentheses at all, so the rule had nothing to fire on. The evidence is on
+Leipzig, and it is decisive against the rule. Hand-reading all 150 hits the
+rest of the module currently accepts:
+
+- **23 are caption position markers**: "(links)" x6, "(l.)" x5, "(r.)" x4,
+  "(l)" x2, "(Mitte)" x2, "(vorn)" x2, "(rechts)", "(hinten)", "(am Ball)",
+  "(rechts in der Rikscha)".
+- **127 are ordinary, grammatical journalistic apposition**: party
+  affiliation ("(CDU)" x9, "(SPD)" x8, "(SPÖ)" x6, "(CSU)" x5, "(Grüne)"
+  x5, "(FPÖ)", "(SVP)", "(parteilos)"), age ("(43)", "(29)", "(23)",
+  "(55)", "(damals 32)", ...), an abbreviation gloss ("(MCP)", "(DHI)",
+  "(DGB)", "(HDE)", "(publ)"), or a goal minute ("(82.)", "(68.)",
+  "(20./68.)").
+
+`Bundeskanzler Friedrich Merz (CDU) hat am Sonntag mit dem israelischen
+Ministerpräsidenten Benjamin Netanjahu telefoniert.` is correct German by
+any standard and has the identical parse shape as "(am Ball)". That is five
+and a half correct sentences discarded per piece of junk caught -- the same
+trade the section 12 colon rule was thrown away for (eleven per one). What
+actually separates the two groups is lexical, a closed list of position
+words, which is precisely the never-complete list this rule existed to
+avoid. **No rule ships. The shape stays the verifier's job**, recorded in
+`TODO.md` section 1 and pinned by a test that fails if it silently starts
+being caught.
+
+### Verification
+
+Both new rules reject their own reported carrier and the module's existing
+regression fixtures are untouched: the `known_bad_carriers.jsonl`
+false-negative guard and the `_MOCK_SENTENCE_POOL` zero-false-positive
+regression both still pass unchanged. Test count 1538 before, 1566 after.
+Every good carrier pinned in the new tests is a real Tatoeba line from the
+same 40,000-line sample, not an invented one.
