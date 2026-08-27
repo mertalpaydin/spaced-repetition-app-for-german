@@ -94,8 +94,12 @@ dist-web/
 Thumbs.db
 
 # AI / LLM instructions
-CLAUDE.md
-claude.md
+# CLAUDE.md is deliberately NOT ignored. It is the working contract every
+# agent reads first, so it has to be versioned with the code it describes.
+# While it was ignored, three separate agents made correct corrections to it
+# (the 7.50 ceiling, price-by-mode, the attempt-logging contract) that could
+# not be committed and had to be hand-carried to the owner as a loose file.
+# Un-ignored on the owner's instruction, 2026-08-27.
 
 # Planning documents
 project_plan/
