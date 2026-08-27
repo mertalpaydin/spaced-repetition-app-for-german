@@ -761,8 +761,18 @@ class _FakeTranslator:
         return [s for batch in self.batches for s in batch]
 
 
-def _stored(store_path: Path, records: dict[str, str], source: str = "tatoeba") -> None:
-    """Write a translation store containing exactly ``records``."""
+def _stored(store_path: Path, records: dict[str, str], source: str = "azure") -> None:
+    """Write a translation store containing exactly ``records``.
+
+    ``source`` defaults to ``"azure"``, a MACHINE translation, and used to
+    default to ``"tatoeba"``. The change is the owner's 2026-08-27 decision
+    landing in the fixtures: a stored gloss whose source is Tatoeba is now a
+    cache MISS on the exercise path, so a test that only wants "this carrier
+    is already glossed" has to seed a gloss the pilot is allowed to believe.
+    The tests that are ABOUT the Tatoeba distrust pass ``source="tatoeba"``
+    explicitly, which is the right way round: the interesting case is the one
+    that is spelled out.
+    """
     store_path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         TranslationRecord(
@@ -1087,9 +1097,299 @@ def test_populate_glosses_fill_counters_are_disjoint_and_sum_to_items_total(
     assert report.gloss_newly_translated == 1
     assert report.gloss_missing == 1
     assert (
-        report.gloss_from_store + report.gloss_newly_translated + report.gloss_missing
+        report.gloss_from_store
+        + report.gloss_retranslated_tatoeba
+        + report.gloss_newly_translated
+        + report.gloss_missing
         == report.items_total
     )
+
+
+# --------------------------------------------------------------------------
+# A stored Tatoeba gloss is a cache MISS (owner's decision, 2026-08-27)
+#
+# A hand audit of all 430 accepted exercises found ten defects, four of them
+# items whose German is correct and whose English gloss is wrong. THREE OF
+# THE FOUR came from Tatoeba's own human translations, not from machine
+# translation:
+#
+#   "Wenn ich im Lotto gewaenne, wuerde ich mir ein neues Auto kaufen."
+#     -> "If I won the lottery, I'd buy you a new car."   (mir is himself)
+#   "Ich habe eine Freundin, die sich selbst die Haare schneidet."
+#     -> "I have a friend who cuts his own hair."         (Freundin is female)
+#   "Das Haus, in dem man lacht, wird vom Glueck bedacht."
+#     -> "The house in which one laughs is considered by luck."  (meaningless)
+#
+# The owner's two decisions: replace the English and keep the item, and stop
+# using Tatoeba translations for exercises. The records stay in the store for
+# feature 5.3; they are distrusted here, not deleted.
+# --------------------------------------------------------------------------
+
+
+def test_populate_glosses_stored_tatoeba_gloss_is_retranslated_and_the_record_overwritten(
+    tmp_path: Path,
+) -> None:
+    """THE test for this change. A stored gloss whose source is Tatoeba is a
+    cache MISS: the carrier goes to the translator, the item carries the
+    machine translation, and the record on disk is overwritten so the next
+    run finds a gloss it is allowed to believe."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "A WRONG TATOEBA GLOSS"}, source="tatoeba")
+    item, provenance = _glossable_item()
+    translator = _FakeTranslator()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+    )
+
+    assert translator.sentences_seen == [_CARRIER]
+    assert glossed[0].gloss_en == f"EN::{_CARRIER}"
+    assert report.gloss_retranslated_tatoeba == 1
+    assert report.gloss_from_store == 0
+    assert report.gloss_newly_translated == 0
+    assert report.gloss_missing == 0
+    assert report.carriers_needing_translation == 1
+    assert report.carriers_distrusted_tatoeba == 1
+    assert report.characters_spent == len(_CARRIER)
+
+    written = _load_store(store_path)[_CARRIER]
+    assert written.english == f"EN::{_CARRIER}"
+    assert written.source == "azure", "the record must now claim the MACHINE source"
+
+
+def test_populate_glosses_stored_azure_gloss_is_used_as_is_with_no_translator_call(
+    tmp_path: Path,
+) -> None:
+    """The distrust is scoped to Tatoeba and nothing else. A machine-sourced
+    record is still a cache hit, so re-translating one would be pure waste
+    against the character budget for no defect it could fix."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "The dog runs quickly through the park."}, source="azure")
+    item, provenance = _glossable_item()
+    translator = _FakeTranslator()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+    )
+
+    assert translator.batches == [], "a machine-sourced gloss must never be re-translated"
+    assert glossed[0].gloss_en == "The dog runs quickly through the park."
+    assert report.gloss_from_store == 1
+    assert report.gloss_retranslated_tatoeba == 0
+    assert report.carriers_needing_translation == 0
+    assert report.carriers_distrusted_tatoeba == 0
+    assert report.characters_spent == 0
+
+
+def test_populate_glosses_stored_gemini_gloss_is_used_as_is(tmp_path: Path) -> None:
+    """The other machine source, pinned separately so a check written against
+    one provider's name alone would fail here."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "The dog runs."}, source="gemini")
+    item, provenance = _glossable_item()
+    translator = _FakeTranslator()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+    )
+
+    assert translator.batches == []
+    assert glossed[0].gloss_en == "The dog runs."
+    assert report.gloss_from_store == 1
+
+
+def test_populate_glosses_trust_stored_tatoeba_restores_the_old_behaviour_exactly(
+    tmp_path: Path,
+) -> None:
+    """The opt-out, so a run can be reproduced against the pre-2026-08-27
+    behaviour. Same store, same item, same translator: with the flag the
+    Tatoeba gloss is used verbatim, nothing is called, nothing is rewritten,
+    and the counters read exactly as they did before the change."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "A WRONG TATOEBA GLOSS"}, source="tatoeba")
+    item, provenance = _glossable_item()
+    translator = _FakeTranslator()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+        trust_stored_tatoeba=True,
+    )
+
+    assert translator.batches == []
+    assert glossed[0].gloss_en == "A WRONG TATOEBA GLOSS"
+    assert report.gloss_from_store == 1
+    assert report.gloss_retranslated_tatoeba == 0
+    assert report.gloss_missing == 0
+    assert report.carriers_distrusted_tatoeba == 0
+    assert report.characters_spent == 0
+    assert report.trust_stored_tatoeba is True
+
+    unchanged = _load_store(store_path)[_CARRIER]
+    assert unchanged.english == "A WRONG TATOEBA GLOSS"
+    assert unchanged.source == "tatoeba"
+
+
+def test_populate_glosses_distrusted_tatoeba_gloss_with_no_translator_is_not_used(
+    tmp_path: Path,
+) -> None:
+    """A distrusted gloss that could not be replaced does not get used. The
+    item keeps ``gloss_en=None``, which every consumer here already handles
+    (the gloss check returns immediately for it, the app renders nothing),
+    rather than falling back on the English the owner said to stop using.
+
+    The record itself stays on disk: feature 5.3 is fed entirely by those
+    records, so this is distrust, not deletion."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "A WRONG TATOEBA GLOSS"}, source="tatoeba")
+    item, provenance = _glossable_item()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=None,
+        translator_mode="none",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+    )
+
+    assert glossed[0].gloss_en is None
+    assert report.gloss_missing == 1
+    assert report.gloss_missing_stale_tatoeba == 1
+    assert report.gloss_from_store == 0
+    assert report.gloss_retranslated_tatoeba == 0
+
+    survives = _load_store(store_path)[_CARRIER]
+    assert survives.english == "A WRONG TATOEBA GLOSS"
+    assert survives.source == "tatoeba", "5.3's record must survive being distrusted here"
+
+
+def test_populate_glosses_distrusted_tatoeba_gloss_whose_retranslation_fails_is_not_used(
+    tmp_path: Path,
+) -> None:
+    """Same rule when a translator IS configured and refuses the batch. The
+    stale record is still on disk after the failure, so a lookup that trusted
+    ``store.get()`` alone would quietly hand back the distrusted English."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "A WRONG TATOEBA GLOSS"}, source="tatoeba")
+    item, provenance = _glossable_item()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=_FakeTranslator(fail_on=_CARRIER),
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+        batch_size=1,
+    )
+
+    assert glossed[0].gloss_en is None
+    assert report.translation_failures == 1
+    assert report.gloss_missing == 1
+    assert report.gloss_missing_stale_tatoeba == 1
+    assert _load_store(store_path)[_CARRIER].source == "tatoeba"
+
+
+@pytest.mark.parametrize("trust_stored_tatoeba", [False, True])
+def test_populate_glosses_fill_counters_sum_to_items_total_in_both_tatoeba_modes(
+    tmp_path: Path, trust_stored_tatoeba: bool
+) -> None:
+    """The disjoint-counts discipline, held across the new flag and across
+    every one of the four fates an item's gloss can meet: a trusted store
+    hit, a distrusted Tatoeba record, a carrier the store never held, and an
+    item with no carrier at all."""
+    store_path = tmp_path / "store.jsonl"
+    machine_carrier = "Die Sonne scheint heute hell über der ganzen Stadt."
+    tatoeba_carrier = "Ein Mann steht vor der Tür und wartet auf den Bus."
+    fresh_carrier = "Die Katze schläft auf dem warmen Sofa im Wohnzimmer."
+    store_path.parent.mkdir(parents=True, exist_ok=True)
+    store_path.write_text(
+        "\n".join(
+            TranslationRecord(
+                german=german,
+                english=english,
+                source=source,  # type: ignore[arg-type]
+                written_at=datetime(2026, 1, 1, tzinfo=UTC),
+            ).model_dump_json()
+            for german, english, source in [
+                (machine_carrier, "The sun shines.", "azure"),
+                (tatoeba_carrier, "A WRONG TATOEBA GLOSS", "tatoeba"),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    items: list[BankItem] = []
+    provenance: dict[str, CorpusProvenance] = {}
+    for index, carrier in enumerate([machine_carrier, tatoeba_carrier, fresh_carrier]):
+        item, prov = _glossable_item(carrier=carrier)
+        items.append(item.model_copy(update={"id": f"corpus_{index}"}))
+        provenance.update(prov)
+    orphan, _ = _glossable_item(carrier="Diesen Satz kennt niemand.")
+    items.append(orphan.model_copy(update={"id": "corpus_orphan"}))
+
+    _glossed, report = _populate_glosses(
+        items,
+        provenance,
+        store_path=store_path,
+        translator=_FakeTranslator(),
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+        trust_stored_tatoeba=trust_stored_tatoeba,
+    )
+
+    assert report.items_total == 4
+    assert (
+        report.gloss_from_store
+        + report.gloss_retranslated_tatoeba
+        + report.gloss_newly_translated
+        + report.gloss_missing
+        == report.items_total
+    )
+    assert report.gloss_missing == 1, "only the item with no carrier at all"
+    if trust_stored_tatoeba:
+        assert report.gloss_from_store == 2
+        assert report.gloss_retranslated_tatoeba == 0
+    else:
+        assert report.gloss_from_store == 1
+        assert report.gloss_retranslated_tatoeba == 1
+
+
+def test_stored_tatoeba_policy_sentence_says_what_each_mode_means() -> None:
+    """The report has to say which policy produced a run in words, not only
+    as a boolean nobody can interpret two months later, and the console and
+    the JSON read it from this one function so they cannot disagree."""
+    assert "treated as absent" in step7.stored_tatoeba_policy_sentence(False)
+    assert "5.3" in step7.stored_tatoeba_policy_sentence(False)
+    assert "OLD behaviour" in step7.stored_tatoeba_policy_sentence(True)
 
 
 # --------------------------------------------------------------------------
@@ -1169,11 +1469,13 @@ def _run_main_with_glosses(
     corpora: tuple[Path, Path],
     *,
     store: dict[str, str],
+    store_source: str = "azure",
     extra_args: list[str] | None = None,
     batch_sizes: list[int] | None = None,
     use_cache_values: list[bool] | None = None,
     reject_per_pass: list[dict[int, str]] | None = None,
     pass_errors: dict[int, Exception] | None = None,
+    expected_exit: int = 0,
 ) -> dict[str, object]:
     """Run ``main()`` end to end, offline, against a controlled store and a
     fake verifier that accepts everything, and return the written report.
@@ -1200,7 +1502,14 @@ def _run_main_with_glosses(
     item in every pass.
 
     ``pass_errors`` maps a 1-based pass number to an exception that pass
-    raises, for the degrade-honestly cases."""
+    raises, for the degrade-honestly cases.
+
+    ``expected_exit`` is the exit code ``main()`` must return. It defaults to
+    0, which every caller before ``--write-bank`` existed relied on, and is
+    only ever passed explicitly by a test that is ABOUT a failing run -- the
+    assertion stays inside the helper so a run that starts failing for an
+    unrelated reason is caught here rather than producing a report file the
+    test then happily reads."""
     from src.generation.blanking.model_verification import (
         ItemVerdict,
         ModelRejection,
@@ -1210,7 +1519,7 @@ def _run_main_with_glosses(
     tatoeba, leipzig = corpora
     _clear_gemini_env(monkeypatch)
     store_path = tmp_path / "store.jsonl"
-    _stored(store_path, store)
+    _stored(store_path, store, source=store_source)
 
     calls: list[int] = []
 
@@ -1278,7 +1587,7 @@ def _run_main_with_glosses(
             *(extra_args or []),
         ],
     )
-    assert step7.main() == 0
+    assert step7.main() == expected_exit
     loaded: dict[str, object] = json.loads((tmp_path / "report.json").read_text())
     return loaded
 
@@ -1333,6 +1642,92 @@ def test_main_store_hit_attaches_the_gloss_to_the_review_row(
     assert glossed, "expected at least one item drawn from the glossed carrier"
     for row in glossed:
         assert row["gloss_en"] == "The dog runs quickly through the park."
+
+
+def test_main_stored_tatoeba_gloss_never_reaches_the_review_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """End to end, under ``--no-translate`` so nothing can replace it: a
+    stored Tatoeba gloss must not appear in the review file at all, and the
+    report must say how many items that cost."""
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: "A WRONG TATOEBA GLOSS"},
+        store_source="tatoeba",
+    )
+    gloss = report["gloss"]
+    assert isinstance(gloss, dict)
+    assert gloss["trust_stored_tatoeba"] is False
+    assert gloss["gloss_from_store"] == 0
+    assert isinstance(gloss["gloss_missing_stale_tatoeba"], int)
+    assert gloss["gloss_missing_stale_tatoeba"] >= 1
+    policy = gloss["stored_tatoeba_policy"]
+    assert isinstance(policy, str)
+    assert "treated as absent" in policy
+
+    review_rows = [
+        json.loads(line) for line in (tmp_path / "review.jsonl").read_text().splitlines() if line
+    ]
+    assert review_rows
+    assert all(row["gloss_en"] != "A WRONG TATOEBA GLOSS" for row in review_rows)
+
+
+def test_main_trust_stored_tatoeba_puts_the_stored_gloss_back_on_the_review_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The opt-out, end to end: identical inputs, one flag, and the Tatoeba
+    gloss is used again. This is the seam that lets an earlier run be
+    reproduced rather than merely described."""
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: "A WRONG TATOEBA GLOSS"},
+        store_source="tatoeba",
+        extra_args=["--trust-stored-tatoeba"],
+    )
+    gloss = report["gloss"]
+    assert isinstance(gloss, dict)
+    assert gloss["trust_stored_tatoeba"] is True
+    assert isinstance(gloss["gloss_from_store"], int)
+    assert gloss["gloss_from_store"] >= 1
+    assert gloss["gloss_missing_stale_tatoeba"] == 0
+
+    review_rows = [
+        json.loads(line) for line in (tmp_path / "review.jsonl").read_text().splitlines() if line
+    ]
+    assert [row for row in review_rows if row["gloss_en"] == "A WRONG TATOEBA GLOSS"]
+
+
+@pytest.mark.parametrize("extra_args", [[], ["--trust-stored-tatoeba"]])
+def test_main_gloss_counts_sum_to_items_total_in_both_tatoeba_modes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    _tiny_corpora: tuple[Path, Path],
+    extra_args: list[str],
+) -> None:
+    """The report's own arithmetic, held on a real end-to-end run rather than
+    only on a hand-built item list."""
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: "A WRONG TATOEBA GLOSS"},
+        store_source="tatoeba",
+        extra_args=extra_args,
+    )
+    gloss = report["gloss"]
+    assert isinstance(gloss, dict)
+    counts = [
+        gloss["gloss_from_store"],
+        gloss["gloss_retranslated_tatoeba"],
+        gloss["gloss_newly_translated"],
+        gloss["gloss_missing"],
+    ]
+    assert all(isinstance(count, int) for count in counts)
+    assert sum(count for count in counts if isinstance(count, int)) == gloss["items_total"]
 
 
 def test_main_gloss_check_rejects_a_contradicting_gloss_and_counts_it_by_topic(
@@ -1611,7 +2006,7 @@ def test_main_verification_passes_defaults_to_one_cached_pass(
 ) -> None:
     """The default must be today's behaviour exactly: one pass, cache ON,
     nothing extra bought. Every additional pass is another full cycle's spend
-    against a 5 EUR/month ceiling, so this default is a cost guarantee, not
+    against a $7.50/month ceiling, so this default is a cost guarantee, not
     just a convenience."""
     from scripts.step7_corpus_pilot import DEFAULT_VERIFICATION_PASSES
 
@@ -1876,7 +2271,7 @@ def test_main_pass_disagreements_is_zero_when_both_passes_agree(
 def test_main_a_later_pass_that_cannot_run_degrades_without_losing_the_passes_that_did(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
 ) -> None:
-    """``BudgetExceeded`` on pass 2 against a 5 EUR/month ceiling is the
+    """``BudgetExceeded`` on pass 2 against a $7.50/month ceiling is the
     expected way this flag stops, not an exotic one. The run must report what
     it managed and say so: pass 1's real verdicts survive, pass 2 is recorded
     as not-run, ``passes_completed`` falls below ``passes_requested``, and the
@@ -2068,3 +2463,385 @@ def test_main_prints_every_pass_number_not_just_the_totals(
     assert "Pass 2 (cache BYPASSED):" in out
     assert "REJECTED BY ANY PASS:" in out
     assert "PASS DISAGREEMENTS:" in out
+
+
+# --------------------------------------------------------------------------
+# --write-bank: the corpus-to-browser chain's missing hop
+#
+# Everything downstream of this point already existed -- migration v4's
+# ``gloss_en`` column, ``BankExporter.EXPORTED_BANK_ITEM_FIELDS``,
+# ``scripts/step3_export_web_data.py`` -- and nothing ever wrote a
+# corpus-pilot item into ``data/bank.db``. These tests pin the hop itself:
+# what lands, what does not, that a rerun does not double it, that the gloss
+# survives SQLite, that the schema is current, and that a failed bank write
+# never costs the run its review or report file.
+# --------------------------------------------------------------------------
+
+
+def _bank_rows(db_path: Path) -> list[BankItem]:
+    """Every item in ``db_path``, read back through the real
+    ``SqliteItemBank`` (never a hand-written SELECT): a test that reads the
+    rows a different way from the app cannot prove the app sees them."""
+    from src.bank.storage import SqliteItemBank
+
+    return SqliteItemBank(db_path).get_all_items()
+
+
+def test_main_write_bank_inserts_the_accepted_items(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    db_path = tmp_path / "bank.db"
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--write-bank", str(db_path)],
+    )
+
+    bank_write = report["bank_write"]
+    assert isinstance(bank_write, dict)
+    assert bank_write["requested"] is True
+    assert bank_write["attempted"] is True
+    assert bank_write["error"] is None
+    assert bank_write["inserted"] == report["accepted_total"]
+    assert bank_write["items_offered"] == report["accepted_total"]
+    assert bank_write["skipped_already_present"] == 0
+    assert bank_write["failed"] == 0
+
+    banked = _bank_rows(db_path)
+    assert len(banked) == report["accepted_total"]
+    review_ids = {
+        json.loads(line)["id"]
+        for line in (tmp_path / "review.jsonl").read_text().splitlines()
+        if line
+    }
+    assert {item.id for item in banked} == review_ids
+
+
+def test_main_write_bank_does_not_insert_a_rejected_item(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The bank write sits after verification, so an item the model rejected
+    must be in the rejected file and absent from the bank. Anything else
+    would put content into the learner's hands that the backstop refused."""
+    db_path = tmp_path / "bank.db"
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        reject_per_pass=[{0: "unnatürlicher Satz"}],
+        extra_args=["--write-bank", str(db_path)],
+    )
+
+    bank_write = report["bank_write"]
+    assert isinstance(bank_write, dict)
+    verification = report["verification"]
+    assert isinstance(verification, dict)
+    assert verification["rejected_count"] == 1
+
+    banked = _bank_rows(db_path)
+    assert len(banked) == report["accepted_total"]
+    assert bank_write["inserted"] == report["accepted_total"]
+
+    rejected_prompts = {
+        json.loads(line)["prompt"]
+        for line in (tmp_path / "rejected.jsonl").read_text().splitlines()
+        if line
+    }
+    banked_prompts = {item.prompt for item in banked}
+    model_rejected = {
+        json.loads(line)["prompt"]
+        for line in (tmp_path / "rejected.jsonl").read_text().splitlines()
+        if line and json.loads(line)["error_type"] == "model_verification_rejected"
+    }
+    assert model_rejected
+    assert model_rejected <= rejected_prompts
+    assert not (model_rejected & banked_prompts)
+
+
+def test_main_write_bank_twice_does_not_duplicate_the_bank(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The owner will run this more than once. ``BankItem.id`` is a content
+    hash of the five fields that define the exercise, so the second run
+    offers the same ids and every one of them is skipped rather than
+    doubling the bank."""
+    db_path = tmp_path / "bank.db"
+    first = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--write-bank", str(db_path)],
+    )
+    after_first = len(_bank_rows(db_path))
+    assert after_first == first["accepted_total"]
+
+    second = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--write-bank", str(db_path)],
+    )
+    bank_write = second["bank_write"]
+    assert isinstance(bank_write, dict)
+    assert bank_write["inserted"] == 0
+    assert bank_write["skipped_already_present"] == second["accepted_total"]
+    assert bank_write["failed"] == 0
+    assert len(_bank_rows(db_path)) == after_first
+    assert bank_write["total_items_in_bank"] == after_first
+
+
+def test_main_write_bank_gloss_en_survives_insert_and_read_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """``gloss_en`` has been silently dropped twice on this path -- once for
+    want of a column (migration v4), once for want of an export allowlist
+    entry. This pins the SQLite leg of the trip: a glossed item inserted
+    through ``--write-bank`` reads back out of the database with its English
+    intact, not as NULL."""
+    db_path = tmp_path / "bank.db"
+    english = "The dog runs quickly through the park."
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: english},
+        extra_args=["--write-bank", str(db_path)],
+    )
+    gloss = report["gloss"]
+    assert isinstance(gloss, dict)
+    assert isinstance(gloss["gloss_from_store"], int)
+    assert gloss["gloss_from_store"] >= 1
+
+    banked = _bank_rows(db_path)
+    glossed = [item for item in banked if item.gloss_en is not None]
+    assert glossed, "expected at least one banked item drawn from the glossed carrier"
+    for item in glossed:
+        assert item.gloss_en == english
+
+    # And the same items are glossed in the bank as in the review file, so
+    # the two outputs cannot disagree about what shipped.
+    review_glossed = {
+        json.loads(line)["id"]
+        for line in (tmp_path / "review.jsonl").read_text().splitlines()
+        if line and json.loads(line)["gloss_en"] == english
+    }
+    assert {item.id for item in glossed} == review_glossed
+
+
+def test_main_write_bank_creates_a_database_at_the_current_schema_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """A fresh bank.db has to come up fully migrated, not as a bare v1 table:
+    ``gloss_en`` only exists from v4, so an unmigrated database would drop
+    every gloss on the floor exactly the way it used to."""
+    from src.bank.migrations import CURRENT_SCHEMA_VERSION, schema_version
+
+    db_path = tmp_path / "nested" / "bank.db"
+    assert not db_path.exists()
+
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--write-bank", str(db_path)],
+    )
+
+    assert db_path.exists()
+    assert schema_version(db_path) == CURRENT_SCHEMA_VERSION
+    bank_write = report["bank_write"]
+    assert isinstance(bank_write, dict)
+    assert bank_write["schema_version"] == CURRENT_SCHEMA_VERSION
+
+
+def test_main_without_write_bank_creates_no_database_at_all(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """Default off means default off: no file, no directory, and a report
+    block that says ``requested: false`` rather than leaving it unstated."""
+    report = _run_main_with_glosses(tmp_path, monkeypatch, _tiny_corpora, store={})
+
+    assert not list(tmp_path.glob("*.db"))
+    assert not (tmp_path / "bank.db").exists()
+
+    bank_write = report["bank_write"]
+    assert isinstance(bank_write, dict)
+    assert bank_write["requested"] is False
+    assert bank_write["attempted"] is False
+    assert bank_write["inserted"] == 0
+    assert bank_write["db_path"] == ""
+    output_files = report["output_files"]
+    assert isinstance(output_files, dict)
+    assert output_files["bank"] == ""
+
+
+def test_main_bank_write_failure_still_leaves_the_review_and_report_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """Requirement 3 of this flag's own brief: the bank write is additive and
+    can never cost the run its audit files. The failure is injected at
+    ``SqliteItemBank`` construction, which is where the migrations run --
+    the failure mode most likely to take a run down with it."""
+
+    def _explode(db_path: object) -> object:
+        raise OSError("disk is on fire")
+
+    monkeypatch.setattr(step7, "SqliteItemBank", _explode)
+
+    db_path = tmp_path / "bank.db"
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--write-bank", str(db_path)],
+        expected_exit=1,
+    )
+
+    assert (tmp_path / "review.jsonl").exists()
+    assert (tmp_path / "rejected.jsonl").exists()
+    assert (tmp_path / "report.json").exists()
+    review_rows = [
+        json.loads(line) for line in (tmp_path / "review.jsonl").read_text().splitlines() if line
+    ]
+    assert review_rows
+
+    bank_write = report["bank_write"]
+    assert isinstance(bank_write, dict)
+    assert bank_write["requested"] is True
+    assert bank_write["attempted"] is False
+    assert bank_write["inserted"] == 0
+    error = bank_write["error"]
+    assert isinstance(error, str)
+    assert "disk is on fire" in error
+
+
+def test_write_accepted_to_bank_counts_a_stale_gloss_rather_than_hiding_it(
+    tmp_path: Path,
+) -> None:
+    """``gloss_en`` is the one field that can change without changing the
+    content-addressed id, so a second run that finally has a gloss for an
+    already-banked item is skipped as a duplicate and the NULL stays. That is
+    counted, not silent."""
+    db_path = tmp_path / "bank.db"
+    ungossed = BankItem(
+        id="corpus_stale",
+        topic_id="perfekt_haben",
+        tag_id="perfekt_haben",
+        type="cloze_free",
+        difficulty=1,
+        cefr="A1",
+        prompt="Der Hund ___ schnell gelaufen.",
+        accepted_answers=["ist"],
+    )
+    first = step7.write_accepted_to_bank([ungossed], db_path, source_batch_id="b1")
+    assert first.inserted == 1
+    assert first.stale_gloss_rows == 0
+
+    glossed = ungossed.model_copy(update={"gloss_en": "The dog ran quickly."})
+    second = step7.write_accepted_to_bank([glossed], db_path, source_batch_id="b2")
+    assert second.inserted == 0
+    assert second.skipped_already_present == 1
+    assert second.stale_gloss_rows == 1
+
+    stored = _bank_rows(db_path)
+    assert len(stored) == 1
+    assert stored[0].gloss_en is None
+
+
+def test_write_accepted_to_bank_reports_an_item_the_bank_refused(tmp_path: Path) -> None:
+    """``SqliteItemBank._validate_for_insert`` rejects a prompt that carries
+    its own accepted answer outside the gap. That is a per-item failure, not
+    a run failure: it is counted and its reason kept, and the rest of the
+    batch still lands."""
+    db_path = tmp_path / "bank.db"
+    leaky = BankItem(
+        id="corpus_leaky",
+        topic_id="perfekt_haben",
+        tag_id="perfekt_haben",
+        type="cloze_free",
+        difficulty=1,
+        cefr="A1",
+        prompt="Er ist gelaufen und sie ___ gelaufen.",
+        accepted_answers=["gelaufen"],
+    )
+    good = BankItem(
+        id="corpus_good",
+        topic_id="perfekt_haben",
+        tag_id="perfekt_haben",
+        type="cloze_free",
+        difficulty=1,
+        cefr="A1",
+        prompt="Sie ___ nach Hause gegangen.",
+        accepted_answers=["ist"],
+    )
+    written = step7.write_accepted_to_bank([leaky, good], db_path, source_batch_id="b1")
+
+    assert written.error is None
+    assert written.attempted is True
+    assert written.inserted == 1
+    assert written.failed == 1
+    assert written.failure_reasons
+    assert "corpus_leaky" in written.failure_reasons[0]
+    assert written.inserted + written.skipped_already_present + written.failed == 2
+    assert [item.id for item in _bank_rows(db_path)] == ["corpus_good"]
+
+
+def test_main_write_bank_refuses_when_the_verification_backstop_did_not_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """``final_items`` keeps an item no pass could judge -- right for the
+    review file, wrong for the bank the app ships from. With no LLM client
+    configured every item is ``not_run``, the run already fails, and the bank
+    must stay untouched rather than receive unverified content."""
+    tatoeba, leipzig = _tiny_corpora
+    _clear_gemini_env(monkeypatch)
+    db_path = tmp_path / "bank.db"
+    report_path = tmp_path / "report.json"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "step7_corpus_pilot.py",
+            "--translations",
+            str(tmp_path / "translations.jsonl"),
+            "--no-translate",
+            "--tatoeba",
+            str(tatoeba),
+            "--leipzig",
+            str(leipzig),
+            "--limit",
+            "100",
+            "--per-topic-quota",
+            "2",
+            "--write-bank",
+            str(db_path),
+            "--review-file",
+            str(tmp_path / "review.jsonl"),
+            "--rejected-file",
+            str(tmp_path / "rejected.jsonl"),
+            "--report-file",
+            str(report_path),
+        ],
+    )
+
+    assert step7.main() == 1
+    assert not db_path.exists()
+
+    report = json.loads(report_path.read_text())
+    assert report["verification"]["not_run_count"] > 0
+    bank_write = report["bank_write"]
+    assert bank_write["requested"] is True
+    assert bank_write["attempted"] is False
+    assert bank_write["inserted"] == 0
+    assert "did not run" in bank_write["error"]
+
+    # The audit files are still there, which is the whole point.
+    assert (tmp_path / "review.jsonl").read_text().strip()
+    assert (tmp_path / "rejected.jsonl").exists()

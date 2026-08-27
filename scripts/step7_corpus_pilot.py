@@ -135,7 +135,8 @@ Three sources, in ``scripts/build_translations.py``'s own priority order:
 
 1. The store on disk (``--translations``, default
    ``build_translations.DEFAULT_STORE_PATH``), looked up by the carrier's
-   exact text -- the same key the store itself uses.
+   exact text -- the same key the store itself uses. **A stored record whose
+   ``source`` is ``"tatoeba"`` is treated as a cache MISS**, see below.
 2. Machine translation of whatever the store lacks, through
    ``build_translations.translator_from_env`` (Azure primary, Gemini
    fallback) and ``build_translations._run_machine_translation``, with the
@@ -149,12 +150,80 @@ Three sources, in ``scripts/build_translations.py``'s own priority order:
 ``--no-translate`` looks the store up and never calls out.
 ``--max-translation-characters`` (default
 ``build_translations.DEFAULT_MAX_CHARACTERS_PER_RUN``, 60,000) is a runaway
-guard, not a working limit: a 396-item pilot measures at about 166 new
-translations and about 11,000 characters, so the default is roughly five
-times the expected need. A ``TranslationError`` on a batch leaves that
-batch's items at ``gloss_en=None`` and the pilot continues to verification,
-matching this script's posture everywhere else (``_read_one_corpus``, the
-``verify_items`` guard).
+guard, not a working limit; the arithmetic under "What the character budget
+now has to cover" below is what says the default still holds. A
+``TranslationError`` on a batch leaves that batch's items at
+``gloss_en=None`` and the pilot continues to verification, matching this
+script's posture everywhere else (``_read_one_corpus``, the ``verify_items``
+guard).
+
+## A stored Tatoeba gloss is a cache MISS (owner's decision, 2026-08-27)
+
+A hand audit of all 430 accepted exercises from the last pilot found ten
+defects. Four were items whose German is correct and whose English gloss is
+wrong, and **three of those four came from Tatoeba's own human translations,
+not from machine translation**:
+
+    Wenn ich im Lotto gewaenne, wuerde ich mir ein neues Auto kaufen.
+    "If I won the lottery, I'd buy you a new car."      <- mir is himself
+
+    Ich habe eine Freundin, die sich selbst die Haare schneidet.
+    "I have a friend who cuts his own hair."            <- Freundin is female
+
+    Das Haus, in dem man lacht, wird vom Glueck bedacht.
+    "The house in which one laughs is considered by luck."  <- meaningless
+
+(The fourth, ``Aber: Das Thema ist damit nicht beendet ...`` glossed "But:
+The topic is not over there ...", is a machine translation reading ``damit``
+as a place adverb.) A separate hand check of 120 Tatoeba pairs found 2
+outright wrong and 6 loose. The owner's two decisions follow: **a wrong
+gloss replaces the English and keeps the item** (the German still works as
+an exercise; only the translation failed), and **Tatoeba translations stop
+being used for exercises**.
+
+So ``_populate_glosses`` treats a store record with ``source="tatoeba"`` as
+though it were absent: the carrier is re-translated and the record is
+overwritten with the machine translation. A record whose ``source`` is
+``azure`` or ``gemini`` is used exactly as before.
+``--trust-stored-tatoeba`` restores the old behaviour, for reproducing an
+earlier run against it.
+
+**What this does NOT do is delete anything.** The Tatoeba records are the
+only thing feeding planned feature 5.3 (click a word, see it in several
+corpus sentences with their translations), which needs breadth far more than
+precision. They stay in the store and are distrusted on the exercise path
+only. Re-translating all 200,555 of them would be about 13,000,000
+characters, roughly half a year of Azure F0, and is emphatically not what
+this is: the store converts itself over time, for exactly the sentences that
+become exercises, roughly 475 a cycle.
+
+**A distrusted gloss that could not be replaced does not get used.** If the
+re-translation fails, is skipped for budget, or no translator is configured,
+the item keeps ``gloss_en=None`` rather than falling back on the Tatoeba
+English. Shipping the distrusted gloss anyway would make the flag
+decorative, and ``None`` is a state every consumer here already handles
+(the gloss check returns immediately for it, the app renders nothing). Those
+items are counted in ``gloss_missing`` and reported separately as
+``gloss_missing_stale_tatoeba`` so the number is visible rather than merged
+into "no gloss anywhere".
+
+## What the character budget now has to cover
+
+Re-translating the Tatoeba ones is new demand on ``--max-translation-
+characters``. The arithmetic, for one 475-item pilot cycle:
+
+* The last pilot's 392 review items measure at a mean carrier length of
+  **61.7 characters** (median 54, max 144).
+* The worst case is a store that helps not at all: 475 carriers x 61.7 =
+  **about 29,300 characters**.
+* The owner's expected case is roughly 300 carriers whose Tatoeba gloss now
+  gets replaced, about **18,500 characters**, plus whatever the store has
+  never held.
+
+So 29,300 is the ceiling for a whole cycle against a 60,000 default: **the
+default still holds, with roughly 2x headroom**, and it is not raised. It
+also stops being purely decorative -- it used to be five times the expected
+need and is now about twice it, which is the right size for a runaway guard.
 
 ## What changes for an item once ``gloss_en`` stops being ``None``
 
@@ -238,9 +307,13 @@ after a crash must still be cheap (CLAUDE.md section 9); every later pass
 passes ``use_cache=False`` through ``verify_items`` to ``generate_many``.
 
 **What it costs.** Measured from the owner's own ``cost_log``, against a
-5 EUR/month ceiling: about $0.18 per pilot cycle at batch size 20, about
-$0.36 at batch size 5. Each extra pass adds roughly one more of whichever
-batch size the run uses, so ``--verification-passes 2`` roughly doubles it.
+$7.50/month ceiling: about $0.18 per pilot cycle at batch size 20, about
+$0.36 at batch size 5. Both figures are read off cost_log rows written
+before the 2026-08-27 pricing fix, which billed every paid on-demand call at
+the batch discount: treat them as a lower bound, up to 2x low for a run that
+spent on the paid lane synchronously. Each extra pass adds roughly one more
+of whichever batch size the run uses, so ``--verification-passes 2`` roughly
+doubles it.
 Nobody should enable this without knowing that, which is why the number is
 in the flag's own help text as well as here.
 
@@ -262,6 +335,70 @@ counts plus how many rejections were unique to that pass,
 run) and ``pass_disagreements`` (how many items at least one pass rejected
 and at least one accepted -- the direct measure of verifier instability,
 and the reason the flag exists).
+
+## Writing the accepted items into the bank (``--write-bank``)
+
+Until this change the chain from corpus to browser had exactly one missing
+hop. Migration v4 gave ``items`` its ``gloss_en`` column, ``BankExporter.
+EXPORTED_BANK_ITEM_FIELDS`` ships that column, and
+``scripts/step3_export_web_data.py`` writes ``web/data/*.json`` from the
+bank -- but nothing ever put a corpus-pilot item INTO ``data/bank.db``.
+``scripts/step2_build_item_bank.py`` ingests a golden fixture and
+``step6_blank_pilot.py`` only READS stock from a bank it is pointed at
+(``SqliteItemBank(args.db)`` there is a ``stock`` lookup, not an insert), so
+the owner's "ship with a full bank, top up nightly as a last resort" is not
+reachable from any script in the repository. ``--write-bank PATH`` is that
+hop, and nothing else changes: the flag is **off by default**, and with it
+off this script behaves byte for byte as it did before.
+
+**Identity is ``BankItem.id``, and a collision SKIPS.** ``_corpus_item_id``
+is a content hash of exactly the five fields that define the exercise
+(topic, type, difficulty, prompt, answer), so the same carrier sentence
+blanked for the same topic produces the same id on every run, at any seed,
+from either corpus. Two items with one id are therefore the same exercise,
+not two -- there is nothing to merge and re-inserting is a no-op.
+``SqliteItemBank.insert_item`` already implements exactly that rule
+(``INSERT OR IGNORE`` plus "do not touch distractors/carrier_lemmas for an
+existing row"), so this script reuses it rather than inventing a second
+idempotency mechanism. Replace-on-collision was rejected for one concrete
+reason: an item already in the bank may already have ``review_logs`` rows
+against it, and rewriting the row a learner has been scheduled against, to
+identical content, buys nothing and risks everything.
+
+**The one field that legitimately changes without changing the id is
+``gloss_en``**, because the gloss is not part of the hash. A first run with
+no translator configured banks the item with ``gloss_en = NULL``; a second
+run that now has a gloss for that carrier skips the row as a duplicate and
+the NULL stays. That is not silently accepted: ``bank_write.
+stale_gloss_rows`` counts exactly it (an offered item that carries a gloss
+whose already-banked row does not) and prints a warning. Backfilling it
+automatically would mean an UPDATE path this script has no mandate to own;
+``docs/building-the-bank.md`` says what to do about it instead.
+
+**A bank write cannot cost the run its review file.** The insert happens
+AFTER ``_write_review_file``/``_write_rejected_file`` and is wrapped whole,
+migrations included, in the same catch-all guard every other failure path in
+this script uses, so a broken or unwritable database leaves the review, the
+rejected file and the report exactly where they would otherwise be, with the
+error recorded in ``bank_write.error``. It does fail the run (nonzero exit,
+alongside the not-run rule below) once the files are on disk: a run that was
+asked for a bank and did not produce one is not a successful run, and
+exiting 0 would be the same "looks like it worked" failure the report file
+exists to prevent.
+
+**A run that failed its own backstop rule writes nothing.** ``final_items``
+is "everything the model did not reject", which includes items no
+verification pass could judge -- correct for a review file, wrong for the
+bank the app ships from. When ``not_run_count`` is nonzero (the same
+condition that already fails the run, see "Fail loudly" below) the bank write
+is refused outright, with the reason in ``bank_write.error``, rather than
+putting unverified items in front of a learner on exactly the runs that rule
+exists to catch.
+
+**Migrations run.** ``SqliteItemBank.__init__`` calls ``run_migrations``, so
+a ``bank.db`` this flag creates from nothing comes up at
+``CURRENT_SCHEMA_VERSION`` (gloss column included), not as a bare v1 table.
+The version actually reached is recorded in the report.
 
 ## CLAUDE.md rule 2
 
@@ -316,6 +453,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from src.bank.migrations import CURRENT_SCHEMA_VERSION, schema_version
+from src.bank.storage import SqliteItemBank
 from src.contracts import BankItem, CandidateItem, Topic
 from src.generation.batch_client import RejectedCandidateRecord
 from src.generation.blanking import carrier_validation, sentence_tagger
@@ -357,7 +496,13 @@ from scripts.build_translations import (
 from scripts.build_translations import (
     DEFAULT_STORE_PATH as DEFAULT_TRANSLATION_STORE_PATH,
 )
-from scripts.corpus_reading import CorpusLine, default_corpus_path, read_corpus_lines
+from scripts.corpus_reading import (
+    SOURCE_LEIPZIG,
+    SOURCE_TATOEBA,
+    CorpusLine,
+    default_corpus_path,
+    read_corpus_lines,
+)
 
 DEFAULT_REVIEW_PATH = Path("data/corpus_pilot_review.jsonl")
 DEFAULT_REJECTED_PATH = Path("data/corpus_pilot_rejected.jsonl")
@@ -385,9 +530,39 @@ DEFAULT_SEED = 7
 # TODO.md 2.3/2.1c: how many times the model verification pass runs over the
 # SAME items. 1 is today's behaviour exactly -- one pass, cache on, byte-for-
 # byte what every previous run did -- and the default stays 1 because every
-# extra pass is another full cycle's spend against a 5 EUR/month ceiling. See
+# extra pass is another full cycle's spend against a $7.50/month ceiling. See
 # ``run_verification_passes`` for what N > 1 buys and what it costs.
 DEFAULT_VERIFICATION_PASSES = 1
+
+# The owner's decision, 2026-08-27: a stored gloss whose source is Tatoeba is
+# a cache MISS on the exercise path. See the module docstring for the four
+# audited defects behind it, three of which were Tatoeba's own translations.
+DEFAULT_TRUST_STORED_TATOEBA = False
+
+#: The one store source value this script refuses to reuse as a gloss.
+#: Matches ``build_translations.TranslationRecord.source``'s own literal.
+STORED_SOURCE_TATOEBA = "tatoeba"
+
+
+def stored_tatoeba_policy_sentence(trust_stored_tatoeba: bool) -> str:
+    """One plain sentence saying what this run's setting MEANS, not just
+    which way the switch was thrown. Printed and written to the report from
+    this one function so the console and the JSON can never disagree."""
+    if trust_stored_tatoeba:
+        return (
+            "--trust-stored-tatoeba GIVEN: a stored gloss was used whatever its "
+            "source, including Tatoeba's own human translations. This is the OLD "
+            "behaviour, kept only so an earlier run can be reproduced. A hand audit "
+            "of 430 accepted items found 4 wrong glosses and 3 of the 4 were "
+            "Tatoeba's."
+        )
+    return (
+        "--trust-stored-tatoeba NOT given (the default): a stored gloss whose "
+        "source is Tatoeba was treated as absent, re-translated, and the store "
+        "record overwritten with the machine translation. The Tatoeba records are "
+        "distrusted here, not deleted: they still feed feature 5.3."
+    )
+
 
 # TODO.md 8.11: how many items in ONE topic's sample may share the same
 # blanked lemma -- docs/audits/cycle-10-corpus-report.md's own finding (7 of
@@ -643,8 +818,11 @@ def run_verification_passes(
 
     **The cost.** Measured from the owner's own ``cost_log``: about $0.18 per
     pilot cycle at batch size 20, about $0.36 at batch size 5, against a
-    5 EUR/month ceiling. Each additional pass adds roughly one more of
-    whichever figure applies. ``passes <= 1`` short-circuits to exactly one
+    $7.50/month ceiling. Both figures are read off cost_log rows written
+    before the 2026-08-27 pricing fix, which billed every paid on-demand call
+    at the batch discount: treat them as a lower bound, up to 2x low for a run
+    that spent on the paid lane synchronously. Each additional pass adds
+    roughly one more of whichever figure applies. ``passes <= 1`` short-circuits to exactly one
     cached pass, which is the behaviour every run before this flag had."""
     effective_passes = max(1, passes)
     reports: list[VerificationReport] = []
@@ -731,21 +909,41 @@ class GlossReport:
     check cost, as its own section of the run report and its own block of
     printed output.
 
-    The three fill counters (``gloss_from_store``, ``gloss_newly_translated``,
+    The FOUR fill counters (``gloss_from_store``,
+    ``gloss_retranslated_tatoeba``, ``gloss_newly_translated``,
     ``gloss_missing``) are disjoint and always sum to ``items_total``, the
-    same "three disjoint counts that must sum" discipline
+    same "disjoint counts that must sum" discipline
     ``model_verification.VerificationReport`` already holds this package to.
+    There were three until the owner's 2026-08-27 decision to distrust stored
+    Tatoeba glosses; "re-translated because the stored gloss was Tatoeba's"
+    is deliberately its own line rather than being folded into either
+    neighbour, because it is the whole point of the change and its size is
+    what says whether the character budget is under strain.
     """
 
     store_path: str = ""
     translator_mode: str = "none"
     translation_batch_size: int = 0
     max_translation_characters: int = 0
+    # ``False`` is the new default: a stored Tatoeba gloss is a cache miss
+    # (module docstring). Recorded so two runs that differ only in this can
+    # be told apart from the report file alone.
+    trust_stored_tatoeba: bool = False
     items_total: int = 0
     gloss_from_store: int = 0
+    gloss_retranslated_tatoeba: int = 0
     gloss_newly_translated: int = 0
     gloss_missing: int = 0
     carriers_needing_translation: int = 0
+    # Subset of carriers_needing_translation: how many of them needed it only
+    # because their stored gloss was Tatoeba's. Zero under
+    # --trust-stored-tatoeba.
+    carriers_distrusted_tatoeba: int = 0
+    # Subset of gloss_missing: items whose distrusted Tatoeba gloss could NOT
+    # be replaced this run (failure, budget, or no translator), and which
+    # therefore carry no gloss rather than the distrusted one. A later run
+    # picks them up.
+    gloss_missing_stale_tatoeba: int = 0
     skipped_for_budget: int = 0
     # Every character this run actually translated, Azure and Gemini
     # fallback together -- the same total build_translations.py's own budget
@@ -771,11 +969,16 @@ class GlossReport:
             "translator_mode": self.translator_mode,
             "translation_batch_size": self.translation_batch_size,
             "max_translation_characters": self.max_translation_characters,
+            "trust_stored_tatoeba": self.trust_stored_tatoeba,
+            "stored_tatoeba_policy": stored_tatoeba_policy_sentence(self.trust_stored_tatoeba),
             "items_total": self.items_total,
             "gloss_from_store": self.gloss_from_store,
+            "gloss_retranslated_tatoeba": self.gloss_retranslated_tatoeba,
             "gloss_newly_translated": self.gloss_newly_translated,
             "gloss_missing": self.gloss_missing,
             "carriers_needing_translation": self.carriers_needing_translation,
+            "carriers_distrusted_tatoeba": self.carriers_distrusted_tatoeba,
+            "gloss_missing_stale_tatoeba": self.gloss_missing_stale_tatoeba,
             "skipped_for_budget": self.skipped_for_budget,
             "characters_spent": self.characters_spent,
             "translation_failures": self.translation_failures,
@@ -786,6 +989,112 @@ class GlossReport:
             "rejected_by_gloss_check_by_topic": self.rejected_by_gloss_check_by_topic,
             "gloss_unverified_dimensions": self.gloss_unverified_dimensions,
         }
+
+
+@dataclass
+class BankWriteReport:
+    """What ``--write-bank`` did, or why it did nothing (module docstring's
+    own section).
+
+    ``inserted``/``skipped_already_present``/``failed`` are disjoint and sum
+    to ``items_offered`` whenever ``attempted`` is true, the same "disjoint
+    counts that must sum" discipline ``GlossReport`` and
+    ``VerificationReport`` are already held to. They map one to one onto
+    ``InsertReport.inserted``/``duplicates``/``rejected``: a skip is an id
+    that was already in the bank (idempotency working, not an error), a
+    failure is an item ``SqliteItemBank._validate_for_insert`` refused (today
+    only "the prompt contains its own accepted answer outside the gap").
+    """
+
+    requested: bool = False
+    db_path: str = ""
+    attempted: bool = False
+    schema_version: int = 0
+    items_offered: int = 0
+    inserted: int = 0
+    skipped_already_present: int = 0
+    failed: int = 0
+    failure_reasons: list[str] = field(default_factory=list)
+    # Offered items that carry a gloss whose ALREADY-BANKED row does not.
+    # Only ever nonzero for a skipped (duplicate) id, because a freshly
+    # inserted row carries whatever gloss it was inserted with. See the
+    # module docstring for why this is counted rather than repaired here.
+    stale_gloss_rows: int = 0
+    total_items_in_bank: int = 0
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "requested": self.requested,
+            "db_path": self.db_path,
+            "attempted": self.attempted,
+            "schema_version": self.schema_version,
+            "items_offered": self.items_offered,
+            "inserted": self.inserted,
+            "skipped_already_present": self.skipped_already_present,
+            "failed": self.failed,
+            "failure_reasons": self.failure_reasons,
+            "stale_gloss_rows": self.stale_gloss_rows,
+            "total_items_in_bank": self.total_items_in_bank,
+            "error": self.error,
+        }
+
+
+def _count_stale_gloss_rows(bank: SqliteItemBank, items: Sequence[BankItem]) -> int:
+    """How many of ``items`` carry a gloss the bank's own row for that id does
+    not (module docstring: ``gloss_en`` is the one field that can change
+    without changing the content-addressed id, so a duplicate skip can leave
+    a NULL gloss standing).
+
+    Only worth calling when something was actually skipped as a duplicate --
+    a row this run inserted carries the gloss it was inserted with by
+    construction -- and the caller does exactly that.
+    """
+    stale = 0
+    for item in items:
+        if not item.gloss_en:
+            continue
+        stored = bank.get_item(item.id)
+        if stored is not None and not stored.gloss_en:
+            stale += 1
+    return stale
+
+
+def write_accepted_to_bank(
+    items: Sequence[BankItem], db_path: Path, *, source_batch_id: str
+) -> BankWriteReport:
+    """Insert every accepted item into the SQLite bank at ``db_path``, and
+    report what happened (module docstring's ``--write-bank`` section).
+
+    Idempotent on ``BankItem.id``, which is ``_corpus_item_id``: a content
+    hash of the five fields that define the exercise, so a rerun over the
+    same corpus offers the same ids and every one of them is skipped rather
+    than duplicated. The rule is ``SqliteItemBank.insert``'s own, reused, not
+    a second implementation of the same idea.
+
+    Never raises. Every failure -- an unwritable path, a corrupt database, a
+    migration that cannot apply -- is caught and recorded in ``error``, so
+    the caller's review/rejected/report files are already on disk and stay
+    there. Creating ``SqliteItemBank`` inside the guard is deliberate: it is
+    the call that runs the migrations, and a migration failure is exactly the
+    kind of thing that must not take the run's outputs down with it.
+    """
+    report = BankWriteReport(requested=True, db_path=str(db_path), items_offered=len(items))
+    try:
+        bank = SqliteItemBank(db_path)
+        report.schema_version = schema_version(db_path)
+        insert_report = bank.insert(list(items), source_batch_id=source_batch_id)
+        report.attempted = True
+        report.inserted = insert_report.inserted
+        report.skipped_already_present = insert_report.duplicates
+        report.failed = insert_report.rejected
+        report.failure_reasons = list(insert_report.rejection_reasons)
+        if report.skipped_already_present:
+            report.stale_gloss_rows = _count_stale_gloss_rows(bank, items)
+        report.total_items_in_bank = bank.count_total()
+    except Exception as exc:  # noqa: BLE001 -- same posture as _one_verification_pass
+        report.error = f"{type(exc).__name__}: {exc}"
+    return report
 
 
 @dataclass
@@ -832,6 +1141,7 @@ class CorpusPilotReport:
     review_file: str = ""
     rejected_file: str = ""
     gloss: GlossReport = field(default_factory=GlossReport)
+    bank_write: BankWriteReport = field(default_factory=BankWriteReport)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -900,9 +1210,14 @@ class CorpusPilotReport:
                 ),
             },
             "accepted_total": self.accepted_total,
+            # Always present, even for a run that did not pass --write-bank,
+            # so a consumer never has to branch on whether the key exists:
+            # ``requested: false`` is a real answer, not a gap.
+            "bank_write": self.bank_write.to_dict(),
             "output_files": {
                 "review": self.review_file,
                 "rejected": self.rejected_file,
+                "bank": self.bank_write.db_path,
             },
         }
 
@@ -1034,17 +1349,22 @@ def _filter_candidates_by_topic_cefr(
 
 
 def _read_one_corpus(
-    path: Path, fmt: str, source_name: str, limit: int, seed: int
+    path: Path, fmt: str, source_name: str, limit: int, seed: int, source: str
 ) -> list[CorpusLine]:
     """One corpus's own lines, or an empty list with a warning printed if the
     file cannot be read -- a missing corpus degrades the run (fewer
     candidates, possibly more topic shortfalls), it never crashes it, so a
     caller missing one of the two files this script defaults to still gets a
-    real run over whichever it has."""
+    real run over whichever it has.
+
+    ``source_name`` is the human label in the warning; ``source`` is the
+    machine-readable corpus name stamped on every returned ``CorpusLine``,
+    which is what keeps a Leipzig line id out of a Tatoeba id lookup
+    downstream (``build_translations._fill_from_tatoeba``)."""
     if not path.exists():
         print(f"  WARNING: {source_name} corpus not found at {path}; skipping this source.")
         return []
-    return read_corpus_lines(path, fmt, limit, seed)
+    return read_corpus_lines(path, fmt, limit, seed, source=source)
 
 
 def _lemma_key(item: CandidateItem) -> str:
@@ -1345,6 +1665,7 @@ def _populate_glosses(
     max_characters: int,
     now: datetime,
     batch_size: int = AZURE_MAX_BATCH,
+    trust_stored_tatoeba: bool = DEFAULT_TRUST_STORED_TATOEBA,
 ) -> tuple[list[BankItem], GlossReport]:
     """TODO.md 2.1b: fill every item's ``gloss_en`` with the English
     translation of its OWN CARRIER SENTENCE, from the store first and the
@@ -1372,12 +1693,20 @@ def _populate_glosses(
     failure and moves to the next batch, leaving those carriers out of the
     store; this function simply reports what it was told and leaves the
     corresponding items at ``gloss_en=None``.
+
+    ``trust_stored_tatoeba=False`` (the default) is the owner's 2026-08-27
+    decision, argued in full in the module docstring: a store record whose
+    ``source`` is ``"tatoeba"`` is treated as a cache MISS, re-translated,
+    and overwritten. A record from ``azure`` or ``gemini`` is used as-is.
+    Nothing is deleted either way -- an unreplaceable Tatoeba record stays on
+    disk for feature 5.3, it simply does not become this item's gloss.
     """
     report = GlossReport(
         store_path=str(store_path),
         translator_mode=translator_mode,
         translation_batch_size=batch_size,
         max_translation_characters=max_characters,
+        trust_stored_tatoeba=trust_stored_tatoeba,
         items_total=len(items),
     )
 
@@ -1395,14 +1724,37 @@ def _populate_glosses(
     # translated it" stay honestly distinguishable afterwards -- the
     # translation step writes into the same dict.
     in_store_before = frozenset(store)
+    # The records the owner's decision says not to believe. Empty under
+    # --trust-stored-tatoeba, which is what makes that flag reproduce the old
+    # behaviour exactly rather than approximately.
+    distrusted = (
+        frozenset()
+        if trust_stored_tatoeba
+        else frozenset(
+            german for german, record in store.items() if record.source == STORED_SOURCE_TATOEBA
+        )
+    )
+    # What a lookup may actually use. A distrusted record is deliberately NOT
+    # in here, so every "is this already glossed?" question below asks the
+    # policy rather than asking the filesystem.
+    usable_before = in_store_before - distrusted
 
     needed: dict[str, CorpusLine] = {}
     for item, carrier in zip(items, carriers, strict=True):
-        if carrier is None or carrier in in_store_before:
+        if carrier is None or carrier in usable_before:
             continue
         provenance = provenance_by_hash[item.source_sentence_id or ""]
-        needed.setdefault(carrier, CorpusLine(line_id=provenance.line_id, text=carrier))
+        # ``source`` is carried, not dropped: a CorpusLine that knows only
+        # its id is exactly what let a Leipzig line id be read as a Tatoeba
+        # sentence id in build_translations._fill_from_tatoeba. This path
+        # only reaches the machine translator today, but the field is what
+        # makes that safe rather than lucky.
+        needed.setdefault(
+            carrier,
+            CorpusLine(line_id=provenance.line_id, text=carrier, source=provenance.source),
+        )
     report.carriers_needing_translation = len(needed)
+    report.carriers_distrusted_tatoeba = sum(1 for carrier in needed if carrier in distrusted)
 
     if needed:
         # build_translations.py's own machine-translation step, imported
@@ -1446,7 +1798,19 @@ def _populate_glosses(
             report.gloss_missing += 1
             glossed.append(item)
             continue
-        if carrier in in_store_before:
+        if carrier in distrusted:
+            # ``record`` is whatever is in the store NOW. If the machine
+            # translation landed, that is the new one and its source says so;
+            # if the batch failed, was skipped for budget, or there was no
+            # translator at all, it is still the Tatoeba record, and this item
+            # gets no gloss rather than the one the owner said to stop using.
+            if record.source == STORED_SOURCE_TATOEBA:
+                report.gloss_missing += 1
+                report.gloss_missing_stale_tatoeba += 1
+                glossed.append(item)
+                continue
+            report.gloss_retranslated_tatoeba += 1
+        elif carrier in usable_before:
             report.gloss_from_store += 1
         else:
             report.gloss_newly_translated += 1
@@ -1523,6 +1887,51 @@ def _gloss_rejection_to_record(
     )
 
 
+# Sentences per second, measured in this project's own container, for the two
+# spaCy passes every run makes over the whole sentence pool: carrier
+# validation (``carrier_validation.validate_carrier``, full parse) and tagging
+# (``sentence_tagger.tag_sentence``, inside ``blank_sentences``). They are
+# deliberately a LOWER bound on a developer machine -- the point is to say
+# "this will take hours" before the hours start, not to predict a minute.
+_MEASURED_VALIDATION_RATE = 78.0
+_MEASURED_TAGGING_RATE = 92.0
+
+# Above this many sentences the estimate is printed as a warning rather than a
+# note. 100,000 is roughly where the two spaCy passes stop being a coffee
+# break: about 40 minutes at the measured rates, against the 2 minutes a
+# 6,000-line pilot takes.
+_LARGE_RUN_SENTENCES = 100_000
+
+
+def _print_scale_estimate(sentence_count: int) -> None:
+    """Say how long the two silent spaCy passes will take, before they start.
+
+    Neither ``carrier_validation.validate_carriers`` nor ``blank_sentences``
+    reports progress, and both walk the whole pool. At the default 40,000
+    lines per source that is a couple of minutes and nobody notices; over a
+    whole corpus it is hours of a cursor not moving, which is exactly the
+    kind of thing a run should not have to be interrupted to find out.
+    """
+    validation_minutes = sentence_count / _MEASURED_VALIDATION_RATE / 60
+    tagging_minutes = sentence_count / _MEASURED_TAGGING_RATE / 60
+    total = validation_minutes + tagging_minutes
+    if sentence_count >= _LARGE_RUN_SENTENCES:
+        print(
+            f"\n  *** LARGE RUN: {sentence_count:,} sentences. The carrier-validation "
+            f"and tagging passes each parse every one of them with spaCy and neither "
+            f"prints anything until it finishes. At this project's own measured rates "
+            f"({_MEASURED_VALIDATION_RATE:.0f} and {_MEASURED_TAGGING_RATE:.0f} "
+            f"sentences/second) expect roughly {total:.0f} minutes of silence before "
+            f"the next line appears, less on a faster machine. ***"
+        )
+    else:
+        print(
+            f"  Tagging and validating {sentence_count:,} sentences "
+            f"(roughly {total:.1f} minutes at this project's measured rates; "
+            f"neither pass prints progress)."
+        )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Step 7: corpus-sourced verify-only pilot.")
     parser.add_argument("--tatoeba", type=Path, default=DEFAULT_TATOEBA_PATH)
@@ -1570,15 +1979,37 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--trust-stored-tatoeba",
+        action="store_true",
+        help=(
+            "Use a stored gloss whatever its source, including Tatoeba's own "
+            "human translations. This restores the behaviour from before "
+            "2026-08-27 and exists only so an earlier run can be reproduced. "
+            "By default a stored gloss whose source is 'tatoeba' is treated as "
+            "ABSENT: the carrier is re-translated and the store record is "
+            "overwritten with the machine translation. Why: a hand audit of all "
+            "430 accepted items found 4 wrong glosses, and 3 of the 4 were "
+            "Tatoeba's own translations (e.g. 'mir' glossed as 'you', a female "
+            "'Freundin' glossed 'his own hair'). The Tatoeba records are NOT "
+            "deleted either way; they still feed feature 5.3."
+        ),
+    )
+    parser.add_argument(
         "--max-translation-characters",
         type=int,
         default=DEFAULT_MAX_CHARACTERS_PER_RUN,
         help=(
             "Runaway guard on this run's machine translation, in characters, "
             "stopping at a whole-batch boundary exactly as "
-            "build_translations.py does. A 396-item pilot measures at about "
-            "11,000 characters, so the default is roughly five times the "
-            "expected need and should never bind in practice."
+            "build_translations.py does. Arithmetic for one 475-item cycle "
+            "under the default distrust of stored Tatoeba glosses: the last "
+            "pilot's 392 items measure at a mean carrier length of 61.7 "
+            "characters, so the worst case, a store that helps not at all, is "
+            "475 x 61.7 = about 29,300 characters. The expected case is about "
+            "300 carriers whose Tatoeba gloss gets replaced, about 18,500 "
+            "characters, plus whatever the store has never held. The 60,000 "
+            "default therefore still covers a full cycle with roughly 2x "
+            "headroom."
         ),
     )
     parser.add_argument(
@@ -1608,8 +2039,9 @@ def main() -> int:
             "rejected at 5 while 3 went the other way, and all 12 were read "
             "by hand and all 12 are genuinely bad items -- so neither run "
             "catches everything and the union catches all of them. COST, "
-            "measured from cost_log against a 5 EUR/month ceiling: about "
-            "$0.18 per pilot cycle at batch size 20 and about $0.36 at batch "
+            "measured from cost_log (before the 2026-08-27 pricing fix, so "
+            "up to 2x low for paid on-demand calls) against a $7.50/month "
+            "ceiling: about $0.18 per pilot cycle at batch size 20 and $0.36 at batch "
             "size 5, and each extra pass adds roughly one more of whichever "
             "applies. Passes after the first bypass the local response cache "
             "on purpose (an identical prompt would otherwise replay pass 1's "
@@ -1624,6 +2056,23 @@ def main() -> int:
             "them. Default is measure-only: the check always runs and its "
             "numbers are always printed, but nothing is dropped for it until "
             "a run has shown what enforcing would cost."
+        ),
+    )
+    parser.add_argument(
+        "--write-bank",
+        type=Path,
+        default=None,
+        help=(
+            "Insert every ACCEPTED item into this SQLite item bank (e.g. "
+            "data/bank.db) after verification. Off by default; without it no "
+            "database is opened or created and this script behaves exactly as "
+            "it did before the flag existed. The write is idempotent on the "
+            "item's content-addressed id, so running this twice over the same "
+            "corpus skips instead of doubling the bank. Migrations run, so a "
+            "bank.db created here comes up at the current schema version. The "
+            "review and rejected JSONL files are written first and are never "
+            "at risk from a bank failure, but a bank that was asked for and "
+            "not written fails the run."
         ),
     )
     parser.add_argument("--review-file", type=str, default=str(DEFAULT_REVIEW_PATH))
@@ -1655,13 +2104,17 @@ def main() -> int:
 
     all_lines: list[tuple[str, CorpusLine]] = []
     if not args.skip_tatoeba:
-        lines = _read_one_corpus(args.tatoeba, "tatoeba", "Tatoeba", args.limit, args.seed)
+        lines = _read_one_corpus(
+            args.tatoeba, "tatoeba", "Tatoeba", args.limit, args.seed, SOURCE_TATOEBA
+        )
         report.corpus_reads.append(
             CorpusReadStats(source="tatoeba", path=str(args.tatoeba), lines_read=len(lines))
         )
         all_lines.extend(("tatoeba", line) for line in lines)
     if not args.skip_leipzig:
-        lines = _read_one_corpus(args.leipzig, "lines", "Leipzig", args.limit, args.seed)
+        lines = _read_one_corpus(
+            args.leipzig, "lines", "Leipzig", args.limit, args.seed, SOURCE_LEIPZIG
+        )
         report.corpus_reads.append(
             CorpusReadStats(source="leipzig", path=str(args.leipzig), lines_read=len(lines))
         )
@@ -1690,6 +2143,15 @@ def main() -> int:
         key = _carrier_hash_id(line.text)
         provenance_by_hash.setdefault(key, CorpusProvenance(source, line.line_id, line.text))
 
+    # Both of the next two stages parse every sentence with spaCy, once each,
+    # and neither prints anything until it finishes. On a whole-corpus run
+    # that is hours of apparent silence, so the estimate is printed BEFORE
+    # the wait rather than discovered during it. The rate is measured, not
+    # guessed: 78 sentences/second for carrier validation and 92 for tagging
+    # in this project's own container, and a faster machine moves the lower
+    # bound, never the shape.
+    _print_scale_estimate(len(sentences))
+
     validation = carrier_validation.validate_carriers(sentences)
     report.carrier_valid_total = len(validation.accepted)
     report.carrier_rejected_by_reason = dict(validation.rejected_by_reason)
@@ -1710,6 +2172,14 @@ def main() -> int:
         validation.accepted,
         max_items_per_topic=_UNCAPPED,
         max_items_per_sentence=_UNCAPPED,
+        # This script reads ``skips_by_reason`` (the counts) and never
+        # ``skip_details`` (one row per (sentence, topic) pair that produced
+        # nothing, holding the whole sentence text). At the 6,000-line pilot
+        # scale that list is 200,000 rows and nobody notices; over a whole
+        # corpus it is about 15 million rows and 5 GB of resident memory that
+        # this run would allocate, hold to the end, and never look at. The
+        # counts are kept in full either way.
+        collect_skip_details=False,
     )
     report.sentences_tagged = blanking_report.sentences_tagged
     report.raw_candidates_total = blanking_report.total_items
@@ -1807,6 +2277,7 @@ def main() -> int:
     # ---------------------------------------------------------------
     translator: Translator | None
     translator_mode: TranslatorMode
+    print(f"\n  Gloss policy: {stored_tatoeba_policy_sentence(args.trust_stored_tatoeba)}")
     if args.no_translate:
         translator, translator_mode = None, "none"
         print("\n  Gloss: --no-translate given; the store is read but nothing is translated.")
@@ -1833,6 +2304,7 @@ def main() -> int:
         max_characters=args.max_translation_characters,
         now=datetime.now(UTC),
         batch_size=_default_batch_size(translator_mode),
+        trust_stored_tatoeba=args.trust_stored_tatoeba,
     )
     gloss_report.gloss_check_enforced = args.enforce_gloss_check
     report.gloss = gloss_report
@@ -1901,6 +2373,35 @@ def main() -> int:
     report.review_file = str(review_path)
     report.rejected_file = str(rejected_path)
 
+    # The corpus-to-browser chain's missing hop (module docstring's own
+    # ``--write-bank`` section). Deliberately AFTER both JSONL writes: the
+    # bank is additive, and the audit files this run exists to produce must
+    # already be on disk before a database is touched.
+    if args.write_bank is not None:
+        if verification_report.not_run_count > 0:
+            # ``final_items`` is "everything the model did not reject", which
+            # includes items no pass could judge at all. That is the right
+            # content for a review file -- the audit needs to see them -- and
+            # exactly the wrong content for the bank the app ships from. This
+            # script already treats a nonzero ``not_run_count`` as a failed
+            # run; letting the bank write proceed anyway would put unverified
+            # items in front of a learner on precisely the runs the failure
+            # rule exists to catch.
+            report.bank_write = BankWriteReport(
+                requested=True,
+                db_path=str(args.write_bank),
+                items_offered=len(final_items),
+                error=(
+                    "refused: the model verification backstop did not run for "
+                    f"{verification_report.not_run_count} item(s), so this run has "
+                    "unverified items in it and none of them may reach the bank"
+                ),
+            )
+        else:
+            report.bank_write = write_accepted_to_bank(
+                final_items, Path(args.write_bank), source_batch_id=batch_id
+            )
+
     # TODO.md 2.1b: printed BEFORE the verification block and never folded
     # into it. The gloss check is a rejection cause now, and this task's own
     # brief is explicit that its numbers must be prominent rather than
@@ -1908,22 +2409,32 @@ def main() -> int:
     # being wrong, and some are the check misreading a correct but loose
     # translation, and nobody can tell which without seeing the shape.
     print("\n  English gloss (TODO.md 2.1b):")
-    print(f"    Store:                {gloss_report.store_path}")
-    print(f"    Translator mode:      {gloss_report.translator_mode}")
-    print(f"    Items:                {gloss_report.items_total}")
-    print(f"      from the store:     {gloss_report.gloss_from_store}")
-    print(f"      newly translated:   {gloss_report.gloss_newly_translated}")
-    print(f"      still without one:  {gloss_report.gloss_missing}")
+    print(f"    Store:                 {gloss_report.store_path}")
+    print(f"    Translator mode:       {gloss_report.translator_mode}")
+    print(f"    Trust stored Tatoeba:  {gloss_report.trust_stored_tatoeba}")
+    print(f"    Items:                 {gloss_report.items_total}")
+    print(f"      from the store:      {gloss_report.gloss_from_store}")
+    print(f"      re-translated (was Tatoeba's): {gloss_report.gloss_retranslated_tatoeba}")
+    print(f"      newly translated:    {gloss_report.gloss_newly_translated}")
+    print(f"      still without one:   {gloss_report.gloss_missing}")
+    if gloss_report.gloss_missing_stale_tatoeba:
+        print(
+            "        of which a distrusted Tatoeba gloss this run could not "
+            f"replace: {gloss_report.gloss_missing_stale_tatoeba}"
+        )
     print(
-        f"    Characters spent:     {gloss_report.characters_spent:,} of "
+        f"    Characters spent:      {gloss_report.characters_spent:,} of "
         f"{gloss_report.max_translation_characters:,} "
         f"(batch size {gloss_report.translation_batch_size})"
     )
     if gloss_report.skipped_for_budget:
-        print(f"    Left for a later run: {gloss_report.skipped_for_budget}")
-    print(f"    Translation failures: {gloss_report.translation_failures}")
+        print(f"    Left for a later run:  {gloss_report.skipped_for_budget}")
+    print(f"    Translation failures:  {gloss_report.translation_failures}")
     for example in gloss_report.translation_failure_examples:
         print(f"      - {example}")
+    print(
+        f"    What that means: {stored_tatoeba_policy_sentence(gloss_report.trust_stored_tatoeba)}"
+    )
 
     print("\n  Gloss consistency check:")
     print(
@@ -1988,6 +2499,39 @@ def main() -> int:
             "accepted: the direct measure of verifier instability on this corpus)"
         )
 
+    bank_write = report.bank_write
+    print("\n  Item bank (--write-bank):")
+    if not bank_write.requested:
+        print("    NOT REQUESTED: no --write-bank given, no database was opened or created.")
+    elif bank_write.error is not None:
+        print(f"    FAILED: {bank_write.db_path}")
+        print(f"      {bank_write.error}")
+        print("      The review, rejected and report files above are unaffected.")
+    else:
+        print(f"    Database:              {bank_write.db_path}")
+        print(f"    Schema version:        {bank_write.schema_version}")
+        print(f"    Offered:               {bank_write.items_offered}")
+        print(f"    Inserted:              {bank_write.inserted}")
+        print(f"    Already present:       {bank_write.skipped_already_present}")
+        print(f"    Failed:                {bank_write.failed}")
+        for reason in bank_write.failure_reasons:
+            print(f"      - {reason}")
+        print(f"    Items in bank now:     {bank_write.total_items_in_bank}")
+        if bank_write.stale_gloss_rows:
+            print(
+                "    *** STALE GLOSSES: "
+                f"{bank_write.stale_gloss_rows} item(s) already in the bank carry no "
+                "gloss while this run has one for them. The id is content-addressed "
+                "and does not cover gloss_en, so a duplicate skip cannot refresh it. "
+                "See docs/building-the-bank.md, 'Topping up later'. ***"
+            )
+        if bank_write.schema_version != CURRENT_SCHEMA_VERSION:
+            print(
+                f"    *** SCHEMA: this bank is at version {bank_write.schema_version}, "
+                f"not the current {CURRENT_SCHEMA_VERSION}. gloss_en arrived in v4; "
+                "an older bank silently drops it. ***"
+            )
+
     print(f"\n  Review file:   {review_path}")
     print(f"  Rejected file: {rejected_path}")
 
@@ -2001,6 +2545,18 @@ def main() -> int:
             "  FAILING: the model verification backstop did not run for "
             f"{verification_report.not_run_count} item(s). A run where this "
             "backstop did not execute is not a valid pilot run."
+        )
+        return 1
+
+    # Checked LAST, and only after every output file is on disk: a bank the
+    # run was asked for and could not write is a failed run, but it is a
+    # failed run whose review and report are still there to diagnose it with.
+    if bank_write.requested and bank_write.error is not None:
+        print()
+        print(
+            "  FAILING: --write-bank was given and the bank could not be "
+            f"written ({bank_write.error}). Nothing else this run produced was "
+            "lost; see the report file's bank_write block."
         )
         return 1
 

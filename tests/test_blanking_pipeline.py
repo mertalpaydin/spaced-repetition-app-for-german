@@ -480,3 +480,33 @@ def test_blank_sentences_blanked_lemma_set_even_with_no_cue_at_all() -> None:
     item = next(i for i in report.items if i.topic_id == "pronomen_personal_nom")
     assert item.cue is None
     assert item.blanked_lemma == "ich"
+
+
+def test_blank_sentences_collects_skip_details_by_default() -> None:
+    """The default is unchanged: every (sentence, topic) pair that produced
+    nothing still gets its own row, which is what ``step6_blank_pilot.py``
+    reads to say WHICH sentence failed WHICH topic and why."""
+    report = blank_sentences(["Ich sehe den Mann auf der anderen Straßenseite."])
+    assert report.skip_details_collected is True
+    assert report.skip_details
+    assert sum(report.skips_by_reason.values()) == len(report.skip_details)
+
+
+def test_blank_sentences_can_keep_skip_counts_without_the_per_skip_rows() -> None:
+    """``collect_skip_details=False`` is what makes a whole-corpus run fit in
+    memory (see ``BlankingReport.skip_details``): 49 selectors look at every
+    sentence and almost every pair produces nothing, so the rows grow with
+    sentences TIMES topics while the counts cost nothing. The counts, the
+    items and every other outcome list must be identical either way -- only
+    the rows go."""
+    sentences = ["Ich sehe den Mann auf der anderen Straßenseite."]
+    full = blank_sentences(sentences)
+    lean = blank_sentences(sentences, collect_skip_details=False)
+
+    assert lean.skip_details_collected is False
+    assert lean.skip_details == []
+    assert lean.skips_by_reason == full.skips_by_reason
+    assert lean.items_by_topic == full.items_by_topic
+    assert [i.prompt for i in lean.items] == [i.prompt for i in full.items]
+    assert lean.skips_by_uniqueness == full.skips_by_uniqueness
+    assert lean.skips_by_type_ineligibility == full.skips_by_type_ineligibility

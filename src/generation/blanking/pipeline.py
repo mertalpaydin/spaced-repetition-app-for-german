@@ -458,7 +458,21 @@ class BlankingReport:
     sentences_tagged: int = 0
     items_by_topic: dict[str, int] = field(default_factory=dict)
     skips_by_reason: Counter[str] = field(default_factory=Counter)
+    # One row per (sentence, topic) pair that produced nothing, which is the
+    # overwhelming majority of pairs: 49 selectors look at every sentence and
+    # a typical sentence yields items for one or two of them. Measured on a
+    # real corpus run, that is about 33 rows per corpus line, each holding
+    # the full sentence text, so a whole-corpus run (450,000 lines) would
+    # hold roughly 15 million of them, about 5 GB, before anything is
+    # written. ``collect_skip_details=False`` (see ``blank_sentences``) keeps
+    # ``skips_by_reason`` -- the counts, which cost nothing -- and leaves
+    # this list empty. Always populated by default, so every existing caller
+    # is unchanged.
     skip_details: list[SkipDetail] = field(default_factory=list)
+    # ``False`` when this run was asked not to collect ``skip_details``, so a
+    # reader can tell "nothing was skipped" from "the per-skip rows were not
+    # kept" instead of both looking like an empty list.
+    skip_details_collected: bool = True
     items: list[CandidateItem] = field(default_factory=list)
     # Balance decisions about genuinely good items -- never a quality
     # judgment, always counted separately from ``skips_by_reason`` (see
@@ -491,6 +505,7 @@ def blank_sentences(
     max_items_per_topic: int = DEFAULT_MAX_ITEMS_PER_TOPIC,
     max_items_per_sentence: int = DEFAULT_MAX_ITEMS_PER_SENTENCE,
     topic_ids: Iterable[str] | None = None,
+    collect_skip_details: bool = True,
 ) -> BlankingReport:
     """Run every sentence in ``sentences`` through tag -> select -> blank for
     every topic in ``SELECTORS`` (or, when ``topic_ids`` is given, only that
@@ -523,10 +538,22 @@ def blank_sentences(
     selectors agreeing on the same token) -- that is what
     ``_drop_cross_topic_duplicates`` resolves afterwards, not something this
     loop itself prevents.
+
+    ``collect_skip_details=False`` keeps every skip COUNT
+    (``skips_by_reason``) and stops keeping the per-skip rows
+    (``BlankingReport.skip_details``), which is the one thing in this
+    function whose memory grows with sentences TIMES topics rather than with
+    either alone. Additive and default-on, so no existing caller changes; it
+    exists because a whole-corpus run would otherwise hold roughly 15 million
+    of those rows (about 5 GB) purely to describe pairs that produced
+    nothing, and ``scripts/step7_corpus_pilot.py`` never reads them.
+    ``skip_details_collected`` on the report records which way it ran.
     """
     selectors = SELECTORS if topic_ids is None else {t: SELECTORS[t] for t in topic_ids}
 
-    report = BlankingReport(sentences_requested=len(sentences))
+    report = BlankingReport(
+        sentences_requested=len(sentences), skip_details_collected=collect_skip_details
+    )
     if not sentence_tagger.analysis_available():
         report.skips_by_reason["spacy_unavailable"] += len(sentences) * len(selectors)
         return report
@@ -537,9 +564,10 @@ def blank_sentences(
         tagged = sentence_tagger.tag_sentence(raw)
         if tagged is None:
             report.skips_by_reason["untaggable_sentence"] += len(selectors)
-            report.skip_details.extend(
-                SkipDetail(topic_id, raw, "untaggable_sentence") for topic_id in selectors
-            )
+            if collect_skip_details:
+                report.skip_details.extend(
+                    SkipDetail(topic_id, raw, "untaggable_sentence") for topic_id in selectors
+                )
             continue
         report.sentences_tagged += 1
 
@@ -547,13 +575,15 @@ def blank_sentences(
             candidates = selector(tagged)
             if not candidates:
                 report.skips_by_reason["no_candidate_for_topic"] += 1
-                report.skip_details.append(SkipDetail(topic_id, raw, "no_candidate_for_topic"))
+                if collect_skip_details:
+                    report.skip_details.append(SkipDetail(topic_id, raw, "no_candidate_for_topic"))
                 continue
             outcome = blank_candidate(topic_id, tagged, candidates[0], difficulty=difficulty)
             if outcome.item is None:
                 reason = outcome.skip_reason or "unknown_skip_reason"
                 report.skips_by_reason[reason] += 1
-                report.skip_details.append(SkipDetail(topic_id, raw, reason))
+                if collect_skip_details:
+                    report.skip_details.append(SkipDetail(topic_id, raw, reason))
                 continue
             uniqueness_outcome = check_uniqueness(tagged, candidates[0])
             if not uniqueness_outcome.unique:

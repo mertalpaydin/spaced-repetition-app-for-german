@@ -177,8 +177,11 @@ idempotency CLAUDE.md section 9 asks it for); every pass after it passes
 
 The cost is real and is not hidden: measured from the owner's own
 ``cost_log``, one pilot cycle is about $0.18 at batch size 20 and about
-$0.36 at batch size 5, against a 5 EUR/month ceiling. Each extra pass
-roughly adds one more of whichever figure applies.
+$0.36 at batch size 5, against a $7.50/month ceiling. Each extra pass
+roughly adds one more of whichever figure applies. Both figures are read off
+cost_log rows written before the 2026-08-27 pricing fix, which billed every
+paid on-demand call at the batch discount: treat them as a lower bound, up
+to 2x low for a run that spent on the paid lane synchronously.
 
 ## Degrading honestly
 

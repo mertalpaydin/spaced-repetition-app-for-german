@@ -62,7 +62,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from scripts.corpus_reading import read_corpus_lines
+from scripts.corpus_reading import SOURCE_TATOEBA, read_corpus_lines
 
 DEFAULT_GERMAN_PATH = Path("data/raw/_extract/tatoeba_deu.tsv")
 
@@ -194,8 +194,23 @@ def main() -> int:
     # Coverage against the carriers this project actually reads, which is the
     # number that matters: a translation for a sentence we never use is worth
     # nothing.
-    carriers = read_corpus_lines(args.german, "tatoeba", args.carrier_limit, args.seed)
-    covered = [c for c in carriers if c.line_id in by_german_id or c.text in by_german_text]
+    # The id half of this join is only meaningful because these carriers are
+    # read from Tatoeba's own per-language export, in Tatoeba's own format,
+    # so ``line_id`` and ``by_german_id`` are keys in the SAME namespace.
+    # ``build_translations._fill_from_tatoeba`` had the identical join shape
+    # over a MIXED carrier set (Tatoeba plus Leipzig) and that was a real
+    # bug: Leipzig line ids and Tatoeba sentence ids are both bare integers
+    # and collide constantly. The guard below states the precondition rather
+    # than leaving it to be re-derived by the next reader, and it costs one
+    # comparison per carrier.
+    carriers = read_corpus_lines(
+        args.german, "tatoeba", args.carrier_limit, args.seed, source=SOURCE_TATOEBA
+    )
+    covered = [
+        c
+        for c in carriers
+        if (c.source == SOURCE_TATOEBA and c.line_id in by_german_id) or c.text in by_german_text
+    ]
     print(f"  Carriers checked (length-plausible):  {len(carriers):,}")
     print(
         f"  ...that have an English translation:  {len(covered):,} "
@@ -203,7 +218,12 @@ def main() -> int:
     )
 
     covered_pairs = [
-        (by_german_id.get(c.line_id) or by_german_text.get(c.text) or [None])[0] for c in covered
+        (
+            (by_german_id.get(c.line_id) if c.source == SOURCE_TATOEBA else None)
+            or by_german_text.get(c.text)
+            or [None]
+        )[0]
+        for c in covered
     ]
     usable = [p for p in covered_pairs if p is not None]
     implausible = [p for p in usable if _length_ratio_implausible(p)]

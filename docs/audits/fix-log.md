@@ -2605,3 +2605,155 @@ false-negative guard and the `_MOCK_SENTENCE_POOL` zero-false-positive
 regression both still pass unchanged. Test count 1538 before, 1566 after.
 Every good carrier pinned in the new tests is a real Tatoeba line from the
 same 40,000-line sample, not an invented one.
+
+---
+
+## Cycle 15: the translation store was joining two corpora on one id namespace
+
+A hand audit of the last pilot's 430 accepted exercises found two items whose
+English gloss had no relation whatsoever to their German:
+
+    DE: Genauere Untersuchungen in Graz haben ergeben, dass die Verletzung
+        schlimmer ist als gedacht.
+    EN: "She crossed the street."
+
+    DE: Jetzt gibt sie ein Update zu ihrem Alltag während der Chemotherapie.
+    EN: "Bye!"
+
+Both German sentences are Leipzig. Both English sentences are obviously
+Tatoeba.
+
+### The cause
+
+`build_translations._fill_from_tatoeba` resolved each carrier's free gloss
+like this:
+
+```python
+if line.line_id:
+    english = shortest_by_id.get(line.line_id)
+if english is None:
+    english = shortest_by_text.get(line.text)
+```
+
+`shortest_by_id` is keyed on **Tatoeba sentence ids**. `line.line_id` is
+whatever id the carrier's own corpus gave it. Leipzig line ids and Tatoeba
+sentence ids are both bare integers in the same numeric range, and
+`CorpusLine` carried no record of which corpus a line came from, so the join
+could not tell them apart. A Leipzig line numbered 541845 silently received
+Tatoeba sentence 541845's English.
+
+The module docstring had already stated the principle the code was violating.
+It says the store keys on text rather than on a corpus id because "a Tatoeba
+id and a Leipzig id do not even share a namespace". That is exactly right,
+and the join ignored it.
+
+### Measured blast radius, against the owner's real store and corpora
+
+| | |
+|---|---|
+| Leipzig carriers read | 137,816 |
+| ...of those, present in the translation store | 7,499 |
+| ...of those, labelled `source="tatoeba"` | **7,365 (98.2%)** |
+| ...of those, reaching the last pilot's 430 accepted items | 2 |
+
+Every one of the 7,365 is wrong by construction: a Leipzig sentence's text
+cannot legitimately come from Tatoeba unless that exact sentence also exists
+in Tatoeba, which for 25-160 character news prose is close to never.
+
+This is worse than a cosmetic gloss problem. Since TODO.md 5.1 step 4 the
+verifier READS the gloss and relaxes its answer-uniqueness judgment against
+it, so a poisoned gloss corrupts a verification decision as well as a display
+string.
+
+### The fix, in three parts
+
+**1. `CorpusLine` now knows which corpus it came from.**
+`scripts/corpus_reading.py` gains a `source` field defaulting to `""`, so
+every existing positional construction keeps working, and `""` means
+"unknown" rather than "assume Tatoeba". `read_corpus_lines` derives it from
+the format where the format is self-identifying (only `tatoeba` is) and takes
+it explicitly otherwise, because `lines` is a shape rather than a corpus:
+Leipzig uses it, but so would any plain sentence file.
+`build_translations.py`, `step7_corpus_pilot.py` and
+`eval_tatoeba_translation_quality.py` all pass it now, and
+`step7_corpus_pilot._populate_glosses` carries `provenance.source` into the
+`CorpusLine` it builds instead of dropping it.
+
+`_fill_from_tatoeba` then consults `shortest_by_id` only for a carrier that
+actually came from Tatoeba. Text matching stays available to every carrier,
+because a text match is self-verifying in a way an id match is not: the
+German string itself is the key, so a Leipzig sentence that genuinely exists
+in Tatoeba genuinely does have that English.
+
+**The id join is fenced, not deleted.** It does most of the work behind that
+corpus's measured 61.7% coverage, and it is exactly right for a carrier that
+really is a Tatoeba sentence. Dropping it would have cost genuine glosses to
+fix a bug that was never about the id join itself.
+
+**2. A cleanup tool.** `scripts/purge_mismatched_glosses.py` reads the store
+and the Leipzig corpus, finds every record whose German is a Leipzig carrier
+and whose `source` is `"tatoeba"`, and removes it, with `--dry-run`, the same
+temp-file-plus-`os.replace` atomic write `build_translations.py` uses, and a
+printed count of what went and what remains. Removal rather than repair,
+because the correct English for those sentences is not known and inventing
+one is how this class of bug starts. An absent gloss is a state the pipeline
+already handles: the next backfill machine translates the sentence properly.
+
+One optional flag, `--tatoeba`, spares a record whose German text genuinely
+appears in Tatoeba as well, since the fixed join still matches those by text
+and would otherwise re-add them after every purge for ever. Off by default,
+because sparing a record requires being sure the Tatoeba file given is the
+same corpus the gloss came from.
+
+**3. A tripwire.** `build_translations.reject_cross_corpus_gloss` runs
+immediately before every `source="tatoeba"` record is written and raises
+`CrossCorpusGlossError` unless the carrier is Tatoeba's, unsourced (which can
+only have matched by text), or matched by exact text. The source fence makes
+it unreachable today; that is the point. It fires on the first collision if
+anyone reinstates an unfenced id join, instead of poisoning thousands of
+glosses that only a hand audit of accepted exercises would ever surface.
+
+### The same join shape in `eval_tatoeba_translation_quality.py` is NOT affected, and the 61.7% figure stands
+
+Its `covered` join looks identical:
+
+```python
+covered = [c for c in carriers if c.line_id in by_german_id or c.text in by_german_text]
+```
+
+but its carriers come from `read_corpus_lines(args.german, "tatoeba", ...)` --
+Tatoeba's own per-language export, read in Tatoeba's own format, with
+`args.german` defaulting to `tatoeba_deu.tsv`. `line_id` and `by_german_id`
+are keys in the same namespace, so there is nothing to collide with. Pointing
+`--german` at a Leipzig file would not reintroduce the bug either: the format
+is hardcoded `"tatoeba"`, so Leipzig's two-field lines fail the three-field
+split and are dropped rather than mis-joined.
+
+The precondition is now stated in the code (`c.source == SOURCE_TATOEBA and
+c.line_id in by_german_id`) rather than left to be re-derived by the next
+reader, at a cost of one comparison per carrier and no change to the number.
+**The 61.7% coverage figure that justified this whole feature is unaffected
+and was never wrong.**
+
+`build_verb_government.py` also reads both corpora, but it carries its own
+`(source, line)` tuple and never uses `line_id` for a lookup at all, so it
+was never exposed. Untouched.
+
+### Verification
+
+Test count 1628 before, 1652 after. The new tests use the real numbers from
+the real bug: Leipzig line `541845` against a Tatoeba pair with id `541845`
+and English "She crossed the street.", asserting the Leipzig carrier goes to
+the machine-translation queue instead of receiving that gloss; a Tatoeba
+carrier still matching by id when its text differs from the export, so the
+fix demonstrably did not cost the coverage that justified the feature; a
+Leipzig carrier whose text genuinely appears in the pairs still receiving
+that gloss; and the purge removing exactly the contradictory records, writing
+nothing on `--dry-run`, and leaving a clean store byte-for-byte and
+mtime-for-mtime untouched. `ruff check`, `ruff format --check` and `mypy
+--strict src/` all clean.
+
+**Not yet run against the owner's real store.** That store does not exist in
+the sandbox this was built in, so the 7,365 removal is open work, recorded in
+`TODO.md` section 2 as item 2.2b along with the re-gloss that has to follow
+it.

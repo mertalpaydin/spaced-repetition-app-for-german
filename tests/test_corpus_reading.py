@@ -13,6 +13,8 @@ from scripts.corpus_reading import (
     MAX_WORDS,
     MIN_CHARS,
     MIN_WORDS,
+    SOURCE_LEIPZIG,
+    SOURCE_TATOEBA,
     CorpusLine,
     default_corpus_path,
     is_plausible_carrier,
@@ -175,3 +177,50 @@ def test_default_corpus_path_missing_everywhere_names_the_first_root(
     monkeypatch.setattr(corpus_reading, "_CORPUS_SEARCH_ROOTS", (repo_root, mount_root))
 
     assert default_corpus_path("tatoeba_deu.tsv") == repo_root / "tatoeba_deu.tsv"
+
+
+# ==============================================================================
+# CorpusLine.source
+#
+# A line id alone is not an identity. Leipzig line ids and Tatoeba sentence
+# ids are both bare integers in the same range, and an id-keyed join that
+# could not tell them apart put "She crossed the street." on a Leipzig
+# sentence about an injury in Graz. This field is what lets the join refuse.
+# ==============================================================================
+
+
+def test_read_corpus_lines_tatoeba_format_stamps_the_tatoeba_source(tmp_path: Path) -> None:
+    """Tatoeba's format is self-identifying, so it needs no explicit
+    argument -- that is the one entry in ``_SOURCE_BY_FORMAT``."""
+    path = tmp_path / "tatoeba.tsv"
+    path.write_text(f"77\tdeu\t{_PLAUSIBLE}\n", encoding="utf-8")
+
+    lines = read_corpus_lines(path, "tatoeba", limit=10, seed=1)
+    assert lines[0].source == SOURCE_TATOEBA
+
+
+def test_read_corpus_lines_lines_format_has_no_source_unless_told(tmp_path: Path) -> None:
+    """``lines`` is a shape, not a corpus: Leipzig uses it, but so would any
+    plain sentence file. An unknown source stays empty rather than being
+    guessed, and empty is what every id-keyed join treats as "do not join by
+    id"."""
+    path = tmp_path / "leipzig.txt"
+    path.write_text(f"101\t{_PLAUSIBLE}\n", encoding="utf-8")
+
+    lines = read_corpus_lines(path, "lines", limit=10, seed=1)
+    assert lines[0].source == ""
+
+
+def test_read_corpus_lines_explicit_source_is_stamped_on_every_line(tmp_path: Path) -> None:
+    path = tmp_path / "leipzig.txt"
+    path.write_text(f"101\t{_PLAUSIBLE}\n102\t{_PLAUSIBLE}\n", encoding="utf-8")
+
+    lines = read_corpus_lines(path, "lines", limit=10, seed=1, source=SOURCE_LEIPZIG)
+    assert [line.source for line in lines] == [SOURCE_LEIPZIG, SOURCE_LEIPZIG]
+
+
+def test_corpus_line_source_defaults_to_empty_for_a_two_argument_construction() -> None:
+    """Existing call sites construct ``CorpusLine(line_id, text)`` positionally.
+    The default keeps them working AND keeps them safe: unknown, never
+    assumed to be Tatoeba."""
+    assert CorpusLine("101", _PLAUSIBLE).source == ""

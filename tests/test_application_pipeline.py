@@ -21,7 +21,7 @@ from src.generation.pilot import (
     run_pilot,
     select_pilot_topics,
 )
-from src.llm.client import CostLogRow, GeminiLlmClient
+from src.llm.client import CostLogRow, GeminiLlmClient, TokenUsage
 from src.llm.minimal_pairs import MinimalPairGenerator
 from src.llm.production_grader import ProductionGrader
 from src.llm.provider import MockLlmClient
@@ -680,8 +680,8 @@ def test_run_pilot_reports_cost_from_the_cost_log_not_an_estimate(tmp_path: Path
 
     def fake_transport(
         *, model: str, prompt: str, lane: str, mode: str, purpose: str
-    ) -> tuple[str, int, int]:
-        return json.dumps({"items": []}), 10, 10
+    ) -> tuple[str, TokenUsage]:
+        return json.dumps({"items": []}), TokenUsage(prompt_tokens=10, completion_tokens=10)
 
     llm_client._call_transport = fake_transport  # type: ignore[method-assign]
     batch_client = GeminiBatchClient(llm_client)

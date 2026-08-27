@@ -34,11 +34,46 @@ still bounded by the same per-run character budget. The report records
 which mode produced it in ``carriers_source`` (``"corpora"``, or the path),
 so a stored gloss can be traced back to the run shape that wrote it.
 
+## The Tatoeba join is opt-in, and OFF by default
+
+``--trust-tatoeba`` decides whether source 2 below runs at all, and it
+defaults to **off**. With it off, ``_fill_from_tatoeba`` does not run and
+every carrier the store lacks goes to machine translation. With it on,
+today's behaviour is restored exactly.
+
+The owner's decision, from a hand audit of all 430 accepted exercises in the
+last pilot. Ten defects; four of them were items whose German is correct and
+whose English gloss is wrong, and **three of those four came from Tatoeba's
+own human translations, not from machine translation**:
+
+    Wenn ich im Lotto gewaenne, wuerde ich mir ein neues Auto kaufen.
+    "If I won the lottery, I'd buy you a new car."      <- mir is himself
+
+    Ich habe eine Freundin, die sich selbst die Haare schneidet.
+    "I have a friend who cuts his own hair."            <- Freundin is female
+
+    Das Haus, in dem man lacht, wird vom Glueck bedacht.
+    "The house in which one laughs is considered by luck."  <- meaningless
+
+A separate hand check of 120 Tatoeba pairs found 2 outright wrong and 6
+loose. So Tatoeba's translations are no longer trusted on the path that
+produces exercises.
+
+**The records are not deleted, and this flag is why.** Feature 5.3 (click a
+word, see it in several corpus sentences with their translations) is fed
+entirely by them, and it needs breadth far more than it needs precision.
+``--trust-tatoeba`` is how that store gets rebuilt cheaply: 200,555 carriers
+glossed for nothing instead of 13,000,000 characters of machine translation,
+which is half a year of Azure F0. The distrust is scoped to the exercise
+path, which is ``scripts/step7_corpus_pilot.py``'s own
+``--trust-stored-tatoeba`` (defaulting to distrust for the same reason).
+
 ## Three sources, in the owner's priority order (TODO.md section 4)
 
 1. **Already in the store.** Loaded first; anything present is never
    re-translated. See "Resumability" below.
-2. **Tatoeba's own English translations**, via the readers this script
+2. **Tatoeba's own English translations** (ONLY under ``--trust-tatoeba``,
+   see above), via the readers this script
    reuses rather than re-implements
    (``scripts.eval_tatoeba_translation_quality.read_pairs_file`` /
    ``read_links_and_english``). Where a German sentence has more than one
@@ -49,10 +84,19 @@ so a stored gloss can be traced back to the run shape that wrote it.
    where tense and determiners drift. This step costs nothing: it is a
    dictionary lookup, not an API call, so it is not subject to
    ``--max-characters`` and always runs to completion in one pass.
+   **The id half of that join belongs to Tatoeba carriers only.**
+   ``shortest_by_id`` is keyed on Tatoeba sentence ids, and a Leipzig line id
+   is a different namespace that happens to use the same integers, so the
+   join checks ``CorpusLine.source`` before it consults an id at all. Text
+   matching stays open to every carrier because the German string is its own
+   proof. See ``_fill_from_tatoeba`` for the measured damage the unfenced
+   version did.
+
 3. **The ``Translator`` from ``src/llm/translation.py``** (Azure primary,
-   Gemini fallback) for everything left over -- all of Leipzig, plus the
-   38.3% of Tatoeba's own carriers that source measured as untranslated.
-   This step IS subject to ``--max-characters``, see below.
+   Gemini fallback) for everything left over. Without ``--trust-tatoeba``
+   that is every carrier the store does not already hold; with it, all of
+   Leipzig plus the 38.3% of Tatoeba's own carriers that source measured as
+   untranslated. This step IS subject to ``--max-characters``, see below.
 
 ## Resumability, keyed on exact German text
 
@@ -160,6 +204,29 @@ worst it loses that one run's own progress, which the next run simply
 redoes (cheap, since the free-tier translation this loses is what the
 per-run budget was already sized to keep small).
 
+## Three hooks the standing monthly job needs, all defaulting to off
+
+``scripts/monthly_translation_topup.py`` (the owner's standing job: spend Azure
+F0's 2,000,000 characters a month, every month, until the corpus is covered)
+calls ``run_backfill`` rather than owning a second copy of the batch loop. It
+needs three things this script did not have, all added as parameters that
+default to today's behaviour exactly:
+
+* ``distrust_stored_sources`` names store ``source`` values to treat as a cache
+  MISS. Empty here; the monthly job passes ``{"tatoeba"}``, because replacing
+  those 200,555 glosses is most of what that job exists to do. The stored record
+  is left alone until a real translation lands to overwrite it.
+* ``on_batch`` fires once per SUCCESSFUL batch. That is what lets a caller
+  persist month-to-date spend as it goes, which is the one thing
+  ``AzureTranslator.characters_used`` (per process) and ``--max-characters``
+  (per invocation) between them cannot do.
+* ``checkpoint_every`` flushes the store every N successful batches instead of
+  once at the end, so a killed run does not throw away glosses that a ledger has
+  already charged the month for.
+
+The checkpoint runs BEFORE ``on_batch``, deliberately. See
+``_run_machine_translation``.
+
 ## Reuse, not reimplementation
 
 - Tatoeba pair readers: ``scripts.eval_tatoeba_translation_quality``
@@ -187,6 +254,7 @@ import json
 import os
 import sys
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -207,7 +275,13 @@ from src.llm.translation import (
     azure_from_env,
 )
 
-from scripts.corpus_reading import CorpusLine, default_corpus_path, read_corpus_lines
+from scripts.corpus_reading import (
+    SOURCE_LEIPZIG,
+    SOURCE_TATOEBA,
+    CorpusLine,
+    default_corpus_path,
+    read_corpus_lines,
+)
 from scripts.eval_tatoeba_translation_quality import Pair, read_links_and_english, read_pairs_file
 
 # Matches step7_corpus_pilot.py's and build_verb_government.py's own defaults
@@ -234,6 +308,85 @@ DEFAULT_SEED = 7
 DEFAULT_MAX_CHARACTERS_PER_RUN = 60_000
 
 TranslatorMode = Literal["fallback", "azure_only", "gemini_only", "none"]
+
+#: The owner's decision, 2026-08-27: Tatoeba's own translations are not
+#: trusted for anything that becomes an exercise, so the join is opt-in.
+#: See the module docstring for the four audited defects behind it.
+DEFAULT_TRUST_TATOEBA = False
+
+#: Store ``source`` values that ``run_backfill`` treats as a cache MISS, so the
+#: carrier is translated again and the record overwritten. Empty by default:
+#: this script's own contract has always been "anything in the store is done",
+#: and the standing monthly job (``scripts/monthly_translation_topup.py``) is
+#: the caller that wants otherwise. It passes ``frozenset({"tatoeba"})``, which
+#: is the same distrust ``step7_corpus_pilot.--trust-stored-tatoeba`` already
+#: applies at the pilot layer, expressed here so the replacement pass and the
+#: first-time pass run through one loop instead of two that drift.
+NO_DISTRUSTED_SOURCES: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class BatchOutcome:
+    """What one SUCCESSFUL machine-translation batch did, handed to
+    ``run_backfill``'s ``on_batch`` hook the instant it lands.
+
+    Exists so a caller can persist accounting per batch rather than per run.
+    ``AzureTranslator.characters_used`` is per process and ``--max-characters``
+    is per invocation, so a job that runs more than once a month has to keep its
+    own month-to-date total; ``src/llm/translation_ledger.py`` is that total and
+    this is how it is fed. A crash then loses at most one batch of accounting
+    instead of the whole run's.
+
+    Azure characters and Gemini characters are separate fields and are never
+    summed here, for the same reason ``TranslationBackfillReport`` keeps
+    ``characters_spent`` and ``gemini_fallback_characters`` apart: only one of
+    them consumes the Azure F0 allowance.
+    """
+
+    #: The German text of every carrier in this batch, in order. Carried
+    #: because the ordering of ``still_todo`` is the only other way a caller
+    #: could work out WHICH carriers a batch covered, and inferring it from
+    #: counts breaks the moment a batch in front of it fails: a failed batch
+    #: advances the cursor without translating anything.
+    texts: tuple[str, ...]
+    source: Literal["azure", "gemini"]
+    azure_characters: int
+    gemini_characters: int
+
+    @property
+    def carriers(self) -> int:
+        return len(self.texts)
+
+    @property
+    def characters(self) -> int:
+        """Both providers' characters together. What the RUN's own budget
+        bounds, as opposed to what the F0 allowance is charged."""
+        return self.azure_characters + self.gemini_characters
+
+
+def tatoeba_policy_sentence(trust_tatoeba: bool) -> str:
+    """One plain sentence saying what this run's Tatoeba setting MEANS, not
+    just which way the switch was thrown.
+
+    Printed and written to the report from this one function so the console
+    and the JSON can never say different things, and so a stored gloss can be
+    traced to a policy rather than to a bare boolean nobody can interpret two
+    months later.
+    """
+    if trust_tatoeba:
+        return (
+            "--trust-tatoeba GIVEN: Tatoeba's own human translations were used as "
+            "glosses wherever they exist, free. That is the right mode for rebuilding "
+            "the feature 5.3 corpus store, which needs breadth. It is the WRONG mode "
+            "for building a pilot's exercises: a hand audit of 430 accepted items "
+            "found 4 wrong glosses and 3 of the 4 were Tatoeba's own."
+        )
+    return (
+        "--trust-tatoeba NOT given (the default): Tatoeba's own translations were "
+        "not used at all, and every carrier the store lacked went to machine "
+        "translation. The Tatoeba records already in the store are untouched and "
+        "still feed feature 5.3; they are simply not trusted for exercises."
+    )
 
 
 class TranslationRecord(BaseModel):
@@ -269,8 +422,18 @@ class TranslationBackfillReport:
     # (module docstring, "Two modes"), so a stored gloss can be traced back
     # to the run shape that produced it.
     carriers_source: str = "corpora"
+    # Off by default (DEFAULT_TRUST_TATOEBA). Recorded in the run block
+    # because it is the single biggest thing that decides what a stored
+    # gloss actually IS, and a store holds records from many runs.
+    trust_tatoeba: bool = DEFAULT_TRUST_TATOEBA
     carriers_seen: int = 0
     already_in_store: int = 0
+    # Carriers that ARE in the store but whose stored source this run distrusts
+    # (``distrust_stored_sources``), so they were re-translated and the record
+    # overwritten. Counted separately from ``already_in_store``, which now means
+    # "in the store with a source this run trusts", so the two numbers together
+    # still add up to the carriers the store held.
+    replacing_distrusted: int = 0
     from_tatoeba: int = 0
     machine_translated: int = 0
     skipped_for_budget: int = 0
@@ -296,9 +459,12 @@ class TranslationBackfillReport:
                 "store_path": self.store_path,
                 "translator_mode": self.translator_mode,
                 "carriers_source": self.carriers_source,
+                "trust_tatoeba": self.trust_tatoeba,
             },
+            "tatoeba_policy": tatoeba_policy_sentence(self.trust_tatoeba),
             "carriers_seen": self.carriers_seen,
             "already_in_store": self.already_in_store,
+            "replacing_distrusted": self.replacing_distrusted,
             "from_tatoeba": self.from_tatoeba,
             "machine_translated": self.machine_translated,
             "skipped_for_budget": self.skipped_for_budget,
@@ -317,15 +483,21 @@ class TranslationBackfillReport:
         path.write_text(json.dumps(self.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _read_one_corpus(path: Path, fmt: str, label: str, limit: int, seed: int) -> list[CorpusLine]:
+def _read_one_corpus(
+    path: Path, fmt: str, label: str, limit: int, seed: int, source: str
+) -> list[CorpusLine]:
     """One corpus's own lines, or an empty list with a warning printed if the
     file is missing -- degrades the run, never crashes it, matching
     ``step7_corpus_pilot.py``'s and ``build_verb_government.py``'s own
-    ``_read_one_corpus``."""
+    ``_read_one_corpus``.
+
+    ``source`` is passed explicitly rather than derived, because ``fmt``
+    cannot name a corpus for the ``lines`` shape and ``_fill_from_tatoeba``'s
+    id join keys on exactly this field."""
     if not path.exists():
         print(f"  WARNING: {label} corpus not found at {path}; skipping this source.")
         return []
-    lines = read_corpus_lines(path, fmt, limit, seed)
+    lines = read_corpus_lines(path, fmt, limit, seed, source=source)
     print(f"  {label}: {len(lines):,} length-plausible lines read from {path}")
     return lines
 
@@ -343,10 +515,13 @@ def _read_carriers_from_file(path: Path) -> tuple[dict[str, CorpusLine], int]:
     literally as the sentence, so German text that merely contains braces or
     digits is unaffected.
 
-    ``line_id`` is the empty string throughout: this file format carries no
-    corpus id, and ``_fill_from_tatoeba`` already falls back to an exact-text
-    match when a carrier has no id, so the Tatoeba join still works in this
-    mode.
+    ``line_id`` and ``source`` are the empty string throughout: this file
+    format carries neither a corpus id nor a corpus name, and
+    ``_fill_from_tatoeba`` falls back to an exact-text match for a carrier
+    without both, so the Tatoeba join still works in this mode. An empty
+    ``source`` is deliberately not "assume Tatoeba": a carrier list can hold
+    sentences from anywhere, and the id join is only safe for a line whose
+    corpus is confirmed.
 
     Returns the carriers AND the number of JSON objects skipped for having no
     usable ``german`` key, because silence there is the dangerous failure
@@ -382,15 +557,18 @@ def _shortest_translations(pairs: list[Pair]) -> tuple[dict[str, str], dict[str,
     """Group Tatoeba pairs by id and by exact German text, keeping the
     SHORTEST English translation in each group (module docstring, TODO.md
     section 4's owner decision). Both groupings are built, not just text,
-    because a carrier is matched by id first and falls back to text --
-    mirroring ``eval_tatoeba_translation_quality.py``'s own ``covered``/
-    ``covered_pairs`` join. The two readers this script reuses draw German
-    text through the identical column of the identical staged file this
-    script also reads as corpus carriers, so an id match and a text match
-    normally agree; keeping both catches the one case where they would not
-    -- a ``--pairs`` custom export re-encoding the text slightly differently
-    from ``scripts/corpus_reading.py``'s own read of the raw per-language
-    file (e.g. differing quote-character normalisation)."""
+    because a TATOEBA carrier is matched by id first and falls back to text.
+    The two readers this script reuses draw German text through the
+    identical column of the identical staged file this script also reads as
+    corpus carriers, so an id match and a text match normally agree; keeping
+    both catches the one case where they would not -- a ``--pairs`` custom
+    export re-encoding the text slightly differently from
+    ``scripts/corpus_reading.py``'s own read of the raw per-language file
+    (e.g. differing quote-character normalisation).
+
+    ``shortest_by_id`` is meaningful for Tatoeba carriers and no others:
+    every key in it is a Tatoeba sentence id. ``_fill_from_tatoeba`` is
+    where that is enforced."""
     by_id: dict[str, list[str]] = collections.defaultdict(list)
     by_text: dict[str, list[str]] = collections.defaultdict(list)
     for pair in pairs:
@@ -452,6 +630,55 @@ def _write_store_atomic(path: Path, store: dict[str, TranslationRecord]) -> None
         raise
 
 
+class CrossCorpusGlossError(RuntimeError):
+    """A carrier from one corpus was about to be given another corpus's
+    English by id. See ``_fill_from_tatoeba`` for why this is a bug and not
+    a data condition."""
+
+
+def reject_cross_corpus_gloss(
+    line: CorpusLine, english: str, shortest_by_text: dict[str, str]
+) -> None:
+    """Raise unless this carrier is entitled to a Tatoeba-sourced gloss.
+
+    A store record whose German is a Leipzig carrier and whose ``source`` is
+    ``"tatoeba"`` is a contradiction in terms unless that exact German text
+    genuinely appears in the Tatoeba pairs. This function is that sentence,
+    executable, and it runs immediately before every single
+    ``source="tatoeba"`` record is written -- the earliest point at which the
+    contradiction exists at all, and the loudest, since it raises rather than
+    warns.
+
+    Two things are deliberately allowed through:
+
+    * a carrier whose ``source`` is ``""``. That means "unknown", which is
+      what ``--carriers-from`` produces and what any pre-``source``
+      construction produces. Such a carrier can only ever have matched by
+      text anyway, because ``_fill_from_tatoeba`` refuses the id join
+      without a confirmed Tatoeba source.
+    * a carrier from any corpus whose exact text IS in ``shortest_by_text``.
+      A text match is self-verifying: the German string is the key, so the
+      English really is a translation of this sentence no matter which
+      corpus this copy of it was read from.
+
+    Everything else is the bug. ``_fill_from_tatoeba``'s own source fence
+    means this cannot fire today; that is the point. It is the tripwire that
+    makes reintroducing the unfenced id join fail on the first collision
+    instead of quietly poisoning thousands of glosses that only a hand audit
+    of accepted exercises would ever surface.
+    """
+    if not line.source or line.source == SOURCE_TATOEBA:
+        return
+    if line.text in shortest_by_text:
+        return
+    raise CrossCorpusGlossError(
+        f"carrier from corpus {line.source!r} (line id {line.line_id!r}) was about "
+        "to be given a Tatoeba gloss without an exact-text match. A Tatoeba "
+        "sentence id means nothing in another corpus's id namespace: "
+        f"{line.text!r} -> {english!r}"
+    )
+
+
 def _fill_from_tatoeba(
     todo: list[CorpusLine],
     shortest_by_id: dict[str, str],
@@ -462,20 +689,48 @@ def _fill_from_tatoeba(
     now: datetime,
 ) -> list[CorpusLine]:
     """Step 2 of the module docstring's priority order: match every carrier
-    still without a store entry against the Tatoeba pairs, id first then
-    text (matching ``eval_tatoeba_translation_quality.py``'s own join).
-    Mutates ``store`` and ``report`` in place; returns the carriers that are
-    STILL untranslated, for the machine-translation step."""
+    still without a store entry against the Tatoeba pairs. Mutates ``store``
+    and ``report`` in place; returns the carriers that are STILL
+    untranslated, for the machine-translation step.
+
+    **The id join is Tatoeba's alone.** ``shortest_by_id`` is keyed on
+    TATOEBA SENTENCE IDS; ``CorpusLine.line_id`` is whatever id the line's
+    own corpus gave it. Leipzig line ids and Tatoeba sentence ids are both
+    bare integers in the same numeric range and mean nothing to each other,
+    so consulting ``shortest_by_id`` for a Leipzig carrier is not a lookup,
+    it is a coincidence. This module's own docstring already said as much
+    ("a Tatoeba id and a Leipzig id do not even share a namespace") while
+    the join here ignored it, and the result shipped: Leipzig line 541845,
+    "Genauere Untersuchungen in Graz haben ergeben, dass die Verletzung
+    schlimmer ist als gedacht.", was stored with Tatoeba sentence 541845's
+    English, "She crossed the street." Measured against the owner's real
+    store, 7,365 of the 7,499 Leipzig carriers in it, 98.2%, were labelled
+    ``source="tatoeba"`` and therefore wrong; two of them reached the last
+    pilot's 430 accepted items, and the verifier now READS the gloss when
+    judging answer uniqueness, so a poisoned gloss corrupts a verification
+    decision as well as a display string.
+
+    The id join is NOT deleted, only fenced. It does most of the work behind
+    Tatoeba's own 61.7% coverage, and dropping it would cost genuine glosses
+    for no reason: for a carrier that really came from Tatoeba, an id match
+    is exactly right.
+
+    Text matching stays open to every carrier regardless of source. A text
+    match is self-verifying in a way an id match is not: the German string
+    itself is the key, so a Leipzig sentence that also happens to exist in
+    Tatoeba genuinely does have that English.
+    """
     still_todo: list[CorpusLine] = []
     for line in todo:
         english = None
-        if line.line_id:
+        if line.line_id and line.source == SOURCE_TATOEBA:
             english = shortest_by_id.get(line.line_id)
         if english is None:
             english = shortest_by_text.get(line.text)
         if english is None:
             still_todo.append(line)
             continue
+        reject_cross_corpus_gloss(line, english, shortest_by_text)
         store[line.text] = TranslationRecord(
             german=line.text, english=english, source="tatoeba", written_at=now
         )
@@ -502,12 +757,26 @@ def _run_machine_translation(
     store: dict[str, TranslationRecord],
     report: TranslationBackfillReport,
     now: datetime,
+    on_batch: Callable[[BatchOutcome], None] | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> None:
     """Step 3 of the module docstring's priority order. Mutates ``store``
     and ``report`` in place. Stops cleanly at a whole-batch boundary once
     the next batch would exceed ``max_characters`` of SUCCESSFUL
     translation (module docstring, "The character budget is per run") --
-    never attempts a partial batch to top up the remainder."""
+    never attempts a partial batch to top up the remainder.
+
+    ``checkpoint`` (if given) is called after a successful batch to flush the
+    store to disk, and ``on_batch`` immediately after it. **That order is
+    deliberate.** Checkpoint first, then account: a crash between the two
+    leaves work done and not charged, which the next run simply skips because
+    the store already holds it. The reverse order loses the work and bills the
+    month for it. Neither hook is called for a batch that failed, because a
+    failed batch spent no Azure quota and wrote no record.
+
+    Both default to ``None``, so the nightly ``--carriers-from`` path is
+    unchanged: one store write at the end of ``run_backfill`` and no ledger.
+    """
     if translator is None or not still_todo:
         report.skipped_for_budget += len(still_todo)
         return
@@ -588,6 +857,18 @@ def _run_machine_translation(
         translated_here += len(chunk)
         index += len(chunk)
 
+        if checkpoint is not None:
+            checkpoint()
+        if on_batch is not None:
+            on_batch(
+                BatchOutcome(
+                    texts=tuple(line.text for line in chunk),
+                    source=source,
+                    azure_characters=chunk_chars if source == "azure" else 0,
+                    gemini_characters=0 if source == "azure" else chunk_chars,
+                )
+            )
+
     report.skipped_for_budget += len(still_todo) - translated_here - failed_here
 
     if isinstance(translator, FallbackTranslator):
@@ -607,6 +888,10 @@ def run_backfill(
     seed: int,
     limit_per_source: int,
     carriers_source: str = "corpora",
+    trust_tatoeba: bool = DEFAULT_TRUST_TATOEBA,
+    distrust_stored_sources: frozenset[str] = NO_DISTRUSTED_SOURCES,
+    on_batch: Callable[[BatchOutcome], None] | None = None,
+    checkpoint_every: int = 0,
     now: datetime | None = None,
 ) -> TranslationBackfillReport:
     """The whole backfill, independent of argparse, the environment, and
@@ -617,8 +902,38 @@ def run_backfill(
     directly with a fake ``Translator`` and an in-memory carrier set, never
     the network. ``store_path`` is still real filesystem I/O -- the store
     itself is the resumability mechanism, so a test uses ``tmp_path`` rather
-    than faking that part away."""
+    than faking that part away.
+
+    ``trust_tatoeba`` defaults to ``False`` here and not only at the argparse
+    layer, deliberately: the safe reading of this function's contract is the
+    one that does not put a Tatoeba translation in front of a learner, so a
+    caller that wants that join has to ask for it in as many words.
+
+    ``distrust_stored_sources`` names store ``source`` values to treat as a
+    cache MISS rather than as done. Empty by default, so this script's own
+    long-standing contract ("anything in the store is finished") is unchanged.
+    ``scripts/monthly_translation_topup.py`` passes ``{"tatoeba"}``: those
+    records are 5.3's corpus and are never deleted, but they are not a trusted
+    gloss, and the standing job's whole purpose is to replace them. Asking for
+    the Tatoeba JOIN and the Tatoeba DISTRUST in one call is a contradiction
+    (the join would immediately rewrite what the distrust just queued for
+    replacement) and raises rather than silently picking one.
+
+    ``on_batch`` and ``checkpoint_every`` are how a caller that runs more than
+    once a month keeps its own accounting. ``on_batch`` fires once per
+    successful batch with a ``BatchOutcome``; ``checkpoint_every`` N flushes the
+    store to disk every N successful batches (0 disables it, which is the
+    nightly path's unchanged behaviour of one write at the end). Flushing costs
+    a full rewrite of the store each time, so N trades crash-loss against I/O:
+    at N=10 a killed run loses at most ten batches of glosses that the ledger
+    has already charged the month for."""
     ref_time = now or datetime.now(UTC)
+    if trust_tatoeba and "tatoeba" in distrust_stored_sources:
+        raise ValueError(
+            "trust_tatoeba=True with 'tatoeba' in distrust_stored_sources is "
+            "contradictory: the join would refill the very records the distrust "
+            "queued for machine translation. Pick one."
+        )
     report = TranslationBackfillReport(
         seed=seed,
         limit_per_source=limit_per_source,
@@ -627,6 +942,7 @@ def run_backfill(
         store_path=str(store_path),
         translator_mode=translator_mode,
         carriers_source=carriers_source,
+        trust_tatoeba=trust_tatoeba,
     )
     if translator_mode == "gemini_only":
         report.warnings.append(
@@ -643,13 +959,44 @@ def run_backfill(
     report.carriers_seen = len(carriers)
 
     store = _load_store(store_path)
-    todo = [line for text, line in carriers.items() if text not in store]
-    report.already_in_store = len(carriers) - len(todo)
+    todo: list[CorpusLine] = []
+    for text, line in carriers.items():
+        record = store.get(text)
+        if record is None:
+            todo.append(line)
+        elif record.source in distrust_stored_sources:
+            # In the store, but not with a source this run trusts. Queued for
+            # re-translation; the existing record stays on disk untouched until
+            # a new translation actually lands to overwrite it, so a run that
+            # never gets this far leaves 5.3's corpus exactly as it was.
+            todo.append(line)
+            report.replacing_distrusted += 1
+        else:
+            report.already_in_store += 1
 
-    shortest_by_id, shortest_by_text = _shortest_translations(tatoeba_pairs)
-    still_todo = _fill_from_tatoeba(
-        todo, shortest_by_id, shortest_by_text, store, report, now=ref_time
-    )
+    if trust_tatoeba:
+        shortest_by_id, shortest_by_text = _shortest_translations(tatoeba_pairs)
+        still_todo = _fill_from_tatoeba(
+            todo, shortest_by_id, shortest_by_text, store, report, now=ref_time
+        )
+    else:
+        # Not "join and then discard": the pairs are never consulted at all,
+        # so ``from_tatoeba`` stays 0 and every one of these carriers is
+        # machine translation's problem. Nothing already in the store is
+        # touched -- the existing Tatoeba records stay exactly where they
+        # are, for feature 5.3 (module docstring).
+        still_todo = todo
+
+    checkpoint: Callable[[], None] | None = None
+    if checkpoint_every > 0:
+        batches_since_flush = 0
+
+        def checkpoint() -> None:
+            nonlocal batches_since_flush
+            batches_since_flush += 1
+            if batches_since_flush >= checkpoint_every:
+                batches_since_flush = 0
+                _write_store_atomic(store_path, store)
 
     _run_machine_translation(
         still_todo,
@@ -659,6 +1006,8 @@ def run_backfill(
         store=store,
         report=report,
         now=ref_time,
+        on_batch=on_batch,
+        checkpoint=checkpoint,
     )
 
     if report.from_tatoeba or report.machine_translated:
@@ -747,6 +1096,20 @@ def main() -> int:
     parser.add_argument(
         "--english", type=Path, default=None, help="eng_sentences.tsv, with --links."
     )
+    parser.add_argument(
+        "--trust-tatoeba",
+        action="store_true",
+        help=(
+            "Use Tatoeba's own English translations as glosses where they exist "
+            "(free, no API call). OFF by default: a hand audit of 430 accepted "
+            "exercises found 4 wrong glosses and 3 of the 4 were Tatoeba's own "
+            "human translations, and a separate check of 120 pairs found 2 wrong "
+            "and 6 loose. Turn it ON only to rebuild the feature 5.3 corpus store, "
+            "which wants breadth over precision and would otherwise cost about "
+            "13,000,000 characters, roughly half a year of Azure F0. Never turn it "
+            "on to build a pilot's exercises."
+        ),
+    )
     parser.add_argument("--store", type=Path, default=DEFAULT_STORE_PATH)
     parser.add_argument("--max-characters", type=int, default=DEFAULT_MAX_CHARACTERS_PER_RUN)
     parser.add_argument(
@@ -769,6 +1132,20 @@ def main() -> int:
         parser.error(
             "--carriers-from already replaces both corpora; drop --skip-tatoeba/--skip-leipzig"
         )
+    if (args.pairs or args.links or args.english) and not args.trust_tatoeba:
+        # Contradictory rather than merely redundant, and worth refusing
+        # loudly: the pair files exist only to feed the Tatoeba join, so a
+        # run that names them without --trust-tatoeba believes that join is
+        # about to happen when it is not. Reading them and quietly ignoring
+        # them would leave the caller certain a gloss came from Tatoeba when
+        # it came from Azure.
+        parser.error(
+            "--pairs/--links/--english only feed the Tatoeba join, which is off by "
+            "default. Add --trust-tatoeba if you really want Tatoeba's own "
+            "translations (feature 5.3's corpus store), or drop these flags."
+        )
+
+    print(f"\n  Tatoeba policy: {tatoeba_policy_sentence(args.trust_tatoeba)}\n")
 
     load_env_file()
 
@@ -796,10 +1173,14 @@ def main() -> int:
             )
     else:
         if not args.skip_tatoeba:
-            for line in _read_one_corpus(args.tatoeba, "tatoeba", "Tatoeba", args.limit, args.seed):
+            for line in _read_one_corpus(
+                args.tatoeba, "tatoeba", "Tatoeba", args.limit, args.seed, SOURCE_TATOEBA
+            ):
                 carriers.setdefault(line.text, line)
         if not args.skip_leipzig:
-            for line in _read_one_corpus(args.leipzig, "lines", "Leipzig", args.limit, args.seed):
+            for line in _read_one_corpus(
+                args.leipzig, "lines", "Leipzig", args.limit, args.seed, SOURCE_LEIPZIG
+            ):
                 carriers.setdefault(line.text, line)
 
     if not carriers:
@@ -811,13 +1192,19 @@ def main() -> int:
             batch_size=args.batch_size or 1,
             store_path=str(args.store),
             carriers_source=carriers_source,
+            trust_tatoeba=args.trust_tatoeba,
         ).write(Path(args.report_file))
         return 0
 
     print(f"\n  Carriers seen (distinct German text): {len(carriers):,}")
 
     tatoeba_pairs: list[Pair] = []
-    if args.pairs:
+    if not args.trust_tatoeba:
+        print(
+            "  Tatoeba-translation step: NOT RUN (no --trust-tatoeba). Every carrier "
+            "the store lacks goes to machine translation."
+        )
+    elif args.pairs:
         if not args.pairs.exists():
             print(
                 f"  WARNING: --pairs not found at {args.pairs}; "
@@ -839,7 +1226,10 @@ def main() -> int:
                 f"{len(tatoeba_pairs):,}"
             )
     else:
-        print("  No --pairs or --links/--english given; skipping the Tatoeba-translation step.")
+        print(
+            "  --trust-tatoeba given but no --pairs or --links/--english to read; "
+            "skipping the Tatoeba-translation step."
+        )
 
     gemini_client = client_from_env()
     translator, mode = translator_from_env(gemini_client)
@@ -869,9 +1259,11 @@ def main() -> int:
         seed=args.seed,
         limit_per_source=args.limit,
         carriers_source=carriers_source,
+        trust_tatoeba=args.trust_tatoeba,
     )
 
     print(f"\n  Carriers source:           {report.carriers_source}")
+    print(f"  Trust Tatoeba:             {report.trust_tatoeba}")
     print(f"  Already in store:          {report.already_in_store:,}")
     print(f"  Filled from Tatoeba pairs: {report.from_tatoeba:,}")
     print(f"  Machine translated:        {report.machine_translated:,}")
@@ -885,6 +1277,7 @@ def main() -> int:
     print(f"    of which Gemini:         {report.gemini_fallback_characters:,}")
     print(f"  Azure-fallback events:     {report.azure_fallback_events:,}")
     print(f"  Store size after this run: {report.store_size_after:,}")
+    print(f"\n  What that means: {tatoeba_policy_sentence(report.trust_tatoeba)}")
     for warning in report.warnings:
         print(f"  WARNING: {warning}")
 
