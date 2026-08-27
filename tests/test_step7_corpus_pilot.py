@@ -1611,7 +1611,7 @@ def test_main_verification_passes_defaults_to_one_cached_pass(
 ) -> None:
     """The default must be today's behaviour exactly: one pass, cache ON,
     nothing extra bought. Every additional pass is another full cycle's spend
-    against a 5 EUR/month ceiling, so this default is a cost guarantee, not
+    against a $7.50/month ceiling, so this default is a cost guarantee, not
     just a convenience."""
     from scripts.step7_corpus_pilot import DEFAULT_VERIFICATION_PASSES
 
@@ -1876,7 +1876,7 @@ def test_main_pass_disagreements_is_zero_when_both_passes_agree(
 def test_main_a_later_pass_that_cannot_run_degrades_without_losing_the_passes_that_did(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
 ) -> None:
-    """``BudgetExceeded`` on pass 2 against a 5 EUR/month ceiling is the
+    """``BudgetExceeded`` on pass 2 against a $7.50/month ceiling is the
     expected way this flag stops, not an exotic one. The run must report what
     it managed and say so: pass 1's real verdicts survive, pass 2 is recorded
     as not-run, ``passes_completed`` falls below ``passes_requested``, and the

@@ -38,7 +38,7 @@ Date of Audit: August 2026
    - **Cost consequence, stated plainly:** `minimal` (Flash-Lite's own undeclared default) cost nothing beyond what the model would have spent anyway, so the earlier `THINKING_GENERATE = "minimal"` period bought no real thinking-token spend. Moving the whole model line to `low`, and verification from `low` to `medium`, is therefore the *first* real thinking-token spend this workload has incurred, and it now touches the highest-volume calls in the system (item generation, live explanations) rather than one narrow purpose. No post-change spend has been measured yet; the paragraph above is a directional statement about what changed, not a dollar figure. Watch `cost_log` and this file's section 4 pricing table for the actual delta before treating any number here as settled.
 3. **Hard Caps**:
    - Nightly generation item cap: **120 items maximum**.
-   - Monthly spend hard ceiling: **5.00 EUR** (`GeminiLlmClient.spend_ceiling_usd` defaults to `5.00`, tracked in USD, not converted from EUR here; that mismatch predates this correction and is out of scope for it). On reaching the ceiling, system gracefully degrades to least-recently-seen bank review.
+   - Monthly spend hard ceiling: **7.50 USD** (`GeminiLlmClient.spend_ceiling_usd` defaults to `7.50`, raised from `5.00` at the owner's instruction on 2026-08-27; the figure is stated in USD because that is the unit the code tracks, ending the EUR/USD mismatch this line used to record and leave open). On reaching the ceiling, system gracefully degrades to least-recently-seen bank review.
 
 ---
 
@@ -48,7 +48,7 @@ Date of Audit: August 2026
 ai.google.dev/gemini-api/docs/pricing and cross-checked against a second
 independent source. The values in place since this file's original August
 2026 audit were stale and **under-estimated real spend by roughly 4-8x**,
-silently weakening the $5/month ceiling in section 3 above (an
+silently weakening the monthly ceiling in section 3 above (an
 under-estimate means real Google billing could exceed the ceiling before the
 code believes it has been reached).
 
@@ -98,7 +98,7 @@ reasoning honestly rather than restating the routing table.
   one thinking tier. Both changes can only increase spend relative to the
   prior routing; neither can decrease it.
 - **Budget risk.** The monthly ceiling (`GeminiLlmClient.spend_ceiling_usd`,
-  $5.00) is enforced in code and raises `BudgetExceeded` before it is
+  $7.50, raised from $5.00 on 2026-08-27) is enforced in code and raises `BudgetExceeded` before it is
   crossed, so this change cannot silently blow through the ceiling
   mid-month; a caller that hits it degrades rather than overspending. Two
   distinct risks remain even so, and neither is quantified here:
@@ -117,5 +117,5 @@ reasoning honestly rather than restating the routing table.
   itself attribute to "thinking". Whether either effect meaningfully
   shortens the month before the ceiling trips depends on actual call volume
   and thinking-token counts this document does not have. Watch `cost_log`
-  after this change ships; do not assume the 5 EUR/month budget is
+  after this change ships; do not assume the monthly budget is
   unaffected just because no single call can exceed the hard ceiling.

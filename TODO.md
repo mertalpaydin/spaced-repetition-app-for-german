@@ -177,7 +177,7 @@ Not tasks. Do not "fix" these without a decision from the owner.
   pass rejected and at least one accepted, which is the direct measure of
   this instability and the number to watch.
 
-  Cost, against the 5 EUR/month ceiling and measured from `cost_log`: about
+  Cost, against the $7.50/month ceiling and measured from `cost_log`: about
   $0.18 per pilot cycle at batch size 20, about $0.36 at batch size 5. Two
   passes roughly doubles whichever is chosen. A later pass that cannot run
   (`BudgetExceeded`) degrades: the run reports what it managed, says the
@@ -278,7 +278,7 @@ Not tasks. Do not "fix" these without a decision from the owner.
   cache on purpose, since an identical prompt would otherwise replay the
   first pass's verdict. `pass_disagreements` in the run report is the number
   to watch: it is how unstable the verifier was on that run's own items.
-  Cost against the 5 EUR/month ceiling, from `cost_log`: about $0.18 per
+  Cost against the $7.50/month ceiling, from `cost_log`: about $0.18 per
   cycle at batch 20, about $0.36 at batch 5, roughly doubled per extra pass.
 
   `scripts/eval_verifier.py` itself does not have this flag. It runs against
@@ -305,14 +305,35 @@ Pinned by tests. Do not change without the owner saying so explicitly.
 
 - `RPM_MAX_RETRIES = 5`, `FREE_LANE_MAX_CONCURRENCY = 4`,
   `FREE_LANE_RATE_LIMIT_PER_MINUTE = 5` in `src/llm/client.py`.
-- `SERVER_ERROR_BACKOFF_SECONDS = 15.0` in `src/llm/client.py`. Applied by
-  the owner after a pilot died on a 503.
-- `SERVER_ERROR_MAX_RETRIES` in `src/llm/client.py`. The owner first set
-  this to 5, then raised it to **40** and added a free-to-paid lane
-  fallback once those retries are exhausted (roughly 10 minutes of retrying
-  before the fallback fires). Seen uncommitted in his working tree on
-  2026-08-23. Whatever value stands in his tree is the correct one. Do not
-  restore 5, and do not remove the fallback.
+- The 5xx retry shape in `src/llm/client.py`. **The owner has changed these
+  himself; the values below are the current ones, not the ones this section
+  used to pin.** History, so nobody "restores" the older numbers: he first
+  raised the count to 5 with a flat `SERVER_ERROR_BACKOFF_SECONDS = 15.0`
+  after a pilot died on a 503, then raised it to 40 and added a free-to-paid
+  lane fallback once those retries are exhausted. He has since replaced that
+  with the opposite shape, verbatim: *"instead of making 40 request make it
+  like 4 but with much longer intervals."* 40 attempts 15 seconds apart is
+  ten minutes of hammering a service that is already down; a real outage
+  lasts minutes. What stands now:
+  - `SERVER_ERROR_MAX_RETRIES = 4`.
+  - `SERVER_ERROR_BACKOFF_SCHEDULE = (30.0, 120.0, 480.0, 900.0)`, an
+    escalating schedule covering roughly 25 minutes, replacing the flat
+    15.0. `SERVER_ERROR_BACKOFF_SECONDS = 900.0` survives only as the
+    scalar fallback for an attempt index past the end of the schedule.
+  - `SERVER_ERROR_BATCH_MAX_RETRIES = 2`, a lower cap for the batch path.
+    **This one is not the owner's instruction**, it is the 2026-08-27
+    cycle's judgement, from cost asymmetry: a sync 503 served nothing and
+    billed nothing, but a failed batch job has already been billed for the
+    requests it processed before it failed and
+    `_call_batch_many_with_retry` resubmits the whole job. His Aug 14-17
+    bill shows batch usage on days where the cost log has zero rows.
+  - **The free-to-paid fallback stays.** When the retries are exhausted on
+    the free lane, the call moves to the paid lane instead of raising
+    (only when the paid lane is permitted and a paid key is configured).
+    Do not remove it.
+- `spend_ceiling_usd` defaults to **7.50** in `src/llm/client.py`, raised
+  from 5.00 at the owner's instruction on 2026-08-27. CLAUDE.md section 9
+  and `docs/audits/stage-00-quota.md` were corrected in the same commit.
 
 Three separate cycles reverted an owner edit to this file. Both groups now
 have a pinning test that says to ask rather than update the assertion.

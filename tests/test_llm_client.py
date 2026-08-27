@@ -18,6 +18,7 @@ import ast
 import json
 import threading
 import time
+import warnings
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -42,10 +43,11 @@ from src.llm.client import (
     PaidLaneForbiddenError,
     QuotaExceededError,
     ServerUnavailableError,
+    TokenUsage,
 )
 
 
-def _fake_transport_ok(**kwargs: object) -> tuple[str, int, int]:
+def _fake_transport_ok(**kwargs: object) -> tuple[str, TokenUsage]:
     """A deterministic transport double used where the test only cares about
     cache/cost-log/lane bookkeeping, not the real SDK call shape. Mirrors the
     old stub's heuristics so byte-for-byte behaviour of the bookkeeping tests
@@ -54,12 +56,9 @@ def _fake_transport_ok(**kwargs: object) -> tuple[str, int, int]:
     purpose = str(kwargs["purpose"])
     lane = str(kwargs["lane"])
     mode = str(kwargs["mode"])
-    prompt_tokens = len(prompt.split()) * 2
-    completion_tokens = 50
     return (
         f"Fake LLM response for {purpose} (lane={lane}, mode={mode})",
-        prompt_tokens,
-        completion_tokens,
+        TokenUsage(prompt_tokens=len(prompt.split()) * 2, completion_tokens=50),
     )
 
 
@@ -68,19 +67,33 @@ def _fake_generate_content_response(
     prompt_tokens: int,
     candidates_tokens: int,
     thoughts_tokens: int | None = None,
+    cached_content_tokens: int | None = None,
+    tool_use_prompt_tokens: int | None = None,
+    total_tokens: int | None = None,
+    model_version: str | None = None,
 ) -> genai_types.GenerateContentResponse:
     """Build a real ``GenerateContentResponse`` (not a network response) so
-    tests exercise the client's actual ``usage_metadata``/``.text`` parsing."""
+    tests exercise the client's actual ``usage_metadata``/``.text`` parsing.
+
+    Every billed-token field Gemini can report is settable, including the
+    provider's own ``total_token_count``, so tests can construct both an
+    internally consistent response and one whose parts deliberately do not
+    add up.
+    """
     return genai_types.GenerateContentResponse(
         candidates=[
             genai_types.Candidate(
                 content=genai_types.Content(parts=[genai_types.Part(text=text)], role="model")
             )
         ],
+        model_version=model_version,
         usage_metadata=genai_types.GenerateContentResponseUsageMetadata(
             prompt_token_count=prompt_tokens,
             candidates_token_count=candidates_tokens,
             thoughts_token_count=thoughts_tokens,
+            cached_content_token_count=cached_content_tokens,
+            tool_use_prompt_token_count=tool_use_prompt_tokens,
+            total_token_count=total_tokens,
         ),
     )
 
@@ -315,7 +328,7 @@ def test_rpm_429_backs_off_and_stays_on_free_lane(tmp_path: Path) -> None:
 
     call_count = {"n": 0}
 
-    def flaky_transport(**kwargs: object) -> tuple[str, int, int]:
+    def flaky_transport(**kwargs: object) -> tuple[str, TokenUsage]:
         call_count["n"] += 1
         if call_count["n"] == 1:
             raise QuotaExceededError("rpm")
@@ -354,7 +367,7 @@ def test_rpm_429_honors_google_suggested_retry_delay(tmp_path: Path) -> None:
 
     call_count = {"n": 0}
 
-    def flaky_transport(**kwargs: object) -> tuple[str, int, int]:
+    def flaky_transport(**kwargs: object) -> tuple[str, TokenUsage]:
         call_count["n"] += 1
         if call_count["n"] == 1:
             raise QuotaExceededError("rpm", retry_delay_seconds=48.0)
@@ -399,7 +412,7 @@ def test_rpd_429_closes_free_lane_until_pacific_midnight(tmp_path: Path) -> None
 
     raised = {"once": False}
 
-    def flaky_transport(**kwargs: object) -> tuple[str, int, int]:
+    def flaky_transport(**kwargs: object) -> tuple[str, TokenUsage]:
         if not raised["once"]:
             raised["once"] = True
             raise QuotaExceededError("rpd")
@@ -469,7 +482,7 @@ def test_forbid_paid_lane_raises_instead_of_silently_routing_to_paid(tmp_path: P
 
     calls: list[str] = []
 
-    def recording_transport(**kwargs: object) -> tuple[str, int, int]:
+    def recording_transport(**kwargs: object) -> tuple[str, TokenUsage]:
         calls.append(str(kwargs["lane"]))
         return _fake_transport_ok(**kwargs)
 
@@ -504,7 +517,7 @@ def test_forbid_paid_lane_raises_in_generate_many_via_determine_lane(tmp_path: P
     )
     client.free_lane_open = False  # would normally auto-route to "paid"
 
-    def fail_if_called(**kwargs: object) -> tuple[str, int, int]:
+    def fail_if_called(**kwargs: object) -> tuple[str, TokenUsage]:
         pytest.fail("generate_many must never reach the transport when paid is forbidden")
 
     client._call_transport = fail_if_called  # type: ignore[method-assign]
@@ -527,7 +540,7 @@ def test_forbid_paid_lane_raises_mid_call_on_rpd_429_instead_of_falling_through(
         cost_log_path=log_file, cache_dir=tmp_path / "cache", forbid_paid_lane=True
     )
 
-    def rpd_transport(**kwargs: object) -> tuple[str, int, int]:
+    def rpd_transport(**kwargs: object) -> tuple[str, TokenUsage]:
         assert kwargs["lane"] == "free", "must not have already switched to paid"
         raise QuotaExceededError("rpd")
 
@@ -570,7 +583,7 @@ def test_server_overload_backs_off_and_retries_same_lane(tmp_path: Path) -> None
 
     call_count = {"n": 0}
 
-    def flaky_transport(**kwargs: object) -> tuple[str, int, int]:
+    def flaky_transport(**kwargs: object) -> tuple[str, TokenUsage]:
         call_count["n"] += 1
         if call_count["n"] == 1:
             raise ServerUnavailableError("503 UNAVAILABLE")
@@ -582,7 +595,10 @@ def test_server_overload_backs_off_and_retries_same_lane(tmp_path: Path) -> None
 
     assert response
     assert call_count["n"] == 2, "transport must be retried once after the 503"
-    assert sleeps == [GeminiLlmClient.SERVER_ERROR_BACKOFF_SECONDS]
+    # The first wait is the first step of the escalating schedule, not the
+    # scalar constant: that constant is now only the fallback for an attempt
+    # index past the end of the schedule.
+    assert sleeps == [GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE[0]]
     assert client.free_lane_open is True
     assert client.free_lane_closed_until is None
 
@@ -596,7 +612,7 @@ def test_server_overload_gives_up_after_max_retries(tmp_path: Path) -> None:
         sleep_fn=lambda _seconds: None,
     )
 
-    def always_overloaded(**kwargs: object) -> tuple[str, int, int]:
+    def always_overloaded(**kwargs: object) -> tuple[str, TokenUsage]:
         raise ServerUnavailableError("503 UNAVAILABLE")
 
     client._call_transport = always_overloaded  # type: ignore[method-assign]
@@ -612,7 +628,7 @@ def test_free_lane_never_uses_batch_and_paid_lane_always_does(tmp_path: Path) ->
 
     seen_modes: list[str] = []
 
-    def recording_transport(**kwargs: object) -> tuple[str, int, int]:
+    def recording_transport(**kwargs: object) -> tuple[str, TokenUsage]:
         seen_modes.append(str(kwargs["mode"]))
         return _fake_transport_ok(**kwargs)
 
@@ -879,7 +895,7 @@ def test_generate_many_free_lane_dispatches_concurrently_in_order(tmp_path: Path
     call_order: list[str] = []
     lock = threading.Lock()
 
-    def fake_transport(**kwargs: object) -> tuple[str, int, int]:
+    def fake_transport(**kwargs: object) -> tuple[str, TokenUsage]:
         prompt = str(kwargs["prompt"])
         with lock:
             call_order.append(prompt)
@@ -888,7 +904,10 @@ def test_generate_many_free_lane_dispatches_concurrently_in_order(tmp_path: Path
         # completion order instead of input order) would fail this test.
         if prompt == "eins":
             time.sleep(0.05)
-        return (f"Antwort auf {prompt}", 1, 1)
+        return (
+            f"Antwort auf {prompt}",
+            TokenUsage(prompt_tokens=1, completion_tokens=1),
+        )
 
     client._call_transport = fake_transport  # type: ignore[method-assign]
 
@@ -916,10 +935,13 @@ def test_generate_many_skips_cached_prompts_and_only_calls_transport_for_misses(
 
     called: list[str] = []
 
-    def fake_transport(**kwargs: object) -> tuple[str, int, int]:
+    def fake_transport(**kwargs: object) -> tuple[str, TokenUsage]:
         prompt = str(kwargs["prompt"])
         called.append(prompt)
-        return (f"Antwort auf {prompt}", 1, 1)
+        return (
+            f"Antwort auf {prompt}",
+            TokenUsage(prompt_tokens=1, completion_tokens=1),
+        )
 
     client._call_transport = fake_transport  # type: ignore[method-assign]
 
@@ -1062,7 +1084,7 @@ def test_generate_many_raises_budget_exceeded_before_any_call(tmp_path: Path) ->
         spend_ceiling_usd=0.0,
     )
 
-    def must_not_be_called(**kwargs: object) -> tuple[str, int, int]:
+    def must_not_be_called(**kwargs: object) -> tuple[str, TokenUsage]:
         raise AssertionError("transport must never be called once the ceiling is reached")
 
     client._call_transport = must_not_be_called  # type: ignore[method-assign]
@@ -1126,11 +1148,12 @@ def test_paid_lane_sync_call_permitted_under_forbid_batch(tmp_path: Path) -> Non
     fake_sdk = _FakeSdkClient(models=fake_models)
     client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
 
-    text, prompt_tokens, completion_tokens = client._call_transport(
+    text, usage = client._call_transport(
         model=MODEL_GENERATE, prompt="x", lane="paid", mode="sync", purpose="unit_test"
     )
 
     assert text == "Antwort"
+    assert (usage.prompt_tokens, usage.completion_tokens) == (4, 2)
     assert len(fake_models.calls) == 1, "must have reached the real sync transport, not batch"
 
 
@@ -1179,7 +1202,7 @@ def test_generate_many_rpd_mid_call_fallback_lands_on_paid_sync_under_forbid_bat
     call_count = {"n": 0}
     seen: list[tuple[str, str]] = []
 
-    def fallback_transport(**kwargs: object) -> tuple[str, int, int]:
+    def fallback_transport(**kwargs: object) -> tuple[str, TokenUsage]:
         lane = str(kwargs["lane"])
         mode = str(kwargs["mode"])
         seen.append((lane, mode))
@@ -1495,12 +1518,464 @@ def test_operator_tuned_rate_limit_constants_are_pinned() -> None:
 
 
 def test_operator_tuned_server_error_constants_are_pinned() -> None:
-    """``SERVER_ERROR_BACKOFF_SECONDS`` and ``SERVER_ERROR_MAX_RETRIES`` are
-    the project owner's own edit, applied by hand after the cycle 9 pilot run
-    died partway through on a Gemini 503. The defaults (5.0 seconds, 3
-    retries) were not enough to ride out that outage; 15 seconds and 5
-    retries were. Same standing rule as the rate-limit constants above: if
-    this fails, ask the owner rather than updating the assertion, per
-    CLAUDE.md rule 7 and TODO.md section 5."""
-    assert GeminiLlmClient.SERVER_ERROR_BACKOFF_SECONDS == 15.0
-    assert GeminiLlmClient.SERVER_ERROR_MAX_RETRIES == 5
+    """The 5xx retry constants are the project owner's own edit, and this test
+    pins whatever he last set. Same standing rule as the rate-limit constants
+    above: if it fails, ask the owner rather than updating the assertion, per
+    CLAUDE.md rule 7 and TODO.md section 3.
+
+    The values below are NOT the ones this test used to assert (15.0 seconds,
+    5 retries), and the change is deliberate rather than drift. History, so
+    nobody "restores" the old numbers: the owner first raised these by hand
+    after the cycle 9 pilot died on a Gemini 503, then raised the retry count
+    again to 40 and added a free-to-paid fallback once those retries are
+    exhausted. He has since replaced that with the opposite shape, verbatim:
+    "instead of making 40 request make it like 4 but with much longer
+    intervals". 40 attempts 15 seconds apart is ten minutes of hammering a
+    service that is down; four attempts on the escalating schedule below
+    cover roughly 25 minutes and then hand the work to the paid lane. The
+    batch cap is lower still, and that one is not the owner's instruction but
+    this cycle's judgement -- a failed batch job has already been billed for
+    the requests it processed before it failed, and a retry resubmits the
+    whole job."""
+    assert GeminiLlmClient.SERVER_ERROR_MAX_RETRIES == 4
+    assert GeminiLlmClient.SERVER_ERROR_BATCH_MAX_RETRIES == 2
+    assert GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE == (30.0, 120.0, 480.0, 900.0)
+    # Only the fallback for an attempt index past the end of the schedule.
+    assert GeminiLlmClient.SERVER_ERROR_BACKOFF_SECONDS == 900.0
+
+
+# ---------------------------------------------------------------------------
+# Pricing by transport mode, checked against the real Google bill.
+#
+# The reference data below is three days of the owner's own August 2026 usage
+# where his cost log and Google's per-day billing export agree token for
+# token, so the priced result can be compared against what Google actually
+# charged rather than against this code's own arithmetic.
+# ---------------------------------------------------------------------------
+
+#: ``(day, prompt_tokens, completion_tokens, charged_input_usd, charged_output_usd)``.
+#: All on ``gemini-3.7-flash``, all non-batch (the pilots run
+#: ``forbid_batch=True``), at $0.75 input and $3.75 output per million.
+_RECONCILED_BILLING_DAYS: list[tuple[str, int, int, float, float]] = [
+    ("2026-08-19", 23_746, 53_668, 0.017809, 0.201255),
+    ("2026-08-25", 95_101, 140_004, 0.071324, 0.525013),
+    ("2026-08-26", 381_284, 263_122, 0.285960, 0.986703),
+]
+
+#: Google's export aggregates per-request charges, each rounded on its own,
+#: so re-pricing a whole day from its summed tokens cannot land on the exact
+#: cent Google printed. The observed gap across these three days is at most
+#: 8e-6 USD, i.e. under a hundredth of a cent on a $1.27 day; the half-price
+#: bug this test guards against is off by half the bill, roughly 1e5 times
+#: larger, so the tolerance costs the test nothing.
+_BILLING_TOLERANCE_USD = 1e-5
+
+
+def test_sync_pricing_reproduces_the_real_google_charges_for_three_reconciled_days(
+    tmp_path: Path,
+) -> None:
+    """Price the three days whose logged tokens match Google's billing export
+    exactly, and land on the charges Google actually raised.
+
+    This is the regression test for the measured billing miss: the owner's
+    August bill was $5.04 against a cost log claiming $1.99. ``_estimate_cost``
+    applied Google's 0.5x batch discount to EVERY paid call, including the
+    synchronous on-demand calls a ``forbid_batch=True`` pilot makes, which are
+    billed at full price. Each of these three days would come out at exactly
+    half the real charge under that bug.
+    """
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+
+    for day, prompt_tokens, completion_tokens, charged_in, charged_out in _RECONCILED_BILLING_DAYS:
+        priced = client._estimate_cost(
+            MODEL_VERIFY, prompt_tokens, completion_tokens, "paid", "sync"
+        )
+        charged = charged_in + charged_out
+        assert abs(priced - charged) <= _BILLING_TOLERANCE_USD, (
+            f"{day}: priced ${priced:.6f} against a real Google charge of ${charged:.6f}"
+        )
+
+        # The two sides of the bill, separately, so a compensating error in
+        # one price cannot hide inside the total.
+        priced_input = client._estimate_cost(MODEL_VERIFY, prompt_tokens, 0, "paid", "sync")
+        priced_output = client._estimate_cost(MODEL_VERIFY, 0, completion_tokens, "paid", "sync")
+        assert abs(priced_input - charged_in) <= _BILLING_TOLERANCE_USD, day
+        assert abs(priced_output - charged_out) <= _BILLING_TOLERANCE_USD, day
+
+        # And the bug itself, named: half price is not within a mile of the bill.
+        assert abs(priced / 2 - charged) > _BILLING_TOLERANCE_USD, day
+
+
+def test_batch_mode_gets_the_discount_and_sync_mode_does_not(tmp_path: Path) -> None:
+    """Google's 0.5x discount is a property of the transport mode, not the
+    lane: a real Batch API submission is half price, a paid-lane synchronous
+    on-demand call is not. The lane is the same in both cases, which is why
+    ``lane`` alone could never have fixed this."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+
+    sync_cost = client._estimate_cost(MODEL_VERIFY, 1_000_000, 1_000_000, "paid", "sync")
+    batch_cost = client._estimate_cost(MODEL_VERIFY, 1_000_000, 1_000_000, "paid", "batch")
+
+    assert sync_cost == pytest.approx(0.75 + 3.75)
+    assert batch_cost == pytest.approx(sync_cost / 2)
+
+
+def test_free_and_cache_lanes_stay_zero_cost_in_every_mode(tmp_path: Path) -> None:
+    """The free lane is an unbilled project and a cache hit reaches no
+    provider at all, so both stay at zero cost whatever mode is passed.
+    Pricing by mode must not have quietly started charging for them."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+
+    for lane in ("free", "cache"):
+        for mode in ("sync", "batch", "cache"):
+            assert client._estimate_cost(MODEL_VERIFY, 500_000, 500_000, lane, mode) == 0.0
+
+
+def test_cost_log_records_the_mode_each_call_actually_used(tmp_path: Path) -> None:
+    """Every row says how the call reached Google, because Google's bill has
+    separate SKUs for ``gemini 3.7 flash text`` and ``... text batch`` at
+    different rates. Without this field the log cannot be reconciled against
+    the bill line for line, which is what made the August miss take two days
+    and a billing export to find."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file,
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+        paid_api_key="fake-paid-key",
+        forbid_batch=True,
+    )
+    client._call_transport = _fake_transport_ok  # type: ignore[method-assign]
+
+    # Free lane, synchronous.
+    client.generate("Freie Anfrage", purpose="unit_test", use_cache=True)
+    # The same prompt again: a cache hit, which reached no transport at all.
+    client.generate("Freie Anfrage", purpose="unit_test", use_cache=True)
+    # Paid lane under forbid_batch: on-demand, and therefore full price.
+    client.free_lane_open = False
+    client.generate("Bezahlte Anfrage", purpose="unit_test", use_cache=False)
+
+    rows = [json.loads(line) for line in log_file.read_text(encoding="utf-8").splitlines() if line]
+    assert [(row["lane"], row["mode"]) for row in rows] == [
+        ("free", "sync"),
+        ("cache", "cache"),
+        ("paid", "sync"),
+    ]
+
+
+def test_generate_many_batch_rows_are_logged_as_batch_and_discounted(tmp_path: Path) -> None:
+    """``generate_many``'s paid-lane batch branch is the one place a real
+    Batch API submission happens, so it is the one place the discount is
+    correct. The row records ``mode="batch"`` and the cost is half the
+    on-demand price for the same tokens."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file,
+        cache_dir=tmp_path / "cache",
+        paid_api_key="fake-paid-key",
+    )
+    fake_sdk = _FakeSdkClient(batches=_FakeBatches(_fake_batch_job_many(["Antwort"])))
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    client.generate_many(
+        ["Ein Prompt"],
+        purpose="unit_test",
+        use_cache=False,
+        force_lane="paid",
+        now=datetime.now(UTC),
+    )
+
+    rows = [json.loads(line) for line in log_file.read_text(encoding="utf-8").splitlines() if line]
+    assert len(rows) == 1
+    assert rows[0]["lane"] == "paid"
+    assert rows[0]["mode"] == "batch"
+    on_demand = client._estimate_cost(
+        rows[0]["model"], rows[0]["prompt_tokens"], rows[0]["completion_tokens"], "paid", "sync"
+    )
+    assert on_demand > 0.0, "the fixture must bill something for the halving to mean anything"
+    assert rows[0]["cost_usd"] == pytest.approx(on_demand / 2)
+
+
+# ---------------------------------------------------------------------------
+# Usage metadata: every billed field, and the checksum over them.
+# ---------------------------------------------------------------------------
+
+
+def test_extract_response_records_every_billed_token_field(tmp_path: Path) -> None:
+    """Gemini reports four separately billed token counts and its own total.
+    The client used to read two of them and merge one away. All of them are
+    now carried through to the cost-log row, with ``completion_tokens``
+    unchanged in meaning (candidates plus thoughts) so nothing downstream
+    shifts."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+    response = _fake_generate_content_response(
+        "Antwort",
+        prompt_tokens=100,
+        candidates_tokens=40,
+        thoughts_tokens=25,
+        cached_content_tokens=60,
+        tool_use_prompt_tokens=7,
+        total_tokens=172,  # 100 prompt (60 of it cached) + 40 + 25 + 7
+        model_version="gemini-3.7-flash-002",
+    )
+
+    text, usage = client._extract_response(response, prompt="egal", purpose="unit_test")
+
+    assert text == "Antwort"
+    assert usage.prompt_tokens == 100
+    assert usage.completion_tokens == 65, "candidates plus thoughts, exactly as before"
+    assert usage.thoughts_tokens == 25
+    assert usage.cached_content_tokens == 60
+    assert usage.tool_use_prompt_tokens == 7
+    assert usage.total_tokens == 172
+    assert usage.model_version == "gemini-3.7-flash-002"
+
+
+def test_token_checksum_warns_and_does_not_raise_when_the_parts_do_not_sum(
+    tmp_path: Path,
+) -> None:
+    """When Gemini's own total exceeds the fields this client reads, it is
+    billing for tokens the log cannot see -- precisely the failure mode that
+    hid roughly $1.58 of the August bill. It must warn, name the discrepancy,
+    and keep going: this runs inside a six-week unattended job, so crashing
+    it over a bookkeeping gap would cost far more than the gap."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+    response = _fake_generate_content_response(
+        "Antwort",
+        prompt_tokens=100,
+        candidates_tokens=40,
+        thoughts_tokens=10,
+        total_tokens=200,  # 50 tokens this client cannot account for
+    )
+
+    with pytest.warns(UserWarning, match="does not add up"):
+        _text, usage = client._extract_response(response, prompt="egal", purpose="unit_test")
+
+    assert usage.total_tokens == 200, (
+        "the provider's own total must be recorded so a reconciliation can see the gap"
+    )
+    assert usage.prompt_tokens + usage.completion_tokens == 150
+
+
+def test_token_checksum_is_skipped_when_the_provider_reports_no_total(tmp_path: Path) -> None:
+    """An absent ``total_token_count`` is not a total of zero. Treating it as
+    zero would make every such response look like a mismatch and bury the real
+    ones in noise."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+    response = _fake_generate_content_response(
+        "Antwort", prompt_tokens=100, candidates_tokens=40, total_tokens=None
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        _text, usage = client._extract_response(response, prompt="egal", purpose="unit_test")
+
+    assert usage.total_tokens is None
+
+
+def test_cost_log_row_written_before_the_new_fields_existed_still_loads(tmp_path: Path) -> None:
+    """The new columns are additive with defaults. ``_load_cost_log`` reads
+    this file at construction and ``get_month_to_date_spend`` sums it, so a
+    historical row that predates them must still parse silently -- a warning
+    per row would make every existing log look corrupt."""
+    log_file = tmp_path / "cost_log.jsonl"
+    old_row = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "model": MODEL_GENERATE,
+        "lane": "paid",
+        "prompt_tokens": 1000,
+        "completion_tokens": 2000,
+        "cost_usd": 0.5,
+        "purpose": "generation",
+    }
+    log_file.write_text(json.dumps(old_row) + "\n", encoding="utf-8")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        client = GeminiLlmClient(cost_log_path=log_file, cache_dir=tmp_path / "cache")
+
+    assert client.get_month_to_date_spend() == 0.5
+    (row,) = client.cost_records
+    assert row.mode is None, "an old row's mode is genuinely unknown, not a guess"
+    assert row.thoughts_tokens == 0
+    assert row.cached_content_tokens == 0
+    assert row.tool_use_prompt_tokens == 0
+    assert row.total_tokens is None
+    assert row.model_version is None
+
+
+# ---------------------------------------------------------------------------
+# 5xx retry schedule, its caps, and the owner's free-to-paid fallback.
+# ---------------------------------------------------------------------------
+
+
+def test_server_error_backoff_follows_the_schedule_in_order_and_stops_after_four(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Four attempts on an escalating schedule, not forty flat ones: the
+    owner's instruction, "instead of making 40 request make it like 4 but
+    with much longer intervals". No paid key is configured here, so the
+    free-to-paid fallback cannot fire and the error propagates once the
+    schedule is spent.
+
+    The paid key is explicitly removed from the environment rather than
+    merely not passed: another test in the same session may have called
+    ``load_env_file()``, which writes a real ``.env`` into ``os.environ``
+    for the rest of the run."""
+    monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
+    sleeps: list[float] = []
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        sleep_fn=sleeps.append,
+    )
+    calls = {"n": 0}
+
+    def always_overloaded(**kwargs: object) -> tuple[str, TokenUsage]:
+        calls["n"] += 1
+        raise ServerUnavailableError("503 UNAVAILABLE")
+
+    client._call_transport = always_overloaded  # type: ignore[method-assign]
+
+    with pytest.raises(ServerUnavailableError):
+        client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
+
+    assert sleeps == list(GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE)
+    assert calls["n"] == GeminiLlmClient.SERVER_ERROR_MAX_RETRIES + 1
+
+
+def test_server_error_backoff_falls_back_to_the_scalar_past_the_schedule(
+    tmp_path: Path,
+) -> None:
+    """The scalar constant is the fallback for an attempt index past the end
+    of the schedule, so raising a retry cap can never index off it."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
+    )
+    schedule = GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE
+
+    assert [client._server_error_backoff_seconds(i) for i in range(len(schedule))] == list(schedule)
+    assert client._server_error_backoff_seconds(len(schedule)) == (
+        GeminiLlmClient.SERVER_ERROR_BACKOFF_SECONDS
+    )
+
+
+def test_batch_server_error_retries_stop_after_two(tmp_path: Path) -> None:
+    """The batch path gets a lower cap than the sync path because a batch
+    retry is not free: the job that failed had already run for minutes and
+    Google had already billed the requests it processed, and this resubmits
+    the whole group."""
+    sleeps: list[float] = []
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        sleep_fn=sleeps.append,
+    )
+    calls = {"n": 0}
+
+    def always_overloaded(*args: object, **kwargs: object) -> list[tuple[str, TokenUsage]]:
+        calls["n"] += 1
+        raise ServerUnavailableError("503 UNAVAILABLE")
+
+    client._call_batch_many = always_overloaded  # type: ignore[method-assign]
+
+    with pytest.raises(ServerUnavailableError):
+        client._call_batch_many_with_retry(
+            None,  # type: ignore[arg-type]  -- never reached, the double raises first
+            model=MODEL_GENERATE,
+            prompts=["eins", "zwei"],
+            config=genai_types.GenerateContentConfig(),
+            purpose="unit_test",
+        )
+
+    assert calls["n"] == GeminiLlmClient.SERVER_ERROR_BATCH_MAX_RETRIES + 1
+    assert calls["n"] < GeminiLlmClient.SERVER_ERROR_MAX_RETRIES + 1, (
+        "the batch cap must stay strictly below the sync cap"
+    )
+    assert sleeps == list(GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE[:2])
+
+
+def test_free_to_paid_fallback_fires_once_server_retries_are_exhausted(tmp_path: Path) -> None:
+    """The owner's own fallback, kept: when the free project stays down past
+    the whole retry schedule, the work moves to the paid project rather than
+    being lost. The paid lane is a separate Google Cloud project, so its
+    availability is genuinely independent of the free one's."""
+    log_file = tmp_path / "cost_log.jsonl"
+    sleeps: list[float] = []
+    client = GeminiLlmClient(
+        cost_log_path=log_file,
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+        paid_api_key="fake-paid-key",
+        sleep_fn=sleeps.append,
+    )
+    seen_lanes: list[str] = []
+
+    def free_lane_is_down(**kwargs: object) -> tuple[str, TokenUsage]:
+        lane = str(kwargs["lane"])
+        seen_lanes.append(lane)
+        if lane == "free":
+            raise ServerUnavailableError("503 UNAVAILABLE")
+        return _fake_transport_ok(**kwargs)
+
+    client._call_transport = free_lane_is_down  # type: ignore[method-assign]
+
+    response = client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
+
+    assert "lane=paid" in response
+    assert seen_lanes == ["free"] * (GeminiLlmClient.SERVER_ERROR_MAX_RETRIES + 1) + ["paid"]
+    assert sleeps == list(GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE)
+    # A 503 is not a quota signal, so the free lane stays open for later calls.
+    assert client.free_lane_open is True
+    rows = [json.loads(line) for line in log_file.read_text(encoding="utf-8").splitlines() if line]
+    assert rows[-1]["lane"] == "paid"
+
+
+def test_free_to_paid_fallback_is_not_taken_when_the_paid_lane_is_forbidden(
+    tmp_path: Path,
+) -> None:
+    """``forbid_paid_lane`` means no paid spend at all, and an outage is not
+    an exception to that: a learner-facing call must surface the real 503
+    rather than quietly spend on the paid project."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        paid_api_key="fake-paid-key",
+        forbid_paid_lane=True,
+        sleep_fn=lambda _seconds: None,
+    )
+    seen_lanes: list[str] = []
+
+    def always_overloaded(**kwargs: object) -> tuple[str, TokenUsage]:
+        seen_lanes.append(str(kwargs["lane"]))
+        raise ServerUnavailableError("503 UNAVAILABLE")
+
+    client._call_transport = always_overloaded  # type: ignore[method-assign]
+
+    with pytest.raises(ServerUnavailableError):
+        client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
+
+    assert set(seen_lanes) == {"free"}, "must never have touched the paid lane"
+
+
+def test_spend_ceiling_default_is_the_owners_current_figure() -> None:
+    """The default ceiling was 5.00 (a 5 EUR/month budget, tracked in USD).
+    The owner has raised it to 7.50. Pinned here for the same reason as the
+    rate-limit constants: this number is his call, not a tuning knob, and the
+    documents that quote it (CLAUDE.md 9, docs/audits/stage-00-quota.md)
+    were corrected in the same commit rather than left contradicting the
+    code."""
+    client = GeminiLlmClient(cost_log_path=Path("/nonexistent/cost_log.jsonl"))
+    assert client.spend_ceiling_usd == 7.50

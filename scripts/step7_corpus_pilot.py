@@ -238,9 +238,13 @@ after a crash must still be cheap (CLAUDE.md section 9); every later pass
 passes ``use_cache=False`` through ``verify_items`` to ``generate_many``.
 
 **What it costs.** Measured from the owner's own ``cost_log``, against a
-5 EUR/month ceiling: about $0.18 per pilot cycle at batch size 20, about
-$0.36 at batch size 5. Each extra pass adds roughly one more of whichever
-batch size the run uses, so ``--verification-passes 2`` roughly doubles it.
+$7.50/month ceiling: about $0.18 per pilot cycle at batch size 20, about
+$0.36 at batch size 5. Both figures are read off cost_log rows written
+before the 2026-08-27 pricing fix, which billed every paid on-demand call at
+the batch discount: treat them as a lower bound, up to 2x low for a run that
+spent on the paid lane synchronously. Each extra pass adds roughly one more
+of whichever batch size the run uses, so ``--verification-passes 2`` roughly
+doubles it.
 Nobody should enable this without knowing that, which is why the number is
 in the flag's own help text as well as here.
 
@@ -385,7 +389,7 @@ DEFAULT_SEED = 7
 # TODO.md 2.3/2.1c: how many times the model verification pass runs over the
 # SAME items. 1 is today's behaviour exactly -- one pass, cache on, byte-for-
 # byte what every previous run did -- and the default stays 1 because every
-# extra pass is another full cycle's spend against a 5 EUR/month ceiling. See
+# extra pass is another full cycle's spend against a $7.50/month ceiling. See
 # ``run_verification_passes`` for what N > 1 buys and what it costs.
 DEFAULT_VERIFICATION_PASSES = 1
 
@@ -643,8 +647,11 @@ def run_verification_passes(
 
     **The cost.** Measured from the owner's own ``cost_log``: about $0.18 per
     pilot cycle at batch size 20, about $0.36 at batch size 5, against a
-    5 EUR/month ceiling. Each additional pass adds roughly one more of
-    whichever figure applies. ``passes <= 1`` short-circuits to exactly one
+    $7.50/month ceiling. Both figures are read off cost_log rows written
+    before the 2026-08-27 pricing fix, which billed every paid on-demand call
+    at the batch discount: treat them as a lower bound, up to 2x low for a run
+    that spent on the paid lane synchronously. Each additional pass adds
+    roughly one more of whichever figure applies. ``passes <= 1`` short-circuits to exactly one
     cached pass, which is the behaviour every run before this flag had."""
     effective_passes = max(1, passes)
     reports: list[VerificationReport] = []
@@ -1608,8 +1615,9 @@ def main() -> int:
             "rejected at 5 while 3 went the other way, and all 12 were read "
             "by hand and all 12 are genuinely bad items -- so neither run "
             "catches everything and the union catches all of them. COST, "
-            "measured from cost_log against a 5 EUR/month ceiling: about "
-            "$0.18 per pilot cycle at batch size 20 and about $0.36 at batch "
+            "measured from cost_log (before the 2026-08-27 pricing fix, so "
+            "up to 2x low for paid on-demand calls) against a $7.50/month "
+            "ceiling: about $0.18 per pilot cycle at batch size 20 and $0.36 at batch "
             "size 5, and each extra pass adds roughly one more of whichever "
             "applies. Passes after the first bypass the local response cache "
             "on purpose (an identical prompt would otherwise replay pass 1's "

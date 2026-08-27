@@ -14,7 +14,7 @@ from src.generation.batch_client import (
 )
 from src.generation.prompt_builder import PromptBuilder
 from src.generation.spec import TopicSpec, build_spec_for_topic, load_spec, save_spec
-from src.llm.client import GeminiLlmClient
+from src.llm.client import GeminiLlmClient, TokenUsage
 from src.taxonomy.loader import load_taxonomy
 
 
@@ -295,9 +295,9 @@ def test_gemini_batch_client_sends_prompt_built_from_real_spec_sheet(tmp_path: P
 
     def fake_transport(
         *, model: str, prompt: str, lane: str, mode: str, purpose: str
-    ) -> tuple[str, int, int]:
+    ) -> tuple[str, TokenUsage]:
         captured.append(prompt)
-        return json.dumps({"items": []}), 10, 10
+        return json.dumps({"items": []}), TokenUsage(prompt_tokens=10, completion_tokens=10)
 
     llm_client = _make_llm_client(tmp_path)
     llm_client._call_transport = fake_transport  # type: ignore[method-assign]
@@ -326,7 +326,7 @@ def test_gemini_batch_client_missing_spec_sheet_fails_loudly(tmp_path: Path) -> 
 
     def fake_transport(
         *, model: str, prompt: str, lane: str, mode: str, purpose: str
-    ) -> tuple[str, int, int]:
+    ) -> tuple[str, TokenUsage]:
         raise AssertionError("transport must never be called when a spec sheet is missing")
 
     llm_client = _make_llm_client(tmp_path)
@@ -349,10 +349,10 @@ def test_gemini_batch_client_submit_is_idempotent_no_second_transport_call(
 
     def fake_transport(
         *, model: str, prompt: str, lane: str, mode: str, purpose: str
-    ) -> tuple[str, int, int]:
+    ) -> tuple[str, TokenUsage]:
         nonlocal call_count
         call_count += 1
-        return json.dumps({"items": []}), 10, 10
+        return json.dumps({"items": []}), TokenUsage(prompt_tokens=10, completion_tokens=10)
 
     llm_client = _make_llm_client(tmp_path)
     llm_client._call_transport = fake_transport  # type: ignore[method-assign]
@@ -377,7 +377,7 @@ def test_gemini_batch_client_parses_realistic_response_and_drops_malformed_items
 
     def fake_transport(
         *, model: str, prompt: str, lane: str, mode: str, purpose: str
-    ) -> tuple[str, int, int]:
+    ) -> tuple[str, TokenUsage]:
         payload = {
             "items": [
                 {
@@ -398,7 +398,7 @@ def test_gemini_batch_client_parses_realistic_response_and_drops_malformed_items
                 },
             ]
         }
-        return json.dumps(payload), 20, 20
+        return json.dumps(payload), TokenUsage(prompt_tokens=20, completion_tokens=20)
 
     llm_client = _make_llm_client(tmp_path)
     llm_client._call_transport = fake_transport  # type: ignore[method-assign]
@@ -429,7 +429,7 @@ def test_gemini_batch_client_normalizes_underscore_runs_in_parsed_prompt(
 
     def fake_transport(
         *, model: str, prompt: str, lane: str, mode: str, purpose: str
-    ) -> tuple[str, int, int]:
+    ) -> tuple[str, TokenUsage]:
         payload = {
             "items": [
                 {
@@ -444,7 +444,7 @@ def test_gemini_batch_client_normalizes_underscore_runs_in_parsed_prompt(
                 }
             ]
         }
-        return json.dumps(payload), 20, 20
+        return json.dumps(payload), TokenUsage(prompt_tokens=20, completion_tokens=20)
 
     llm_client = _make_llm_client(tmp_path)
     llm_client._call_transport = fake_transport  # type: ignore[method-assign]
@@ -522,7 +522,7 @@ def test_gemini_batch_client_strips_markdown_fence_before_parsing(tmp_path: Path
 
     def fake_transport(
         *, model: str, prompt: str, lane: str, mode: str, purpose: str
-    ) -> tuple[str, int, int]:
+    ) -> tuple[str, TokenUsage]:
         payload = {
             "items": [
                 {
@@ -538,7 +538,7 @@ def test_gemini_batch_client_strips_markdown_fence_before_parsing(tmp_path: Path
             ]
         }
         fenced = f"```json\n{json.dumps(payload)}\n```"
-        return fenced, 20, 20
+        return fenced, TokenUsage(prompt_tokens=20, completion_tokens=20)
 
     llm_client = _make_llm_client(tmp_path)
     llm_client._call_transport = fake_transport  # type: ignore[method-assign]
@@ -569,9 +569,9 @@ def test_gemini_batch_client_used_when_key_configured_mock_reserved_for_offline(
 
     def fake_transport(
         *, model: str, prompt: str, lane: str, mode: str, purpose: str
-    ) -> tuple[str, int, int]:
+    ) -> tuple[str, TokenUsage]:
         seen_prompts.append(prompt)
-        return json.dumps({"items": []}), 10, 10
+        return json.dumps({"items": []}), TokenUsage(prompt_tokens=10, completion_tokens=10)
 
     llm_client = _make_llm_client(tmp_path)
     llm_client._call_transport = fake_transport  # type: ignore[method-assign]

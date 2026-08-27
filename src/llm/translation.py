@@ -375,6 +375,10 @@ class AzureTranslator:
             timestamp=datetime.now(UTC),
             model=AZURE_COST_LOG_MODEL,
             lane="free",
+            # Azure's text API is a synchronous REST call; it has no batch
+            # mode to distinguish, so the row says so rather than leaving the
+            # field unrecorded.
+            mode="sync",
             prompt_tokens=characters,
             completion_tokens=0,
             cost_usd=0.0,
