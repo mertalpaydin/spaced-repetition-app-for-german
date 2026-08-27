@@ -14,7 +14,7 @@ from src.bank.exporter import (
     load_bank_export_item_schema,
     validate_against_json_schema,
 )
-from src.bank.migrations import run_migrations
+from src.bank.migrations import CURRENT_SCHEMA_VERSION, run_migrations, schema_version
 from src.bank.stats import BankStatsCalculator
 from src.bank.storage import SqliteItemBank
 from src.contracts import BankItem, Distractor, VerificationResult
@@ -62,6 +62,22 @@ def test_migrations_apply_cleanly_on_fresh_db(tmp_path: Path) -> None:
 
     # Re-running migrations should be a no-op without error
     run_migrations(db_file)
+
+
+def test_schema_version_reports_current_after_migrating_a_fresh_db(tmp_path: Path) -> None:
+    """``CURRENT_SCHEMA_VERSION`` is the number callers assert "this bank is
+    up to date" against (scripts/step7_corpus_pilot.py's ``--write-bank``
+    reports it), so it has to be what ``run_migrations`` actually reaches. A
+    fifth migration that forgets to bump the constant fails here rather than
+    shipping a bank that quietly drops the newest column."""
+    db_file = tmp_path / "versioned.db"
+    assert schema_version(db_file) == 0
+
+    run_migrations(db_file)
+    assert schema_version(db_file) == CURRENT_SCHEMA_VERSION
+
+    run_migrations(db_file)
+    assert schema_version(db_file) == CURRENT_SCHEMA_VERSION
 
 
 def test_run_migrations_idempotent_preserves_review_log_rows(tmp_path: Path) -> None:

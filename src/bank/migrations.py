@@ -155,6 +155,33 @@ ALTER TABLE items ADD COLUMN gloss_en TEXT;
 """
 
 
+#: The version ``run_migrations`` brings a database up to. Named rather than
+#: left implicit in the last ``if current_version < N`` branch so a caller can
+#: assert "this database is current" without hardcoding the number, and so a
+#: fifth migration that forgets to bump this fails a test instead of shipping.
+CURRENT_SCHEMA_VERSION = 4
+
+
+def schema_version(db_path: Path | str) -> int:
+    """The migration version ``db_path`` is currently at.
+
+    ``0`` for a database that has never been migrated (or has no
+    ``schema_version`` table at all), so a caller can tell "not migrated" from
+    "migrated to version 1" instead of both looking like a missing row.
+    """
+    conn = sqlite3.connect(str(db_path))
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version';")
+        if cur.fetchone() is None:
+            return 0
+        cur.execute("SELECT MAX(version) FROM schema_version;")
+        row = cur.fetchone()
+        return int(row[0]) if row and row[0] is not None else 0
+    finally:
+        conn.close()
+
+
 def run_migrations(db_path: Path | str) -> None:
     """Apply all pending migrations to the specified SQLite database."""
     conn = sqlite3.connect(str(db_path))

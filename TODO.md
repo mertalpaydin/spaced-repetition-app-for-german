@@ -98,6 +98,20 @@ Not tasks. Do not "fix" these without a decision from the owner.
   standing rule, not a task. The verifier is a discovery instrument and must
   never be the only thing between a known defect class and a learner.
 
+- **A whole-corpus `step7_corpus_pilot.py` run is silent for hours and its
+  rejected file is enormous.** Both stand, both are recorded rather than
+  fixed. The carrier-validation pass and the tagging pass each parse every
+  corpus line with spaCy and neither reports progress; measured in this
+  project's own container at 78 and 92 sentences/second, 450,000 lines is
+  about 2.5 hours with nothing on the console. The script now prints that
+  estimate before the wait starts, which is the honest minimum; real
+  progress reporting would need a callback through `blank_sentences` and
+  `validate_carriers` and has not been built. Separately, the rejected JSONL
+  scales at roughly 1.4 rows per corpus line (8,667 rows for 6,000 lines),
+  so a whole-corpus run writes on the order of 650,000 rows, held in memory
+  as a list first. That is large, not fatal, and it is the file the audit
+  actually needs.
+
 ---
 
 ## 2. Open work
@@ -504,6 +518,32 @@ have a pinning test that says to ask rather than update the assertion.
   A distrusted gloss that could not be replaced (failure, budget, no
   translator) leaves the item at `gloss_en=None` rather than falling back on
   the Tatoeba English, and is reported as `gloss_missing_stale_tatoeba`.
+
+- **Ship with a full bank. 25 items per topic, built once, up front.**
+  Decided 2026-08-27. 49 topics at 25 items is about **1,225 items**, read
+  from the whole corpus rather than 40,000 lines per source, verified by two
+  passes at batch size 5. Nightly top-up is the last resort, not the build
+  path.
+
+  **Cost: $0.00268 an item, so $3.28 for the whole bank**, measured from the
+  owner's own Google bill rather than estimated from the cost log. Against a
+  $7.50/month ceiling. Glossing 1,225 carriers is about 73,000 characters,
+  one night of Azure F0's 2,000,000 a month.
+
+  `scripts/step7_corpus_pilot.py --write-bank data/bank.db` is the hop that
+  makes this possible; before it, no script in the repository ever wrote a
+  corpus-pilot item into `data/bank.db`. The exact command sequence, with
+  the per-step cost, duration and "did it work" check, is
+  `docs/building-the-bank.md`.
+
+  **Two things about that run that are not the defaults.** `--limit` is per
+  source and defaults to 40,000, so a whole-corpus run has to pass a large
+  one. And `--max-translation-characters` defaults to 60,000, which was
+  sized for a 475-item cycle: 1,225 carriers at the measured mean of 61.7
+  characters is about 75,600, so the default guard would stop at a batch
+  boundary and leave several hundred items unglossed. Pass 120,000. The
+  default is deliberately left alone because it is a runaway guard and the
+  right size for it is a decision about a specific run, not a constant.
 
 ---
 

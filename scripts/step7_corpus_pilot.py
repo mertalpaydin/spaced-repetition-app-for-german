@@ -336,6 +336,70 @@ run) and ``pass_disagreements`` (how many items at least one pass rejected
 and at least one accepted -- the direct measure of verifier instability,
 and the reason the flag exists).
 
+## Writing the accepted items into the bank (``--write-bank``)
+
+Until this change the chain from corpus to browser had exactly one missing
+hop. Migration v4 gave ``items`` its ``gloss_en`` column, ``BankExporter.
+EXPORTED_BANK_ITEM_FIELDS`` ships that column, and
+``scripts/step3_export_web_data.py`` writes ``web/data/*.json`` from the
+bank -- but nothing ever put a corpus-pilot item INTO ``data/bank.db``.
+``scripts/step2_build_item_bank.py`` ingests a golden fixture and
+``step6_blank_pilot.py`` only READS stock from a bank it is pointed at
+(``SqliteItemBank(args.db)`` there is a ``stock`` lookup, not an insert), so
+the owner's "ship with a full bank, top up nightly as a last resort" is not
+reachable from any script in the repository. ``--write-bank PATH`` is that
+hop, and nothing else changes: the flag is **off by default**, and with it
+off this script behaves byte for byte as it did before.
+
+**Identity is ``BankItem.id``, and a collision SKIPS.** ``_corpus_item_id``
+is a content hash of exactly the five fields that define the exercise
+(topic, type, difficulty, prompt, answer), so the same carrier sentence
+blanked for the same topic produces the same id on every run, at any seed,
+from either corpus. Two items with one id are therefore the same exercise,
+not two -- there is nothing to merge and re-inserting is a no-op.
+``SqliteItemBank.insert_item`` already implements exactly that rule
+(``INSERT OR IGNORE`` plus "do not touch distractors/carrier_lemmas for an
+existing row"), so this script reuses it rather than inventing a second
+idempotency mechanism. Replace-on-collision was rejected for one concrete
+reason: an item already in the bank may already have ``review_logs`` rows
+against it, and rewriting the row a learner has been scheduled against, to
+identical content, buys nothing and risks everything.
+
+**The one field that legitimately changes without changing the id is
+``gloss_en``**, because the gloss is not part of the hash. A first run with
+no translator configured banks the item with ``gloss_en = NULL``; a second
+run that now has a gloss for that carrier skips the row as a duplicate and
+the NULL stays. That is not silently accepted: ``bank_write.
+stale_gloss_rows`` counts exactly it (an offered item that carries a gloss
+whose already-banked row does not) and prints a warning. Backfilling it
+automatically would mean an UPDATE path this script has no mandate to own;
+``docs/building-the-bank.md`` says what to do about it instead.
+
+**A bank write cannot cost the run its review file.** The insert happens
+AFTER ``_write_review_file``/``_write_rejected_file`` and is wrapped whole,
+migrations included, in the same catch-all guard every other failure path in
+this script uses, so a broken or unwritable database leaves the review, the
+rejected file and the report exactly where they would otherwise be, with the
+error recorded in ``bank_write.error``. It does fail the run (nonzero exit,
+alongside the not-run rule below) once the files are on disk: a run that was
+asked for a bank and did not produce one is not a successful run, and
+exiting 0 would be the same "looks like it worked" failure the report file
+exists to prevent.
+
+**A run that failed its own backstop rule writes nothing.** ``final_items``
+is "everything the model did not reject", which includes items no
+verification pass could judge -- correct for a review file, wrong for the
+bank the app ships from. When ``not_run_count`` is nonzero (the same
+condition that already fails the run, see "Fail loudly" below) the bank write
+is refused outright, with the reason in ``bank_write.error``, rather than
+putting unverified items in front of a learner on exactly the runs that rule
+exists to catch.
+
+**Migrations run.** ``SqliteItemBank.__init__`` calls ``run_migrations``, so
+a ``bank.db`` this flag creates from nothing comes up at
+``CURRENT_SCHEMA_VERSION`` (gloss column included), not as a bare v1 table.
+The version actually reached is recorded in the report.
+
 ## CLAUDE.md rule 2
 
 The topic id is never sent to the model. The verification pass
@@ -389,6 +453,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from src.bank.migrations import CURRENT_SCHEMA_VERSION, schema_version
+from src.bank.storage import SqliteItemBank
 from src.contracts import BankItem, CandidateItem, Topic
 from src.generation.batch_client import RejectedCandidateRecord
 from src.generation.blanking import carrier_validation, sentence_tagger
@@ -926,6 +992,112 @@ class GlossReport:
 
 
 @dataclass
+class BankWriteReport:
+    """What ``--write-bank`` did, or why it did nothing (module docstring's
+    own section).
+
+    ``inserted``/``skipped_already_present``/``failed`` are disjoint and sum
+    to ``items_offered`` whenever ``attempted`` is true, the same "disjoint
+    counts that must sum" discipline ``GlossReport`` and
+    ``VerificationReport`` are already held to. They map one to one onto
+    ``InsertReport.inserted``/``duplicates``/``rejected``: a skip is an id
+    that was already in the bank (idempotency working, not an error), a
+    failure is an item ``SqliteItemBank._validate_for_insert`` refused (today
+    only "the prompt contains its own accepted answer outside the gap").
+    """
+
+    requested: bool = False
+    db_path: str = ""
+    attempted: bool = False
+    schema_version: int = 0
+    items_offered: int = 0
+    inserted: int = 0
+    skipped_already_present: int = 0
+    failed: int = 0
+    failure_reasons: list[str] = field(default_factory=list)
+    # Offered items that carry a gloss whose ALREADY-BANKED row does not.
+    # Only ever nonzero for a skipped (duplicate) id, because a freshly
+    # inserted row carries whatever gloss it was inserted with. See the
+    # module docstring for why this is counted rather than repaired here.
+    stale_gloss_rows: int = 0
+    total_items_in_bank: int = 0
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "requested": self.requested,
+            "db_path": self.db_path,
+            "attempted": self.attempted,
+            "schema_version": self.schema_version,
+            "items_offered": self.items_offered,
+            "inserted": self.inserted,
+            "skipped_already_present": self.skipped_already_present,
+            "failed": self.failed,
+            "failure_reasons": self.failure_reasons,
+            "stale_gloss_rows": self.stale_gloss_rows,
+            "total_items_in_bank": self.total_items_in_bank,
+            "error": self.error,
+        }
+
+
+def _count_stale_gloss_rows(bank: SqliteItemBank, items: Sequence[BankItem]) -> int:
+    """How many of ``items`` carry a gloss the bank's own row for that id does
+    not (module docstring: ``gloss_en`` is the one field that can change
+    without changing the content-addressed id, so a duplicate skip can leave
+    a NULL gloss standing).
+
+    Only worth calling when something was actually skipped as a duplicate --
+    a row this run inserted carries the gloss it was inserted with by
+    construction -- and the caller does exactly that.
+    """
+    stale = 0
+    for item in items:
+        if not item.gloss_en:
+            continue
+        stored = bank.get_item(item.id)
+        if stored is not None and not stored.gloss_en:
+            stale += 1
+    return stale
+
+
+def write_accepted_to_bank(
+    items: Sequence[BankItem], db_path: Path, *, source_batch_id: str
+) -> BankWriteReport:
+    """Insert every accepted item into the SQLite bank at ``db_path``, and
+    report what happened (module docstring's ``--write-bank`` section).
+
+    Idempotent on ``BankItem.id``, which is ``_corpus_item_id``: a content
+    hash of the five fields that define the exercise, so a rerun over the
+    same corpus offers the same ids and every one of them is skipped rather
+    than duplicated. The rule is ``SqliteItemBank.insert``'s own, reused, not
+    a second implementation of the same idea.
+
+    Never raises. Every failure -- an unwritable path, a corrupt database, a
+    migration that cannot apply -- is caught and recorded in ``error``, so
+    the caller's review/rejected/report files are already on disk and stay
+    there. Creating ``SqliteItemBank`` inside the guard is deliberate: it is
+    the call that runs the migrations, and a migration failure is exactly the
+    kind of thing that must not take the run's outputs down with it.
+    """
+    report = BankWriteReport(requested=True, db_path=str(db_path), items_offered=len(items))
+    try:
+        bank = SqliteItemBank(db_path)
+        report.schema_version = schema_version(db_path)
+        insert_report = bank.insert(list(items), source_batch_id=source_batch_id)
+        report.attempted = True
+        report.inserted = insert_report.inserted
+        report.skipped_already_present = insert_report.duplicates
+        report.failed = insert_report.rejected
+        report.failure_reasons = list(insert_report.rejection_reasons)
+        if report.skipped_already_present:
+            report.stale_gloss_rows = _count_stale_gloss_rows(bank, items)
+        report.total_items_in_bank = bank.count_total()
+    except Exception as exc:  # noqa: BLE001 -- same posture as _one_verification_pass
+        report.error = f"{type(exc).__name__}: {exc}"
+    return report
+
+
+@dataclass
 class CorpusPilotReport:
     """Everything ``main()`` needs to print AND to write to
     ``data/corpus_pilot_report.json`` (TODO 4.6) -- one object, so the two
@@ -969,6 +1141,7 @@ class CorpusPilotReport:
     review_file: str = ""
     rejected_file: str = ""
     gloss: GlossReport = field(default_factory=GlossReport)
+    bank_write: BankWriteReport = field(default_factory=BankWriteReport)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -1037,9 +1210,14 @@ class CorpusPilotReport:
                 ),
             },
             "accepted_total": self.accepted_total,
+            # Always present, even for a run that did not pass --write-bank,
+            # so a consumer never has to branch on whether the key exists:
+            # ``requested: false`` is a real answer, not a gap.
+            "bank_write": self.bank_write.to_dict(),
             "output_files": {
                 "review": self.review_file,
                 "rejected": self.rejected_file,
+                "bank": self.bank_write.db_path,
             },
         }
 
@@ -1709,6 +1887,51 @@ def _gloss_rejection_to_record(
     )
 
 
+# Sentences per second, measured in this project's own container, for the two
+# spaCy passes every run makes over the whole sentence pool: carrier
+# validation (``carrier_validation.validate_carrier``, full parse) and tagging
+# (``sentence_tagger.tag_sentence``, inside ``blank_sentences``). They are
+# deliberately a LOWER bound on a developer machine -- the point is to say
+# "this will take hours" before the hours start, not to predict a minute.
+_MEASURED_VALIDATION_RATE = 78.0
+_MEASURED_TAGGING_RATE = 92.0
+
+# Above this many sentences the estimate is printed as a warning rather than a
+# note. 100,000 is roughly where the two spaCy passes stop being a coffee
+# break: about 40 minutes at the measured rates, against the 2 minutes a
+# 6,000-line pilot takes.
+_LARGE_RUN_SENTENCES = 100_000
+
+
+def _print_scale_estimate(sentence_count: int) -> None:
+    """Say how long the two silent spaCy passes will take, before they start.
+
+    Neither ``carrier_validation.validate_carriers`` nor ``blank_sentences``
+    reports progress, and both walk the whole pool. At the default 40,000
+    lines per source that is a couple of minutes and nobody notices; over a
+    whole corpus it is hours of a cursor not moving, which is exactly the
+    kind of thing a run should not have to be interrupted to find out.
+    """
+    validation_minutes = sentence_count / _MEASURED_VALIDATION_RATE / 60
+    tagging_minutes = sentence_count / _MEASURED_TAGGING_RATE / 60
+    total = validation_minutes + tagging_minutes
+    if sentence_count >= _LARGE_RUN_SENTENCES:
+        print(
+            f"\n  *** LARGE RUN: {sentence_count:,} sentences. The carrier-validation "
+            f"and tagging passes each parse every one of them with spaCy and neither "
+            f"prints anything until it finishes. At this project's own measured rates "
+            f"({_MEASURED_VALIDATION_RATE:.0f} and {_MEASURED_TAGGING_RATE:.0f} "
+            f"sentences/second) expect roughly {total:.0f} minutes of silence before "
+            f"the next line appears, less on a faster machine. ***"
+        )
+    else:
+        print(
+            f"  Tagging and validating {sentence_count:,} sentences "
+            f"(roughly {total:.1f} minutes at this project's measured rates; "
+            f"neither pass prints progress)."
+        )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Step 7: corpus-sourced verify-only pilot.")
     parser.add_argument("--tatoeba", type=Path, default=DEFAULT_TATOEBA_PATH)
@@ -1835,6 +2058,23 @@ def main() -> int:
             "a run has shown what enforcing would cost."
         ),
     )
+    parser.add_argument(
+        "--write-bank",
+        type=Path,
+        default=None,
+        help=(
+            "Insert every ACCEPTED item into this SQLite item bank (e.g. "
+            "data/bank.db) after verification. Off by default; without it no "
+            "database is opened or created and this script behaves exactly as "
+            "it did before the flag existed. The write is idempotent on the "
+            "item's content-addressed id, so running this twice over the same "
+            "corpus skips instead of doubling the bank. Migrations run, so a "
+            "bank.db created here comes up at the current schema version. The "
+            "review and rejected JSONL files are written first and are never "
+            "at risk from a bank failure, but a bank that was asked for and "
+            "not written fails the run."
+        ),
+    )
     parser.add_argument("--review-file", type=str, default=str(DEFAULT_REVIEW_PATH))
     parser.add_argument("--rejected-file", type=str, default=str(DEFAULT_REJECTED_PATH))
     parser.add_argument("--report-file", type=str, default=str(DEFAULT_REPORT_PATH))
@@ -1903,6 +2143,15 @@ def main() -> int:
         key = _carrier_hash_id(line.text)
         provenance_by_hash.setdefault(key, CorpusProvenance(source, line.line_id, line.text))
 
+    # Both of the next two stages parse every sentence with spaCy, once each,
+    # and neither prints anything until it finishes. On a whole-corpus run
+    # that is hours of apparent silence, so the estimate is printed BEFORE
+    # the wait rather than discovered during it. The rate is measured, not
+    # guessed: 78 sentences/second for carrier validation and 92 for tagging
+    # in this project's own container, and a faster machine moves the lower
+    # bound, never the shape.
+    _print_scale_estimate(len(sentences))
+
     validation = carrier_validation.validate_carriers(sentences)
     report.carrier_valid_total = len(validation.accepted)
     report.carrier_rejected_by_reason = dict(validation.rejected_by_reason)
@@ -1923,6 +2172,14 @@ def main() -> int:
         validation.accepted,
         max_items_per_topic=_UNCAPPED,
         max_items_per_sentence=_UNCAPPED,
+        # This script reads ``skips_by_reason`` (the counts) and never
+        # ``skip_details`` (one row per (sentence, topic) pair that produced
+        # nothing, holding the whole sentence text). At the 6,000-line pilot
+        # scale that list is 200,000 rows and nobody notices; over a whole
+        # corpus it is about 15 million rows and 5 GB of resident memory that
+        # this run would allocate, hold to the end, and never look at. The
+        # counts are kept in full either way.
+        collect_skip_details=False,
     )
     report.sentences_tagged = blanking_report.sentences_tagged
     report.raw_candidates_total = blanking_report.total_items
@@ -2116,6 +2373,35 @@ def main() -> int:
     report.review_file = str(review_path)
     report.rejected_file = str(rejected_path)
 
+    # The corpus-to-browser chain's missing hop (module docstring's own
+    # ``--write-bank`` section). Deliberately AFTER both JSONL writes: the
+    # bank is additive, and the audit files this run exists to produce must
+    # already be on disk before a database is touched.
+    if args.write_bank is not None:
+        if verification_report.not_run_count > 0:
+            # ``final_items`` is "everything the model did not reject", which
+            # includes items no pass could judge at all. That is the right
+            # content for a review file -- the audit needs to see them -- and
+            # exactly the wrong content for the bank the app ships from. This
+            # script already treats a nonzero ``not_run_count`` as a failed
+            # run; letting the bank write proceed anyway would put unverified
+            # items in front of a learner on precisely the runs the failure
+            # rule exists to catch.
+            report.bank_write = BankWriteReport(
+                requested=True,
+                db_path=str(args.write_bank),
+                items_offered=len(final_items),
+                error=(
+                    "refused: the model verification backstop did not run for "
+                    f"{verification_report.not_run_count} item(s), so this run has "
+                    "unverified items in it and none of them may reach the bank"
+                ),
+            )
+        else:
+            report.bank_write = write_accepted_to_bank(
+                final_items, Path(args.write_bank), source_batch_id=batch_id
+            )
+
     # TODO.md 2.1b: printed BEFORE the verification block and never folded
     # into it. The gloss check is a rejection cause now, and this task's own
     # brief is explicit that its numbers must be prominent rather than
@@ -2213,6 +2499,39 @@ def main() -> int:
             "accepted: the direct measure of verifier instability on this corpus)"
         )
 
+    bank_write = report.bank_write
+    print("\n  Item bank (--write-bank):")
+    if not bank_write.requested:
+        print("    NOT REQUESTED: no --write-bank given, no database was opened or created.")
+    elif bank_write.error is not None:
+        print(f"    FAILED: {bank_write.db_path}")
+        print(f"      {bank_write.error}")
+        print("      The review, rejected and report files above are unaffected.")
+    else:
+        print(f"    Database:              {bank_write.db_path}")
+        print(f"    Schema version:        {bank_write.schema_version}")
+        print(f"    Offered:               {bank_write.items_offered}")
+        print(f"    Inserted:              {bank_write.inserted}")
+        print(f"    Already present:       {bank_write.skipped_already_present}")
+        print(f"    Failed:                {bank_write.failed}")
+        for reason in bank_write.failure_reasons:
+            print(f"      - {reason}")
+        print(f"    Items in bank now:     {bank_write.total_items_in_bank}")
+        if bank_write.stale_gloss_rows:
+            print(
+                "    *** STALE GLOSSES: "
+                f"{bank_write.stale_gloss_rows} item(s) already in the bank carry no "
+                "gloss while this run has one for them. The id is content-addressed "
+                "and does not cover gloss_en, so a duplicate skip cannot refresh it. "
+                "See docs/building-the-bank.md, 'Topping up later'. ***"
+            )
+        if bank_write.schema_version != CURRENT_SCHEMA_VERSION:
+            print(
+                f"    *** SCHEMA: this bank is at version {bank_write.schema_version}, "
+                f"not the current {CURRENT_SCHEMA_VERSION}. gloss_en arrived in v4; "
+                "an older bank silently drops it. ***"
+            )
+
     print(f"\n  Review file:   {review_path}")
     print(f"  Rejected file: {rejected_path}")
 
@@ -2226,6 +2545,18 @@ def main() -> int:
             "  FAILING: the model verification backstop did not run for "
             f"{verification_report.not_run_count} item(s). A run where this "
             "backstop did not execute is not a valid pilot run."
+        )
+        return 1
+
+    # Checked LAST, and only after every output file is on disk: a bank the
+    # run was asked for and could not write is a failed run, but it is a
+    # failed run whose review and report are still there to diagnose it with.
+    if bank_write.requested and bank_write.error is not None:
+        print()
+        print(
+            "  FAILING: --write-bank was given and the bank could not be "
+            f"written ({bank_write.error}). Nothing else this run produced was "
+            "lost; see the report file's bank_write block."
         )
         return 1
 

@@ -1475,6 +1475,7 @@ def _run_main_with_glosses(
     use_cache_values: list[bool] | None = None,
     reject_per_pass: list[dict[int, str]] | None = None,
     pass_errors: dict[int, Exception] | None = None,
+    expected_exit: int = 0,
 ) -> dict[str, object]:
     """Run ``main()`` end to end, offline, against a controlled store and a
     fake verifier that accepts everything, and return the written report.
@@ -1501,7 +1502,14 @@ def _run_main_with_glosses(
     item in every pass.
 
     ``pass_errors`` maps a 1-based pass number to an exception that pass
-    raises, for the degrade-honestly cases."""
+    raises, for the degrade-honestly cases.
+
+    ``expected_exit`` is the exit code ``main()`` must return. It defaults to
+    0, which every caller before ``--write-bank`` existed relied on, and is
+    only ever passed explicitly by a test that is ABOUT a failing run -- the
+    assertion stays inside the helper so a run that starts failing for an
+    unrelated reason is caught here rather than producing a report file the
+    test then happily reads."""
     from src.generation.blanking.model_verification import (
         ItemVerdict,
         ModelRejection,
@@ -1579,7 +1587,7 @@ def _run_main_with_glosses(
             *(extra_args or []),
         ],
     )
-    assert step7.main() == 0
+    assert step7.main() == expected_exit
     loaded: dict[str, object] = json.loads((tmp_path / "report.json").read_text())
     return loaded
 
@@ -2455,3 +2463,385 @@ def test_main_prints_every_pass_number_not_just_the_totals(
     assert "Pass 2 (cache BYPASSED):" in out
     assert "REJECTED BY ANY PASS:" in out
     assert "PASS DISAGREEMENTS:" in out
+
+
+# --------------------------------------------------------------------------
+# --write-bank: the corpus-to-browser chain's missing hop
+#
+# Everything downstream of this point already existed -- migration v4's
+# ``gloss_en`` column, ``BankExporter.EXPORTED_BANK_ITEM_FIELDS``,
+# ``scripts/step3_export_web_data.py`` -- and nothing ever wrote a
+# corpus-pilot item into ``data/bank.db``. These tests pin the hop itself:
+# what lands, what does not, that a rerun does not double it, that the gloss
+# survives SQLite, that the schema is current, and that a failed bank write
+# never costs the run its review or report file.
+# --------------------------------------------------------------------------
+
+
+def _bank_rows(db_path: Path) -> list[BankItem]:
+    """Every item in ``db_path``, read back through the real
+    ``SqliteItemBank`` (never a hand-written SELECT): a test that reads the
+    rows a different way from the app cannot prove the app sees them."""
+    from src.bank.storage import SqliteItemBank
+
+    return SqliteItemBank(db_path).get_all_items()
+
+
+def test_main_write_bank_inserts_the_accepted_items(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    db_path = tmp_path / "bank.db"
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--write-bank", str(db_path)],
+    )
+
+    bank_write = report["bank_write"]
+    assert isinstance(bank_write, dict)
+    assert bank_write["requested"] is True
+    assert bank_write["attempted"] is True
+    assert bank_write["error"] is None
+    assert bank_write["inserted"] == report["accepted_total"]
+    assert bank_write["items_offered"] == report["accepted_total"]
+    assert bank_write["skipped_already_present"] == 0
+    assert bank_write["failed"] == 0
+
+    banked = _bank_rows(db_path)
+    assert len(banked) == report["accepted_total"]
+    review_ids = {
+        json.loads(line)["id"]
+        for line in (tmp_path / "review.jsonl").read_text().splitlines()
+        if line
+    }
+    assert {item.id for item in banked} == review_ids
+
+
+def test_main_write_bank_does_not_insert_a_rejected_item(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The bank write sits after verification, so an item the model rejected
+    must be in the rejected file and absent from the bank. Anything else
+    would put content into the learner's hands that the backstop refused."""
+    db_path = tmp_path / "bank.db"
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        reject_per_pass=[{0: "unnatürlicher Satz"}],
+        extra_args=["--write-bank", str(db_path)],
+    )
+
+    bank_write = report["bank_write"]
+    assert isinstance(bank_write, dict)
+    verification = report["verification"]
+    assert isinstance(verification, dict)
+    assert verification["rejected_count"] == 1
+
+    banked = _bank_rows(db_path)
+    assert len(banked) == report["accepted_total"]
+    assert bank_write["inserted"] == report["accepted_total"]
+
+    rejected_prompts = {
+        json.loads(line)["prompt"]
+        for line in (tmp_path / "rejected.jsonl").read_text().splitlines()
+        if line
+    }
+    banked_prompts = {item.prompt for item in banked}
+    model_rejected = {
+        json.loads(line)["prompt"]
+        for line in (tmp_path / "rejected.jsonl").read_text().splitlines()
+        if line and json.loads(line)["error_type"] == "model_verification_rejected"
+    }
+    assert model_rejected
+    assert model_rejected <= rejected_prompts
+    assert not (model_rejected & banked_prompts)
+
+
+def test_main_write_bank_twice_does_not_duplicate_the_bank(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The owner will run this more than once. ``BankItem.id`` is a content
+    hash of the five fields that define the exercise, so the second run
+    offers the same ids and every one of them is skipped rather than
+    doubling the bank."""
+    db_path = tmp_path / "bank.db"
+    first = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--write-bank", str(db_path)],
+    )
+    after_first = len(_bank_rows(db_path))
+    assert after_first == first["accepted_total"]
+
+    second = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--write-bank", str(db_path)],
+    )
+    bank_write = second["bank_write"]
+    assert isinstance(bank_write, dict)
+    assert bank_write["inserted"] == 0
+    assert bank_write["skipped_already_present"] == second["accepted_total"]
+    assert bank_write["failed"] == 0
+    assert len(_bank_rows(db_path)) == after_first
+    assert bank_write["total_items_in_bank"] == after_first
+
+
+def test_main_write_bank_gloss_en_survives_insert_and_read_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """``gloss_en`` has been silently dropped twice on this path -- once for
+    want of a column (migration v4), once for want of an export allowlist
+    entry. This pins the SQLite leg of the trip: a glossed item inserted
+    through ``--write-bank`` reads back out of the database with its English
+    intact, not as NULL."""
+    db_path = tmp_path / "bank.db"
+    english = "The dog runs quickly through the park."
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: english},
+        extra_args=["--write-bank", str(db_path)],
+    )
+    gloss = report["gloss"]
+    assert isinstance(gloss, dict)
+    assert isinstance(gloss["gloss_from_store"], int)
+    assert gloss["gloss_from_store"] >= 1
+
+    banked = _bank_rows(db_path)
+    glossed = [item for item in banked if item.gloss_en is not None]
+    assert glossed, "expected at least one banked item drawn from the glossed carrier"
+    for item in glossed:
+        assert item.gloss_en == english
+
+    # And the same items are glossed in the bank as in the review file, so
+    # the two outputs cannot disagree about what shipped.
+    review_glossed = {
+        json.loads(line)["id"]
+        for line in (tmp_path / "review.jsonl").read_text().splitlines()
+        if line and json.loads(line)["gloss_en"] == english
+    }
+    assert {item.id for item in glossed} == review_glossed
+
+
+def test_main_write_bank_creates_a_database_at_the_current_schema_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """A fresh bank.db has to come up fully migrated, not as a bare v1 table:
+    ``gloss_en`` only exists from v4, so an unmigrated database would drop
+    every gloss on the floor exactly the way it used to."""
+    from src.bank.migrations import CURRENT_SCHEMA_VERSION, schema_version
+
+    db_path = tmp_path / "nested" / "bank.db"
+    assert not db_path.exists()
+
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--write-bank", str(db_path)],
+    )
+
+    assert db_path.exists()
+    assert schema_version(db_path) == CURRENT_SCHEMA_VERSION
+    bank_write = report["bank_write"]
+    assert isinstance(bank_write, dict)
+    assert bank_write["schema_version"] == CURRENT_SCHEMA_VERSION
+
+
+def test_main_without_write_bank_creates_no_database_at_all(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """Default off means default off: no file, no directory, and a report
+    block that says ``requested: false`` rather than leaving it unstated."""
+    report = _run_main_with_glosses(tmp_path, monkeypatch, _tiny_corpora, store={})
+
+    assert not list(tmp_path.glob("*.db"))
+    assert not (tmp_path / "bank.db").exists()
+
+    bank_write = report["bank_write"]
+    assert isinstance(bank_write, dict)
+    assert bank_write["requested"] is False
+    assert bank_write["attempted"] is False
+    assert bank_write["inserted"] == 0
+    assert bank_write["db_path"] == ""
+    output_files = report["output_files"]
+    assert isinstance(output_files, dict)
+    assert output_files["bank"] == ""
+
+
+def test_main_bank_write_failure_still_leaves_the_review_and_report_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """Requirement 3 of this flag's own brief: the bank write is additive and
+    can never cost the run its audit files. The failure is injected at
+    ``SqliteItemBank`` construction, which is where the migrations run --
+    the failure mode most likely to take a run down with it."""
+
+    def _explode(db_path: object) -> object:
+        raise OSError("disk is on fire")
+
+    monkeypatch.setattr(step7, "SqliteItemBank", _explode)
+
+    db_path = tmp_path / "bank.db"
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={},
+        extra_args=["--write-bank", str(db_path)],
+        expected_exit=1,
+    )
+
+    assert (tmp_path / "review.jsonl").exists()
+    assert (tmp_path / "rejected.jsonl").exists()
+    assert (tmp_path / "report.json").exists()
+    review_rows = [
+        json.loads(line) for line in (tmp_path / "review.jsonl").read_text().splitlines() if line
+    ]
+    assert review_rows
+
+    bank_write = report["bank_write"]
+    assert isinstance(bank_write, dict)
+    assert bank_write["requested"] is True
+    assert bank_write["attempted"] is False
+    assert bank_write["inserted"] == 0
+    error = bank_write["error"]
+    assert isinstance(error, str)
+    assert "disk is on fire" in error
+
+
+def test_write_accepted_to_bank_counts_a_stale_gloss_rather_than_hiding_it(
+    tmp_path: Path,
+) -> None:
+    """``gloss_en`` is the one field that can change without changing the
+    content-addressed id, so a second run that finally has a gloss for an
+    already-banked item is skipped as a duplicate and the NULL stays. That is
+    counted, not silent."""
+    db_path = tmp_path / "bank.db"
+    ungossed = BankItem(
+        id="corpus_stale",
+        topic_id="perfekt_haben",
+        tag_id="perfekt_haben",
+        type="cloze_free",
+        difficulty=1,
+        cefr="A1",
+        prompt="Der Hund ___ schnell gelaufen.",
+        accepted_answers=["ist"],
+    )
+    first = step7.write_accepted_to_bank([ungossed], db_path, source_batch_id="b1")
+    assert first.inserted == 1
+    assert first.stale_gloss_rows == 0
+
+    glossed = ungossed.model_copy(update={"gloss_en": "The dog ran quickly."})
+    second = step7.write_accepted_to_bank([glossed], db_path, source_batch_id="b2")
+    assert second.inserted == 0
+    assert second.skipped_already_present == 1
+    assert second.stale_gloss_rows == 1
+
+    stored = _bank_rows(db_path)
+    assert len(stored) == 1
+    assert stored[0].gloss_en is None
+
+
+def test_write_accepted_to_bank_reports_an_item_the_bank_refused(tmp_path: Path) -> None:
+    """``SqliteItemBank._validate_for_insert`` rejects a prompt that carries
+    its own accepted answer outside the gap. That is a per-item failure, not
+    a run failure: it is counted and its reason kept, and the rest of the
+    batch still lands."""
+    db_path = tmp_path / "bank.db"
+    leaky = BankItem(
+        id="corpus_leaky",
+        topic_id="perfekt_haben",
+        tag_id="perfekt_haben",
+        type="cloze_free",
+        difficulty=1,
+        cefr="A1",
+        prompt="Er ist gelaufen und sie ___ gelaufen.",
+        accepted_answers=["gelaufen"],
+    )
+    good = BankItem(
+        id="corpus_good",
+        topic_id="perfekt_haben",
+        tag_id="perfekt_haben",
+        type="cloze_free",
+        difficulty=1,
+        cefr="A1",
+        prompt="Sie ___ nach Hause gegangen.",
+        accepted_answers=["ist"],
+    )
+    written = step7.write_accepted_to_bank([leaky, good], db_path, source_batch_id="b1")
+
+    assert written.error is None
+    assert written.attempted is True
+    assert written.inserted == 1
+    assert written.failed == 1
+    assert written.failure_reasons
+    assert "corpus_leaky" in written.failure_reasons[0]
+    assert written.inserted + written.skipped_already_present + written.failed == 2
+    assert [item.id for item in _bank_rows(db_path)] == ["corpus_good"]
+
+
+def test_main_write_bank_refuses_when_the_verification_backstop_did_not_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """``final_items`` keeps an item no pass could judge -- right for the
+    review file, wrong for the bank the app ships from. With no LLM client
+    configured every item is ``not_run``, the run already fails, and the bank
+    must stay untouched rather than receive unverified content."""
+    tatoeba, leipzig = _tiny_corpora
+    _clear_gemini_env(monkeypatch)
+    db_path = tmp_path / "bank.db"
+    report_path = tmp_path / "report.json"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "step7_corpus_pilot.py",
+            "--translations",
+            str(tmp_path / "translations.jsonl"),
+            "--no-translate",
+            "--tatoeba",
+            str(tatoeba),
+            "--leipzig",
+            str(leipzig),
+            "--limit",
+            "100",
+            "--per-topic-quota",
+            "2",
+            "--write-bank",
+            str(db_path),
+            "--review-file",
+            str(tmp_path / "review.jsonl"),
+            "--rejected-file",
+            str(tmp_path / "rejected.jsonl"),
+            "--report-file",
+            str(report_path),
+        ],
+    )
+
+    assert step7.main() == 1
+    assert not db_path.exists()
+
+    report = json.loads(report_path.read_text())
+    assert report["verification"]["not_run_count"] > 0
+    bank_write = report["bank_write"]
+    assert bank_write["requested"] is True
+    assert bank_write["attempted"] is False
+    assert bank_write["inserted"] == 0
+    assert "did not run" in bank_write["error"]
+
+    # The audit files are still there, which is the whole point.
+    assert (tmp_path / "review.jsonl").read_text().strip()
+    assert (tmp_path / "rejected.jsonl").exists()
