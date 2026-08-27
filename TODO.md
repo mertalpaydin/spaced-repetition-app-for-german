@@ -14,6 +14,13 @@ work list. Do not do that again.
 
 Not tasks. Do not "fix" these without a decision from the owner.
 
+**`docs/known-defects.md` explains every one of these in plain English**, with
+real examples, why no rule catches it and what would have to exist before one
+could, plus the measured cost of the whole set. Read that file to understand a
+limit; read the entries below to work on one. The entries stay here because
+this is the work list; the doc is the explanation, and neither replaces the
+other.
+
 - **`Strässchen` and Swiss orthography with `ä`.** Standard German is
   `Sträßchen`. The rule added for Swiss spelling covers diphthongs before
   `ss` plus a closed list, and cannot decide `ä`: Swiss in `Strässchen` (long
@@ -115,6 +122,9 @@ Not tasks. Do not "fix" these without a decision from the owner.
 ---
 
 ## 2. Open work
+
+**Doing work this month? Section 6 is the order it goes in.** Building the
+bank comes first and nothing below is a reason to delay it.
 
 - [x] **2.1 Tense ambiguity on the modal topics. Settled by the gloss.**
   The cue names the verb, not the tense, so "(können)" left `kann`,
@@ -269,11 +279,43 @@ Not tasks. Do not "fix" these without a decision from the owner.
   a pin.") and one determiner (`der Kuchen` / "this cake"). Both land on
   grammar the gloss is supposed to disambiguate, so the verifier reading the
   gloss against its own German sentence is what keeps a bad gloss out of the
-  bank. Build the adversarial set with **deliberately wrong translations
-  mixed into correct ones** (wrong tense, wrong determiner, wrong person,
-  wrong polarity) and measure how many it catches. A gloss check that does
-  not catch these is worse than no gloss check, because the verifier would
-  then be relaxing its uniqueness judgment on evidence it never validated.
+  bank. A gloss check that does not catch these is worse than no gloss check,
+  because the verifier would then be relaxing its uniqueness judgment on
+  evidence it never validated.
+
+  **The fixture and the harness are built. The run is what is still open, and
+  it needs the owner's key.**
+
+  ```
+  uv run python -m scripts.eval_gloss_adversarial
+  uv run python -m scripts.eval_gloss_adversarial --batch-size 5
+  ```
+
+  `data/fixtures/adversarial/wrong_glosses.jsonl` is 36 matched pairs, 72
+  rows, every German prompt, answer and cue copied verbatim from the last
+  pilot's own 430 accepted items. Each pair carries one row with a
+  deliberately wrong gloss and one row with the item's real gloss, so the run
+  produces a false-positive rate as well as a recall figure, and a rejection
+  that happens in BOTH arms is reported separately rather than counted as a
+  catch. Six defect kinds, six pairs each: wrong tense, wrong person, wrong
+  number, wrong definiteness, wrong polarity, completely unrelated. The two
+  arms are verified in separate calls so the model never sees a pair's two
+  glosses side by side.
+
+  **The predictions are written into the script's own docstring, before the
+  run, so the result can contradict them**: polarity and unrelated are
+  expected to be caught, definiteness is expected to be missed. With no key
+  configured the runner reports "NOT RUN" and exits non-zero; it never prints
+  a zero recall for a run that did not happen.
+
+  **What building the harness already showed, without a single API call:** no
+  question in the live verification instruction asks whether the gloss is
+  correct. The four questions are about the German, the answer's uniqueness,
+  whether every word exists, and the cue. The gloss enters question 2 only as
+  a reason to rule an alternative OUT. So any catch here is incidental, and a
+  poor recall points at adding a fifth question rather than at tuning
+  anything. That question was deliberately not added before measuring, so the
+  number describes the pass as it actually ships.
 
 - [ ] **2.2b Run the gloss purge on the owner's real store, then re-gloss.**
   The cross-corpus id collision that poisoned it is fixed and the cleanup
@@ -366,10 +408,14 @@ Not tasks. Do not "fix" these without a decision from the owner.
   their token counts do not exist anywhere. The adjustment rows carry
   dollars and zero tokens on purpose.
 
-- [ ] **2.4 The AI generation pilot, last.** Owner's sequencing: corpus path
-  proven first, then generation for what the corpus cannot reach. On current
-  evidence that is `futur_i`, `zustandspassiv_zeiten` and `futur_ii`, which
-  are too rare even in 80,000 corpus sentences.
+- [ ] **2.4 The AI generation pilot, last. Stays OPEN, explicitly.** The owner
+  said so on 2026-08-27: it is not closed, not deferred indefinitely, and not
+  to be quietly folded into 2.5. Owner's sequencing: corpus path proven first,
+  then generation for what the corpus cannot reach. On current evidence that
+  is `futur_i`, `zustandspassiv_zeiten` and `futur_ii`, which are too rare
+  even in 80,000 corpus sentences. Building the bank (section 6) will say
+  exactly which topics fall short of 25 items from the whole corpus, and that
+  list is this item's real input.
 
 - [ ] **2.5 Decide the split and write it down.** After 2.1 and 2.4: which
   topics are corpus-sourced, which are generated, and the rule for choosing.
@@ -488,6 +534,32 @@ have a pinning test that says to ask rather than update the assertion.
 
   A separate hand check of 120 Tatoeba pairs found 2 outright wrong and 6
   loose, so this is a rate, not three unlucky rows.
+
+  **The machine-translation counterpart is now measured too, 2026-08-27,
+  n=120 hand-checked, and it settles the comparison.**
+
+  | | Machine | Tatoeba |
+  |---|---:|---:|
+  | Sample | 120 | 120 |
+  | Clean | 116 | 112 |
+  | Loose but usable | about 4 | 6 |
+  | **Outright wrong** | **0** | **2** |
+  | Mispaired with the wrong German | 0 | n/a |
+
+  The four machine cases are drift, not error: `Du darfst gehen.` rendered
+  "You can go", which loses the permission sense; `Man stellt diese Kiste aus
+  Holz her.` rendered as a passive, "This box is made of wood"; `Sie können
+  Einer dem Anderen helfen.` rendered "help one to the other" instead of
+  "help each other". None of the three would mislead a learner about the
+  grammar the item tests.
+
+  Two things follow. Machine translation is **measurably better on the metric
+  that matters**, zero outright wrong against two. And it **structurally
+  cannot mispair**: it translates the sentence it is handed, whereas a lookup
+  table can return the wrong row, and did, 7,365 times in the owner's own
+  store (2.2b). That second point is not a quality difference, it is a
+  difference in what can go wrong at all. Full write-up in
+  `docs/known-defects.md`.
 
   **This is not "re-translate all 200,555 Tatoeba records".** That is about
   13,000,000 characters, roughly half a year of Azure F0, and it is
@@ -709,3 +781,62 @@ about 33,000 carriers a month, and 5.3 reads the same store as the exercise
 path with no separate trust setting. The Tatoeba records still are not
 deleted, and each one is only overwritten when a machine translation actually
 lands, so 5.3's corpus shrinks at no point.
+
+---
+
+## 6. September
+
+The order the next month's work goes in. Not a new backlog: every item here
+already exists above, and this section says which one comes first and why.
+Sections 1 to 5 keep their numbering, so nothing that cites "TODO.md section
+4" has moved.
+
+### 6.1 Build the bank. First, before anything else.
+
+`docs/building-the-bank.md` is the command sequence, five commands, each with
+its cost, its duration and its own "did it work" check. Nothing else in this
+list is a reason to delay it, and it unblocks several of them.
+
+- **25 items per topic, built once, up front.** The owner's decision
+  (section 4). 49 topics at 25 items is about **1,225 items**, read from the
+  whole corpus rather than 40,000 lines per source, verified by two passes at
+  batch size 5. Nightly top-up is the last resort, not the build path.
+- **Cost: $0.00268 an item, so $3.28 for the whole bank.** Measured from the
+  owner's own Google bill, not estimated from the cost log. Against a
+  $7.50/month ceiling. Glossing 1,225 carriers is about 73,000 characters,
+  one night of Azure F0's 2,000,000 a month.
+- **Pass `--max-translation-characters 120000`.** This is the one flag that
+  will silently ruin the run if it is left alone. The default is 60,000,
+  sized for a 475-item cycle; 1,225 carriers at the measured mean of 61.7
+  characters is about 75,600, so the default guard stops at a batch boundary
+  and leaves several hundred items with no English at all. The default is
+  deliberately not raised: it is a runaway guard, and the right size for it
+  is a decision about a specific run.
+- **Pass `--limit 1000000` too.** `--limit` is per source and defaults to
+  40,000, which is not the whole corpus.
+- **Expect it to be slow and silent.** Section 1's last entry has the
+  measured throughput and the arithmetic. The script prints the estimate
+  before the wait starts.
+
+**What the run itself produces, beyond a bank:** the per-topic counts that
+tell 2.4 and 2.5 which topics the corpus genuinely cannot fill. Read the run
+report for that before starting either.
+
+### 6.2 Then, in order
+
+1. **2.6, schedule the monthly translation job.** One `schtasks /Create`
+   line, per `docs/monthly-translation-job.md`. Until that task exists,
+   nothing runs and the corpus does not progress. Cheapest item on this list
+   by a wide margin.
+2. **2.2, run `scripts/eval_gloss_adversarial.py`.** Needs a key. It is the
+   only measurement standing under the gloss relaxation the whole verifier
+   now depends on.
+3. **2.2b, run the gloss purge**, then re-gloss, for 5.3's sake. No longer
+   blocks a pilot.
+4. **2.3, run `scripts/eval_verifier.py` with a key**, for the verifier's own
+   recall and false-positive rate.
+5. **2.3b, run the cost-log repair** against the real August log, and
+   reconcile at the end of the month.
+6. **2.4, the AI generation pilot**, on the topic list 6.1 produces. Still
+   open (see 2.4), still last.
+7. **2.5, write down the split** once 2.4 has run.
