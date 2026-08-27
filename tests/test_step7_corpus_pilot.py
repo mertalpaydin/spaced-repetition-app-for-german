@@ -761,8 +761,18 @@ class _FakeTranslator:
         return [s for batch in self.batches for s in batch]
 
 
-def _stored(store_path: Path, records: dict[str, str], source: str = "tatoeba") -> None:
-    """Write a translation store containing exactly ``records``."""
+def _stored(store_path: Path, records: dict[str, str], source: str = "azure") -> None:
+    """Write a translation store containing exactly ``records``.
+
+    ``source`` defaults to ``"azure"``, a MACHINE translation, and used to
+    default to ``"tatoeba"``. The change is the owner's 2026-08-27 decision
+    landing in the fixtures: a stored gloss whose source is Tatoeba is now a
+    cache MISS on the exercise path, so a test that only wants "this carrier
+    is already glossed" has to seed a gloss the pilot is allowed to believe.
+    The tests that are ABOUT the Tatoeba distrust pass ``source="tatoeba"``
+    explicitly, which is the right way round: the interesting case is the one
+    that is spelled out.
+    """
     store_path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         TranslationRecord(
@@ -1087,9 +1097,299 @@ def test_populate_glosses_fill_counters_are_disjoint_and_sum_to_items_total(
     assert report.gloss_newly_translated == 1
     assert report.gloss_missing == 1
     assert (
-        report.gloss_from_store + report.gloss_newly_translated + report.gloss_missing
+        report.gloss_from_store
+        + report.gloss_retranslated_tatoeba
+        + report.gloss_newly_translated
+        + report.gloss_missing
         == report.items_total
     )
+
+
+# --------------------------------------------------------------------------
+# A stored Tatoeba gloss is a cache MISS (owner's decision, 2026-08-27)
+#
+# A hand audit of all 430 accepted exercises found ten defects, four of them
+# items whose German is correct and whose English gloss is wrong. THREE OF
+# THE FOUR came from Tatoeba's own human translations, not from machine
+# translation:
+#
+#   "Wenn ich im Lotto gewaenne, wuerde ich mir ein neues Auto kaufen."
+#     -> "If I won the lottery, I'd buy you a new car."   (mir is himself)
+#   "Ich habe eine Freundin, die sich selbst die Haare schneidet."
+#     -> "I have a friend who cuts his own hair."         (Freundin is female)
+#   "Das Haus, in dem man lacht, wird vom Glueck bedacht."
+#     -> "The house in which one laughs is considered by luck."  (meaningless)
+#
+# The owner's two decisions: replace the English and keep the item, and stop
+# using Tatoeba translations for exercises. The records stay in the store for
+# feature 5.3; they are distrusted here, not deleted.
+# --------------------------------------------------------------------------
+
+
+def test_populate_glosses_stored_tatoeba_gloss_is_retranslated_and_the_record_overwritten(
+    tmp_path: Path,
+) -> None:
+    """THE test for this change. A stored gloss whose source is Tatoeba is a
+    cache MISS: the carrier goes to the translator, the item carries the
+    machine translation, and the record on disk is overwritten so the next
+    run finds a gloss it is allowed to believe."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "A WRONG TATOEBA GLOSS"}, source="tatoeba")
+    item, provenance = _glossable_item()
+    translator = _FakeTranslator()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+    )
+
+    assert translator.sentences_seen == [_CARRIER]
+    assert glossed[0].gloss_en == f"EN::{_CARRIER}"
+    assert report.gloss_retranslated_tatoeba == 1
+    assert report.gloss_from_store == 0
+    assert report.gloss_newly_translated == 0
+    assert report.gloss_missing == 0
+    assert report.carriers_needing_translation == 1
+    assert report.carriers_distrusted_tatoeba == 1
+    assert report.characters_spent == len(_CARRIER)
+
+    written = _load_store(store_path)[_CARRIER]
+    assert written.english == f"EN::{_CARRIER}"
+    assert written.source == "azure", "the record must now claim the MACHINE source"
+
+
+def test_populate_glosses_stored_azure_gloss_is_used_as_is_with_no_translator_call(
+    tmp_path: Path,
+) -> None:
+    """The distrust is scoped to Tatoeba and nothing else. A machine-sourced
+    record is still a cache hit, so re-translating one would be pure waste
+    against the character budget for no defect it could fix."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "The dog runs quickly through the park."}, source="azure")
+    item, provenance = _glossable_item()
+    translator = _FakeTranslator()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+    )
+
+    assert translator.batches == [], "a machine-sourced gloss must never be re-translated"
+    assert glossed[0].gloss_en == "The dog runs quickly through the park."
+    assert report.gloss_from_store == 1
+    assert report.gloss_retranslated_tatoeba == 0
+    assert report.carriers_needing_translation == 0
+    assert report.carriers_distrusted_tatoeba == 0
+    assert report.characters_spent == 0
+
+
+def test_populate_glosses_stored_gemini_gloss_is_used_as_is(tmp_path: Path) -> None:
+    """The other machine source, pinned separately so a check written against
+    one provider's name alone would fail here."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "The dog runs."}, source="gemini")
+    item, provenance = _glossable_item()
+    translator = _FakeTranslator()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+    )
+
+    assert translator.batches == []
+    assert glossed[0].gloss_en == "The dog runs."
+    assert report.gloss_from_store == 1
+
+
+def test_populate_glosses_trust_stored_tatoeba_restores_the_old_behaviour_exactly(
+    tmp_path: Path,
+) -> None:
+    """The opt-out, so a run can be reproduced against the pre-2026-08-27
+    behaviour. Same store, same item, same translator: with the flag the
+    Tatoeba gloss is used verbatim, nothing is called, nothing is rewritten,
+    and the counters read exactly as they did before the change."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "A WRONG TATOEBA GLOSS"}, source="tatoeba")
+    item, provenance = _glossable_item()
+    translator = _FakeTranslator()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+        trust_stored_tatoeba=True,
+    )
+
+    assert translator.batches == []
+    assert glossed[0].gloss_en == "A WRONG TATOEBA GLOSS"
+    assert report.gloss_from_store == 1
+    assert report.gloss_retranslated_tatoeba == 0
+    assert report.gloss_missing == 0
+    assert report.carriers_distrusted_tatoeba == 0
+    assert report.characters_spent == 0
+    assert report.trust_stored_tatoeba is True
+
+    unchanged = _load_store(store_path)[_CARRIER]
+    assert unchanged.english == "A WRONG TATOEBA GLOSS"
+    assert unchanged.source == "tatoeba"
+
+
+def test_populate_glosses_distrusted_tatoeba_gloss_with_no_translator_is_not_used(
+    tmp_path: Path,
+) -> None:
+    """A distrusted gloss that could not be replaced does not get used. The
+    item keeps ``gloss_en=None``, which every consumer here already handles
+    (the gloss check returns immediately for it, the app renders nothing),
+    rather than falling back on the English the owner said to stop using.
+
+    The record itself stays on disk: feature 5.3 is fed entirely by those
+    records, so this is distrust, not deletion."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "A WRONG TATOEBA GLOSS"}, source="tatoeba")
+    item, provenance = _glossable_item()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=None,
+        translator_mode="none",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+    )
+
+    assert glossed[0].gloss_en is None
+    assert report.gloss_missing == 1
+    assert report.gloss_missing_stale_tatoeba == 1
+    assert report.gloss_from_store == 0
+    assert report.gloss_retranslated_tatoeba == 0
+
+    survives = _load_store(store_path)[_CARRIER]
+    assert survives.english == "A WRONG TATOEBA GLOSS"
+    assert survives.source == "tatoeba", "5.3's record must survive being distrusted here"
+
+
+def test_populate_glosses_distrusted_tatoeba_gloss_whose_retranslation_fails_is_not_used(
+    tmp_path: Path,
+) -> None:
+    """Same rule when a translator IS configured and refuses the batch. The
+    stale record is still on disk after the failure, so a lookup that trusted
+    ``store.get()`` alone would quietly hand back the distrusted English."""
+    store_path = tmp_path / "store.jsonl"
+    _stored(store_path, {_CARRIER: "A WRONG TATOEBA GLOSS"}, source="tatoeba")
+    item, provenance = _glossable_item()
+
+    glossed, report = _populate_glosses(
+        [item],
+        provenance,
+        store_path=store_path,
+        translator=_FakeTranslator(fail_on=_CARRIER),
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+        batch_size=1,
+    )
+
+    assert glossed[0].gloss_en is None
+    assert report.translation_failures == 1
+    assert report.gloss_missing == 1
+    assert report.gloss_missing_stale_tatoeba == 1
+    assert _load_store(store_path)[_CARRIER].source == "tatoeba"
+
+
+@pytest.mark.parametrize("trust_stored_tatoeba", [False, True])
+def test_populate_glosses_fill_counters_sum_to_items_total_in_both_tatoeba_modes(
+    tmp_path: Path, trust_stored_tatoeba: bool
+) -> None:
+    """The disjoint-counts discipline, held across the new flag and across
+    every one of the four fates an item's gloss can meet: a trusted store
+    hit, a distrusted Tatoeba record, a carrier the store never held, and an
+    item with no carrier at all."""
+    store_path = tmp_path / "store.jsonl"
+    machine_carrier = "Die Sonne scheint heute hell über der ganzen Stadt."
+    tatoeba_carrier = "Ein Mann steht vor der Tür und wartet auf den Bus."
+    fresh_carrier = "Die Katze schläft auf dem warmen Sofa im Wohnzimmer."
+    store_path.parent.mkdir(parents=True, exist_ok=True)
+    store_path.write_text(
+        "\n".join(
+            TranslationRecord(
+                german=german,
+                english=english,
+                source=source,  # type: ignore[arg-type]
+                written_at=datetime(2026, 1, 1, tzinfo=UTC),
+            ).model_dump_json()
+            for german, english, source in [
+                (machine_carrier, "The sun shines.", "azure"),
+                (tatoeba_carrier, "A WRONG TATOEBA GLOSS", "tatoeba"),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    items: list[BankItem] = []
+    provenance: dict[str, CorpusProvenance] = {}
+    for index, carrier in enumerate([machine_carrier, tatoeba_carrier, fresh_carrier]):
+        item, prov = _glossable_item(carrier=carrier)
+        items.append(item.model_copy(update={"id": f"corpus_{index}"}))
+        provenance.update(prov)
+    orphan, _ = _glossable_item(carrier="Diesen Satz kennt niemand.")
+    items.append(orphan.model_copy(update={"id": "corpus_orphan"}))
+
+    _glossed, report = _populate_glosses(
+        items,
+        provenance,
+        store_path=store_path,
+        translator=_FakeTranslator(),
+        translator_mode="fallback",
+        max_characters=100_000,
+        now=datetime(2026, 8, 27, tzinfo=UTC),
+        trust_stored_tatoeba=trust_stored_tatoeba,
+    )
+
+    assert report.items_total == 4
+    assert (
+        report.gloss_from_store
+        + report.gloss_retranslated_tatoeba
+        + report.gloss_newly_translated
+        + report.gloss_missing
+        == report.items_total
+    )
+    assert report.gloss_missing == 1, "only the item with no carrier at all"
+    if trust_stored_tatoeba:
+        assert report.gloss_from_store == 2
+        assert report.gloss_retranslated_tatoeba == 0
+    else:
+        assert report.gloss_from_store == 1
+        assert report.gloss_retranslated_tatoeba == 1
+
+
+def test_stored_tatoeba_policy_sentence_says_what_each_mode_means() -> None:
+    """The report has to say which policy produced a run in words, not only
+    as a boolean nobody can interpret two months later, and the console and
+    the JSON read it from this one function so they cannot disagree."""
+    assert "treated as absent" in step7.stored_tatoeba_policy_sentence(False)
+    assert "5.3" in step7.stored_tatoeba_policy_sentence(False)
+    assert "OLD behaviour" in step7.stored_tatoeba_policy_sentence(True)
 
 
 # --------------------------------------------------------------------------
@@ -1169,6 +1469,7 @@ def _run_main_with_glosses(
     corpora: tuple[Path, Path],
     *,
     store: dict[str, str],
+    store_source: str = "azure",
     extra_args: list[str] | None = None,
     batch_sizes: list[int] | None = None,
     use_cache_values: list[bool] | None = None,
@@ -1210,7 +1511,7 @@ def _run_main_with_glosses(
     tatoeba, leipzig = corpora
     _clear_gemini_env(monkeypatch)
     store_path = tmp_path / "store.jsonl"
-    _stored(store_path, store)
+    _stored(store_path, store, source=store_source)
 
     calls: list[int] = []
 
@@ -1333,6 +1634,92 @@ def test_main_store_hit_attaches_the_gloss_to_the_review_row(
     assert glossed, "expected at least one item drawn from the glossed carrier"
     for row in glossed:
         assert row["gloss_en"] == "The dog runs quickly through the park."
+
+
+def test_main_stored_tatoeba_gloss_never_reaches_the_review_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """End to end, under ``--no-translate`` so nothing can replace it: a
+    stored Tatoeba gloss must not appear in the review file at all, and the
+    report must say how many items that cost."""
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: "A WRONG TATOEBA GLOSS"},
+        store_source="tatoeba",
+    )
+    gloss = report["gloss"]
+    assert isinstance(gloss, dict)
+    assert gloss["trust_stored_tatoeba"] is False
+    assert gloss["gloss_from_store"] == 0
+    assert isinstance(gloss["gloss_missing_stale_tatoeba"], int)
+    assert gloss["gloss_missing_stale_tatoeba"] >= 1
+    policy = gloss["stored_tatoeba_policy"]
+    assert isinstance(policy, str)
+    assert "treated as absent" in policy
+
+    review_rows = [
+        json.loads(line) for line in (tmp_path / "review.jsonl").read_text().splitlines() if line
+    ]
+    assert review_rows
+    assert all(row["gloss_en"] != "A WRONG TATOEBA GLOSS" for row in review_rows)
+
+
+def test_main_trust_stored_tatoeba_puts_the_stored_gloss_back_on_the_review_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """The opt-out, end to end: identical inputs, one flag, and the Tatoeba
+    gloss is used again. This is the seam that lets an earlier run be
+    reproduced rather than merely described."""
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: "A WRONG TATOEBA GLOSS"},
+        store_source="tatoeba",
+        extra_args=["--trust-stored-tatoeba"],
+    )
+    gloss = report["gloss"]
+    assert isinstance(gloss, dict)
+    assert gloss["trust_stored_tatoeba"] is True
+    assert isinstance(gloss["gloss_from_store"], int)
+    assert gloss["gloss_from_store"] >= 1
+    assert gloss["gloss_missing_stale_tatoeba"] == 0
+
+    review_rows = [
+        json.loads(line) for line in (tmp_path / "review.jsonl").read_text().splitlines() if line
+    ]
+    assert [row for row in review_rows if row["gloss_en"] == "A WRONG TATOEBA GLOSS"]
+
+
+@pytest.mark.parametrize("extra_args", [[], ["--trust-stored-tatoeba"]])
+def test_main_gloss_counts_sum_to_items_total_in_both_tatoeba_modes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    _tiny_corpora: tuple[Path, Path],
+    extra_args: list[str],
+) -> None:
+    """The report's own arithmetic, held on a real end-to-end run rather than
+    only on a hand-built item list."""
+    report = _run_main_with_glosses(
+        tmp_path,
+        monkeypatch,
+        _tiny_corpora,
+        store={_CARRIER: "A WRONG TATOEBA GLOSS"},
+        store_source="tatoeba",
+        extra_args=extra_args,
+    )
+    gloss = report["gloss"]
+    assert isinstance(gloss, dict)
+    counts = [
+        gloss["gloss_from_store"],
+        gloss["gloss_retranslated_tatoeba"],
+        gloss["gloss_newly_translated"],
+        gloss["gloss_missing"],
+    ]
+    assert all(isinstance(count, int) for count in counts)
+    assert sum(count for count in counts if isinstance(count, int)) == gloss["items_total"]
 
 
 def test_main_gloss_check_rejects_a_contradicting_gloss_and_counts_it_by_topic(

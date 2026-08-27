@@ -34,11 +34,46 @@ still bounded by the same per-run character budget. The report records
 which mode produced it in ``carriers_source`` (``"corpora"``, or the path),
 so a stored gloss can be traced back to the run shape that wrote it.
 
+## The Tatoeba join is opt-in, and OFF by default
+
+``--trust-tatoeba`` decides whether source 2 below runs at all, and it
+defaults to **off**. With it off, ``_fill_from_tatoeba`` does not run and
+every carrier the store lacks goes to machine translation. With it on,
+today's behaviour is restored exactly.
+
+The owner's decision, from a hand audit of all 430 accepted exercises in the
+last pilot. Ten defects; four of them were items whose German is correct and
+whose English gloss is wrong, and **three of those four came from Tatoeba's
+own human translations, not from machine translation**:
+
+    Wenn ich im Lotto gewaenne, wuerde ich mir ein neues Auto kaufen.
+    "If I won the lottery, I'd buy you a new car."      <- mir is himself
+
+    Ich habe eine Freundin, die sich selbst die Haare schneidet.
+    "I have a friend who cuts his own hair."            <- Freundin is female
+
+    Das Haus, in dem man lacht, wird vom Glueck bedacht.
+    "The house in which one laughs is considered by luck."  <- meaningless
+
+A separate hand check of 120 Tatoeba pairs found 2 outright wrong and 6
+loose. So Tatoeba's translations are no longer trusted on the path that
+produces exercises.
+
+**The records are not deleted, and this flag is why.** Feature 5.3 (click a
+word, see it in several corpus sentences with their translations) is fed
+entirely by them, and it needs breadth far more than it needs precision.
+``--trust-tatoeba`` is how that store gets rebuilt cheaply: 200,555 carriers
+glossed for nothing instead of 13,000,000 characters of machine translation,
+which is half a year of Azure F0. The distrust is scoped to the exercise
+path, which is ``scripts/step7_corpus_pilot.py``'s own
+``--trust-stored-tatoeba`` (defaulting to distrust for the same reason).
+
 ## Three sources, in the owner's priority order (TODO.md section 4)
 
 1. **Already in the store.** Loaded first; anything present is never
    re-translated. See "Resumability" below.
-2. **Tatoeba's own English translations**, via the readers this script
+2. **Tatoeba's own English translations** (ONLY under ``--trust-tatoeba``,
+   see above), via the readers this script
    reuses rather than re-implements
    (``scripts.eval_tatoeba_translation_quality.read_pairs_file`` /
    ``read_links_and_english``). Where a German sentence has more than one
@@ -58,9 +93,10 @@ so a stored gloss can be traced back to the run shape that wrote it.
    version did.
 
 3. **The ``Translator`` from ``src/llm/translation.py``** (Azure primary,
-   Gemini fallback) for everything left over -- all of Leipzig, plus the
-   38.3% of Tatoeba's own carriers that source measured as untranslated.
-   This step IS subject to ``--max-characters``, see below.
+   Gemini fallback) for everything left over. Without ``--trust-tatoeba``
+   that is every carrier the store does not already hold; with it, all of
+   Leipzig plus the 38.3% of Tatoeba's own carriers that source measured as
+   untranslated. This step IS subject to ``--max-characters``, see below.
 
 ## Resumability, keyed on exact German text
 
@@ -249,6 +285,36 @@ DEFAULT_MAX_CHARACTERS_PER_RUN = 60_000
 
 TranslatorMode = Literal["fallback", "azure_only", "gemini_only", "none"]
 
+#: The owner's decision, 2026-08-27: Tatoeba's own translations are not
+#: trusted for anything that becomes an exercise, so the join is opt-in.
+#: See the module docstring for the four audited defects behind it.
+DEFAULT_TRUST_TATOEBA = False
+
+
+def tatoeba_policy_sentence(trust_tatoeba: bool) -> str:
+    """One plain sentence saying what this run's Tatoeba setting MEANS, not
+    just which way the switch was thrown.
+
+    Printed and written to the report from this one function so the console
+    and the JSON can never say different things, and so a stored gloss can be
+    traced to a policy rather than to a bare boolean nobody can interpret two
+    months later.
+    """
+    if trust_tatoeba:
+        return (
+            "--trust-tatoeba GIVEN: Tatoeba's own human translations were used as "
+            "glosses wherever they exist, free. That is the right mode for rebuilding "
+            "the feature 5.3 corpus store, which needs breadth. It is the WRONG mode "
+            "for building a pilot's exercises: a hand audit of 430 accepted items "
+            "found 4 wrong glosses and 3 of the 4 were Tatoeba's own."
+        )
+    return (
+        "--trust-tatoeba NOT given (the default): Tatoeba's own translations were "
+        "not used at all, and every carrier the store lacked went to machine "
+        "translation. The Tatoeba records already in the store are untouched and "
+        "still feed feature 5.3; they are simply not trusted for exercises."
+    )
+
 
 class TranslationRecord(BaseModel):
     """One stored gloss. Pydantic per CLAUDE.md section 8 ("Pydantic models
@@ -283,6 +349,10 @@ class TranslationBackfillReport:
     # (module docstring, "Two modes"), so a stored gloss can be traced back
     # to the run shape that produced it.
     carriers_source: str = "corpora"
+    # Off by default (DEFAULT_TRUST_TATOEBA). Recorded in the run block
+    # because it is the single biggest thing that decides what a stored
+    # gloss actually IS, and a store holds records from many runs.
+    trust_tatoeba: bool = DEFAULT_TRUST_TATOEBA
     carriers_seen: int = 0
     already_in_store: int = 0
     from_tatoeba: int = 0
@@ -310,7 +380,9 @@ class TranslationBackfillReport:
                 "store_path": self.store_path,
                 "translator_mode": self.translator_mode,
                 "carriers_source": self.carriers_source,
+                "trust_tatoeba": self.trust_tatoeba,
             },
+            "tatoeba_policy": tatoeba_policy_sentence(self.trust_tatoeba),
             "carriers_seen": self.carriers_seen,
             "already_in_store": self.already_in_store,
             "from_tatoeba": self.from_tatoeba,
@@ -710,6 +782,7 @@ def run_backfill(
     seed: int,
     limit_per_source: int,
     carriers_source: str = "corpora",
+    trust_tatoeba: bool = DEFAULT_TRUST_TATOEBA,
     now: datetime | None = None,
 ) -> TranslationBackfillReport:
     """The whole backfill, independent of argparse, the environment, and
@@ -720,7 +793,12 @@ def run_backfill(
     directly with a fake ``Translator`` and an in-memory carrier set, never
     the network. ``store_path`` is still real filesystem I/O -- the store
     itself is the resumability mechanism, so a test uses ``tmp_path`` rather
-    than faking that part away."""
+    than faking that part away.
+
+    ``trust_tatoeba`` defaults to ``False`` here and not only at the argparse
+    layer, deliberately: the safe reading of this function's contract is the
+    one that does not put a Tatoeba translation in front of a learner, so a
+    caller that wants that join has to ask for it in as many words."""
     ref_time = now or datetime.now(UTC)
     report = TranslationBackfillReport(
         seed=seed,
@@ -730,6 +808,7 @@ def run_backfill(
         store_path=str(store_path),
         translator_mode=translator_mode,
         carriers_source=carriers_source,
+        trust_tatoeba=trust_tatoeba,
     )
     if translator_mode == "gemini_only":
         report.warnings.append(
@@ -749,10 +828,18 @@ def run_backfill(
     todo = [line for text, line in carriers.items() if text not in store]
     report.already_in_store = len(carriers) - len(todo)
 
-    shortest_by_id, shortest_by_text = _shortest_translations(tatoeba_pairs)
-    still_todo = _fill_from_tatoeba(
-        todo, shortest_by_id, shortest_by_text, store, report, now=ref_time
-    )
+    if trust_tatoeba:
+        shortest_by_id, shortest_by_text = _shortest_translations(tatoeba_pairs)
+        still_todo = _fill_from_tatoeba(
+            todo, shortest_by_id, shortest_by_text, store, report, now=ref_time
+        )
+    else:
+        # Not "join and then discard": the pairs are never consulted at all,
+        # so ``from_tatoeba`` stays 0 and every one of these carriers is
+        # machine translation's problem. Nothing already in the store is
+        # touched -- the existing Tatoeba records stay exactly where they
+        # are, for feature 5.3 (module docstring).
+        still_todo = todo
 
     _run_machine_translation(
         still_todo,
@@ -850,6 +937,20 @@ def main() -> int:
     parser.add_argument(
         "--english", type=Path, default=None, help="eng_sentences.tsv, with --links."
     )
+    parser.add_argument(
+        "--trust-tatoeba",
+        action="store_true",
+        help=(
+            "Use Tatoeba's own English translations as glosses where they exist "
+            "(free, no API call). OFF by default: a hand audit of 430 accepted "
+            "exercises found 4 wrong glosses and 3 of the 4 were Tatoeba's own "
+            "human translations, and a separate check of 120 pairs found 2 wrong "
+            "and 6 loose. Turn it ON only to rebuild the feature 5.3 corpus store, "
+            "which wants breadth over precision and would otherwise cost about "
+            "13,000,000 characters, roughly half a year of Azure F0. Never turn it "
+            "on to build a pilot's exercises."
+        ),
+    )
     parser.add_argument("--store", type=Path, default=DEFAULT_STORE_PATH)
     parser.add_argument("--max-characters", type=int, default=DEFAULT_MAX_CHARACTERS_PER_RUN)
     parser.add_argument(
@@ -872,6 +973,20 @@ def main() -> int:
         parser.error(
             "--carriers-from already replaces both corpora; drop --skip-tatoeba/--skip-leipzig"
         )
+    if (args.pairs or args.links or args.english) and not args.trust_tatoeba:
+        # Contradictory rather than merely redundant, and worth refusing
+        # loudly: the pair files exist only to feed the Tatoeba join, so a
+        # run that names them without --trust-tatoeba believes that join is
+        # about to happen when it is not. Reading them and quietly ignoring
+        # them would leave the caller certain a gloss came from Tatoeba when
+        # it came from Azure.
+        parser.error(
+            "--pairs/--links/--english only feed the Tatoeba join, which is off by "
+            "default. Add --trust-tatoeba if you really want Tatoeba's own "
+            "translations (feature 5.3's corpus store), or drop these flags."
+        )
+
+    print(f"\n  Tatoeba policy: {tatoeba_policy_sentence(args.trust_tatoeba)}\n")
 
     load_env_file()
 
@@ -918,13 +1033,19 @@ def main() -> int:
             batch_size=args.batch_size or 1,
             store_path=str(args.store),
             carriers_source=carriers_source,
+            trust_tatoeba=args.trust_tatoeba,
         ).write(Path(args.report_file))
         return 0
 
     print(f"\n  Carriers seen (distinct German text): {len(carriers):,}")
 
     tatoeba_pairs: list[Pair] = []
-    if args.pairs:
+    if not args.trust_tatoeba:
+        print(
+            "  Tatoeba-translation step: NOT RUN (no --trust-tatoeba). Every carrier "
+            "the store lacks goes to machine translation."
+        )
+    elif args.pairs:
         if not args.pairs.exists():
             print(
                 f"  WARNING: --pairs not found at {args.pairs}; "
@@ -946,7 +1067,10 @@ def main() -> int:
                 f"{len(tatoeba_pairs):,}"
             )
     else:
-        print("  No --pairs or --links/--english given; skipping the Tatoeba-translation step.")
+        print(
+            "  --trust-tatoeba given but no --pairs or --links/--english to read; "
+            "skipping the Tatoeba-translation step."
+        )
 
     gemini_client = client_from_env()
     translator, mode = translator_from_env(gemini_client)
@@ -976,9 +1100,11 @@ def main() -> int:
         seed=args.seed,
         limit_per_source=args.limit,
         carriers_source=carriers_source,
+        trust_tatoeba=args.trust_tatoeba,
     )
 
     print(f"\n  Carriers source:           {report.carriers_source}")
+    print(f"  Trust Tatoeba:             {report.trust_tatoeba}")
     print(f"  Already in store:          {report.already_in_store:,}")
     print(f"  Filled from Tatoeba pairs: {report.from_tatoeba:,}")
     print(f"  Machine translated:        {report.machine_translated:,}")
@@ -992,6 +1118,7 @@ def main() -> int:
     print(f"    of which Gemini:         {report.gemini_fallback_characters:,}")
     print(f"  Azure-fallback events:     {report.azure_fallback_events:,}")
     print(f"  Store size after this run: {report.store_size_after:,}")
+    print(f"\n  What that means: {tatoeba_policy_sentence(report.trust_tatoeba)}")
     for warning in report.warnings:
         print(f"  WARNING: {warning}")
 

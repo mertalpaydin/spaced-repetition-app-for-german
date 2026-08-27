@@ -135,7 +135,8 @@ Three sources, in ``scripts/build_translations.py``'s own priority order:
 
 1. The store on disk (``--translations``, default
    ``build_translations.DEFAULT_STORE_PATH``), looked up by the carrier's
-   exact text -- the same key the store itself uses.
+   exact text -- the same key the store itself uses. **A stored record whose
+   ``source`` is ``"tatoeba"`` is treated as a cache MISS**, see below.
 2. Machine translation of whatever the store lacks, through
    ``build_translations.translator_from_env`` (Azure primary, Gemini
    fallback) and ``build_translations._run_machine_translation``, with the
@@ -149,12 +150,80 @@ Three sources, in ``scripts/build_translations.py``'s own priority order:
 ``--no-translate`` looks the store up and never calls out.
 ``--max-translation-characters`` (default
 ``build_translations.DEFAULT_MAX_CHARACTERS_PER_RUN``, 60,000) is a runaway
-guard, not a working limit: a 396-item pilot measures at about 166 new
-translations and about 11,000 characters, so the default is roughly five
-times the expected need. A ``TranslationError`` on a batch leaves that
-batch's items at ``gloss_en=None`` and the pilot continues to verification,
-matching this script's posture everywhere else (``_read_one_corpus``, the
-``verify_items`` guard).
+guard, not a working limit; the arithmetic under "What the character budget
+now has to cover" below is what says the default still holds. A
+``TranslationError`` on a batch leaves that batch's items at
+``gloss_en=None`` and the pilot continues to verification, matching this
+script's posture everywhere else (``_read_one_corpus``, the ``verify_items``
+guard).
+
+## A stored Tatoeba gloss is a cache MISS (owner's decision, 2026-08-27)
+
+A hand audit of all 430 accepted exercises from the last pilot found ten
+defects. Four were items whose German is correct and whose English gloss is
+wrong, and **three of those four came from Tatoeba's own human translations,
+not from machine translation**:
+
+    Wenn ich im Lotto gewaenne, wuerde ich mir ein neues Auto kaufen.
+    "If I won the lottery, I'd buy you a new car."      <- mir is himself
+
+    Ich habe eine Freundin, die sich selbst die Haare schneidet.
+    "I have a friend who cuts his own hair."            <- Freundin is female
+
+    Das Haus, in dem man lacht, wird vom Glueck bedacht.
+    "The house in which one laughs is considered by luck."  <- meaningless
+
+(The fourth, ``Aber: Das Thema ist damit nicht beendet ...`` glossed "But:
+The topic is not over there ...", is a machine translation reading ``damit``
+as a place adverb.) A separate hand check of 120 Tatoeba pairs found 2
+outright wrong and 6 loose. The owner's two decisions follow: **a wrong
+gloss replaces the English and keeps the item** (the German still works as
+an exercise; only the translation failed), and **Tatoeba translations stop
+being used for exercises**.
+
+So ``_populate_glosses`` treats a store record with ``source="tatoeba"`` as
+though it were absent: the carrier is re-translated and the record is
+overwritten with the machine translation. A record whose ``source`` is
+``azure`` or ``gemini`` is used exactly as before.
+``--trust-stored-tatoeba`` restores the old behaviour, for reproducing an
+earlier run against it.
+
+**What this does NOT do is delete anything.** The Tatoeba records are the
+only thing feeding planned feature 5.3 (click a word, see it in several
+corpus sentences with their translations), which needs breadth far more than
+precision. They stay in the store and are distrusted on the exercise path
+only. Re-translating all 200,555 of them would be about 13,000,000
+characters, roughly half a year of Azure F0, and is emphatically not what
+this is: the store converts itself over time, for exactly the sentences that
+become exercises, roughly 475 a cycle.
+
+**A distrusted gloss that could not be replaced does not get used.** If the
+re-translation fails, is skipped for budget, or no translator is configured,
+the item keeps ``gloss_en=None`` rather than falling back on the Tatoeba
+English. Shipping the distrusted gloss anyway would make the flag
+decorative, and ``None`` is a state every consumer here already handles
+(the gloss check returns immediately for it, the app renders nothing). Those
+items are counted in ``gloss_missing`` and reported separately as
+``gloss_missing_stale_tatoeba`` so the number is visible rather than merged
+into "no gloss anywhere".
+
+## What the character budget now has to cover
+
+Re-translating the Tatoeba ones is new demand on ``--max-translation-
+characters``. The arithmetic, for one 475-item pilot cycle:
+
+* The last pilot's 392 review items measure at a mean carrier length of
+  **61.7 characters** (median 54, max 144).
+* The worst case is a store that helps not at all: 475 carriers x 61.7 =
+  **about 29,300 characters**.
+* The owner's expected case is roughly 300 carriers whose Tatoeba gloss now
+  gets replaced, about **18,500 characters**, plus whatever the store has
+  never held.
+
+So 29,300 is the ceiling for a whole cycle against a 60,000 default: **the
+default still holds, with roughly 2x headroom**, and it is not raised. It
+also stops being purely decorative -- it used to be five times the expected
+need and is now about twice it, which is the right size for a runaway guard.
 
 ## What changes for an item once ``gloss_en`` stops being ``None``
 
@@ -398,6 +467,36 @@ DEFAULT_SEED = 7
 # extra pass is another full cycle's spend against a $7.50/month ceiling. See
 # ``run_verification_passes`` for what N > 1 buys and what it costs.
 DEFAULT_VERIFICATION_PASSES = 1
+
+# The owner's decision, 2026-08-27: a stored gloss whose source is Tatoeba is
+# a cache MISS on the exercise path. See the module docstring for the four
+# audited defects behind it, three of which were Tatoeba's own translations.
+DEFAULT_TRUST_STORED_TATOEBA = False
+
+#: The one store source value this script refuses to reuse as a gloss.
+#: Matches ``build_translations.TranslationRecord.source``'s own literal.
+STORED_SOURCE_TATOEBA = "tatoeba"
+
+
+def stored_tatoeba_policy_sentence(trust_stored_tatoeba: bool) -> str:
+    """One plain sentence saying what this run's setting MEANS, not just
+    which way the switch was thrown. Printed and written to the report from
+    this one function so the console and the JSON can never disagree."""
+    if trust_stored_tatoeba:
+        return (
+            "--trust-stored-tatoeba GIVEN: a stored gloss was used whatever its "
+            "source, including Tatoeba's own human translations. This is the OLD "
+            "behaviour, kept only so an earlier run can be reproduced. A hand audit "
+            "of 430 accepted items found 4 wrong glosses and 3 of the 4 were "
+            "Tatoeba's."
+        )
+    return (
+        "--trust-stored-tatoeba NOT given (the default): a stored gloss whose "
+        "source is Tatoeba was treated as absent, re-translated, and the store "
+        "record overwritten with the machine translation. The Tatoeba records are "
+        "distrusted here, not deleted: they still feed feature 5.3."
+    )
+
 
 # TODO.md 8.11: how many items in ONE topic's sample may share the same
 # blanked lemma -- docs/audits/cycle-10-corpus-report.md's own finding (7 of
@@ -744,21 +843,41 @@ class GlossReport:
     check cost, as its own section of the run report and its own block of
     printed output.
 
-    The three fill counters (``gloss_from_store``, ``gloss_newly_translated``,
+    The FOUR fill counters (``gloss_from_store``,
+    ``gloss_retranslated_tatoeba``, ``gloss_newly_translated``,
     ``gloss_missing``) are disjoint and always sum to ``items_total``, the
-    same "three disjoint counts that must sum" discipline
+    same "disjoint counts that must sum" discipline
     ``model_verification.VerificationReport`` already holds this package to.
+    There were three until the owner's 2026-08-27 decision to distrust stored
+    Tatoeba glosses; "re-translated because the stored gloss was Tatoeba's"
+    is deliberately its own line rather than being folded into either
+    neighbour, because it is the whole point of the change and its size is
+    what says whether the character budget is under strain.
     """
 
     store_path: str = ""
     translator_mode: str = "none"
     translation_batch_size: int = 0
     max_translation_characters: int = 0
+    # ``False`` is the new default: a stored Tatoeba gloss is a cache miss
+    # (module docstring). Recorded so two runs that differ only in this can
+    # be told apart from the report file alone.
+    trust_stored_tatoeba: bool = False
     items_total: int = 0
     gloss_from_store: int = 0
+    gloss_retranslated_tatoeba: int = 0
     gloss_newly_translated: int = 0
     gloss_missing: int = 0
     carriers_needing_translation: int = 0
+    # Subset of carriers_needing_translation: how many of them needed it only
+    # because their stored gloss was Tatoeba's. Zero under
+    # --trust-stored-tatoeba.
+    carriers_distrusted_tatoeba: int = 0
+    # Subset of gloss_missing: items whose distrusted Tatoeba gloss could NOT
+    # be replaced this run (failure, budget, or no translator), and which
+    # therefore carry no gloss rather than the distrusted one. A later run
+    # picks them up.
+    gloss_missing_stale_tatoeba: int = 0
     skipped_for_budget: int = 0
     # Every character this run actually translated, Azure and Gemini
     # fallback together -- the same total build_translations.py's own budget
@@ -784,11 +903,16 @@ class GlossReport:
             "translator_mode": self.translator_mode,
             "translation_batch_size": self.translation_batch_size,
             "max_translation_characters": self.max_translation_characters,
+            "trust_stored_tatoeba": self.trust_stored_tatoeba,
+            "stored_tatoeba_policy": stored_tatoeba_policy_sentence(self.trust_stored_tatoeba),
             "items_total": self.items_total,
             "gloss_from_store": self.gloss_from_store,
+            "gloss_retranslated_tatoeba": self.gloss_retranslated_tatoeba,
             "gloss_newly_translated": self.gloss_newly_translated,
             "gloss_missing": self.gloss_missing,
             "carriers_needing_translation": self.carriers_needing_translation,
+            "carriers_distrusted_tatoeba": self.carriers_distrusted_tatoeba,
+            "gloss_missing_stale_tatoeba": self.gloss_missing_stale_tatoeba,
             "skipped_for_budget": self.skipped_for_budget,
             "characters_spent": self.characters_spent,
             "translation_failures": self.translation_failures,
@@ -1363,6 +1487,7 @@ def _populate_glosses(
     max_characters: int,
     now: datetime,
     batch_size: int = AZURE_MAX_BATCH,
+    trust_stored_tatoeba: bool = DEFAULT_TRUST_STORED_TATOEBA,
 ) -> tuple[list[BankItem], GlossReport]:
     """TODO.md 2.1b: fill every item's ``gloss_en`` with the English
     translation of its OWN CARRIER SENTENCE, from the store first and the
@@ -1390,12 +1515,20 @@ def _populate_glosses(
     failure and moves to the next batch, leaving those carriers out of the
     store; this function simply reports what it was told and leaves the
     corresponding items at ``gloss_en=None``.
+
+    ``trust_stored_tatoeba=False`` (the default) is the owner's 2026-08-27
+    decision, argued in full in the module docstring: a store record whose
+    ``source`` is ``"tatoeba"`` is treated as a cache MISS, re-translated,
+    and overwritten. A record from ``azure`` or ``gemini`` is used as-is.
+    Nothing is deleted either way -- an unreplaceable Tatoeba record stays on
+    disk for feature 5.3, it simply does not become this item's gloss.
     """
     report = GlossReport(
         store_path=str(store_path),
         translator_mode=translator_mode,
         translation_batch_size=batch_size,
         max_translation_characters=max_characters,
+        trust_stored_tatoeba=trust_stored_tatoeba,
         items_total=len(items),
     )
 
@@ -1413,10 +1546,24 @@ def _populate_glosses(
     # translated it" stay honestly distinguishable afterwards -- the
     # translation step writes into the same dict.
     in_store_before = frozenset(store)
+    # The records the owner's decision says not to believe. Empty under
+    # --trust-stored-tatoeba, which is what makes that flag reproduce the old
+    # behaviour exactly rather than approximately.
+    distrusted = (
+        frozenset()
+        if trust_stored_tatoeba
+        else frozenset(
+            german for german, record in store.items() if record.source == STORED_SOURCE_TATOEBA
+        )
+    )
+    # What a lookup may actually use. A distrusted record is deliberately NOT
+    # in here, so every "is this already glossed?" question below asks the
+    # policy rather than asking the filesystem.
+    usable_before = in_store_before - distrusted
 
     needed: dict[str, CorpusLine] = {}
     for item, carrier in zip(items, carriers, strict=True):
-        if carrier is None or carrier in in_store_before:
+        if carrier is None or carrier in usable_before:
             continue
         provenance = provenance_by_hash[item.source_sentence_id or ""]
         # ``source`` is carried, not dropped: a CorpusLine that knows only
@@ -1429,6 +1576,7 @@ def _populate_glosses(
             CorpusLine(line_id=provenance.line_id, text=carrier, source=provenance.source),
         )
     report.carriers_needing_translation = len(needed)
+    report.carriers_distrusted_tatoeba = sum(1 for carrier in needed if carrier in distrusted)
 
     if needed:
         # build_translations.py's own machine-translation step, imported
@@ -1472,7 +1620,19 @@ def _populate_glosses(
             report.gloss_missing += 1
             glossed.append(item)
             continue
-        if carrier in in_store_before:
+        if carrier in distrusted:
+            # ``record`` is whatever is in the store NOW. If the machine
+            # translation landed, that is the new one and its source says so;
+            # if the batch failed, was skipped for budget, or there was no
+            # translator at all, it is still the Tatoeba record, and this item
+            # gets no gloss rather than the one the owner said to stop using.
+            if record.source == STORED_SOURCE_TATOEBA:
+                report.gloss_missing += 1
+                report.gloss_missing_stale_tatoeba += 1
+                glossed.append(item)
+                continue
+            report.gloss_retranslated_tatoeba += 1
+        elif carrier in usable_before:
             report.gloss_from_store += 1
         else:
             report.gloss_newly_translated += 1
@@ -1596,15 +1756,37 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--trust-stored-tatoeba",
+        action="store_true",
+        help=(
+            "Use a stored gloss whatever its source, including Tatoeba's own "
+            "human translations. This restores the behaviour from before "
+            "2026-08-27 and exists only so an earlier run can be reproduced. "
+            "By default a stored gloss whose source is 'tatoeba' is treated as "
+            "ABSENT: the carrier is re-translated and the store record is "
+            "overwritten with the machine translation. Why: a hand audit of all "
+            "430 accepted items found 4 wrong glosses, and 3 of the 4 were "
+            "Tatoeba's own translations (e.g. 'mir' glossed as 'you', a female "
+            "'Freundin' glossed 'his own hair'). The Tatoeba records are NOT "
+            "deleted either way; they still feed feature 5.3."
+        ),
+    )
+    parser.add_argument(
         "--max-translation-characters",
         type=int,
         default=DEFAULT_MAX_CHARACTERS_PER_RUN,
         help=(
             "Runaway guard on this run's machine translation, in characters, "
             "stopping at a whole-batch boundary exactly as "
-            "build_translations.py does. A 396-item pilot measures at about "
-            "11,000 characters, so the default is roughly five times the "
-            "expected need and should never bind in practice."
+            "build_translations.py does. Arithmetic for one 475-item cycle "
+            "under the default distrust of stored Tatoeba glosses: the last "
+            "pilot's 392 items measure at a mean carrier length of 61.7 "
+            "characters, so the worst case, a store that helps not at all, is "
+            "475 x 61.7 = about 29,300 characters. The expected case is about "
+            "300 carriers whose Tatoeba gloss gets replaced, about 18,500 "
+            "characters, plus whatever the store has never held. The 60,000 "
+            "default therefore still covers a full cycle with roughly 2x "
+            "headroom."
         ),
     )
     parser.add_argument(
@@ -1838,6 +2020,7 @@ def main() -> int:
     # ---------------------------------------------------------------
     translator: Translator | None
     translator_mode: TranslatorMode
+    print(f"\n  Gloss policy: {stored_tatoeba_policy_sentence(args.trust_stored_tatoeba)}")
     if args.no_translate:
         translator, translator_mode = None, "none"
         print("\n  Gloss: --no-translate given; the store is read but nothing is translated.")
@@ -1864,6 +2047,7 @@ def main() -> int:
         max_characters=args.max_translation_characters,
         now=datetime.now(UTC),
         batch_size=_default_batch_size(translator_mode),
+        trust_stored_tatoeba=args.trust_stored_tatoeba,
     )
     gloss_report.gloss_check_enforced = args.enforce_gloss_check
     report.gloss = gloss_report
@@ -1939,22 +2123,32 @@ def main() -> int:
     # being wrong, and some are the check misreading a correct but loose
     # translation, and nobody can tell which without seeing the shape.
     print("\n  English gloss (TODO.md 2.1b):")
-    print(f"    Store:                {gloss_report.store_path}")
-    print(f"    Translator mode:      {gloss_report.translator_mode}")
-    print(f"    Items:                {gloss_report.items_total}")
-    print(f"      from the store:     {gloss_report.gloss_from_store}")
-    print(f"      newly translated:   {gloss_report.gloss_newly_translated}")
-    print(f"      still without one:  {gloss_report.gloss_missing}")
+    print(f"    Store:                 {gloss_report.store_path}")
+    print(f"    Translator mode:       {gloss_report.translator_mode}")
+    print(f"    Trust stored Tatoeba:  {gloss_report.trust_stored_tatoeba}")
+    print(f"    Items:                 {gloss_report.items_total}")
+    print(f"      from the store:      {gloss_report.gloss_from_store}")
+    print(f"      re-translated (was Tatoeba's): {gloss_report.gloss_retranslated_tatoeba}")
+    print(f"      newly translated:    {gloss_report.gloss_newly_translated}")
+    print(f"      still without one:   {gloss_report.gloss_missing}")
+    if gloss_report.gloss_missing_stale_tatoeba:
+        print(
+            "        of which a distrusted Tatoeba gloss this run could not "
+            f"replace: {gloss_report.gloss_missing_stale_tatoeba}"
+        )
     print(
-        f"    Characters spent:     {gloss_report.characters_spent:,} of "
+        f"    Characters spent:      {gloss_report.characters_spent:,} of "
         f"{gloss_report.max_translation_characters:,} "
         f"(batch size {gloss_report.translation_batch_size})"
     )
     if gloss_report.skipped_for_budget:
-        print(f"    Left for a later run: {gloss_report.skipped_for_budget}")
-    print(f"    Translation failures: {gloss_report.translation_failures}")
+        print(f"    Left for a later run:  {gloss_report.skipped_for_budget}")
+    print(f"    Translation failures:  {gloss_report.translation_failures}")
     for example in gloss_report.translation_failure_examples:
         print(f"      - {example}")
+    print(
+        f"    What that means: {stored_tatoeba_policy_sentence(gloss_report.trust_stored_tatoeba)}"
+    )
 
     print("\n  Gloss consistency check:")
     print(

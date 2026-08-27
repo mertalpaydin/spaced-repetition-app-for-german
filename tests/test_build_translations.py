@@ -8,6 +8,15 @@ substitution trivial) -- no real Azure or Gemini call is ever made, and no
 corpus or Tatoeba pairs file is read from disk. Only the store itself is
 real filesystem I/O, via ``tmp_path``, because the store IS the
 resumability mechanism under test.
+
+Every test that exercises the Tatoeba join passes ``trust_tatoeba=True``
+explicitly. That is not boilerplate: the join is OFF by default as of the
+owner's 2026-08-27 decision (a hand audit of 430 accepted exercises found 4
+wrong glosses and 3 of the 4 were Tatoeba's own human translations), so a
+test that wants the join has to ask for it. The cross-corpus id-collision
+tests further down are the ones that most need it -- without the flag they
+would pass for the wrong reason, by the join never running at all, and the
+fence they exist to guard would go unexercised.
 """
 
 from __future__ import annotations
@@ -34,6 +43,7 @@ from scripts.build_translations import (
     main,
     reject_cross_corpus_gloss,
     run_backfill,
+    tatoeba_policy_sentence,
 )
 from scripts.corpus_reading import SOURCE_LEIPZIG, SOURCE_TATOEBA, CorpusLine
 from scripts.eval_tatoeba_translation_quality import Pair
@@ -174,6 +184,7 @@ def test_run_backfill_tatoeba_pairs_multiple_translations_stores_shortest(
         translator=None,
         translator_mode="none",
         tatoeba_pairs=pairs,
+        trust_tatoeba=True,
         max_characters=1000,
         batch_size=100,
         seed=7,
@@ -616,6 +627,7 @@ def test_run_backfill_carrier_list_with_empty_line_ids_still_joins_tatoeba_by_te
         translator=None,
         translator_mode="none",
         tatoeba_pairs=pairs,
+        trust_tatoeba=True,
         max_characters=1000,
         batch_size=100,
         seed=7,
@@ -778,6 +790,7 @@ def test_run_backfill_leipzig_carrier_colliding_with_a_tatoeba_id_gets_no_tatoeb
         translator=translator,
         translator_mode="gemini_only",
         tatoeba_pairs=pairs,
+        trust_tatoeba=True,
         max_characters=10_000,
         batch_size=100,
         seed=7,
@@ -811,6 +824,7 @@ def test_run_backfill_leipzig_carrier_colliding_with_a_tatoeba_id_and_no_transla
         translator=None,
         translator_mode="none",
         tatoeba_pairs=pairs,
+        trust_tatoeba=True,
         max_characters=10_000,
         batch_size=100,
         seed=7,
@@ -840,6 +854,7 @@ def test_run_backfill_tatoeba_carrier_still_gets_its_gloss_by_id(tmp_path: Path)
         translator=translator,
         translator_mode="gemini_only",
         tatoeba_pairs=pairs,
+        trust_tatoeba=True,
         max_characters=10_000,
         batch_size=100,
         seed=7,
@@ -874,6 +889,7 @@ def test_run_backfill_leipzig_carrier_matching_tatoeba_by_text_still_gets_that_g
         translator=translator,
         translator_mode="gemini_only",
         tatoeba_pairs=pairs,
+        trust_tatoeba=True,
         max_characters=10_000,
         batch_size=100,
         seed=7,
@@ -952,3 +968,247 @@ def test_fill_from_tatoeba_runs_the_guard_on_every_stored_record(
     )
 
     assert seen == [line]
+
+
+# ==============================================================================
+# --trust-tatoeba: the join is opt-in, not default (owner's decision,
+# 2026-08-27)
+#
+# A hand audit of all 430 accepted exercises found ten defects, four of them
+# items whose German is correct and whose English gloss is wrong. THREE OF
+# THE FOUR came from Tatoeba's own human translations, not from machine
+# translation:
+#
+#   "Wenn ich im Lotto gewaenne, wuerde ich mir ein neues Auto kaufen."
+#     -> "If I won the lottery, I'd buy you a new car."   (mir is himself)
+#   "Ich habe eine Freundin, die sich selbst die Haare schneidet."
+#     -> "I have a friend who cuts his own hair."         (Freundin is female)
+#   "Das Haus, in dem man lacht, wird vom Glueck bedacht."
+#     -> "The house in which one laughs is considered by luck."  (meaningless)
+#
+# A separate hand check of 120 Tatoeba pairs found 2 outright wrong and 6
+# loose. So the join is off unless asked for -- and it is KEPT, because
+# feature 5.3 is fed entirely by those records and needs breadth over
+# precision.
+# ==============================================================================
+
+
+_TIRED = "Ich bin müde."
+
+
+def test_run_backfill_without_trust_tatoeba_sends_a_pair_matched_carrier_to_the_translator(
+    tmp_path: Path,
+) -> None:
+    """THE test for this change. The carrier has a perfectly good Tatoeba
+    pair, matching by BOTH id and exact text, so every route into the join is
+    open -- and none of them may be taken. The carrier must reach the machine
+    translator instead, and the stored record must say so."""
+    store_path = tmp_path / "de_en.jsonl"
+    carriers = {_TIRED: _carrier(_TIRED, "1", SOURCE_TATOEBA)}
+    pairs = [Pair(german_id="1", german=_TIRED, english="I am tired.")]
+    translator = FakeTranslator()
+
+    report = run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="azure_only",
+        tatoeba_pairs=pairs,
+        max_characters=10_000,
+        batch_size=100,
+        seed=7,
+        limit_per_source=1000,
+    )
+
+    assert report.trust_tatoeba is False
+    assert report.from_tatoeba == 0
+    assert report.machine_translated == 1
+    assert translator.calls == [[_TIRED]]
+
+    stored = _load_store(store_path)[_TIRED]
+    assert stored.english == f"EN: {_TIRED}"
+    assert stored.source == "azure"
+
+
+def test_run_backfill_with_trust_tatoeba_still_fills_from_the_pairs(tmp_path: Path) -> None:
+    """Feature 5.3's own path, intact. Rebuilding the corpus store from
+    Tatoeba's 200,555 free glosses is the whole reason the join is kept
+    rather than deleted; machine translating them instead would be about
+    13,000,000 characters, roughly half a year of Azure F0."""
+    store_path = tmp_path / "de_en.jsonl"
+    carriers = {_TIRED: _carrier(_TIRED, "1", SOURCE_TATOEBA)}
+    pairs = [Pair(german_id="1", german=_TIRED, english="I am tired.")]
+    translator = FakeTranslator()
+
+    report = run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="azure_only",
+        tatoeba_pairs=pairs,
+        trust_tatoeba=True,
+        max_characters=10_000,
+        batch_size=100,
+        seed=7,
+        limit_per_source=1000,
+    )
+
+    assert report.trust_tatoeba is True
+    assert report.from_tatoeba == 1
+    assert report.machine_translated == 0
+    assert translator.calls == [], "a Tatoeba gloss costs nothing; nothing may be translated"
+    assert _load_store(store_path)[_TIRED].source == "tatoeba"
+
+
+def test_run_backfill_without_trust_tatoeba_leaves_existing_tatoeba_records_untouched(
+    tmp_path: Path,
+) -> None:
+    """Distrusted, not deleted. The Tatoeba records already in the store are
+    the only thing feeding feature 5.3, so a run under the new default must
+    not remove or rewrite them; it simply stops ADDING more."""
+    store_path = tmp_path / "de_en.jsonl"
+    store_path.write_text(
+        TranslationRecord(
+            german=_TIRED,
+            english="I am tired.",
+            source="tatoeba",
+            written_at=datetime(2026, 1, 1, tzinfo=UTC),
+        ).model_dump_json()
+        + "\n",
+        encoding="utf-8",
+    )
+    new_carrier = "Die Katze schläft auf dem Sofa."
+    carriers = {new_carrier: _carrier(new_carrier, "2", SOURCE_TATOEBA)}
+
+    run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=FakeTranslator(),
+        translator_mode="azure_only",
+        tatoeba_pairs=[Pair(german_id="2", german=new_carrier, english="The cat sleeps.")],
+        max_characters=10_000,
+        batch_size=100,
+        seed=7,
+        limit_per_source=1000,
+    )
+
+    store = _load_store(store_path)
+    assert store[_TIRED].english == "I am tired."
+    assert store[_TIRED].source == "tatoeba"
+
+
+@pytest.mark.parametrize("trust_tatoeba", [False, True])
+def test_run_backfill_counts_add_up_to_carriers_seen_in_both_tatoeba_modes(
+    tmp_path: Path, trust_tatoeba: bool
+) -> None:
+    """The report's disjoint-counts discipline, held across the new flag.
+    Every carrier lands in exactly one of five buckets, whichever way the
+    join is set, so a mode that silently dropped carriers on the floor would
+    fail here rather than in a hand count months later."""
+    store_path = tmp_path / "de_en.jsonl"
+    already = "Der Hund läuft schnell durch den Park im Sommer."
+    store_path.write_text(
+        TranslationRecord(
+            german=already,
+            english="The dog runs.",
+            source="azure",
+            written_at=datetime(2026, 1, 1, tzinfo=UTC),
+        ).model_dump_json()
+        + "\n",
+        encoding="utf-8",
+    )
+    paired = "Die Katze schläft auf dem warmen Sofa im Wohnzimmer."
+    fresh = "Ein Mann steht vor der Tür und wartet auf den Bus."
+    beyond_budget = "Noch ein Satz, der diesmal nicht mehr in das Zeichenbudget passt."
+    carriers = {
+        already: _carrier(already, "1", SOURCE_TATOEBA),
+        paired: _carrier(paired, "2", SOURCE_TATOEBA),
+        fresh: _carrier(fresh, "3", SOURCE_TATOEBA),
+        beyond_budget: _carrier(beyond_budget, "4", SOURCE_TATOEBA),
+    }
+    pairs = [Pair(german_id="2", german=paired, english="The cat sleeps.")]
+
+    report = run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=FakeTranslator(),
+        translator_mode="azure_only",
+        tatoeba_pairs=pairs,
+        trust_tatoeba=trust_tatoeba,
+        # Room for one or two carriers, never all of them, so
+        # skipped_for_budget is genuinely exercised in both modes.
+        max_characters=len(fresh) + 5,
+        batch_size=1,
+        seed=7,
+        limit_per_source=1000,
+    )
+
+    assert report.carriers_seen == 4
+    assert report.already_in_store == 1
+    assert (
+        report.already_in_store
+        + report.from_tatoeba
+        + report.machine_translated
+        + report.failed
+        + report.skipped_for_budget
+        == report.carriers_seen
+    )
+    assert report.from_tatoeba == (1 if trust_tatoeba else 0)
+
+
+def test_report_json_carries_trust_tatoeba_and_says_what_it_means(tmp_path: Path) -> None:
+    """A store holds records from many runs, so the report has to say which
+    policy produced this one -- and say it in words, not only as a boolean
+    nobody can interpret two months later."""
+    store_path = tmp_path / "de_en.jsonl"
+    report = run_backfill(
+        carriers={_TIRED: _carrier(_TIRED, "1", SOURCE_TATOEBA)},
+        store_path=store_path,
+        translator=FakeTranslator(),
+        translator_mode="azure_only",
+        tatoeba_pairs=[],
+        max_characters=10_000,
+        batch_size=100,
+        seed=7,
+        limit_per_source=1000,
+    )
+    payload = report.to_dict()
+    run_block = payload["run"]
+    assert isinstance(run_block, dict)
+    assert run_block["trust_tatoeba"] is False
+    policy = payload["tatoeba_policy"]
+    assert isinstance(policy, str)
+    assert "not used at all" in policy
+    assert "5.3" in policy
+
+    assert "used as" in tatoeba_policy_sentence(True)
+
+
+def test_main_pairs_without_trust_tatoeba_is_a_usage_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Contradictory, not merely redundant: the pair files exist only to feed
+    a join that is now off by default, so naming them without the flag means
+    the caller believes Tatoeba glosses are about to be used. Reading them and
+    quietly ignoring them would leave a caller certain a gloss came from
+    Tatoeba when it came from Azure."""
+    carriers_path = tmp_path / "carriers.txt"
+    carriers_path.write_text("Der Hund läuft.\n", encoding="utf-8")
+    pairs_path = tmp_path / "pairs.tsv"
+    pairs_path.write_text("1\tDer Hund läuft.\tThe dog runs.\n", encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "build_translations.py",
+            "--carriers-from",
+            str(carriers_path),
+            "--pairs",
+            str(pairs_path),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 2

@@ -192,7 +192,12 @@ Not tasks. Do not "fix" these without a decision from the owner.
 
 - [ ] **2.1b Decide whether the gloss check enforces.** Wiring done.
   `step7_corpus_pilot.py` fills `gloss_en` from the translation store,
-  translating and storing whatever the store lacks. The consistency check
+  translating and storing whatever the store lacks. **As of 2026-08-27 a
+  stored gloss whose source is Tatoeba does not count as "the store has it"
+  (section 4): it is re-translated and the record overwritten.** All the
+  measurements below predate that, so the glosses this check was measured
+  against were largely Tatoeba's; re-measure before drawing a conclusion
+  about enforcing. The consistency check
   (a gloss whose tense or person contradicts the answer) **runs and reports
   but does not reject**, by default; `--enforce-gloss-check` makes it real.
 
@@ -280,6 +285,18 @@ Not tasks. Do not "fix" these without a decision from the owner.
   and relaxes its uniqueness judgment against it, so until the purge runs,
   every accepted-item count drawn from a Leipzig carrier rests on evidence
   that may be an unrelated sentence.
+
+  **Partly overtaken by the 2026-08-27 Tatoeba distrust (section 4), which
+  nobody planned as a fix for this.** Every one of those 7,365 poisoned
+  Leipzig records carries `source="tatoeba"`, and `step7_corpus_pilot.py`
+  now treats any `source="tatoeba"` record as a cache miss by default. So
+  the next pilot re-translates them whether or not the purge has run, and no
+  poisoned gloss can reach an item on the default path. That does NOT make
+  the purge pointless: the mislabelled records are still in the store and
+  still feed 5.3, where they are actively wrong (a Leipzig sentence shown
+  with an unrelated Tatoeba sentence's English), and the distrust does not
+  distinguish them from legitimate Tatoeba records. Run the purge for 5.3's
+  sake; it is no longer the thing blocking a pilot.
 
 - [ ] **2.3 Get real numbers out of `scripts/eval_verifier.py`.** The
   adversarial set (38 confirmed defects, 31 confirmed clean) and the script
@@ -384,6 +401,14 @@ Pinned by tests. Do not change without the owner saying so explicitly.
 - `spend_ceiling_usd` defaults to **7.50** in `src/llm/client.py`, raised
   from 5.00 at the owner's instruction on 2026-08-27. CLAUDE.md section 9
   and `docs/audits/stage-00-quota.md` were corrected in the same commit.
+- **Tatoeba translations are not trusted for exercises.**
+  `build_translations.DEFAULT_TRUST_TATOEBA` and
+  `step7_corpus_pilot.DEFAULT_TRUST_STORED_TATOEBA` are both `False`, and
+  both flags that flip them are opt-in. The evidence and the full reasoning
+  are in section 4; the short version is that a hand audit of 430 accepted
+  exercises found 4 wrong glosses and 3 of the 4 were Tatoeba's own. Do not
+  flip either default back. Do NOT delete the Tatoeba records either: they
+  are 5.3's whole corpus.
 
 Three separate cycles reverted an owner edit to this file. Both groups now
 have a pinning test that says to ask rather than update the assertion.
@@ -411,6 +436,67 @@ have a pinning test that says to ask rather than update the assertion.
   short translation is the more literal one, and literal is what maps word
   to word for a learner; a long one paraphrases, and paraphrase is where
   tense and determiners drift.
+
+- **When a gloss is wrong, replace the English and keep the item.** The
+  German still works as an exercise; only the translation failed. Dropping
+  the item throws away a good carrier to punish a bad string.
+
+- **Stop using Tatoeba translations for exercises. Machine translate them
+  all.** Decided 2026-08-27, from a hand audit of all 430 accepted exercises
+  in the last pilot. Ten defects; four were items whose German is correct and
+  whose English gloss is wrong, and **three of those four came from Tatoeba's
+  own human translations, not from machine translation**:
+
+  ```
+  Wenn ich im Lotto gewänne, würde ich mir ein neues Auto kaufen.
+  "If I won the lottery, I'd buy you a new car."      <- mir is himself
+      [Tatoeba]
+
+  Ich habe eine Freundin, die sich selbst die Haare schneidet.
+  "I have a friend who cuts his own hair."            <- Freundin is female
+      [Tatoeba]
+
+  Das Haus, in dem man lacht, wird vom Glück bedacht.
+  "The house in which one laughs is considered by luck."  <- meaningless
+      [Tatoeba]
+
+  Aber: Das Thema ist damit nicht beendet ...
+  "But: The topic is not over there ..."              <- damit is not "over there"
+      [machine]
+  ```
+
+  A separate hand check of 120 Tatoeba pairs found 2 outright wrong and 6
+  loose, so this is a rate, not three unlucky rows.
+
+  **This is not "re-translate all 200,555 Tatoeba records".** That is about
+  13,000,000 characters, roughly half a year of Azure F0, and it is
+  explicitly not what was asked for. Glosses are only needed for sentences
+  that actually become exercises, about 475 per pilot cycle, roughly 20,000
+  to 31,000 characters. The store converts itself over time, for exactly the
+  sentences that matter.
+
+  **The Tatoeba records are retained, not deleted.** They are the only thing
+  feeding planned feature 5.3 (click a word, see it in several corpus
+  sentences with their translations), which needs breadth far more than it
+  needs precision. They are distrusted on the exercise path only. Deleting
+  them would cost 5.3 its entire corpus for a defect rate 5.3 does not care
+  about.
+
+  Built as two opt-ins, both defaulting to distrust:
+
+  - `scripts/build_translations.py --trust-tatoeba` (default OFF). With it
+    off, `_fill_from_tatoeba` does not run and those carriers go to machine
+    translation. With it on, the pre-2026-08-27 behaviour, which is how the
+    5.3 corpus store gets rebuilt cheaply.
+  - `scripts/step7_corpus_pilot.py --trust-stored-tatoeba` (default OFF).
+    With it off, a store record whose `source` is `"tatoeba"` is treated as
+    a cache MISS: the carrier is re-translated and the record is overwritten
+    with the machine translation. A record from `azure` or `gemini` is used
+    as-is. With it on, an earlier run can be reproduced exactly.
+
+  A distrusted gloss that could not be replaced (failure, budget, no
+  translator) leaves the item at `gloss_en=None` rather than falling back on
+  the Tatoeba English, and is reported as `gloss_missing_stale_tatoeba`.
 
 ---
 
@@ -450,6 +536,19 @@ Decided (section 4). Three parts, in order:
    that mode. The whole-corpus mode stays for feature 5.3, which does want
    many corpus sentences glossed, and the free Tatoeba 200,555 already
    covers 5.3 without another paid character.
+
+   **Superseded in part on 2026-08-27: Tatoeba's own translations are no
+   longer used for exercises** (section 4). The 230-of-396 figure above is
+   what a pilot USED to get free and is now what it re-translates instead.
+   The arithmetic for one 475-item cycle under the new behaviour: the last
+   pilot's 392 review items measure at a mean carrier length of 61.7
+   characters, so the worst case, a store that helps not at all, is 475 x
+   61.7 = about **29,300 characters**, and the expected case (about 300
+   Tatoeba glosses replaced) is about 18,500 plus whatever the store has
+   never held. `--max-translation-characters` stays at **60,000**: it still
+   covers a whole cycle with roughly 2x headroom, so it was not raised. The
+   whole-corpus mode plus `--trust-tatoeba` remains 5.3's cheap rebuild
+   path, and the 200,555 free Tatoeba records stay on disk for it.
 
 3. **Show the translation in the app.** Done. It renders under the German
    sentence, before the learner answers and still visible after grading,
