@@ -81,6 +81,17 @@ expects it to miss.** This module agrees, and adds the mechanism:
 A result that contradicts any of the above is worth more than one that
 confirms it. Nothing in this script is tuned to produce the expected shape.
 
+**One property of the fixture to keep in mind when reading the per-kind
+numbers.** ``wrong_person`` is the easiest kind here, easier than the
+prediction above implies, because most of its carriers state their subject
+outright ("Du ___ meine Frage noch nicht beantwortet." glossed "He hasn't
+answered my question yet."). The model can see the gloss contradict the
+visible "Du" without reading the gap at all. A high ``wrong_person`` recall
+is therefore weaker evidence than a high ``wrong_tense`` one, where the only
+thing that gives the defect away is the verb form in the gap. This is a
+property of real German sentences, not something the fixture could have
+avoided while still drawing every carrier from real accepted items.
+
 ## Refusing to invent numbers
 
 With no API key configured this script makes zero network calls and prints
