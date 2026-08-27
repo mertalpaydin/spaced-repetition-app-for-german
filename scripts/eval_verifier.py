@@ -306,10 +306,27 @@ def main() -> int:
         default=str(DEFAULT_KNOWN_CLEAN_PATH),
         help="Path to the known-clean fixture JSONL.",
     )
+    parser.add_argument(
+        "--free-lane-only",
+        action="store_true",
+        help=(
+            "Forbid the paid lane outright for this run: it measures the "
+            "verifier on the unbilled project or not at all. Requires "
+            "GEMINI_FREE_API_KEY to be set explicitly (the run refuses to "
+            "start otherwise, rather than falling back to GEMINI_API_KEY, "
+            "which may be a billed key). Off by default; without it this "
+            "script behaves exactly as it did before the flag existed."
+        ),
+    )
     args = parser.parse_args()
 
     load_env_file()
-    llm_client = sentence_source.client_from_env()
+    try:
+        llm_client = sentence_source.client_from_env(free_lane_only=args.free_lane_only)
+    except sentence_source.FreeLaneKeyMissingError as exc:
+        print()
+        print(f"  FAILING: {exc}")
+        return 1
 
     adversarial = load_adversarial_fixture(Path(args.adversarial_file))
     known_clean = load_known_clean_fixture(Path(args.known_clean_file))

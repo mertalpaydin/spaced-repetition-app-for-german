@@ -130,7 +130,9 @@ def test_eval_result_rate_is_none_when_nothing_judged() -> None:
 def test_main_with_no_client_configured_is_honest_and_exits_nonzero(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(eval_verifier.sentence_source, "client_from_env", lambda: None)
+    monkeypatch.setattr(
+        eval_verifier.sentence_source, "client_from_env", lambda *, free_lane_only=False: None
+    )
     monkeypatch.setattr(eval_verifier, "load_env_file", lambda: None)
     monkeypatch.setattr(sys, "argv", ["eval_verifier.py"])
 
@@ -140,6 +142,49 @@ def test_main_with_no_client_configured_is_honest_and_exits_nonzero(
     out = capsys.readouterr().out
     assert "NOT RUN" in out
     assert "no API key configured" in out
+
+
+def test_main_free_lane_only_refuses_to_start_without_an_explicit_free_key(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The owner's zero-spend requirement. ``GEMINI_API_KEY`` is his BILLED
+    key, and ``GeminiLlmClient`` would otherwise accept it as the free lane's
+    key, so every "free" call would bill. The real ``client_from_env`` runs
+    here deliberately: stubbing it would test nothing about the guard."""
+    monkeypatch.delenv("GEMINI_FREE_API_KEY", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "the-billed-key")
+    monkeypatch.setattr(eval_verifier, "load_env_file", lambda: None)
+    monkeypatch.setattr(sys, "argv", ["eval_verifier.py", "--free-lane-only"])
+
+    exit_code = eval_verifier.main()
+
+    assert exit_code == 1
+    out = capsys.readouterr().out
+    assert "FAILING" in out
+    assert "GEMINI_FREE_API_KEY=" in out
+
+
+def test_main_free_lane_only_passes_the_flag_through_to_the_client_builder(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A flag parsed and then dropped on the floor is worse than no flag."""
+    seen: list[bool] = []
+
+    def _record(*, free_lane_only: bool = False) -> None:
+        seen.append(free_lane_only)
+        return None
+
+    monkeypatch.setattr(eval_verifier.sentence_source, "client_from_env", _record)
+    monkeypatch.setattr(eval_verifier, "load_env_file", lambda: None)
+    monkeypatch.setattr(sys, "argv", ["eval_verifier.py", "--free-lane-only"])
+
+    assert eval_verifier.main() == 1
+    assert seen == [True]
+
+    seen.clear()
+    monkeypatch.setattr(sys, "argv", ["eval_verifier.py"])
+    assert eval_verifier.main() == 1
+    assert seen == [False], "the default must stay exactly what it was"
 
 
 def test_main_catches_a_transport_error_honestly(
@@ -157,7 +202,9 @@ def test_main_catches_a_transport_error_honestly(
             raise RuntimeError("simulated network failure")
 
     monkeypatch.setattr(
-        eval_verifier.sentence_source, "client_from_env", lambda: _AlwaysFailsClient()
+        eval_verifier.sentence_source,
+        "client_from_env",
+        lambda *, free_lane_only=False: _AlwaysFailsClient(),
     )
     monkeypatch.setattr(eval_verifier, "load_env_file", lambda: None)
     monkeypatch.setattr(sys, "argv", ["eval_verifier.py"])
@@ -215,7 +262,11 @@ def test_main_end_to_end_with_a_fake_client_reports_recall_and_fpr(
                 out.append(json.dumps({"verdicts": verdicts}))
             return out
 
-    monkeypatch.setattr(eval_verifier.sentence_source, "client_from_env", lambda: _ScriptedClient())
+    monkeypatch.setattr(
+        eval_verifier.sentence_source,
+        "client_from_env",
+        lambda *, free_lane_only=False: _ScriptedClient(),
+    )
     monkeypatch.setattr(eval_verifier, "load_env_file", lambda: None)
     monkeypatch.setattr(sys, "argv", ["eval_verifier.py"])
 

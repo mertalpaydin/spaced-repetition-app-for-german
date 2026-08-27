@@ -2792,6 +2792,49 @@ def test_write_accepted_to_bank_reports_an_item_the_bank_refused(tmp_path: Path)
     assert [item.id for item in _bank_rows(db_path)] == ["corpus_good"]
 
 
+def test_main_free_lane_only_refuses_to_start_without_an_explicit_free_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Zero paid spend is a hard requirement for this build, and on the
+    owner's machine ``GEMINI_API_KEY`` is the BILLED key that
+    ``GeminiLlmClient`` would otherwise accept as the free lane's key.
+
+    The refusal happens before any corpus is read, which is the point: this
+    run spends hours in spaCy before it reaches verification, and discovering
+    the key problem then would waste all of it. Neither corpus path here
+    exists, and the run still fails on the key alone."""
+    _clear_gemini_env(monkeypatch)
+    monkeypatch.setenv("GEMINI_API_KEY", "the-billed-key")
+    db_path = tmp_path / "bank.db"
+    report_path = tmp_path / "report.json"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "step7_corpus_pilot.py",
+            "--free-lane-only",
+            "--no-translate",
+            "--tatoeba",
+            str(tmp_path / "absent_tatoeba.tsv"),
+            "--leipzig",
+            str(tmp_path / "absent_leipzig.txt"),
+            "--write-bank",
+            str(db_path),
+            "--report-file",
+            str(report_path),
+        ],
+    )
+
+    assert step7.main() == 1
+
+    out = capsys.readouterr().out
+    assert "FAILING" in out
+    assert "GEMINI_FREE_API_KEY=" in out
+    assert not db_path.exists(), "no database may be created by a run that refused to start"
+    assert not report_path.exists()
+
+
 def test_main_write_bank_refuses_when_the_verification_backstop_did_not_run(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
 ) -> None:

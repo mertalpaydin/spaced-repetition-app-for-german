@@ -27,6 +27,7 @@ from src.generation.blanking.sentence_source import (
     REGISTERS,
     STRUCTURES,
     TIME_FRAMES,
+    FreeLaneKeyMissingError,
     LiveSentenceGenerator,
     MockSentenceGenerator,
     SentencePool,
@@ -530,6 +531,83 @@ def test_client_from_env_forbids_batch_but_not_the_paid_lane(
     assert client is not None
     assert client.forbid_batch is True
     assert client.forbid_paid_lane is False
+
+
+def test_client_from_env_default_still_permits_the_paid_lane_with_only_a_generic_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The opt-in parameter must not change what every existing caller
+    (step5, step6, the monthly top-up) already gets: a generic
+    ``GEMINI_API_KEY`` alone still builds a paid-lane-permitting client."""
+    monkeypatch.delenv("GEMINI_FREE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-generic-key")
+
+    client = client_from_env()
+
+    assert client is not None
+    assert client.forbid_paid_lane is False
+
+
+def test_client_from_env_free_lane_only_forbids_the_paid_lane(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GEMINI_FREE_API_KEY", "fake-free-key")
+    monkeypatch.setenv("GEMINI_PAID_API_KEY", "fake-paid-key")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    client = client_from_env(free_lane_only=True)
+
+    assert client is not None
+    assert client.forbid_paid_lane is True
+    assert client.forbid_batch is True
+
+
+def test_client_from_env_free_lane_only_refuses_when_only_the_generic_key_is_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The whole point of the flag. ``GeminiLlmClient`` resolves its free key
+    as ``GEMINI_FREE_API_KEY or GEMINI_API_KEY``, and on this project owner's
+    machine ``GEMINI_API_KEY`` is the billed key. A zero-spend run that
+    accepted that fallback would bill every call while calling itself free."""
+    monkeypatch.delenv("GEMINI_FREE_API_KEY", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "the-billed-key")
+    monkeypatch.setenv("GEMINI_PAID_API_KEY", "the-billed-key")
+
+    with pytest.raises(FreeLaneKeyMissingError) as excinfo:
+        client_from_env(free_lane_only=True)
+
+    message = str(excinfo.value)
+    assert "GEMINI_FREE_API_KEY=" in message, "the message must state the exact .env line"
+    assert "GEMINI_API_KEY" in message
+
+
+def test_client_from_env_free_lane_only_uses_the_free_key_not_the_generic_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Passed explicitly rather than left to the client's own env lookup, so
+    the fallback to ``GEMINI_API_KEY`` cannot happen inside the client either."""
+    monkeypatch.setenv("GEMINI_FREE_API_KEY", "the-unbilled-key")
+    monkeypatch.setenv("GEMINI_API_KEY", "the-billed-key")
+
+    client = client_from_env(free_lane_only=True)
+
+    assert client is not None
+    assert client.free_api_key == "the-unbilled-key"
+
+
+def test_client_from_env_free_lane_only_never_returns_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``None`` means "run offline against the mock", which for a
+    verification pass means every item reported ``not_run``. Under this flag
+    the caller gets a real client or an exception, never a silent downgrade."""
+    monkeypatch.delenv("GEMINI_FREE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    with pytest.raises(FreeLaneKeyMissingError):
+        client_from_env(free_lane_only=True)
 
 
 def test_build_sentence_generator_falls_back_to_mock_when_no_client() -> None:
