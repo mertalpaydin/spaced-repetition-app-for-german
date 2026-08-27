@@ -31,6 +31,7 @@ from pathlib import Path
 import pytest
 from scripts import build_translations
 from scripts.build_translations import (
+    BatchOutcome,
     CrossCorpusGlossError,
     TranslationBackfillReport,
     TranslationRecord,
@@ -1212,3 +1213,247 @@ def test_main_pairs_without_trust_tatoeba_is_a_usage_error(
         main()
 
     assert exc_info.value.code == 2
+
+
+# ==============================================================================
+# The additive hooks the standing monthly job needs
+#
+# ``scripts/monthly_translation_topup.py`` is the caller. These three parameters
+# exist so that job can prioritise, account per batch and checkpoint without a
+# second copy of this file's batch loop, which is the thing that would actually
+# drift. All three default to today's behaviour, so the nightly path is
+# unchanged.
+# ==============================================================================
+
+
+def test_run_backfill_distrusted_store_source_is_retranslated_and_overwritten(
+    tmp_path: Path,
+) -> None:
+    store_path = tmp_path / "de_en.jsonl"
+    _write_store_atomic(
+        store_path,
+        {
+            "Der Hund läuft schnell.": TranslationRecord(
+                german="Der Hund läuft schnell.",
+                english="The dog is quick.",
+                source="tatoeba",
+                written_at=datetime(2026, 1, 1, tzinfo=UTC),
+            ),
+            "Die Katze schläft.": TranslationRecord(
+                german="Die Katze schläft.",
+                english="The cat sleeps.",
+                source="azure",
+                written_at=datetime(2026, 1, 1, tzinfo=UTC),
+            ),
+        },
+    )
+    carriers = {
+        "Der Hund läuft schnell.": _carrier("Der Hund läuft schnell."),
+        "Die Katze schläft.": _carrier("Die Katze schläft."),
+    }
+    translator = FakeTranslator()
+
+    report = run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="azure_only",
+        tatoeba_pairs=[],
+        max_characters=10_000,
+        batch_size=AZURE_MAX_BATCH,
+        seed=7,
+        limit_per_source=100,
+        distrust_stored_sources=frozenset({"tatoeba"}),
+    )
+
+    assert report.replacing_distrusted == 1
+    assert report.already_in_store == 1
+    assert translator.calls == [["Der Hund läuft schnell."]]
+    stored = _load_store(store_path)
+    assert stored["Der Hund läuft schnell."].source == "azure"
+    assert stored["Der Hund läuft schnell."].english == "EN: Der Hund läuft schnell."
+    # The trusted record was never touched.
+    assert stored["Die Katze schläft."].english == "The cat sleeps."
+
+
+def test_run_backfill_distrust_defaults_to_empty_so_the_nightly_path_is_unchanged(
+    tmp_path: Path,
+) -> None:
+    store_path = tmp_path / "de_en.jsonl"
+    _write_store_atomic(
+        store_path,
+        {
+            "Der Hund läuft schnell.": TranslationRecord(
+                german="Der Hund läuft schnell.",
+                english="The dog is quick.",
+                source="tatoeba",
+                written_at=datetime(2026, 1, 1, tzinfo=UTC),
+            )
+        },
+    )
+    translator = FakeTranslator()
+    report = run_backfill(
+        carriers={"Der Hund läuft schnell.": _carrier("Der Hund läuft schnell.")},
+        store_path=store_path,
+        translator=translator,
+        translator_mode="azure_only",
+        tatoeba_pairs=[],
+        max_characters=10_000,
+        batch_size=AZURE_MAX_BATCH,
+        seed=7,
+        limit_per_source=100,
+    )
+    assert translator.calls == []
+    assert report.already_in_store == 1
+    assert report.replacing_distrusted == 0
+
+
+def test_run_backfill_trusting_and_distrusting_tatoeba_at_once_is_refused(
+    tmp_path: Path,
+) -> None:
+    """The join would refill the very records the distrust just queued for
+    machine translation. Contradictory, so it raises rather than silently
+    picking one of the two."""
+    with pytest.raises(ValueError, match="contradictory"):
+        run_backfill(
+            carriers={},
+            store_path=tmp_path / "de_en.jsonl",
+            translator=None,
+            translator_mode="none",
+            tatoeba_pairs=[],
+            max_characters=0,
+            batch_size=1,
+            seed=7,
+            limit_per_source=100,
+            trust_tatoeba=True,
+            distrust_stored_sources=frozenset({"tatoeba"}),
+        )
+
+
+def test_run_backfill_on_batch_fires_once_per_successful_batch_with_its_texts(
+    tmp_path: Path,
+) -> None:
+    carriers = {
+        f"Der Satz Nummer {i:03d} hier.": _carrier(f"Der Satz Nummer {i:03d} hier.")
+        for i in range(4)
+    }
+    seen: list[BatchOutcome] = []
+    run_backfill(
+        carriers=carriers,
+        store_path=tmp_path / "de_en.jsonl",
+        translator=FakeTranslator(),
+        translator_mode="azure_only",
+        tatoeba_pairs=[],
+        max_characters=10_000,
+        batch_size=2,
+        seed=7,
+        limit_per_source=100,
+        on_batch=seen.append,
+    )
+
+    assert len(seen) == 2
+    assert [outcome.carriers for outcome in seen] == [2, 2]
+    assert all(outcome.source == "azure" for outcome in seen)
+    assert all(outcome.gemini_characters == 0 for outcome in seen)
+    assert sum(outcome.azure_characters for outcome in seen) == sum(len(t) for t in carriers)
+    assert sum(outcome.characters for outcome in seen) == sum(len(t) for t in carriers)
+    # The texts are carried because counts alone cannot say WHICH carriers a
+    # batch covered once a batch in front of it has failed.
+    assert {text for outcome in seen for text in outcome.texts} == set(carriers)
+
+
+def test_run_backfill_on_batch_does_not_fire_for_a_failed_batch(tmp_path: Path) -> None:
+    seen: list[BatchOutcome] = []
+    report = run_backfill(
+        carriers={"Der Hund läuft schnell.": _carrier("Der Hund läuft schnell.")},
+        store_path=tmp_path / "de_en.jsonl",
+        translator=FailingTranslator(),
+        translator_mode="azure_only",
+        tatoeba_pairs=[],
+        max_characters=10_000,
+        batch_size=1,
+        seed=7,
+        limit_per_source=100,
+        on_batch=seen.append,
+    )
+    assert report.failed == 1
+    assert seen == []
+
+
+def test_run_backfill_checkpoint_every_flushes_the_store_mid_run(tmp_path: Path) -> None:
+    """A killed run must not lose glosses the ledger has already charged the
+    month for. The checkpoint runs before ``on_batch``, so anything accounted
+    for is already durable."""
+    store_path = tmp_path / "de_en.jsonl"
+    carriers = {
+        f"Der Satz Nummer {i:03d} hier.": _carrier(f"Der Satz Nummer {i:03d} hier.")
+        for i in range(4)
+    }
+    sizes: list[int] = []
+
+    def record_size(_: BatchOutcome) -> None:
+        sizes.append(len(_load_store(store_path)))
+
+    run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=FakeTranslator(),
+        translator_mode="azure_only",
+        tatoeba_pairs=[],
+        max_characters=10_000,
+        batch_size=1,
+        seed=7,
+        limit_per_source=100,
+        on_batch=record_size,
+        checkpoint_every=1,
+    )
+    assert sizes == [1, 2, 3, 4]
+
+
+def test_run_backfill_checkpoint_every_zero_writes_only_at_the_end(tmp_path: Path) -> None:
+    store_path = tmp_path / "de_en.jsonl"
+    carriers = {
+        f"Der Satz Nummer {i:03d} hier.": _carrier(f"Der Satz Nummer {i:03d} hier.")
+        for i in range(3)
+    }
+    sizes: list[int] = []
+
+    run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=FakeTranslator(),
+        translator_mode="azure_only",
+        tatoeba_pairs=[],
+        max_characters=10_000,
+        batch_size=1,
+        seed=7,
+        limit_per_source=100,
+        on_batch=lambda _: sizes.append(len(_load_store(store_path))),
+        checkpoint_every=0,
+    )
+    assert sizes == [0, 0, 0]
+    assert len(_load_store(store_path)) == 3
+
+
+def test_run_backfill_checkpoint_every_n_flushes_every_nth_batch(tmp_path: Path) -> None:
+    store_path = tmp_path / "de_en.jsonl"
+    carriers = {
+        f"Der Satz Nummer {i:03d} hier.": _carrier(f"Der Satz Nummer {i:03d} hier.")
+        for i in range(6)
+    }
+    sizes: list[int] = []
+
+    run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=FakeTranslator(),
+        translator_mode="azure_only",
+        tatoeba_pairs=[],
+        max_characters=10_000,
+        batch_size=1,
+        seed=7,
+        limit_per_source=100,
+        on_batch=lambda _: sizes.append(len(_load_store(store_path))),
+        checkpoint_every=2,
+    )
+    assert sizes == [0, 2, 2, 4, 4, 6]

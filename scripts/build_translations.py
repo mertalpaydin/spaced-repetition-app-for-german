@@ -204,6 +204,29 @@ worst it loses that one run's own progress, which the next run simply
 redoes (cheap, since the free-tier translation this loses is what the
 per-run budget was already sized to keep small).
 
+## Three hooks the standing monthly job needs, all defaulting to off
+
+``scripts/monthly_translation_topup.py`` (the owner's standing job: spend Azure
+F0's 2,000,000 characters a month, every month, until the corpus is covered)
+calls ``run_backfill`` rather than owning a second copy of the batch loop. It
+needs three things this script did not have, all added as parameters that
+default to today's behaviour exactly:
+
+* ``distrust_stored_sources`` names store ``source`` values to treat as a cache
+  MISS. Empty here; the monthly job passes ``{"tatoeba"}``, because replacing
+  those 200,555 glosses is most of what that job exists to do. The stored record
+  is left alone until a real translation lands to overwrite it.
+* ``on_batch`` fires once per SUCCESSFUL batch. That is what lets a caller
+  persist month-to-date spend as it goes, which is the one thing
+  ``AzureTranslator.characters_used`` (per process) and ``--max-characters``
+  (per invocation) between them cannot do.
+* ``checkpoint_every`` flushes the store every N successful batches instead of
+  once at the end, so a killed run does not throw away glosses that a ledger has
+  already charged the month for.
+
+The checkpoint runs BEFORE ``on_batch``, deliberately. See
+``_run_machine_translation``.
+
 ## Reuse, not reimplementation
 
 - Tatoeba pair readers: ``scripts.eval_tatoeba_translation_quality``
@@ -231,6 +254,7 @@ import json
 import os
 import sys
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -289,6 +313,55 @@ TranslatorMode = Literal["fallback", "azure_only", "gemini_only", "none"]
 #: trusted for anything that becomes an exercise, so the join is opt-in.
 #: See the module docstring for the four audited defects behind it.
 DEFAULT_TRUST_TATOEBA = False
+
+#: Store ``source`` values that ``run_backfill`` treats as a cache MISS, so the
+#: carrier is translated again and the record overwritten. Empty by default:
+#: this script's own contract has always been "anything in the store is done",
+#: and the standing monthly job (``scripts/monthly_translation_topup.py``) is
+#: the caller that wants otherwise. It passes ``frozenset({"tatoeba"})``, which
+#: is the same distrust ``step7_corpus_pilot.--trust-stored-tatoeba`` already
+#: applies at the pilot layer, expressed here so the replacement pass and the
+#: first-time pass run through one loop instead of two that drift.
+NO_DISTRUSTED_SOURCES: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class BatchOutcome:
+    """What one SUCCESSFUL machine-translation batch did, handed to
+    ``run_backfill``'s ``on_batch`` hook the instant it lands.
+
+    Exists so a caller can persist accounting per batch rather than per run.
+    ``AzureTranslator.characters_used`` is per process and ``--max-characters``
+    is per invocation, so a job that runs more than once a month has to keep its
+    own month-to-date total; ``src/llm/translation_ledger.py`` is that total and
+    this is how it is fed. A crash then loses at most one batch of accounting
+    instead of the whole run's.
+
+    Azure characters and Gemini characters are separate fields and are never
+    summed here, for the same reason ``TranslationBackfillReport`` keeps
+    ``characters_spent`` and ``gemini_fallback_characters`` apart: only one of
+    them consumes the Azure F0 allowance.
+    """
+
+    #: The German text of every carrier in this batch, in order. Carried
+    #: because the ordering of ``still_todo`` is the only other way a caller
+    #: could work out WHICH carriers a batch covered, and inferring it from
+    #: counts breaks the moment a batch in front of it fails: a failed batch
+    #: advances the cursor without translating anything.
+    texts: tuple[str, ...]
+    source: Literal["azure", "gemini"]
+    azure_characters: int
+    gemini_characters: int
+
+    @property
+    def carriers(self) -> int:
+        return len(self.texts)
+
+    @property
+    def characters(self) -> int:
+        """Both providers' characters together. What the RUN's own budget
+        bounds, as opposed to what the F0 allowance is charged."""
+        return self.azure_characters + self.gemini_characters
 
 
 def tatoeba_policy_sentence(trust_tatoeba: bool) -> str:
@@ -355,6 +428,12 @@ class TranslationBackfillReport:
     trust_tatoeba: bool = DEFAULT_TRUST_TATOEBA
     carriers_seen: int = 0
     already_in_store: int = 0
+    # Carriers that ARE in the store but whose stored source this run distrusts
+    # (``distrust_stored_sources``), so they were re-translated and the record
+    # overwritten. Counted separately from ``already_in_store``, which now means
+    # "in the store with a source this run trusts", so the two numbers together
+    # still add up to the carriers the store held.
+    replacing_distrusted: int = 0
     from_tatoeba: int = 0
     machine_translated: int = 0
     skipped_for_budget: int = 0
@@ -385,6 +464,7 @@ class TranslationBackfillReport:
             "tatoeba_policy": tatoeba_policy_sentence(self.trust_tatoeba),
             "carriers_seen": self.carriers_seen,
             "already_in_store": self.already_in_store,
+            "replacing_distrusted": self.replacing_distrusted,
             "from_tatoeba": self.from_tatoeba,
             "machine_translated": self.machine_translated,
             "skipped_for_budget": self.skipped_for_budget,
@@ -677,12 +757,26 @@ def _run_machine_translation(
     store: dict[str, TranslationRecord],
     report: TranslationBackfillReport,
     now: datetime,
+    on_batch: Callable[[BatchOutcome], None] | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> None:
     """Step 3 of the module docstring's priority order. Mutates ``store``
     and ``report`` in place. Stops cleanly at a whole-batch boundary once
     the next batch would exceed ``max_characters`` of SUCCESSFUL
     translation (module docstring, "The character budget is per run") --
-    never attempts a partial batch to top up the remainder."""
+    never attempts a partial batch to top up the remainder.
+
+    ``checkpoint`` (if given) is called after a successful batch to flush the
+    store to disk, and ``on_batch`` immediately after it. **That order is
+    deliberate.** Checkpoint first, then account: a crash between the two
+    leaves work done and not charged, which the next run simply skips because
+    the store already holds it. The reverse order loses the work and bills the
+    month for it. Neither hook is called for a batch that failed, because a
+    failed batch spent no Azure quota and wrote no record.
+
+    Both default to ``None``, so the nightly ``--carriers-from`` path is
+    unchanged: one store write at the end of ``run_backfill`` and no ledger.
+    """
     if translator is None or not still_todo:
         report.skipped_for_budget += len(still_todo)
         return
@@ -763,6 +857,18 @@ def _run_machine_translation(
         translated_here += len(chunk)
         index += len(chunk)
 
+        if checkpoint is not None:
+            checkpoint()
+        if on_batch is not None:
+            on_batch(
+                BatchOutcome(
+                    texts=tuple(line.text for line in chunk),
+                    source=source,
+                    azure_characters=chunk_chars if source == "azure" else 0,
+                    gemini_characters=0 if source == "azure" else chunk_chars,
+                )
+            )
+
     report.skipped_for_budget += len(still_todo) - translated_here - failed_here
 
     if isinstance(translator, FallbackTranslator):
@@ -783,6 +889,9 @@ def run_backfill(
     limit_per_source: int,
     carriers_source: str = "corpora",
     trust_tatoeba: bool = DEFAULT_TRUST_TATOEBA,
+    distrust_stored_sources: frozenset[str] = NO_DISTRUSTED_SOURCES,
+    on_batch: Callable[[BatchOutcome], None] | None = None,
+    checkpoint_every: int = 0,
     now: datetime | None = None,
 ) -> TranslationBackfillReport:
     """The whole backfill, independent of argparse, the environment, and
@@ -798,8 +907,33 @@ def run_backfill(
     ``trust_tatoeba`` defaults to ``False`` here and not only at the argparse
     layer, deliberately: the safe reading of this function's contract is the
     one that does not put a Tatoeba translation in front of a learner, so a
-    caller that wants that join has to ask for it in as many words."""
+    caller that wants that join has to ask for it in as many words.
+
+    ``distrust_stored_sources`` names store ``source`` values to treat as a
+    cache MISS rather than as done. Empty by default, so this script's own
+    long-standing contract ("anything in the store is finished") is unchanged.
+    ``scripts/monthly_translation_topup.py`` passes ``{"tatoeba"}``: those
+    records are 5.3's corpus and are never deleted, but they are not a trusted
+    gloss, and the standing job's whole purpose is to replace them. Asking for
+    the Tatoeba JOIN and the Tatoeba DISTRUST in one call is a contradiction
+    (the join would immediately rewrite what the distrust just queued for
+    replacement) and raises rather than silently picking one.
+
+    ``on_batch`` and ``checkpoint_every`` are how a caller that runs more than
+    once a month keeps its own accounting. ``on_batch`` fires once per
+    successful batch with a ``BatchOutcome``; ``checkpoint_every`` N flushes the
+    store to disk every N successful batches (0 disables it, which is the
+    nightly path's unchanged behaviour of one write at the end). Flushing costs
+    a full rewrite of the store each time, so N trades crash-loss against I/O:
+    at N=10 a killed run loses at most ten batches of glosses that the ledger
+    has already charged the month for."""
     ref_time = now or datetime.now(UTC)
+    if trust_tatoeba and "tatoeba" in distrust_stored_sources:
+        raise ValueError(
+            "trust_tatoeba=True with 'tatoeba' in distrust_stored_sources is "
+            "contradictory: the join would refill the very records the distrust "
+            "queued for machine translation. Pick one."
+        )
     report = TranslationBackfillReport(
         seed=seed,
         limit_per_source=limit_per_source,
@@ -825,8 +959,20 @@ def run_backfill(
     report.carriers_seen = len(carriers)
 
     store = _load_store(store_path)
-    todo = [line for text, line in carriers.items() if text not in store]
-    report.already_in_store = len(carriers) - len(todo)
+    todo: list[CorpusLine] = []
+    for text, line in carriers.items():
+        record = store.get(text)
+        if record is None:
+            todo.append(line)
+        elif record.source in distrust_stored_sources:
+            # In the store, but not with a source this run trusts. Queued for
+            # re-translation; the existing record stays on disk untouched until
+            # a new translation actually lands to overwrite it, so a run that
+            # never gets this far leaves 5.3's corpus exactly as it was.
+            todo.append(line)
+            report.replacing_distrusted += 1
+        else:
+            report.already_in_store += 1
 
     if trust_tatoeba:
         shortest_by_id, shortest_by_text = _shortest_translations(tatoeba_pairs)
@@ -841,6 +987,17 @@ def run_backfill(
         # are, for feature 5.3 (module docstring).
         still_todo = todo
 
+    checkpoint: Callable[[], None] | None = None
+    if checkpoint_every > 0:
+        batches_since_flush = 0
+
+        def checkpoint() -> None:
+            nonlocal batches_since_flush
+            batches_since_flush += 1
+            if batches_since_flush >= checkpoint_every:
+                batches_since_flush = 0
+                _write_store_atomic(store_path, store)
+
     _run_machine_translation(
         still_todo,
         translator,
@@ -849,6 +1006,8 @@ def run_backfill(
         store=store,
         report=report,
         now=ref_time,
+        on_batch=on_batch,
+        checkpoint=checkpoint,
     )
 
     if report.from_tatoeba or report.machine_translated:

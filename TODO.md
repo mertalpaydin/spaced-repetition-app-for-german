@@ -361,6 +361,13 @@ Not tasks. Do not "fix" these without a decision from the owner.
   topics are corpus-sourced, which are generated, and the rule for choosing.
   That becomes the standing generation policy.
 
+- [ ] **2.6 Schedule the monthly translation job on the owner's machine.**
+  Built and tested; not yet scheduled, and it is the only remaining step.
+  `scripts/monthly_translation_topup.py`, set up per
+  `docs/monthly-translation-job.md` (one `schtasks /Create` line). Until that
+  task exists in Windows Task Scheduler, nothing runs and the corpus does not
+  progress. See section 5.1 for the arithmetic and the standing job's contract.
+
 ---
 
 ## 3. Owner changes that must never be overturned
@@ -550,6 +557,48 @@ Decided (section 4). Three parts, in order:
    whole-corpus mode plus `--trust-tatoeba` remains 5.3's cheap rebuild
    path, and the 200,555 free Tatoeba records stay on disk for it.
 
+   **Superseded again on 2026-08-27, by the owner: the whole corpus is to be
+   translated, on a standing schedule.** Verbatim: *"I want to run a azure
+   free translation run every week or month whenever limits are reset so that
+   we maintain a healthy translated corpus. I do not want to use potentially
+   bad translations for anything."* That is a wider scope than "translate per
+   build", and it applies everywhere, 5.3 included, not just to exercises.
+
+   The arithmetic, measured 2026-08-27:
+
+   | | |
+   |---|---|
+   | Distinct carriers | 450,490 |
+   | Corpus characters | 26,933,263 (mean 59.8) |
+   | Store: Tatoeba (distrusted) / azure / gemini | 200,555 / 1,139 / 100 |
+   | **Carriers with no trusted machine translation** | **449,251** |
+   | Azure F0 allowance | 2,000,000 characters/month |
+   | **Whole corpus at that rate** | **13.4 months** (26,933,263 / 2,000,000 = 13.47, so 14 monthly runs) |
+
+   Built as `scripts/monthly_translation_topup.py`, backed by
+   `src/llm/translation_ledger.py`. What it adds over
+   `build_translations.py`, which could not have been scheduled:
+
+   - **Month-to-date spend survives the process.**
+     `AzureTranslator.characters_used` is per process and `--max-characters`
+     is per invocation, so before this a second run in one month spent the
+     allowance twice and found out by taking an HTTP 403 mid-batch. The
+     ledger is `data/fixtures/translations/azure_f0_ledger.json`, keyed
+     `YYYY-MM` in UTC, written atomically after every successful batch.
+     Rollover is automatic: an unseen month has spent nothing.
+   - **Two passes, in order.** Carriers with no gloss at all, then carriers
+     whose stored gloss is Tatoeba's. Order inside each pass is a keyed
+     BLAKE2b of the sentence, not a shuffle, so a carrier's rank does not move
+     when the corpus grows and thirteen consecutive runs walk forward instead
+     of re-drawing overlapping slices.
+   - **The report says how many months are left**, recomputed from what is
+     actually still untrusted rather than quoted from this table.
+
+   Not yet scheduled: see 2.6 and `docs/monthly-translation-job.md`.
+   `build_translations.py` is unchanged for its own two modes; the monthly job
+   imports its store reader, store writer, translator construction and batch
+   loop rather than copying any of them.
+
 3. **Show the translation in the app.** Done. It renders under the German
    sentence, before the learner answers and still visible after grading,
    and an item without a gloss renders nothing at all.
@@ -610,3 +659,13 @@ whether to add it to the vocabulary list.
 Needs no dictionary at all. It reuses the corpus and the translations 5.1
 already produces, plus the lemmatiser we already have to match inflected
 forms back to one word. Blocked on 5.1 only.
+
+**Scope change, 2026-08-27.** The earlier plan was that 5.3 would be fed by
+the 200,555 free Tatoeba glosses, because 5.3 "needs breadth far more than it
+needs precision". The owner's standing-job instruction overrides that: *"I do
+not want to use potentially bad translations for anything."* The monthly job
+(section 5.1, item 2.6) therefore replaces those glosses too, at the rate of
+about 33,000 carriers a month, and 5.3 reads the same store as the exercise
+path with no separate trust setting. The Tatoeba records still are not
+deleted, and each one is only overwritten when a machine translation actually
+lands, so 5.3's corpus shrinks at no point.
