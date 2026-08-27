@@ -89,7 +89,56 @@ nothing was written, so nothing needs undoing.
 
 Re-running this command is safe. Item ids are content hashes, so a second
 run reports `inserted: 0` and `skipped_already_present: <n>` rather than
-doubling the bank.
+doubling the bank. It also adds nothing: the sampler is deterministic on
+`--seed` and measures its per-topic quota against the current run's candidate
+pool, not against what is already in `bank.db`. To add more, raise
+`--per-topic-quota` (see "Topping up later").
+
+### Building it without spending anything
+
+`--free-lane-only` builds the client with `forbid_paid_lane=True`, so the run
+uses the unbilled Gemini project or stops:
+
+```bash
+uv run python -m scripts.step7_corpus_pilot \
+    --free-lane-only \
+    --limit 1000000 \
+    --per-topic-quota 25 \
+    --verification-passes 1 \
+    --verification-batch-size 5 \
+    --max-translation-characters 120000 \
+    --write-bank data/bank.db
+```
+
+It refuses to start unless `GEMINI_FREE_API_KEY` is set, and it will not fall
+back to `GEMINI_API_KEY`, which may belong to the billed project. Put the
+unbilled project's key in `.env`:
+
+```
+GEMINI_FREE_API_KEY=<the key from the UNBILLED Google Cloud project>
+```
+
+Two things to expect, both consequences of the free lane's daily request
+limit rather than of this flag:
+
+- **The run will probably need several days.** When the daily quota runs out,
+  `GeminiLlmClient` raises `PaidLaneForbiddenError`, every item reports
+  `not_run`, the bank write is refused and the exit code is 1. Re-run the same
+  command the next day: pass 1 replays every verdict already in
+  `.cache/llm` for free and spends the new day's quota only on what is left,
+  so each run gets further than the last until one finishes and writes the
+  bank.
+- **Use `--verification-passes 1` for this.** Pass 2 runs with the cache
+  bypassed on purpose (a cached second pass would replay pass 1 and measure
+  nothing), so it makes no progress across days: it has to complete its whole
+  245 requests inside one day's quota or not at all. With one pass, the day
+  the cache is complete costs zero requests and the bank is written. Two-pass
+  verification is the better instrument and stays the recommended build when
+  paid spend is available.
+
+The translation side needs nothing: Azure F0 has no paid fallback path in
+this codebase, and this build spends about 75,600 of its 2,000,000 monthly
+characters.
 
 ---
 
