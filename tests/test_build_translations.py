@@ -20,17 +20,22 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from scripts import build_translations
 from scripts.build_translations import (
+    CrossCorpusGlossError,
+    TranslationBackfillReport,
     TranslationRecord,
     _default_batch_size,
+    _fill_from_tatoeba,
     _load_store,
     _read_carriers_from_file,
     _shortest_translations,
     _write_store_atomic,
     main,
+    reject_cross_corpus_gloss,
     run_backfill,
 )
-from scripts.corpus_reading import CorpusLine
+from scripts.corpus_reading import SOURCE_LEIPZIG, SOURCE_TATOEBA, CorpusLine
 from scripts.eval_tatoeba_translation_quality import Pair
 from src.llm.translation import (
     AZURE_MAX_BATCH,
@@ -40,8 +45,8 @@ from src.llm.translation import (
 )
 
 
-def _carrier(text: str, line_id: str = "") -> CorpusLine:
-    return CorpusLine(line_id=line_id, text=text)
+def _carrier(text: str, line_id: str = "", source: str = "") -> CorpusLine:
+    return CorpusLine(line_id=line_id, text=text, source=source)
 
 
 @dataclass
@@ -733,3 +738,217 @@ def test_load_store_malformed_line_skipped_not_fatal(tmp_path: Path) -> None:
     )
     store = _load_store(store_path)
     assert set(store) == {"a", "c"}
+
+
+# ==============================================================================
+# The cross-corpus id collision
+#
+# ``shortest_by_id`` is keyed on TATOEBA sentence ids. ``CorpusLine.line_id``
+# is whatever id the line's own corpus gave it. Leipzig line ids and Tatoeba
+# sentence ids are both bare integers in the same numeric range, so an
+# unfenced id join reads one as the other. Measured against the owner's real
+# store: 7,365 of the 7,499 Leipzig carriers in it (98.2%) were labelled
+# source="tatoeba" and therefore wrong, and two of them reached the last
+# pilot's 430 accepted items.
+#
+# The numbers below are the real ones from that bug, not invented.
+# ==============================================================================
+
+_GRAZ = (
+    "Genauere Untersuchungen in Graz haben ergeben, dass die Verletzung schlimmer ist als gedacht."
+)
+_CROSSED = "She crossed the street."
+
+
+def test_run_backfill_leipzig_carrier_colliding_with_a_tatoeba_id_gets_no_tatoeba_gloss(
+    tmp_path: Path,
+) -> None:
+    """The exact reported defect. Leipzig line 541845 and Tatoeba sentence
+    541845 are unrelated sentences that share a number; the Leipzig carrier
+    must not receive the Tatoeba English, and must instead fall through to
+    the machine-translation queue like any other unglossed carrier."""
+    store_path = tmp_path / "de_en.jsonl"
+    carriers = {_GRAZ: _carrier(_GRAZ, "541845", SOURCE_LEIPZIG)}
+    pairs = [Pair(german_id="541845", german="Sie überquerte die Straße.", english=_CROSSED)]
+    translator = FakeTranslator()
+
+    report = run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="gemini_only",
+        tatoeba_pairs=pairs,
+        max_characters=10_000,
+        batch_size=100,
+        seed=7,
+        limit_per_source=1000,
+    )
+
+    assert report.from_tatoeba == 0
+    # Not merely "no wrong gloss": it went to the translator, which is where
+    # a carrier with no free English is supposed to go.
+    assert report.machine_translated == 1
+    assert translator.calls == [[_GRAZ]]
+
+    store = _load_store(store_path)
+    assert store[_GRAZ].english != _CROSSED
+    assert store[_GRAZ].source == "gemini"
+
+
+def test_run_backfill_leipzig_carrier_colliding_with_a_tatoeba_id_and_no_translator_stays_absent(
+    tmp_path: Path,
+) -> None:
+    """With no translator configured the collision must leave the carrier
+    with NO record at all. An absent gloss is a state the pipeline handles;
+    a wrong one is read by the verifier as if it were true."""
+    store_path = tmp_path / "de_en.jsonl"
+    carriers = {_GRAZ: _carrier(_GRAZ, "541845", SOURCE_LEIPZIG)}
+    pairs = [Pair(german_id="541845", german="Sie überquerte die Straße.", english=_CROSSED)]
+
+    report = run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=None,
+        translator_mode="none",
+        tatoeba_pairs=pairs,
+        max_characters=10_000,
+        batch_size=100,
+        seed=7,
+        limit_per_source=1000,
+    )
+
+    assert report.from_tatoeba == 0
+    assert report.skipped_for_budget == 1
+    assert _load_store(store_path) == {}
+
+
+def test_run_backfill_tatoeba_carrier_still_gets_its_gloss_by_id(tmp_path: Path) -> None:
+    """The fix must not cost the coverage that justified the feature. The id
+    join is most of Tatoeba's own measured 61.7% coverage, so a Tatoeba
+    carrier whose TEXT differs from the pairs export (a re-encoded quote
+    character, here) must still match on its id and cost nothing."""
+    store_path = tmp_path / "de_en.jsonl"
+    corpus_text = "Er sagte «Hallo» und ging dann wieder weg."
+    export_text = 'Er sagte "Hallo" und ging dann wieder weg.'
+    carriers = {corpus_text: _carrier(corpus_text, "541845", SOURCE_TATOEBA)}
+    pairs = [Pair(german_id="541845", german=export_text, english="He said hello and left.")]
+    translator = FakeTranslator()
+
+    report = run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="gemini_only",
+        tatoeba_pairs=pairs,
+        max_characters=10_000,
+        batch_size=100,
+        seed=7,
+        limit_per_source=1000,
+    )
+
+    assert report.from_tatoeba == 1
+    assert report.machine_translated == 0
+    assert translator.calls == []
+    assert _load_store(store_path)[corpus_text].english == "He said hello and left."
+
+
+def test_run_backfill_leipzig_carrier_matching_tatoeba_by_text_still_gets_that_gloss(
+    tmp_path: Path,
+) -> None:
+    """Text matching stays open to every carrier regardless of source. The
+    German string is its own proof: a sentence that genuinely exists in
+    Tatoeba genuinely has that English, whichever corpus this particular copy
+    was read from. Only the ID join is namespaced."""
+    store_path = tmp_path / "de_en.jsonl"
+    shared = "Der Hund läuft schnell durch den grünen Park."
+    carriers = {shared: _carrier(shared, "541845", SOURCE_LEIPZIG)}
+    pairs = [
+        Pair(german_id="9999", german=shared, english="The dog runs fast through the green park."),
+        Pair(german_id="541845", german="Sie überquerte die Straße.", english=_CROSSED),
+    ]
+    translator = FakeTranslator()
+
+    report = run_backfill(
+        carriers=carriers,
+        store_path=store_path,
+        translator=translator,
+        translator_mode="gemini_only",
+        tatoeba_pairs=pairs,
+        max_characters=10_000,
+        batch_size=100,
+        seed=7,
+        limit_per_source=1000,
+    )
+
+    assert report.from_tatoeba == 1
+    assert translator.calls == []
+    record = _load_store(store_path)[shared]
+    assert record.english == "The dog runs fast through the green park."
+    assert record.source == "tatoeba"
+
+
+def test_reject_cross_corpus_gloss_leipzig_carrier_without_a_text_match_raises() -> None:
+    """The tripwire itself. ``_fill_from_tatoeba``'s source fence means this
+    state cannot arise through the fixed code path, which is exactly why the
+    check is tested directly rather than through a branch the fix makes
+    unreachable: it exists to fire if the fence is ever removed again, and a
+    guard nobody has ever seen raise is a guard nobody knows works."""
+    with pytest.raises(CrossCorpusGlossError) as exc_info:
+        reject_cross_corpus_gloss(_carrier(_GRAZ, "541845", SOURCE_LEIPZIG), _CROSSED, {})
+
+    message = str(exc_info.value)
+    assert "541845" in message
+    assert SOURCE_LEIPZIG in message
+    assert _CROSSED in message
+
+
+def test_reject_cross_corpus_gloss_leipzig_carrier_with_a_text_match_is_allowed() -> None:
+    """A text match is self-verifying, so it is legitimate from any corpus."""
+    shared = "Der Hund läuft schnell durch den grünen Park."
+    reject_cross_corpus_gloss(
+        _carrier(shared, "541845", SOURCE_LEIPZIG), "The dog runs.", {shared: "The dog runs."}
+    )
+
+
+def test_reject_cross_corpus_gloss_tatoeba_carrier_is_allowed() -> None:
+    """An id match on a Tatoeba carrier is the join working as intended."""
+    reject_cross_corpus_gloss(
+        _carrier("Sie überquerte die Straße.", "541845", SOURCE_TATOEBA), _CROSSED, {}
+    )
+
+
+def test_reject_cross_corpus_gloss_unknown_source_is_allowed() -> None:
+    """``--carriers-from`` produces carriers with no source at all. Those can
+    only ever have matched by text, because the id join refuses a carrier
+    whose corpus is unconfirmed, so they are not the contradiction this
+    guard is looking for."""
+    reject_cross_corpus_gloss(_carrier("Ich bin müde.", ""), "I am tired.", {})
+
+
+def test_fill_from_tatoeba_runs_the_guard_on_every_stored_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The guard is only worth anything if it actually sits on the write
+    path. Pinned here so a future refactor cannot quietly drop the call and
+    still pass every other test in this file."""
+    seen: list[CorpusLine] = []
+
+    def _spy(line: CorpusLine, english: str, shortest_by_text: dict[str, str]) -> None:
+        seen.append(line)
+
+    monkeypatch.setattr(build_translations, "reject_cross_corpus_gloss", _spy)
+    report = TranslationBackfillReport(
+        seed=0, limit_per_source=0, max_characters=0, batch_size=1, store_path=str(tmp_path)
+    )
+    line = _carrier("Ich bin müde.", "1", SOURCE_TATOEBA)
+
+    _fill_from_tatoeba(
+        [line],
+        {"1": "I am tired."},
+        {},
+        {},
+        report,
+        now=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+    assert seen == [line]

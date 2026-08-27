@@ -34,6 +34,26 @@ MAX_WORDS = 18
 # ``<id>\t<lang>\t<sentence>``.
 CorpusFormat = str
 
+# The corpora this project reads, named. These are the values that go in
+# ``CorpusLine.source``, and they exist because a line id ALONE is not an
+# identity: Leipzig line ids and Tatoeba sentence ids are both bare integers
+# in the same numeric range, so ``line_id == "541845"`` says nothing at all
+# about which corpus the line came from. Any cross-corpus join keyed on
+# ``line_id`` must therefore check ``source`` as well, or it will silently
+# match a Leipzig line against an unrelated Tatoeba sentence that happens to
+# share a number. That is not hypothetical: it shipped, and it put "She
+# crossed the street." on a Leipzig sentence about an injury in Graz.
+SOURCE_TATOEBA = "tatoeba"
+SOURCE_LEIPZIG = "leipzig"
+
+# ``lines`` is a shape, not a corpus: Leipzig uses it, but so would any
+# plain sentence file, so the format alone cannot name a source. Only
+# ``tatoeba`` is self-identifying, which is why it is the one entry here.
+# Everything else must be told what it is via ``read_corpus_lines(...,
+# source=...)``, and an untold source stays ``""`` -- unknown, never
+# guessed, and never eligible for an id-keyed cross-corpus join.
+_SOURCE_BY_FORMAT: dict[CorpusFormat, str] = {"tatoeba": SOURCE_TATOEBA}
+
 
 # Where the staged corpora live, in preference order. The repository's own
 # ``data/raw/_extract/`` comes FIRST: that is where a checkout actually keeps
@@ -72,10 +92,18 @@ def default_corpus_path(filename: str) -> Path:
 class CorpusLine:
     """One corpus line that survived the length-plausibility filter: its own
     id (the corpus's own line/sentence id, empty string if the format has
-    none) and its text."""
+    none), its text, and WHICH CORPUS it came from.
+
+    ``source`` defaults to ``""`` -- unknown -- so every existing
+    construction keeps working, and so that "unknown" is the safe value: an
+    id-keyed cross-corpus join must refuse a line whose source it cannot
+    confirm rather than assume the id belongs to its own namespace. See
+    ``SOURCE_TATOEBA`` above for the collision this field exists to stop.
+    """
 
     line_id: str
     text: str
+    source: str = ""
 
 
 def is_plausible_carrier(text: str) -> bool:
@@ -110,14 +138,24 @@ def _split_line(text: str, fmt: CorpusFormat) -> tuple[str, str] | None:
     return "", text
 
 
-def read_corpus_lines(path: Path, fmt: CorpusFormat, limit: int, seed: int) -> list[CorpusLine]:
+def read_corpus_lines(
+    path: Path, fmt: CorpusFormat, limit: int, seed: int, source: str | None = None
+) -> list[CorpusLine]:
     """Read up to ``limit`` length-plausible ``CorpusLine``s from ``path``.
 
     Reads the whole file, filters, then samples, rather than taking the first
     ``limit`` lines: both corpora this project reads are ordered (Tatoeba by
     contribution id, Leipzig by source document), so a prefix is not a sample
     of the corpus.
+
+    ``source`` names the corpus every returned line came from. Left unset it
+    is derived from ``fmt``, which can only name Tatoeba (``_SOURCE_BY_
+    FORMAT``); a caller reading Leipzig, or any other plain sentence file,
+    passes ``source=SOURCE_LEIPZIG`` explicitly. An underived, unpassed
+    source stays ``""``, which every id-keyed join treats as "do not join by
+    id".
     """
+    line_source = source if source is not None else _SOURCE_BY_FORMAT.get(fmt, "")
     raw: list[CorpusLine] = []
     with path.open(encoding="utf-8", errors="replace") as handle:
         for line in handle:
@@ -130,7 +168,7 @@ def read_corpus_lines(path: Path, fmt: CorpusFormat, limit: int, seed: int) -> l
             line_id, sentence = split
             if not is_plausible_carrier(sentence):
                 continue
-            raw.append(CorpusLine(line_id, sentence))
+            raw.append(CorpusLine(line_id, sentence, line_source))
     random.Random(seed).shuffle(raw)
     return raw[:limit]
 

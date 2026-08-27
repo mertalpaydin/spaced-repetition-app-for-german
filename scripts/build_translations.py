@@ -49,6 +49,14 @@ so a stored gloss can be traced back to the run shape that wrote it.
    where tense and determiners drift. This step costs nothing: it is a
    dictionary lookup, not an API call, so it is not subject to
    ``--max-characters`` and always runs to completion in one pass.
+   **The id half of that join belongs to Tatoeba carriers only.**
+   ``shortest_by_id`` is keyed on Tatoeba sentence ids, and a Leipzig line id
+   is a different namespace that happens to use the same integers, so the
+   join checks ``CorpusLine.source`` before it consults an id at all. Text
+   matching stays open to every carrier because the German string is its own
+   proof. See ``_fill_from_tatoeba`` for the measured damage the unfenced
+   version did.
+
 3. **The ``Translator`` from ``src/llm/translation.py``** (Azure primary,
    Gemini fallback) for everything left over -- all of Leipzig, plus the
    38.3% of Tatoeba's own carriers that source measured as untranslated.
@@ -207,7 +215,13 @@ from src.llm.translation import (
     azure_from_env,
 )
 
-from scripts.corpus_reading import CorpusLine, default_corpus_path, read_corpus_lines
+from scripts.corpus_reading import (
+    SOURCE_LEIPZIG,
+    SOURCE_TATOEBA,
+    CorpusLine,
+    default_corpus_path,
+    read_corpus_lines,
+)
 from scripts.eval_tatoeba_translation_quality import Pair, read_links_and_english, read_pairs_file
 
 # Matches step7_corpus_pilot.py's and build_verb_government.py's own defaults
@@ -317,15 +331,21 @@ class TranslationBackfillReport:
         path.write_text(json.dumps(self.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _read_one_corpus(path: Path, fmt: str, label: str, limit: int, seed: int) -> list[CorpusLine]:
+def _read_one_corpus(
+    path: Path, fmt: str, label: str, limit: int, seed: int, source: str
+) -> list[CorpusLine]:
     """One corpus's own lines, or an empty list with a warning printed if the
     file is missing -- degrades the run, never crashes it, matching
     ``step7_corpus_pilot.py``'s and ``build_verb_government.py``'s own
-    ``_read_one_corpus``."""
+    ``_read_one_corpus``.
+
+    ``source`` is passed explicitly rather than derived, because ``fmt``
+    cannot name a corpus for the ``lines`` shape and ``_fill_from_tatoeba``'s
+    id join keys on exactly this field."""
     if not path.exists():
         print(f"  WARNING: {label} corpus not found at {path}; skipping this source.")
         return []
-    lines = read_corpus_lines(path, fmt, limit, seed)
+    lines = read_corpus_lines(path, fmt, limit, seed, source=source)
     print(f"  {label}: {len(lines):,} length-plausible lines read from {path}")
     return lines
 
@@ -343,10 +363,13 @@ def _read_carriers_from_file(path: Path) -> tuple[dict[str, CorpusLine], int]:
     literally as the sentence, so German text that merely contains braces or
     digits is unaffected.
 
-    ``line_id`` is the empty string throughout: this file format carries no
-    corpus id, and ``_fill_from_tatoeba`` already falls back to an exact-text
-    match when a carrier has no id, so the Tatoeba join still works in this
-    mode.
+    ``line_id`` and ``source`` are the empty string throughout: this file
+    format carries neither a corpus id nor a corpus name, and
+    ``_fill_from_tatoeba`` falls back to an exact-text match for a carrier
+    without both, so the Tatoeba join still works in this mode. An empty
+    ``source`` is deliberately not "assume Tatoeba": a carrier list can hold
+    sentences from anywhere, and the id join is only safe for a line whose
+    corpus is confirmed.
 
     Returns the carriers AND the number of JSON objects skipped for having no
     usable ``german`` key, because silence there is the dangerous failure
@@ -382,15 +405,18 @@ def _shortest_translations(pairs: list[Pair]) -> tuple[dict[str, str], dict[str,
     """Group Tatoeba pairs by id and by exact German text, keeping the
     SHORTEST English translation in each group (module docstring, TODO.md
     section 4's owner decision). Both groupings are built, not just text,
-    because a carrier is matched by id first and falls back to text --
-    mirroring ``eval_tatoeba_translation_quality.py``'s own ``covered``/
-    ``covered_pairs`` join. The two readers this script reuses draw German
-    text through the identical column of the identical staged file this
-    script also reads as corpus carriers, so an id match and a text match
-    normally agree; keeping both catches the one case where they would not
-    -- a ``--pairs`` custom export re-encoding the text slightly differently
-    from ``scripts/corpus_reading.py``'s own read of the raw per-language
-    file (e.g. differing quote-character normalisation)."""
+    because a TATOEBA carrier is matched by id first and falls back to text.
+    The two readers this script reuses draw German text through the
+    identical column of the identical staged file this script also reads as
+    corpus carriers, so an id match and a text match normally agree; keeping
+    both catches the one case where they would not -- a ``--pairs`` custom
+    export re-encoding the text slightly differently from
+    ``scripts/corpus_reading.py``'s own read of the raw per-language file
+    (e.g. differing quote-character normalisation).
+
+    ``shortest_by_id`` is meaningful for Tatoeba carriers and no others:
+    every key in it is a Tatoeba sentence id. ``_fill_from_tatoeba`` is
+    where that is enforced."""
     by_id: dict[str, list[str]] = collections.defaultdict(list)
     by_text: dict[str, list[str]] = collections.defaultdict(list)
     for pair in pairs:
@@ -452,6 +478,55 @@ def _write_store_atomic(path: Path, store: dict[str, TranslationRecord]) -> None
         raise
 
 
+class CrossCorpusGlossError(RuntimeError):
+    """A carrier from one corpus was about to be given another corpus's
+    English by id. See ``_fill_from_tatoeba`` for why this is a bug and not
+    a data condition."""
+
+
+def reject_cross_corpus_gloss(
+    line: CorpusLine, english: str, shortest_by_text: dict[str, str]
+) -> None:
+    """Raise unless this carrier is entitled to a Tatoeba-sourced gloss.
+
+    A store record whose German is a Leipzig carrier and whose ``source`` is
+    ``"tatoeba"`` is a contradiction in terms unless that exact German text
+    genuinely appears in the Tatoeba pairs. This function is that sentence,
+    executable, and it runs immediately before every single
+    ``source="tatoeba"`` record is written -- the earliest point at which the
+    contradiction exists at all, and the loudest, since it raises rather than
+    warns.
+
+    Two things are deliberately allowed through:
+
+    * a carrier whose ``source`` is ``""``. That means "unknown", which is
+      what ``--carriers-from`` produces and what any pre-``source``
+      construction produces. Such a carrier can only ever have matched by
+      text anyway, because ``_fill_from_tatoeba`` refuses the id join
+      without a confirmed Tatoeba source.
+    * a carrier from any corpus whose exact text IS in ``shortest_by_text``.
+      A text match is self-verifying: the German string is the key, so the
+      English really is a translation of this sentence no matter which
+      corpus this copy of it was read from.
+
+    Everything else is the bug. ``_fill_from_tatoeba``'s own source fence
+    means this cannot fire today; that is the point. It is the tripwire that
+    makes reintroducing the unfenced id join fail on the first collision
+    instead of quietly poisoning thousands of glosses that only a hand audit
+    of accepted exercises would ever surface.
+    """
+    if not line.source or line.source == SOURCE_TATOEBA:
+        return
+    if line.text in shortest_by_text:
+        return
+    raise CrossCorpusGlossError(
+        f"carrier from corpus {line.source!r} (line id {line.line_id!r}) was about "
+        "to be given a Tatoeba gloss without an exact-text match. A Tatoeba "
+        "sentence id means nothing in another corpus's id namespace: "
+        f"{line.text!r} -> {english!r}"
+    )
+
+
 def _fill_from_tatoeba(
     todo: list[CorpusLine],
     shortest_by_id: dict[str, str],
@@ -462,20 +537,48 @@ def _fill_from_tatoeba(
     now: datetime,
 ) -> list[CorpusLine]:
     """Step 2 of the module docstring's priority order: match every carrier
-    still without a store entry against the Tatoeba pairs, id first then
-    text (matching ``eval_tatoeba_translation_quality.py``'s own join).
-    Mutates ``store`` and ``report`` in place; returns the carriers that are
-    STILL untranslated, for the machine-translation step."""
+    still without a store entry against the Tatoeba pairs. Mutates ``store``
+    and ``report`` in place; returns the carriers that are STILL
+    untranslated, for the machine-translation step.
+
+    **The id join is Tatoeba's alone.** ``shortest_by_id`` is keyed on
+    TATOEBA SENTENCE IDS; ``CorpusLine.line_id`` is whatever id the line's
+    own corpus gave it. Leipzig line ids and Tatoeba sentence ids are both
+    bare integers in the same numeric range and mean nothing to each other,
+    so consulting ``shortest_by_id`` for a Leipzig carrier is not a lookup,
+    it is a coincidence. This module's own docstring already said as much
+    ("a Tatoeba id and a Leipzig id do not even share a namespace") while
+    the join here ignored it, and the result shipped: Leipzig line 541845,
+    "Genauere Untersuchungen in Graz haben ergeben, dass die Verletzung
+    schlimmer ist als gedacht.", was stored with Tatoeba sentence 541845's
+    English, "She crossed the street." Measured against the owner's real
+    store, 7,365 of the 7,499 Leipzig carriers in it, 98.2%, were labelled
+    ``source="tatoeba"`` and therefore wrong; two of them reached the last
+    pilot's 430 accepted items, and the verifier now READS the gloss when
+    judging answer uniqueness, so a poisoned gloss corrupts a verification
+    decision as well as a display string.
+
+    The id join is NOT deleted, only fenced. It does most of the work behind
+    Tatoeba's own 61.7% coverage, and dropping it would cost genuine glosses
+    for no reason: for a carrier that really came from Tatoeba, an id match
+    is exactly right.
+
+    Text matching stays open to every carrier regardless of source. A text
+    match is self-verifying in a way an id match is not: the German string
+    itself is the key, so a Leipzig sentence that also happens to exist in
+    Tatoeba genuinely does have that English.
+    """
     still_todo: list[CorpusLine] = []
     for line in todo:
         english = None
-        if line.line_id:
+        if line.line_id and line.source == SOURCE_TATOEBA:
             english = shortest_by_id.get(line.line_id)
         if english is None:
             english = shortest_by_text.get(line.text)
         if english is None:
             still_todo.append(line)
             continue
+        reject_cross_corpus_gloss(line, english, shortest_by_text)
         store[line.text] = TranslationRecord(
             german=line.text, english=english, source="tatoeba", written_at=now
         )
@@ -796,10 +899,14 @@ def main() -> int:
             )
     else:
         if not args.skip_tatoeba:
-            for line in _read_one_corpus(args.tatoeba, "tatoeba", "Tatoeba", args.limit, args.seed):
+            for line in _read_one_corpus(
+                args.tatoeba, "tatoeba", "Tatoeba", args.limit, args.seed, SOURCE_TATOEBA
+            ):
                 carriers.setdefault(line.text, line)
         if not args.skip_leipzig:
-            for line in _read_one_corpus(args.leipzig, "lines", "Leipzig", args.limit, args.seed):
+            for line in _read_one_corpus(
+                args.leipzig, "lines", "Leipzig", args.limit, args.seed, SOURCE_LEIPZIG
+            ):
                 carriers.setdefault(line.text, line)
 
     if not carriers:

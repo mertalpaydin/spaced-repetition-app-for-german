@@ -256,6 +256,31 @@ Not tasks. Do not "fix" these without a decision from the owner.
   not catch these is worse than no gloss check, because the verifier would
   then be relaxing its uniqueness judgment on evidence it never validated.
 
+- [ ] **2.2b Run the gloss purge on the owner's real store, then re-gloss.**
+  The cross-corpus id collision that poisoned it is fixed and the cleanup
+  tool is written and tested (`scripts/purge_mismatched_glosses.py`,
+  `docs/audits/fix-log.md`), but neither has been run against the real
+  `data/fixtures/translations/de_en.jsonl`, which does not exist in the
+  sandbox this was built in. Measured there by the owner: **7,365 of the
+  7,499 Leipzig carriers in the store, 98.2%, are labelled
+  `source="tatoeba"` and are therefore wrong**, because a Leipzig
+  sentence's text cannot legitimately come from Tatoeba unless that exact
+  sentence is in Tatoeba too. Two of them reached the last pilot's 430
+  accepted items:
+
+  - `Genauere Untersuchungen in Graz haben ergeben, dass die Verletzung
+    schlimmer ist als gedacht.` glossed `"She crossed the street."`
+  - `Jetzt gibt sie ein Update zu ihrem Alltag während der Chemotherapie.`
+    glossed `"Bye!"`
+
+  Sequence: `--dry-run` first and read the examples, then apply, then
+  re-run `build_translations.py --carriers-from` for the affected pilot so
+  the removed sentences get a real machine translation. **This blocks 2.2
+  and any re-audit of the last pilot**: the verifier now READS the gloss
+  and relaxes its uniqueness judgment against it, so until the purge runs,
+  every accepted-item count drawn from a Leipzig carrier rests on evidence
+  that may be an unrelated sentence.
+
 - [ ] **2.3 Get real numbers out of `scripts/eval_verifier.py`.** The
   adversarial set (38 confirmed defects, 31 confirmed clean) and the script
   both exist. They have never been run with a key, so the verifier's recall

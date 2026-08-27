@@ -361,7 +361,13 @@ from scripts.build_translations import (
 from scripts.build_translations import (
     DEFAULT_STORE_PATH as DEFAULT_TRANSLATION_STORE_PATH,
 )
-from scripts.corpus_reading import CorpusLine, default_corpus_path, read_corpus_lines
+from scripts.corpus_reading import (
+    SOURCE_LEIPZIG,
+    SOURCE_TATOEBA,
+    CorpusLine,
+    default_corpus_path,
+    read_corpus_lines,
+)
 
 DEFAULT_REVIEW_PATH = Path("data/corpus_pilot_review.jsonl")
 DEFAULT_REJECTED_PATH = Path("data/corpus_pilot_rejected.jsonl")
@@ -1041,17 +1047,22 @@ def _filter_candidates_by_topic_cefr(
 
 
 def _read_one_corpus(
-    path: Path, fmt: str, source_name: str, limit: int, seed: int
+    path: Path, fmt: str, source_name: str, limit: int, seed: int, source: str
 ) -> list[CorpusLine]:
     """One corpus's own lines, or an empty list with a warning printed if the
     file cannot be read -- a missing corpus degrades the run (fewer
     candidates, possibly more topic shortfalls), it never crashes it, so a
     caller missing one of the two files this script defaults to still gets a
-    real run over whichever it has."""
+    real run over whichever it has.
+
+    ``source_name`` is the human label in the warning; ``source`` is the
+    machine-readable corpus name stamped on every returned ``CorpusLine``,
+    which is what keeps a Leipzig line id out of a Tatoeba id lookup
+    downstream (``build_translations._fill_from_tatoeba``)."""
     if not path.exists():
         print(f"  WARNING: {source_name} corpus not found at {path}; skipping this source.")
         return []
-    return read_corpus_lines(path, fmt, limit, seed)
+    return read_corpus_lines(path, fmt, limit, seed, source=source)
 
 
 def _lemma_key(item: CandidateItem) -> str:
@@ -1408,7 +1419,15 @@ def _populate_glosses(
         if carrier is None or carrier in in_store_before:
             continue
         provenance = provenance_by_hash[item.source_sentence_id or ""]
-        needed.setdefault(carrier, CorpusLine(line_id=provenance.line_id, text=carrier))
+        # ``source`` is carried, not dropped: a CorpusLine that knows only
+        # its id is exactly what let a Leipzig line id be read as a Tatoeba
+        # sentence id in build_translations._fill_from_tatoeba. This path
+        # only reaches the machine translator today, but the field is what
+        # makes that safe rather than lucky.
+        needed.setdefault(
+            carrier,
+            CorpusLine(line_id=provenance.line_id, text=carrier, source=provenance.source),
+        )
     report.carriers_needing_translation = len(needed)
 
     if needed:
@@ -1663,13 +1682,17 @@ def main() -> int:
 
     all_lines: list[tuple[str, CorpusLine]] = []
     if not args.skip_tatoeba:
-        lines = _read_one_corpus(args.tatoeba, "tatoeba", "Tatoeba", args.limit, args.seed)
+        lines = _read_one_corpus(
+            args.tatoeba, "tatoeba", "Tatoeba", args.limit, args.seed, SOURCE_TATOEBA
+        )
         report.corpus_reads.append(
             CorpusReadStats(source="tatoeba", path=str(args.tatoeba), lines_read=len(lines))
         )
         all_lines.extend(("tatoeba", line) for line in lines)
     if not args.skip_leipzig:
-        lines = _read_one_corpus(args.leipzig, "lines", "Leipzig", args.limit, args.seed)
+        lines = _read_one_corpus(
+            args.leipzig, "lines", "Leipzig", args.limit, args.seed, SOURCE_LEIPZIG
+        )
         report.corpus_reads.append(
             CorpusReadStats(source="leipzig", path=str(args.leipzig), lines_read=len(lines))
         )
