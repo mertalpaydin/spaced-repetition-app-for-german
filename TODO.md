@@ -288,6 +288,28 @@ Not tasks. Do not "fix" these without a decision from the owner.
   recall run below shows the same instability, that is the point to decide
   whether the eval should report both.
 
+- [ ] **2.3b Run the repair on the owner's real August log, and keep
+  reconciling.** `scripts/repair_cost_log.py` exists and has been dry-run,
+  but the corrected file has not been written for him, and the cycle that
+  built it did not have his real `cost_log.jsonl` on disk to run against.
+  Two things are outstanding:
+
+  - Run `uv run python -m scripts.repair_cost_log --billing-csv <his export>
+    --cost-log .cache/cost_log.jsonl --dry-run` against the actual August
+    log, read the report, then run it for real. It refuses to run twice, so
+    a second invocation is safe.
+  - Run `scripts/reconcile_cost_log.py` at the end of every month, or after
+    any run that reports retries. Neither of the two August cost bugs was
+    found by reading code; both were found by putting the log next to the
+    bill, and only after the owner pushed back on a number he had been
+    given. The comparison is now a script so the next discrepancy is found
+    by running it rather than by him noticing.
+
+  Note the honest limit of the repair: it reprices what the bill can
+  classify and labels the rest. The unlogged attempts stay unlogged, because
+  their token counts do not exist anywhere. The adjustment rows carry
+  dollars and zero tokens on purpose.
+
 - [ ] **2.4 The AI generation pilot, last.** Owner's sequencing: corpus path
   proven first, then generation for what the corpus cannot reach. On current
   evidence that is `futur_i`, `zustandspassiv_zeiten` and `futur_ii`, which
@@ -326,7 +348,10 @@ Pinned by tests. Do not change without the owner saying so explicitly.
     billed nothing, but a failed batch job has already been billed for the
     requests it processed before it failed and
     `_call_batch_many_with_retry` resubmits the whole job. His Aug 14-17
-    bill shows batch usage on days where the cost log has zero rows.
+    bill shows batch usage on days where the cost log has zero rows. Those
+    days would no longer be empty: every failed batch attempt now writes a
+    row (zero tokens, truthful outcome tag), including the
+    `JOB_STATE_FAILED` case that is not retried at all.
   - **The free-to-paid fallback stays.** When the retries are exhausted on
     the free lane, the call moves to the paid lane instead of raising
     (only when the paid lane is permitted and a paid key is configured).

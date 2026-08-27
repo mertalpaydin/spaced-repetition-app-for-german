@@ -344,11 +344,20 @@ def test_rpm_429_backs_off_and_stays_on_free_lane(tmp_path: Path) -> None:
     assert client.free_lane_open is True
     assert client.free_lane_closed_until is None
 
-    lines = [
-        line.strip() for line in log_file.read_text(encoding="utf-8").splitlines() if line.strip()
+    # Two rows, not one. This assertion used to read ``== 1`` and is
+    # deliberately strengthened, not weakened: the retried attempt now writes
+    # its own row. Logging only the successful attempt is the defect being
+    # fixed here, so a test pinning the old count would be pinning the bug.
+    rows = [
+        json.loads(line)
+        for line in log_file.read_text(encoding="utf-8").splitlines()
+        if line.strip()
     ]
-    assert len(lines) == 1
-    assert '"lane":"free"' in lines[0]
+    assert len(rows) == 2
+    assert [row["outcome"] for row in rows] == ["quota", "ok"]
+    assert [row["attempt"] for row in rows] == [1, 2]
+    assert rows[0]["call_id"] == rows[1]["call_id"], "one retried call, not two calls"
+    assert all(row["lane"] == "free" for row in rows)
 
 
 def test_rpm_429_honors_google_suggested_retry_delay(tmp_path: Path) -> None:
@@ -1814,6 +1823,13 @@ def test_cost_log_row_written_before_the_new_fields_existed_still_loads(tmp_path
     assert row.tool_use_prompt_tokens == 0
     assert row.total_tokens is None
     assert row.model_version is None
+    # A row written before ``outcome`` existed was, by construction, the
+    # successful attempt: a success was the only thing that got logged at
+    # all. Defaulting it to "ok" on attempt 1 states exactly that, and no
+    # more -- ``call_id`` stays None because no such grouping existed.
+    assert row.outcome == "ok"
+    assert row.attempt == 1
+    assert row.call_id is None
 
 
 # ---------------------------------------------------------------------------
@@ -1898,6 +1914,7 @@ def test_batch_server_error_retries_stop_after_two(tmp_path: Path) -> None:
             prompts=["eins", "zwei"],
             config=genai_types.GenerateContentConfig(),
             purpose="unit_test",
+            ref_time=datetime.now(UTC),
         )
 
     assert calls["n"] == GeminiLlmClient.SERVER_ERROR_BATCH_MAX_RETRIES + 1
@@ -1968,6 +1985,169 @@ def test_free_to_paid_fallback_is_not_taken_when_the_paid_lane_is_forbidden(
         client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
 
     assert set(seen_lanes) == {"free"}, "must never have touched the paid lane"
+
+
+# ---------------------------------------------------------------------------
+# One row per attempt, not one row per success.
+#
+# The measurement: the owner's August Gemini bill was $5.04 against a cost log
+# claiming $1.99. Roughly $1.90 of that was the batch discount applied to
+# non-batch calls (fixed separately). Roughly $1.58 is attempts that billed
+# and were never logged, because only the attempt that finally succeeded ever
+# wrote a row. These tests pin the fix.
+# ---------------------------------------------------------------------------
+
+
+def test_every_sync_attempt_writes_a_row_and_only_the_success_carries_tokens(
+    tmp_path: Path,
+) -> None:
+    """A retried sync call leaves one row per attempt, sharing one call id.
+
+    Only the attempt that succeeded carries tokens and cost. The failed ones
+    carry zeros with a truthful outcome tag: the exception has no usage
+    metadata, so what Google billed for those attempts is genuinely unknown,
+    and a guess in an audit log is what produced this whole problem.
+    """
+    client = GeminiLlmClient(
+        paid_api_key="paid-key",
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        restrict_user_content_to_paid_lane=True,
+        forbid_batch=True,
+        sleep_fn=lambda _seconds: None,
+    )
+
+    calls = {"n": 0}
+
+    def flaky_transport(**kwargs: object) -> tuple[str, TokenUsage]:
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            raise ServerUnavailableError("503 UNAVAILABLE")
+        return "gut", TokenUsage(prompt_tokens=1000, completion_tokens=2000)
+
+    client._call_transport = flaky_transport  # type: ignore[method-assign]
+
+    client.generate("Hallo Welt", purpose="unit_test", use_cache=False, is_user_content=True)
+
+    rows = client.cost_records
+    assert [row.outcome for row in rows] == ["server_error", "server_error", "ok"]
+    assert [row.attempt for row in rows] == [1, 2, 3]
+    assert len({row.call_id for row in rows}) == 1, "one retried call, not three calls"
+    assert all(row.lane == "paid" and row.mode == "sync" for row in rows)
+
+    failed, succeeded = rows[:2], rows[2]
+    assert all(row.prompt_tokens == 0 and row.completion_tokens == 0 for row in failed)
+    assert all(row.cost_usd == 0.0 for row in failed), (
+        "a failed attempt must not be priced at an invented figure; this change "
+        "makes the gap visible, it does not close it"
+    )
+    assert (succeeded.prompt_tokens, succeeded.completion_tokens) == (1000, 2000)
+    assert succeeded.cost_usd > 0.0
+
+
+def test_every_batch_attempt_writes_a_row_and_only_the_success_carries_tokens(
+    tmp_path: Path,
+) -> None:
+    """The batch path does the same, at job granularity.
+
+    One row per failed JOB, not per prompt: the job is what was submitted and
+    what gets resubmitted, and a job that died partway does not say how many
+    of its prompts it reached. The successful rows carry the job's own attempt
+    index and call id, so the whole group reads as one retried submission.
+    """
+    client = GeminiLlmClient(
+        paid_api_key="paid-key",
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        sleep_fn=lambda _seconds: None,
+    )
+    client._get_sdk_client = lambda lane: None  # type: ignore[assignment,return-value]
+
+    calls = {"n": 0}
+
+    def flaky_batch(*args: object, **kwargs: object) -> list[tuple[str, TokenUsage]]:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise ServerUnavailableError("503 UNAVAILABLE")
+        prompts = list(kwargs["prompts"])  # type: ignore[call-overload]
+        return [
+            (f"antwort {p}", TokenUsage(prompt_tokens=100, completion_tokens=200)) for p in prompts
+        ]
+
+    client._call_batch_many = flaky_batch  # type: ignore[method-assign]
+
+    client.generate_many(["eins", "zwei"], purpose="unit_test", use_cache=False, force_lane="paid")
+
+    rows = client.cost_records
+    assert [row.outcome for row in rows] == ["server_error", "ok", "ok"]
+    assert [row.attempt for row in rows] == [1, 2, 2]
+    assert len({row.call_id for row in rows}) == 1, "one retried job, not three calls"
+    assert all(row.lane == "paid" and row.mode == "batch" for row in rows)
+    assert (rows[0].prompt_tokens, rows[0].completion_tokens, rows[0].cost_usd) == (0, 0, 0.0)
+    assert all(row.prompt_tokens == 100 and row.cost_usd > 0.0 for row in rows[1:])
+
+
+def test_failed_batch_job_that_is_never_retried_still_writes_a_row(tmp_path: Path) -> None:
+    """A batch job that Google accepts, runs, and returns as FAILED raises a
+    plain ``RuntimeError`` out of ``_call_batch_many`` and is not retried at
+    all. Google has already billed whatever the job processed before it died,
+    so this is the exact shape of the owner's Aug 14-17 days: real batch
+    charges against days with zero rows in the cost log. It must leave a
+    row."""
+    client = GeminiLlmClient(
+        paid_api_key="paid-key",
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        sleep_fn=lambda _seconds: None,
+    )
+    client._get_sdk_client = lambda lane: None  # type: ignore[assignment,return-value]
+
+    def job_failed(*args: object, **kwargs: object) -> list[tuple[str, TokenUsage]]:
+        raise RuntimeError("Gemini batch job 'batches/abc' did not succeed (state=FAILED)")
+
+    client._call_batch_many = job_failed  # type: ignore[method-assign]
+
+    with pytest.raises(RuntimeError):
+        client.generate_many(["eins"], purpose="unit_test", use_cache=False, force_lane="paid")
+
+    (row,) = client.cost_records
+    assert row.outcome == "server_error"
+    assert row.mode == "batch"
+    assert (row.prompt_tokens, row.completion_tokens, row.cost_usd) == (0, 0, 0.0)
+
+
+def test_failed_attempts_do_not_move_month_to_date_spend_or_the_ceiling(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Failed-attempt rows are priced at zero on purpose, so they cannot move
+    the spend ceiling. Making the gap visible must not also make the budget
+    gate fire on usage nobody measured."""
+    # No paid key, so the owner's free-to-paid 503 fallback cannot fire and
+    # the attempt count is exactly the free lane's own retry budget. Without
+    # this the count depends on whether the ambient environment happens to
+    # carry a paid key, which it does under a full-suite run.
+    monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        spend_ceiling_usd=0.01,
+        sleep_fn=lambda _seconds: None,
+    )
+
+    def always_overloaded(**kwargs: object) -> tuple[str, TokenUsage]:
+        raise ServerUnavailableError("503 UNAVAILABLE")
+
+    client._call_transport = always_overloaded  # type: ignore[method-assign]
+    with pytest.raises(ServerUnavailableError):
+        client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
+
+    assert len(client.cost_records) == GeminiLlmClient.SERVER_ERROR_MAX_RETRIES + 1
+    assert all(row.outcome == "server_error" for row in client.cost_records)
+    assert client.get_month_to_date_spend() == 0.0
+
+    # The ceiling is untouched, so the next call is not refused.
+    client._call_transport = _fake_transport_ok  # type: ignore[method-assign]
+    assert client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
 
 
 def test_spend_ceiling_default_is_the_owners_current_figure() -> None:

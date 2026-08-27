@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
+from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import google.genai as genai
@@ -40,6 +41,27 @@ TransportMode = Literal["sync", "batch"]
 #: ``TransportMode`` because a cache hit reached no transport at all, so
 #: calling it "sync" would put a fiction in an audit record.
 LoggedMode = Literal["sync", "batch", "cache"]
+
+#: How one logged attempt ended.
+#:
+#: ``"ok"`` is the default so every row written before this field existed
+#: parses as what it was: the successful attempt, the only kind that used to
+#: be logged at all.
+#:
+#: ``"server_error"`` and ``"quota"`` are the two ways an attempt reaches
+#: Google and comes back with nothing this client can account for. They are
+#: deliberately not merged, because they mean different things about money: a
+#: 429 is a refusal Google does not bill for, while a 5xx can arrive after the
+#: provider has already done and billed work (a batch job that processed part
+#: of its group before failing is the clearest case). Only the second kind
+#: hides spend; both are worth a row, because the retry count is what makes
+#: the first kind visible as noise and the second as a possible gap.
+#:
+#: ``"adjustment"`` is not an attempt at all. It marks a row appended by
+#: ``scripts/repair_cost_log.py`` to carry the difference between a day's
+#: logged spend and Google's actual charge for that day, so a repaired log
+#: can never be mistaken for a log in which every call was recorded.
+RowOutcome = Literal["ok", "server_error", "quota", "adjustment"]
 
 PACIFIC_TZ_KEY = "America/Los_Angeles"
 
@@ -254,7 +276,11 @@ class TokenUsage(BaseModel):
 
 
 class CostLogRow(BaseModel):
-    """Immutable audit record of a single LLM invocation or cache hit.
+    """Immutable audit record of a single LLM *attempt* or cache hit.
+
+    An attempt, not a call: a call that 503s three times and succeeds on the
+    fourth writes four rows, not one. See ``GeminiLlmClient._log_failed_attempt``
+    for why that distinction is the entire point of this change.
 
     Every field after ``purpose`` is additive with a default, so rows written
     before those fields existed still parse (``GeminiLlmClient._load_cost_log``
@@ -289,6 +315,26 @@ class CostLogRow(BaseModel):
     #: model requested. Google bills per model, so a silent reroute would
     #: otherwise be invisible.
     model_version: str | None = None
+    #: How this attempt ended. Defaults to ``"ok"`` so every historical row,
+    #: all of which recorded a success because a success was the only thing
+    #: that got logged, parses as exactly what it was.
+    outcome: RowOutcome = "ok"
+    #: 1-based index of this attempt within its call. ``1`` for a call that
+    #: succeeded first time, which is what every historical row was.
+    attempt: int = 1
+    #: Shared by every row belonging to one logical call, so N attempts read
+    #: as one retried call rather than N unrelated calls. ``None`` on a
+    #: historical row (no such grouping existed), on a cache hit (which
+    #: reached no transport and can never be retried), and on a
+    #: reconciliation adjustment (which is a whole day, not a call).
+    #:
+    #: This matters more than it looks: ``generate_many`` dispatches the free
+    #: and paid-sync lanes concurrently, so attempt rows from different calls
+    #: interleave in the file and an attempt index on its own would not say
+    #: which failure belongs to which success. On a batch job the id is
+    #: shared by the whole submitted group, because the job, not the
+    #: individual prompt, is the thing that retries.
+    call_id: str | None = None
 
 
 #: Where ``GeminiLlmClient`` writes its cost log unless told otherwise, named
@@ -313,6 +359,42 @@ def append_cost_row(row: CostLogRow, path: Path | str = DEFAULT_COST_LOG_PATH) -
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(row.model_dump_json() + "\n")
+
+
+class TransportResult(BaseModel):
+    """One successful single-prompt transport call, with the retry history
+    needed to log it truthfully.
+
+    ``lane`` and ``mode`` are here because a call can move between them
+    mid-flight (RPD closes the free lane, a 5xx exhausts its retries on free
+    and falls through to paid), and the pair is what prices the row.
+    ``attempt`` and ``call_id`` are here because the row that finally
+    succeeds is no longer the only row: its failed predecessors were logged
+    on the way, and these two fields are what tie them together.
+    """
+
+    model_config = ConfigDict(frozen=True)
+    text: str
+    usage: TokenUsage
+    lane: Lane
+    mode: TransportMode
+    attempt: int
+    call_id: str
+
+
+class BatchTransportResult(BaseModel):
+    """One successful batch job, with its retry history.
+
+    The unit here is the job, not the prompt: ``_call_batch_many_with_retry``
+    resubmits the whole group, so ``attempt`` and ``call_id`` describe the
+    group. Every per-prompt row written from ``results`` carries the same
+    pair.
+    """
+
+    model_config = ConfigDict(frozen=True)
+    results: list[tuple[str, TokenUsage]]
+    attempt: int
+    call_id: str
 
 
 class GeminiLlmClient:
@@ -493,6 +575,8 @@ class GeminiLlmClient:
         self.free_lane_closed_until: datetime | None = None
 
         self.cost_records: list[CostLogRow] = []
+        # See ``_log_cost``: attempt rows are written from worker threads.
+        self._cost_log_lock = threading.Lock()
         self._load_cost_log()
 
         # Built lazily, per lane, on first real transport call -- see
@@ -539,8 +623,15 @@ class GeminiLlmClient:
         return round(total, 6)
 
     def _log_cost(self, row: CostLogRow) -> None:
-        self.cost_records.append(row)
-        append_cost_row(row, self.cost_log_path)
+        # Locked because failed-attempt rows are now written from inside
+        # ``_call_transport_with_lane_handling``, which ``generate_many``
+        # runs on worker threads. Success rows are still written from the
+        # calling thread only, so this lock is uncontended on the common
+        # path; it exists so a burst of concurrent 503s cannot interleave two
+        # half-written JSON lines in the file or race on ``cost_records``.
+        with self._cost_log_lock:
+            self.cost_records.append(row)
+            append_cost_row(row, self.cost_log_path)
 
     def _build_cost_row(
         self,
@@ -551,12 +642,19 @@ class GeminiLlmClient:
         mode: TransportMode,
         usage: TokenUsage,
         purpose: str,
+        attempt: int,
+        call_id: str,
     ) -> CostLogRow:
-        """Build the audit row for one real (non-cache) call.
+        """Build the audit row for one real (non-cache) call that SUCCEEDED.
 
         One place, so the three call sites that log a real call cannot drift
         apart on which token fields they carry, and so pricing is always given
         the same ``(lane, mode)`` pair that the row records.
+
+        ``attempt`` is the 1-based index of the attempt that succeeded, so an
+        ``attempt`` above 1 says this call was retried and that
+        ``_log_failed_attempt`` has already written ``attempt - 1`` rows under
+        the same ``call_id``.
         """
         return CostLogRow(
             timestamp=timestamp,
@@ -574,6 +672,70 @@ class GeminiLlmClient:
                 model, usage.prompt_tokens, usage.completion_tokens, lane, mode
             ),
             purpose=purpose,
+            outcome="ok",
+            attempt=attempt,
+            call_id=call_id,
+        )
+
+    def _log_failed_attempt(
+        self,
+        *,
+        timestamp: datetime,
+        model: str,
+        lane: Lane,
+        mode: TransportMode,
+        purpose: str,
+        outcome: RowOutcome,
+        attempt: int,
+        call_id: str,
+    ) -> None:
+        """Write the audit row for an attempt that reached Google and failed.
+
+        Until this existed, only the attempt that finally succeeded wrote a
+        row, so a run that retried half its calls looked in the log exactly
+        like a run that retried none of them. That is what made the owner's
+        August gap invisible: his bill was $5.04 against a cost log claiming
+        $1.99, and roughly $1.58 of the difference is attempts that billed and
+        were never recorded. Three days in his billing export show real batch
+        charges against days with literally zero rows in the log, because
+        ``_call_batch_many_with_retry`` resubmits a whole job and Google has
+        already billed whatever the failed job processed before it died.
+
+        **The point of this row is not a corrected total. It is that the gap
+        becomes visible.** A run that reports "24 calls, 11 of them retried"
+        tells you at a glance that the log and the money have parted ways.
+        The same run reported "24 calls" before, and looked clean.
+
+        Deliberately zero tokens and zero cost:
+
+        - **Zero tokens because the exception carries no usage metadata.** We
+          do not know what Google billed for this attempt, and a guess in an
+          audit log is how this whole problem started. An honest gap beats a
+          fabricated number.
+        - **Zero cost so ``get_month_to_date_spend`` and the spend ceiling are
+          unaffected.** This change makes the gap visible; it does not close
+          it. Pricing a failed attempt at an invented figure would move the
+          ceiling on the strength of a number nobody measured.
+
+        Note that the two outcomes differ in what they imply about money. A
+        ``"quota"`` row is a 429, which Google refuses and does not bill; it
+        is logged for retry legibility, not because it hides spend. A
+        ``"server_error"`` row is the one that can hide spend.
+        """
+        self._log_cost(
+            CostLogRow(
+                timestamp=timestamp,
+                model=model,
+                lane=lane,
+                mode=mode,
+                prompt_tokens=0,
+                completion_tokens=0,
+                cost_usd=0.0,
+                purpose=purpose,
+                outcome=outcome,
+                attempt=attempt,
+                call_id=call_id,
+            )
         )
 
     #: Google's batch discount: a Batch API submission is billed at half the
@@ -581,8 +743,16 @@ class GeminiLlmClient:
     #: to the lane, which is why ``_estimate_cost`` needs ``mode``.
     BATCH_DISCOUNT_MULTIPLIER: float = 0.5
 
+    # A classmethod, not an instance method: ``scripts/repair_cost_log.py``
+    # has to reprice historical rows that were written with no ``mode`` at
+    # all, and it must use THIS implementation rather than a second copy of
+    # the table. Two pricing implementations is precisely how the 0.5 batch
+    # discount came to be applied to calls that never went through batch.
+    # Instance calls (``self._estimate_cost(...)``, and the existing tests'
+    # ``client._estimate_cost(...)``) are unchanged.
+    @classmethod
     def _estimate_cost(
-        self,
+        cls,
         model: str,
         prompt_tokens: int,
         completion_tokens: int,
@@ -608,12 +778,12 @@ class GeminiLlmClient:
         # known model's price, not the pre-2026-08-14-correction stale
         # default -- an under-estimate here would silently weaken the spend
         # ceiling exactly like the bug this table's own values just fixed.
-        in_p, out_p = self.PRICING_PER_MILLION.get(model, (0.30, 2.50))
+        in_p, out_p = cls.PRICING_PER_MILLION.get(model, (0.30, 2.50))
         cost = (prompt_tokens / 1_000_000) * in_p + (completion_tokens / 1_000_000) * out_p
         if mode == "batch":
             # Half price, and only for a real Batch API submission on the paid
             # lane. A paid-lane synchronous call is on-demand pricing.
-            cost *= self.BATCH_DISCOUNT_MULTIPLIER
+            cost *= cls.BATCH_DISCOUNT_MULTIPLIER
         return round(cost, 6)
 
     # ------------------------------------------------------------------
@@ -1137,7 +1307,8 @@ class GeminiLlmClient:
         prompts: list[str],
         config: genai_types.GenerateContentConfig,
         purpose: str,
-    ) -> list[tuple[str, TokenUsage]]:
+        ref_time: datetime,
+    ) -> BatchTransportResult:
         """Transient-retry wrapper around ``_call_batch_many``, scoped to the
         paid lane's group submission: no RPD lane-switch (there is nowhere
         further to move from the paid lane), just the same bounded
@@ -1149,26 +1320,87 @@ class GeminiLlmClient:
         that just failed had already run for minutes and Google had already
         billed the requests it processed before it failed, and this resubmits
         the whole group. See that constant for the full reasoning.
+
+        That is also why every failed attempt here writes a row (see
+        ``_log_failed_attempt``). **One row per failed JOB, not per prompt**:
+        the job is what was submitted and what is resubmitted, and a job that
+        died partway through does not tell us how many of its prompts it got
+        to, so splitting the failure across the group would be inventing an
+        attribution nobody measured. The owner's Aug 14-17 billing lines are
+        exactly this case -- real batch charges on days whose cost log has
+        zero rows -- and after this change those days would have had a row
+        each saying "a batch job was attempted here and failed", which is the
+        signal that was missing.
         """
+        call_id = uuid4().hex
+        attempt = 0
         rpm_attempts = 0
         server_attempts = 0
         while True:
+            attempt += 1
             try:
-                return self._call_batch_many(
+                results = self._call_batch_many(
                     client, model=model, prompts=prompts, config=config, purpose=purpose
                 )
+                return BatchTransportResult(results=results, attempt=attempt, call_id=call_id)
             except QuotaExceededError as exc:
+                self._log_failed_attempt(
+                    timestamp=ref_time,
+                    model=model,
+                    lane="paid",
+                    mode="batch",
+                    purpose=purpose,
+                    outcome="quota",
+                    attempt=attempt,
+                    call_id=call_id,
+                )
                 if rpm_attempts >= self.RPM_MAX_RETRIES:
                     raise
                 rpm_attempts += 1
                 self._sleep(exc.retry_delay_seconds or self.RPM_BACKOFF_SECONDS)
                 continue
             except ServerUnavailableError:
+                self._log_failed_attempt(
+                    timestamp=ref_time,
+                    model=model,
+                    lane="paid",
+                    mode="batch",
+                    purpose=purpose,
+                    outcome="server_error",
+                    attempt=attempt,
+                    call_id=call_id,
+                )
                 if server_attempts >= self.SERVER_ERROR_BATCH_MAX_RETRIES:
                     raise
                 self._sleep(self._server_error_backoff_seconds(server_attempts))
                 server_attempts += 1
                 continue
+            except ModelRejectedError:
+                # A 4xx rejection: Google refused the submission outright, so
+                # no job ran and nothing was billed. Deliberately no row --
+                # this is the one failure here that is not billed usage, and
+                # inventing an attempt record for it would be noise.
+                raise
+            except RuntimeError:
+                # The job WAS accepted, ran at Google, and came back unusable:
+                # JOB_STATE_FAILED, a per-item error, a short response set, or
+                # a poll timeout (all of which ``_call_batch_many`` raises as
+                # plain RuntimeError). Google has already billed whatever the
+                # job processed before it died, and this path is not retried
+                # at all -- it propagates straight out. Without this row it is
+                # exactly the silent, billed, zero-row day the owner's
+                # Aug 14-17 export shows and his cost log does not.
+                self._log_failed_attempt(
+                    timestamp=ref_time,
+                    model=model,
+                    lane="paid",
+                    mode="batch",
+                    purpose=purpose,
+                    outcome="server_error",
+                    attempt=attempt,
+                    call_id=call_id,
+                )
+                raise
 
     def _chunk_indices_for_inline_batch(
         self, indices: list[int], prompts: list[str]
@@ -1297,9 +1529,16 @@ class GeminiLlmClient:
         lane: Lane,
         purpose: str,
         ref_time: datetime,
-    ) -> tuple[str, TokenUsage, Lane, TransportMode]:
+    ) -> TransportResult:
         """Call the transport, handling RPM/RPD 429s and 5xx server overload
         per the two-lane rules.
+
+        **Every attempt that reaches Google writes a cost-log row**, not only
+        the one that succeeds: each ``except`` branch below calls
+        ``_log_failed_attempt`` before it decides whether to retry, so a call
+        retried three times leaves four rows sharing one ``call_id``. See
+        ``_log_failed_attempt`` for why those rows carry zero tokens and zero
+        cost, and why a visible gap is the whole deliverable here.
 
         Returns the mode the call actually used along with the lane, because
         the two together are what price it: the paid lane is batch for
@@ -1336,15 +1575,35 @@ class GeminiLlmClient:
         ``MissingApiKeyError``.
         """
         mode: TransportMode = self._mode_for_lane(lane)
+        call_id = uuid4().hex
+        attempt = 0
         rpm_attempts = 0
         server_attempts = 0
         while True:
+            attempt += 1
             try:
                 text, usage = self._call_transport(
                     model=model, prompt=prompt, lane=lane, mode=mode, purpose=purpose
                 )
-                return text, usage, lane, mode
+                return TransportResult(
+                    text=text,
+                    usage=usage,
+                    lane=lane,
+                    mode=mode,
+                    attempt=attempt,
+                    call_id=call_id,
+                )
             except QuotaExceededError as exc:
+                self._log_failed_attempt(
+                    timestamp=ref_time,
+                    model=model,
+                    lane=lane,
+                    mode=mode,
+                    purpose=purpose,
+                    outcome="quota",
+                    attempt=attempt,
+                    call_id=call_id,
+                )
                 if exc.quota_type == "rpm":
                     if rpm_attempts >= self.RPM_MAX_RETRIES:
                         raise
@@ -1361,6 +1620,16 @@ class GeminiLlmClient:
                 lane = "paid"
                 mode = self._mode_for_lane(lane)
             except ServerUnavailableError:
+                self._log_failed_attempt(
+                    timestamp=ref_time,
+                    model=model,
+                    lane=lane,
+                    mode=mode,
+                    purpose=purpose,
+                    outcome="server_error",
+                    attempt=attempt,
+                    call_id=call_id,
+                )
                 if server_attempts >= self.SERVER_ERROR_MAX_RETRIES:
                     if lane == "free" and not self.forbid_paid_lane and self.paid_api_key:
                         # The owner's free-to-paid fallback: Google's free
@@ -1422,8 +1691,10 @@ class GeminiLlmClient:
         # 3. Determine lane (free unless restricted-and-user-content, or free lane closed)
         lane = self._determine_lane(is_user_content, ref_time)
 
-        # 4. Call transport, handling 429s per the two-lane rules
-        response_text, usage, lane, mode = self._call_transport_with_lane_handling(
+        # 4. Call transport, handling 429s per the two-lane rules. Any failed
+        #    attempt on the way has already written its own row from inside
+        #    there; this only logs the one that succeeded.
+        result = self._call_transport_with_lane_handling(
             model=model, prompt=prompt, lane=lane, purpose=purpose, ref_time=ref_time
         )
 
@@ -1432,17 +1703,19 @@ class GeminiLlmClient:
             self._build_cost_row(
                 timestamp=ref_time,
                 model=model,
-                lane=lane,
-                mode=mode,
-                usage=usage,
+                lane=result.lane,
+                mode=result.mode,
+                usage=result.usage,
                 purpose=purpose,
+                attempt=result.attempt,
+                call_id=result.call_id,
             )
         )
 
         if use_cache:
-            self.cache.set(model=model, prompt=prompt, response=response_text, **kwargs)
+            self.cache.set(model=model, prompt=prompt, response=result.text, **kwargs)
 
-        return response_text
+        return result.text
 
     def generate_many(
         self,
@@ -1562,20 +1835,22 @@ class GeminiLlmClient:
                 }
                 for future in as_completed(future_to_index):
                     i = future_to_index[future]
-                    text, usage, used_lane, used_mode = future.result()
+                    result = future.result()
                     self._log_cost(
                         self._build_cost_row(
                             timestamp=ref_time,
                             model=model,
-                            lane=used_lane,
-                            mode=used_mode,
-                            usage=usage,
+                            lane=result.lane,
+                            mode=result.mode,
+                            usage=result.usage,
                             purpose=purpose,
+                            attempt=result.attempt,
+                            call_id=result.call_id,
                         )
                     )
                     if use_cache:
-                        self.cache.set(model=model, prompt=prompts[i], response=text)
-                    results[i] = text
+                        self.cache.set(model=model, prompt=prompts[i], response=result.text)
+                    results[i] = result.text
         else:  # paid, batch mode (self.forbid_batch is not set)
             client = self._get_sdk_client("paid")
             config = genai_types.GenerateContentConfig(
@@ -1589,14 +1864,25 @@ class GeminiLlmClient:
             # ``generate_many`` a genuinely oversized group.
             for chunk in self._chunk_indices_for_inline_batch(pending_indices, prompts):
                 chunk_prompts = [prompts[i] for i in chunk]
-                batch_results = self._call_batch_many_with_retry(
-                    client, model=model, prompts=chunk_prompts, config=config, purpose=purpose
+                batch = self._call_batch_many_with_retry(
+                    client,
+                    model=model,
+                    prompts=chunk_prompts,
+                    config=config,
+                    purpose=purpose,
+                    ref_time=ref_time,
                 )
-                for i, (text, usage) in zip(chunk, batch_results, strict=True):
+                for i, (text, usage) in zip(chunk, batch.results, strict=True):
                     # This branch is only reachable for a real Batch API
                     # submission on the paid lane, so the mode is known here
                     # directly rather than derived: these rows, and only
                     # these, get Google's batch discount.
+                    #
+                    # Every prompt in the job carries the job's own attempt
+                    # index and call id: the job is the unit that retried, so
+                    # a group that took three submissions to land shows as
+                    # attempt=3 on all of its rows, alongside the two
+                    # ``server_error`` rows the failed submissions wrote.
                     self._log_cost(
                         self._build_cost_row(
                             timestamp=ref_time,
@@ -1605,6 +1891,8 @@ class GeminiLlmClient:
                             mode="batch",
                             usage=usage,
                             purpose=purpose,
+                            attempt=batch.attempt,
+                            call_id=batch.call_id,
                         )
                     )
                     if use_cache:
