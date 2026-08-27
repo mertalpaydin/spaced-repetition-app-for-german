@@ -386,27 +386,25 @@ bank comes first and nothing below is a reason to delay it.
   recall run below shows the same instability, that is the point to decide
   whether the eval should report both.
 
-- [ ] **2.3b Run the repair on the owner's real August log, and keep
-  reconciling.** `scripts/repair_cost_log.py` exists and has been dry-run,
-  but the corrected file has not been written for him, and the cycle that
-  built it did not have his real `cost_log.jsonl` on disk to run against.
-  Two things are outstanding:
+- [ ] **2.3b Keep reconciling, monthly.** The August repair itself is done
+  and is written up in `docs/audits/fix-log.md` cycle 16: the log went from
+  $1.986058 to $5.040919 against a bill of $5.040919, an exact match, via
+  690 repriced rows, 847 rows given a transport mode by invariant and 10
+  labelled adjustment rows. What stays open is the habit, not that run.
 
-  - Run `uv run python -m scripts.repair_cost_log --billing-csv <his export>
-    --cost-log .cache/cost_log.jsonl --dry-run` against the actual August
-    log, read the report, then run it for real. It refuses to run twice, so
-    a second invocation is safe.
-  - Run `scripts/reconcile_cost_log.py` at the end of every month, or after
-    any run that reports retries. Neither of the two August cost bugs was
-    found by reading code; both were found by putting the log next to the
-    bill, and only after the owner pushed back on a number he had been
-    given. The comparison is now a script so the next discrepancy is found
-    by running it rather than by him noticing.
+  Run `scripts/reconcile_cost_log.py` at the end of every month, or after
+  any run that reports retries. Neither of the two August cost bugs was
+  found by reading code; both were found by putting the log next to the
+  bill, and only after the owner pushed back on a number he had been
+  given. The comparison is now a script so the next discrepancy is found
+  by running it rather than by him noticing.
 
   Note the honest limit of the repair: it reprices what the bill can
   classify and labels the rest. The unlogged attempts stay unlogged, because
   their token counts do not exist anywhere. The adjustment rows carry
-  dollars and zero tokens on purpose.
+  dollars and zero tokens on purpose. An exact match after repair therefore
+  means the dollars agree; it does not mean the missing token counts came
+  back.
 
 - [ ] **2.4 The AI generation pilot, last. Stays OPEN, explicitly.** The owner
   said so on 2026-08-27: it is not closed, not deferred indefinitely, and not
@@ -835,8 +833,9 @@ report for that before starting either.
    blocks a pilot.
 4. **2.3, run `scripts/eval_verifier.py` with a key**, for the verifier's own
    recall and false-positive rate.
-5. **2.3b, run the cost-log repair** against the real August log, and
-   reconcile at the end of the month.
+5. ~~**2.3b, run the cost-log repair** against the real August log~~. Done
+   2026-08-27, exact match to the bill; see cycle 16 in the fix log. What
+   remains under 2.3b is the monthly reconcile.
 6. **2.4, the AI generation pilot**, on the topic list 6.1 produces. Still
    open (see 2.4), still last.
 7. **2.5, write down the split** once 2.4 has run.

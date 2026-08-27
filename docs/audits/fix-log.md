@@ -2757,3 +2757,52 @@ mtime-for-mtime untouched. `ruff check`, `ruff format --check` and `mypy
 the sandbox this was built in, so the 7,365 removal is open work, recorded in
 `TODO.md` section 2 as item 2.2b along with the re-gloss that has to follow
 it.
+
+---
+
+## Cycle 16: the August cost log now agrees with Google's bill to the cent
+
+Not a code fix. This records the outcome of running `scripts/repair_cost_log.py`
+and `scripts/reconcile_cost_log.py` against the owner's real `cost_log.jsonl`
+and his real August billing export, which is the thing cycles 14 and 15 built
+those scripts for and could not do in the sandbox.
+
+### What the repair did
+
+| | |
+|---|---|
+| Rows repriced | 690, changing the total by `+$1.821186` |
+| Rows given a transport mode by invariant | 847 |
+| Labelled adjustment rows appended | 10 |
+| Log total before | `$1.986058` |
+| Log total after | `$5.040919` |
+| Google's bill | `$5.040919` |
+
+`scripts/reconcile_cost_log.py` then reported a difference of `$0.000000`.
+
+### What that does and does not prove
+
+It proves the two priced defects were the whole dollar gap, and that the
+decomposition offered before the repair ran was right about their sizes. The
+$1.82 recovered by repricing is the unconditional 0.5x batch discount that
+`_estimate_cost` applied to every paid call regardless of transport, against a
+predicted ~$1.90. The remaining ~$1.23 sits in the 10 adjustment rows, which
+is the unlogged-attempt gap, against a predicted ~$1.58. Both predictions were
+made from the per-day export before the scripts touched the log, so the match
+is a check on the diagnosis, not a restatement of it.
+
+It does not prove the log is now complete. The adjustment rows carry dollars
+and zero tokens deliberately: the attempts they stand for raised exceptions
+that carried no usage metadata, so their token counts do not exist anywhere,
+in the log or at Google. An exact dollar match after repair means the money
+reconciles. The token history for those three days stays missing, and no
+future repair can recover it. This is why `_log_failed_attempt` exists going
+forward: the fix is that the next gap is visible while it happens, not that
+this one was filled.
+
+### Open
+
+`repair_cost_log.py` refuses to run twice on the same log, so this is not
+repeatable and does not need to be. What stays open under `TODO.md` 2.3b is
+the monthly `reconcile_cost_log.py` run, at the end of every month or after
+any run that reports retries.
