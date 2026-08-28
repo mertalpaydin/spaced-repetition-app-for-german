@@ -605,10 +605,10 @@ def test_server_overload_backs_off_and_retries_same_lane(tmp_path: Path) -> None
 
     assert response
     assert call_count["n"] == 2, "transport must be retried once after the 503"
-    # The first wait is the first step of the escalating schedule, not the
-    # scalar constant: that constant is now only the fallback for an attempt
-    # index past the end of the schedule.
-    assert sleeps == [GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE[0]]
+    # The first wait is the first step of this lane's escalating schedule,
+    # not the scalar constant: that constant is only the fallback for an
+    # attempt index past the end of a schedule.
+    assert sleeps == [GeminiLlmClient.FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE[0]]
     assert client.free_lane_open is True
     assert client.free_lane_closed_until is None
 
@@ -1546,12 +1546,30 @@ def test_operator_tuned_server_error_constants_are_pinned() -> None:
     batch cap is lower still, and that one is not the owner's instruction but
     this cycle's judgement -- a failed batch job has already been billed for
     the requests it processed before it failed, and a retry resubmits the
-    whole job."""
+    whole job.
+
+    The budget is now per lane, and BOTH lanes are pinned here. The paid
+    values below are unchanged and are the owner's; the free-lane ones are
+    this cycle's, from his "we go slowly if we need to" and the fact that a
+    free-lane retry cannot bill anything. Do not collapse the two back into
+    one constant: one number for both lanes over-retries where retrying costs
+    money and under-retries where it is free, which is what cost the
+    2026-08-28 run."""
     assert GeminiLlmClient.SERVER_ERROR_MAX_RETRIES == 4
     assert GeminiLlmClient.SERVER_ERROR_BATCH_MAX_RETRIES == 2
     assert GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE == (30.0, 120.0, 480.0, 900.0)
-    # Only the fallback for an attempt index past the end of the schedule.
+    # Only the fallback for an attempt index past the end of a schedule.
     assert GeminiLlmClient.SERVER_ERROR_BACKOFF_SECONDS == 900.0
+
+    assert GeminiLlmClient.FREE_LANE_SERVER_ERROR_MAX_RETRIES == 12
+    free_schedule = (30.0, 60.0, 120.0, 240.0, 480.0) + (900.0,) * 7
+    assert GeminiLlmClient.FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE == free_schedule
+    # One schedule entry per retry, so a call can never index past the end and
+    # the worst case is exactly this sum: 7230 seconds, two hours and thirty
+    # seconds of sleeping before one free-lane call gives up. Stated in the
+    # constant's own comment too, so the owner can see what he is agreeing to.
+    assert len(free_schedule) == GeminiLlmClient.FREE_LANE_SERVER_ERROR_MAX_RETRIES
+    assert sum(free_schedule) == 7230.0
 
 
 # ---------------------------------------------------------------------------
@@ -1838,19 +1856,65 @@ def test_cost_log_row_written_before_the_new_fields_existed_still_loads(tmp_path
 # ---------------------------------------------------------------------------
 
 
-def test_server_error_backoff_follows_the_schedule_in_order_and_stops_after_four(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_paid_lane_server_error_backoff_follows_the_schedule_in_order_and_stops_after_four(
+    tmp_path: Path,
 ) -> None:
     """Four attempts on an escalating schedule, not forty flat ones: the
-    owner's instruction, "instead of making 40 request make it like 4 but
-    with much longer intervals". No paid key is configured here, so the
-    free-to-paid fallback cannot fire and the error propagates once the
-    schedule is spent.
+    owner's instruction for the PAID lane, "instead of making 40 request make
+    it like 4 but with much longer intervals". A paid-lane 5xx can arrive
+    after Google has already done and billed work, so this budget stays
+    exactly where he set it.
 
-    The paid key is explicitly removed from the environment rather than
-    merely not passed: another test in the same session may have called
-    ``load_env_file()``, which writes a real ``.env`` into ``os.environ``
-    for the rest of the run."""
+    This used to be asserted against a free-lane call, which is why the free
+    lane inherited a budget priced for money it never spends. The paid lane is
+    reached here the way a pilot reaches it: user content plus
+    ``restrict_user_content_to_paid_lane``, with ``forbid_batch`` making it
+    on-demand rather than a batch submission."""
+    sleeps: list[float] = []
+    client = GeminiLlmClient(
+        paid_api_key="paid-key",
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        restrict_user_content_to_paid_lane=True,
+        forbid_batch=True,
+        sleep_fn=sleeps.append,
+    )
+    calls = {"n": 0}
+
+    def always_overloaded(**kwargs: object) -> tuple[str, TokenUsage]:
+        calls["n"] += 1
+        assert kwargs["lane"] == "paid"
+        raise ServerUnavailableError("503 UNAVAILABLE")
+
+    client._call_transport = always_overloaded  # type: ignore[method-assign]
+
+    with pytest.raises(ServerUnavailableError):
+        client.generate("Hallo Welt", purpose="unit_test", use_cache=False, is_user_content=True)
+
+    assert sleeps == list(GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE)
+    assert calls["n"] == GeminiLlmClient.SERVER_ERROR_MAX_RETRIES + 1
+
+
+def test_free_lane_server_error_backoff_extends_the_schedule_and_stops_after_twelve(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The free lane retries far longer, because a free-lane retry cannot
+    bill anything: the paid lane's four-retry budget is priced against the
+    risk that a 5xx arrives after Google has already done and billed work,
+    and on an unbilled project there is no such work to pay for. The owner's
+    2026-08-28 run lost itself to that mismatch, with one call giving up
+    after four 503s in a run where 7 of 12 attempts were 503s.
+
+    "We go slowly if we need to": the schedule escalates and then plateaus at
+    fifteen minutes rather than repeating a short delay, and it is bounded --
+    exactly one entry per retry, worst case 7230 seconds of sleeping per call.
+
+    No paid key is configured here, so the free-to-paid fallback cannot fire
+    and the error propagates once the budget is spent. The paid key is
+    explicitly removed from the environment rather than merely not passed:
+    another test in the same session may have called ``load_env_file()``,
+    which writes a real ``.env`` into ``os.environ`` for the rest of the
+    run."""
     monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
     sleeps: list[float] = []
     client = GeminiLlmClient(
@@ -1862,6 +1926,7 @@ def test_server_error_backoff_follows_the_schedule_in_order_and_stops_after_four
 
     def always_overloaded(**kwargs: object) -> tuple[str, TokenUsage]:
         calls["n"] += 1
+        assert kwargs["lane"] == "free"
         raise ServerUnavailableError("503 UNAVAILABLE")
 
     client._call_transport = always_overloaded  # type: ignore[method-assign]
@@ -1869,24 +1934,40 @@ def test_server_error_backoff_follows_the_schedule_in_order_and_stops_after_four
     with pytest.raises(ServerUnavailableError):
         client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
 
-    assert sleeps == list(GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE)
-    assert calls["n"] == GeminiLlmClient.SERVER_ERROR_MAX_RETRIES + 1
+    schedule = GeminiLlmClient.FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE
+    assert sleeps == list(schedule)
+    assert calls["n"] == GeminiLlmClient.FREE_LANE_SERVER_ERROR_MAX_RETRIES + 1
+    assert calls["n"] > GeminiLlmClient.SERVER_ERROR_MAX_RETRIES + 1, (
+        "the free lane must retry strictly more than the paid lane"
+    )
+    # Bounded, and the bound is the number the constant's comment states.
+    assert sum(sleeps) == 7230.0
+    assert sorted(schedule) == list(schedule), (
+        "the schedule must extend the escalation, never step back down to a "
+        "short delay and hammer a service that is down"
+    )
 
 
 def test_server_error_backoff_falls_back_to_the_scalar_past_the_schedule(
     tmp_path: Path,
 ) -> None:
     """The scalar constant is the fallback for an attempt index past the end
-    of the schedule, so raising a retry cap can never index off it."""
+    of either lane's schedule, so raising a retry cap can never index off
+    one."""
     client = GeminiLlmClient(
         cost_log_path=tmp_path / "cost_log.jsonl", cache_dir=tmp_path / "cache"
     )
-    schedule = GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE
-
-    assert [client._server_error_backoff_seconds(i) for i in range(len(schedule))] == list(schedule)
-    assert client._server_error_backoff_seconds(len(schedule)) == (
-        GeminiLlmClient.SERVER_ERROR_BACKOFF_SECONDS
-    )
+    for lane, schedule in (
+        ("paid", GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE),
+        ("free", GeminiLlmClient.FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE),
+    ):
+        assert [
+            client._server_error_backoff_seconds(i, lane=lane)  # type: ignore[arg-type]
+            for i in range(len(schedule))
+        ] == list(schedule)
+        assert client._server_error_backoff_seconds(len(schedule), lane=lane) == (  # type: ignore[arg-type]
+            GeminiLlmClient.SERVER_ERROR_BACKOFF_SECONDS
+        )
 
 
 def test_batch_server_error_retries_stop_after_two(tmp_path: Path) -> None:
@@ -1952,8 +2033,10 @@ def test_free_to_paid_fallback_fires_once_server_retries_are_exhausted(tmp_path:
     response = client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
 
     assert "lane=paid" in response
-    assert seen_lanes == ["free"] * (GeminiLlmClient.SERVER_ERROR_MAX_RETRIES + 1) + ["paid"]
-    assert sleeps == list(GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE)
+    assert seen_lanes == ["free"] * (GeminiLlmClient.FREE_LANE_SERVER_ERROR_MAX_RETRIES + 1) + [
+        "paid"
+    ]
+    assert sleeps == list(GeminiLlmClient.FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE)
     # A 503 is not a quota signal, so the free lane stays open for later calls.
     assert client.free_lane_open is True
     rows = [json.loads(line) for line in log_file.read_text(encoding="utf-8").splitlines() if line]
@@ -2101,7 +2184,7 @@ def test_each_attempt_row_carries_the_time_that_attempt_happened(tmp_path: Path)
         "attempts of one call are minutes apart and their rows must say so"
     )
     gaps = [(later - earlier).total_seconds() for earlier, later in pairwise(timestamps)]
-    assert gaps == list(GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE[:3])
+    assert gaps == list(GeminiLlmClient.FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE[:3])
     assert timestamps[0] == start
 
 
@@ -2201,7 +2284,7 @@ def test_failed_attempts_do_not_move_month_to_date_spend_or_the_ceiling(
     with pytest.raises(ServerUnavailableError):
         client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
 
-    assert len(client.cost_records) == GeminiLlmClient.SERVER_ERROR_MAX_RETRIES + 1
+    assert len(client.cost_records) == GeminiLlmClient.FREE_LANE_SERVER_ERROR_MAX_RETRIES + 1
     assert all(row.outcome == "server_error" for row in client.cost_records)
     assert client.get_month_to_date_spend() == 0.0
 

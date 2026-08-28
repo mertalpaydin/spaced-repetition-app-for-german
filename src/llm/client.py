@@ -456,11 +456,67 @@ class GeminiLlmClient:
     # so the schedule escalates instead: half a minute, two minutes, eight
     # minutes, fifteen minutes, covering roughly 25 minutes with four
     # attempts rather than ten minutes with forty.
+    #
+    # These are the PAID lane's budget. The free lane has its own, much larger
+    # one below, for the reason spelled out there.
     SERVER_ERROR_BACKOFF_SCHEDULE: tuple[float, ...] = (30.0, 120.0, 480.0, 900.0)
     # Scalar fallback for an attempt index past the end of the schedule, so a
-    # raised ``SERVER_ERROR_MAX_RETRIES`` can never index off the end.
+    # raised ``SERVER_ERROR_MAX_RETRIES`` can never index off the end. Shared
+    # by both lanes' schedules, which both end on this same value.
     SERVER_ERROR_BACKOFF_SECONDS: float = 900.0
     SERVER_ERROR_MAX_RETRIES: int = 4
+
+    # The FREE lane's own 5xx budget. The reasoning that makes four retries
+    # right for the paid lane does not survive the move to the free lane: the
+    # premise there is that a 5xx can arrive after Google has already done and
+    # billed work, so each retry can cost real money. On the free lane nothing
+    # is billed at all -- it is an unbilled Cloud project and
+    # ``_estimate_cost`` prices every free-lane row at exactly 0.0 -- so a 503
+    # retry costs time and nothing else. One constant for both lanes therefore
+    # over-retried where retrying is expensive and under-retried where it is
+    # free.
+    #
+    # It under-retried badly. The owner's 2026-08-28 free-lane run came back
+    # ``server_error`` on 7 of 12 logged attempts -- genuine 5xx, since 429s
+    # log as ``outcome="quota"`` and that run has none -- and one call spent
+    # all four retries and gave up. The run needed 15 calls, made 7, and died
+    # without producing a measurement. Stopping early saved nothing, because
+    # there was nothing to save, and cost the whole run.
+    #
+    # The owner's instruction for this lane is "we go slowly if we need to".
+    # Twelve retries, thirteen attempts. The schedule EXTENDS the paid one's
+    # escalation rather than repeating a short delay (hammering a service that
+    # is down is exactly what the cut from 40 retries was right to remove) and
+    # then plateaus at the same fifteen minutes the paid schedule ends on: a
+    # wait longer than that stops being "slowly" and starts being a hang.
+    #
+    # WORST CASE, stated here so it can be agreed to rather than discovered:
+    # 30 + 60 + 120 + 240 + 480 + (7 * 900) = 7230 seconds, i.e. two hours and
+    # thirty seconds of sleeping per call before it gives up, plus the
+    # attempts' own round-trip time. It is bounded, and the schedule holds
+    # exactly one entry per retry, so no call can spin for an unbounded wall
+    # clock. For a whole ``generate_many`` group the bound multiplies by the
+    # number of concurrency waves rather than by the number of calls: at
+    # ``FREE_LANE_MAX_CONCURRENCY`` = 4, a 14-call group in which EVERY call
+    # exhausts its budget is 4 waves, roughly 8 hours, and then the group
+    # raises. That is the pathological case (a free project down for eight
+    # hours straight). The case this exists for, a burst of overload lasting
+    # minutes, costs a run only the retries it actually uses.
+    FREE_LANE_SERVER_ERROR_MAX_RETRIES: int = 12
+    FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE: tuple[float, ...] = (
+        30.0,
+        60.0,
+        120.0,
+        240.0,
+        480.0,
+        900.0,
+        900.0,
+        900.0,
+        900.0,
+        900.0,
+        900.0,
+        900.0,
+    )
     # The batch path gets its own, lower cap. This is NOT the owner's
     # instruction; it is this cycle's judgement, from the asymmetry in what a
     # retry costs. A sync 503 served nothing and billed nothing, so retrying
@@ -1078,14 +1134,35 @@ class GeminiLlmClient:
                     return None
         return None
 
-    def _server_error_backoff_seconds(self, attempt_index: int) -> float:
-        """Backoff for the ``attempt_index``-th (0-based) 5xx retry.
+    def _server_error_max_retries(self, lane: Lane) -> int:
+        """How many 5xx retries ``lane`` gets.
 
-        Reads ``SERVER_ERROR_BACKOFF_SCHEDULE`` in order and falls back to the
-        scalar ``SERVER_ERROR_BACKOFF_SECONDS`` past the end of it, so raising
-        a retry cap can never index off the schedule.
+        Lane-dependent because the cost of a retry is: a paid-lane 5xx can
+        arrive after Google has already done and billed work, a free-lane one
+        cannot bill anything at all. See ``FREE_LANE_SERVER_ERROR_MAX_RETRIES``
+        for the full argument and the worst-case wall clock it implies.
+
+        ``"cache"`` never reaches the transport, so anything that is not the
+        free lane takes the paid lane's conservative budget.
         """
-        schedule = self.SERVER_ERROR_BACKOFF_SCHEDULE
+        if lane == "free":
+            return self.FREE_LANE_SERVER_ERROR_MAX_RETRIES
+        return self.SERVER_ERROR_MAX_RETRIES
+
+    def _server_error_backoff_seconds(self, attempt_index: int, *, lane: Lane) -> float:
+        """Backoff for the ``attempt_index``-th (0-based) 5xx retry on ``lane``.
+
+        Reads that lane's schedule in order and falls back to the scalar
+        ``SERVER_ERROR_BACKOFF_SECONDS`` past the end of it, so raising a retry
+        cap can never index off a schedule. ``lane`` is required rather than
+        defaulted: the two lanes have different budgets now, and a caller that
+        forgets which one it is on is a bug worth failing on.
+        """
+        schedule = (
+            self.FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE
+            if lane == "free"
+            else self.SERVER_ERROR_BACKOFF_SCHEDULE
+        )
         if 0 <= attempt_index < len(schedule):
             return schedule[attempt_index]
         return self.SERVER_ERROR_BACKOFF_SECONDS
@@ -1388,7 +1465,9 @@ class GeminiLlmClient:
                 )
                 if server_attempts >= self.SERVER_ERROR_BATCH_MAX_RETRIES:
                     raise
-                self._sleep(self._server_error_backoff_seconds(server_attempts))
+                # Batch is paid-lane-only, so this is the paid schedule by
+                # construction, not by default.
+                self._sleep(self._server_error_backoff_seconds(server_attempts, lane="paid"))
                 server_attempts += 1
                 continue
             except ModelRejectedError:
@@ -1579,7 +1658,11 @@ class GeminiLlmClient:
         5xx server overload: not a quota signal at all -- back off and retry
         on the same lane, exactly like RPM, but on its own escalating
         schedule and its own bounded retry count, so it can never masquerade
-        as quota exhaustion or trigger the RPD lane-closing path. When those
+        as quota exhaustion or trigger the RPD lane-closing path. That
+        schedule and count are per lane (``_server_error_max_retries``,
+        ``_server_error_backoff_seconds``): the free lane retries far longer
+        because a free-lane retry cannot bill anything, while the paid lane's
+        budget stays exactly where the owner set it. When those
         retries are exhausted on the free lane, the call moves to the paid
         lane rather than raising: that is the owner's own free-to-paid
         fallback, applied after a pilot died on a 503 that outlasted the
@@ -1643,18 +1726,21 @@ class GeminiLlmClient:
                     attempt=attempt,
                     call_id=call_id,
                 )
-                if server_attempts >= self.SERVER_ERROR_MAX_RETRIES:
+                if server_attempts >= self._server_error_max_retries(lane):
                     if lane == "free" and not self.forbid_paid_lane and self.paid_api_key:
                         # The owner's free-to-paid fallback: Google's free
                         # project is down for this call, the paid project is a
                         # different project, so try it rather than losing the
-                        # work. Retries restart on the new lane.
+                        # work. Retries restart on the new lane, and on the
+                        # new lane's own budget -- the paid one, which is
+                        # deliberately much smaller because paid retries can
+                        # cost money and free ones cannot.
                         lane = "paid"
                         mode = self._mode_for_lane(lane)
                         server_attempts = 0
                         continue
                     raise
-                self._sleep(self._server_error_backoff_seconds(server_attempts))
+                self._sleep(self._server_error_backoff_seconds(server_attempts, lane=lane))
                 server_attempts += 1
                 continue
 
