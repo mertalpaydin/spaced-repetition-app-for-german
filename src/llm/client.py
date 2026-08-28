@@ -142,7 +142,29 @@ class QuotaExceededError(Exception):
     handled differently: RPM (requests-per-minute) exhaustion is transient and the
     same lane should be retried after a short backoff; RPD (requests-per-day)
     exhaustion means the free lane is closed for the rest of the Pacific day.
+
+    The string form leads with that distinction rather than with Google's raw
+    429 text, because a caller that lets this escape prints it straight to the
+    operator's terminal (``scripts/eval_verifier.py`` prints
+    ``f"{type(exc).__name__}: {exc}"``) and "429 RESOURCE_EXHAUSTED" on its own
+    does not say whether re-running now is worth anything. Google's own text
+    is kept verbatim after it, never replaced.
     """
+
+    #: What each kind means for the person reading the terminal, which is the
+    #: only reason the distinction is worth printing: one says try again, the
+    #: other says wait for tomorrow.
+    _OPERATOR_GUIDANCE: dict[str, str] = {
+        "rpm": (
+            "per-minute request limit (RPM) refused this attempt. This is "
+            "transient: re-running rides through it, and cached results are "
+            "replayed for free"
+        ),
+        "rpd": (
+            "free-tier DAILY allowance (RPD) is exhausted. Re-running does "
+            "not help until the quota resets at the next Pacific midnight"
+        ),
+    }
 
     def __init__(
         self,
@@ -152,7 +174,8 @@ class QuotaExceededError(Exception):
     ) -> None:
         self.quota_type = quota_type
         self.retry_delay_seconds = retry_delay_seconds
-        super().__init__(message or f"Gemini quota exceeded: {quota_type}")
+        summary = f"Gemini {self._OPERATOR_GUIDANCE[quota_type]}."
+        super().__init__(f"{summary} Underlying error: {message}" if message else summary)
 
 
 class ServerUnavailableError(Exception):
@@ -335,6 +358,22 @@ class CostLogRow(BaseModel):
     #: shared by the whole submitted group, because the job, not the
     #: individual prompt, is the thing that retries.
     call_id: str | None = None
+    #: Which kind of 429 this attempt hit, on a row with ``outcome="quota"``.
+    #: ``None`` everywhere else, and on every historical row: the log recorded
+    #: only that a 429 happened, and inventing a kind for such a row now would
+    #: be manufacturing evidence that was never captured.
+    #:
+    #: The distinction is the entire reason to record it, because it decides
+    #: what the operator does next. ``"rpm"`` is per-minute noise: the pacing
+    #: was briefly too fast and a re-run rides straight through it. ``"rpd"``
+    #: is the free tier's daily allowance spent, and no amount of re-running
+    #: helps until the Pacific-midnight reset. The client has always known
+    #: which (``_classify_quota_error``, ``QuotaExceededError.quota_type``) and
+    #: threw it away at logging time, leaving the owner looking at a bare
+    #: ``outcome="quota"`` row unable to tell a run worth retrying now from one
+    #: that has to wait for tomorrow -- which is also what decides whether a
+    #: 490-call bank build is feasible on the free lane at all.
+    quota_type: QuotaType | None = None
 
 
 #: Where ``GeminiLlmClient`` writes its cost log unless told otherwise, named
@@ -457,65 +496,69 @@ class GeminiLlmClient:
     # minutes, fifteen minutes, covering roughly 25 minutes with four
     # attempts rather than ten minutes with forty.
     #
-    # These are the PAID lane's budget. The free lane has its own, much larger
-    # one below, for the reason spelled out there.
+    # These are the PAID lane's budget. The free lane has its own, much
+    # shorter one below, for the reason spelled out there.
     SERVER_ERROR_BACKOFF_SCHEDULE: tuple[float, ...] = (30.0, 120.0, 480.0, 900.0)
-    # Scalar fallback for an attempt index past the end of the schedule, so a
-    # raised ``SERVER_ERROR_MAX_RETRIES`` can never index off the end. Shared
-    # by both lanes' schedules, which both end on this same value.
+    # Scalar fallback for an attempt index past the end of a schedule, so a
+    # raised ``*_MAX_RETRIES`` can never index off the end. It is the PAID
+    # schedule's last entry; the free schedule no longer ends on it, and does
+    # not need to, because both schedules hold exactly one entry per retry
+    # (pinned by test_operator_tuned_server_error_constants_are_pinned) so
+    # this fallback is unreachable unless a retry cap is raised without its
+    # schedule. If the free cap is ever raised, extend its schedule too rather
+    # than letting a fail-fast lane inherit a fifteen-minute sleep from here.
     SERVER_ERROR_BACKOFF_SECONDS: float = 900.0
     SERVER_ERROR_MAX_RETRIES: int = 4
 
-    # The FREE lane's own 5xx budget. The reasoning that makes four retries
-    # right for the paid lane does not survive the move to the free lane: the
-    # premise there is that a 5xx can arrive after Google has already done and
-    # billed work, so each retry can cost real money. On the free lane nothing
-    # is billed at all -- it is an unbilled Cloud project and
-    # ``_estimate_cost`` prices every free-lane row at exactly 0.0 -- so a 503
-    # retry costs time and nothing else. One constant for both lanes therefore
-    # over-retried where retrying is expensive and under-retried where it is
-    # free.
+    # The FREE lane's own 5xx budget: FAIL FAST, then let the operator re-run.
     #
-    # It under-retried badly. The owner's 2026-08-28 free-lane run came back
-    # ``server_error`` on 7 of 12 logged attempts -- genuine 5xx, since 429s
-    # log as ``outcome="quota"`` and that run has none -- and one call spent
-    # all four retries and gave up. The run needed 15 calls, made 7, and died
-    # without producing a measurement. Stopping early saved nothing, because
-    # there was nothing to save, and cost the whole run.
+    # The lane still differs from the paid one, and in the same direction: a
+    # paid-lane 5xx can arrive after Google has already done and billed work,
+    # so each paid retry can cost real money, while an unbilled free-lane
+    # retry costs only time (``_estimate_cost`` prices every free-lane row at
+    # exactly 0.0). That is why the two budgets stay separate. It is NOT a
+    # reason to retry for hours, and an earlier version of this comment used
+    # it as one: twelve retries plateauing at fifteen minutes, 7230 seconds
+    # per call, roughly eight hours for a 15-call group at concurrency 4.
+    # That shape was unusable in practice -- ``scripts/eval_verifier.py``, a
+    # 15-call job that should take minutes, sat for over two and a half hours
+    # with no output, indistinguishable from a hang.
     #
-    # The owner's instruction for this lane is "we go slowly if we need to".
-    # Twelve retries, thirteen attempts. The schedule EXTENDS the paid one's
-    # escalation rather than repeating a short delay (hammering a service that
-    # is down is exactly what the cut from 40 retries was right to remove) and
-    # then plateaus at the same fifteen minutes the paid schedule ends on: a
-    # wait longer than that stops being "slowly" and starts being a hang.
+    # WHAT THAT REASONING MISSED: the local content-addressed cache
+    # (``src/llm/cache.py``, CLAUDE.md 9 "Caching") makes a dead run nearly
+    # free to repeat. Every verdict that already landed is replayed from disk
+    # on the next run at zero cost, logged as ``lane="cache"``; the owner's
+    # own second run opened with 5 such rows before it spent a single new
+    # call. Progress is therefore already durable ACROSS runs. Sleeping for
+    # hours inside one process to avoid losing a call protects against a loss
+    # the cache has already prevented, while holding a concurrency slot doing
+    # nothing. Short retries plus repeated runs strictly dominate long
+    # in-process backoff: the operator gets a live process he can watch and a
+    # clear exit, instead of silence he cannot tell from a hang.
+    #
+    # So: four retries, five attempts, on a doubling schedule that gives a
+    # genuine transient blip a couple of chances and then gets out of the way.
+    # Still escalating rather than a flat short delay, because hammering a
+    # service that is down is what the cut from 40 retries was right to
+    # remove; just capped where a human's patience actually is.
     #
     # WORST CASE, stated here so it can be agreed to rather than discovered:
-    # 30 + 60 + 120 + 240 + 480 + (7 * 900) = 7230 seconds, i.e. two hours and
-    # thirty seconds of sleeping per call before it gives up, plus the
-    # attempts' own round-trip time. It is bounded, and the schedule holds
-    # exactly one entry per retry, so no call can spin for an unbounded wall
-    # clock. For a whole ``generate_many`` group the bound multiplies by the
-    # number of concurrency waves rather than by the number of calls: at
-    # ``FREE_LANE_MAX_CONCURRENCY`` = 4, a 14-call group in which EVERY call
-    # exhausts its budget is 4 waves, roughly 8 hours, and then the group
-    # raises. That is the pathological case (a free project down for eight
-    # hours straight). The case this exists for, a burst of overload lasting
-    # minutes, costs a run only the retries it actually uses.
-    FREE_LANE_SERVER_ERROR_MAX_RETRIES: int = 12
+    # 15 + 30 + 60 + 120 = 225 seconds, i.e. three minutes and forty-five
+    # seconds of sleeping per call before it gives up, plus the attempts' own
+    # round-trip time. The schedule holds exactly one entry per retry, so no
+    # call can spin for an unbounded wall clock. For a whole ``generate_many``
+    # group the bound multiplies by the number of concurrency waves rather
+    # than by the number of calls: at ``FREE_LANE_MAX_CONCURRENCY`` = 4, a
+    # 15-call group (``scripts/eval_verifier.py``) is 4 waves, so even if
+    # EVERY call exhausts its budget the group raises after 4 * 225 = 900
+    # seconds, fifteen minutes. Re-running it then costs nothing for the calls
+    # that did land.
+    FREE_LANE_SERVER_ERROR_MAX_RETRIES: int = 4
     FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE: tuple[float, ...] = (
+        15.0,
         30.0,
         60.0,
         120.0,
-        240.0,
-        480.0,
-        900.0,
-        900.0,
-        900.0,
-        900.0,
-        900.0,
-        900.0,
-        900.0,
     )
     # The batch path gets its own, lower cap. This is NOT the owner's
     # instruction; it is this cycle's judgement, from the asymmetry in what a
@@ -745,6 +788,7 @@ class GeminiLlmClient:
         outcome: RowOutcome,
         attempt: int,
         call_id: str,
+        quota_type: QuotaType | None = None,
     ) -> None:
         """Write the audit row for an attempt that reached Google and failed.
 
@@ -779,6 +823,18 @@ class GeminiLlmClient:
         is logged for retry legibility, not because it hides spend. A
         ``"server_error"`` row is the one that can hide spend.
 
+        ``quota_type`` says WHICH 429, and callers must pass it on every
+        ``outcome="quota"`` row. It is not about money either; it is about
+        what the operator should do with the run. RPM means the pacing was
+        briefly too fast and a re-run rides through it; RPD means the free
+        tier's daily allowance is gone until the Pacific-midnight reset and
+        re-running changes nothing. The client already classified the error
+        to decide its own retry behaviour (``_classify_quota_error``), so
+        recording it costs one field and closes a gap the log had no other
+        way to answer. It stays ``None`` on every non-quota row rather than
+        carrying a placeholder, for the same reason ``mode`` is ``None`` on a
+        historical row: an empty cell is honest, a guess is not.
+
         **The timestamp is read from ``self._clock()`` here, at the moment the
         row is written, and is deliberately not a parameter.** It used to be
         passed in as the caller's ``ref_time``, which is computed once at the
@@ -810,6 +866,7 @@ class GeminiLlmClient:
                 outcome=outcome,
                 attempt=attempt,
                 call_id=call_id,
+                quota_type=quota_type,
             )
         )
 
@@ -893,17 +950,36 @@ class GeminiLlmClient:
         pick the paid lane, since the fix differs: a closed free lane just
         needs to wait (or opt into ``--batch``); the user-content privacy
         restriction needs a config or call-site change, not a wait.
+
+        The closed-lane branch is the message the operator actually sees when
+        a ``--free-lane-only`` run ends on a quota refusal, because the free
+        lane is closed by exactly one thing: an RPD 429
+        (``_close_free_lane_until_pacific_midnight`` is called on no other
+        path). It therefore names RPD outright, and states the reopen instant
+        in the operator's OWN timezone first, with UTC after it. The reopen
+        instant is stored in UTC and used to be printed that way, which is
+        correct and unreadable: "reopens at 07:00Z" is not an answer to "when
+        can I run this again", and answering that is the entire point of
+        telling him which 429 he hit.
         """
         if not self.free_lane_open:
             reopen_at = self.free_lane_closed_until
-            reopen_str = (
-                reopen_at.isoformat() if reopen_at is not None else "the next Pacific midnight"
-            )
+            if reopen_at is None:
+                reopen_str = "the next Pacific midnight"
+            else:
+                # ``astimezone()`` with no argument is the machine's local
+                # zone, which for an operator-facing string is the right
+                # default: he reads the terminal where the job runs.
+                reopen_str = (
+                    f"{reopen_at.astimezone().strftime('%Y-%m-%d %H:%M %Z')} "
+                    f"local ({reopen_at.isoformat()})"
+                )
             return (
-                "The free lane is closed (daily quota exhausted) and the paid batch "
-                "lane is forbidden in this run. The free lane reopens at "
-                f"{reopen_str} (Pacific-midnight reset). Pass --batch if you actually "
-                "want this run to use the paid lane."
+                "The free lane is closed: the free-tier DAILY allowance (RPD) is "
+                "exhausted, and the paid batch lane is forbidden in this run. "
+                "Re-running does not help until the quota resets. The free lane "
+                f"reopens at {reopen_str}, the next Pacific midnight. Pass --batch "
+                "if you actually want this run to use the paid lane."
             )
         return (
             "This call carries user content and privacy.restrict_user_content_to_paid_lane "
@@ -1139,8 +1215,11 @@ class GeminiLlmClient:
 
         Lane-dependent because the cost of a retry is: a paid-lane 5xx can
         arrive after Google has already done and billed work, a free-lane one
-        cannot bill anything at all. See ``FREE_LANE_SERVER_ERROR_MAX_RETRIES``
-        for the full argument and the worst-case wall clock it implies.
+        cannot bill anything at all. The free lane's budget is nonetheless the
+        SHORTER of the two, because the local cache makes a dead free-lane run
+        cheap to re-run and a long in-process sleep buys nothing. See
+        ``FREE_LANE_SERVER_ERROR_MAX_RETRIES`` for the full argument and the
+        worst-case wall clock it implies.
 
         ``"cache"`` never reaches the transport, so anything that is not the
         free lane takes the paid lane's conservative budget.
@@ -1447,6 +1526,7 @@ class GeminiLlmClient:
                     outcome="quota",
                     attempt=attempt,
                     call_id=call_id,
+                    quota_type=exc.quota_type,
                 )
                 if rpm_attempts >= self.RPM_MAX_RETRIES:
                     raise
@@ -1660,9 +1740,10 @@ class GeminiLlmClient:
         schedule and its own bounded retry count, so it can never masquerade
         as quota exhaustion or trigger the RPD lane-closing path. That
         schedule and count are per lane (``_server_error_max_retries``,
-        ``_server_error_backoff_seconds``): the free lane retries far longer
-        because a free-lane retry cannot bill anything, while the paid lane's
-        budget stays exactly where the owner set it. When those
+        ``_server_error_backoff_seconds``): the free lane fails fast, because
+        the local cache makes a dead run cheap to repeat and a long sleep only
+        holds a concurrency slot, while the paid lane's budget stays exactly
+        where the owner set it. When those
         retries are exhausted on the free lane, the call moves to the paid
         lane rather than raising: that is the owner's own free-to-paid
         fallback, applied after a pilot died on a 503 that outlasted the
@@ -1700,6 +1781,7 @@ class GeminiLlmClient:
                     outcome="quota",
                     attempt=attempt,
                     call_id=call_id,
+                    quota_type=exc.quota_type,
                 )
                 if exc.quota_type == "rpm":
                     if rpm_attempts >= self.RPM_MAX_RETRIES:
@@ -1733,8 +1815,10 @@ class GeminiLlmClient:
                         # different project, so try it rather than losing the
                         # work. Retries restart on the new lane, and on the
                         # new lane's own budget -- the paid one, which is
-                        # deliberately much smaller because paid retries can
-                        # cost money and free ones cannot.
+                        # deliberately the longer of the two: a paid retry can
+                        # cost money, so it is worth waiting out rather than
+                        # repeating, whereas a free-lane run is cheap to
+                        # re-run from the cache and so fails fast instead.
                         lane = "paid"
                         mode = self._mode_for_lane(lane)
                         server_attempts = 0

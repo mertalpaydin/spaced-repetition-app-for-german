@@ -14,6 +14,7 @@ classify rather than guess at.
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -461,6 +462,73 @@ def test_repair_reports_a_logged_day_the_bill_does_not_cover(tmp_path: Path) -> 
     _, report = repair(rows, billing)
     assert report.days_missing_from_bill == [date(2026, 7, 9)]
     assert report.unresolved_rows == 1
+
+
+def test_both_scripts_parse_rows_written_before_quota_type_existed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``quota_type`` is additive with a default, like ``mode``, ``outcome``,
+    ``attempt`` and ``call_id`` before it, so the owner's existing log must
+    keep parsing through BOTH scripts unchanged.
+
+    The rows here are hand-written JSON rather than ``_row(...)`` output on
+    purpose: ``CostLogRow`` would supply the default itself and the test would
+    prove nothing about a file on disk. This is what his August log actually
+    contains, ``quota`` rows included.
+
+    The failure mode this guards against is quiet. ``load_cost_log`` prints a
+    ``ValidationError`` to stderr and DROPS the row rather than raising, so a
+    non-additive field change would not crash the reconciliation; it would
+    silently reconcile against a subset of the log and report a discrepancy
+    that is really just the rows it threw away. Hence the stderr assertion as
+    well as the count."""
+    log_path = tmp_path / "cost_log.jsonl"
+    legacy_rows = [
+        # The oldest shape: no mode, no outcome, no attempt, no call_id.
+        {
+            "timestamp": "2026-07-02T12:00:00+00:00",
+            "model": MODEL_VERIFY,
+            "lane": "paid",
+            "prompt_tokens": 80_000,
+            "completion_tokens": 150_000,
+            "cost_usd": 0.31125,
+            "purpose": "unit_test",
+        },
+        # A row from after attempt logging landed but before quota_type: a 429
+        # recorded as having happened, with no record of which kind it was.
+        # ``None`` is the honest reading of it, and it must not fail to parse.
+        {
+            "timestamp": "2026-07-03T12:00:00+00:00",
+            "model": MODEL_VERIFY,
+            "lane": "paid",
+            "mode": "batch",
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "cost_usd": 0.0,
+            "purpose": "unit_test",
+            "outcome": "quota",
+            "attempt": 1,
+            "call_id": "abc123",
+        },
+    ]
+    log_path.write_text(
+        "".join(json.dumps(row) + "\n" for row in legacy_rows),
+        encoding="utf-8",
+    )
+
+    rows = load_cost_log(log_path)
+
+    assert capsys.readouterr().err == "", "no historical row may be skipped as unparseable"
+    assert len(rows) == len(legacy_rows)
+    assert all(row.quota_type is None for row in rows)
+    assert rows[1].outcome == "quota", (
+        "a historical quota row stays a quota row; only the kind is unknown"
+    )
+
+    # And the repair script, which re-reads and rewrites every one of them.
+    billing = load_billing_csv(write_billing_csv(tmp_path / "bill.csv"))
+    repaired, _report = repair(rows, billing)
+    assert all(row.quota_type is None for row in repaired)
 
 
 def test_repaired_log_still_loads_through_the_client(tmp_path: Path) -> None:
