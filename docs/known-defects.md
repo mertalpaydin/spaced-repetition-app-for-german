@@ -611,7 +611,7 @@ Das Unternehmen habe aber schwarze ___ geschrieben.        answer: Zahlen
 `schwarze Zahlen schreiben` is correctly translated by an English idiom that
 happens to contain no plural. This is why the dimension reports rather than
 rejects on its own: whether the gloss check rejects at all is still
-`--enforce-gloss-check`, `TODO.md` item 9.
+`--enforce-gloss-check`, `TODO.md` item 7.
 
 Measure it with `uv run python -m scripts.eval_gloss_adversarial
 --deterministic`, which scores the rule rather than the model and so needs no

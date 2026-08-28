@@ -13,45 +13,7 @@ documents cite them. They are labels, not an order. The order is top to bottom.
 
 ---
 
-## 1. Detached batch submission, so a scheduled job can resume (6.3)
-
-**Do.** Two changes in `src/llm/client.py` and one in the pilot:
-
-- **Persist the batch job name at submission.** `_call_batch_many` calls
-  `client.batches.create(...)` and then blocks in `_poll_batch_job` until the job
-  finishes; the job name is never written anywhere. So a killed process loses a
-  submitted job entirely, and **nothing can pick up a batch that is already
-  running**, which is exactly what item 2 depends on. Write the job name, its
-  model, purpose and the prompt hashes to disk at submission.
-- **Add a resume path** that reads those records, polls each job, and writes the
-  responses into the existing content-addressed cache under the same keys a
-  synchronous call would have used. A later phase-B run then finds them as
-  ordinary cache hits and does no work.
-- **Add `--batch` to `scripts/step7_corpus_pilot.py`.** It builds its client
-  through `sentence_source.client_from_env`, which is `forbid_batch=True`: the
-  pilot is on-demand only today, and a real batch submission raises
-  `BatchForbiddenError`. `scripts/step5_pilot_generation.py` already has exactly
-  this opt-in; copy it.
-
-**The intended order per run:** free lane until its daily quota is spent, then
-queue the remainder as one real batch job, then exit. The scheduled job collects
-the results later. That is the owner's instruction of 2026-08-28, and it is also
-what CLAUDE.md section 9 already says overflow should do ("remaining work queues
-and ships as one batch"); the pilot is simply the workload that opted out of it.
-
-**Watch out.** Passes after the first bypass the cache deliberately
-(`model_verification.verify_items`, `use_cache=False`), because a cached second
-pass would replay the first pass's verdict and measure nothing. That is correct
-and must stay. It does mean **pass 2 cannot resume from the cache**, so pass 2's
-whole batch has to be submitted and collected as one unit. Size the run
-accordingly.
-
-**Done when.** A phase-B run submits a batch, exits, and a later run collects
-that job's results without re-spending anything.
-
----
-
-## 2. The scheduled job (6.4)
+## 1. The scheduled job (6.4)
 
 **Do.** A Windows scheduled task, following the pattern in
 `docs/monthly-translation-job.md`:
@@ -68,7 +30,7 @@ several sittings without being watched.
 
 ---
 
-## 3. The large pilot (6.5)
+## 2. The large pilot (6.5)
 
 **Do.** Phase A at a much larger scale than any previous cycle, then phase B with
 `--verification-passes 2 --verification-batch-size 5`.
@@ -92,11 +54,11 @@ two passes both at 5 sample only the model's run-to-run noise, which is a
 smaller effect. `pass_disagreements` in the report is the direct measure of it.
 
 **Done when.** A pilot report exists with per-topic counts, `pass_disagreements`,
-and a rejected file large enough for item 6 to sample from.
+and a rejected file large enough for item 3 to sample from.
 
 ---
 
-## 4. Measure the true false-positive rate (6.6)
+## 3. Measure the true false-positive rate (6.6)
 
 **Do.** Review `data/corpus_pilot_rejected.jsonl` with agents and count how many
 rejected items were actually good. The false-positive rate is that count over
@@ -124,7 +86,7 @@ the two vendors' conflict list, and the hand-checked subsample.
 
 ---
 
-## 5. Zero defects that reach a learner (6.7)
+## 4. Zero defects that reach a learner (6.7)
 
 The target is zero defects for the overall pipeline. Zero *produced* is not
 reachable: machine translation, the tagger's own accuracy ceiling
@@ -162,7 +124,7 @@ and a reports-per-hundred-items figure exists.
 
 ---
 
-## 6. Collocation evidence, for defect class 2.1 (6.8)
+## 5. Collocation evidence, for defect class 2.1 (6.8)
 
 **Do.** Mine collocation evidence from the corpus the same way
 `scripts/build_verb_government.py` already mines case government: count real
@@ -204,9 +166,9 @@ well-attested pairs, measured against a pilot's defect rate for class 2.1.
 
 ---
 
-## 7. Build the item bank (6.1)
+## 6. Build the item bank (6.1)
 
-The biggest single piece of open work. Items 1 to 4 come first: they close the
+The biggest single piece of open work. Items 1 to 3 come first: they close the
 one defect nothing catches, make the run resumable, and measure the
 false-positive rate that decides how the build is configured.
 
@@ -230,43 +192,7 @@ topics the corpus cannot fill to 25.
 
 ---
 
-## 8. Schedule the monthly translation job (2.6)
-
-**Do.** One `schtasks /Create` line on the owner's machine, per
-`docs/monthly-translation-job.md`. The script and its tests exist.
-
-**Schedule it DAILY, not monthly**, per the owner's instruction of 2026-08-28.
-Use `/SC DAILY /ST 03:00` in place of the `/SC MONTHLY /D 2` that document
-gives.
-
-Not for extra quota, which does not exist: the Azure F0 allowance is
-**2,000,000 characters per calendar month, keyed UTC**, and running more often
-buys none. The reason is that a missed month is lost forever. A monthly trigger
-fires once, on the 2nd at 03:00, and if the machine is off at that moment the
-whole month's 2,000,000 expires unspent. A daily run makes that impossible: the
-first day the machine is on, it spends the month's budget, and every later run
-that month correctly does nothing and exits 0. The ledger is what makes the
-extra runs safe.
-
-**Expect a run that has budget to take at least an hour.** Azure F0 meters
-2,000,000 characters per *hour* as well as per month, so the script paces itself
-underneath that. That is not a hang.
-
-**Why.** Until that task exists, nothing runs and the corpus does not get
-translated. Translating the whole corpus takes about 14 monthly runs, so every
-month it is not scheduled is a month lost. Cheapest item on this list.
-
-**Nothing has ever run.** As of 2026-08-28 there is no scheduled task and no
-`data/fixtures/translations/azure_f0_ledger.json`, so **zero** of the ~13.4
-months of free tier the corpus needs have been spent. The 35 MB store on the
-owner's machine is from earlier manual runs, not from this job.
-
-**Done when.** The task is in Windows Task Scheduler and one run has written
-its month into `data/fixtures/translations/azure_f0_ledger.json`.
-
----
-
-## 9. Decide whether the gloss consistency check rejects (2.1b)
+## 7. Decide whether the gloss consistency check rejects (2.1b)
 
 **Do.** Run a pilot, read the flag count, then set the default. The check runs
 and reports today; `--enforce-gloss-check` makes it reject.
@@ -288,7 +214,7 @@ whose glosses are machine translations.
 
 ---
 
-## 10. Run the gloss purge on the real store, then re-gloss (2.2b)
+## 8. Run the gloss purge on the real store, then re-gloss (2.2b)
 
 **Do.** `scripts/purge_mismatched_glosses.py --dry-run` first, read the
 examples, then apply, then re-run `scripts/build_translations.py
@@ -309,7 +235,7 @@ English one.
 
 ---
 
-## 11. The AI-generation pilot (2.4)
+## 9. The AI-generation pilot (2.4)
 
 Explicitly open. Not deferred, not folded into item 9.
 
@@ -330,16 +256,16 @@ are either measured or disabled.
 
 ---
 
-## 12. Write down the split (2.5)
+## 10. Write down the split (2.5)
 
-**Do.** After item 11. Write which topics are corpus-sourced, which are
+**Do.** After item 9. Write which topics are corpus-sourced, which are
 generated, and the rule for deciding. That becomes the standing policy.
 
 **Done when.** The policy is in `docs/` and the pipeline follows it.
 
 ---
 
-## 13. Two one-line defects, neither on the bank path
+## 11. Two one-line defects, neither on the bank path
 
 Deferred deliberately. Both are known, both are small, and neither blocks the
 bank build. Do them when the bank build is not the active work.
@@ -379,7 +305,7 @@ bank build. Do them when the bank build is not the active work.
 
 **Why later.** The first is a one-line deletion that changes no test. The
 second is the owner's call, because it decides whether those two test lanes
-exist at all. The third is four small type fixes. None of them blocks item 7,
+exist at all. The third is four small type fixes. None of them blocks item 6,
 but between them **every CI job in the repository currently fails**, so the
 first green build will need all three.
 

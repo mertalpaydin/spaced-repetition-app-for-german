@@ -269,6 +269,7 @@ from src.contracts import MODEL_VERIFY, BankItem
 from src.llm.cache import LlmCache
 from src.llm.client import (
     BatchForbiddenError,
+    BatchQueuedError,
     BudgetExceeded,
     MissingApiKeyError,
     PaidLaneForbiddenError,
@@ -529,6 +530,7 @@ REASON_MALFORMED_RESPONSE = "malformed_model_response"
 REASON_BUDGET_EXCEEDED = "budget_exceeded"
 REASON_SERVER_UNAVAILABLE = "server_unavailable"
 REASON_PAID_LANE_FORBIDDEN = "paid_lane_forbidden"
+REASON_BATCH_QUEUED = "batch_queued_awaiting_collection"
 REASON_BATCH_FORBIDDEN = "batch_forbidden"
 REASON_MISSING_API_KEY = "missing_api_key"
 
@@ -536,7 +538,14 @@ REASON_MISSING_API_KEY = "missing_api_key"
 # on to their reason slug -- checked in this order (a subclass relationship
 # does not exist among these five, so order does not affect matching, only
 # readability matches the order they are documented in above).
+#: A detached batch submission is not a failure: the work is queued and this
+#: run deliberately did not wait for it. ``not_run`` is nonetheless the honest
+#: verdict, because nothing judged these items THIS run, and the pilot already
+#: refuses to write a bank containing an item nothing judged. The next run,
+#: after the collector has pulled the responses into the cache, finds them and
+#: reaches real verdicts.
 _DEGRADE_EXCEPTIONS: tuple[tuple[type[Exception], str], ...] = (
+    (BatchQueuedError, REASON_BATCH_QUEUED),
     (BudgetExceeded, REASON_BUDGET_EXCEEDED),
     (ServerUnavailableError, REASON_SERVER_UNAVAILABLE),
     (PaidLaneForbiddenError, REASON_PAID_LANE_FORBIDDEN),

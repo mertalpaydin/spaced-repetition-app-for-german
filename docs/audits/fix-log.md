@@ -3471,3 +3471,90 @@ runs. TODO.md item 8.
 
 `uv run pytest -q`: 1860 passed. `ruff check`, `ruff format --check` and
 `mypy --strict src/` all clean.
+
+---
+
+## Cycle 22, 28 August 2026: detached batch submission, and the translation job scheduled
+
+Two items closed. TODO.md item 1 (detached batch) and item 7 (the Azure job).
+
+### Detached batch: what was broken
+
+`GeminiLlmClient._call_batch_many` submitted a real Gemini batch job and then
+blocked in `_poll_batch_job` until it finished, and **the job's name was never
+written down anywhere**. Two consequences:
+
+- A process killed mid-poll lost the job outright. Google has already accepted
+  it and will bill whatever it processes; this side simply forgot it existed.
+- Nothing could collect a batch that was already running, so a scheduled job
+  waking every thirty minutes could not pick up work an earlier wake-up had
+  submitted. There was nothing on disk saying there was any.
+
+The second blocked the whole resumable-pilot design.
+
+### What now exists
+
+`src/llm/batch_jobs.py` records submitted-but-uncollected jobs.
+`GeminiLlmClient.collect_pending_batches` polls them once each and writes the
+responses into the content-addressed cache under the same `(model, prompt)`
+keys a synchronous call would have used, so the next pipeline run over the same
+prompts finds the work done and spends nothing.
+`scripts/collect_batch_jobs.py` is the CLI a scheduled task runs.
+
+`detach_batch=True` makes a submission record the job and raise
+`BatchQueuedError` instead of waiting. That is not a failure, and
+`verify_items` treats it as one more degrade case: the items become `not_run`,
+which is the honest verdict because nothing judged them that run, and the pilot
+already refuses to write a bank containing an unjudged item.
+
+`--batch` on `scripts/step7_corpus_pilot.py` is the opt-in, matching the one
+`step5` already had. Without it the pilot is on-demand only, exactly as before.
+
+### Three ordering decisions, each of which is the difference between safe and lossy
+
+**The job name is written down before anything else can fail**, immediately
+after `batches.create` returns. From the moment Google accepts a job it is
+billable, so the gap between "submitted" and "recorded" is the gap in which
+work gets paid for and lost. That recording happens whether or not
+`detach_batch` is set: it is not part of the opt-in, because the old behaviour
+was losing jobs too, just less often.
+
+**Responses are cached before the job is removed from the store.** A crash
+between the two costs one wasted poll next time. The other order costs the
+results.
+
+**A job is removed only when terminal.** Running means leave it. Succeeded
+means cache and drop. Failed, cancelled or expired means drop, because
+re-polling something Google has finished with forever is a slow way of never
+finishing.
+
+The collector's `batches.get` is wrapped in a deliberately broad `except`. It
+runs unattended over jobs that may be days old, and one unreachable job must
+not stop the others being collected; the job stays in the store and is retried.
+
+### The Azure translation job
+
+Scheduled and run, TODO.md item 7. It had never run once: no task, no ledger,
+so zero of the roughly 13.4 months of free tier the corpus needs had been
+spent, while `docs/monthly-translation-job.md` described a schedule nobody had
+created.
+
+**Daily, not the monthly schedule that document specifies.** Not for quota a
+daily run cannot buy, because the F0 allowance is 2,000,000 characters per
+calendar month and running more often cannot raise it. Daily is so that a
+missed month becomes impossible: a monthly trigger fires once, and a machine
+switched off at that moment costs the whole month, unrecoverably.
+
+`StartWhenAvailable`, battery tolerance and a six-hour limit were set through
+PowerShell, because `schtasks` cannot. `StartWhenAvailable` is the one that
+matters: without it a daily task on a laptop never on at 03:00 never runs at
+all, which is the failure the daily schedule exists to prevent.
+
+Verified by a capped supervised run first (200 carriers, 0 failures, ledger
+written), then by triggering the real scheduled task, so the wrapper and the
+task definition are validated rather than only the script. The first full run
+reached 27% of the month's allowance with the Gemini fallback at 0, which is
+what a healthy Azure resource looks like.
+
+`uv run pytest -q`: 1885 passed. `ruff check`, `ruff format --check` and
+`mypy --strict src/` all clean.

@@ -25,6 +25,11 @@ from src.contracts import (
     THINKING_FLASH_LITE,
     THINKING_VERIFY,
 )
+from src.llm.batch_jobs import (
+    DEFAULT_BATCH_JOB_STORE,
+    BatchJobStore,
+    record_submission,
+)
 from src.llm.cache import LlmCache
 from src.llm.config import DEFAULT_CONFIG_PATH, load_restrict_user_content_to_paid_lane
 
@@ -225,6 +230,28 @@ class PaidLaneForbiddenError(RuntimeError):
     when the free lane reopens, and that ``--batch`` remains available as
     an explicit opt-in.
     """
+
+
+class BatchQueuedError(RuntimeError):
+    """Raised when a client built with ``detach_batch=True`` has submitted work
+    to the real Batch API and deliberately did not wait for it.
+
+    Not a failure. It is how a run says "this is queued, come back for it",
+    which is the whole point of a detached submission: the caller exits, the
+    scheduled collector picks the job up later, and the next run of the same
+    work finds every response already in the local cache.
+
+    Carries the job names so a caller can report exactly what is outstanding.
+    ``verify_items`` treats it like the other degrade cases and records
+    ``not_run`` for the affected items, which is the honest verdict: nothing
+    judged them THIS run. The pilot then refuses the bank write, as it already
+    does for any unjudged item.
+    """
+
+    def __init__(self, *, job_names: list[str], prompts_queued: int, message: str) -> None:
+        super().__init__(message)
+        self.job_names = job_names
+        self.prompts_queued = prompts_queued
 
 
 class BatchForbiddenError(RuntimeError):
@@ -444,6 +471,46 @@ class BatchTransportResult(BaseModel):
     call_id: str
 
 
+class BatchCollectionReport(BaseModel):
+    """What one sweep of the pending-batch store did.
+
+    Every field is a count of something that actually happened, because this
+    runs unattended and the log line it produces is the only evidence anybody
+    will see.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    #: Jobs in the store when the sweep started.
+    examined: int = 0
+    #: Jobs that had finished and whose responses are now cached.
+    collected_jobs: int = 0
+    #: Individual prompts written into the cache.
+    cached_responses: int = 0
+    #: Jobs still queued or running at Google. Left in the store.
+    still_running: int = 0
+    #: Jobs that reached a terminal non-success state. Dropped from the store.
+    failed: list[str] = Field(default_factory=list)
+    #: Anything that went wrong without being terminal. The job is kept.
+    errors: list[str] = Field(default_factory=list)
+    #: Jobs still in the store when the sweep ended.
+    outstanding: int = 0
+
+    def describe(self) -> str:
+        parts = [
+            f"examined {self.examined}",
+            f"collected {self.collected_jobs}",
+            f"cached {self.cached_responses} response(s)",
+            f"still running {self.still_running}",
+            f"outstanding {self.outstanding}",
+        ]
+        if self.failed:
+            parts.append(f"failed {len(self.failed)}")
+        if self.errors:
+            parts.append(f"errors {len(self.errors)}")
+        return ", ".join(parts)
+
+
 class GeminiLlmClient:
     """The single entry point for all LLM calls in the application.
 
@@ -635,11 +702,20 @@ class GeminiLlmClient:
         sleep_fn: Callable[[float], None] | None = None,
         forbid_paid_lane: bool = False,
         forbid_batch: bool = False,
+        detach_batch: bool = False,
+        batch_job_store_path: Path | str = DEFAULT_BATCH_JOB_STORE,
     ) -> None:
         self.free_api_key = (
             free_api_key or os.getenv("GEMINI_FREE_API_KEY") or os.getenv("GEMINI_API_KEY")
         )
         self.paid_api_key = paid_api_key or os.getenv("GEMINI_PAID_API_KEY")
+        # Submit a real batch job and do not wait for it. Off by default, so
+        # every existing caller keeps blocking exactly as it did. The job name
+        # is recorded on disk either way (see ``_call_batch_many``): that part
+        # is not optional, because a job Google has accepted is billable
+        # whether or not this process lives long enough to collect it.
+        self.detach_batch = detach_batch
+        self.batch_job_store_path = Path(batch_job_store_path)
         self.spend_ceiling_usd = spend_ceiling_usd
         self.cost_log_path = Path(cost_log_path)
         self.cache = LlmCache(cache_dir=cache_dir)
@@ -1450,6 +1526,34 @@ class GeminiLlmClient:
                 f"(purpose={purpose!r}): {exc}"
             ) from exc
 
+        # Written down BEFORE anything else can fail. From the moment Google
+        # accepts a job it is billable, so the window between "submitted" and
+        # "recorded" is the window in which work can be paid for and lost --
+        # which is exactly what used to happen to every job whose process was
+        # killed mid-poll.
+        if job.name is not None:
+            record_submission(
+                job_name=job.name,
+                model=model,
+                purpose=purpose,
+                prompts=prompts,
+                path=self.batch_job_store_path,
+            )
+
+        if self.detach_batch:
+            # Submit and walk away. The scheduled collector picks the results
+            # up later (``collect_pending_batches``) and writes them into the
+            # cache, so the next run of this same work finds them for free.
+            raise BatchQueuedError(
+                job_names=[job.name] if job.name is not None else [],
+                prompts_queued=len(prompts),
+                message=(
+                    f"Queued {len(prompts)} prompt(s) as batch job {job.name!r} "
+                    f"(model={model!r}, purpose={purpose!r}) and did not wait. "
+                    f"Collect with `uv run python -m scripts.collect_batch_jobs`."
+                ),
+            )
+
         job = self._poll_batch_job(client, job)
 
         if job.state != genai_types.JobState.JOB_STATE_SUCCEEDED:
@@ -1909,6 +2013,119 @@ class GeminiLlmClient:
             self.cache.set(model=model, prompt=prompt, response=result.text, **kwargs)
 
         return result.text
+
+    def collect_pending_batches(self, *, only_finished: bool = True) -> "BatchCollectionReport":
+        """Poll every outstanding batch job once and cache what has landed.
+
+        This is the other half of ``detach_batch``: a submission recorded the
+        job and walked away, and something has to come back for it. Designed to
+        be run repeatedly by a scheduled task, so it takes one look at each job
+        and returns rather than waiting on anything.
+
+        **Responses are written into the local cache**, under the same
+        ``(model, prompt)`` keys a synchronous call would have used. That is
+        what makes collection useful rather than merely tidy: the next run of
+        the same work finds every prompt already answered and spends nothing.
+
+        **A job is removed from the store only when it is terminal.** Still
+        running means leave it and look again next time. Succeeded means cache
+        the responses and drop it. Failed, cancelled or expired means drop it
+        too, because re-polling something Google has finished with forever is
+        just a slow way of never finishing.
+
+        **Interrupting this is safe.** Responses are cached before the job is
+        removed from the store, so a crash between the two leaves a job that
+        gets collected again next time, finds every prompt already cached, and
+        costs nothing. The reverse order would silently lose the results.
+        """
+        store = BatchJobStore.load(self.batch_job_store_path)
+        report = BatchCollectionReport(examined=len(store.jobs))
+        if not store.jobs:
+            return report
+
+        client = self._get_sdk_client("paid")
+        terminal_failures = {
+            genai_types.JobState.JOB_STATE_FAILED,
+            genai_types.JobState.JOB_STATE_CANCELLED,
+            genai_types.JobState.JOB_STATE_EXPIRED,
+        }
+
+        for pending in list(store.jobs):
+            try:
+                job = client.batches.get(name=pending.job_name)
+            except Exception as exc:  # noqa: BLE001 - see below
+                # Deliberately broad, and deliberately not fatal. This runs
+                # unattended on a schedule over jobs that may be days old, and
+                # one unreachable job must not stop the others from being
+                # collected. The job stays in the store and is retried.
+                report.errors.append(f"{pending.job_name}: {exc}")
+                continue
+
+            if job.state in terminal_failures:
+                detail = job.error.message if job.error is not None else "no error detail"
+                report.failed.append(f"{pending.job_name}: {job.state} ({detail})")
+                store.remove(pending.job_name)
+                store.save(self.batch_job_store_path)
+                continue
+
+            if job.state != genai_types.JobState.JOB_STATE_SUCCEEDED:
+                if only_finished:
+                    report.still_running += 1
+                    continue
+                job = self._poll_batch_job(client, job)
+                if job.state != genai_types.JobState.JOB_STATE_SUCCEEDED:
+                    report.still_running += 1
+                    continue
+
+            inlined = job.dest.inlined_responses if job.dest is not None else None
+            if not inlined or len(inlined) != len(pending.prompts):
+                got = len(inlined) if inlined else 0
+                report.failed.append(
+                    f"{pending.job_name}: returned {got} responses for "
+                    f"{len(pending.prompts)} submitted prompts"
+                )
+                store.remove(pending.job_name)
+                store.save(self.batch_job_store_path)
+                continue
+
+            cached = 0
+            for prompt, response in zip(pending.prompts, inlined, strict=True):
+                if response.error is not None or response.response is None:
+                    report.errors.append(
+                        f"{pending.job_name}: one request failed "
+                        f"({response.error.message if response.error else 'no body'})"
+                    )
+                    continue
+                text, usage = self._extract_response(
+                    response.response, prompt=prompt, purpose=pending.purpose
+                )
+                self.cache.set(model=pending.model, prompt=prompt, response=text)
+                self._log_cost(
+                    self._build_cost_row(
+                        model=pending.model,
+                        lane="paid",
+                        mode="batch",
+                        usage=usage,
+                        purpose=pending.purpose,
+                        # The job is the unit that was submitted and the unit
+                        # that would have retried, and a detached collection
+                        # has no retry history to report: one attempt, and a
+                        # call id shared by the whole collected job.
+                        attempt=1,
+                        call_id=pending.job_name,
+                    )
+                )
+                cached += 1
+
+            report.collected_jobs += 1
+            report.cached_responses += cached
+            # Cache first, then forget the job. A crash in between costs one
+            # wasted poll next time; the other order costs the results.
+            store.remove(pending.job_name)
+            store.save(self.batch_job_store_path)
+
+        report.outstanding = len(BatchJobStore.load(self.batch_job_store_path).jobs)
+        return report
 
     def generate_many(
         self,

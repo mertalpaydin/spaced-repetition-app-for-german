@@ -2387,6 +2387,19 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--batch",
+        action="store_true",
+        help=(
+            "Let overflow queue as a real Gemini Batch API job instead of "
+            "falling through to paid on-demand calls, and do not wait for it: "
+            "the job is recorded in .cache/pending_batch_jobs.json and the run "
+            "exits. Collect it later with `python -m scripts.collect_batch_jobs`, "
+            "then re-run --phase b, which finds the responses in the cache. "
+            "This is the mode a scheduled pilot uses. Without it the pilot is "
+            "on-demand only, exactly as before."
+        ),
+    )
+    parser.add_argument(
         "--phase",
         choices=("a", "b", "both"),
         default="both",
@@ -2411,7 +2424,7 @@ def main() -> int:
 
     load_env_file()
     try:
-        llm_client = client_from_env(free_lane_only=args.free_lane_only)
+        llm_client = client_from_env(free_lane_only=args.free_lane_only, detached_batch=args.batch)
     except FreeLaneKeyMissingError as exc:
         # Before any corpus is read: hours of spaCy work would otherwise run
         # before the run discovers it cannot verify anything.

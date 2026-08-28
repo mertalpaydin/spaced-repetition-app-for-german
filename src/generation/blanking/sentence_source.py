@@ -1022,7 +1022,9 @@ _FREE_LANE_ONLY_REFUSAL = (
 )
 
 
-def client_from_env(*, free_lane_only: bool = False) -> GeminiLlmClient | None:
+def client_from_env(
+    *, free_lane_only: bool = False, detached_batch: bool = False
+) -> GeminiLlmClient | None:
     """Build a real ``GeminiLlmClient`` only when a lane key is actually
     configured in the environment; ``None`` otherwise. Mirrors
     ``src.generation.batch_client._build_llm_client_if_configured`` exactly
@@ -1069,7 +1071,26 @@ def client_from_env(*, free_lane_only: bool = False) -> GeminiLlmClient | None:
     exit non-zero on a nonzero ``not_run`` count, with ``step7`` additionally
     refusing the bank write. Loud, not silent. What is true is that the run
     stops instead of finishing, which is why this is opt-in and not the
+    **``detached_batch=True``** is the third mode, and the one a scheduled
+    pilot uses: ``forbid_batch=False`` so overflow can queue as a real Batch
+    API job, plus ``detach_batch=True`` so the submission is recorded and the
+    process exits instead of blocking on the poll loop. This is CLAUDE.md
+    section 9's own description of what overflow should do ("remaining work
+    queues and ships as one batch"), which pilots had opted out of because,
+    before the job name was persisted, a queued job could not be collected by
+    anything and a killed process lost it outright.
+
+    It is mutually exclusive with ``free_lane_only``, which forbids the paid
+    lane entirely and so has no batch to detach; passing both raises rather
+    than silently letting one win.
+
     default."""
+    if free_lane_only and detached_batch:
+        raise ValueError(
+            "free_lane_only and detached_batch are mutually exclusive: the "
+            "free lane has no batch mode to detach, so asking for both is a "
+            "contradiction rather than a preference."
+        )
     if free_lane_only:
         free_key = os.getenv(FREE_LANE_KEY_ENV_VAR)
         if not free_key:
@@ -1080,7 +1101,11 @@ def client_from_env(*, free_lane_only: bool = False) -> GeminiLlmClient | None:
         or os.getenv("GEMINI_PAID_API_KEY")
         or os.getenv("GEMINI_API_KEY")
     ):
-        return GeminiLlmClient(forbid_paid_lane=False, forbid_batch=True)
+        return GeminiLlmClient(
+            forbid_paid_lane=False,
+            forbid_batch=not detached_batch,
+            detach_batch=detached_batch,
+        )
     return None
 
 
