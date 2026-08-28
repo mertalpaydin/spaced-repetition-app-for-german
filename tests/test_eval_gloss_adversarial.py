@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 
 import pytest
 import scripts.eval_gloss_adversarial as evg
@@ -22,11 +23,15 @@ from scripts.eval_gloss_adversarial import (
     to_bank_item,
     wrong_rows,
 )
+from src.contracts import MODEL_VERIFY
 from src.generation.blanking.model_verification import (
     ItemVerdict,
     VerificationReport,
+    _chunk,
     build_batch_prompt,
 )
+from src.llm.cache import LlmCache
+from src.llm.client import PaidLaneForbiddenError
 
 # ---------------------------------------------------------------------------
 # The fixture file itself
@@ -372,6 +377,10 @@ def test_main_end_to_end_reports_per_kind_recall_and_a_false_positive_rate(
     assert "wrong_definiteness   6/6" in out
     assert "No wrong gloss was accepted." in out
     assert "No correct gloss was rejected." in out
+    # A complete run's own numbers ARE the result; a progress block under
+    # them would only muddy which of the two the reader is meant to take.
+    assert "PROGRESS TOWARD A COMPLETE MEASUREMENT" not in out
+    assert "FAILING" not in out
 
 
 def test_main_verifies_the_two_arms_in_separate_calls(
@@ -406,3 +415,156 @@ def test_main_verifies_the_two_arms_in_separate_calls(
     for record in load_fixture():
         for prompt in seen:
             assert prompt.count(f"Lücke: {record.prompt}") <= 1
+
+
+# ---------------------------------------------------------------------------
+# An incomplete run: progress toward completion, and the REAL cause
+#
+# Same situation as scripts/eval_verifier.py's own: on ``--free-lane-only``
+# the free tier's daily allowance does not cover 72 rows in two arms, so the
+# run spans several days and converges only because the local
+# content-addressed cache keeps each day's landed batches. That has to be
+# visible, or repeated runs read as repeated failures.
+# ---------------------------------------------------------------------------
+
+_RPD_MESSAGE = (
+    "The free lane is closed: the free-tier DAILY allowance (RPD) is exhausted, "
+    "and the paid batch lane is forbidden in this run. Re-running does not help "
+    "until the quota resets. The free lane reopens at 2026-08-29 09:00 CEST "
+    "local (2026-08-29T07:00:00+00:00), the next Pacific midnight."
+)
+
+
+def _all_valid_response(count: int) -> str:
+    return json.dumps(
+        {
+            "verdicts": [
+                {
+                    "index": i + 1,
+                    "valid": True,
+                    "woerter_echt": True,
+                    "hinweis_korrekt": True,
+                    "reason": None,
+                }
+                for i in range(count)
+            ]
+        }
+    )
+
+
+class _QuotaRefusingClient:
+    """Close enough to ``GeminiLlmClient.generate_many`` for this test: cached
+    prompts are replayed for free, and the first uncached one trips the free
+    tier's daily allowance, which raises out of the whole call. The run then
+    reports every row ``not_run`` even though the cache holds earlier days'
+    verdicts -- which is exactly why progress is counted from the cache."""
+
+    def __init__(self, cache: LlmCache) -> None:
+        self.cache = cache
+
+    def generate_many(
+        self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+    ) -> list[str]:
+        cached = [self.cache.get(model=model, prompt=p) for p in prompts]
+        if any(text is None for text in cached):
+            raise PaidLaneForbiddenError(_RPD_MESSAGE)
+        return [text for text in cached if text is not None]
+
+
+def _seed_days_of_landed_batches(cache: LlmCache, *, batch_size: int, batches: int) -> int:
+    """Pretend the first ``batches`` batches of the WRONG arm landed on
+    earlier days. Returns how many rows that covers."""
+    items = [to_bank_item(r) for r in wrong_rows(load_fixture())]
+    covered = 0
+    for batch in _chunk(items, batch_size)[:batches]:
+        cache.set(
+            model=MODEL_VERIFY,
+            prompt=build_batch_prompt(batch),
+            response=_all_valid_response(len(batch)),
+        )
+        covered += len(batch)
+    return covered
+
+
+def test_main_incomplete_run_shows_progress_names_the_real_cause_and_exits_nonzero(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    cache = LlmCache(cache_dir=tmp_path / "llm")
+    covered = _seed_days_of_landed_batches(cache, batch_size=5, batches=2)
+    assert covered == 10
+
+    monkeypatch.setattr(
+        evg.sentence_source,
+        "client_from_env",
+        lambda *, free_lane_only=False: _QuotaRefusingClient(cache),
+    )
+    monkeypatch.setattr(evg, "load_env_file", lambda: None)
+    monkeypatch.setattr(
+        sys, "argv", ["eval_gloss_adversarial.py", "--free-lane-only", "--batch-size", "5"]
+    )
+
+    exit_code = evg.main()
+
+    out = capsys.readouterr().out
+    assert exit_code == 1, "an incomplete run is not a measurement and must still fail"
+    assert "FAILING" in out
+    assert "PROGRESS TOWARD A COMPLETE MEASUREMENT" in out
+    assert "rows with a cached model verdict: 10 of 72" in out
+    assert "rows still missing a verdict:     62" in out
+    assert "--batch-size at 5" in out
+
+
+def test_main_incomplete_run_names_the_quota_refusal_instead_of_guessing(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """The old message offered 'malformed response, transport failure, or
+    budget ceiling' even when the code knew it was an RPD refusal with a
+    known reset time."""
+    cache = LlmCache(cache_dir=tmp_path / "llm")
+    monkeypatch.setattr(
+        evg.sentence_source,
+        "client_from_env",
+        lambda *, free_lane_only=False: _QuotaRefusingClient(cache),
+    )
+    monkeypatch.setattr(evg, "load_env_file", lambda: None)
+    monkeypatch.setattr(
+        sys, "argv", ["eval_gloss_adversarial.py", "--free-lane-only", "--batch-size", "5"]
+    )
+
+    exit_code = evg.main()
+
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert "cause: paid_lane_forbidden (72 item(s))" in out
+    assert "PaidLaneForbiddenError" in out
+    assert "DAILY allowance (RPD)" in out
+    assert "2026-08-29 09:00 CEST local" in out
+    assert "malformed response, transport failure, or budget ceiling" not in out
+
+
+def test_main_prints_progress_when_the_transport_raises_outright(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    cache = LlmCache(cache_dir=tmp_path / "llm")
+    _seed_days_of_landed_batches(cache, batch_size=5, batches=1)
+
+    class _UnreachableClient(_QuotaRefusingClient):
+        def generate_many(
+            self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+        ) -> list[str]:
+            raise RuntimeError("simulated proxy 403")
+
+    monkeypatch.setattr(
+        evg.sentence_source,
+        "client_from_env",
+        lambda *, free_lane_only=False: _UnreachableClient(cache),
+    )
+    monkeypatch.setattr(evg, "load_env_file", lambda: None)
+    monkeypatch.setattr(sys, "argv", ["eval_gloss_adversarial.py", "--batch-size", "5"])
+
+    exit_code = evg.main()
+
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert "NOT RUN" in out
+    assert "rows with a cached model verdict: 5 of 72" in out

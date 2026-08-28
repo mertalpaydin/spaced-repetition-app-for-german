@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 
 import pytest
-from src.contracts import BankItem
+from src.contracts import MODEL_VERIFY, BankItem
 from src.generation.blanking.model_verification import (
     _INSTRUCTION_DE_LIVE,
     _INSTRUCTION_EN_REFERENCE_ONLY,
@@ -24,11 +25,15 @@ from src.generation.blanking.model_verification import (
     REASON_PAID_LANE_FORBIDDEN,
     REASON_SERVER_UNAVAILABLE,
     _chunk,
+    _degrade_detail,
     _format_item_block,
     _parse_batch_response,
     build_batch_prompt,
+    cache_coverage,
+    describe_not_run_cause,
     verify_items,
 )
+from src.llm.cache import LlmCache
 from src.llm.client import (
     BatchForbiddenError,
     BudgetExceeded,
@@ -818,3 +823,187 @@ def test_instruction_de_live_still_names_no_grammar_topic_after_the_gloss_change
     shows the 'Futur', which this guard caught; it now describes the timing
     without naming the tense."""
     assert _contains_forbidden_word(_INSTRUCTION_DE_LIVE) is None
+
+
+# ---------------------------------------------------------------------------
+# not_run_detail: the degrading exception's own message reaches the report
+# ---------------------------------------------------------------------------
+
+
+_RPD_MESSAGE = (
+    "The free lane is closed: the free-tier DAILY allowance (RPD) is exhausted, "
+    "and the paid batch lane is forbidden in this run. Re-running does not help "
+    "until the quota resets. The free lane reopens at 2026-08-29 09:00 CEST "
+    "local (2026-08-29T07:00:00+00:00), the next Pacific midnight."
+)
+
+
+def test_verify_items_keeps_the_degrading_exceptions_own_message() -> None:
+    """The reason slug says which of five degrade paths was taken; only the
+    exception's own message says what to do about it. A ``--free-lane-only``
+    run refused by the daily quota carries
+    ``GeminiLlmClient._paid_lane_forbidden_message``, which names RPD and the
+    reset time in local time, and dropping it left every reporting script
+    guessing at a cause the code had already determined."""
+    items = [_bank_item(prompt=f"S{i} ___.", answer=str(i)) for i in range(3)]
+    fake = _FakeVerifyLlmClient(error=PaidLaneForbiddenError(_RPD_MESSAGE))
+
+    report = verify_items(items, fake)  # type: ignore[arg-type]
+
+    assert report.not_run_count == 3
+    assert report.not_run_reasons == {REASON_PAID_LANE_FORBIDDEN: 3}
+    assert report.not_run_detail is not None
+    assert "PaidLaneForbiddenError" in report.not_run_detail
+    assert "DAILY allowance (RPD)" in report.not_run_detail
+    assert "2026-08-29 09:00 CEST local" in report.not_run_detail
+
+
+def test_verify_items_reports_no_detail_when_a_batch_response_is_malformed() -> None:
+    """A malformed response is not an exception, so there is no message to
+    quote. ``None`` must read as 'no detail available', never as an invented
+    one."""
+    items = [_bank_item(prompt=f"S{i} ___.", answer=str(i)) for i in range(3)]
+    fake = _FakeVerifyLlmClient(responses=["not json at all"])
+
+    report = verify_items(items, fake, batch_size=20)  # type: ignore[arg-type]
+
+    assert report.not_run_reasons == {REASON_MALFORMED_RESPONSE: 3}
+    assert report.not_run_detail is None
+
+
+def test_verify_items_reports_no_detail_on_a_fully_judged_run() -> None:
+    items = [_bank_item(prompt=f"S{i} ___.", answer=str(i)) for i in range(3)]
+    fake = _FakeVerifyLlmClient(responses=[_verdict_response([(True, None)] * 3)])
+
+    report = verify_items(items, fake, batch_size=20)  # type: ignore[arg-type]
+
+    assert report.not_run_count == 0
+    assert report.not_run_detail is None
+
+
+def test_degrade_detail_falls_back_to_the_type_name_for_a_silent_exception() -> None:
+    """An exception raised with no message must not produce a dangling
+    'ClassName:' line in an operator's terminal."""
+    assert _degrade_detail(BudgetExceeded()) == "BudgetExceeded"
+    assert _degrade_detail(BudgetExceeded("over ceiling")) == "BudgetExceeded: over ceiling"
+
+
+# ---------------------------------------------------------------------------
+# describe_not_run_cause
+# ---------------------------------------------------------------------------
+
+
+def test_describe_not_run_cause_names_the_slug_and_the_exception_message() -> None:
+    items = [_bank_item(prompt=f"S{i} ___.", answer=str(i)) for i in range(3)]
+    report = verify_items(  # type: ignore[arg-type]
+        items, _FakeVerifyLlmClient(error=PaidLaneForbiddenError(_RPD_MESSAGE))
+    )
+
+    lines = describe_not_run_cause([report])
+
+    assert lines[0] == f"cause: {REASON_PAID_LANE_FORBIDDEN} (3 item(s))"
+    assert lines[1].startswith("detail: PaidLaneForbiddenError: ")
+    assert "DAILY allowance (RPD)" in lines[1]
+
+
+def test_describe_not_run_cause_merges_two_reports_and_deduplicates_one_detail() -> None:
+    """The eval scripts run two fixtures through two separate calls, and one
+    quota refusal degrades both. The operator must see one cause line with the
+    combined count and one detail, not the same paragraph twice."""
+    items = [_bank_item(prompt=f"S{i} ___.", answer=str(i)) for i in range(3)]
+    error = PaidLaneForbiddenError(_RPD_MESSAGE)
+    reports = [
+        verify_items(items, _FakeVerifyLlmClient(error=error)),  # type: ignore[arg-type]
+        verify_items(items[:2], _FakeVerifyLlmClient(error=error)),  # type: ignore[arg-type]
+    ]
+
+    lines = describe_not_run_cause(reports)
+
+    assert lines == [
+        f"cause: {REASON_PAID_LANE_FORBIDDEN} (5 item(s))",
+        f"detail: PaidLaneForbiddenError: {_RPD_MESSAGE}",
+    ]
+
+
+def test_describe_not_run_cause_is_empty_when_every_item_was_judged() -> None:
+    items = [_bank_item(prompt=f"S{i} ___.", answer=str(i)) for i in range(3)]
+    report = verify_items(  # type: ignore[arg-type]
+        items,
+        _FakeVerifyLlmClient(responses=[_verdict_response([(True, None)] * 3)]),
+        batch_size=20,
+    )
+
+    assert describe_not_run_cause([report]) == []
+
+
+# ---------------------------------------------------------------------------
+# cache_coverage: progress across days, read from the cache
+# ---------------------------------------------------------------------------
+
+
+class _CachedClient:
+    """The only part of ``GeminiLlmClient`` ``cache_coverage`` touches."""
+
+    def __init__(self, cache: LlmCache) -> None:
+        self.cache = cache
+
+
+def _seed_cache(cache: LlmCache, items: list[BankItem], *, batch_size: int, batches: int) -> None:
+    """Write the response for the first ``batches`` batches, exactly as
+    ``generate_many`` would after those batches landed."""
+    for batch in _chunk(items, batch_size)[:batches]:
+        cache.set(
+            model=MODEL_VERIFY,
+            prompt=build_batch_prompt(batch),
+            response=_verdict_response([(True, None)] * len(batch)),
+        )
+
+
+def test_cache_coverage_counts_the_items_of_every_cached_batch(tmp_path: Path) -> None:
+    """The unit of a cached request is a batch, so a cached batch contributes
+    all of its items and a missing one contributes none."""
+    cache = LlmCache(cache_dir=tmp_path / "llm")
+    items = [_bank_item(prompt=f"S{i} ___.", answer=str(i)) for i in range(13)]
+    _seed_cache(cache, items, batch_size=5, batches=2)
+
+    coverage = cache_coverage(items, _CachedClient(cache), batch_size=5)  # type: ignore[arg-type]
+
+    assert coverage.total_items == 13
+    assert coverage.cached_items == 10
+    assert coverage.missing_items == 3
+    assert coverage.complete is False
+
+
+def test_cache_coverage_is_complete_once_every_batch_has_landed(tmp_path: Path) -> None:
+    cache = LlmCache(cache_dir=tmp_path / "llm")
+    items = [_bank_item(prompt=f"S{i} ___.", answer=str(i)) for i in range(13)]
+    _seed_cache(cache, items, batch_size=5, batches=3)
+
+    coverage = cache_coverage(items, _CachedClient(cache), batch_size=5)  # type: ignore[arg-type]
+
+    assert coverage.cached_items == 13
+    assert coverage.complete is True
+
+
+def test_cache_coverage_resets_when_the_batch_size_changes(tmp_path: Path) -> None:
+    """The cache is content-addressed on the full request, and a different
+    batch size builds different prompts. Callers reporting this number to an
+    operator have to say so, or a day's progress looks like it evaporated."""
+    cache = LlmCache(cache_dir=tmp_path / "llm")
+    items = [_bank_item(prompt=f"S{i} ___.", answer=str(i)) for i in range(13)]
+    _seed_cache(cache, items, batch_size=5, batches=3)
+
+    coverage = cache_coverage(items, _CachedClient(cache), batch_size=4)  # type: ignore[arg-type]
+
+    assert coverage.cached_items == 0
+
+
+def test_cache_coverage_reports_zero_rather_than_raising_without_a_cache() -> None:
+    """An unknown coverage must read as 'nothing banked yet'. A progress
+    report is the last place that should crash."""
+    items = [_bank_item(prompt=f"S{i} ___.", answer=str(i)) for i in range(3)]
+
+    assert cache_coverage(items, None).cached_items == 0
+    assert cache_coverage(items, None).total_items == 3
+    assert cache_coverage([], None).total_items == 0
+    assert cache_coverage([], None).complete is False

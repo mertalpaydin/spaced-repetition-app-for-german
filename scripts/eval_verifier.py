@@ -78,6 +78,32 @@ run" -- ``src/llm/client.py`` is explicitly off-limits for this task (TODO.md
 section 5's owner-pinned constants live there), so the catch belongs at
 this script's own boundary instead of a change to the transport layer.
 
+## Converging over several days, and being able to see it
+
+On ``--free-lane-only``, this eval does not necessarily finish in one day.
+Google's free tier gives ``MODEL_VERIFY`` a daily request allowance in the low
+tens, most attempts come back 503, and 69 items at ``--batch-size 5`` need 15
+successful requests. What makes it work anyway is the local content-addressed
+cache (CLAUDE.md 9): each day's successful batches land in it, and the next
+day's identical command replays them for free and spends the day's quota only
+on what is still missing.
+
+That only helps if the operator can see it happening. An incomplete run
+therefore prints a PROGRESS block -- how many of the items now have a cached
+model verdict, how many are still missing, and that re-running the same
+command tomorrow replays the former at zero cost -- so three days of the same
+command reads as convergence rather than as three identical failures. The
+count comes from the cache (``model_verification.cache_coverage``), not from
+this run's own verified-plus-rejected total, because the two disagree exactly
+when it matters: a run that lands five batches and is then refused by the
+daily quota degrades every item to ``not_run`` and reports zero judged, while
+the cache genuinely gained those five batches. See ``CacheCoverage``'s own
+docstring.
+
+None of this lowers the bar. A run with any ``not_run`` item still refuses to
+report recall as measured and still exits non-zero; the progress block is
+visibility into an incomplete run, not a partial pass.
+
 Run this from a terminal:
 
     .venv/bin/python -m scripts.eval_verifier
@@ -90,6 +116,7 @@ import argparse
 import json
 import sys
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -97,9 +124,13 @@ from src.contracts import BankItem
 from src.generation.blanking import sentence_source
 from src.generation.blanking.model_verification import (
     DEFAULT_VERIFICATION_BATCH_SIZE,
+    CacheCoverage,
     VerificationReport,
+    cache_coverage,
+    describe_not_run_cause,
     verify_items,
 )
+from src.llm.client import GeminiLlmClient
 from src.llm.env import load_env_file
 
 DEFAULT_ADVERSARIAL_PATH = Path(
@@ -281,6 +312,50 @@ def _print_recall_by_defect_class(
         print(f"    - {defect_class}: {caught[defect_class]}/{total[defect_class]}")
 
 
+def _combined_cache_coverage(
+    item_groups: Sequence[Sequence[BankItem]],
+    llm_client: GeminiLlmClient | None,
+    *,
+    batch_size: int,
+) -> CacheCoverage:
+    """One coverage figure over both fixtures. They are verified in two
+    separate ``verify_items`` calls with their own batching, so each is
+    measured on its own and the totals are added -- never by concatenating the
+    two item lists, which would build batch prompts that straddle the fixtures
+    and match nothing the run ever wrote."""
+    total = 0
+    cached = 0
+    for group in item_groups:
+        coverage = cache_coverage(group, llm_client, batch_size=batch_size)
+        total += coverage.total_items
+        cached += coverage.cached_items
+    return CacheCoverage(total_items=total, cached_items=cached)
+
+
+def _print_progress(coverage: CacheCoverage, *, batch_size: int) -> None:
+    """The one block the operator reads to decide whether a multi-day
+    free-lane run is converging or stuck. Printed only when the run was
+    incomplete: a complete run's own numbers say everything, and a progress
+    line under them would only muddy which of the two is the result."""
+    print()
+    print("  PROGRESS TOWARD A COMPLETE MEASUREMENT")
+    print(
+        f"    items with a cached model verdict: {coverage.cached_items} of {coverage.total_items}"
+    )
+    print(f"    items still missing a verdict:     {coverage.missing_items}")
+    print(
+        "    Re-running this exact command replays those "
+        f"{coverage.cached_items} cached verdict(s) from the local cache at "
+        f"zero cost and spends quota only on the remaining "
+        f"{coverage.missing_items}. The measurement completes on the first run "
+        f"that reaches {coverage.total_items} of {coverage.total_items}."
+    )
+    print(
+        f"    Keep --batch-size at {batch_size} across runs: the cache is keyed "
+        "on the exact batch prompt, so changing it discards this progress."
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Measure the model verifier's recall and FPR.")
     parser.add_argument(
@@ -378,6 +453,12 @@ def main() -> int:
             "expected in a container with no outbound network access, "
             "exactly as the no-API-key case above."
         )
+        _print_progress(
+            _combined_cache_coverage(
+                [adversarial_items, clean_items], llm_client, batch_size=args.batch_size
+            ),
+            batch_size=args.batch_size,
+        )
         return 1
 
     recall_result = _summarize("Adversarial (known defects)", adversarial_report, len(adversarial))
@@ -394,10 +475,23 @@ def main() -> int:
     if not_run_total > 0:
         print()
         print(
-            f"  FAILING: {not_run_total} item(s) across both fixtures were not_run "
-            "(malformed response, transport failure, or budget ceiling -- see "
-            "the counts above). A run where the pass did not judge every item "
-            "is not a valid recall/false-positive measurement."
+            f"  FAILING: {not_run_total} item(s) across both fixtures were not_run. "
+            "A run where the pass did not judge every item is not a valid "
+            "recall/false-positive measurement, whatever the rates above say."
+        )
+        # Name what actually happened rather than listing what might have.
+        # The reason slugs and the degrading exception's own message are both
+        # already on the reports (model_verification.VerificationReport), and
+        # for the case this script hits most -- a --free-lane-only run refused
+        # by the free tier's daily allowance -- the message names RPD and the
+        # reset time in local time.
+        for line in describe_not_run_cause([adversarial_report, clean_report]):
+            print(f"    {line}")
+        _print_progress(
+            _combined_cache_coverage(
+                [adversarial_items, clean_items], llm_client, batch_size=args.batch_size
+            ),
+            batch_size=args.batch_size,
         )
         return 1
 
