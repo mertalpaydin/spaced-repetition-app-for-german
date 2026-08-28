@@ -1107,8 +1107,9 @@ class AnswerSetExpander:
           never by retrying."
         - ``ServerUnavailableError`` -- transient 5xx overload that survives
           the transport's own bounded retries (``SERVER_ERROR_MAX_RETRIES``
-          on the paid lane, the far larger
-          ``FREE_LANE_SERVER_ERROR_MAX_RETRIES`` on the free one);
+          on the paid lane, the shorter, fail-fast
+          ``FREE_LANE_SERVER_ERROR_MAX_RETRIES`` on the free one, which is
+          sized so a dead run exits quickly and is re-run against the cache);
           observed live as a sustained-enough outage on ``gemini-3.7-flash``
           to exhaust them.
 

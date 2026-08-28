@@ -1548,28 +1548,58 @@ def test_operator_tuned_server_error_constants_are_pinned() -> None:
     the requests it processed before it failed, and a retry resubmits the
     whole job.
 
-    The budget is now per lane, and BOTH lanes are pinned here. The paid
-    values below are unchanged and are the owner's; the free-lane ones are
-    this cycle's, from his "we go slowly if we need to" and the fact that a
-    free-lane retry cannot bill anything. Do not collapse the two back into
-    one constant: one number for both lanes over-retries where retrying costs
-    money and under-retries where it is free, which is what cost the
-    2026-08-28 run."""
+    The budget is per lane, and BOTH lanes are pinned here. The paid values
+    below are unchanged and are the owner's. The free-lane ones are this
+    cycle's judgement, and they are DELIBERATELY SMALLER than the paid lane's,
+    which is the opposite of what the first per-lane version asserted here
+    (12 retries on a schedule summing to 7230 seconds). That is a deliberate
+    re-pin of a pinned constant, not a weakened test, and not drift: the
+    2026-08-28 free-lane shape was unusable. The owner watched
+    ``scripts/eval_verifier.py``, a 15-call job that should take minutes, sit
+    for more than two and a half hours with no progress.
+
+    The argument for the long budget (a free-lane retry cannot bill anything,
+    so retrying is free) was true but incomplete. What it missed is the local
+    content-addressed cache: verdicts that already landed replay at zero cost
+    on the next run, logged as ``lane="cache"``, so progress is durable across
+    runs and a run that dies loses almost nothing. Sleeping for hours to avoid
+    losing one call protects against a loss the cache has already prevented,
+    while holding a concurrency slot doing nothing. Fail fast, exit clearly,
+    re-run: short retries plus repeated runs dominate long in-process backoff.
+
+    Do not collapse the two lanes back into one constant either. They are
+    still separate for the original reason (a paid retry can cost money, a
+    free one cannot), it just points the other way once the cache is in the
+    picture."""
     assert GeminiLlmClient.SERVER_ERROR_MAX_RETRIES == 4
     assert GeminiLlmClient.SERVER_ERROR_BATCH_MAX_RETRIES == 2
     assert GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE == (30.0, 120.0, 480.0, 900.0)
-    # Only the fallback for an attempt index past the end of a schedule.
+    # Only the fallback for an attempt index past the end of a schedule, and
+    # it is the PAID schedule's last entry. The free schedule no longer ends
+    # on it; the one-entry-per-retry assertion below is what keeps it
+    # unreachable from the free lane.
     assert GeminiLlmClient.SERVER_ERROR_BACKOFF_SECONDS == 900.0
 
-    assert GeminiLlmClient.FREE_LANE_SERVER_ERROR_MAX_RETRIES == 12
-    free_schedule = (30.0, 60.0, 120.0, 240.0, 480.0) + (900.0,) * 7
+    assert GeminiLlmClient.FREE_LANE_SERVER_ERROR_MAX_RETRIES == 4
+    free_schedule = (15.0, 30.0, 60.0, 120.0)
     assert GeminiLlmClient.FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE == free_schedule
     # One schedule entry per retry, so a call can never index past the end and
-    # the worst case is exactly this sum: 7230 seconds, two hours and thirty
-    # seconds of sleeping before one free-lane call gives up. Stated in the
-    # constant's own comment too, so the owner can see what he is agreeing to.
+    # the worst case is exactly this sum: 225 seconds, three minutes and
+    # forty-five seconds of sleeping before one free-lane call gives up.
+    # Stated in the constant's own comment too, so the owner can see what he
+    # is agreeing to.
     assert len(free_schedule) == GeminiLlmClient.FREE_LANE_SERVER_ERROR_MAX_RETRIES
-    assert sum(free_schedule) == 7230.0
+    assert sum(free_schedule) == 225.0
+    # And the group-level number, which is the one the operator actually
+    # feels: ``scripts/eval_verifier.py`` is 15 calls, dispatched
+    # FREE_LANE_MAX_CONCURRENCY at a time, so the bound multiplies by
+    # concurrency waves rather than by calls. Worst case, every call
+    # exhausting its budget, the whole group gives up in 900 seconds.
+    waves = -(-15 // GeminiLlmClient.FREE_LANE_MAX_CONCURRENCY)
+    assert waves * sum(free_schedule) == 900.0
+    # The free lane is the fail-fast one. If this ever inverts, the cache
+    # argument in the docstring has been forgotten again.
+    assert sum(free_schedule) < sum(GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE)
 
 
 # ---------------------------------------------------------------------------
@@ -1895,19 +1925,22 @@ def test_paid_lane_server_error_backoff_follows_the_schedule_in_order_and_stops_
     assert calls["n"] == GeminiLlmClient.SERVER_ERROR_MAX_RETRIES + 1
 
 
-def test_free_lane_server_error_backoff_extends_the_schedule_and_stops_after_twelve(
+def test_free_lane_server_error_backoff_gives_up_after_four_retries_in_under_four_minutes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The free lane retries far longer, because a free-lane retry cannot
-    bill anything: the paid lane's four-retry budget is priced against the
-    risk that a 5xx arrives after Google has already done and billed work,
-    and on an unbilled project there is no such work to pay for. The owner's
-    2026-08-28 run lost itself to that mismatch, with one call giving up
-    after four 503s in a run where 7 of 12 attempts were 503s.
+    """The free lane fails fast on 5xx, and this pins how fast.
 
-    "We go slowly if we need to": the schedule escalates and then plateaus at
-    fifteen minutes rather than repeating a short delay, and it is bounded --
-    exactly one entry per retry, worst case 7230 seconds of sleeping per call.
+    The free lane keeps its OWN budget (a paid retry can arrive after Google
+    has already done and billed work, a free one cannot), but that budget is
+    now the shorter of the two, not the longer. What makes fail-fast right is
+    the local content-addressed cache: verdicts that already landed replay for
+    free on the next run, so a run that dies loses almost nothing, and
+    sleeping inside one process to save a call protects against a loss the
+    cache has already prevented while holding a concurrency slot idle.
+
+    Bounded, escalating, and short: exactly one entry per retry, still
+    doubling rather than repeating a short delay, worst case 225 seconds of
+    sleeping per call.
 
     No paid key is configured here, so the free-to-paid fallback cannot fire
     and the error propagates once the budget is spent. The paid key is
@@ -1937,14 +1970,18 @@ def test_free_lane_server_error_backoff_extends_the_schedule_and_stops_after_twe
     schedule = GeminiLlmClient.FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE
     assert sleeps == list(schedule)
     assert calls["n"] == GeminiLlmClient.FREE_LANE_SERVER_ERROR_MAX_RETRIES + 1
-    assert calls["n"] > GeminiLlmClient.SERVER_ERROR_MAX_RETRIES + 1, (
-        "the free lane must retry strictly more than the paid lane"
+    # Bounded, and the bound is the number the constant's comment states:
+    # 3m45s of sleeping before this call gives up, not the 2h00m30s the first
+    # per-lane version of this budget spent.
+    assert sum(sleeps) == 225.0
+    assert sum(sleeps) < sum(GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE), (
+        "the free lane must give up strictly sooner than the paid lane: a "
+        "dead free-lane run is cheap to re-run against the cache, so exiting "
+        "and being re-run beats sleeping"
     )
-    # Bounded, and the bound is the number the constant's comment states.
-    assert sum(sleeps) == 7230.0
     assert sorted(schedule) == list(schedule), (
-        "the schedule must extend the escalation, never step back down to a "
-        "short delay and hammer a service that is down"
+        "the schedule must escalate, never step back down to a short delay "
+        "and hammer a service that is down"
     )
 
 
