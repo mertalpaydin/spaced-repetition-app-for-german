@@ -29,40 +29,63 @@ These are invariants. Violating any of them is a defect regardless of whether te
 
 ## 3. Repository layout
 
+The repo root is the working directory. There is no nested project folder.
+
 ```
 .
 ├── CLAUDE.md
-├── README.md
+├── README.md                       # setup, and where to read next
+├── TODO.md                         # open work only
 ├── pyproject.toml
-├── .env.example                 # every required var, no values
+├── config.yaml                     # non-secret config
+├── .env.example                    # every required var, no values
 ├── docs/
-│   ├── plan/                    # product plan, design rationale
-│   ├── 00-index.md              # stage index, conventions, DoD
-│   ├── 01-foundation.md         # stages 0-2
-│   ├── 02-content-pipeline.md   # stages 3-5
-│   ├── 03-learning-engine.md    # stages 6-7
-│   └── 04-application.md        # stages 8-11
+│   ├── project-state.md            # what is built, what is not, what bites
+│   ├── known-defects.md            # every defect class, with real examples
+│   ├── building-the-bank.md        # runbook: the bank build
+│   ├── monthly-translation-job.md  # runbook: the Azure top-up on Windows
+│   ├── plan/                       # product plan, design rationale
+│   ├── 00-index.md                 # stage index, conventions, DoD
+│   ├── 01-foundation.md            # stages 0-2
+│   ├── 02-content-pipeline.md      # stages 3-5
+│   ├── 03-learning-engine.md       # stages 6-7
+│   ├── 04-application.md           # stages 8-11
+│   └── audits/                     # dated record, never instructions; has its own README.md
 ├── data/
-│   ├── taxonomy/                # topics.yaml, confusion_groups.yaml
-│   ├── specs/                   # per-topic generation spec sheets
-│   └── fixtures/                # golden sets, adversarial sets
+│   ├── taxonomy.yaml               # topics and confusion groups, one file
+│   ├── specs/                      # per-topic generation spec sheets
+│   ├── fixtures/                   # golden sets, adversarial sets
+│   └── raw/                        # staged corpora, gitignored
 ├── src/
-│   ├── taxonomy/                # loading, DAG validation
-│   ├── corpus/                  # Tatoeba, frequency bands, wordlists
-│   ├── llm/                     # client wrapper, batch, cost log
-│   ├── generation/              # spec to prompt to items
-│   ├── verification/            # the verification chain
-│   ├── bank/                    # storage, export, dedup
-│   ├── scheduler/               # FSRS, interleaving, Kalibrierung
+│   ├── contracts.py                # every shared type and constant, one file
+│   ├── main.py                     # CLI entrypoint
+│   ├── taxonomy/                   # loading, DAG validation, tagging
+│   ├── corpus/                     # Tatoeba, scraping, learner errors
+│   ├── lexicon/                    # frequency bands, wordlists, lemmatiser
+│   ├── llm/                        # client wrapper, cache, cost log, translation
+│   ├── generation/                 # spec to prompt to items
+│   │   └── blanking/               # the corpus pipeline: carrier, tagger, blanker
+│   ├── verification/               # the verification chain
+│   ├── bank/                       # storage, export, dedup
+│   ├── audit/                      # health checks over a finished bank
+│   ├── engine/                     # FSRS, interleaving, Kalibrierung, simulation
+│   ├── sync/                       # review-log sync client
 │   └── cli/
-├── web/                         # PWA
-├── worker/                      # Cloudflare Worker
-├── tests/
-│   ├── unit/
-│   ├── integration/             # marked, network allowed
-│   └── simulation/              # synthetic-learner scheduler tests
+├── scripts/                        # 21 entry points. The operator interface.
+├── web/                            # PWA
+├── worker/                         # Cloudflare Worker
+├── tests/                          # flat, one file per area
 └── .github/workflows/
 ```
+
+Two things the diagram cannot show:
+
+- **`scripts/` is how this project is actually operated.** Pilots, evals, the
+  web export, cost reconciliation and the translation top-up all live there, and
+  the two runbooks in `docs/` drive them. It is not a scratch directory.
+- **The stage documents are a design record, not a description of the code.**
+  Each carries a header naming where it departs. `docs/project-state.md` is the
+  current picture.
 
 ---
 
@@ -154,11 +177,11 @@ PR description states: which stage, what changed, what was tested, and anything 
 
 ## 7. Testing rules
 
-- `pytest`. Tests live in `tests/`, mirroring `src/` structure.
-- **Unit tests never touch the network.** All LLM calls mocked. A unit test that makes a real API call is a defect.
-- Integration tests are marked `@pytest.mark.live` and excluded from the default run. CI runs them only on `main` and only on a nightly schedule.
-- Simulation tests are marked `@pytest.mark.simulation`. They are slow and run in CI on PRs to `main`.
-- **Golden fixtures are versioned in `data/fixtures/` and are not regenerated casually.** Changing a golden file requires a commit that explains why the expected output changed.
+- `pytest`. Tests live in `tests/`, **flat**: one file per area, `test_<area>.py`. They do not mirror `src/`, and there are no `tests/unit/`, `tests/integration/` or `tests/simulation/` directories.
+- **No test touches the network.** All LLM calls mocked. A test that makes a real API call is a defect. `tests/test_live_llm.py` is named for the live *features* (explanations, production grading, minimal pairs, weekly report), not for live calls; it uses `MockLlmClient` like everything else.
+- **The whole suite is the default run.** `uv run pytest -q` runs every test, including the synthetic-learner simulation in `tests/test_typo_simulation.py`. Nothing is excluded and nothing needs a key.
+- `pyproject.toml` declares three markers. Only `golden` is used, by four files (`test_verification.py`, `test_taxonomy.py`, `test_bank.py`, `test_learner_errors.py`). **`live` and `simulation` are declared and applied to zero tests.** Do not describe them as a working split; either use them or delete them.
+- **Golden fixtures are versioned in `data/fixtures/` and are not regenerated casually.** Changing a golden file requires a commit that explains why the expected output changed. The one exception is `data/fixtures/translations/`, which is gitignored and is an operational store rather than a fixture; see `docs/project-state.md`.
 - Every bug fix starts with a failing test that reproduces the bug.
 - Property-based tests via `hypothesis` where the stage document calls for them.
 
