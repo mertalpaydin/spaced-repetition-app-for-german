@@ -515,6 +515,110 @@ def test_forbid_paid_lane_raises_instead_of_silently_routing_to_paid(tmp_path: P
     assert not log_file.exists() or log_file.read_text(encoding="utf-8").strip() == ""
 
 
+def test_free_lane_closed_refusal_names_rpd_and_states_the_reopen_time_locally(
+    tmp_path: Path,
+) -> None:
+    """The message the operator actually reads when a ``--free-lane-only`` run
+    ends on a quota refusal.
+
+    The free lane is closed by exactly one thing, an RPD 429, so this message
+    can and must say so: "quota exceeded" leaves the owner unable to tell
+    per-minute noise, which a re-run rides through, from his daily allowance
+    being spent, which no amount of re-running fixes before the reset.
+
+    The reopen instant is stored in UTC and used to be printed only that way.
+    A UTC timestamp does not answer "when can I run this again"; the local
+    rendering does, and the UTC instant stays alongside it so the message is
+    still unambiguous in a log read from another machine."""
+    fixed_now = datetime(2026, 6, 15, 10, 30, tzinfo=UTC)
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        clock=lambda: fixed_now,
+        forbid_paid_lane=True,
+    )
+    client._close_free_lane_until_pacific_midnight(fixed_now)
+    reopen_at = client.free_lane_closed_until
+    assert reopen_at is not None
+
+    message = client._paid_lane_forbidden_message(fixed_now)
+
+    assert "RPD" in message, "the operator must be told WHICH 429 ended the run"
+    assert "DAILY" in message
+    assert "Re-running does not help" in message
+    assert reopen_at.astimezone().strftime("%Y-%m-%d %H:%M") in message, (
+        "the reopen time must be readable in the operator's own timezone"
+    )
+    assert reopen_at.isoformat() in message, "the unambiguous UTC instant stays too"
+
+
+@pytest.mark.parametrize(
+    ("quota_type", "expected_phrase"),
+    [
+        ("rpm", "per-minute request limit (RPM)"),
+        ("rpd", "free-tier DAILY allowance (RPD)"),
+    ],
+)
+def test_quota_exceeded_error_string_leads_with_the_kind_of_429(
+    quota_type: str, expected_phrase: str
+) -> None:
+    """A ``QuotaExceededError`` that escapes a run is printed straight to the
+    terminal (``scripts/eval_verifier.py`` prints ``f"{type(exc).__name__}:
+    {exc}"``), and Google's raw "429 RESOURCE_EXHAUSTED" body does not tell
+    the operator whether re-running now is worth anything. The classification
+    leads; Google's own text is kept verbatim after it, never replaced."""
+    exc = QuotaExceededError(quota_type, "429 RESOURCE_EXHAUSTED: raw google text")  # type: ignore[arg-type]
+
+    message = str(exc)
+    assert message.startswith(f"Gemini {expected_phrase}")
+    assert "429 RESOURCE_EXHAUSTED: raw google text" in message, (
+        "the provider's own message must survive, not be replaced by our summary"
+    )
+
+
+@pytest.mark.parametrize("quota_type", ["rpm", "rpd"])
+def test_quota_cost_log_row_records_which_429_it_was(quota_type: str, tmp_path: Path) -> None:
+    """The owner's log had a row saying ``outcome="quota"`` and no way to tell
+    an RPM refusal from an RPD one. They mean opposite things to him: RPM is
+    noise a re-run rides out, RPD means the free-tier daily allowance is gone
+    until Pacific midnight and re-running is pointless. ``_classify_quota_error``
+    already knew which; the row threw it away.
+
+    Only the quota row carries it. The successful attempt that follows leaves
+    it unset, because a placeholder on a non-quota row would be noise in a
+    column whose whole value is that it is populated exactly when it means
+    something."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file,
+        cache_dir=tmp_path / "cache",
+        sleep_fn=lambda _seconds: None,
+        paid_api_key="fake-paid-key",
+    )
+
+    raised = {"once": False}
+
+    def flaky_transport(**kwargs: object) -> tuple[str, TokenUsage]:
+        if not raised["once"]:
+            raised["once"] = True
+            raise QuotaExceededError(quota_type)  # type: ignore[arg-type]
+        return _fake_transport_ok(**kwargs)
+
+    client._call_transport = flaky_transport  # type: ignore[method-assign]
+    client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
+
+    quota_rows = [row for row in client.cost_records if row.outcome == "quota"]
+    ok_rows = [row for row in client.cost_records if row.outcome == "ok"]
+    assert len(quota_rows) == 1
+    assert quota_rows[0].quota_type == quota_type
+    assert ok_rows and all(row.quota_type is None for row in ok_rows), (
+        "quota_type is populated on quota rows only"
+    )
+    # And it survives the round trip through the file, which is the artefact
+    # the owner actually reads.
+    assert f'"quota_type":"{quota_type}"' in log_file.read_text(encoding="utf-8")
+
+
 def test_forbid_paid_lane_raises_in_generate_many_via_determine_lane(tmp_path: Path) -> None:
     """The pilot's real call path is ``generate_many`` (via
     ``GeminiBatchClient.submit``), not ``generate`` -- confirm the same
@@ -1879,6 +1983,11 @@ def test_cost_log_row_written_before_the_new_fields_existed_still_loads(tmp_path
     assert row.outcome == "ok"
     assert row.attempt == 1
     assert row.call_id is None
+    # Same reasoning one field later: a historical row recorded only that a
+    # 429 happened (and in fact this one is not even a quota row), so ``None``
+    # is the honest value. Inventing "rpm" or "rpd" for it would manufacture
+    # evidence the log never captured.
+    assert row.quota_type is None
 
 
 # ---------------------------------------------------------------------------

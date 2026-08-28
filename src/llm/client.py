@@ -142,7 +142,29 @@ class QuotaExceededError(Exception):
     handled differently: RPM (requests-per-minute) exhaustion is transient and the
     same lane should be retried after a short backoff; RPD (requests-per-day)
     exhaustion means the free lane is closed for the rest of the Pacific day.
+
+    The string form leads with that distinction rather than with Google's raw
+    429 text, because a caller that lets this escape prints it straight to the
+    operator's terminal (``scripts/eval_verifier.py`` prints
+    ``f"{type(exc).__name__}: {exc}"``) and "429 RESOURCE_EXHAUSTED" on its own
+    does not say whether re-running now is worth anything. Google's own text
+    is kept verbatim after it, never replaced.
     """
+
+    #: What each kind means for the person reading the terminal, which is the
+    #: only reason the distinction is worth printing: one says try again, the
+    #: other says wait for tomorrow.
+    _OPERATOR_GUIDANCE: dict[str, str] = {
+        "rpm": (
+            "per-minute request limit (RPM) refused this attempt. This is "
+            "transient: re-running rides through it, and cached results are "
+            "replayed for free"
+        ),
+        "rpd": (
+            "free-tier DAILY allowance (RPD) is exhausted. Re-running does "
+            "not help until the quota resets at the next Pacific midnight"
+        ),
+    }
 
     def __init__(
         self,
@@ -152,7 +174,8 @@ class QuotaExceededError(Exception):
     ) -> None:
         self.quota_type = quota_type
         self.retry_delay_seconds = retry_delay_seconds
-        super().__init__(message or f"Gemini quota exceeded: {quota_type}")
+        summary = f"Gemini {self._OPERATOR_GUIDANCE[quota_type]}."
+        super().__init__(f"{summary} Underlying error: {message}" if message else summary)
 
 
 class ServerUnavailableError(Exception):
@@ -335,6 +358,22 @@ class CostLogRow(BaseModel):
     #: shared by the whole submitted group, because the job, not the
     #: individual prompt, is the thing that retries.
     call_id: str | None = None
+    #: Which kind of 429 this attempt hit, on a row with ``outcome="quota"``.
+    #: ``None`` everywhere else, and on every historical row: the log recorded
+    #: only that a 429 happened, and inventing a kind for such a row now would
+    #: be manufacturing evidence that was never captured.
+    #:
+    #: The distinction is the entire reason to record it, because it decides
+    #: what the operator does next. ``"rpm"`` is per-minute noise: the pacing
+    #: was briefly too fast and a re-run rides straight through it. ``"rpd"``
+    #: is the free tier's daily allowance spent, and no amount of re-running
+    #: helps until the Pacific-midnight reset. The client has always known
+    #: which (``_classify_quota_error``, ``QuotaExceededError.quota_type``) and
+    #: threw it away at logging time, leaving the owner looking at a bare
+    #: ``outcome="quota"`` row unable to tell a run worth retrying now from one
+    #: that has to wait for tomorrow -- which is also what decides whether a
+    #: 490-call bank build is feasible on the free lane at all.
+    quota_type: QuotaType | None = None
 
 
 #: Where ``GeminiLlmClient`` writes its cost log unless told otherwise, named
@@ -749,6 +788,7 @@ class GeminiLlmClient:
         outcome: RowOutcome,
         attempt: int,
         call_id: str,
+        quota_type: QuotaType | None = None,
     ) -> None:
         """Write the audit row for an attempt that reached Google and failed.
 
@@ -783,6 +823,18 @@ class GeminiLlmClient:
         is logged for retry legibility, not because it hides spend. A
         ``"server_error"`` row is the one that can hide spend.
 
+        ``quota_type`` says WHICH 429, and callers must pass it on every
+        ``outcome="quota"`` row. It is not about money either; it is about
+        what the operator should do with the run. RPM means the pacing was
+        briefly too fast and a re-run rides through it; RPD means the free
+        tier's daily allowance is gone until the Pacific-midnight reset and
+        re-running changes nothing. The client already classified the error
+        to decide its own retry behaviour (``_classify_quota_error``), so
+        recording it costs one field and closes a gap the log had no other
+        way to answer. It stays ``None`` on every non-quota row rather than
+        carrying a placeholder, for the same reason ``mode`` is ``None`` on a
+        historical row: an empty cell is honest, a guess is not.
+
         **The timestamp is read from ``self._clock()`` here, at the moment the
         row is written, and is deliberately not a parameter.** It used to be
         passed in as the caller's ``ref_time``, which is computed once at the
@@ -814,6 +866,7 @@ class GeminiLlmClient:
                 outcome=outcome,
                 attempt=attempt,
                 call_id=call_id,
+                quota_type=quota_type,
             )
         )
 
@@ -897,17 +950,36 @@ class GeminiLlmClient:
         pick the paid lane, since the fix differs: a closed free lane just
         needs to wait (or opt into ``--batch``); the user-content privacy
         restriction needs a config or call-site change, not a wait.
+
+        The closed-lane branch is the message the operator actually sees when
+        a ``--free-lane-only`` run ends on a quota refusal, because the free
+        lane is closed by exactly one thing: an RPD 429
+        (``_close_free_lane_until_pacific_midnight`` is called on no other
+        path). It therefore names RPD outright, and states the reopen instant
+        in the operator's OWN timezone first, with UTC after it. The reopen
+        instant is stored in UTC and used to be printed that way, which is
+        correct and unreadable: "reopens at 07:00Z" is not an answer to "when
+        can I run this again", and answering that is the entire point of
+        telling him which 429 he hit.
         """
         if not self.free_lane_open:
             reopen_at = self.free_lane_closed_until
-            reopen_str = (
-                reopen_at.isoformat() if reopen_at is not None else "the next Pacific midnight"
-            )
+            if reopen_at is None:
+                reopen_str = "the next Pacific midnight"
+            else:
+                # ``astimezone()`` with no argument is the machine's local
+                # zone, which for an operator-facing string is the right
+                # default: he reads the terminal where the job runs.
+                reopen_str = (
+                    f"{reopen_at.astimezone().strftime('%Y-%m-%d %H:%M %Z')} "
+                    f"local ({reopen_at.isoformat()})"
+                )
             return (
-                "The free lane is closed (daily quota exhausted) and the paid batch "
-                "lane is forbidden in this run. The free lane reopens at "
-                f"{reopen_str} (Pacific-midnight reset). Pass --batch if you actually "
-                "want this run to use the paid lane."
+                "The free lane is closed: the free-tier DAILY allowance (RPD) is "
+                "exhausted, and the paid batch lane is forbidden in this run. "
+                "Re-running does not help until the quota resets. The free lane "
+                f"reopens at {reopen_str}, the next Pacific midnight. Pass --batch "
+                "if you actually want this run to use the paid lane."
             )
         return (
             "This call carries user content and privacy.restrict_user_content_to_paid_lane "
@@ -1454,6 +1526,7 @@ class GeminiLlmClient:
                     outcome="quota",
                     attempt=attempt,
                     call_id=call_id,
+                    quota_type=exc.quota_type,
                 )
                 if rpm_attempts >= self.RPM_MAX_RETRIES:
                     raise
@@ -1708,6 +1781,7 @@ class GeminiLlmClient:
                     outcome="quota",
                     attempt=attempt,
                     call_id=call_id,
+                    quota_type=exc.quota_type,
                 )
                 if exc.quota_type == "rpm":
                     if rpm_attempts >= self.RPM_MAX_RETRIES:
