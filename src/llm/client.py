@@ -636,7 +636,6 @@ class GeminiLlmClient:
     def _build_cost_row(
         self,
         *,
-        timestamp: datetime,
         model: str,
         lane: Lane,
         mode: TransportMode,
@@ -655,9 +654,12 @@ class GeminiLlmClient:
         ``attempt`` above 1 says this call was retried and that
         ``_log_failed_attempt`` has already written ``attempt - 1`` rows under
         the same ``call_id``.
+
+        The timestamp is read from the clock HERE, when the row is built, and
+        is deliberately not passed in. See ``_log_failed_attempt`` for why.
         """
         return CostLogRow(
-            timestamp=timestamp,
+            timestamp=self._clock(),
             model=model,
             lane=lane,
             mode=mode,
@@ -680,7 +682,6 @@ class GeminiLlmClient:
     def _log_failed_attempt(
         self,
         *,
-        timestamp: datetime,
         model: str,
         lane: Lane,
         mode: TransportMode,
@@ -721,10 +722,28 @@ class GeminiLlmClient:
         ``"quota"`` row is a 429, which Google refuses and does not bill; it
         is logged for retry legibility, not because it hides spend. A
         ``"server_error"`` row is the one that can hide spend.
+
+        **The timestamp is read from ``self._clock()`` here, at the moment the
+        row is written, and is deliberately not a parameter.** It used to be
+        passed in as the caller's ``ref_time``, which is computed once at the
+        top of ``generate``/``generate_many`` and means "when this call
+        started". Every attempt of a retried call therefore shared one
+        timestamp, identical to the microsecond, even though
+        ``SERVER_ERROR_BACKOFF_SCHEDULE`` puts at least ten minutes between
+        the first attempt and the fourth. Two things broke:
+        ``scripts/reconcile_cost_log.py`` groups by day, so a call that starts
+        at 23:55 and retries past midnight filed those attempts on the wrong
+        day and manufactured (or masked) a discrepancy against Google's
+        per-day billing export; and the spacing between attempts, which is
+        half of what attempt logging was added to make visible, was destroyed
+        while the attempt COUNT survived. ``ref_time`` is still the right
+        value for everything else it feeds (the month-to-date spend gate, the
+        lane decision, the Pacific-midnight reset arithmetic) -- those all
+        genuinely mean "at the start of the call". A log row does not.
         """
         self._log_cost(
             CostLogRow(
-                timestamp=timestamp,
+                timestamp=self._clock(),
                 model=model,
                 lane=lane,
                 mode=mode,
@@ -1307,7 +1326,6 @@ class GeminiLlmClient:
         prompts: list[str],
         config: genai_types.GenerateContentConfig,
         purpose: str,
-        ref_time: datetime,
     ) -> BatchTransportResult:
         """Transient-retry wrapper around ``_call_batch_many``, scoped to the
         paid lane's group submission: no RPD lane-switch (there is nowhere
@@ -1345,7 +1363,6 @@ class GeminiLlmClient:
                 return BatchTransportResult(results=results, attempt=attempt, call_id=call_id)
             except QuotaExceededError as exc:
                 self._log_failed_attempt(
-                    timestamp=ref_time,
                     model=model,
                     lane="paid",
                     mode="batch",
@@ -1361,7 +1378,6 @@ class GeminiLlmClient:
                 continue
             except ServerUnavailableError:
                 self._log_failed_attempt(
-                    timestamp=ref_time,
                     model=model,
                     lane="paid",
                     mode="batch",
@@ -1391,7 +1407,6 @@ class GeminiLlmClient:
                 # exactly the silent, billed, zero-row day the owner's
                 # Aug 14-17 export shows and his cost log does not.
                 self._log_failed_attempt(
-                    timestamp=ref_time,
                     model=model,
                     lane="paid",
                     mode="batch",
@@ -1595,7 +1610,6 @@ class GeminiLlmClient:
                 )
             except QuotaExceededError as exc:
                 self._log_failed_attempt(
-                    timestamp=ref_time,
                     model=model,
                     lane=lane,
                     mode=mode,
@@ -1621,7 +1635,6 @@ class GeminiLlmClient:
                 mode = self._mode_for_lane(lane)
             except ServerUnavailableError:
                 self._log_failed_attempt(
-                    timestamp=ref_time,
                     model=model,
                     lane=lane,
                     mode=mode,
@@ -1676,7 +1689,10 @@ class GeminiLlmClient:
             if cached is not None:
                 self._log_cost(
                     CostLogRow(
-                        timestamp=ref_time,
+                        # Read at write time, like every other row: a cache
+                        # hit happens now, not at whatever ``ref_time`` the
+                        # caller handed in.
+                        timestamp=self._clock(),
                         model=model,
                         lane="cache",
                         mode="cache",
@@ -1701,7 +1717,6 @@ class GeminiLlmClient:
         # 5. Persist to Cost Log & Cache
         self._log_cost(
             self._build_cost_row(
-                timestamp=ref_time,
                 model=model,
                 lane=result.lane,
                 mode=result.mode,
@@ -1794,7 +1809,10 @@ class GeminiLlmClient:
                 if cached is not None:
                     self._log_cost(
                         CostLogRow(
-                            timestamp=ref_time,
+                            # Per hit, not per group: several hits in one
+                            # ``generate_many`` are separate rows and each one
+                            # records when it was actually served.
+                            timestamp=self._clock(),
                             model=model,
                             lane="cache",
                             mode="cache",
@@ -1838,7 +1856,6 @@ class GeminiLlmClient:
                     result = future.result()
                     self._log_cost(
                         self._build_cost_row(
-                            timestamp=ref_time,
                             model=model,
                             lane=result.lane,
                             mode=result.mode,
@@ -1870,7 +1887,6 @@ class GeminiLlmClient:
                     prompts=chunk_prompts,
                     config=config,
                     purpose=purpose,
-                    ref_time=ref_time,
                 )
                 for i, (text, usage) in zip(chunk, batch.results, strict=True):
                     # This branch is only reachable for a real Batch API
@@ -1885,7 +1901,6 @@ class GeminiLlmClient:
                     # ``server_error`` rows the failed submissions wrote.
                     self._log_cost(
                         self._build_cost_row(
-                            timestamp=ref_time,
                             model=model,
                             lane="paid",
                             mode="batch",

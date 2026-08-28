@@ -20,6 +20,7 @@ import threading
 import time
 import warnings
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -1914,7 +1915,6 @@ def test_batch_server_error_retries_stop_after_two(tmp_path: Path) -> None:
             prompts=["eins", "zwei"],
             config=genai_types.GenerateContentConfig(),
             purpose="unit_test",
-            ref_time=datetime.now(UTC),
         )
 
     assert calls["n"] == GeminiLlmClient.SERVER_ERROR_BATCH_MAX_RETRIES + 1
@@ -2043,6 +2043,66 @@ def test_every_sync_attempt_writes_a_row_and_only_the_success_carries_tokens(
     )
     assert (succeeded.prompt_tokens, succeeded.completion_tokens) == (1000, 2000)
     assert succeeded.cost_usd > 0.0
+
+
+def test_each_attempt_row_carries_the_time_that_attempt_happened(tmp_path: Path) -> None:
+    """Every attempt of one retried call gets its own timestamp, read when
+    its row is written, not one timestamp shared by the whole call.
+
+    The regression this pins: ``ref_time`` is computed once at the top of
+    ``generate`` and was passed as the timestamp of every row the call wrote,
+    so all twelve rows of the owner's 2026-08-28 free-lane run were stamped
+    ``2026-08-28T05:13:39.076122Z``, identical to the microsecond, including
+    four attempts of one call that the 5xx backoff schedule puts at least ten
+    and a half minutes apart. That is wrong twice over.
+    ``scripts/reconcile_cost_log.py`` groups the log by day and compares it
+    against Google's per-day billing export, so a call that starts before
+    Pacific/UTC midnight and retries past it files those attempts on the wrong
+    day; and attempt logging exists to make retry storms visible, which needs
+    the spacing as much as the count.
+
+    The clock here advances only when the client sleeps, so the expected
+    spacing is exactly the backoff schedule rather than an arbitrary tick.
+    """
+    start = datetime(2026, 8, 28, 5, 13, 39, 76122, tzinfo=UTC)
+    now = {"t": start}
+
+    def clock() -> datetime:
+        return now["t"]
+
+    def sleep_fn(seconds: float) -> None:
+        now["t"] += timedelta(seconds=seconds)
+
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "cost_log.jsonl",
+        cache_dir=tmp_path / "cache",
+        clock=clock,
+        sleep_fn=sleep_fn,
+    )
+
+    calls = {"n": 0}
+
+    def flaky_transport(**kwargs: object) -> tuple[str, TokenUsage]:
+        calls["n"] += 1
+        if calls["n"] <= 3:
+            raise ServerUnavailableError("503 UNAVAILABLE")
+        return _fake_transport_ok(**kwargs)
+
+    client._call_transport = flaky_transport  # type: ignore[method-assign]
+
+    client.generate("Hallo Welt", purpose="unit_test", use_cache=False)
+
+    rows = client.cost_records
+    assert [row.outcome for row in rows] == ["server_error"] * 3 + ["ok"]
+    assert len({row.call_id for row in rows}) == 1, "one retried call, not four calls"
+
+    timestamps = [row.timestamp for row in rows]
+    assert all(later > earlier for earlier, later in pairwise(timestamps)), (
+        "attempts of one call are minutes apart and their rows must say so"
+    )
+    gaps = [(later - earlier).total_seconds() for earlier, later in pairwise(timestamps)]
+    assert gaps == list(GeminiLlmClient.SERVER_ERROR_BACKOFF_SCHEDULE[:3])
+    assert timestamps[0] == start
 
 
 def test_every_batch_attempt_writes_a_row_and_only_the_success_carries_tokens(
