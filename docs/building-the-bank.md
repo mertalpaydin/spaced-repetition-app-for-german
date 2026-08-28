@@ -84,10 +84,23 @@ What each flag is doing:
 |---|---|
 | `--limit 1000000` | Read the whole corpus, not the 40,000-per-source default. The flag is per source. |
 | `--per-topic-quota 25` | The owner's decision: 25 items per topic, 49 topics, about 1,225 items. |
-| `--verification-passes 2` | An item is rejected if either pass rejects it. Two passes at batch 5 caught 12 real defects in 475 items that one pass alone missed. |
-| `--verification-batch-size 5` | The smaller batch scrutinises later items in a prompt more closely. |
+| `--verification-passes 2` | An item is rejected if either pass rejects it. See the correction below on what the evidence for this actually says. |
+| `--verification-batch-size 5` | **5, never 20.** Hand-audited: the same 475 candidates gave 444 accepted / 31 rejected at batch 20 and 438 / 37 at batch 5. Diffed item by item, 9 items were accepted at 20 and rejected at 5, and 3 the other way; all 12 were read by hand and **all 12 were genuinely bad**. The smaller batch scrutinises later items in a prompt more closely, and catches three times as many of the disagreements. `DEFAULT_VERIFICATION_BATCH_SIZE` in the code is still 20; always pass this flag. |
 | `--max-translation-characters 120000` | **Required. The 60,000 default is too small for this run.** 1,225 carriers at a measured mean of 61.7 characters is about 75,600 characters, so the default guard would stop at a batch boundary and leave several hundred items with no gloss. |
 | `--write-bank data/bank.db` | The new flag. Off by default; without it nothing is written to any database. |
+
+**Correction, 2026-08-28.** This table used to justify `--verification-passes 2`
+by saying "two passes at batch 5 caught 12 real defects that one pass alone
+missed". That misreads the experiment. The 12 defects come from
+`scripts/step7_corpus_pilot.py`'s own docstring, and that experiment compared
+**batch 20 against batch 5** -- two batch *sizes*, one pass each -- not two
+passes at one size. Two passes at the same batch size sample only the model's
+own run-to-run noise, which is a smaller effect than the one that was measured.
+
+If the union effect that was actually measured is what you want, the instrument
+is **pass 1 at batch 5 and pass 2 at batch 20**, not two passes at 5. That is an
+open decision, carried in `TODO.md`, and it is not the same question as the pass
+count.
 
 **Cost:** $3.28 in Gemini verification, measured from the owner's Google
 bill at $0.00268 per item. Against a $7.50/month ceiling. The translation is

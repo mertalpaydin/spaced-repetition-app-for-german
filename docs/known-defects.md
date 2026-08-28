@@ -2,7 +2,7 @@
 
 Every defect class this pipeline is known to let through, with real examples,
 why no rule catches it, and what would have to exist before one could. Nothing
-here is a task. `TODO.md` section 1 is the work list; this file is the
+here is a task. `TODO.md` is the work list; this file is the
 explanation, written so it can be read in five minutes.
 
 Classes 2.10 to 2.14 are the one exception to "known to let through", added in
@@ -578,7 +578,7 @@ instruction, asking directly whether the English matches the German, or a
 deterministic check comparing the answer's number against the number of the
 matching English noun phrase. `en_core_web_sm` is already installed and
 `src/generation/gloss_validation.py` already uses it. This one is open work
-rather than an accepted limit: `TODO.md` item 4.
+rather than an accepted limit: `TODO.md` item 1, and it is the first thing to be done.
 
 ---
 
