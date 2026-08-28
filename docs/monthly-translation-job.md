@@ -1,5 +1,11 @@
 # The monthly translation job, on Windows
 
+> **Set up and running as of 2026-08-28.** The task exists, it is scheduled
+> **daily**, and it has spent its first characters. What follows is how it was
+> built and how to check on it, not work still to do. Section 2 shows the
+> monthly form this was originally written for; section 2a is what is actually
+> in use.
+
 `scripts/monthly_translation_topup.py` spends Azure Translator's free F0
 allowance (2,000,000 characters a month, no card) on the carriers that still
 have no trusted English gloss. It remembers what the month has already spent, so
@@ -44,6 +50,48 @@ schtasks /Create /TN "LLA monthly translation" /TR "C:\lla\run-monthly-translati
 - `/ST 03:00` is local time.
 - `/F` overwrites an existing task of the same name, so re-running this line is
   how you change the schedule.
+
+## 2a. What is actually scheduled (daily, and why)
+
+The task in use is **daily**, not monthly:
+
+```bat
+schtasks /Create /TN "LLA monthly translation" /TR "C:\Users\merta\Desktop\Language_Learning_App\run-monthly-translation.cmd" /SC DAILY /ST 03:00 /F
+```
+
+**Daily buys no extra quota.** The F0 allowance is 2,000,000 characters per
+calendar month, keyed UTC, and running more often cannot raise it. What daily
+buys is that **a missed month becomes impossible**. A monthly trigger fires
+once; a machine switched off at that moment costs the entire month's allowance,
+and it cannot be recovered. With a daily trigger, the first day the machine is
+on spends the month's budget, and every later run that month correctly does
+nothing and exits 0. The ledger is what makes those extra runs safe.
+
+Three settings `schtasks` cannot set were applied afterwards with PowerShell,
+and they matter on a laptop:
+
+```powershell
+$s = Get-ScheduledTask -TaskName "LLA monthly translation"
+$s.Settings.StartWhenAvailable = $true          # catch up after a missed 03:00
+$s.Settings.ExecutionTimeLimit = "PT6H"
+$s.Settings.DisallowStartIfOnBatteries = $false # run on battery
+$s.Settings.StopIfGoingOnBatteries = $false     # do not stop when unplugged
+Set-ScheduledTask -TaskName "LLA monthly translation" -Settings $s.Settings
+```
+
+`StartWhenAvailable` is the important one. Without it, a daily task on a machine
+that is never on at 03:00 simply never runs, which is the same failure the daily
+schedule was meant to prevent.
+
+**Watch a run through the ledger, not the log.** `logs\monthly-translation.log`
+stays empty until the process exits, because Python buffers its output when it
+is redirected to a file. The ledger updates every checkpoint:
+
+```powershell
+Get-Content data\fixtures\translations\azure_f0_ledger.json
+```
+
+---
 
 If the machine is usually asleep at 03:00, open the Task Scheduler GUI (Start,
 "Task Scheduler", Task Scheduler Library), right-click **LLA monthly
