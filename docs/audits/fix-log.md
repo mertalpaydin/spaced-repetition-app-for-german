@@ -790,6 +790,10 @@ without the owner saying so explicitly.
   `src/llm/client.py`. Applied by the owner after the cycle 9 pilot hit a
   server error mid-run.
 
+**These two retry values are superseded and must not be restored.** The owner
+replaced them himself, twice. `TODO.md` has the current ones. This entry is
+kept as the record of what was true when it was written.
+
 ---
 
 ## 6. Known limits, stated rather than hidden
@@ -3084,3 +3088,124 @@ tests, one per block plus the perfect-recall case, and the existing end-to-end
 test now asserts both blocks are part of a complete run's own output rather
 than an opt-in. Test count 1785 before, 1788 after. `ruff check`,
 `ruff format --check` and `mypy --strict src/` all clean.
+
+---
+
+## Cycle 18: the gloss eval runs, and TODO.md becomes a work list again
+
+Two things happened on 2026-08-28. The gloss adversarial eval was run for the
+first time, which closes TODO.md 2.2. And `TODO.md` was cut from 955 lines to a
+list of open work, which means the reasoning it was carrying has to land here.
+
+### The gloss eval, first run
+
+`scripts/eval_gloss_adversarial.py` against
+`data/fixtures/adversarial/wrong_glosses.jsonl`: 36 matched pairs, one row
+with a deliberately wrong English translation and one row with the item's real
+one, verified in separate calls so the model never sees a pair side by side.
+Six defect kinds, six pairs each.
+
+| | |
+|---|---:|
+| Wrong translations caught | 22 of 36 |
+| Wrong number, singular against plural | **0 of 6** |
+| False positives on the 36 correct translations | **0** |
+
+The zero false positives is the good half. The pass does not invent translation
+defects, so nothing here argues for loosening it.
+
+**The 0 of 6 is the finding.** It is worse than a low overall recall, because
+the learner is shown the translation and uses it. A translation with the wrong
+number points at the wrong answer:
+
+    Ich habe schöne ___ gesehen.        answer: Häuser
+    "I saw a beautiful house."
+
+Building the harness had already predicted a poor result and said why: no
+question in the live verification instruction asks whether the translation is
+correct. The four questions are about the German, the answer's uniqueness,
+whether every word exists, and the cue. The translation enters question 2 only
+as a reason to rule an alternative out. So every catch above is incidental.
+That question was deliberately not added before measuring, so the number
+describes the pass as it actually ships. It now points at adding a fifth
+question, or at a deterministic number check. Open as TODO.md item 4.
+
+### What TODO.md 2.1 was carrying, closed
+
+The cue names the verb and not the tense, so `(können)` left `kann`, `konnte`
+and `könnte` all open. Cycle 13 measured the cost: 44 of 105 model rejections,
+42%, named a tense or time alternative as an equally good answer.
+
+Cycle 14, the same 475 candidates, with the verifier now reading the English
+translation:
+
+| | Cycle 13 | Cycle 14 |
+|---|---:|---:|
+| Tense rejections | 44 | 6 |
+| Total rejections | 105 | 42 |
+| Accepted | 376 | 437 |
+
+The six survivors all cite the translation as their evidence ("Die englische
+Übersetzung 'are to' verlangt Präsens"), which is the check working rather than
+failing. No time anchor in the carrier is needed. The recommendation in
+`docs/audits/cycle-12-corpus-report.md` is withdrawn.
+
+### What TODO.md 2.1c was carrying, half closed
+
+The instability itself is recorded in `docs/known-defects.md` 2.9. What closes
+here is the experiment and the feature that came out of it.
+
+The batch-size experiment was run on the identical 475 candidates, everything
+else held fixed: batch 20 accepted 444 and rejected 31; batch 5 accepted 438
+and rejected 37. A 6-item difference that reads like noise. Diffed item by
+item it is not: 9 items were accepted at batch 20 and rejected at batch 5, and
+3 the other way. All 12 were read by hand and **all 12 are genuinely bad
+items** (fragmented quotations, "Eindruck über", an archaic Dante line, wrong
+word order, a Swiss-formatted number, real tense ambiguity). So batch size is
+not the lever. Neither size catches everything, the union of the two catches
+all 12, and 2.5% of items are decided by which run you look at.
+
+That made a third option the one to build, and it is built.
+`scripts/step7_corpus_pilot.py --verification-passes N` runs the pass N times
+over the same items and rejects anything any pass rejects: union of rejections,
+intersection of acceptances, the reason kept from the first pass that rejected.
+Default 1, byte for byte the old behaviour. Passes after the first bypass the
+local cache (`verify_items(use_cache=False)`); without that an identical prompt
+would replay pass 1's verdict for free and the feature would measure nothing.
+The report carries `verification_passes`, each pass's counts, how many
+rejections were unique to a pass, `rejected_by_any_pass`, and
+`pass_disagreements`, which is the direct measure of the instability. A later
+pass that cannot run degrades: the run reports what it managed and says which
+pass did not run.
+
+Cost, from `cost_log`: about $0.18 per pilot cycle at batch 20, about $0.36 at
+batch 5. Two passes roughly doubles whichever is chosen.
+
+**What stays open** is how many passes to buy, now that cycle 17 has priced a
+false positive. That is TODO.md item 1.
+
+### The documentation pass itself
+
+- `README.md` rewritten. It had claimed exercises are generated by LLM
+  pipelines, which is the untested path and was the most misleading sentence in
+  the repository; that they need Python 3.11 when `pyproject.toml` requires
+  3.12; that the PWA deploys to Cloudflare Pages when the only deploy workflow
+  targets GitHub Pages; and it linked a `COMMIT_RULES.md` that does not exist
+  and stated a branch convention `CLAUDE.md` contradicts. It never mentioned
+  the English translation at all.
+- `docs/project-state.md` written. The handover brief: what the product is,
+  how an exercise is made, what is built, what is not, what was measured, what
+  it costs, and what trips a new person up.
+- `TODO.md` cut from 955 lines to open work only. Section 1 was not work; it
+  duplicated `docs/known-defects.md`, which explains the same limits better,
+  and is now a pointer at that file. Sections 3 and 4 were compressed to
+  one-line guard rails, with the reasoning left here and in the commit bodies.
+
+Two open items were found while verifying the above and are new in `TODO.md`:
+`scripts/step4_run_app.py` prints `Thema: {topic_id}` above the sentence before
+the learner answers, which breaks CLAUDE.md rule 2 in the script
+`docs/building-the-bank.md` tells you to run; and `web/` has three CSS
+class-name mismatches between the markup and `web/styles.css`.
+
+`uv run pytest -q`: 1788 passed. `ruff check`, `ruff format --check` and
+`mypy --strict src/` all clean. No source file changed in this cycle.

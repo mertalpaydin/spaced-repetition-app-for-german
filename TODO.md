@@ -1,955 +1,331 @@
 # TODO
 
-Open work only. Closed work is in `docs/audits/fix-log.md` with its reasoning
-and measurements; git history has the same in commit bodies.
+Open work only. **An item is a thing that is not done.** When you close one,
+delete it from here and write it up in `docs/audits/fix-log.md`.
 
-Rule for anyone adding here, human or agent: **an item is a thing that is not
-done.** When you close one, delete it and put the writeup in the fix log. This
-file was allowed to reach 1,772 lines of finished work and was useless as a
-work list. Do not do that again.
+- New to the project? Read `docs/project-state.md` first.
+- Known limits that are accepted rather than fixed are **not work**. They are
+  explained, with real examples, in `docs/known-defects.md`.
+- Finished work is in `docs/audits/fix-log.md`, with what was measured.
 
----
-
-## 1. Known limits, recorded rather than solved
-
-Not tasks. Do not "fix" these without a decision from the owner.
-
-**`docs/known-defects.md` explains every one of these in plain English**, with
-real examples, why no rule catches it and what would have to exist before one
-could, plus the measured cost of the whole set. Read that file to understand a
-limit; read the entries below to work on one. The entries stay here because
-this is the work list; the doc is the explanation, and neither replaces the
-other.
-
-- **`Strässchen` and Swiss orthography with `ä`.** Standard German is
-  `Sträßchen`. The rule added for Swiss spelling covers diphthongs before
-  `ss` plus a closed list, and cannot decide `ä`: Swiss in `Strässchen` (long
-  vowel), standard in `Fässer`, `Pässe`, `Gässchen` (short vowel). German
-  orthography does not mark vowel length reliably enough. Recommendation
-  already given and accepted: report it in each audit rather than pretend a
-  rule exists.
-
-- **Free datives and adjective-governed datives are out of reach of the verb
-  government lexicon.** `Ich wasche mir die Hände` and `Meiner Schwester ist
-  es kalt` have no governing verb to look up. They stay dropped.
-
-- **`ausweichen` has no usable corpus evidence** and so is absent from the
-  lexicon. A real coverage gap, not a threshold artefact. `handeln` is a
-  second, structural instance: `sich handeln um` only ever occurs with the
-  ambiguous `sich`, so the lexicon can never have an entry for it. Cycle 11
-  fixed that one item's routing structurally instead (`CARD` in the
-  preposition walk-back), not by adding evidence that cannot exist.
-
-- **A colon is not itself a defect, so the junk-text filter is narrow on
-  purpose.** Requiring every colon-delimited segment to be a clause rejected
-  12 Tatoeba lines of which 11 are correct German. The shipped rule is four
-  specific shapes instead (`colon_joined_fragment`), and scraped-web junk
-  that does not match one of them still gets through. Widening it means
-  measuring against those 12 again first.
-
-- **"Spazieren gehen" and a capitalised verb that should be lowercase.**
-  A single Leipzig source typo. German nominalisation is fully productive,
-  so "das Spazieren" is a real word and no dictionary can call the string
-  wrong; only its role beside "gehen" makes it wrong, and neither the
-  vendored word list nor the lemmatiser carries that signal. spaCy's own
-  tag is circular here (NOUN because of the capitalisation).
-
-- **3rd person singular is out of reach for `pronomen_personal_nom`.** No
-  German verb form distinguishes "er" from "sie" from "es", so the verb can
-  never settle a blanked 3rd-singular subject, and recovering the intended
-  one needs coreference this package does not have. The cell is dropped.
-
-- **The four CEFR frequency-rank boundaries are tunable, not settled.** The
-  owner set the shape (A1 against roughly the first 5,000 words, widening by
-  level) and said outright the numbers were a guess. They are constants in
-  `src/lexicon/vocabulary.py`. Raising A1 and A2 is the first lever if 70%
-  retention proves too steep.
-
-- **Two cycle 12 carrier defects, one each, no rule written.** A fixed
-  construction filed as a tense ("Das Geschäft hat noch bis zum 19. Mai
-  geöffnet" is "is open", not the perfect of "öffnen"); and a Tatoeba
-  translation with German words in English order. Each needs a different
-  rule, each would be written on a single example, and cycle 11's colon
-  rule already showed what that costs. Left to the verifier. The third
-  defect this item used to carry, the Leipzig headline with no main clause
-  ("Ein Film, der die Frage aufwirft, ..."), was caught a second time in
-  cycle 13 and is now the deterministic rule `no_main_clause_verb`; see the
-  fix log's cycle 13 section for the measurement.
-
-- **Collocation errors are the verifier's job and cannot be a rule here.**
-  Cycle 13 found five of them among the eight items the verifier caught in
-  one run and missed in the next ("einen Erfolg erreichen", "Eindruck
-  über", "schnaubten wegen ihres Gehalts"). Every one needs a collocation
-  lexicon (which verbs take which nouns, which nouns take which
-  prepositions) that this repository does not have and that no structural
-  check substitutes for. Recorded so the standing "caught twice becomes a
-  rule" rule is not read as applying to them.
-
-- **Caption residue in parentheses cannot be told from journalistic
-  apposition by structure.** "Masi Pfand (am Ball) befindet sich ..." is
-  scraped caption furniture; "Friedrich Merz (CDU) hat ... telefoniert." is
-  correct German, and the two have the identical parse. The structural rule
-  (a short verbless parenthesised insert between a proper-noun subject and
-  its finite verb) was measured over 40,000 Leipzig lines in cycle 13: of
-  the 150 hits the module otherwise accepts, 23 are position markers and
-  127 are party affiliations, ages, abbreviation glosses and goal minutes.
-  Widening `_PARENTHESISED_MARKER`'s closed list lexeme by lexeme is the
-  only safe direction, and only for a phrase a pilot actually turns up.
-
-- **Leipzig carriers have no content filter.** Cycle 11 turned up a quote
-  about genocide, cycle 12 a report of a sledgehammer assault. Not grammar
-  defects. A blocklist applied to Leipzig only is cheap if the owner wants
-  one.
-
-- **Anything the verifier catches twice becomes a deterministic rule.** A
-  standing rule, not a task. The verifier is a discovery instrument and must
-  never be the only thing between a known defect class and a learner.
-
-- **And the measured inverse: anything the verifier systematically MISSES must
-  become a deterministic rule too.** Also standing, also not a task. Cycle 17
-  supplied the measurement the original rule never had a counterpart for: the
-  pass caught 0 of 6 reflexive case-routing defects, 0 of 2 Futur I defects and
-  0 of 2 topic-misfiling defects, and it will score exactly the same on the
-  next run, because the reason is structural rather than a matter of attention
-  (`model_verification._format_item_block` withholds `topic_id`, correctly, per
-  CLAUDE.md rule 2, and those defects are invisible without it). A class the
-  verifier misses reproducibly cannot be improved by asking it again, at any
-  batch size or any number of passes. It has to be a rule, or it is nothing.
-  The good news buried in that: a stable blind spot is operationally better
-  than a random one, because only the stable kind can be closed. See
-  `docs/audits/fix-log.md` cycle 17.
-
-- **A whole-corpus `step7_corpus_pilot.py` run is silent for hours and its
-  rejected file is enormous.** Both stand, both are recorded rather than
-  fixed. The carrier-validation pass and the tagging pass each parse every
-  corpus line with spaCy and neither reports progress; measured in this
-  project's own container at 78 and 92 sentences/second, 450,000 lines is
-  about 2.5 hours with nothing on the console. The script now prints that
-  estimate before the wait starts, which is the honest minimum; real
-  progress reporting would need a callback through `blank_sentences` and
-  `validate_carriers` and has not been built. Separately, the rejected JSONL
-  scales at roughly 1.4 rows per corpus line (8,667 rows for 6,000 lines),
-  so a whole-corpus run writes on the order of 650,000 rows, held in memory
-  as a list first. That is large, not fatal, and it is the file the audit
-  actually needs.
+Item ids are kept from the old numbering because code comments and other
+documents cite them. They are labels, not an order. The order is top to bottom.
 
 ---
 
-## 2. Open work
+## 1. Decide the verification pass count (2.1c)
 
-**Doing work this month? Section 6 is the order it goes in.** Building the
-bank comes first and nothing below is a reason to delay it.
+Do this first. It costs nothing and it changes the bank build.
 
-- [x] **2.1 Tense ambiguity on the modal topics. Settled by the gloss.**
-  The cue names the verb, not the tense, so "(können)" left `kann`,
-  `konnte` and `könnte` all open. Cycle 13 measured the cost: 44 of 105
-  model rejections, 42%, named a tense or time alternative as an equally
-  good answer.
+**Do.** Re-read the `--verification-passes 2` line in
+`docs/building-the-bank.md`. Either confirm it in writing or change it. To
+get evidence, run a pilot with `--verification-passes 2
+--verification-batch-size 20` and read `pass_disagreements` in the report.
 
-  Cycle 14, same 475 candidates, with the verifier now reading the English
-  gloss: **tense rejections 44 to 6, total rejections 105 to 42, accepted
-  376 to 437.** The six survivors all cite the translation as their
-  evidence ("Die englische Übersetzung 'are to' verlangt Präsens", "passend
-  zur englischen Übersetzung ('didn't want')"), which is the check working,
-  not failing. No time anchor in the carrier is needed. The recommendation
-  in `docs/audits/cycle-12-corpus-report.md` is withdrawn.
+**Why.** Two passes reject anything either pass rejects. That unions the
+catches and the false positives together. One pass discards about 1 good
+candidate in 8; two passes discard more, somewhere below double, and nobody
+has measured where. Landing 1,225 items at one pass throws away about 181 good
+candidates, and at two passes up to about 295. The topics that struggle to
+reach 25 items at all are exactly the ones that pushes under the floor.
 
-- [ ] **2.1c The model verifier is not stable run to run, and that is now
-  the largest open risk.** Cycle 14 diffed its accepted set against cycle
-  13's on the identical 475 candidates. 64 items were newly accepted. 56 of
-  those are explained by the gloss (37 were tense rejections, 19 other
-  Frage 2 ambiguity). **The other 8 were rejected last run for bad GERMAN,
-  which the gloss says nothing about, and accepted this run.** Every one of
-  the 8 was a correct rejection last time:
+Against that: at one pass, about 2.5% of items are decided by which run you
+happen to look at. Two passes may still be right. The point is that the choice
+was made before the false-positive rate existed. See `docs/project-state.md`
+for both measurements.
 
-  - `Masi Pfand (am Ball) befindet sich ...` scraped caption residue
-  - `Sie erreichte einen großen Erfolg ...` unidiomatic collocation
-  - `Ja", gesteht Norris, ...` opens mid-quotation
-  - `Erst am 6. November 2021 wurde damals ...` date plus "damals"
-  - `... war mein Eindruck über die jeweiligen Landsleute klar.` wrong preposition
-  - `Sie schnaubten wegen ihres kleinen Gehalts.` unidiomatic
-  - `... Bilder anhand der Google-Bildersuche entlarvt werden.` wrong collocation
-  - `Ein Film, der die Frage aufwirft, ...` no main clause
+**Done when.** `docs/building-the-bank.md` states the pass count and the
+number behind it.
 
-  Two now have deterministic rules (`opens_mid_quotation`,
-  `no_main_clause_verb`), five are collocation errors no rule here can
-  reach (section 1), one is too narrow to rule. So the verifier remains the
-  only thing between roughly six defects a cycle and a learner, and it
-  agrees with itself about 92% of the time on this judgment.
+---
 
-  **The batch-size experiment has now been run, and it did not find what it
-  was looking for. It found something better.** The identical 475 candidates
-  were verified at batch size 20 and at batch size 5, everything else held
-  fixed:
+## 2. Build the item bank (6.1)
 
-  ```
-  batch 20:  444 accepted, 31 rejected
-  batch  5:  438 accepted, 37 rejected
-  ```
+The biggest single piece of open work. Item 1 is the only thing that goes
+first, and it is a decision, not code. Nothing below is a reason to delay this.
 
-  A 6-item difference in the totals, which reads like noise. Diffed item by
-  item it is not:
+**Do.** Follow `docs/building-the-bank.md`. Five commands, in order.
 
-  - **9 items were accepted at batch 20 and rejected at batch 5.**
-  - **3 items were accepted at batch 5 and rejected at batch 20.**
+**Why.** There is no bank. Every downstream thing, the web bundle included, is
+a demo until this runs.
 
-  All 12 were read by hand. **Every one of the 12 is a genuinely bad item**
-  (fragmented quotations, a wrong preposition in "Eindruck über", an archaic
-  Dante line, wrong word order, a Swiss-formatted number, genuine tense
-  ambiguity the gloss does not settle). So batch size is not the lever:
-  neither size catches everything, and 12 defects in 475 items, 2.5%, are
-  decided by which run you happen to look at. The union of the two runs
-  catches all 12; either run alone does not.
+**Watch out.** Two flags will quietly ruin the run if left at their defaults,
+`--limit` and `--max-translation-characters`, and the run is silent for hours.
+`docs/building-the-bank.md` says why for each. The cost is in the same file,
+and it does not fit in what is left of the August ceiling.
 
-  **That makes the third option the one to build, and it is built.**
-  `scripts/step7_corpus_pilot.py --verification-passes N` runs the
-  verification pass N times over the same items and rejects an item that ANY
-  pass rejects: union of rejections, intersection of acceptances, the reason
-  kept from the first pass that rejected. Default 1, which is byte-for-byte
-  the previous behaviour. Passes after the first bypass the local response
-  cache (`verify_items(use_cache=False)`), without which an identical prompt
-  would replay pass 1's verdict for free and the whole feature would measure
-  nothing. The report now carries `verification_passes`, each pass's own
-  counts, how many rejections were unique to that pass,
-  `rejected_by_any_pass` and **`pass_disagreements`** -- items at least one
-  pass rejected and at least one accepted, which is the direct measure of
-  this instability and the number to watch.
+**Done when.** `data/bank.db` holds about 1,225 items across 49 topics,
+`web/data/` exports them with their English translations, and the run report
+lists the per-topic counts.
 
-  Cost, against the $7.50/month ceiling and measured from `cost_log`: about
-  $0.18 per pilot cycle at batch size 20, about $0.36 at batch size 5. Two
-  passes roughly doubles whichever is chosen. A later pass that cannot run
-  (`BudgetExceeded`) degrades: the run reports what it managed, says the
-  pass did not run, and keeps the passes that did.
+**It also produces the input items 8 and 9 are waiting for:** the list of
+topics the corpus cannot fill to 25.
 
-  **What is still open here:** the flag makes the union measurable, it does
-  not yet say how many passes are worth buying. Run `--verification-passes
-  2` once at batch 20 and read `pass_disagreements` against the 12 this
-  experiment found by hand. Asking the naturalness question in its own
-  separate call is still untried and is the next option if two passes are
-  not enough.
+---
 
-- [ ] **2.1b Decide whether the gloss check enforces.** Wiring done.
-  `step7_corpus_pilot.py` fills `gloss_en` from the translation store,
-  translating and storing whatever the store lacks. **As of 2026-08-27 a
-  stored gloss whose source is Tatoeba does not count as "the store has it"
-  (section 4): it is re-translated and the record overwritten.** All the
-  measurements below predate that, so the glosses this check was measured
-  against were largely Tatoeba's; re-measure before drawing a conclusion
-  about enforcing. The consistency check
-  (a gloss whose tense or person contradicts the answer) **runs and reports
-  but does not reject**, by default; `--enforce-gloss-check` makes it real.
+## 3. Schedule the monthly translation job (2.6)
 
-  **Cycle 13 measured it and the first reading was damning: 34 flags on
-  376 accepted items, of which 33 were the check being wrong and 1 was a
-  real defect.** Four bugs, all now fixed: English contractions were not
-  read as tense marking, so "I'll be lonely" counted as present; English
-  marks the subjunctive with its past forms, which a German conditional
-  target treated as a contradiction; the person check demanded an English
-  pronoun even where the subject is a noun, and was fooled by German 1st
-  and 3rd singular being identical in Konjunktiv II; and German match
-  strings were being found inside English text, so "Ministers usually
-  fall" leaked the grammar term "Fall" and "the Ukraine war" leaked the
-  answer "war". Re-measured after the fix: **1 flag on 376**, and it is
-  the real defect.
+**Do.** One `schtasks /Create` line on the owner's machine, per
+`docs/monthly-translation-job.md`. The script and its tests exist.
 
-  **A second pilot with those four fixes in place measured 3 flags on 437
-  accepted items, and all 3 were again the check being wrong.** Three more
-  bugs, all now fixed: impersonal `man` is grammatically 3rd singular but
-  has no English pronoun counterpart (`In der Schule kann man nicht
-  rauchen.` / "You can't smoke at school." demanded he/she/it), so a
-  nominative `man` now widens the expected pronoun set to you/we/they and
-  promotes an oblique object to subject the way impersonal `es` already
-  did; an English modal carries no tense feature at all, so a German modal
-  target glossed with one (`Schüler sollten nicht arbeiten ...` /
-  "Students should not work ...") can be confirmed but never contradicted,
-  the same treatment Konjunktiv II already gets; and the English noun
-  "will" was read as the future auxiliary (`... nach Gottes Willen ...` /
-  "According to God's will, ..."), now settled by asking the English
-  tagger this module already loads whether every "will" in the gloss is a
-  NOUN. Re-measured after those three: **0 flags on 437, and still exactly
-  1 flag on 376, still the real defect.**
+**Why.** Until that task exists, nothing runs and the corpus does not get
+translated. Translating the whole corpus takes about 14 monthly runs, so every
+month it is not scheduled is a month lost. Cheapest item on this list.
 
-  Still measure-only. One flag is not enough evidence to enforce, and the
-  surviving catch is lucky rather than designed: the bad Tatoeba pairing
-  (`Nachdem der Vorfall an die Öffentlichkeit gekommen war ...` glossed
-  `The trouble is that I don't have much money now.`) is caught only
-  because the unrelated English happens to be present tense. The signal
-  that actually separates it from the 33 is that it shares no proper noun
-  or numeral with its German. **A content-overlap check is the one to
-  build for bad pairings, and it is a different check from this one.**
+**Done when.** The task is in Windows Task Scheduler and one run has written
+its month into `data/fixtures/translations/azure_f0_ledger.json`.
 
-  Known limit that remains: the check compares the gloss against the
-  **answer's** own tense and person, so it only bites on items whose
-  answer carries that morphology. A wrong gloss on an item that blanks a
-  determiner or an adjective ending passes untouched. Verified on a real
-  example: one carrier with a deliberately wrong past-tense gloss produced
-  two items, and only the one answering a verb was caught. This caps its
-  recall structurally and bears directly on 2.2.
+---
 
-- [ ] **2.2 Prove the verifier catches a WRONG English translation.** Owner's
-  requirement, and the condition the whole gloss plan rests on. The cycle 12
-  measurement hand-checked 120 Tatoeba pairs and found 2 wrong: one tense
-  (`Das Kind sah aus wie aus dem Ei gepellt.` / "The child looks as neat as
-  a pin.") and one determiner (`der Kuchen` / "this cake"). Both land on
-  grammar the gloss is supposed to disambiguate, so the verifier reading the
-  gloss against its own German sentence is what keeps a bad gloss out of the
-  bank. A gloss check that does not catch these is worse than no gloss check,
-  because the verifier would then be relaxing its uniqueness judgment on
-  evidence it never validated.
+## 4. Fix the translation check's blindness to singular against plural (2.2c)
 
-  **The fixture and the harness are built. The run is what is still open, and
-  it needs the owner's key.**
+New, from the 2026-08-28 gloss eval. The eval itself is done; this is what it
+found.
 
-  ```
-  uv run python -m scripts.eval_gloss_adversarial
-  uv run python -m scripts.eval_gloss_adversarial --batch-size 5
-  ```
+**Do.** Pick one and build it:
+- Add a fifth question to the verification instruction, asking whether the
+  English translation matches the German sentence. Today no question asks
+  that, so any catch is incidental.
+- Or add a deterministic check: compare the answer's number against the number
+  of the matching English noun phrase. `en_core_web_sm` is already installed
+  and `src/generation/gloss_validation.py` already uses it.
 
-  `data/fixtures/adversarial/wrong_glosses.jsonl` is 36 matched pairs, 72
-  rows, every German prompt, answer and cue copied verbatim from the last
-  pilot's own 430 accepted items. Each pair carries one row with a
-  deliberately wrong gloss and one row with the item's real gloss, so the run
-  produces a false-positive rate as well as a recall figure, and a rejection
-  that happens in BOTH arms is reported separately rather than counted as a
-  catch. Six defect kinds, six pairs each: wrong tense, wrong person, wrong
-  number, wrong definiteness, wrong polarity, completely unrelated. The two
-  arms are verified in separate calls so the model never sees a pair's two
-  glosses side by side.
+**Why.** The learner is shown the translation and uses it. A translation with
+the wrong number points at the wrong answer. The measured recall on this kind
+is 0 of 6. `docs/project-state.md` has the example.
 
-  **The predictions are written into the script's own docstring, before the
-  run, so the result can contradict them**: polarity and unrelated are
-  expected to be caught, definiteness is expected to be missed. With no key
-  configured the runner reports "NOT RUN" and exits non-zero; it never prints
-  a zero recall for a run that did not happen.
+**Done when.** `uv run python -m scripts.eval_gloss_adversarial` catches more
+than 0 of the 6 `wrong_number` rows, and still reports 0 false positives on
+the 36 correct ones.
 
-  **What building the harness already showed, without a single API call:** no
-  question in the live verification instruction asks whether the gloss is
-  correct. The four questions are about the German, the answer's uniqueness,
-  whether every word exists, and the cue. The gloss enters question 2 only as
-  a reason to rule an alternative OUT. So any catch here is incidental, and a
-  poor recall points at adding a fifth question rather than at tuning
-  anything. That question was deliberately not added before measuring, so the
-  number describes the pass as it actually ships.
+---
 
-- [ ] **2.2b Run the gloss purge on the owner's real store, then re-gloss.**
-  The cross-corpus id collision that poisoned it is fixed and the cleanup
-  tool is written and tested (`scripts/purge_mismatched_glosses.py`,
-  `docs/audits/fix-log.md`), but neither has been run against the real
-  `data/fixtures/translations/de_en.jsonl`, which does not exist in the
-  sandbox this was built in. Measured there by the owner: **7,365 of the
-  7,499 Leipzig carriers in the store, 98.2%, are labelled
-  `source="tatoeba"` and are therefore wrong**, because a Leipzig
-  sentence's text cannot legitimately come from Tatoeba unless that exact
-  sentence is in Tatoeba too. Two of them reached the last pilot's 430
-  accepted items:
+## 5. Decide whether the gloss consistency check rejects (2.1b)
 
-  - `Genauere Untersuchungen in Graz haben ergeben, dass die Verletzung
-    schlimmer ist als gedacht.` glossed `"She crossed the street."`
-  - `Jetzt gibt sie ein Update zu ihrem Alltag während der Chemotherapie.`
-    glossed `"Bye!"`
+**Do.** Run a pilot, read the flag count, then set the default. The check runs
+and reports today; `--enforce-gloss-check` makes it reject.
 
-  Sequence: `--dry-run` first and read the examples, then apply, then
-  re-run `build_translations.py --carriers-from` for the affected pilot so
-  the removed sentences get a real machine translation. **This blocks 2.2
-  and any re-audit of the last pilot**: the verifier now READS the gloss
-  and relaxes its uniqueness judgment against it, so until the purge runs,
-  every accepted-item count drawn from a Leipzig carrier rests on evidence
-  that may be an unrelated sentence.
+**Why.** It is wired but toothless. Every measurement of it so far was taken
+against glosses that were mostly Tatoeba's, and Tatoeba glosses are no longer
+used for exercises, so those numbers describe a pipeline that no longer runs.
+Re-measure before deciding.
 
-  **Partly overtaken by the 2026-08-27 Tatoeba distrust (section 4), which
-  nobody planned as a fix for this.** Every one of those 7,365 poisoned
-  Leipzig records carries `source="tatoeba"`, and `step7_corpus_pilot.py`
-  now treats any `source="tatoeba"` record as a cache miss by default. So
-  the next pilot re-translates them whether or not the purge has run, and no
-  poisoned gloss can reach an item on the default path. That does NOT make
-  the purge pointless: the mislabelled records are still in the store and
-  still feed 5.3, where they are actively wrong (a Leipzig sentence shown
-  with an unrelated Tatoeba sentence's English), and the distrust does not
-  distinguish them from legitimate Tatoeba records. Run the purge for 5.3's
-  sake; it is no longer the thing blocking a pilot.
+Two things to keep in mind. The check only bites on items whose answer carries
+tense or person, so a wrong translation on an item that blanks a determiner
+passes untouched. And the one real defect it has ever caught was caught by
+luck. The signal that actually separates a mispaired translation from a merely
+loose one is that it shares no proper noun or numeral with its German. **That
+content-overlap check is a different check and is worth building.**
 
-2.3 is closed. The verifier's recall (60.5%) and false-positive rate (12.9%)
-are measured, the batch-size half was already answered, and the writeup is in
-`docs/audits/fix-log.md` cycle 17. What came out of the measurement is 2.7
-below; do not re-open 2.3 for it.
+**Done when.** The default is set deliberately, with a flag count from a pilot
+whose glosses are machine translations.
 
-- [ ] **2.3b Keep reconciling, monthly.** The August repair itself is done
-  and is written up in `docs/audits/fix-log.md` cycle 16: the log went from
-  $1.986058 to $5.040919 against a bill of $5.040919, an exact match, via
-  690 repriced rows, 847 rows given a transport mode by invariant and 10
-  labelled adjustment rows. What stays open is the habit, not that run.
+---
 
-  Run `scripts/reconcile_cost_log.py` at the end of every month, or after
-  any run that reports retries. Neither of the two August cost bugs was
-  found by reading code; both were found by putting the log next to the
-  bill, and only after the owner pushed back on a number he had been
-  given. The comparison is now a script so the next discrepancy is found
-  by running it rather than by him noticing.
+## 6. Run the gloss purge on the real store, then re-gloss (2.2b)
 
-  Note the honest limit of the repair: it reprices what the bill can
-  classify and labels the rest. The unlogged attempts stay unlogged, because
-  their token counts do not exist anywhere. The adjustment rows carry
-  dollars and zero tokens on purpose. An exact match after repair therefore
-  means the dollars agree; it does not mean the missing token counts came
-  back.
+**Do.** `scripts/purge_mismatched_glosses.py --dry-run` first, read the
+examples, then apply, then re-run `scripts/build_translations.py
+--carriers-from` for the affected carriers.
 
-- [ ] **2.4 The AI generation pilot, last. Stays OPEN, explicitly.** The owner
-  said so on 2026-08-27: it is not closed, not deferred indefinitely, and not
-  to be quietly folded into 2.5. Owner's sequencing: corpus path proven first,
-  then generation for what the corpus cannot reach. On current evidence that
-  is `futur_i`, `zustandspassiv_zeiten` and `futur_ii`, which are too rare
-  even in 80,000 corpus sentences. Building the bank (section 6) will say
-  exactly which topics fall short of 25 items from the whole corpus, and that
-  list is this item's real input.
+**Why.** 7,365 Leipzig records in the owner's store are labelled
+`source="tatoeba"` and are therefore joined to the wrong sentence. A Leipzig
+sentence's English cannot come from Tatoeba. The cause is fixed and the tool
+is written and tested, but neither has been run against the real store, which
+exists only on the owner's machine.
 
-- [ ] **2.5 Decide the split and write it down.** After 2.1 and 2.4: which
-  topics are corpus-sourced, which are generated, and the rule for choosing.
-  That becomes the standing generation policy.
+This no longer blocks a pilot, because a stored Tatoeba record is now treated
+as a cache miss and re-translated. It still matters for feature 12, which
+reads the same store and would show a Leipzig sentence with an unrelated
+English one.
 
-- [ ] **2.6 Schedule the monthly translation job on the owner's machine.**
-  Built and tested; not yet scheduled, and it is the only remaining step.
-  `scripts/monthly_translation_topup.py`, set up per
-  `docs/monthly-translation-job.md` (one `schtasks /Create` line). Until that
-  task exists in Windows Task Scheduler, nothing runs and the corpus does not
-  progress. See section 5.1 for the arithmetic and the standing job's contract.
+**Done when.** A second `--dry-run` reports no mismatches.
 
-- [ ] **2.7 Five defect families the verifier will never catch, and no
-  post-hoc check that would.** Cycle 17's real finding, and it is not the
-  headline recall number. Fifteen defects were missed and they fall into five
-  families, every one of them deterministic rather than a matter of judgement.
-  **All five already have a shipped deterministic rule**, and four of the five
-  were verified closed by running the shipped code against the fixture's own
-  sentences, so none of them reaches a learner today.
+---
 
-  | Family | Missed | What already covers it |
-  |---|---:|---|
-  | Reflexive case direction, Akk against Dat | 0 of 6 | `selectors._reflexive_case`, `_followed_by_dass_clause_object`, `_has_bare_accusative_object` |
-  | Cue capitalization mismatch | 1 of 4 | `selectors._cue_case_matched_to_answer` at `_citation_cue` |
-  | Futur I confusable with a passive participle | 0 of 2 | `_select_futur_i`, clause-scoped, `_is_participle` not a bare `VVPP` tag |
-  | Topic misfiling: no comparison, wrong Konjunktiv tense | 0 of 2 | `_select_komparativ_superlativ` (`KOKOM`), `_select_konjunktiv_ii_base` |
-  | Swiss orthography elsewhere in the carrier | 2 of 4 | `carrier_validation._sentence_shape_reason`, diphthong rule plus `draussen` |
+## 7. Decide what to do about the defects the model verifier cannot see (2.7)
 
-  **So the open work is not five rules.** Every one of those rules lives at
-  GENERATION time, in the selectors and in carrier validation. There is no
-  post-hoc, item-level re-check of a finished item anywhere in the pipeline. If
-  a selector regresses, the model verifier is all that is left, and cycle 17
-  measured what it does about it: nothing, for anything requiring the item's
-  topic, which is four of the five families.
+**Do.** The owner picks one of three. Do not start any of them before he does.
 
-  The decision to make, and it is the owner's:
+1. **Nothing.** Defensible. The rules ship, tests pin them, and the cost is
+   that the next regression is found by hand, months later.
+2. **A post-hoc check over finished items,** in `src/audit/bank_health.py`,
+   which already walks every item and does have the `topic_id` the verifier is
+   correctly denied. Cheapest entry: `cue[:1].isupper() != answer[:1].isupper()`.
+   No spaCy, no model call.
+3. **Re-run the selectors over accepted items and diff.** Strongest, most
+   expensive, and it needs a decision about what a disagreement means.
 
-  1. **Do nothing.** Defensible. The rules ship, the tests pin them, and the
-     cost of this option is that the next regression is found by hand, months
-     later, in an audit.
-  2. **A post-hoc item-level checker over finished `BankItem`s.** The natural
-     home is `src/audit/bank_health.py`, which already walks every item in the
-     bank checking gap presence, distractor count and non-empty answers, and
-     which has the `topic_id` the verifier is correctly denied. The cheapest
-     entry is the cue-case check: `cue[:1].isupper() != answer[:1].isupper()`,
-     no spaCy, no model call, and it closes the one family above that is a
-     plain miss on a question the verifier is actually asked.
-  3. **Re-run the selectors over accepted items and diff.** The strongest and
-     the most expensive: it would catch all four topic-attribution families,
-     but it means parsing every banked item a second time and deciding what a
-     disagreement means.
+**Why.** Fifteen defects the verifier missed fall into five families. All five
+already have deterministic rules, so none reaches a learner today. But every
+one of those rules runs at generation time. There is no check on a finished
+item anywhere. If a selector regresses, the model verifier is all that is
+left, and it will catch nothing, because four of the five families need the
+topic and the verifier is never told the topic.
 
-  Do not start any of these without the owner choosing. Recorded in
-  `docs/known-defects.md` 2.10 to 2.14 with real examples.
+**Why after the bank build.** Option 2 changes code that runs over a bank, and
+there is no bank. And the real question, whether a second layer earns its
+keep, is better answered against 1,225 real items than against a 38-record
+fixture.
 
-- [ ] **2.7b Two adversarial-fixture records do not encode the defect they
-  name.** `c08_04` and `c08_05` in
+`docs/known-defects.md` 2.10 to 2.14 has the five families with real examples.
+
+**Done when.** The choice is written down here or in the fix log.
+
+---
+
+## 8. The AI-generation pilot (2.4)
+
+Explicitly open. Not deferred, not folded into item 9.
+
+**Do.** Two parts.
+- Decide about `.github/workflows/generate-submit.yml` and
+  `generate-ingest.yml`. They run this path nightly and spend real money the
+  moment repository secrets exist. Nothing has ever measured what they
+  produce. Turn them off, or measure them.
+- Run a generation pilot for the topics the corpus cannot fill, and audit it
+  the way the corpus pilots were audited.
+
+**Why.** Some topics are too rare to reach 25 items even in the whole corpus.
+`futur_i`, `zustandspassiv_zeiten` and `futur_ii` are the current suspects.
+Item 2's run gives the real list.
+
+**Done when.** A pilot has been run and hand-audited, and the two workflows
+are either measured or disabled.
+
+---
+
+## 9. Write down the split (2.5)
+
+**Do.** After item 8. Write which topics are corpus-sourced, which are
+generated, and the rule for deciding. That becomes the standing policy.
+
+**Done when.** The policy is in `docs/` and the pipeline follows it.
+
+---
+
+## Smaller, any time
+
+- **2.3b Reconcile the cost log monthly.** Run
+  `scripts/reconcile_cost_log.py` at the end of every month, or after any run
+  that reports retries. Both August cost bugs were found by putting the log
+  next to Google's bill, not by reading code. This is a habit, not a task that
+  finishes.
+
+- **2.7b Two adversarial fixture records do not encode the defect they name.**
+  `c08_04` and `c08_05` in
   `data/fixtures/verification/blanking_model_verifier_adversarial.jsonl` are
-  filed as `cue_capitalization_mismatch`, and cycle 8 quoted their answers as
-  the formal capitalised `Ihrer` and `Ihren`. The fixture reconstructed the
-  carriers with lowercase `ihrer` and `ihren`, which makes both ordinary
-  correct sentences whose cue differs from the answer by inflection rather than
-  by case. As encoded they are not capitalisation traps, so whichever of the
-  two the cycle 17 run rejected, it rejected for a different reason, and that
-  family's "1 of 4" is partly an artefact of the fixture.
+  filed as capitalisation traps, but their carriers were reconstructed with
+  lowercase `ihrer` and `ihren`, which makes them ordinary correct sentences.
+  This is a golden fixture, so correcting a record changes a published recall
+  number and needs the owner's say-so plus a commit that explains it. Until
+  then, note the caveat wherever that family's number is quoted.
 
-  Left alone deliberately. This is a golden fixture (CLAUDE.md section 7) and
-  correcting a record is not a casual edit: it changes a published recall
-  number and needs a commit that says why. The owner decides whether to correct
-  the two records or leave them and note the caveat wherever the number is
-  quoted.
+- **`scripts/step4_run_app.py` prints the topic before the learner answers.**
+  It prints `Thema: {topic_id}` above the sentence. That is CLAUDE.md rule 2,
+  broken, in the script `docs/building-the-bank.md` tells you to run. The real
+  CLI (`src/cli/`) does not do this, and neither does the PWA. Delete the
+  line.
+
+- **Three CSS class-name mismatches in `web/`.** Listed in
+  `docs/project-state.md`. Each one is a one-word edit. Nothing renders wrong
+  enough to fail a test, which is why they have survived.
+
+- **Decide whether Leipzig needs a content filter.** Leipzig is news prose and
+  has turned up a quote about genocide and a report of an assault. Neither is
+  a grammar defect. A blocklist applied to Leipzig only is cheap if the owner
+  wants one.
 
 ---
 
-## 3. Owner changes that must never be overturned
+## Specified, not started
 
-Pinned by tests. Do not change without the owner saying so explicitly.
+### 10. Vocabulary FSRS (5.2)
+
+The owner's spec:
+
+- Same shape as the grammar trainer. One or two sentences, the tracked word is
+  the missing token, no cue, just the English translation.
+- Multi-word units are the one extension asked for: separable verbs, reflexive
+  verbs, and verb-plus-preposition pairs (`warten auf`,
+  `sich interessieren für`).
+- The unit must be taught, not memorised as a string. `warten auf` has to be
+  shown as `wartet auf`, `wartete auf`, `warte ... auf`. A fixed-string match
+  is explicitly not what is wanted. The lemma plus the preposition is the
+  unit; the surface form varies.
+
+### 11. Click a word to see it in context (5.3)
+
+Clicking a word in an exercise shows several sentences from our own corpus
+containing that word, each with its English translation. The learner reads the
+word in context, works out the meaning, and decides whether to add it to a
+vocabulary list.
+
+Needs no dictionary. It reuses the corpus, the translations, and the
+lemmatiser already in the repo. Blocked on the translation store being
+finished, so on item 3.
+
+---
+
+## Standing rules, not tasks
+
+- **Anything the model verifier catches twice becomes a deterministic rule.**
+  It is a discovery instrument. It must never be the only thing between a
+  known defect class and a learner.
+- **Anything the model verifier misses every time becomes a deterministic rule
+  too.** Measured: 6 of 6 on reflexive case routing, 2 of 2 on Futur I, 2 of 2
+  on topic misfiling, and it will score the same next run, because the cause is
+  structural rather than inattention. Asking it again, at any batch size, will
+  not help.
+
+---
+
+## Do not change these without asking the owner
+
+Three separate times an agent reverted an edit the owner made by hand. All of
+these are pinned by tests. A failing test here means ask, not fix.
+
+**Constants in `src/llm/client.py`:**
 
 - `RPM_MAX_RETRIES = 5`, `FREE_LANE_MAX_CONCURRENCY = 4`,
-  `FREE_LANE_RATE_LIMIT_PER_MINUTE = 5` in `src/llm/client.py`.
-- The 5xx retry shape in `src/llm/client.py`. **The owner has changed these
-  himself; the values below are the current ones, not the ones this section
-  used to pin.** History, so nobody "restores" the older numbers: he first
-  raised the count to 5 with a flat `SERVER_ERROR_BACKOFF_SECONDS = 15.0`
-  after a pilot died on a 503, then raised it to 40 and added a free-to-paid
-  lane fallback once those retries are exhausted. He has since replaced that
-  with the opposite shape, verbatim: *"instead of making 40 request make it
-  like 4 but with much longer intervals."* 40 attempts 15 seconds apart is
-  ten minutes of hammering a service that is already down; a real outage
-  lasts minutes. What stands now:
-  - `SERVER_ERROR_MAX_RETRIES = 4`.
-  - `SERVER_ERROR_BACKOFF_SCHEDULE = (30.0, 120.0, 480.0, 900.0)`, an
-    escalating schedule covering roughly 25 minutes, replacing the flat
-    15.0. `SERVER_ERROR_BACKOFF_SECONDS = 900.0` survives only as the
-    scalar fallback for an attempt index past the end of the schedule.
-  - `SERVER_ERROR_BATCH_MAX_RETRIES = 2`, a lower cap for the batch path.
-    **This one is not the owner's instruction**, it is the 2026-08-27
-    cycle's judgement, from cost asymmetry: a sync 503 served nothing and
-    billed nothing, but a failed batch job has already been billed for the
-    requests it processed before it failed and
-    `_call_batch_many_with_retry` resubmits the whole job. His Aug 14-17
-    bill shows batch usage on days where the cost log has zero rows. Those
-    days would no longer be empty: every failed batch attempt now writes a
-    row (zero tokens, truthful outcome tag), including the
-    `JOB_STATE_FAILED` case that is not retried at all.
-  - **The free-to-paid fallback stays.** When the retries are exhausted on
-    the free lane, the call moves to the paid lane instead of raising
-    (only when the paid lane is permitted and a paid key is configured).
-    Do not remove it.
-  - **The budget above is the PAID lane's.** The free lane has its own,
-    `FREE_LANE_SERVER_ERROR_MAX_RETRIES = 4` with
-    `FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE = (15, 30, 60, 120)`, worst
-    case 225 seconds of sleeping per call, and 900 seconds (4 concurrency
-    waves) for a 15-call group. **Not the owner's instruction as a
-    number**; it is this cycle's judgement. Do not collapse the two lanes
-    back into one constant, and do not restore the values this line used to
-    carry (`12` retries on `(30, 60, 120, 240, 480, 900 x 7)`, worst case
-    7230 seconds per call and roughly 8 hours for a 15-call group). That
-    shape shipped on 2026-08-28 and was wrong: the owner watched
-    `scripts/eval_verifier.py`, a job that should take minutes, sit for over
-    two and a half hours with no output. The argument for it (a free-lane
-    retry cannot bill anything, so retrying is free) was true but
-    incomplete. **The local content-addressed cache is what completes it:**
-    verdicts that already landed are replayed at zero cost on the next run
-    (`lane="cache"`), so progress is durable across runs and a dying run
-    loses almost nothing. Exiting quickly and being re-run therefore beats
-    sleeping, and gives the operator a live process instead of silence he
-    cannot distinguish from a hang.
-- `spend_ceiling_usd` defaults to **7.50** in `src/llm/client.py`, raised
-  from 5.00 at the owner's instruction on 2026-08-27. CLAUDE.md section 9
-  and `docs/audits/stage-00-quota.md` were corrected in the same commit.
-- **Tatoeba translations are not trusted for exercises.**
+  `FREE_LANE_RATE_LIMIT_PER_MINUTE = 5`.
+- `spend_ceiling_usd = 7.50`.
+- The 5xx retry shape. Paid lane: `SERVER_ERROR_MAX_RETRIES = 4`,
+  `SERVER_ERROR_BACKOFF_SCHEDULE = (30, 120, 480, 900)`,
+  `SERVER_ERROR_BATCH_MAX_RETRIES = 2`. Free lane has its own:
+  `FREE_LANE_SERVER_ERROR_MAX_RETRIES = 4`,
+  `FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE = (15, 30, 60, 120)`. Do not
+  collapse the two lanes into one constant, and do not restore the older
+  values: 40 retries 15 seconds apart, and a 12-retry free lane that sat for
+  two and a half hours on a job that should take minutes. The reasoning is in
+  the fix log.
+- The free-to-paid fallback when retries are exhausted. It stays.
+
+**Settled decisions:**
+
+- **Tatoeba's own English translations are not trusted for exercises.**
   `build_translations.DEFAULT_TRUST_TATOEBA` and
-  `step7_corpus_pilot.DEFAULT_TRUST_STORED_TATOEBA` are both `False`, and
-  both flags that flip them are opt-in. The evidence and the full reasoning
-  are in section 4; the short version is that a hand audit of 430 accepted
-  exercises found 4 wrong glosses and 3 of the 4 were Tatoeba's own. Do not
-  flip either default back. Do NOT delete the Tatoeba records either: they
-  are 5.3's whole corpus.
-
-Three separate cycles reverted an owner edit to this file. Both groups now
-have a pinning test that says to ask rather than update the assertion.
-
----
-
-## 4. Decisions the owner has made, so nobody relitigates them
-
-- **Cue with the invariant citation form**, not a gender-agreed one. A cue
-  equal to its answer is fine when the learner still had to work out case and
-  gender. Verbatim: "cue being the answer is not a problem if the problem
-  still requires student to identify case, declension etc."
-- **Vocabulary is filtered at each topic's own CEFR level**, never one global
+  `step7_corpus_pilot.DEFAULT_TRUST_STORED_TATOEBA` are both `False`. A hand
+  audit of 430 exercises found 4 wrong translations and 3 of the 4 were
+  Tatoeba's. Machine translation measured better on the only metric that
+  matters and structurally cannot pair a sentence with the wrong English.
+  **Do not delete the Tatoeba records.** They are feature 11's whole corpus.
+- **Every exercise shows its English translation, always.** A pedagogical
+  decision, not a workaround. It follows that the verifier may treat the
+  translation as something the learner has.
+- **Where a German sentence has several English translations, keep the
+  shortest.** Short is literal; long paraphrases, and paraphrase is where
+  tense and determiners drift.
+- **When a translation is wrong, replace the English and keep the item.** The
+  German still works.
+- **The cue uses the plain citation form,** not one already agreed for gender.
+  A cue that equals the answer is fine when the learner still has to work out
+  case and declension.
+- **Vocabulary is filtered at each topic's own CEFR level,** never one global
   ceiling. A B1 grammar topic is not restricted to A1 words.
-- **Unresolved references are a property of the slot, not the sentence.**
+- **An unresolved reference is a property of the blank, not the sentence.**
   `Er sagte das damals nicht` is a good carrier; only a blank on `er` is bad.
 - **Pilots forbid batch, not the paid lane.** Once free quota is spent they
-  continue on paid, on demand.
-- **Every exercise shows its English translation, always.** Owner's call,
-  made on pedagogical grounds, not as a fallback for ambiguity. It follows
-  that the verifier may treat the translation as available to the learner
-  when judging whether an answer is unique.
-- **Where a German sentence has several English translations, keep the
-  shortest.** 13.1% of Tatoeba's German sentences have more than one. A
-  short translation is the more literal one, and literal is what maps word
-  to word for a learner; a long one paraphrases, and paraphrase is where
-  tense and determiners drift.
-
-- **When a gloss is wrong, replace the English and keep the item.** The
-  German still works as an exercise; only the translation failed. Dropping
-  the item throws away a good carrier to punish a bad string.
-
-- **Stop using Tatoeba translations for exercises. Machine translate them
-  all.** Decided 2026-08-27, from a hand audit of all 430 accepted exercises
-  in the last pilot. Ten defects; four were items whose German is correct and
-  whose English gloss is wrong, and **three of those four came from Tatoeba's
-  own human translations, not from machine translation**:
-
-  ```
-  Wenn ich im Lotto gewänne, würde ich mir ein neues Auto kaufen.
-  "If I won the lottery, I'd buy you a new car."      <- mir is himself
-      [Tatoeba]
-
-  Ich habe eine Freundin, die sich selbst die Haare schneidet.
-  "I have a friend who cuts his own hair."            <- Freundin is female
-      [Tatoeba]
-
-  Das Haus, in dem man lacht, wird vom Glück bedacht.
-  "The house in which one laughs is considered by luck."  <- meaningless
-      [Tatoeba]
-
-  Aber: Das Thema ist damit nicht beendet ...
-  "But: The topic is not over there ..."              <- damit is not "over there"
-      [machine]
-  ```
-
-  A separate hand check of 120 Tatoeba pairs found 2 outright wrong and 6
-  loose, so this is a rate, not three unlucky rows.
-
-  **The machine-translation counterpart is now measured too, 2026-08-27,
-  n=120 hand-checked, and it settles the comparison.**
-
-  | | Machine | Tatoeba |
-  |---|---:|---:|
-  | Sample | 120 | 120 |
-  | Clean | 116 | 112 |
-  | Loose but usable | about 4 | 6 |
-  | **Outright wrong** | **0** | **2** |
-  | Mispaired with the wrong German | 0 | n/a |
-
-  The four machine cases are drift, not error: `Du darfst gehen.` rendered
-  "You can go", which loses the permission sense; `Man stellt diese Kiste aus
-  Holz her.` rendered as a passive, "This box is made of wood"; `Sie können
-  Einer dem Anderen helfen.` rendered "help one to the other" instead of
-  "help each other". None of the three would mislead a learner about the
-  grammar the item tests.
-
-  Two things follow. Machine translation is **measurably better on the metric
-  that matters**, zero outright wrong against two. And it **structurally
-  cannot mispair**: it translates the sentence it is handed, whereas a lookup
-  table can return the wrong row, and did, 7,365 times in the owner's own
-  store (2.2b). That second point is not a quality difference, it is a
-  difference in what can go wrong at all. Full write-up in
-  `docs/known-defects.md`.
-
-  **This is not "re-translate all 200,555 Tatoeba records".** That is about
-  13,000,000 characters, roughly half a year of Azure F0, and it is
-  explicitly not what was asked for. Glosses are only needed for sentences
-  that actually become exercises, about 475 per pilot cycle, roughly 20,000
-  to 31,000 characters. The store converts itself over time, for exactly the
-  sentences that matter.
-
-  **The Tatoeba records are retained, not deleted.** They are the only thing
-  feeding planned feature 5.3 (click a word, see it in several corpus
-  sentences with their translations), which needs breadth far more than it
-  needs precision. They are distrusted on the exercise path only. Deleting
-  them would cost 5.3 its entire corpus for a defect rate 5.3 does not care
-  about.
-
-  Built as two opt-ins, both defaulting to distrust:
-
-  - `scripts/build_translations.py --trust-tatoeba` (default OFF). With it
-    off, `_fill_from_tatoeba` does not run and those carriers go to machine
-    translation. With it on, the pre-2026-08-27 behaviour, which is how the
-    5.3 corpus store gets rebuilt cheaply.
-  - `scripts/step7_corpus_pilot.py --trust-stored-tatoeba` (default OFF).
-    With it off, a store record whose `source` is `"tatoeba"` is treated as
-    a cache MISS: the carrier is re-translated and the record is overwritten
-    with the machine translation. A record from `azure` or `gemini` is used
-    as-is. With it on, an earlier run can be reproduced exactly.
-
-  A distrusted gloss that could not be replaced (failure, budget, no
-  translator) leaves the item at `gloss_en=None` rather than falling back on
-  the Tatoeba English, and is reported as `gloss_missing_stale_tatoeba`.
-
-- **Ship with a full bank. 25 items per topic, built once, up front.**
-  Decided 2026-08-27. 49 topics at 25 items is about **1,225 items**, read
-  from the whole corpus rather than 40,000 lines per source, verified by two
-  passes at batch size 5. Nightly top-up is the last resort, not the build
-  path.
-
-  **Cost: $0.00268 an item, so $3.28 for the whole bank**, measured from the
-  owner's own Google bill rather than estimated from the cost log. Against a
-  $7.50/month ceiling. Glossing 1,225 carriers is about 73,000 characters,
-  one night of Azure F0's 2,000,000 a month.
-
-  `scripts/step7_corpus_pilot.py --write-bank data/bank.db` is the hop that
-  makes this possible; before it, no script in the repository ever wrote a
-  corpus-pilot item into `data/bank.db`. The exact command sequence, with
-  the per-step cost, duration and "did it work" check, is
-  `docs/building-the-bank.md`.
-
-  **Two things about that run that are not the defaults.** `--limit` is per
-  source and defaults to 40,000, so a whole-corpus run has to pass a large
-  one. And `--max-translation-characters` defaults to 60,000, which was
-  sized for a 475-item cycle: 1,225 carriers at the measured mean of 61.7
-  characters is about 75,600, so the default guard would stop at a batch
-  boundary and leave several hundred items unglossed. Pass 120,000. The
-  default is deliberately left alone because it is a runaway guard and the
-  right size for it is a decision about a specific run, not a constant.
-
----
-
-## 5. Planned features, specified but not started
-
-Not defects. Recorded here so the spec is not lost between sessions.
-
-### 5.1 English translation on every exercise
-
-Decided (section 4). Three parts, in order:
-
-1. **Fetch Tatoeba's German-English export** and measure translation
-   accuracy on a hand-checked sample. The export does not mark INDIRECT
-   translations (German to X to English), which drift, so the sample must
-   count those specifically. This number decides whether the rest is worth
-   building.
-2. **Translate the rest** with a dedicated translation API, not an LLM.
-   Built and run once. `scripts/build_translations.py`, backed by
-   `src/llm/translation.py` (Azure Translator F0 primary, Gemini fallback),
-   every call logged through `src/llm/client.py` per CLAUDE.md rule 4.
-
-   **First run, 2026-08-24, and what it settled.** 450,490 distinct
-   carriers were read. Tatoeba's own pairs glossed 200,555 of them at zero
-   cost, in one pass, permanently. 1,000 more were machine translated.
-   248,935 were left.
-
-   Those 248,935 are about 17,000,000 characters, which is roughly eight
-   and a half months of the free tier. That kills the whole-corpus
-   backfill: the earlier "six weeks" estimate assumed only the
-   carrier-valid subset, and carrier validation only removes about 30%
-   (55,939 of 80,000 in cycle 12), so it does not rescue the number.
-
-   **The fix is to translate per build, not per corpus.** Measured against
-   cycle 12's own 396 accepted items: 230 of their carriers already have a
-   Tatoeba gloss, so a whole pilot needs 166 new translations, about 11,000
-   characters, one run. `--carriers-from` on `build_translations.py` is
-   that mode. The whole-corpus mode stays for feature 5.3, which does want
-   many corpus sentences glossed, and the free Tatoeba 200,555 already
-   covers 5.3 without another paid character.
-
-   **Superseded in part on 2026-08-27: Tatoeba's own translations are no
-   longer used for exercises** (section 4). The 230-of-396 figure above is
-   what a pilot USED to get free and is now what it re-translates instead.
-   The arithmetic for one 475-item cycle under the new behaviour: the last
-   pilot's 392 review items measure at a mean carrier length of 61.7
-   characters, so the worst case, a store that helps not at all, is 475 x
-   61.7 = about **29,300 characters**, and the expected case (about 300
-   Tatoeba glosses replaced) is about 18,500 plus whatever the store has
-   never held. `--max-translation-characters` stays at **60,000**: it still
-   covers a whole cycle with roughly 2x headroom, so it was not raised. The
-   whole-corpus mode plus `--trust-tatoeba` remains 5.3's cheap rebuild
-   path, and the 200,555 free Tatoeba records stay on disk for it.
-
-   **Superseded again on 2026-08-27, by the owner: the whole corpus is to be
-   translated, on a standing schedule.** Verbatim: *"I want to run a azure
-   free translation run every week or month whenever limits are reset so that
-   we maintain a healthy translated corpus. I do not want to use potentially
-   bad translations for anything."* That is a wider scope than "translate per
-   build", and it applies everywhere, 5.3 included, not just to exercises.
-
-   The arithmetic, measured 2026-08-27:
-
-   | | |
-   |---|---|
-   | Distinct carriers | 450,490 |
-   | Corpus characters | 26,933,263 (mean 59.8) |
-   | Store: Tatoeba (distrusted) / azure / gemini | 200,555 / 1,139 / 100 |
-   | **Carriers with no trusted machine translation** | **449,251** |
-   | Azure F0 allowance | 2,000,000 characters/month |
-   | **Whole corpus at that rate** | **13.4 months** (26,933,263 / 2,000,000 = 13.47, so 14 monthly runs) |
-
-   Built as `scripts/monthly_translation_topup.py`, backed by
-   `src/llm/translation_ledger.py`. What it adds over
-   `build_translations.py`, which could not have been scheduled:
-
-   - **Month-to-date spend survives the process.**
-     `AzureTranslator.characters_used` is per process and `--max-characters`
-     is per invocation, so before this a second run in one month spent the
-     allowance twice and found out by taking an HTTP 403 mid-batch. The
-     ledger is `data/fixtures/translations/azure_f0_ledger.json`, keyed
-     `YYYY-MM` in UTC, written atomically after every successful batch.
-     Rollover is automatic: an unseen month has spent nothing.
-   - **Two passes, in order.** Carriers with no gloss at all, then carriers
-     whose stored gloss is Tatoeba's. Order inside each pass is a keyed
-     BLAKE2b of the sentence, not a shuffle, so a carrier's rank does not move
-     when the corpus grows and thirteen consecutive runs walk forward instead
-     of re-drawing overlapping slices.
-   - **The report says how many months are left**, recomputed from what is
-     actually still untrusted rather than quoted from this table.
-
-   Not yet scheduled: see 2.6 and `docs/monthly-translation-job.md`.
-   `build_translations.py` is unchanged for its own two modes; the monthly job
-   imports its store reader, store writer, translator construction and batch
-   loop rather than copying any of them.
-
-3. **Show the translation in the app.** Done. It renders under the German
-   sentence, before the learner answers and still visible after grading,
-   and an item without a gloss renders nothing at all.
-
-   Building it found that `gloss_en` was being dropped TWICE on the way to
-   the browser: the `items` table had no `gloss_en` column, so any item
-   carrying one lost it on insert, and `EXPORTED_BANK_ITEM_FIELDS` is an
-   explicit allowlist that filtered it out of the bundle as well. Fixed by
-   migration v4 plus the allowlist entry. Nothing in `data/bank.db` has a
-   glossed row yet, because the pilot writes items to a review JSONL and
-   not to the bank; the export will carry them once a glossed pilot is
-   banked.
-
-4. **Give the verifier the gloss.** Done, and licensed by step 3 landing
-   first: relaxing against information the learner never gets would
-   manufacture the non-unique-answer defect class cycles 11 and 12 closed.
-   The item block now carries `Englische Übersetzung:` (or `(keine)`), and
-   question 2 says an alternative the translation rules out is not a
-   second correct answer.
-
-   The relaxation is bounded in the instruction itself, in as many words:
-   a translation settles **tense, person, number and definiteness** only.
-   It says nothing about German case, gender, adjective endings, reflexive
-   pronouns or preposition government, and must never rule an alternative
-   out on those. Those are the majority of the gates and stay untouched.
-
-   Unmeasured until the next pilot. Expected recovery is most of the 44
-   tense-ambiguity rejections in item 2.1. If accepted items rise and no
-   new wrong-answer defect appears in the audit, this is settled; if a
-   wrong answer does appear, the bound above is where to look first.
-
-### 5.2 Vocabulary FSRS
-
-Owner's spec, verbatim in substance:
-
-- **Identical in shape to the grammar trainer.** One or two sentences
-  depending on the word, the tracked word is the missing token, no cue,
-  just the English translation.
-- **Multi-word units are the one extension asked for**: separable verbs,
-  reflexive verbs, and verb-plus-preposition phrases (`warten auf`,
-  `sich interessieren für`).
-- **The unit must be taught, not memorised as a string.** `warten auf` has
-  to be recognised and presented as `wartet auf`, `wartete auf`, `warte
-  ... auf` and so on. A fixed-string match is explicitly not what is
-  wanted. The lemma-plus-preposition pair is the unit; the surface form
-  varies.
-
-### 5.3 Click a word to see it in context
-
-Replaces an earlier hover-for-a-word-gloss idea, which the owner withdrew
-after it turned out to need a German-English dictionary we do not have.
-
-Clicking a word in an exercise shows **several sentences from our own
-corpus containing that word, each with its English translation**. The
-learner reads the word in context, works out the meaning, and decides
-whether to add it to the vocabulary list.
-
-Needs no dictionary at all. It reuses the corpus and the translations 5.1
-already produces, plus the lemmatiser we already have to match inflected
-forms back to one word. Blocked on 5.1 only.
-
-**Scope change, 2026-08-27.** The earlier plan was that 5.3 would be fed by
-the 200,555 free Tatoeba glosses, because 5.3 "needs breadth far more than it
-needs precision". The owner's standing-job instruction overrides that: *"I do
-not want to use potentially bad translations for anything."* The monthly job
-(section 5.1, item 2.6) therefore replaces those glosses too, at the rate of
-about 33,000 carriers a month, and 5.3 reads the same store as the exercise
-path with no separate trust setting. The Tatoeba records still are not
-deleted, and each one is only overwritten when a machine translation actually
-lands, so 5.3's corpus shrinks at no point.
-
----
-
-## 6. September
-
-The order the next month's work goes in. Not a new backlog: every item here
-already exists above, and this section says which one comes first and why.
-Sections 1 to 5 keep their numbering, so nothing that cites "TODO.md section
-4" has moved.
-
-### 6.1 Build the bank. First, before anything else.
-
-`docs/building-the-bank.md` is the command sequence, five commands, each with
-its cost, its duration and its own "did it work" check. Nothing else in this
-list is a reason to delay it, and it unblocks several of them.
-
-- **25 items per topic, built once, up front.** The owner's decision
-  (section 4). 49 topics at 25 items is about **1,225 items**, read from the
-  whole corpus rather than 40,000 lines per source, verified by two passes at
-  batch size 5. Nightly top-up is the last resort, not the build path.
-  **Re-read the pass count against cycle 17's 12.9% false-positive rate before
-  running**: two passes union their rejections, which means unioning their
-  false positives too. See 6.3.
-- **Cost: $0.00268 an item, so $3.28 for the whole bank.** Measured from the
-  owner's own Google bill, not estimated from the cost log. Against a
-  $7.50/month ceiling. Glossing 1,225 carriers is about 73,000 characters,
-  one night of Azure F0's 2,000,000 a month.
-- **Pass `--max-translation-characters 120000`.** This is the one flag that
-  will silently ruin the run if it is left alone. The default is 60,000,
-  sized for a 475-item cycle; 1,225 carriers at the measured mean of 61.7
-  characters is about 75,600, so the default guard stops at a batch boundary
-  and leaves several hundred items with no English at all. The default is
-  deliberately not raised: it is a runaway guard, and the right size for it
-  is a decision about a specific run.
-- **Pass `--limit 1000000` too.** `--limit` is per source and defaults to
-  40,000, which is not the whole corpus.
-- **Expect it to be slow and silent.** Section 1's last entry has the
-  measured throughput and the arithmetic. The script prints the estimate
-  before the wait starts.
-
-**What the run itself produces, beyond a bank:** the per-topic counts that
-tell 2.4 and 2.5 which topics the corpus genuinely cannot fill. Read the run
-report for that before starting either.
-
-### 6.2 Then, in order
-
-1. **2.6, schedule the monthly translation job.** One `schtasks /Create`
-   line, per `docs/monthly-translation-job.md`. Until that task exists,
-   nothing runs and the corpus does not progress. Cheapest item on this list
-   by a wide margin.
-2. **2.2, run `scripts/eval_gloss_adversarial.py`.** Needs a key. It is the
-   only measurement standing under the gloss relaxation the whole verifier
-   now depends on.
-3. **2.2b, run the gloss purge**, then re-gloss, for 5.3's sake. No longer
-   blocks a pilot.
-4. ~~**2.3, run `scripts/eval_verifier.py` with a key**~~. Done 2026-08-28:
-   recall 60.5%, false-positive rate 12.9%, `$0.065604`; see cycle 17 in the
-   fix log. What it produced instead is item 5.
-5. **2.7, decide what to do about the five families the verifier cannot
-   catch.** After the bank build, deliberately. Reasoning below, because the
-   placement is the only genuinely arguable thing in this list.
-6. ~~**2.3b, run the cost-log repair** against the real August log~~. Done
-   2026-08-27, exact match to the bill; see cycle 16 in the fix log. What
-   remains under 2.3b is the monthly reconcile.
-7. **2.4, the AI generation pilot**, on the topic list 6.1 produces. Still
-   open (see 2.4), still last.
-8. **2.5, write down the split** once 2.4 has run.
-
-### 6.3 Why 2.7 goes after the bank build, and the one part of it that goes before
-
-The instinct after cycle 17 is to fix the verifier's blind spots before
-committing $3.28 and several hours to a 1,225-item bank. That instinct is
-wrong here, for a specific reason: **all five families already have shipped
-deterministic rules, verified against the fixture's own sentences.** The bank
-build is not made safer by doing 2.7 first, because 2.7 does not add a rule.
-It decides whether to add a second layer behind rules that currently work. A
-build run today produces the same items either way.
-
-Three further arguments for the same placement:
-
-- **The bank build is the better input to the decision.** 2.7's real question
-  is whether a post-hoc item-level checker earns its keep. That depends on how
-  often a selector actually regresses at scale and on which topics are thin
-  enough to care, and 6.1 is precisely the run that produces the per-topic
-  counts. Deciding first means deciding on a 38-record fixture instead of on
-  1,225 real items.
-- **Option 2 in 2.7 is a change to `bank_health.py`, which runs over a bank.**
-  There is no bank yet. Building the checker before the thing it checks means
-  testing it on synthetic data.
-- **6.1 already says nothing is a reason to delay it.** Cycle 17 did not
-  produce a reason, and inventing one out of a number that turned out to be
-  measuring the fixture as much as the verifier would be exactly the mistake
-  this section exists to prevent.
-
-**The one part that goes before 6.1, and it costs nothing to do.** 6.1 already
-specifies "verified by two passes at batch size 5", decided from 2.1c's
-instability finding, before any false-positive rate existed. Cycle 17 supplies
-the other side of that trade. `--verification-passes N` rejects on any pass's
-rejection, on purpose, so the union of rejections is also the union of false
-positives: two passes take the discard rate from a measured 12.9% to somewhere
-between 12.9% and 24.1% (not 24.1% exactly, because the passes are not
-independent, and unmeasured). Against 1,225 items that is roughly 181 good
-candidates discarded at one pass and up to about 295 at two, and the topics
-that struggle to reach 25 items at all are the ones that pushes under the
-floor. Two passes may still be right, since the alternative is 2.5% of items
-decided by coin flip. But the decision was made without half its evidence, so
-re-read it against the cycle 17 numbers before the build. That is a decision to
-make, not code to write, and it does not delay anything.
+  keep going on the paid lane, synchronously.
+- **Ship with a full bank: 25 items per topic, built once, up front.** Nightly
+  top-up is the last resort, not the build path.
