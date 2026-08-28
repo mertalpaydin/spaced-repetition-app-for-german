@@ -28,7 +28,15 @@ from src.contracts import (
 from src.llm.cache import LlmCache
 from src.llm.config import DEFAULT_CONFIG_PATH, load_restrict_user_content_to_paid_lane
 
-Lane = Literal["free", "paid", "cache"]
+#: ``"local"`` is a fourth lane, additive on the same terms as every other
+#: field on ``CostLogRow``: an on-device model reached over localhost. It bills
+#: nothing and has no quota, so it never touches ``spend_ceiling_usd``, but it
+#: is logged anyway because CLAUDE.md rule 4 is about VISIBILITY rather than
+#: money -- a run whose verification pass happened entirely on a local model
+#: must not read as a run that did no verification at all. Historical rows are
+#: unaffected: no row has ever carried this value, so nothing reparses
+#: differently. Flagged per CLAUDE.md rule 8 as a change to a persisted format.
+Lane = Literal["free", "paid", "cache", "local"]
 QuotaType = Literal["rpm", "rpd"]
 
 #: How a call actually reached Google. This is NOT derivable from the lane:
@@ -40,7 +48,7 @@ TransportMode = Literal["sync", "batch"]
 #: What a cost-log row records for its mode. Adds ``"cache"`` to
 #: ``TransportMode`` because a cache hit reached no transport at all, so
 #: calling it "sync" would put a fiction in an audit record.
-LoggedMode = Literal["sync", "batch", "cache"]
+LoggedMode = Literal["sync", "batch", "cache", "local"]
 
 #: How one logged attempt ended.
 #:

@@ -261,7 +261,7 @@ import json
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
@@ -270,11 +270,54 @@ from src.llm.cache import LlmCache
 from src.llm.client import (
     BatchForbiddenError,
     BudgetExceeded,
-    GeminiLlmClient,
     MissingApiKeyError,
     PaidLaneForbiddenError,
     ServerUnavailableError,
 )
+
+
+class VerifyingLlmClient(Protocol):
+    """The slice of a client this pass actually uses.
+
+    Widened from a concrete ``GeminiLlmClient`` so an on-device client
+    (``src/llm/local_client.LocalLlmClient``) can be handed to the same pass
+    without either subclassing a two-lane, spend-ceilinged, batch-API client
+    that has no meaning on localhost, or duplicating this module.
+
+    **Flagged per CLAUDE.md rule 8: this is a contract change.** It is a
+    widening only. Every existing caller passes a ``GeminiLlmClient``, which
+    satisfies this Protocol structurally, so no call site changes and no
+    behaviour changes. What it buys is that "which model judges an item" stops
+    being welded to "which vendor bills for it", which is the question
+    TODO.md item 0 exists to answer.
+
+    ``cache`` is part of the protocol because ``cache_coverage`` probes it to
+    estimate how much of a run is already answerable offline. It is optional
+    (a client may have none), which is why it is typed as possibly ``None``
+    rather than merely omitted.
+    """
+
+    #: A read-only property rather than a plain attribute: a protocol
+    #: attribute is invariant, so ``GeminiLlmClient.cache``, typed
+    #: ``LlmCache`` and never ``None``, would fail to satisfy an attribute
+    #: declared ``LlmCache | None``. Reading is all this module does with it.
+    @property
+    def cache(self) -> LlmCache | None: ...
+
+    #: Declared with exactly the arguments this module passes and no more.
+    #: A ``**kwargs`` catch-all here would NOT be satisfied by
+    #: ``GeminiLlmClient``, whose own signature names ``is_user_content``,
+    #: ``now`` and ``force_lane`` explicitly; an implementation may add
+    #: further defaulted parameters, but it cannot drop ones the protocol
+    #: promises.
+    def generate_many(
+        self,
+        prompts: list[str],
+        model: str = ...,
+        purpose: str = ...,
+        use_cache: bool = ...,
+    ) -> list[str]: ...
+
 
 # ---------------------------------------------------------------------------
 # The instruction, maintained in TWO languages, exactly the pattern
@@ -763,7 +806,7 @@ def _degrade_detail(exc: Exception) -> str:
 
 def verify_items(
     items: Sequence[BankItem],
-    llm_client: GeminiLlmClient | None,
+    llm_client: VerifyingLlmClient | None,
     *,
     batch_size: int = DEFAULT_VERIFICATION_BATCH_SIZE,
     use_cache: bool = True,
@@ -908,7 +951,7 @@ class CacheCoverage:
 
 def cache_coverage(
     items: Sequence[BankItem],
-    llm_client: GeminiLlmClient | None,
+    llm_client: VerifyingLlmClient | None,
     *,
     batch_size: int = DEFAULT_VERIFICATION_BATCH_SIZE,
 ) -> CacheCoverage:
