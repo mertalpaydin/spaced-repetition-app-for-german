@@ -3388,3 +3388,86 @@ rather than redundant.
 
 `uv run pytest -q`: 1843 passed. `ruff check`, `ruff format --check` and
 `mypy --strict src/` all clean.
+
+---
+
+## Cycle 21, 28 August 2026: the phase A / phase B split
+
+TODO.md item 1. The change that makes a resumable, scheduled pilot possible at
+all.
+
+### The problem
+
+`scripts/step7_corpus_pilot.py` did two unrelated jobs in one process. Phase A
+reads both corpora, validates carriers, tags every sentence with spaCy, matches
+selectors, blanks a word and filters by CEFR: no network, deterministic on
+`--seed`, and over a whole corpus about **2.5 hours of silence** (two spaCy
+passes at a measured 78 and 92 sentences a second over ~450,000 lines). Phase B
+translates, verifies and writes the bank, and is almost entirely waiting on
+somebody else's API.
+
+There was no boundary between them, and phase A had **no checkpoint of any
+kind**: the tagger's cache is an in-process `lru_cache` and dies with the
+process. Any interruption restarted everything from zero, which is what made a
+polling scheduled job impossible. A run stopped after thirty minutes never
+reached an LLM call, and never would, however many times it was restarted.
+
+### The split
+
+`src/generation/candidate_pool.py` is the persisted boundary. `--phase a`
+writes it and stops; `--phase b` reads it and does the rest; `--phase both` is
+the default and is byte-for-byte the old behaviour.
+
+Verified on an 800-line slice, the two routes produce identical reports: 1,600
+lines length-filtered, 1,120 carrier-valid, 1,120 tagged, 2,224 raw candidates,
+106 sampled, 85 accepted, 21 rejected, 49 per-topic rows, both ways.
+
+Only five names actually cross the seam, which is what made the extraction
+tractable inside a 2,600-line script: `bank_items`, `provenance_by_hash`,
+`topics_by_id`, the CEFR rejection records, and two fields of the blanking
+report. The last are folded into the pool's rejection list during phase A
+rather than carried across, because the blanking report also holds millions of
+skip rows that phase B never reads.
+
+### Three decisions worth keeping
+
+**Provenance is subset to what the sampled items reference.** The full map is
+one entry per corpus line, about 450,000 on a whole-corpus run, and phase B
+looks up a few thousand of them. Carrying all of it would write hundreds of
+megabytes to save something nothing reads.
+
+**The report split is lossless, `corpus_reads` and `topic_results` included.**
+The first draft excluded them as "lists of dataclasses needing a second
+serialisation contract". That was wrong, and the wrongness is the interesting
+part: the report is the run's audit artefact, and a phase-B report with no
+per-topic table reads as a run that sampled nothing rather than as a run whose
+sampling happened yesterday. `asdict` was all it needed.
+
+**The input fingerprint warns, it does not refuse.** It covers the phase-A
+inputs that decide what is in the pool (corpus paths, per-source limit, quota,
+seed, lemma cap) and deliberately excludes everything phase B controls, because
+re-verifying one pool at a different batch size is a legitimate experiment.
+What it catches is the case that silently produces nonsense: a pool built from
+one corpus being verified as if it came from another.
+
+### Also settled here
+
+**Two passes, both at batch 5**, at the owner's instruction. Batch 10 was
+considered as a middle ground and rejected: the measured effect is not a dial
+where 10 splits the difference, it is a disagreement between two sizes, and 10
+would lose batch 5's closer scrutiny without gaining the diversity. Recorded in
+`docs/building-the-bank.md` along with the caveat that two passes at one size
+sample the model's own run-to-run noise rather than the larger between-size
+effect the 12-defect figure actually came from.
+
+**The Azure translation job should run daily, not monthly.** The F0 allowance
+is 2,000,000 characters per calendar month in UTC, so daily runs buy no extra
+quota. They prevent a missed month, which is otherwise lost forever: a monthly
+trigger fires once, and a machine that is off at that moment costs the whole
+month. Nothing has ever run, either way. There is no scheduled task and no
+ledger file, so zero of the ~13.4 months of free tier the corpus needs have
+been spent, and the 35 MB store on the owner's machine is from earlier manual
+runs. TODO.md item 8.
+
+`uv run pytest -q`: 1860 passed. `ruff check`, `ruff format --check` and
+`mypy --strict src/` all clean.

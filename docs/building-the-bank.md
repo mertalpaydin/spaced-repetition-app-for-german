@@ -97,10 +97,13 @@ missed". That misreads the experiment. The 12 defects come from
 passes at one size. Two passes at the same batch size sample only the model's
 own run-to-run noise, which is a smaller effect than the one that was measured.
 
-If the union effect that was actually measured is what you want, the instrument
-is **pass 1 at batch 5 and pass 2 at batch 20**, not two passes at 5. That is an
-open decision, carried in `TODO.md`, and it is not the same question as the pass
-count.
+**Settled by the owner, 2026-08-28: two passes, both at batch 5.** Batch 10 was
+considered as a middle ground and rejected: the measured effect is not a dial,
+it is a disagreement between two sizes, and 10 would lose batch 5's closer
+scrutiny without gaining the diversity. Two passes at one size sample the
+model's run-to-run noise rather than the larger between-size effect, so read
+`pass_disagreements` in the report rather than assuming the 12-defect figure
+transfers.
 
 **Cost:** $3.28 in Gemini verification, measured from the owner's Google
 bill at $0.00268 per item. Against a $7.50/month ceiling. The translation is
@@ -137,6 +140,36 @@ doubling the bank. It also adds nothing: the sampler is deterministic on
 `--seed` and measures its per-topic quota against the current run's candidate
 pool, not against what is already in `bank.db`. To add more, raise
 `--per-topic-quota` (see "Topping up later").
+
+### Running it in two phases
+
+`--phase` splits the run at the point where it stops being deterministic local
+work and starts being somebody else's API:
+
+```bash
+# Phase A: corpus to candidate pool. No network, no key, no cost.
+uv run python -m scripts.step7_corpus_pilot --phase a     --limit 1000000 --per-topic-quota 25     --pool-file data/corpus_candidate_pool.json
+
+# Phase B: translate, verify, write the bank. Re-runnable.
+uv run python -m scripts.step7_corpus_pilot --phase b     --pool-file data/corpus_candidate_pool.json     --verification-passes 2 --verification-batch-size 5     --max-translation-characters 120000 --write-bank data/bank.db
+```
+
+**Why it matters.** Phase A is the ~2.5 hours of silent spaCy work, and it has
+no checkpoint of any kind: the tagger's cache is in-process and dies with the
+process, so any interruption used to restart the whole thing from zero. That is
+what made a polling scheduled job impossible, because a run stopped after
+thirty minutes never reached an LLM call however often it was restarted. With
+the pool on disk, phase B is cheap to re-run and can be driven by a scheduler.
+
+`--phase both` is the default and is exactly the behaviour this script had
+before the split. Verified on an 800-line slice: the two routes produce
+identical reports, item for item and count for count.
+
+**The pool records a fingerprint** of the phase-A inputs that decide what is in
+it (corpus paths, per-source limit, quota, seed, lemma cap) and phase B
+**warns** on a mismatch rather than refusing, because re-verifying an older pool
+with different verification settings is a legitimate experiment. The
+verification flags are deliberately not in the fingerprint.
 
 ### Building it without spending anything
 

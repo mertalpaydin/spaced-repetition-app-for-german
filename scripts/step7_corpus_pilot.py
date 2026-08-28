@@ -449,7 +449,7 @@ import random
 import sys
 from collections import Counter
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -474,6 +474,13 @@ from src.generation.blanking.pipeline import (
 )
 from src.generation.blanking.sentence_source import FreeLaneKeyMissingError, client_from_env
 from src.generation.blanking.sentence_tagger import analysis_available
+from src.generation.candidate_pool import (
+    DEFAULT_POOL_PATH,
+    CandidatePool,
+    PooledProvenance,
+    PoolFormatError,
+    fingerprint_inputs,
+)
 from src.generation.pilot import _write_rejected_file, _write_review_file
 from src.lexicon.vocabulary import VocabularyStore
 from src.llm.client import GeminiLlmClient
@@ -1142,6 +1149,41 @@ class CorpusPilotReport:
     rejected_file: str = ""
     gloss: GlossReport = field(default_factory=GlossReport)
     bank_write: BankWriteReport = field(default_factory=BankWriteReport)
+
+    #: The report fields phase A is the only thing that fills. Carried across
+    #: the pool so a phase-B run writes one report describing the whole
+    #: pipeline, not a half-report that silently reads as a corpus run that
+    #: found nothing.
+    PHASE_A_FIELDS = (
+        "seed",
+        "per_topic_quota",
+        "max_items_per_lemma",
+        "limit_per_source",
+        "length_filtered_total",
+        "carrier_valid_total",
+        "carrier_rejected_by_reason",
+        "sentences_tagged",
+        "raw_candidates_total",
+        "cross_topic_duplicates_dropped",
+        "skips_by_uniqueness",
+        "skips_by_type_ineligibility",
+        "sampled_total",
+        "provenance_missing",
+    )
+
+    def phase_a_fields(self) -> dict[str, object]:
+        """Phase A's own numbers, for the pool to carry to phase B.
+
+        ``corpus_reads`` and ``topic_results`` are lists of dataclasses and go
+        through ``asdict`` so the split is lossless. It has to be: the report
+        is this run's audit artefact, and a phase-B report missing the per-topic
+        table would read as a run that sampled nothing rather than as a run
+        whose sampling happened yesterday.
+        """
+        fields: dict[str, object] = {name: getattr(self, name) for name in self.PHASE_A_FIELDS}
+        fields["corpus_reads"] = [asdict(read) for read in self.corpus_reads]
+        fields["topic_results"] = [asdict(result) for result in self.topic_results]
+        return fields
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -1932,197 +1974,71 @@ def _print_scale_estimate(sentence_count: int) -> None:
         )
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Step 7: corpus-sourced verify-only pilot.")
-    parser.add_argument("--tatoeba", type=Path, default=DEFAULT_TATOEBA_PATH)
-    parser.add_argument("--leipzig", type=Path, default=DEFAULT_LEIPZIG_PATH)
-    parser.add_argument("--skip-tatoeba", action="store_true")
-    parser.add_argument("--skip-leipzig", action="store_true")
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=DEFAULT_LIMIT_PER_SOURCE,
-        help="Corpus lines to scan PER SOURCE (default 40,000).",
+def _fingerprint_for(args: argparse.Namespace) -> str:
+    """The phase-A input fingerprint for this invocation."""
+    return fingerprint_inputs(
+        tatoeba_path=None if args.skip_tatoeba else args.tatoeba,
+        leipzig_path=None if args.skip_leipzig else args.leipzig,
+        limit_per_source=args.limit,
+        per_topic_quota=args.per_topic_quota,
+        seed=args.seed,
+        max_items_per_lemma=args.max_items_per_lemma,
     )
-    parser.add_argument("--per-topic-quota", type=int, default=DEFAULT_PER_TOPIC_QUOTA)
-    parser.add_argument(
-        "--max-items-per-lemma",
-        type=int,
-        default=DEFAULT_MAX_ITEMS_PER_LEMMA,
-        help=(
-            "Cap on how many sampled items in one topic may share the same "
-            "blanked lemma (TODO.md 8.11; default 3). Freed slots are "
-            "backfilled from other lemmas; a topic with too few distinct "
-            "lemmas to fill its quota under the cap still fills its quota "
-            "(the cap never reduces a topic below what a plain quota-only "
-            "sample would have kept it at)."
-        ),
-    )
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
-    parser.add_argument("--vocab-path", type=Path, default=DEFAULT_VOCAB_PATH)
-    parser.add_argument(
-        "--translations",
-        type=Path,
-        default=DEFAULT_TRANSLATION_STORE_PATH,
-        help=(
-            "The German-to-English gloss store (TODO.md 2.1b), looked up by "
-            "the carrier sentence's exact text. Anything this run has to "
-            "translate is written back here, so the next run finds it free."
-        ),
-    )
-    parser.add_argument(
-        "--no-translate",
-        action="store_true",
-        help=(
-            "Look the translation store up but never call a translation "
-            "provider. Items the store lacks keep gloss_en = None."
-        ),
-    )
-    parser.add_argument(
-        "--trust-stored-tatoeba",
-        action="store_true",
-        help=(
-            "Use a stored gloss whatever its source, including Tatoeba's own "
-            "human translations. This restores the behaviour from before "
-            "2026-08-27 and exists only so an earlier run can be reproduced. "
-            "By default a stored gloss whose source is 'tatoeba' is treated as "
-            "ABSENT: the carrier is re-translated and the store record is "
-            "overwritten with the machine translation. Why: a hand audit of all "
-            "430 accepted items found 4 wrong glosses, and 3 of the 4 were "
-            "Tatoeba's own translations (e.g. 'mir' glossed as 'you', a female "
-            "'Freundin' glossed 'his own hair'). The Tatoeba records are NOT "
-            "deleted either way; they still feed feature 5.3."
-        ),
-    )
-    parser.add_argument(
-        "--max-translation-characters",
-        type=int,
-        default=DEFAULT_MAX_CHARACTERS_PER_RUN,
-        help=(
-            "Runaway guard on this run's machine translation, in characters, "
-            "stopping at a whole-batch boundary exactly as "
-            "build_translations.py does. Arithmetic for one 475-item cycle "
-            "under the default distrust of stored Tatoeba glosses: the last "
-            "pilot's 392 items measure at a mean carrier length of 61.7 "
-            "characters, so the worst case, a store that helps not at all, is "
-            "475 x 61.7 = about 29,300 characters. The expected case is about "
-            "300 carriers whose Tatoeba gloss gets replaced, about 18,500 "
-            "characters, plus whatever the store has never held. The 60,000 "
-            "default therefore still covers a full cycle with roughly 2x "
-            "headroom."
-        ),
-    )
-    parser.add_argument(
-        "--verification-batch-size",
-        type=int,
-        default=DEFAULT_VERIFICATION_BATCH_SIZE,
-        help=(
-            "How many items ride in one model-verification prompt. TODO.md "
-            "2.3 and 2.1c: the verifier agreed with itself only about 92%% of "
-            "the time on the naturalness question across two cycles, and the "
-            "first hypothesis is that items late in a large batch get less "
-            "scrutiny. Run this against the default 20 with everything else "
-            "held fixed to settle it."
-        ),
-    )
-    parser.add_argument(
-        "--verification-passes",
-        type=int,
-        default=DEFAULT_VERIFICATION_PASSES,
-        help=(
-            "How many times the model verification pass runs over the SAME "
-            "items. An item is rejected if ANY pass rejects it (union of "
-            "rejections, intersection of acceptances). Default 1, which is "
-            "today's behaviour exactly. Why more than 1: the identical 475 "
-            "candidates verified at batch size 20 and at batch size 5 gave "
-            "444/31 and 438/37, but item by item 9 were accepted at 20 and "
-            "rejected at 5 while 3 went the other way, and all 12 were read "
-            "by hand and all 12 are genuinely bad items -- so neither run "
-            "catches everything and the union catches all of them. COST, "
-            "measured from cost_log (before the 2026-08-27 pricing fix, so "
-            "up to 2x low for paid on-demand calls) against a $7.50/month "
-            "ceiling: about $0.18 per pilot cycle at batch size 20 and $0.36 at batch "
-            "size 5, and each extra pass adds roughly one more of whichever "
-            "applies. Passes after the first bypass the local response cache "
-            "on purpose (an identical prompt would otherwise replay pass 1's "
-            "verdict for free and measure nothing)."
-        ),
-    )
-    parser.add_argument(
-        "--enforce-gloss-check",
-        action="store_true",
-        help=(
-            "Let the gloss consistency check REJECT items, not just report "
-            "them. Default is measure-only: the check always runs and its "
-            "numbers are always printed, but nothing is dropped for it until "
-            "a run has shown what enforcing would cost."
-        ),
-    )
-    parser.add_argument(
-        "--write-bank",
-        type=Path,
-        default=None,
-        help=(
-            "Insert every ACCEPTED item into this SQLite item bank (e.g. "
-            "data/bank.db) after verification. Off by default; without it no "
-            "database is opened or created and this script behaves exactly as "
-            "it did before the flag existed. The write is idempotent on the "
-            "item's content-addressed id, so running this twice over the same "
-            "corpus skips instead of doubling the bank. Migrations run, so a "
-            "bank.db created here comes up at the current schema version. The "
-            "review and rejected JSONL files are written first and are never "
-            "at risk from a bank failure, but a bank that was asked for and "
-            "not written fails the run."
-        ),
-    )
-    parser.add_argument(
-        "--free-lane-only",
-        action="store_true",
-        help=(
-            "Forbid the paid lane outright for this run: verification runs on "
-            "the unbilled project or not at all. Requires GEMINI_FREE_API_KEY "
-            "to be set explicitly (the run refuses to start otherwise, rather "
-            "than falling back to GEMINI_API_KEY, which may be a billed key). "
-            "Off by default; without it this script behaves exactly as it did "
-            "before the flag existed, spilling onto the paid lane on demand "
-            "once the free lane's daily quota is spent. With it, a spent free "
-            "quota ends the run: verification reports every item as not-run, "
-            "the bank write is refused, and the exit code is nonzero."
-        ),
-    )
-    parser.add_argument("--review-file", type=str, default=str(DEFAULT_REVIEW_PATH))
-    parser.add_argument("--rejected-file", type=str, default=str(DEFAULT_REJECTED_PATH))
-    parser.add_argument("--report-file", type=str, default=str(DEFAULT_REPORT_PATH))
-    args = parser.parse_args()
 
-    load_env_file()
-    try:
-        llm_client = client_from_env(free_lane_only=args.free_lane_only)
-    except FreeLaneKeyMissingError as exc:
-        # Before any corpus is read: hours of spaCy work would otherwise run
-        # before the run discovers it cannot verify anything.
-        print(f"\n  FAILING: {exc}")
-        return 1
-    ran_live = llm_client is not None
 
-    report = CorpusPilotReport(
+def _pool_from_phase_a(
+    args: argparse.Namespace, report: CorpusPilotReport, phase_a: PhaseAResult
+) -> CandidatePool:
+    """Package phase A's result for disk.
+
+    Provenance is subset to the carriers the sampled items actually reference.
+    The full map has one entry per corpus line (about 450,000 on a whole-corpus
+    run) and phase B looks up a few thousand of them, so carrying all of it
+    would be hundreds of megabytes written to save nothing.
+    """
+    referenced = {
+        item.source_sentence_id
+        for item in phase_a.bank_items
+        if getattr(item, "source_sentence_id", None) is not None
+    }
+    provenance = {
+        key: PooledProvenance(source=value.source, line_id=value.line_id, text=value.text)
+        for key, value in phase_a.provenance_by_hash.items()
+        if not referenced or key in referenced
+    }
+    return CandidatePool(
+        inputs_fingerprint=_fingerprint_for(args),
         seed=args.seed,
         per_topic_quota=args.per_topic_quota,
-        max_items_per_lemma=args.max_items_per_lemma,
-        limit_per_source=args.limit,
-        verification_batch_size=args.verification_batch_size,
-        verification_passes=args.verification_passes,
-        ran_live=ran_live,
+        items=phase_a.bank_items,
+        provenance=provenance,
+        rejected=phase_a.rejected_records,
+        report_prefix=report.phase_a_fields(),
     )
 
-    if not analysis_available():
-        print(
-            "spaCy's de_core_news_sm model is not installed; no items can be "
-            "produced (degrading cleanly, not crashing). Install it "
-            "(`python -m spacy download de_core_news_sm`) and re-run."
-        )
-        return 0
 
+@dataclass
+class PhaseAResult:
+    """What the corpus half of the run hands to the model half.
+
+    The five names that actually cross the seam, and no more. Everything
+    else phase A computes is either already folded into ``report`` or is a
+    working set phase B never looks at.
+    """
+
+    bank_items: list[BankItem]
+    provenance_by_hash: dict[str, CorpusProvenance]
+    rejected_records: list[RejectedCandidateRecord]
+    topics_by_id: dict[str, Topic]
+
+
+def _run_phase_a(args: argparse.Namespace, report: CorpusPilotReport) -> PhaseAResult | int:
+    """Corpus to candidate pool: no network, deterministic on ``--seed``.
+
+    Returns an exit code instead of a result where the run has nothing to
+    do, so ``main`` can end cleanly without this function knowing how a
+    pilot reports itself.
+    """
     all_lines: list[tuple[str, CorpusLine]] = []
     if not args.skip_tatoeba:
         lines = _read_one_corpus(
@@ -2290,6 +2206,297 @@ def main() -> int:
             continue
         bank_items.append(_to_bank_item(item, topic, provenance.source, provenance.line_id))
 
+    # Everything phase B still needs, and nothing else. ``blanking_report`` is
+    # folded into the rejection list here rather than carried across the
+    # boundary: phase B only ever read two of its fields, and a pool file that
+    # had to carry the whole blanking report would be carrying millions of skip
+    # rows nothing reads.
+    phase_a_rejections = (
+        cefr_rejection_records
+        + [_uniqueness_skip_to_record(s) for s in blanking_report.uniqueness_skips]
+        + [
+            _dropped_item_to_record(d)
+            for d in blanking_report.dropped_details
+            if d.reason == "cross_topic_duplicate"
+        ]
+    )
+    return PhaseAResult(
+        bank_items=bank_items,
+        provenance_by_hash=provenance_by_hash,
+        rejected_records=phase_a_rejections,
+        topics_by_id=topics_by_id,
+    )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Step 7: corpus-sourced verify-only pilot.")
+    parser.add_argument("--tatoeba", type=Path, default=DEFAULT_TATOEBA_PATH)
+    parser.add_argument("--leipzig", type=Path, default=DEFAULT_LEIPZIG_PATH)
+    parser.add_argument("--skip-tatoeba", action="store_true")
+    parser.add_argument("--skip-leipzig", action="store_true")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_LIMIT_PER_SOURCE,
+        help="Corpus lines to scan PER SOURCE (default 40,000).",
+    )
+    parser.add_argument("--per-topic-quota", type=int, default=DEFAULT_PER_TOPIC_QUOTA)
+    parser.add_argument(
+        "--max-items-per-lemma",
+        type=int,
+        default=DEFAULT_MAX_ITEMS_PER_LEMMA,
+        help=(
+            "Cap on how many sampled items in one topic may share the same "
+            "blanked lemma (TODO.md 8.11; default 3). Freed slots are "
+            "backfilled from other lemmas; a topic with too few distinct "
+            "lemmas to fill its quota under the cap still fills its quota "
+            "(the cap never reduces a topic below what a plain quota-only "
+            "sample would have kept it at)."
+        ),
+    )
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    parser.add_argument("--vocab-path", type=Path, default=DEFAULT_VOCAB_PATH)
+    parser.add_argument(
+        "--translations",
+        type=Path,
+        default=DEFAULT_TRANSLATION_STORE_PATH,
+        help=(
+            "The German-to-English gloss store (TODO.md 2.1b), looked up by "
+            "the carrier sentence's exact text. Anything this run has to "
+            "translate is written back here, so the next run finds it free."
+        ),
+    )
+    parser.add_argument(
+        "--no-translate",
+        action="store_true",
+        help=(
+            "Look the translation store up but never call a translation "
+            "provider. Items the store lacks keep gloss_en = None."
+        ),
+    )
+    parser.add_argument(
+        "--trust-stored-tatoeba",
+        action="store_true",
+        help=(
+            "Use a stored gloss whatever its source, including Tatoeba's own "
+            "human translations. This restores the behaviour from before "
+            "2026-08-27 and exists only so an earlier run can be reproduced. "
+            "By default a stored gloss whose source is 'tatoeba' is treated as "
+            "ABSENT: the carrier is re-translated and the store record is "
+            "overwritten with the machine translation. Why: a hand audit of all "
+            "430 accepted items found 4 wrong glosses, and 3 of the 4 were "
+            "Tatoeba's own translations (e.g. 'mir' glossed as 'you', a female "
+            "'Freundin' glossed 'his own hair'). The Tatoeba records are NOT "
+            "deleted either way; they still feed feature 5.3."
+        ),
+    )
+    parser.add_argument(
+        "--max-translation-characters",
+        type=int,
+        default=DEFAULT_MAX_CHARACTERS_PER_RUN,
+        help=(
+            "Runaway guard on this run's machine translation, in characters, "
+            "stopping at a whole-batch boundary exactly as "
+            "build_translations.py does. Arithmetic for one 475-item cycle "
+            "under the default distrust of stored Tatoeba glosses: the last "
+            "pilot's 392 items measure at a mean carrier length of 61.7 "
+            "characters, so the worst case, a store that helps not at all, is "
+            "475 x 61.7 = about 29,300 characters. The expected case is about "
+            "300 carriers whose Tatoeba gloss gets replaced, about 18,500 "
+            "characters, plus whatever the store has never held. The 60,000 "
+            "default therefore still covers a full cycle with roughly 2x "
+            "headroom."
+        ),
+    )
+    parser.add_argument(
+        "--verification-batch-size",
+        type=int,
+        default=DEFAULT_VERIFICATION_BATCH_SIZE,
+        help=(
+            "How many items ride in one model-verification prompt. TODO.md "
+            "2.3 and 2.1c: the verifier agreed with itself only about 92%% of "
+            "the time on the naturalness question across two cycles, and the "
+            "first hypothesis is that items late in a large batch get less "
+            "scrutiny. Run this against the default 20 with everything else "
+            "held fixed to settle it."
+        ),
+    )
+    parser.add_argument(
+        "--verification-passes",
+        type=int,
+        default=DEFAULT_VERIFICATION_PASSES,
+        help=(
+            "How many times the model verification pass runs over the SAME "
+            "items. An item is rejected if ANY pass rejects it (union of "
+            "rejections, intersection of acceptances). Default 1, which is "
+            "today's behaviour exactly. Why more than 1: the identical 475 "
+            "candidates verified at batch size 20 and at batch size 5 gave "
+            "444/31 and 438/37, but item by item 9 were accepted at 20 and "
+            "rejected at 5 while 3 went the other way, and all 12 were read "
+            "by hand and all 12 are genuinely bad items -- so neither run "
+            "catches everything and the union catches all of them. COST, "
+            "measured from cost_log (before the 2026-08-27 pricing fix, so "
+            "up to 2x low for paid on-demand calls) against a $7.50/month "
+            "ceiling: about $0.18 per pilot cycle at batch size 20 and $0.36 at batch "
+            "size 5, and each extra pass adds roughly one more of whichever "
+            "applies. Passes after the first bypass the local response cache "
+            "on purpose (an identical prompt would otherwise replay pass 1's "
+            "verdict for free and measure nothing)."
+        ),
+    )
+    parser.add_argument(
+        "--enforce-gloss-check",
+        action="store_true",
+        help=(
+            "Let the gloss consistency check REJECT items, not just report "
+            "them. Default is measure-only: the check always runs and its "
+            "numbers are always printed, but nothing is dropped for it until "
+            "a run has shown what enforcing would cost."
+        ),
+    )
+    parser.add_argument(
+        "--write-bank",
+        type=Path,
+        default=None,
+        help=(
+            "Insert every ACCEPTED item into this SQLite item bank (e.g. "
+            "data/bank.db) after verification. Off by default; without it no "
+            "database is opened or created and this script behaves exactly as "
+            "it did before the flag existed. The write is idempotent on the "
+            "item's content-addressed id, so running this twice over the same "
+            "corpus skips instead of doubling the bank. Migrations run, so a "
+            "bank.db created here comes up at the current schema version. The "
+            "review and rejected JSONL files are written first and are never "
+            "at risk from a bank failure, but a bank that was asked for and "
+            "not written fails the run."
+        ),
+    )
+    parser.add_argument(
+        "--free-lane-only",
+        action="store_true",
+        help=(
+            "Forbid the paid lane outright for this run: verification runs on "
+            "the unbilled project or not at all. Requires GEMINI_FREE_API_KEY "
+            "to be set explicitly (the run refuses to start otherwise, rather "
+            "than falling back to GEMINI_API_KEY, which may be a billed key). "
+            "Off by default; without it this script behaves exactly as it did "
+            "before the flag existed, spilling onto the paid lane on demand "
+            "once the free lane's daily quota is spent. With it, a spent free "
+            "quota ends the run: verification reports every item as not-run, "
+            "the bank write is refused, and the exit code is nonzero."
+        ),
+    )
+    parser.add_argument(
+        "--phase",
+        choices=("a", "b", "both"),
+        default="both",
+        help=(
+            "Which half of the run to do. 'a' is the corpus half: no network, "
+            "deterministic on --seed, hours of spaCy, and it writes --pool-file "
+            "and stops. 'b' reads that pool and does the translation, "
+            "verification and bank write. 'both' is the default and is exactly "
+            "the behaviour this script had before the split."
+        ),
+    )
+    parser.add_argument(
+        "--pool-file",
+        type=str,
+        default=str(DEFAULT_POOL_PATH),
+        help="Where phase A writes, and phase B reads, the candidate pool.",
+    )
+    parser.add_argument("--review-file", type=str, default=str(DEFAULT_REVIEW_PATH))
+    parser.add_argument("--rejected-file", type=str, default=str(DEFAULT_REJECTED_PATH))
+    parser.add_argument("--report-file", type=str, default=str(DEFAULT_REPORT_PATH))
+    args = parser.parse_args()
+
+    load_env_file()
+    try:
+        llm_client = client_from_env(free_lane_only=args.free_lane_only)
+    except FreeLaneKeyMissingError as exc:
+        # Before any corpus is read: hours of spaCy work would otherwise run
+        # before the run discovers it cannot verify anything.
+        print(f"\n  FAILING: {exc}")
+        return 1
+    ran_live = llm_client is not None
+
+    report = CorpusPilotReport(
+        seed=args.seed,
+        per_topic_quota=args.per_topic_quota,
+        max_items_per_lemma=args.max_items_per_lemma,
+        limit_per_source=args.limit,
+        verification_batch_size=args.verification_batch_size,
+        verification_passes=args.verification_passes,
+        ran_live=ran_live,
+    )
+
+    if not analysis_available():
+        print(
+            "spaCy's de_core_news_sm model is not installed; no items can be "
+            "produced (degrading cleanly, not crashing). Install it "
+            "(`python -m spacy download de_core_news_sm`) and re-run."
+        )
+        return 0
+
+    phase_a: PhaseAResult
+    if args.phase == "b":
+        # Phase B alone: the expensive corpus work already happened and its
+        # result is on disk. This is the path a scheduled job takes on every
+        # wake-up, which is the whole reason the boundary exists.
+        try:
+            pool = CandidatePool.load(args.pool_file)
+        except PoolFormatError as exc:
+            print(f"\n  FAILING: {exc}")
+            return 1
+        expected = _fingerprint_for(args)
+        if pool.inputs_fingerprint and pool.inputs_fingerprint != expected:
+            # A warning, not a refusal: see candidate_pool's module
+            # docstring on which flags are in the fingerprint and why.
+            print(
+                f"\n  WARNING: {args.pool_file} was built from different phase-A"
+                f" inputs (pool {pool.inputs_fingerprint}, this run {expected})."
+                f" Continuing, because a deliberate re-verification of an older"
+                f" pool looks exactly like this."
+            )
+        print(f"\n  Loaded candidate pool: {pool.describe()}")
+        for key, value in pool.report_prefix.items():
+            if not hasattr(report, key):
+                continue
+            if key == "corpus_reads" and isinstance(value, list):
+                report.corpus_reads = [CorpusReadStats(**row) for row in value]
+            elif key == "topic_results" and isinstance(value, list):
+                report.topic_results = [TopicSampleResult(**row) for row in value]
+            else:
+                setattr(report, key, value)
+        phase_a = PhaseAResult(
+            bank_items=list(pool.items),
+            provenance_by_hash={
+                key: CorpusProvenance(value.source, value.line_id, value.text)
+                for key, value in pool.provenance.items()
+            },
+            rejected_records=list(pool.rejected),
+            topics_by_id={t.id: t for t in load_taxonomy()},
+        )
+    else:
+        phase_a_outcome = _run_phase_a(args, report)
+        if isinstance(phase_a_outcome, int):
+            return phase_a_outcome
+        phase_a = phase_a_outcome
+        if args.phase == "a":
+            pool = _pool_from_phase_a(args, report, phase_a)
+            pool.save(args.pool_file)
+            report.write(Path(args.report_file))
+            print(f"\n  Phase A complete. Wrote {args.pool_file}: {pool.describe()}")
+            print(
+                "  Nothing was translated, verified or banked: that is phase B."
+                f" Run again with --phase b --pool-file {args.pool_file}."
+            )
+            return 0
+
+    bank_items = phase_a.bank_items
+    provenance_by_hash = phase_a.provenance_by_hash
+    topics_by_id = phase_a.topics_by_id
+    phase_a_rejections = phase_a.rejected_records
+
     # ---------------------------------------------------------------
     # TODO.md 2.1b: the English gloss, then the gloss consistency check.
     # Both sit here, between bank-item assembly and the model backstop:
@@ -2375,14 +2582,8 @@ def main() -> int:
     report.accepted_total = len(final_items)
 
     rejected_records = (
-        cefr_rejection_records
+        phase_a_rejections
         + gloss_rejection_records
-        + [_uniqueness_skip_to_record(s) for s in blanking_report.uniqueness_skips]
-        + [
-            _dropped_item_to_record(d)
-            for d in blanking_report.dropped_details
-            if d.reason == "cross_topic_duplicate"
-        ]
         + [_model_rejection_to_record(r) for r in verification_report.rejections]
     )
 

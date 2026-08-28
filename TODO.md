@@ -13,35 +13,7 @@ documents cite them. They are labels, not an order. The order is top to bottom.
 
 ---
 
-## 1. Split the pipeline into phase A and phase B (6.2)
-
-**Do.** Cut `scripts/step7_corpus_pilot.py` at its natural seam and persist the
-intermediate:
-
-- **Phase A, corpus to candidate pool.** Everything before the first LLM call:
-  reading both corpora, carrier validation, tagging, selector matching,
-  blanking, the deterministic verification layers. No network. Deterministic on
-  `--seed`. Writes the candidate pool to disk.
-- **Phase B, verification and bank write.** Reads that pool, runs the model
-  verification passes, the translation step and the bank write.
-
-**Why.** Phase A is roughly 2.5 hours of silent spaCy work over ~450,000 corpus
-lines with **no checkpoint of any kind** -- the tagger's `lru_cache` is
-in-process and dies with the process. Today any interruption restarts from zero,
-which is what makes a polling scheduled job impossible: a run stopped at 30
-minutes never reaches an LLM call, ever. Splitting it is the change that makes
-item 3 work at all.
-
-**Run phase A while item 2 is being written.** It needs no API key and costs
-nothing, so start it as soon as it exists and build phase B against the pool it
-produces.
-
-**Done when.** Phase A writes a candidate pool that phase B reads, and phase B
-can be re-run repeatedly against one pool without re-reading the corpora.
-
----
-
-## 2. Detached batch submission, so a scheduled job can resume (6.3)
+## 1. Detached batch submission, so a scheduled job can resume (6.3)
 
 **Do.** Two changes in `src/llm/client.py` and one in the pilot:
 
@@ -49,7 +21,7 @@ can be re-run repeatedly against one pool without re-reading the corpora.
   `client.batches.create(...)` and then blocks in `_poll_batch_job` until the job
   finishes; the job name is never written anywhere. So a killed process loses a
   submitted job entirely, and **nothing can pick up a batch that is already
-  running**, which is exactly what item 3 depends on. Write the job name, its
+  running**, which is exactly what item 2 depends on. Write the job name, its
   model, purpose and the prompt hashes to disk at submission.
 - **Add a resume path** that reads those records, polls each job, and writes the
   responses into the existing content-addressed cache under the same keys a
@@ -79,7 +51,7 @@ that job's results without re-spending anything.
 
 ---
 
-## 3. The scheduled job (6.4)
+## 2. The scheduled job (6.4)
 
 **Do.** A Windows scheduled task, following the pattern in
 `docs/monthly-translation-job.md`:
@@ -96,7 +68,7 @@ several sittings without being watched.
 
 ---
 
-## 4. The large pilot (6.5)
+## 3. The large pilot (6.5)
 
 **Do.** Phase A at a much larger scale than any previous cycle, then phase B with
 `--verification-passes 2 --verification-batch-size 5`.
@@ -107,20 +79,24 @@ two disagreed on, **all 12 were genuinely bad**. Batch 5 caught 9 of them, batch
 20 caught 3. `DEFAULT_VERIFICATION_BATCH_SIZE` in the code is still 20, so the
 flag has to be passed explicitly every time.
 
-**One open question, flagged rather than decided.** That "12 defects" evidence
-comes from comparing **two batch sizes**, one pass each, not two passes at one
-size. Two passes both at batch 5 sample only the model's run-to-run noise, which
-is a smaller effect than the one that was actually measured. If the union effect
-that was measured is what is wanted, the instrument is **pass 1 at batch 5 and
-pass 2 at batch 20**. The owner has asked for batch 5; this records what that
-does and does not buy. `docs/building-the-bank.md` carries the same correction.
+**Decided by the owner, 2026-08-28: two passes, both at batch 5.** Batch 10 was
+considered and rejected. The measured effect is not a dial where 10 splits the
+difference: batch 5 and batch 20 *disagree*, and all 12 disagreements were real
+defects, 9 of which only batch 5 caught. Batch 10 would lose batch 5's closer
+scrutiny without gaining the diversity effect, and it is the one value with no
+hand-audited data behind it.
+
+What two passes at one size does and does not buy is worth remembering when the
+numbers come in: the 12-defect result came from comparing two batch *sizes*, so
+two passes both at 5 sample only the model's run-to-run noise, which is a
+smaller effect. `pass_disagreements` in the report is the direct measure of it.
 
 **Done when.** A pilot report exists with per-topic counts, `pass_disagreements`,
 and a rejected file large enough for item 6 to sample from.
 
 ---
 
-## 5. Measure the true false-positive rate (6.6)
+## 4. Measure the true false-positive rate (6.6)
 
 **Do.** Review `data/corpus_pilot_rejected.jsonl` with agents and count how many
 rejected items were actually good. The false-positive rate is that count over
@@ -148,7 +124,7 @@ the two vendors' conflict list, and the hand-checked subsample.
 
 ---
 
-## 6. Zero defects that reach a learner (6.7)
+## 5. Zero defects that reach a learner (6.7)
 
 The target is zero defects for the overall pipeline. Zero *produced* is not
 reachable: machine translation, the tagger's own accuracy ceiling
@@ -186,7 +162,7 @@ and a reports-per-hundred-items figure exists.
 
 ---
 
-## 7. Collocation evidence, for defect class 2.1 (6.8)
+## 6. Collocation evidence, for defect class 2.1 (6.8)
 
 **Do.** Mine collocation evidence from the corpus the same way
 `scripts/build_verb_government.py` already mines case government: count real
@@ -228,10 +204,9 @@ well-attested pairs, measured against a pilot's defect rate for class 2.1.
 
 ---
 
+## 7. Build the item bank (6.1)
 
-## 8. Build the item bank (6.1)
-
-The biggest single piece of open work. Items 1 to 5 come first: they close the
+The biggest single piece of open work. Items 1 to 4 come first: they close the
 one defect nothing catches, make the run resumable, and measure the
 false-positive rate that decides how the build is configured.
 
@@ -255,21 +230,43 @@ topics the corpus cannot fill to 25.
 
 ---
 
-## 9. Schedule the monthly translation job (2.6)
+## 8. Schedule the monthly translation job (2.6)
 
 **Do.** One `schtasks /Create` line on the owner's machine, per
 `docs/monthly-translation-job.md`. The script and its tests exist.
 
+**Schedule it DAILY, not monthly**, per the owner's instruction of 2026-08-28.
+Use `/SC DAILY /ST 03:00` in place of the `/SC MONTHLY /D 2` that document
+gives.
+
+Not for extra quota, which does not exist: the Azure F0 allowance is
+**2,000,000 characters per calendar month, keyed UTC**, and running more often
+buys none. The reason is that a missed month is lost forever. A monthly trigger
+fires once, on the 2nd at 03:00, and if the machine is off at that moment the
+whole month's 2,000,000 expires unspent. A daily run makes that impossible: the
+first day the machine is on, it spends the month's budget, and every later run
+that month correctly does nothing and exits 0. The ledger is what makes the
+extra runs safe.
+
+**Expect a run that has budget to take at least an hour.** Azure F0 meters
+2,000,000 characters per *hour* as well as per month, so the script paces itself
+underneath that. That is not a hang.
+
 **Why.** Until that task exists, nothing runs and the corpus does not get
 translated. Translating the whole corpus takes about 14 monthly runs, so every
 month it is not scheduled is a month lost. Cheapest item on this list.
+
+**Nothing has ever run.** As of 2026-08-28 there is no scheduled task and no
+`data/fixtures/translations/azure_f0_ledger.json`, so **zero** of the ~13.4
+months of free tier the corpus needs have been spent. The 35 MB store on the
+owner's machine is from earlier manual runs, not from this job.
 
 **Done when.** The task is in Windows Task Scheduler and one run has written
 its month into `data/fixtures/translations/azure_f0_ledger.json`.
 
 ---
 
-## 10. Decide whether the gloss consistency check rejects (2.1b)
+## 9. Decide whether the gloss consistency check rejects (2.1b)
 
 **Do.** Run a pilot, read the flag count, then set the default. The check runs
 and reports today; `--enforce-gloss-check` makes it reject.
@@ -291,7 +288,7 @@ whose glosses are machine translations.
 
 ---
 
-## 11. Run the gloss purge on the real store, then re-gloss (2.2b)
+## 10. Run the gloss purge on the real store, then re-gloss (2.2b)
 
 **Do.** `scripts/purge_mismatched_glosses.py --dry-run` first, read the
 examples, then apply, then re-run `scripts/build_translations.py
@@ -312,7 +309,7 @@ English one.
 
 ---
 
-## 12. The AI-generation pilot (2.4)
+## 11. The AI-generation pilot (2.4)
 
 Explicitly open. Not deferred, not folded into item 9.
 
@@ -333,16 +330,16 @@ are either measured or disabled.
 
 ---
 
-## 13. Write down the split (2.5)
+## 12. Write down the split (2.5)
 
-**Do.** After item 12. Write which topics are corpus-sourced, which are
+**Do.** After item 11. Write which topics are corpus-sourced, which are
 generated, and the rule for deciding. That becomes the standing policy.
 
 **Done when.** The policy is in `docs/` and the pipeline follows it.
 
 ---
 
-## 14. Two one-line defects, neither on the bank path
+## 13. Two one-line defects, neither on the bank path
 
 Deferred deliberately. Both are known, both are small, and neither blocks the
 bank build. Do them when the bank build is not the active work.
@@ -382,7 +379,7 @@ bank build. Do them when the bank build is not the active work.
 
 **Why later.** The first is a one-line deletion that changes no test. The
 second is the owner's call, because it decides whether those two test lanes
-exist at all. The third is four small type fixes. None of them blocks item 8,
+exist at all. The third is four small type fixes. None of them blocks item 7,
 but between them **every CI job in the repository currently fails**, so the
 first green build will need all three.
 
