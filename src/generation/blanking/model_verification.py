@@ -221,7 +221,14 @@ whole ``generate_many`` call (which either returns every batch's response
 text or raises -- there is no partial result to salvage from a raised call)
 and degrade the ENTIRE run to ``"not_run"`` for every item, each carrying a
 reason naming which of the five occurred, for exactly the same "never
-silently claim success" reason.
+silently claim success" reason. The degrading exception's OWN message is kept
+alongside those slugs, on ``VerificationReport.not_run_detail``: the slug is
+a fixed string a caller can group on, but only the message says what to do
+next, and for the commonest degrade on a free-lane run
+(``PaidLaneForbiddenError``) that message names the free tier's daily
+allowance outright and states when it resets in local time. It used to be
+discarded here, which left every reporting script guessing at a cause the
+code had already determined.
 
 Every rejected item's model-given reason is kept (never discarded), so a
 rejected item is diagnosable rather than a silent drop -- the same standard
@@ -259,6 +266,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 from src.contracts import MODEL_VERIFY, BankItem
+from src.llm.cache import LlmCache
 from src.llm.client import (
     BatchForbiddenError,
     BudgetExceeded,
@@ -541,6 +549,24 @@ class VerificationReport:
     attempted: bool
     verdicts: list[ItemVerdict] = field(default_factory=list)
     rejections: list[ModelRejection] = field(default_factory=list)
+    #: The degrading exception's OWN message, when a transport/budget failure
+    #: degraded the whole run (``None`` otherwise, including for a per-batch
+    #: malformed response, where no exception exists to quote).
+    #:
+    #: This exists because the reason slugs above are deliberately fixed,
+    #: machine-stable strings, and a slug alone throws away the only part of
+    #: the failure that says what to DO about it. ``PaidLaneForbiddenError``
+    #: in particular carries ``GeminiLlmClient._paid_lane_forbidden_message``,
+    #: which names the free tier's DAILY allowance (RPD) outright and states
+    #: the reset instant in the operator's own timezone; before this field
+    #: existed, ``verify_items`` caught that exception, kept
+    #: ``REASON_PAID_LANE_FORBIDDEN`` and dropped the message, so an operator
+    #: whose free-lane run ended on a quota refusal was shown a guess-list of
+    #: possible causes by the reporting scripts even though the code had
+    #: known the exact one. Additive with a ``None`` default: every existing
+    #: construction of this report still builds, and ``None`` reads as "no
+    #: exception detail", never as a fabricated one.
+    not_run_detail: str | None = None
 
     @property
     def verified_count(self) -> int:
@@ -722,6 +748,19 @@ def _parse_batch_response(text: str, expected_count: int) -> list[tuple[bool, st
     return [by_index[i] for i in range(1, expected_count + 1)]
 
 
+def _degrade_detail(exc: Exception) -> str:
+    """The degrading exception's own message, prefixed with its type name, for
+    ``VerificationReport.not_run_detail``.
+
+    The type name is kept even when the message is rich, because the two
+    answer different questions for whoever reads the terminal: the type says
+    which of the five degrade paths was taken, the message says what to do
+    next. An exception with no message at all degrades to just the type name
+    rather than to a trailing colon."""
+    message = str(exc).strip()
+    return f"{type(exc).__name__}: {message}" if message else type(exc).__name__
+
+
 def verify_items(
     items: Sequence[BankItem],
     llm_client: GeminiLlmClient | None,
@@ -777,7 +816,11 @@ def verify_items(
             slug for exc_type, slug in _DEGRADE_EXCEPTIONS if isinstance(exc, exc_type)
         )
         degraded_verdicts = [ItemVerdict(outcome="not_run", reason=degrade_reason) for _ in items]
-        return VerificationReport(attempted=True, verdicts=degraded_verdicts)
+        return VerificationReport(
+            attempted=True,
+            verdicts=degraded_verdicts,
+            not_run_detail=_degrade_detail(exc),
+        )
 
     verdicts: list[ItemVerdict] = []
     rejections: list[ModelRejection] = []
@@ -804,3 +847,129 @@ def verify_items(
             )
 
     return VerificationReport(attempted=True, verdicts=verdicts, rejections=rejections)
+
+
+# ---------------------------------------------------------------------------
+# Reporting progress across runs
+#
+# A free-lane run of this pass over a fixed item set does not necessarily
+# finish in one day. Google's free tier gives ``MODEL_VERIFY`` a daily request
+# allowance in the low tens, and the owner's own measured run today reached
+# Google 25 times before the cap, of which 5 succeeded and 20 came back 503.
+# What makes that workable at all is the local content-addressed cache
+# (CLAUDE.md 9, ``src/llm/cache.py``): each day's successful batches are
+# written to it, and the next day's identical command replays them for free
+# and spends quota only on the batches still missing. The run converges over
+# several days.
+#
+# The two helpers below exist so an operator can SEE that convergence rather
+# than infer it. Neither changes what counts as a valid measurement: a run
+# with any ``not_run`` item is still not a measurement, and every caller of
+# these still refuses to report a rate and still exits non-zero.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CacheCoverage:
+    """How many of a would-be run's items already have a model verdict sitting
+    in the local cache, i.e. how many the next identical run would replay at
+    zero cost.
+
+    Read from the CACHE, deliberately, and not from a run's own
+    verified-plus-rejected count. The two disagree in exactly the case that
+    matters. ``GeminiLlmClient.generate_many`` writes each batch's response to
+    the cache as that batch lands, but raises out of the whole call on the
+    first batch that fails; ``verify_items`` then degrades EVERY item to
+    ``"not_run"`` (there is no partial result to salvage from a raised call).
+    So a day that landed five batches before the daily quota refused the sixth
+    reports zero verified and zero rejected, while the cache genuinely gained
+    five batches' worth of verdicts. Counting the run's own results would show
+    the operator no progress on precisely the days progress was made, which is
+    the thing this is for.
+
+    Reading it is not intrusive: ``LlmCache.get`` is the same public read
+    ``generate_many`` itself performs, on the same key (model plus the exact
+    batch prompt, no extra kwargs), and it touches nothing.
+    """
+
+    total_items: int
+    cached_items: int
+
+    @property
+    def missing_items(self) -> int:
+        return self.total_items - self.cached_items
+
+    @property
+    def complete(self) -> bool:
+        """Every item has a cached verdict, so the next identical run is
+        answerable entirely from the cache."""
+        return self.total_items > 0 and self.cached_items == self.total_items
+
+
+def cache_coverage(
+    items: Sequence[BankItem],
+    llm_client: GeminiLlmClient | None,
+    *,
+    batch_size: int = DEFAULT_VERIFICATION_BATCH_SIZE,
+) -> CacheCoverage:
+    """How many of ``items`` the local cache can already answer for, if this
+    pass were run over them at ``batch_size``.
+
+    The cache is content-addressed on the full request, and this pass's unit of
+    request is a BATCH, not an item, so coverage is counted in whole batches:
+    a cached batch contributes all of its items, a missing one contributes
+    none. That also means ``batch_size`` is part of the key -- re-running the
+    same fixture at a different batch size builds different prompts and
+    therefore starts from zero coverage, which callers reporting this number
+    to an operator should say out loud.
+
+    Batching and prompt building go through this module's own ``_chunk`` and
+    ``build_batch_prompt``, the same two functions ``verify_items`` uses, so
+    the key this checks cannot drift from the key the run would write.
+
+    ``llm_client=None``, or any client with no local cache attached (only a
+    test double is ever shaped that way), reports zero coverage rather than
+    raising: an unknown coverage must read as "nothing banked yet", never as
+    a crash inside a progress report.
+    """
+    total = len(items)
+    cache: LlmCache | None = getattr(llm_client, "cache", None)
+    if cache is None or total == 0:
+        return CacheCoverage(total_items=total, cached_items=0)
+    cached = 0
+    for batch in _chunk(items, batch_size):
+        if cache.get(model=MODEL_VERIFY, prompt=build_batch_prompt(batch)) is not None:
+            cached += len(batch)
+    return CacheCoverage(total_items=total, cached_items=cached)
+
+
+def describe_not_run_cause(reports: Sequence[VerificationReport]) -> list[str]:
+    """Operator-readable lines naming what actually left items ``not_run``
+    across ``reports``, or an empty list when nothing did.
+
+    One ``cause:`` line groups this module's fixed reason slugs with their
+    counts, and one ``detail:`` line follows for each distinct exception
+    message the degrade path captured (``VerificationReport.not_run_detail``).
+    The detail is what makes the difference for the reader: for a
+    ``--free-lane-only`` run that ended on a quota refusal it is
+    ``GeminiLlmClient._paid_lane_forbidden_message``, which names RPD and the
+    reset time in local time, instead of a guess-list of causes a script would
+    otherwise have to print.
+
+    Returns lines without leading indentation; the caller owns its own layout.
+    """
+    reasons: Counter[str] = Counter()
+    for report in reports:
+        reasons.update(report.not_run_reasons)
+    if not reasons:
+        return []
+    lines = [
+        "cause: " + ", ".join(f"{slug} ({count} item(s))" for slug, count in reasons.most_common())
+    ]
+    details: list[str] = []
+    for report in reports:
+        detail = report.not_run_detail
+        if detail and detail not in details:
+            details.append(detail)
+    lines.extend(f"detail: {detail}" for detail in details)
+    return lines

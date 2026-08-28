@@ -100,6 +100,29 @@ It never reports a zero recall for a run that did not happen. The same
 applies to a transport failure and to any item left ``not_run`` for any other
 reason, exactly as ``scripts/eval_verifier.py`` already does.
 
+## Converging over several days, and being able to see it
+
+On ``--free-lane-only`` this eval does not necessarily finish in one day: the
+free tier's daily request allowance for ``MODEL_VERIFY`` is in the low tens,
+most attempts come back 503, and 72 rows in two separate arms need more
+successful requests than one day usually grants. The local content-addressed
+cache (CLAUDE.md 9) is what makes the same command, run again tomorrow,
+cheaper rather than merely repeated: every batch that landed is replayed for
+free and only the missing ones spend quota.
+
+So an incomplete run prints a PROGRESS block -- rows with a cached model
+verdict, rows still missing, and that re-running replays the former at zero
+cost -- and names the actual cause of the ``not_run`` rows instead of listing
+possible ones. The count comes from the cache
+(``model_verification.cache_coverage``), not from this run's own
+verified-plus-rejected total, because a run that lands several batches and is
+then refused by the daily quota degrades every row to ``not_run`` and reports
+zero judged while the cache genuinely gained those batches.
+
+This changes nothing about what counts as a measurement: any ``not_run`` row
+still means neither number is reported as measured, and the run still exits
+non-zero.
+
 ## Why this is not a flag on scripts/eval_verifier.py
 
 That script measures a different thing on a differently shaped fixture: 69
@@ -119,6 +142,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -126,9 +150,13 @@ from src.contracts import BankItem
 from src.generation.blanking import sentence_source
 from src.generation.blanking.model_verification import (
     DEFAULT_VERIFICATION_BATCH_SIZE,
+    CacheCoverage,
     VerificationReport,
+    cache_coverage,
+    describe_not_run_cause,
     verify_items,
 )
+from src.llm.client import GeminiLlmClient
 from src.llm.env import load_env_file
 
 DEFAULT_FIXTURE_PATH = Path("data/fixtures/adversarial/wrong_glosses.jsonl")
@@ -396,6 +424,52 @@ def _print_false_positives(records: list[GlossRecord], correct_report: Verificat
             print(f"        reason: {reason}")
 
 
+def _combined_cache_coverage(
+    row_groups: Sequence[Sequence[GlossRecord]],
+    llm_client: GeminiLlmClient | None,
+    *,
+    batch_size: int,
+) -> CacheCoverage:
+    """One coverage figure over both arms. The two arms are verified in two
+    separate ``verify_items`` calls, deliberately (a pair's two glosses must
+    never share a batch), so each is measured on its own batching and the
+    totals are added -- never by concatenating the rows, which would build
+    batch prompts that straddle the arms and match nothing the run wrote."""
+    total = 0
+    cached = 0
+    for group in row_groups:
+        coverage = cache_coverage(
+            [to_bank_item(r) for r in group], llm_client, batch_size=batch_size
+        )
+        total += coverage.total_items
+        cached += coverage.cached_items
+    return CacheCoverage(total_items=total, cached_items=cached)
+
+
+def _print_progress(coverage: CacheCoverage, *, batch_size: int) -> None:
+    """The one block the operator reads to decide whether a multi-day
+    free-lane run is converging or stuck. Printed only when the run was
+    incomplete: a complete run's own numbers are the result, and a progress
+    line under them would only muddy which of the two to read."""
+    print()
+    print("  PROGRESS TOWARD A COMPLETE MEASUREMENT")
+    print(
+        f"    rows with a cached model verdict: {coverage.cached_items} of {coverage.total_items}"
+    )
+    print(f"    rows still missing a verdict:     {coverage.missing_items}")
+    print(
+        "    Re-running this exact command replays those "
+        f"{coverage.cached_items} cached verdict(s) from the local cache at "
+        f"zero cost and spends quota only on the remaining "
+        f"{coverage.missing_items}. The measurement completes on the first run "
+        f"that reaches {coverage.total_items} of {coverage.total_items}."
+    )
+    print(
+        f"    Keep --batch-size at {batch_size} across runs: the cache is keyed "
+        "on the exact batch prompt, so changing it discards this progress."
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Measure whether the model verifier notices a wrong English gloss."
@@ -489,6 +563,10 @@ def main() -> int:
             f"completing ({type(exc).__name__}: {exc}). Recall and "
             "false-positive rate could NOT be measured this run."
         )
+        _print_progress(
+            _combined_cache_coverage([wrong, correct], llm_client, batch_size=args.batch_size),
+            batch_size=args.batch_size,
+        )
         return 1
 
     recall_arm = summarize_arm("Wrong glosses", wrong_report, len(wrong))
@@ -509,10 +587,20 @@ def main() -> int:
     if not_run_total > 0:
         print()
         print(
-            f"  FAILING: {not_run_total} row(s) across both arms were not_run "
-            "(malformed response, transport failure, or budget ceiling -- see "
-            "the counts above). A run where the pass did not judge every row "
-            "is not a valid measurement of either number."
+            f"  FAILING: {not_run_total} row(s) across both arms were not_run. "
+            "A run where the pass did not judge every row is not a valid "
+            "measurement of either number, whatever the rates above say."
+        )
+        # Name what actually happened rather than listing what might have:
+        # both the reason slugs and the degrading exception's own message are
+        # already on the reports, and for the case this script hits most -- a
+        # --free-lane-only run refused by the free tier's daily allowance --
+        # that message names RPD and the reset time in local time.
+        for line in describe_not_run_cause([wrong_report, correct_report]):
+            print(f"    {line}")
+        _print_progress(
+            _combined_cache_coverage([wrong, correct], llm_client, batch_size=args.batch_size),
+            batch_size=args.batch_size,
         )
         return 1
 
