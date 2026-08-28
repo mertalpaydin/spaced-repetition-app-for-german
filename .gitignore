@@ -140,5 +140,10 @@ Thumbs.db
 # not be committed and had to be hand-carried to the owner as a loose file.
 # Un-ignored on the owner's instruction, 2026-08-27.
 
-# Planning documents
-project_plan/
+# Planning documents are NOT ignored. The product plan and the five stage
+# documents used to live in an ignored project_plan/ directory, so a clone of
+# this repo contained none of them even though CLAUDE.md section 1 tells every
+# reader to read the stage document first and section 3 lists them under
+# docs/. They hold environment variable names only, never values, and no
+# personal data, so there is nothing in them to withhold. Moved to the paths
+# CLAUDE.md already named and tracked from 2026-08-28.
