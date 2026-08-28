@@ -3209,3 +3209,87 @@ class-name mismatches between the markup and `web/styles.css`.
 
 `uv run pytest -q`: 1788 passed. `ruff check`, `ruff format --check` and
 `mypy --strict src/` all clean. No source file changed in this cycle.
+
+---
+
+## Cycle 19, 28 August 2026: local models as the verification backstop
+
+TODO.md item 0. Not a fix. This records a measurement that came back negative,
+and the harness defects found while taking it.
+
+### The question
+
+The hosted verifier's measured recall (60.5% pooled, 15/20 on the defects it can
+actually see) and false-positive rate (12.9%) are not good enough to build a
+bank on with confidence, and the free lane's daily quota and its 503s make a
+1,225-item run take days. A local model would remove the quota, the 503s, the
+spend ceiling and the privacy question at once.
+
+### The answer: no
+
+Five models, quantised to fit a 6 GB VRAM budget on an RTX 4070 Laptop, scored
+on the same two golden fixtures through the same `verify_items` pass.
+
+| Model | Recall (visible) | False positives |
+|---|---:|---:|
+| Gemini 3.7 Flash (baseline) | 75.0% | 12.9% |
+| Gemma 4 12B Q3_K_S | 11.1% | 3.4% |
+| Qwen3.5 9B IQ4_XS | 47.4% | 26.9% |
+| Ministral 3 14B Instruct UD-IQ2_M | 60.0% | 51.7% |
+| Granite 4.2 3B Q5_K_M | 69.2% | 53.3% |
+
+Every model that catches a useful share of defects rejects a quarter to half of
+all good candidates. Gemma is the exception and catches almost nothing. The
+trade was never $3.28 against zero; it was $3.28 against most of the corpus's
+good candidates, on a bank whose scarce topics already struggle to reach 25
+items. Full record and caveats in `docs/audits/local-verifier-eval.md`.
+
+### What was wrong with the first two rounds of numbers
+
+Recorded because they would recur:
+
+- **ollama's `/api/generate` bypasses the model's chat template**, so a
+  reasoning model's thinking arrives inline as untagged prose with the
+  `thinking` field empty. Granite produced zero `{` characters that way and
+  15,628 characters of cleanly separated thought through `/api/chat`.
+- **The hosted baseline was measured at `--batch-size 5`**, not the script's
+  default of 20 (this file, cycle 17). The default gives a number that looks
+  comparable and is not.
+- **`mypy --strict` was run on `src/` only**, so a `Protocol` widening that
+  `GeminiLlmClient` did not actually satisfy passed locally. CI runs
+  `src/ scripts/`.
+
+### What was built and kept
+
+- `src/llm/local_client.py`: an ollama-backed client implementing the slice of
+  `GeminiLlmClient` the verification pass uses. Sequential by design (one GPU),
+  streams so a long call is observable, and writes a `cost_log` row per call
+  with `lane="local"` and a true zero cost.
+- `scripts/eval_local_verifier.py`: scores one model per invocation, reports
+  recall pooled and over the 20 records whose defect the verifier can actually
+  see, false positives, tokens/sec excluding the load call, truncation count and
+  peak VRAM. Its pre-flight probe cuts the cost of a model that cannot answer
+  from about an hour to one call.
+- 47 unit tests, all against an injected fake transport.
+
+### Contract changes, flagged per rule 8
+
+- `verify_items` and `cache_coverage` take a `VerifyingLlmClient` Protocol
+  rather than a concrete `GeminiLlmClient`. A widening only. `cache` is declared
+  as a read-only property because a protocol attribute is invariant and
+  `GeminiLlmClient.cache` is `LlmCache`, not `LlmCache | None`.
+- `Lane` and `LoggedMode` gained `"local"`. Additive; no historical row carries
+  it.
+
+### Found while verifying, not caused by this work
+
+`mypy --strict src/ scripts/` fails on a clean checkout with 5 errors in 4 files
+(`build_verb_government.py`, `check_gold_examples.py`,
+`step5_pilot_generation.py`, `eval_tatoeba_translation_quality.py`). CI's
+`quality-checks` job runs that on every push and pull request, so it is red
+independently of the two marker-selection jobs already known to fail. Verified
+by stashing all working-tree changes and running against HEAD. Carried in
+TODO.md item 12.
+
+`uv run pytest -q`: 1835 passed. `ruff check`, `ruff format --check` and
+`mypy --strict src/` all clean.
