@@ -23,7 +23,7 @@ These are invariants. Violating any of them is a defect regardless of whether te
 1. **An LLM is never the source of truth for user progress.** All progress numbers are computed in code from `review_log`. An LLM may narrate them. It may not produce them.
 2. **No item may name or hint at the grammar topic it tests.** No "Setze ins Dativ." Prompts are topic-agnostic. This is the entire product thesis; an item that leaks its topic is worse than no item.
 3. **No LLM call sits on the critical path of answering an exercise.** Round flow is bank retrieval plus deterministic grading. Explanations and production grading are explicitly off-path and asynchronous or on-demand.
-4. **Every LLM call goes through `src/llm/client.py`.** Direct SDK calls anywhere else are forbidden. The wrapper handles retries, token accounting, cost logging, and the spend ceiling. A call that bypasses it is invisible to the budget.
+4. **Every LLM call goes through `src/llm/client.py`.** Direct SDK calls anywhere else are forbidden. The wrapper handles retries, token accounting, cost logging, and the spend ceiling. A call that bypasses it is invisible to the budget. **One sanctioned second transport exists**: `src/llm/local_client.py` (`LocalLlmClient`) talks to a local ollama runtime. It cannot spend money, so the ceiling is moot for it, but the *visibility* half of this rule still binds: it writes a `cost_log` row per call through `client.append_cost_row` with `lane="local"` and `cost_usd=0.0`, so a run verified on a local model never reads as a run that did no verification. It is not a general-purpose client and implements only what the verification pass calls.
 5. **One item, one `tag_id`.** No compound tagging, no multi-topic attribution.
 6. **`accepted_answers` is always a list.** Never a single string, never `None`.
 7. **Do not weaken a failing test to make it pass.** If a test is wrong, say so and explain why before changing it.
@@ -235,6 +235,8 @@ Thinking is keyed on the **model**, not on the calling workload (`GeminiLlmClien
 
 There is no separate "topic-leak check" or "override verification" LLM call. Topic-leak checking (`src/verification/layer_topic_leak.py`) is a deterministic blocklist/compound-term match, not a model call at all, and does not appear in `cost_log`. "Answer-set expansion" and what an earlier version of this table called "override verification" are the same call: layer 5 of the verification pipeline, optional per run, invoked on every candidate that survives layers 1-4 when an `llm_client` is supplied. Earlier drafts of this table listed them as two rows on `gemini-3.6-flash`; the code uses one row, on `gemini-3.7-flash`.
 
+**Local models were measured against this routing and rejected, 2026-08-28.** Five models under a 6 GB VRAM budget (Granite 4.2 3B, Qwen3.5 9B, Gemma 4 12B, Ministral 3 14B in both checkpoints) were scored on `MODEL_VERIFY`'s own golden fixtures. Every one that caught a useful share of defects rejected between a quarter and half of all *good* candidates, against the hosted verifier's 12.9%. `docs/audits/local-verifier-eval.md` has the numbers and the four harness defects found on the way. Do not re-run this without reading that file first: the two settings that silently invalidate the comparison are using ollama's `/api/generate` instead of `/api/chat`, and running at a batch size other than 5.
+
 Model IDs live in one config block. No model string appears inline anywhere in `src/`.
 
 **Verify pricing and free-tier limits before implementing, and propose a change if the routing is stale.** This table reflects prices at the time of writing, and the Gemini lineup moved repeatedly through 2026: 3.6 Flash launched in July at a lower output price than 3.5 Flash, 2.5 Flash-Lite retires in October, and free-tier quotas were cut sharply in December 2025. At the start of stage 0, read Google's current pricing page and the AI Studio rate-limit view for both projects, record both in `docs/audits/stage-00-quota.md`, and if a cheaper or better-performing model now occupies a slot, say so and recommend the swap rather than following this table. `docs/audits/stage-00-quota.md` section 4 found `gemini-3.6-flash` and `gemini-3.7-flash` identically priced, so the code's use of `gemini-3.7-flash` for `MODEL_VERIFY` (this table used to say `gemini-3.6-flash`) is not a cost regression, just a naming correction.
@@ -280,7 +282,7 @@ Flip it to `true` before anyone other than you uses the app. Three calls carry u
 **Do use a local content-addressed cache**, keyed on a hash of the full request, in `src/llm/cache.py`:
 
 - Every call checks the cache before the transport, on both lanes.
-- Cache hits write a `cost_log` row with zero cost and `lane="cache"`, so hit rate is measurable.
+- Cache hits write a `cost_log` row with zero cost and `lane="cache"`, so hit rate is measurable. `lane="local"` (with `mode="local"`) is the same idea for an on-device model: a true zero, not a placeholder. Both are additive to `Lane`/`LoggedMode` and no historical row carries them, flagged per rule 8.
 - The cache is the idempotency mechanism as well: a rerun after a crash must not regenerate what already landed.
 - Never cache anything keyed on user-identifying data.
 

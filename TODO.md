@@ -13,6 +13,42 @@ documents cite them. They are labels, not an order. The order is top to bottom.
 
 ---
 
+## 0b. Decide what to do about local models (2.8)
+
+The measurement is **done** and is in `docs/audits/local-verifier-eval.md`.
+What is left is a decision, and it is small.
+
+**The finding.** No local model tested can replace the hosted verifier. Ranked
+by false-positive rate, which is what decides affordability:
+
+| Model | Recall (visible) | False positives |
+|---|---:|---:|
+| Gemini 3.7 Flash (baseline) | 75.0% | 12.9% |
+| Gemma 4 12B Q3_K_S | 11.1% | 3.4% |
+| Qwen3.5 9B IQ4_XS | 47.4% | 26.9% |
+| Ministral 3 14B Instruct UD-IQ2_M | 60.0% | 51.7% |
+| Granite 4.2 3B Q5_K_M | 69.2% | 53.3% |
+
+Every model that catches a useful share of defects rejects a quarter to half of
+all good candidates. Gemma is the exception and catches almost nothing. The
+saving would be about $3.28 per bank build; the cost would be most of the
+corpus's good candidates, on a bank whose scarce topics already struggle to
+reach 25 items.
+
+**Do.** Nothing, unless you disagree. The default is: keep the hosted verifier,
+keep `src/llm/local_client.py` and `scripts/eval_local_verifier.py` so the next
+cheap model release is a one-command question, and stop here.
+
+**If you want one more datapoint,** the untested one is Ministral 3 14B
+Reasoning, stopped after 3 calls because it needs about 2.8 hours for the
+fixtures and 17.7 hours at best for a real bank build. It is disqualified on
+throughput whatever its accuracy.
+
+**Done when.** This item is deleted, or a follow-up is written saying what else
+to try.
+
+---
+
 ## 1. Decide the verification pass count (2.1c)
 
 Do this first. It costs nothing and it changes the bank build.
@@ -205,6 +241,56 @@ generated, and the rule for deciding. That becomes the standing policy.
 
 ---
 
+## 12. Two one-line defects, neither on the bank path
+
+Deferred deliberately. Both are known, both are small, and neither blocks the
+bank build. Do them when the bank build is not the active work.
+
+**Do.**
+
+- **Delete the topic from `scripts/step4_run_app.py:68`.** It prints
+  `Thema: {topic_id} ({cefr})` above the sentence and then asks for the
+  answer, so the learner is handed the grammar point before answering. That is
+  CLAUDE.md rule 2, the product thesis, broken in the script
+  `docs/building-the-bank.md` step 4 tells you to run to confirm the bank
+  works. `src/cli/` and the PWA both render sentence and cue only, so this
+  script misrepresents the app as well as leaking. Keep the `[3/6]` counter and
+  drop the rest of the line; the CEFR level goes too, because level and topic
+  correlate closely enough to leak.
+
+- **Decide what `.github/workflows/ci.yml`'s `simulation-tests` and
+  `live-tests` jobs are for.** Both run `pytest -m <marker>`; both markers are
+  declared in `pyproject.toml` and applied to zero tests; pytest exits 5 on an
+  empty selection and GitHub reads that as failure. So the pull-request gate to
+  `main` is red before any code is written, and the nightly on `main` fails
+  identically. Either mark the tests that belong to each lane
+  (`tests/test_typo_simulation.py` is the simulation suite; nothing in the repo
+  is a live-API test) or delete the two jobs and the two markers. Do not paper
+  over it with `|| [ $? -eq 5 ]`, which makes an empty lane indistinguishable
+  from a working one.
+
+- **`mypy --strict src/ scripts/` fails on a clean checkout.** Five errors in
+  four files, none of them recent: `build_verb_government.py:338` (an unused
+  `type: ignore` masking a real `call-overload`), `check_gold_examples.py:211`,
+  `step5_pilot_generation.py:95` (unused `type: ignore`), and
+  `eval_tatoeba_translation_quality.py:224`. CI's `quality-checks` job runs
+  exactly that command on **every push and every pull request**, so that gate
+  is red too, independently of the marker problem above. Verified by stashing
+  all working-tree changes and running against HEAD. `mypy --strict src/` alone
+  is clean, which is presumably why this went unnoticed.
+
+**Why later.** The first is a one-line deletion that changes no test. The
+second is the owner's call, because it decides whether those two test lanes
+exist at all. The third is four small type fixes. None of them blocks item 2,
+but between them **every CI job in the repository currently fails**, so the
+first green build will need all three.
+
+**Done when.** `step4_run_app.py` names no topic before the answer,
+`mypy --strict src/ scripts/` is clean on a fresh checkout, and a pull request
+to `main` goes green.
+
+---
+
 ## Smaller, any time
 
 - **2.3b Reconcile the cost log monthly.** Run
@@ -221,22 +307,6 @@ generated, and the rule for deciding. That becomes the standing policy.
   This is a golden fixture, so correcting a record changes a published recall
   number and needs the owner's say-so plus a commit that explains it. Until
   then, note the caveat wherever that family's number is quoted.
-
-- **`scripts/step4_run_app.py` prints the topic before the learner answers.**
-  It prints `Thema: {topic_id}` above the sentence. That is CLAUDE.md rule 2,
-  broken, in the script `docs/building-the-bank.md` tells you to run. The real
-  CLI (`src/cli/`) does not do this, and neither does the PWA. Delete the
-  line.
-
-- **CI's pull-request gate fails by construction.**
-  `.github/workflows/ci.yml`'s `simulation-tests` job runs
-  `uv run pytest -m simulation tests/` on every PR to `main`. No test carries
-  that marker, so pytest selects nothing and exits 5, and the job goes red
-  before any code is written. The nightly `live-tests` job on `main` runs
-  `pytest -m live` and fails identically. Either mark the tests that belong to
-  each lane (`tests/test_typo_simulation.py` is the simulation suite) or delete
-  the two jobs and the two markers. The owner's call, because it decides
-  whether those lanes exist at all.
 
 - **Three CSS class-name mismatches in `web/`.** Listed in
   `docs/project-state.md`. Each one is a one-word edit. Nothing renders wrong

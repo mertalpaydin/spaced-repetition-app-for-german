@@ -205,6 +205,61 @@ across several days without spending anything.
 
 ---
 
+## Local models were evaluated as the verifier, and rejected
+
+**Measured 2026-08-28. Full record in `docs/audits/local-verifier-eval.md`.**
+
+Five local models were run against the same two golden fixtures, through the
+same `verify_items` pass, on the owner's RTX 4070 Laptop (8188 MiB). None is
+usable. Ranked by false-positive rate, the figure that decides affordability:
+
+| Model | Recall (visible) | False positives |
+|---|---:|---:|
+| Gemini 3.7 Flash (baseline) | 75.0% | 12.9% |
+| Gemma 4 12B Q3_K_S | 11.1% | 3.4% |
+| Qwen3.5 9B IQ4_XS | 47.4% | 26.9% |
+| Ministral 3 14B Instruct UD-IQ2_M | 60.0% | 51.7% |
+| Granite 4.2 3B Q5_K_M | 69.2% | 53.3% |
+
+Every model that catches a useful share of defects rejects a quarter to half of
+all good candidates. Gemma is the exception and catches almost nothing. GLM-4.7
+Flash was not tested: it is a ~30B mixture of experts whose smallest
+quantisation is 13.78 GB. Ministral Reasoning was stopped after 3 calls, needing
+17.7 hours at best for a real bank build against the hosted verifier's 30 to 45
+minutes.
+
+The saving would have been about $3.28 per bank build. The cost would have been
+most of the corpus's good candidates.
+
+**What was kept.** `src/llm/local_client.py` (an ollama-backed client, writing a
+`cost_log` row per call with `lane="local"` and zero cost) and
+`scripts/eval_local_verifier.py`, so the next cheap model release is a
+one-command question rather than a day's work.
+
+**Two contract changes, flagged per CLAUDE.md rule 8.** `verify_items` and
+`cache_coverage` now take a `VerifyingLlmClient` Protocol rather than a concrete
+`GeminiLlmClient` (a widening; every existing caller satisfies it structurally).
+`Lane` and `LoggedMode` gained a `"local"` value (additive; no historical row
+carries it).
+
+**Four things that would have produced wrong numbers, and did until they were
+found.** They are the reusable part of this exercise:
+
+- **Use ollama's `/api/chat`, never `/api/generate`.** Only the chat endpoint
+  applies the model's chat template, which is what separates a reasoning model's
+  thinking from its answer. Through the completion endpoint Granite's reasoning
+  arrived as unmarked prose with no JSON anywhere.
+- **The hosted baseline was measured at `--batch-size 5`,** not the script's
+  default of 20. The default gives a number that looks comparable and is not.
+- **Local models cannot hold five items in one prompt.** Four of five failed at
+  batch 5 and passed at batch 2. Start any future local work at batch 2.
+- **Reasoning cannot be bounded on these models, only switched off.** ollama's
+  `think: "low"` and `"medium"` are silently ignored. With reasoning on, neither
+  Qwen nor Granite ever answered, at any batch size or token cap up to 32,768.
+  Every number above is therefore measured with reasoning off.
+
+---
+
 ## Money
 
 The recurring budget is **7.50 USD a month**. It is enforced in code, in

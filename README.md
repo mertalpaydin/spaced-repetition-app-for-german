@@ -54,6 +54,7 @@ takes hours and it has never been run, so read all of it before starting.
 | `docs/building-the-bank.md` | The commands that build an item bank, and what each one costs. |
 | `docs/plan/german-grammar-app-plan.md` | The product design and why it is this way. |
 | `docs/00-index.md` and `docs/01-` to `04-` | The stage plans the code was built against. |
+| `docs/audits/local-verifier-eval.md` | Why local models were tested as the verifier and why none was adopted. Read before retrying it. |
 | `docs/audits/README.md` | Index of the audit record: what each file measured, and on what date. Historical, never instructions. |
 
 Licence: `LICENSE.md`.
