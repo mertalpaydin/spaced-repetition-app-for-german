@@ -463,6 +463,16 @@ Pinned by tests. Do not change without the owner saying so explicitly.
     the free lane, the call moves to the paid lane instead of raising
     (only when the paid lane is permitted and a paid key is configured).
     Do not remove it.
+  - **The budget above is the PAID lane's.** The free lane has its own,
+    `FREE_LANE_SERVER_ERROR_MAX_RETRIES = 12` with
+    `FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE = (30, 60, 120, 240, 480,
+    900 x 7)`, worst case 7230 seconds of sleeping per call. **Not the
+    owner's instruction as a number**, but his instruction as a shape: *"we
+    go slowly if we need to."* The reason four is right for the paid lane
+    is that a 5xx can arrive after Google has already done and billed work,
+    which cannot happen on an unbilled project; the 2026-08-28 free-lane
+    run returned 503 on 7 of 12 attempts and died when one call spent all
+    four retries. Do not collapse the two lanes back into one constant.
 - `spend_ceiling_usd` defaults to **7.50** in `src/llm/client.py`, raised
   from 5.00 at the owner's instruction on 2026-08-27. CLAUDE.md section 9
   and `docs/audits/stage-00-quota.md` were corrected in the same commit.

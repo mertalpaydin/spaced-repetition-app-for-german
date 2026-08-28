@@ -456,11 +456,67 @@ class GeminiLlmClient:
     # so the schedule escalates instead: half a minute, two minutes, eight
     # minutes, fifteen minutes, covering roughly 25 minutes with four
     # attempts rather than ten minutes with forty.
+    #
+    # These are the PAID lane's budget. The free lane has its own, much larger
+    # one below, for the reason spelled out there.
     SERVER_ERROR_BACKOFF_SCHEDULE: tuple[float, ...] = (30.0, 120.0, 480.0, 900.0)
     # Scalar fallback for an attempt index past the end of the schedule, so a
-    # raised ``SERVER_ERROR_MAX_RETRIES`` can never index off the end.
+    # raised ``SERVER_ERROR_MAX_RETRIES`` can never index off the end. Shared
+    # by both lanes' schedules, which both end on this same value.
     SERVER_ERROR_BACKOFF_SECONDS: float = 900.0
     SERVER_ERROR_MAX_RETRIES: int = 4
+
+    # The FREE lane's own 5xx budget. The reasoning that makes four retries
+    # right for the paid lane does not survive the move to the free lane: the
+    # premise there is that a 5xx can arrive after Google has already done and
+    # billed work, so each retry can cost real money. On the free lane nothing
+    # is billed at all -- it is an unbilled Cloud project and
+    # ``_estimate_cost`` prices every free-lane row at exactly 0.0 -- so a 503
+    # retry costs time and nothing else. One constant for both lanes therefore
+    # over-retried where retrying is expensive and under-retried where it is
+    # free.
+    #
+    # It under-retried badly. The owner's 2026-08-28 free-lane run came back
+    # ``server_error`` on 7 of 12 logged attempts -- genuine 5xx, since 429s
+    # log as ``outcome="quota"`` and that run has none -- and one call spent
+    # all four retries and gave up. The run needed 15 calls, made 7, and died
+    # without producing a measurement. Stopping early saved nothing, because
+    # there was nothing to save, and cost the whole run.
+    #
+    # The owner's instruction for this lane is "we go slowly if we need to".
+    # Twelve retries, thirteen attempts. The schedule EXTENDS the paid one's
+    # escalation rather than repeating a short delay (hammering a service that
+    # is down is exactly what the cut from 40 retries was right to remove) and
+    # then plateaus at the same fifteen minutes the paid schedule ends on: a
+    # wait longer than that stops being "slowly" and starts being a hang.
+    #
+    # WORST CASE, stated here so it can be agreed to rather than discovered:
+    # 30 + 60 + 120 + 240 + 480 + (7 * 900) = 7230 seconds, i.e. two hours and
+    # thirty seconds of sleeping per call before it gives up, plus the
+    # attempts' own round-trip time. It is bounded, and the schedule holds
+    # exactly one entry per retry, so no call can spin for an unbounded wall
+    # clock. For a whole ``generate_many`` group the bound multiplies by the
+    # number of concurrency waves rather than by the number of calls: at
+    # ``FREE_LANE_MAX_CONCURRENCY`` = 4, a 14-call group in which EVERY call
+    # exhausts its budget is 4 waves, roughly 8 hours, and then the group
+    # raises. That is the pathological case (a free project down for eight
+    # hours straight). The case this exists for, a burst of overload lasting
+    # minutes, costs a run only the retries it actually uses.
+    FREE_LANE_SERVER_ERROR_MAX_RETRIES: int = 12
+    FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE: tuple[float, ...] = (
+        30.0,
+        60.0,
+        120.0,
+        240.0,
+        480.0,
+        900.0,
+        900.0,
+        900.0,
+        900.0,
+        900.0,
+        900.0,
+        900.0,
+    )
     # The batch path gets its own, lower cap. This is NOT the owner's
     # instruction; it is this cycle's judgement, from the asymmetry in what a
     # retry costs. A sync 503 served nothing and billed nothing, so retrying
@@ -636,7 +692,6 @@ class GeminiLlmClient:
     def _build_cost_row(
         self,
         *,
-        timestamp: datetime,
         model: str,
         lane: Lane,
         mode: TransportMode,
@@ -655,9 +710,12 @@ class GeminiLlmClient:
         ``attempt`` above 1 says this call was retried and that
         ``_log_failed_attempt`` has already written ``attempt - 1`` rows under
         the same ``call_id``.
+
+        The timestamp is read from the clock HERE, when the row is built, and
+        is deliberately not passed in. See ``_log_failed_attempt`` for why.
         """
         return CostLogRow(
-            timestamp=timestamp,
+            timestamp=self._clock(),
             model=model,
             lane=lane,
             mode=mode,
@@ -680,7 +738,6 @@ class GeminiLlmClient:
     def _log_failed_attempt(
         self,
         *,
-        timestamp: datetime,
         model: str,
         lane: Lane,
         mode: TransportMode,
@@ -721,10 +778,28 @@ class GeminiLlmClient:
         ``"quota"`` row is a 429, which Google refuses and does not bill; it
         is logged for retry legibility, not because it hides spend. A
         ``"server_error"`` row is the one that can hide spend.
+
+        **The timestamp is read from ``self._clock()`` here, at the moment the
+        row is written, and is deliberately not a parameter.** It used to be
+        passed in as the caller's ``ref_time``, which is computed once at the
+        top of ``generate``/``generate_many`` and means "when this call
+        started". Every attempt of a retried call therefore shared one
+        timestamp, identical to the microsecond, even though
+        ``SERVER_ERROR_BACKOFF_SCHEDULE`` puts at least ten minutes between
+        the first attempt and the fourth. Two things broke:
+        ``scripts/reconcile_cost_log.py`` groups by day, so a call that starts
+        at 23:55 and retries past midnight filed those attempts on the wrong
+        day and manufactured (or masked) a discrepancy against Google's
+        per-day billing export; and the spacing between attempts, which is
+        half of what attempt logging was added to make visible, was destroyed
+        while the attempt COUNT survived. ``ref_time`` is still the right
+        value for everything else it feeds (the month-to-date spend gate, the
+        lane decision, the Pacific-midnight reset arithmetic) -- those all
+        genuinely mean "at the start of the call". A log row does not.
         """
         self._log_cost(
             CostLogRow(
-                timestamp=timestamp,
+                timestamp=self._clock(),
                 model=model,
                 lane=lane,
                 mode=mode,
@@ -1059,14 +1134,35 @@ class GeminiLlmClient:
                     return None
         return None
 
-    def _server_error_backoff_seconds(self, attempt_index: int) -> float:
-        """Backoff for the ``attempt_index``-th (0-based) 5xx retry.
+    def _server_error_max_retries(self, lane: Lane) -> int:
+        """How many 5xx retries ``lane`` gets.
 
-        Reads ``SERVER_ERROR_BACKOFF_SCHEDULE`` in order and falls back to the
-        scalar ``SERVER_ERROR_BACKOFF_SECONDS`` past the end of it, so raising
-        a retry cap can never index off the schedule.
+        Lane-dependent because the cost of a retry is: a paid-lane 5xx can
+        arrive after Google has already done and billed work, a free-lane one
+        cannot bill anything at all. See ``FREE_LANE_SERVER_ERROR_MAX_RETRIES``
+        for the full argument and the worst-case wall clock it implies.
+
+        ``"cache"`` never reaches the transport, so anything that is not the
+        free lane takes the paid lane's conservative budget.
         """
-        schedule = self.SERVER_ERROR_BACKOFF_SCHEDULE
+        if lane == "free":
+            return self.FREE_LANE_SERVER_ERROR_MAX_RETRIES
+        return self.SERVER_ERROR_MAX_RETRIES
+
+    def _server_error_backoff_seconds(self, attempt_index: int, *, lane: Lane) -> float:
+        """Backoff for the ``attempt_index``-th (0-based) 5xx retry on ``lane``.
+
+        Reads that lane's schedule in order and falls back to the scalar
+        ``SERVER_ERROR_BACKOFF_SECONDS`` past the end of it, so raising a retry
+        cap can never index off a schedule. ``lane`` is required rather than
+        defaulted: the two lanes have different budgets now, and a caller that
+        forgets which one it is on is a bug worth failing on.
+        """
+        schedule = (
+            self.FREE_LANE_SERVER_ERROR_BACKOFF_SCHEDULE
+            if lane == "free"
+            else self.SERVER_ERROR_BACKOFF_SCHEDULE
+        )
         if 0 <= attempt_index < len(schedule):
             return schedule[attempt_index]
         return self.SERVER_ERROR_BACKOFF_SECONDS
@@ -1307,7 +1403,6 @@ class GeminiLlmClient:
         prompts: list[str],
         config: genai_types.GenerateContentConfig,
         purpose: str,
-        ref_time: datetime,
     ) -> BatchTransportResult:
         """Transient-retry wrapper around ``_call_batch_many``, scoped to the
         paid lane's group submission: no RPD lane-switch (there is nowhere
@@ -1345,7 +1440,6 @@ class GeminiLlmClient:
                 return BatchTransportResult(results=results, attempt=attempt, call_id=call_id)
             except QuotaExceededError as exc:
                 self._log_failed_attempt(
-                    timestamp=ref_time,
                     model=model,
                     lane="paid",
                     mode="batch",
@@ -1361,7 +1455,6 @@ class GeminiLlmClient:
                 continue
             except ServerUnavailableError:
                 self._log_failed_attempt(
-                    timestamp=ref_time,
                     model=model,
                     lane="paid",
                     mode="batch",
@@ -1372,7 +1465,9 @@ class GeminiLlmClient:
                 )
                 if server_attempts >= self.SERVER_ERROR_BATCH_MAX_RETRIES:
                     raise
-                self._sleep(self._server_error_backoff_seconds(server_attempts))
+                # Batch is paid-lane-only, so this is the paid schedule by
+                # construction, not by default.
+                self._sleep(self._server_error_backoff_seconds(server_attempts, lane="paid"))
                 server_attempts += 1
                 continue
             except ModelRejectedError:
@@ -1391,7 +1486,6 @@ class GeminiLlmClient:
                 # exactly the silent, billed, zero-row day the owner's
                 # Aug 14-17 export shows and his cost log does not.
                 self._log_failed_attempt(
-                    timestamp=ref_time,
                     model=model,
                     lane="paid",
                     mode="batch",
@@ -1564,7 +1658,11 @@ class GeminiLlmClient:
         5xx server overload: not a quota signal at all -- back off and retry
         on the same lane, exactly like RPM, but on its own escalating
         schedule and its own bounded retry count, so it can never masquerade
-        as quota exhaustion or trigger the RPD lane-closing path. When those
+        as quota exhaustion or trigger the RPD lane-closing path. That
+        schedule and count are per lane (``_server_error_max_retries``,
+        ``_server_error_backoff_seconds``): the free lane retries far longer
+        because a free-lane retry cannot bill anything, while the paid lane's
+        budget stays exactly where the owner set it. When those
         retries are exhausted on the free lane, the call moves to the paid
         lane rather than raising: that is the owner's own free-to-paid
         fallback, applied after a pilot died on a 503 that outlasted the
@@ -1595,7 +1693,6 @@ class GeminiLlmClient:
                 )
             except QuotaExceededError as exc:
                 self._log_failed_attempt(
-                    timestamp=ref_time,
                     model=model,
                     lane=lane,
                     mode=mode,
@@ -1621,7 +1718,6 @@ class GeminiLlmClient:
                 mode = self._mode_for_lane(lane)
             except ServerUnavailableError:
                 self._log_failed_attempt(
-                    timestamp=ref_time,
                     model=model,
                     lane=lane,
                     mode=mode,
@@ -1630,18 +1726,21 @@ class GeminiLlmClient:
                     attempt=attempt,
                     call_id=call_id,
                 )
-                if server_attempts >= self.SERVER_ERROR_MAX_RETRIES:
+                if server_attempts >= self._server_error_max_retries(lane):
                     if lane == "free" and not self.forbid_paid_lane and self.paid_api_key:
                         # The owner's free-to-paid fallback: Google's free
                         # project is down for this call, the paid project is a
                         # different project, so try it rather than losing the
-                        # work. Retries restart on the new lane.
+                        # work. Retries restart on the new lane, and on the
+                        # new lane's own budget -- the paid one, which is
+                        # deliberately much smaller because paid retries can
+                        # cost money and free ones cannot.
                         lane = "paid"
                         mode = self._mode_for_lane(lane)
                         server_attempts = 0
                         continue
                     raise
-                self._sleep(self._server_error_backoff_seconds(server_attempts))
+                self._sleep(self._server_error_backoff_seconds(server_attempts, lane=lane))
                 server_attempts += 1
                 continue
 
@@ -1676,7 +1775,10 @@ class GeminiLlmClient:
             if cached is not None:
                 self._log_cost(
                     CostLogRow(
-                        timestamp=ref_time,
+                        # Read at write time, like every other row: a cache
+                        # hit happens now, not at whatever ``ref_time`` the
+                        # caller handed in.
+                        timestamp=self._clock(),
                         model=model,
                         lane="cache",
                         mode="cache",
@@ -1701,7 +1803,6 @@ class GeminiLlmClient:
         # 5. Persist to Cost Log & Cache
         self._log_cost(
             self._build_cost_row(
-                timestamp=ref_time,
                 model=model,
                 lane=result.lane,
                 mode=result.mode,
@@ -1794,7 +1895,10 @@ class GeminiLlmClient:
                 if cached is not None:
                     self._log_cost(
                         CostLogRow(
-                            timestamp=ref_time,
+                            # Per hit, not per group: several hits in one
+                            # ``generate_many`` are separate rows and each one
+                            # records when it was actually served.
+                            timestamp=self._clock(),
                             model=model,
                             lane="cache",
                             mode="cache",
@@ -1838,7 +1942,6 @@ class GeminiLlmClient:
                     result = future.result()
                     self._log_cost(
                         self._build_cost_row(
-                            timestamp=ref_time,
                             model=model,
                             lane=result.lane,
                             mode=result.mode,
@@ -1870,7 +1973,6 @@ class GeminiLlmClient:
                     prompts=chunk_prompts,
                     config=config,
                     purpose=purpose,
-                    ref_time=ref_time,
                 )
                 for i, (text, usage) in zip(chunk, batch.results, strict=True):
                     # This branch is only reachable for a real Batch API
@@ -1885,7 +1987,6 @@ class GeminiLlmClient:
                     # ``server_error`` rows the failed submissions wrote.
                     self._log_cost(
                         self._build_cost_row(
-                            timestamp=ref_time,
                             model=model,
                             lane="paid",
                             mode="batch",

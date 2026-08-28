@@ -1106,7 +1106,9 @@ class AnswerSetExpander:
         - ``BudgetExceeded`` -- CLAUDE.md 9: "Callers handle it by degrading,
           never by retrying."
         - ``ServerUnavailableError`` -- transient 5xx overload that survives
-          the transport's own bounded retries (``SERVER_ERROR_MAX_RETRIES``);
+          the transport's own bounded retries (``SERVER_ERROR_MAX_RETRIES``
+          on the paid lane, the far larger
+          ``FREE_LANE_SERVER_ERROR_MAX_RETRIES`` on the free one);
           observed live as a sustained-enough outage on ``gemini-3.7-flash``
           to exhaust them.
 
