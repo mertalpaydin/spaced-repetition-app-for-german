@@ -13,33 +13,7 @@ documents cite them. They are labels, not an order. The order is top to bottom.
 
 ---
 
-## 1. Close 2.15, the wrong-number translation (2.2c)
-
-**Do this before anything else.** The owner's instruction, 2026-08-28.
-
-**Do.** Add a deterministic check comparing the answer's grammatical number
-against the number of the matching English noun phrase. `en_core_web_sm` is
-installed and `src/generation/gloss_validation.py` already uses it. Prefer this
-over a fifth verification question: the defect is a closed, mechanical
-agreement fact, so a rule costs nothing per item, where a fifth question costs
-tokens on every call and would then be held at whatever the model's recall
-happens to be.
-
-**Why first.** It is the only class in `docs/known-defects.md` held by nothing
-at all, and its measured recall is **0 of 6** -- the one wrong-translation kind
-where nothing was caught even by accident. It is also the kind that changes the
-answer: a tense slip in the English still leaves `Haeuser` the only thing that
-fits the gap, a number slip does not. Every item the pilot below produces
-carries a gloss, so shipping this after the pilot means auditing a run that
-still has the defect in it.
-
-**Done when.** `uv run python -m scripts.eval_gloss_adversarial` catches more
-than 0 of the 6 `wrong_number` rows and still reports 0 false positives on the
-36 correct ones.
-
----
-
-## 2. Split the pipeline into phase A and phase B (6.2)
+## 1. Split the pipeline into phase A and phase B (6.2)
 
 **Do.** Cut `scripts/step7_corpus_pilot.py` at its natural seam and persist the
 intermediate:
@@ -56,9 +30,9 @@ lines with **no checkpoint of any kind** -- the tagger's `lru_cache` is
 in-process and dies with the process. Today any interruption restarts from zero,
 which is what makes a polling scheduled job impossible: a run stopped at 30
 minutes never reaches an LLM call, ever. Splitting it is the change that makes
-item 4 work at all.
+item 3 work at all.
 
-**Run phase A while item 3 is being written.** It needs no API key and costs
+**Run phase A while item 2 is being written.** It needs no API key and costs
 nothing, so start it as soon as it exists and build phase B against the pool it
 produces.
 
@@ -67,7 +41,7 @@ can be re-run repeatedly against one pool without re-reading the corpora.
 
 ---
 
-## 3. Detached batch submission, so a scheduled job can resume (6.3)
+## 2. Detached batch submission, so a scheduled job can resume (6.3)
 
 **Do.** Two changes in `src/llm/client.py` and one in the pilot:
 
@@ -75,7 +49,7 @@ can be re-run repeatedly against one pool without re-reading the corpora.
   `client.batches.create(...)` and then blocks in `_poll_batch_job` until the job
   finishes; the job name is never written anywhere. So a killed process loses a
   submitted job entirely, and **nothing can pick up a batch that is already
-  running**, which is exactly what item 4 depends on. Write the job name, its
+  running**, which is exactly what item 3 depends on. Write the job name, its
   model, purpose and the prompt hashes to disk at submission.
 - **Add a resume path** that reads those records, polls each job, and writes the
   responses into the existing content-addressed cache under the same keys a
@@ -105,7 +79,7 @@ that job's results without re-spending anything.
 
 ---
 
-## 4. The scheduled job (6.4)
+## 3. The scheduled job (6.4)
 
 **Do.** A Windows scheduled task, following the pattern in
 `docs/monthly-translation-job.md`:
@@ -122,7 +96,7 @@ several sittings without being watched.
 
 ---
 
-## 5. The large pilot (6.5)
+## 4. The large pilot (6.5)
 
 **Do.** Phase A at a much larger scale than any previous cycle, then phase B with
 `--verification-passes 2 --verification-batch-size 5`.
@@ -146,7 +120,7 @@ and a rejected file large enough for item 6 to sample from.
 
 ---
 
-## 6. Measure the true false-positive rate (6.6)
+## 5. Measure the true false-positive rate (6.6)
 
 **Do.** Review `data/corpus_pilot_rejected.jsonl` with agents and count how many
 rejected items were actually good. The false-positive rate is that count over
@@ -174,7 +148,7 @@ the two vendors' conflict list, and the hand-checked subsample.
 
 ---
 
-## 7. Zero defects that reach a learner (6.7)
+## 6. Zero defects that reach a learner (6.7)
 
 The target is zero defects for the overall pipeline. Zero *produced* is not
 reachable: machine translation, the tagger's own accuracy ceiling
@@ -212,7 +186,7 @@ and a reports-per-hundred-items figure exists.
 
 ---
 
-## 8. Collocation evidence, for defect class 2.1 (6.8)
+## 7. Collocation evidence, for defect class 2.1 (6.8)
 
 **Do.** Mine collocation evidence from the corpus the same way
 `scripts/build_verb_government.py` already mines case government: count real
@@ -255,9 +229,9 @@ well-attested pairs, measured against a pilot's defect rate for class 2.1.
 ---
 
 
-## 9. Build the item bank (6.1)
+## 8. Build the item bank (6.1)
 
-The biggest single piece of open work. Items 1 to 6 come first: they close the
+The biggest single piece of open work. Items 1 to 5 come first: they close the
 one defect nothing catches, make the run resumable, and measure the
 false-positive rate that decides how the build is configured.
 
@@ -281,7 +255,7 @@ topics the corpus cannot fill to 25.
 
 ---
 
-## 10. Schedule the monthly translation job (2.6)
+## 9. Schedule the monthly translation job (2.6)
 
 **Do.** One `schtasks /Create` line on the owner's machine, per
 `docs/monthly-translation-job.md`. The script and its tests exist.
@@ -295,7 +269,7 @@ its month into `data/fixtures/translations/azure_f0_ledger.json`.
 
 ---
 
-## 11. Decide whether the gloss consistency check rejects (2.1b)
+## 10. Decide whether the gloss consistency check rejects (2.1b)
 
 **Do.** Run a pilot, read the flag count, then set the default. The check runs
 and reports today; `--enforce-gloss-check` makes it reject.
@@ -317,7 +291,7 @@ whose glosses are machine translations.
 
 ---
 
-## 12. Run the gloss purge on the real store, then re-gloss (2.2b)
+## 11. Run the gloss purge on the real store, then re-gloss (2.2b)
 
 **Do.** `scripts/purge_mismatched_glosses.py --dry-run` first, read the
 examples, then apply, then re-run `scripts/build_translations.py
@@ -338,7 +312,7 @@ English one.
 
 ---
 
-## 13. The AI-generation pilot (2.4)
+## 12. The AI-generation pilot (2.4)
 
 Explicitly open. Not deferred, not folded into item 9.
 
@@ -359,16 +333,16 @@ are either measured or disabled.
 
 ---
 
-## 14. Write down the split (2.5)
+## 13. Write down the split (2.5)
 
-**Do.** After item 13. Write which topics are corpus-sourced, which are
+**Do.** After item 12. Write which topics are corpus-sourced, which are
 generated, and the rule for deciding. That becomes the standing policy.
 
 **Done when.** The policy is in `docs/` and the pipeline follows it.
 
 ---
 
-## 15. Two one-line defects, neither on the bank path
+## 14. Two one-line defects, neither on the bank path
 
 Deferred deliberately. Both are known, both are small, and neither blocks the
 bank build. Do them when the bank build is not the active work.
@@ -408,7 +382,7 @@ bank build. Do them when the bank build is not the active work.
 
 **Why later.** The first is a one-line deletion that changes no test. The
 second is the owner's call, because it decides whether those two test lanes
-exist at all. The third is four small type fixes. None of them blocks item 9,
+exist at all. The third is four small type fixes. None of them blocks item 8,
 but between them **every CI job in the repository currently fails**, so the
 first green build will need all three.
 

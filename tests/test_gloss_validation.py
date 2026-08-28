@@ -1236,3 +1236,112 @@ def test_contraction_expands_to_every_word_it_can_stand_for(token: str, expected
     and a match against either counts -- this check catches contradictions,
     it does not prove agreement."""
     assert set(_token_readings(token)) == expected
+
+
+# ---------------------------------------------------------------------------
+# Number: a plural German answer against a singular English gloss.
+# docs/known-defects.md 2.15, TODO.md item 1. The model verification pass
+# caught 0 of 6 of these; every case below is a real fixture row.
+
+
+@pytest.fixture(scope="module")
+def nomen_plural(topics: dict[str, Topic]) -> Topic:
+    return topics["nomen_plural"]
+
+
+def test_plural_answer_with_a_singular_gloss_is_inconsistent(nomen_plural: Topic) -> None:
+    """The canonical 2.15 example. The learner reads "a beautiful house",
+    answers "Haus", and is marked wrong for trusting the half of the item they
+    were told to trust."""
+    result = validate_gloss_consistency(
+        "Ich habe schöne ___ gesehen.", "Häuser", "I saw a beautiful house.", nomen_plural
+    )
+    assert not result.consistent
+    assert "number" in result.checked_dimensions
+    assert result.reason is not None and "plural" in result.reason.lower()
+
+
+def test_plural_answer_with_a_plural_gloss_is_consistent(nomen_plural: Topic) -> None:
+    """The same item's real gloss must still pass."""
+    result = validate_gloss_consistency(
+        "Ich habe schöne ___ gesehen.", "Häuser", "I saw some beautiful houses.", nomen_plural
+    )
+    assert result.consistent
+
+
+def test_plural_answer_glossed_as_an_uncountable_noun_abstains(nomen_plural: Topic) -> None:
+    """ "die Haare" is "hair". A German plural maps onto an English mass noun
+    legitimately, and this produced a real false positive on the last pilot's
+    accepted items before the uncountable guard existed."""
+    result = validate_gloss_consistency(
+        "Ich habe eine Freundin, die sich selbst die ___ schneidet.",
+        "Haare",
+        "I have a friend who cuts her own hair.",
+        nomen_plural,
+    )
+    assert result.consistent
+
+
+def test_uncountable_noun_with_an_indefinite_article_is_still_countable(
+    nomen_plural: Topic,
+) -> None:
+    """ "experience" is on the uncountable list, but "a different experience" is
+    a count noun. The guard must not swallow the real defect."""
+    result = validate_gloss_consistency(
+        "Nach der Geburt ihres Sohnes machte sie andere ___.",
+        "Erfahrungen",
+        "After the birth of her son, she had a different experience.",
+        nomen_plural,
+    )
+    assert not result.consistent
+
+
+def test_singular_answer_is_never_checked_for_number(nomen_plural: Topic) -> None:
+    """Only the plural direction is a real signal. English carries plural nouns
+    for reasons that have nothing to do with the blanked word, so checking the
+    reverse would fire constantly on correct items."""
+    result = validate_gloss_consistency(
+        "Ich habe ein ___ gesehen.", "Haus", "I saw houses and cars.", nomen_plural
+    )
+    assert result.consistent
+
+
+def test_plural_verb_answer_with_a_singular_main_verb_is_inconsistent(
+    topics: dict[str, Topic],
+) -> None:
+    """The one non-noun case in the fixture: "sind" glossed as "is"."""
+    result = validate_gloss_consistency(
+        "Die Maschinen, die in seiner Firma hergestellt werden, ___ besser als unsere.",
+        "sind",
+        "The machine that his company produces is superior to ours.",
+        topics["verb_sein_haben"],
+    )
+    assert not result.consistent
+
+
+def test_a_singular_relative_clause_does_not_make_a_plural_gloss_inconsistent(
+    topics: dict[str, Topic],
+) -> None:
+    """Only the matrix clause carries the sentence's number. Scanning every
+    VBZ would fire on "produces" here and reject a correct gloss."""
+    result = validate_gloss_consistency(
+        "Die Maschinen, die in seiner Firma hergestellt werden, ___ besser als unsere.",
+        "sind",
+        "Machines that his company produces are superior to ours.",
+        topics["verb_sein_haben"],
+    )
+    assert result.consistent
+
+
+def test_first_person_singular_verb_is_not_read_as_plural_agreement(
+    nomen_plural: Topic,
+) -> None:
+    """ "I'm tired of your constant complaint" is VBP but first-person
+    singular. Reading it as plural evidence hid a real defect."""
+    result = validate_gloss_consistency(
+        "Mir hängen deine ständigen ___ zum Hals raus.",
+        "Beschwerden",
+        "I'm tired of your constant complaint.",
+        nomen_plural,
+    )
+    assert not result.consistent

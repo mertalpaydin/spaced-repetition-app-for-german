@@ -156,8 +156,13 @@ from src.generation.blanking.model_verification import (
     describe_not_run_cause,
     verify_items,
 )
+from src.generation.gloss_validation import (
+    english_analysis_available,
+    validate_gloss_consistency,
+)
 from src.llm.client import GeminiLlmClient
 from src.llm.env import load_env_file
+from src.taxonomy.loader import load_taxonomy
 
 DEFAULT_FIXTURE_PATH = Path("data/fixtures/adversarial/wrong_glosses.jsonl")
 
@@ -470,6 +475,87 @@ def _print_progress(coverage: CacheCoverage, *, batch_size: int) -> None:
     )
 
 
+def _run_deterministic(records: list[GlossRecord]) -> int:
+    """Score the DETERMINISTIC gloss check instead of the model verifier.
+
+    docs/known-defects.md 2.15 is closed by a rule, not by a fifth question in
+    the verification instruction, so the model-backed arm of this script cannot
+    measure it: it would report the model's own recall, which was 0 of 6 and is
+    exactly the number the rule exists to replace. This arm calls
+    ``gloss_validation.validate_gloss_consistency`` directly.
+
+    It costs nothing, needs no API key and touches no network, which is also
+    why it is worth having: the number can be re-checked on every commit
+    instead of once per billing decision.
+    """
+    wrong = wrong_rows(records)
+    correct = correct_rows(records)
+
+    print("==========================================================")
+    print("  Deterministic gloss check (no model, no key, no cost)")
+    print("  docs/known-defects.md 2.15 / TODO.md item 1")
+    print("==========================================================")
+    print(f"  Wrong rows:   {len(wrong)}")
+    print(f"  Correct rows: {len(correct)}")
+    if not english_analysis_available():
+        print()
+        print("  FAILING: en_core_web_sm did not load, so nothing was measured.")
+        return 1
+
+    # Pass the real Topic, exactly as the pipeline does. The tense dimension
+    # reads it (``_german_tense_bucket`` prefers the topic's own ``morph_spec``
+    # over the answer token's FEATS), and with ``None`` a Perfekt formed with
+    # "sein" is read off its present-tense auxiliary as present tense, which
+    # rejects four correct past-tense glosses. That is a false positive
+    # belonging to the harness, not to the check.
+    topics_by_id = {topic.id: topic for topic in load_taxonomy()}
+
+    def rejects(record: GlossRecord) -> tuple[bool, str]:
+        result = validate_gloss_consistency(
+            record.prompt,
+            record.answer,
+            record.gloss_en,
+            topics_by_id.get(record.topic_id),
+        )
+        return (not result.consistent), (result.reason or "")
+
+    by_kind: dict[str, list[tuple[GlossRecord, bool, str]]] = {}
+    for record in wrong:
+        caught, reason = rejects(record)
+        by_kind.setdefault(record.defect_kind or "unknown", []).append((record, caught, reason))
+
+    print()
+    print("  Recall by defect kind:")
+    for kind in sorted(by_kind):
+        rows = by_kind[kind]
+        hits = sum(1 for _r, caught, _why in rows if caught)
+        marker = "  <-- 2.15" if kind == "wrong_number" else ""
+        print(f"    {kind:20} {hits}/{len(rows)}{marker}")
+
+    number_rows = by_kind.get("wrong_number", [])
+    number_hits = sum(1 for _r, caught, _why in number_rows if caught)
+
+    false_positives: list[tuple[GlossRecord, str]] = []
+    for record in correct:
+        caught, reason = rejects(record)
+        if caught:
+            false_positives.append((record, reason))
+
+    print()
+    print(f"  wrong_number caught:  {number_hits}/{len(number_rows)}")
+    print(f"  False positives:      {len(false_positives)}/{len(correct)}")
+    for record, reason in false_positives:
+        print(f"    {record.id}: {reason}")
+        print(f"      gloss: {record.gloss_en}")
+
+    print()
+    if number_rows and number_hits > 0 and not false_positives:
+        print("  PASS: 2.15 is caught and no correct gloss was rejected.")
+        return 0
+    print("  FAIL: see TODO.md item 1 for the bar this has to clear.")
+    return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Measure whether the model verifier notices a wrong English gloss."
@@ -491,6 +577,16 @@ def main() -> int:
         help="Path to the adversarial gloss fixture JSONL.",
     )
     parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help=(
+            "Score the deterministic gloss check instead of the model "
+            "verifier. No API key, no network, no cost. This is the arm that "
+            "measures docs/known-defects.md 2.15, which is closed by a rule "
+            "rather than by a model question."
+        ),
+    )
+    parser.add_argument(
         "--free-lane-only",
         action="store_true",
         help=(
@@ -503,6 +599,9 @@ def main() -> int:
         ),
     )
     args = parser.parse_args()
+
+    if args.deterministic:
+        return _run_deterministic(load_fixture(Path(args.fixture)))
 
     load_env_file()
     try:

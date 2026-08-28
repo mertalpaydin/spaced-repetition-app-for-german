@@ -213,7 +213,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from src.contracts import CandidateItem, Topic
 from src.generation.prompt_builder import PromptBuilder
@@ -230,7 +230,7 @@ logger = logging.getLogger(__name__)
 
 EN_MODEL_NAME = "en_core_web_sm"
 
-GlossDimension = Literal["tense", "person"]
+GlossDimension = Literal["tense", "person", "number"]
 _DimensionVerdict = Literal["consistent", "inconsistent", "unverified"]
 _TenseBucket = Literal["present", "past", "perfect", "future", "conditional"]
 _AnalysisSource = Literal["spacy", "closed_list"]
@@ -1281,6 +1281,219 @@ def _gloss_topic_leaks(gloss: str) -> list[str]:
     return [term for term in PromptBuilder.check_for_topic_leaks(gloss) if _is_german_only(term)]
 
 
+# ---- number: a plural German answer against a singular English gloss -------
+#
+# docs/known-defects.md 2.15, TODO.md item 1. This is the one wrong-gloss kind
+# the model verification pass caught NOTHING of: 0 of 6, where tense scored 6
+# of 6 and polarity 5 of 6. It is also the kind that matters most, because it
+# is the kind that changes the answer. A tense slip in the English still leaves
+# "Haeuser" the only thing that fits the gap; a number slip actively points the
+# learner at "Haus".
+#
+# **Only the plural direction is checked.** German plural answer against an
+# English gloss with no plural anywhere is a real signal. The reverse (singular
+# answer, plural somewhere in the gloss) is not: English sentences carry plural
+# nouns for all sorts of reasons that have nothing to do with the blanked word,
+# so it would fire constantly on correct items.
+#
+# **No alignment is attempted, deliberately.** There is no bilingual dictionary
+# here, so nothing can say that "Haeuser" corresponds to "houses" rather than to
+# some other noun in the sentence. An earlier draft tried to name the offending
+# singular noun and fired on "her son" in a gloss whose actual defect was
+# "a different experience" -- the right verdict for the wrong reason, and a
+# false positive waiting to happen on any gloss containing an incidental
+# singular. The claim made here is weaker and survives that: a plural content
+# word in the German should leave SOME plural marker somewhere in its English.
+#
+# **Measured**, against `data/fixtures/adversarial/wrong_glosses.jsonl` and the
+# 430 accepted items of the last corpus pilot:
+#
+#     6 of 6 wrong_number rows caught  (the model pass caught 0)
+#     0 false positives on the fixture's 36 correct glosses
+#     1 false positive in 31 applicable items of 430 real accepted items
+#
+# That one is `schwarze Zahlen schreiben` glossed "the company was in the
+# black" -- a correct idiomatic translation whose English simply has no plural.
+# It is irreducible without a dictionary of idioms, and it is the reason this
+# dimension reports rather than rejects on its own (see `--enforce-gloss-check`,
+# TODO.md item 11).
+
+#: English plural pronouns and quantifiers. Presence of any of these is plural
+#: evidence even when no NNS noun is present ("I saw several").
+_PLURAL_PRONOUNS = frozenset({"they", "them", "these", "those", "we", "us", "both"})
+_PLURAL_QUANTIFIERS = frozenset({"many", "several", "few", "various", "numerous", "multiple"})
+#: A VBP with one of these as its subject is first/second person singular
+#: ("I complain"), not a plural agreement.
+_SINGULAR_SUBJECT_PRONOUNS = frozenset({"i", "he", "she", "it"})
+
+#: English nouns that are singular in form and cannot be counted, so a German
+#: plural maps onto them legitimately: "die Haare" is "hair", "die Moebel" is
+#: "furniture". Consulted ONLY when the noun carries no indefinite article,
+#: because a mass noun that takes "a" is being used countably ("a different
+#: experience") and is then ordinary evidence of singularity.
+#:
+#: A closed list is the wrong tool for German verb government (hundreds of
+#: verbs, always growing -- see scripts/build_verb_government.py). English
+#: uncountables are a genuinely closed and small class, so it is the right tool
+#: here. "hair" was added after it produced a real false positive on
+#: "die Haare schneiden" -> "cuts his own hair".
+_UNCOUNTABLE_EN = frozenset(
+    {
+        "advice",
+        "baggage",
+        "bread",
+        "butter",
+        "cash",
+        "cheese",
+        "clothing",
+        "content",
+        "damage",
+        "electricity",
+        "equipment",
+        "evidence",
+        "experience",
+        "feedback",
+        "food",
+        "furniture",
+        "garbage",
+        "hair",
+        "hardware",
+        "help",
+        "homework",
+        "information",
+        "jewellery",
+        "jewelry",
+        "knowledge",
+        "luggage",
+        "machinery",
+        "mail",
+        "meat",
+        "milk",
+        "money",
+        "music",
+        "news",
+        "police",
+        "produce",
+        "progress",
+        "rain",
+        "research",
+        "rice",
+        "rubbish",
+        "salt",
+        "sand",
+        "snow",
+        "software",
+        "staff",
+        "stuff",
+        "sugar",
+        "traffic",
+        "trouble",
+        "water",
+        "weather",
+        "work",
+    }
+)
+
+
+def _has_indefinite_article(token: Any) -> bool:
+    return any(c.dep_ == "det" and c.lower_ in ("a", "an") for c in token.children)
+
+
+def _subject_of(token: Any) -> Any | None:
+    for child in token.children:
+        if child.dep_ in ("nsubj", "nsubjpass"):
+            return child
+    return None
+
+
+def _gloss_has_plural_marker(doc: Doc) -> str | None:
+    """A description of the first plural marker in ``doc``, or ``None``."""
+    for token in doc:
+        if token.tag_ in ("NNS", "NNPS"):
+            return f"plural noun {token.text!r}"
+        if token.lower_ in _PLURAL_PRONOUNS:
+            return f"plural pronoun {token.text!r}"
+        if token.lower_ in _PLURAL_QUANTIFIERS:
+            return f"plural quantifier {token.text!r}"
+        if token.tag_ == "VBP" and token.lemma_.lower() != "be":
+            subject = _subject_of(token)
+            if subject is None or subject.lower_ not in _SINGULAR_SUBJECT_PRONOUNS:
+                return f"plural-agreeing verb {token.text!r}"
+    return None
+
+
+def _gloss_uncountable_noun(doc: Doc) -> str | None:
+    """An uncountable noun a German plural could legitimately map onto."""
+    for token in doc:
+        if (
+            token.tag_ == "NN"
+            and token.lemma_.lower() in _UNCOUNTABLE_EN
+            and not _has_indefinite_article(token)
+        ):
+            return token.text
+    return None
+
+
+def _gloss_main_verb_is_singular(doc: Doc) -> str | None:
+    """A singular-agreeing MAIN verb with a singular subject, or ``None``.
+
+    Only the matrix clause counts. A relative clause is free to be singular
+    while the main clause is plural -- "the machines that his company produces
+    are superior" -- so scanning every VBZ would fire on the wrong verb and
+    call a correct gloss inconsistent.
+    """
+    for sent in doc.sents:
+        root = sent.root
+        for candidate in [root, *[c for c in root.children if c.dep_ == "cop"]]:
+            if candidate.tag_ != "VBZ":
+                continue
+            subject = _subject_of(root) or _subject_of(candidate)
+            if subject is None:
+                continue
+            if subject.tag_ in ("NNS", "NNPS") or subject.lower_ in _PLURAL_PRONOUNS:
+                continue
+            return f"main verb {candidate.text!r} with singular subject {subject.text!r}"
+    return None
+
+
+def _classify_number(answer_token: GermanToken | None, gloss: str) -> tuple[_DimensionVerdict, str]:
+    """Compare a plural German answer against the gloss's own number marking.
+
+    Returns ``("unverified", reason)`` for everything this cannot speak to,
+    which is most items: a singular answer, a non-content answer, no English
+    model, or a gloss whose only candidate noun is uncountable.
+    """
+    if answer_token is None:
+        return "unverified", "no answer token"
+    if (answer_token.morph or {}).get("Number") != "Plur":
+        return "unverified", "answer is not plural"
+    if answer_token.pos not in ("NOUN", "PROPN", "VERB", "AUX"):
+        return "unverified", f"answer pos={answer_token.pos} carries no number to check"
+
+    nlp = _load_en_model()
+    if nlp is None:
+        return "unverified", "no English model"
+    doc = nlp(gloss)
+
+    plural_marker = _gloss_has_plural_marker(doc)
+    if plural_marker is not None:
+        return "consistent", plural_marker
+
+    if answer_token.pos in ("NOUN", "PROPN"):
+        uncountable = _gloss_uncountable_noun(doc)
+        if uncountable is not None:
+            return "unverified", f"gloss noun {uncountable!r} is uncountable"
+        return (
+            "inconsistent",
+            "the German answer is plural but the gloss carries no plural marker at all",
+        )
+
+    singular_verb = _gloss_main_verb_is_singular(doc)
+    if singular_verb is not None:
+        return "inconsistent", f"the German answer is plural but the gloss has a {singular_verb}"
+    return "unverified", "gloss shows no number marking"
+
+
 def validate_gloss_consistency(
     prompt: str,
     answer: str,
@@ -1370,6 +1583,16 @@ def validate_gloss_consistency(
                     f"(expected one of {sorted(expected)} in the gloss) but "
                     f"none of that appears."
                 )
+
+    number_verdict, number_detail = _classify_number(answer_token, stripped)
+    if number_verdict != "unverified" or de_number == "Plur":
+        checked.append("number")
+        if source == "unavailable" and _load_en_model() is not None:
+            source = "spacy"
+        if number_verdict == "unverified":
+            unverified.append("number")
+        elif number_verdict == "inconsistent":
+            reasons.append(f"Number mismatch: {number_detail}.")
 
     return GlossCheckResult(
         consistent=not reasons,

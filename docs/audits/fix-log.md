@@ -3293,3 +3293,98 @@ TODO.md item 12.
 
 `uv run pytest -q`: 1835 passed. `ruff check`, `ruff format --check` and
 `mypy --strict src/` all clean.
+
+---
+
+## Cycle 20, 28 August 2026: 2.15 closed, the wrong-number gloss
+
+TODO.md item 1, and the first thing done before the large pilot, deliberately:
+every item that pilot produces carries a gloss, so shipping this afterwards
+would mean auditing a run that still had the defect in it.
+
+### What was wrong
+
+`docs/known-defects.md` 2.15. The learner is shown the English translation and
+told to use it. When the German answer is plural and the English says one
+thing, the translation points at the wrong answer and the learner is marked
+wrong for trusting it:
+
+```
+Ich habe schöne ___ gesehen.        answer: Häuser
+    "I saw a beautiful house."
+```
+
+It was the only class in that file held by nothing at all, and the only
+wrong-gloss kind the model verification pass caught nothing of: **0 of 6**,
+where tense scored 6 of 6 and polarity 5 of 6. It is also the kind that
+matters most, because it is the kind that changes the answer. A tense slip
+still leaves `Häuser` the only thing that fits the gap; a number slip does not.
+
+### The fix
+
+A rule, not a fifth question in the verification instruction. The defect is a
+mechanical agreement fact, so a rule costs nothing per item, where a fifth
+question costs tokens on every call and would then be held at whatever the
+model's recall happened to be. `gloss_validation` gains a third dimension,
+`number`, alongside `tense` and `person`.
+
+| | before | after |
+|---|---:|---:|
+| `wrong_number` rows caught | 0 of 6 | **6 of 6** |
+| False positives, 36 correct fixture glosses | 0 | **0** |
+| False positives, 31 applicable of 430 real accepted items | n/a | 1 |
+
+### Three things it deliberately does not do
+
+**It does not check the singular direction.** English carries plural nouns for
+reasons that have nothing to do with the blanked word, so the reverse test
+would fire constantly on correct items.
+
+**It does not try to name which English noun is wrong.** There is no bilingual
+dictionary here, so nothing can know that `Häuser` corresponds to `houses`
+rather than to some other noun. An earlier draft named the offending singular
+and fired on `her son` in a gloss whose actual defect was `a different
+experience`: the right verdict for the wrong reason, and a false positive
+waiting to happen on any gloss containing an incidental singular. The claim
+made instead is weaker and survives that -- a plural content word in the German
+should leave SOME plural marker somewhere in its English.
+
+**It abstains on uncountables.** `die Haare` is `hair`, `die Möbel` is
+`furniture`. The guard is consulted only when the noun carries no indefinite
+article, because a mass noun that takes "a" is being used countably ("a
+different experience") and is then ordinary evidence of singularity. A closed
+list is the wrong tool for German verb government (hundreds of verbs, always
+growing) and the right one for English uncountables, which are a genuinely
+closed class. `hair` was added after it produced a real false positive on the
+last pilot's accepted items.
+
+### The one false positive that remains
+
+```
+Das Unternehmen habe aber schwarze ___ geschrieben.        answer: Zahlen
+    "However, the company was in the black."
+```
+
+`schwarze Zahlen schreiben` is correctly translated by an English idiom that
+contains no plural. Not fixable without a dictionary of idioms, and the reason
+this dimension reports rather than rejects on its own; whether the gloss check
+rejects at all is still `--enforce-gloss-check`, TODO.md item 10.
+
+### Measuring it
+
+`scripts/eval_gloss_adversarial` gained `--deterministic`, which scores the
+rule instead of the model. No API key, no network, no cost, so the number can
+be re-checked on every commit rather than once per billing decision.
+
+One harness defect was found and fixed while building it: the arm was passing
+`topic=None`, and `_german_tense_bucket` prefers the topic's own `morph_spec`
+over the answer token's FEATS. Without it, a Perfekt formed with `sein` is read
+off its present-tense auxiliary as present tense, and four correct past-tense
+glosses were rejected. That was the harness, not the check.
+
+Measured on the deterministic arm overall: 19 of 36 wrong glosses caught with 0
+false positives, against the model pass's 22 of 36. The two are complementary
+rather than redundant.
+
+`uv run pytest -q`: 1843 passed. `ruff check`, `ruff format --check` and
+`mypy --strict src/` all clean.

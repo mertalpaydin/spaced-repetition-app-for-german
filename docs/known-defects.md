@@ -573,12 +573,49 @@ Number is the worst kind to be blind to, because it is the kind that changes the
 answer. A tense slip in the English leaves `Häuser` the only thing that fits the
 gap; a number slip does not.
 
-**What would have to exist.** Either a fifth question in the verification
-instruction, asking directly whether the English matches the German, or a
-deterministic check comparing the answer's number against the number of the
-matching English noun phrase. `en_core_web_sm` is already installed and
-`src/generation/gloss_validation.py` already uses it. This one is open work
-rather than an accepted limit: `TODO.md` item 1, and it is the first thing to be done.
+**CLOSED, 2026-08-28.** A deterministic check, not a fifth model question: the
+defect is a mechanical agreement fact, so a rule costs nothing per item where a
+question costs tokens on every call and would then be held at whatever the
+model's recall happened to be. `gloss_validation` gained a third dimension,
+`number`, alongside `tense` and `person`.
+
+**Measured, on this file's own fixture and on real pilot output:**
+
+| | |
+|---|---:|
+| `wrong_number` rows caught (was 0 of 6) | **6 of 6** |
+| False positives on the fixture's 36 correct glosses | **0** |
+| False positives in 31 applicable items of 430 real accepted items | 1 |
+
+**How it decides.** Only the plural direction is checked. A plural German
+answer whose gloss carries no plural marker anywhere is inconsistent; a
+singular answer is never checked, because English sentences carry plurals for
+reasons unrelated to the blanked word and the reverse test would fire
+constantly on correct items.
+
+**It does not try to say which English noun is wrong.** There is no bilingual
+dictionary here, so nothing can know that `Häuser` corresponds to `houses`
+rather than to some other noun in the sentence. An earlier draft named the
+offending singular and fired on `her son` in a gloss whose actual defect was
+`a different experience` -- the right verdict for the wrong reason, and a false
+positive waiting to happen on any gloss with an incidental singular.
+
+**The one remaining false positive is an idiom** and is not fixable without a
+dictionary of idioms:
+
+```
+Das Unternehmen habe aber schwarze ___ geschrieben.        answer: Zahlen
+    "However, the company was in the black."
+```
+
+`schwarze Zahlen schreiben` is correctly translated by an English idiom that
+happens to contain no plural. This is why the dimension reports rather than
+rejects on its own: whether the gloss check rejects at all is still
+`--enforce-gloss-check`, `TODO.md` item 10.
+
+Measure it with `uv run python -m scripts.eval_gloss_adversarial
+--deterministic`, which scores the rule rather than the model and so needs no
+API key and costs nothing.
 
 ---
 
@@ -591,8 +628,8 @@ kind of problem.
 and are held by the verifier alone, and the verifier is the class in 2.9. Two
 (2.4, 2.5) are handled by dropping items rather than risking them, which costs
 coverage and never costs correctness. One (2.3) is reported in every audit
-instead of fixed. One (2.8) is a filter nobody has asked for yet. One (2.15) is
-held by nothing at all, and is the only entry in this file that is open work.
+instead of fixed. One (2.8) is a filter nobody has asked for yet. One (2.15) was
+held by nothing at all and was closed on 2026-08-28 by a deterministic rule.
 
 The measured cost of that group was 10 bad items in 430, and half of those were
 translation problems whose source has since been removed from the pipeline
