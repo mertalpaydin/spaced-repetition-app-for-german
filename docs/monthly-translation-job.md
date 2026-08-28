@@ -83,6 +83,17 @@ Set-ScheduledTask -TaskName "LLA monthly translation" -Settings $s.Settings
 that is never on at 03:00 simply never runs, which is the same failure the daily
 schedule was meant to prevent.
 
+**Do not read the ledger or the store while a run is in progress.** On Windows
+`os.replace` fails with `WinError 5` or `32` if any other process holds the
+destination open, even for reading. That killed the first real run at 27% of the
+month. `save_ledger_atomic` now retries for about three seconds, which covers a
+reader or an antivirus scan, but the habit to keep is to watch the process
+rather than its output:
+
+```powershell
+schtasks /Query /TN "LLA monthly translation" /FO LIST /V | Select-String Status
+```
+
 **Watch a run through the ledger, not the log.** `logs\monthly-translation.log`
 stays empty until the process exits, because Python buffers its output when it
 is redirected to a file. The ledger updates every checkpoint:

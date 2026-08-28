@@ -3558,3 +3558,67 @@ what a healthy Azure resource looks like.
 
 `uv run pytest -q`: 1885 passed. `ruff check`, `ruff format --check` and
 `mypy --strict src/` all clean.
+
+---
+
+## Cycle 23, 28 August 2026: the ledger write that killed a run
+
+A defect found by running the thing, not by reading it. Worth its own entry
+because the failure mode is invisible in code review and fatal in production.
+
+### What happened
+
+The first real run of the newly scheduled Azure top-up died at **27% of the
+month's allowance** with:
+
+```
+PermissionError: [WinError 5] Access is denied:
+  '...\.azure_f0_ledger.json.54564qm9.tmp' -> 'azure_f0_ledger.json'
+  at translation_ledger.save_ledger_atomic -> os.replace
+```
+
+`os.replace` is atomic on POSIX and **is not reliably atomic on Windows
+against a reader**. It fails with `WinError 5` (access denied) or `WinError 32`
+(sharing violation) whenever any other process holds the destination open, even
+just for reading.
+
+The immediate cause was self-inflicted: the ledger was being read every few
+minutes to report progress while the job wrote it. But the same failure comes
+from antivirus scanning the file, or an editor with it open, and this job is
+meant to run unattended on a laptop at 03:00. It would have happened.
+
+### Why it mattered more than a crashed script usually does
+
+The translations already done were safe: the store is checkpointed separately
+and the ledger is written per batch, so at most one batch of spend went
+unrecorded. What was lost was **the rest of the run**. Roughly 1.46 million
+characters of that month's free allowance stayed unspent, and an F0 allowance
+that is not spent inside its calendar month expires. A crash here does not cost
+a retry, it costs a month of a 13.4-month runway.
+
+### The fix
+
+`_replace_with_retry`: six attempts over about three seconds, retrying **only**
+`WinError` 5 and 32, then one final unguarded attempt so the real error and its
+traceback surface rather than a synthesised one. Any other `OSError` (a
+read-only directory, a bad path) is raised on the first attempt rather than
+slept over six times first.
+
+Retrying is the correct fix rather than a workaround, because the condition is
+transient by nature: the reader closes the file microseconds later. Three
+seconds is far longer than any reader holds a two-hundred-byte JSON file, and
+far shorter than the hour a full run takes.
+
+Five regression tests, with `time.sleep` injected so none of them actually
+waits: the retry path, both Windows error codes, a non-transient error raised
+immediately without retrying, a permanently locked destination still raising,
+and no temp file left behind when it does.
+
+### The operational lesson, recorded because it will recur
+
+**Do not poll a file that an atomic-write job is writing.** Watch the process,
+not its output. `schtasks /Query` says whether a run is alive without touching
+anything it owns. This applies to the store as much as to the ledger.
+
+`uv run pytest -q`: 1890 passed. `ruff check`, `ruff format --check` and
+`mypy --strict src/` all clean.

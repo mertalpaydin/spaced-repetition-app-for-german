@@ -74,6 +74,7 @@ import json
 import math
 import os
 import tempfile
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -242,6 +243,44 @@ def load_ledger(path: Path) -> TranslationLedger:
         return TranslationLedger()
 
 
+#: Windows error codes for "somebody else has this file open". Both are
+#: transient: the other process is a reader that closes microseconds later.
+#: 5 is ERROR_ACCESS_DENIED, 32 is ERROR_SHARING_VIOLATION.
+_WINDOWS_TRANSIENT_REPLACE_ERRNOS = frozenset({5, 32})
+
+#: Total wait is about 3 seconds, which is far longer than any reader holds a
+#: 200-byte JSON file and far shorter than the hour a full run takes.
+_REPLACE_RETRY_DELAYS_SECONDS = (0.05, 0.1, 0.2, 0.4, 0.8, 1.6)
+
+
+def _replace_with_retry(
+    source: Path,
+    destination: Path,
+    *,
+    sleep_fn: Callable[[float], None] = time.sleep,
+) -> None:
+    """``os.replace``, retried while Windows says the destination is in use.
+
+    Only the two transient codes are retried. Any other ``OSError`` is a real
+    problem (a read-only directory, a bad path) and is raised immediately
+    rather than slept over six times first.
+
+    ``sleep_fn`` is injected so the retry path is testable without a test that
+    actually waits three seconds (CLAUDE.md section 8).
+    """
+    for delay in _REPLACE_RETRY_DELAYS_SECONDS:
+        try:
+            os.replace(source, destination)
+            return
+        except OSError as exc:
+            if getattr(exc, "winerror", None) not in _WINDOWS_TRANSIENT_REPLACE_ERRNOS:
+                raise
+            sleep_fn(delay)
+    # One last attempt, so the final failure raises the real error rather than
+    # a synthesised one, and carries the traceback an operator needs.
+    os.replace(source, destination)
+
+
 def save_ledger_atomic(path: Path, ledger: TranslationLedger) -> None:
     """Write ``ledger`` so the path is never observed half-written.
 
@@ -250,6 +289,22 @@ def save_ledger_atomic(path: Path, ledger: TranslationLedger) -> None:
     ``build_translations._write_store_atomic``: a process killed at any instant
     leaves either the complete previous ledger or the complete new one, and the
     orphaned temp file is removed on any exception.
+
+    **The replace is retried, because on Windows it is not reliably atomic
+    against a reader.** ``os.replace`` fails with ``WinError 5`` (access
+    denied) or ``WinError 32`` (sharing violation) whenever any other process
+    holds the destination open, even for reading. This is not hypothetical: it
+    killed the first real run of the scheduled job on 2026-08-28 at 27% of the
+    month's allowance, because the ledger was being read to report progress
+    while the job wrote it. Anti-virus scanning the file, or an editor with it
+    open, does exactly the same thing.
+
+    Retrying is the right fix rather than a workaround, because the condition
+    is transient by nature: the reader closes the file microseconds later.
+    Crashing instead throws away the rest of a run that may have hours of free
+    quota left to spend, and the allowance it did not spend expires with the
+    month. ``POSIX`` ``rename`` has no such problem and the retry costs it
+    nothing.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
@@ -260,7 +315,7 @@ def save_ledger_atomic(path: Path, ledger: TranslationLedger) -> None:
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tmp_path, path)
+        _replace_with_retry(tmp_path, path)
     except BaseException:
         tmp_path.unlink(missing_ok=True)
         raise

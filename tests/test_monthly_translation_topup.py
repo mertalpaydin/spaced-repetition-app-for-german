@@ -18,6 +18,7 @@ is to wait until the first of the month.
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -866,3 +867,105 @@ def test_the_tail_of_a_month_is_at_most_one_batch_of_wasted_allowance(
     assert report.translated == 4
     assert report.month_remaining_after == 5
     assert report.month_remaining_after < report.next_batch_characters
+
+
+# ---------------------------------------------------------------------------
+# The Windows replace retry. Regression test for the failure that killed the
+# first real run of the scheduled job on 2026-08-28, at 27% of the month's
+# allowance: os.replace raised WinError 5 because another process was reading
+# the ledger at that instant, and the whole run died with it.
+
+
+def _os_error(winerror: int) -> OSError:
+    exc = OSError(winerror, "Access is denied")
+    exc.winerror = winerror  # type: ignore[attr-defined]
+    return exc
+
+
+def test_save_ledger_retries_when_the_destination_is_briefly_in_use(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A reader holding the file open must cost a retry, not the run. The
+    allowance a crashed run does not spend expires with the month."""
+    import src.llm.translation_ledger as ledger_mod
+
+    path = tmp_path / "ledger.json"
+    attempts: list[int] = []
+    real_replace = os.replace
+
+    def flaky(src: Any, dst: Any) -> None:
+        attempts.append(1)
+        if len(attempts) < 3:
+            raise _os_error(5)
+        real_replace(src, dst)
+
+    monkeypatch.setattr(ledger_mod.os, "replace", flaky)
+    monkeypatch.setattr(ledger_mod.time, "sleep", lambda _s: None)
+
+    ledger = TranslationLedger()
+    ledger.record_batch("2026-08", azure_characters=10)
+    save_ledger_atomic(path, ledger)
+
+    assert len(attempts) == 3
+    assert load_ledger(path).spend_for("2026-08").azure_characters == 10
+
+
+@pytest.mark.parametrize("winerror", [5, 32])
+def test_both_windows_sharing_errors_are_retried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, winerror: int
+) -> None:
+    """5 is ERROR_ACCESS_DENIED and 32 is ERROR_SHARING_VIOLATION. Antivirus
+    scanning the file produces one, an editor with it open the other."""
+    import src.llm.translation_ledger as ledger_mod
+
+    attempts: list[int] = []
+    real_replace = os.replace
+
+    def flaky(src: Any, dst: Any) -> None:
+        attempts.append(1)
+        if len(attempts) < 2:
+            raise _os_error(winerror)
+        real_replace(src, dst)
+
+    monkeypatch.setattr(ledger_mod.os, "replace", flaky)
+    monkeypatch.setattr(ledger_mod.time, "sleep", lambda _s: None)
+    save_ledger_atomic(tmp_path / "ledger.json", TranslationLedger())
+    assert len(attempts) == 2
+
+
+def test_a_non_transient_error_is_raised_without_retrying(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A read-only directory is not transient, and retrying it six times only
+    delays the report of a real problem."""
+    import src.llm.translation_ledger as ledger_mod
+
+    attempts: list[int] = []
+
+    def always_fails(src: Any, dst: Any) -> None:
+        attempts.append(1)
+        raise _os_error(13)
+
+    monkeypatch.setattr(ledger_mod.os, "replace", always_fails)
+    monkeypatch.setattr(ledger_mod.time, "sleep", lambda _s: None)
+
+    with pytest.raises(OSError):
+        save_ledger_atomic(tmp_path / "ledger.json", TranslationLedger())
+    assert len(attempts) == 1
+
+
+def test_a_permanently_locked_destination_still_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Retrying is not pretending. A file locked forever is still an error."""
+    import src.llm.translation_ledger as ledger_mod
+
+    def always_locked(src: Any, dst: Any) -> None:
+        raise _os_error(5)
+
+    monkeypatch.setattr(ledger_mod.os, "replace", always_locked)
+    monkeypatch.setattr(ledger_mod.time, "sleep", lambda _s: None)
+
+    with pytest.raises(OSError):
+        save_ledger_atomic(tmp_path / "ledger.json", TranslationLedger())
+    assert not list(tmp_path.glob("*.tmp"))
