@@ -74,6 +74,45 @@ data/corpus_pilot_review.jsonl
 data/corpus_pilot_rejected.jsonl
 data/corpus_pilot_report.json
 
+# Run outputs under any name. The list above names specific default paths and
+# so caught nothing when a run was given --review-file or --report-file, which
+# is how six untracked c15_b5/c15_b20 files from the batch-size experiment
+# accumulated in data/. The findings from those runs live in the fix log; the
+# raw output is reproducible and is not worth versioning.
+data/*_review.jsonl
+data/*_rejected.jsonl
+data/*_report.json
+data/*_sample.tsv
+data/translation_backfill_report.json
+
+# The translation store, NOT a golden fixture despite living under
+# data/fixtures/. It is a 35 MB operational cache of every Azure translation
+# ever made (about 200,000 lines), grown a bit at a time against a monthly
+# free-tier allowance. Committing it would put a large binary-ish blob in
+# history for no review value; losing it would cost weeks of free tier to
+# rebuild. So: never committed, never deleted. Section 7's "golden fixtures
+# are versioned in data/fixtures/" still holds for every other path there.
+# The location is a misnomer inherited from build_translations.py's default
+# and is deliberately not being moved right now; a move would break the store
+# on the owner's machine for no benefit.
+data/fixtures/translations/
+
+# Billing exports pulled from the owner's Google Cloud account, read by
+# scripts/reconcile_cost_log.py and scripts/repair_cost_log.py. Personal
+# financial records. They belong on the operator's disk, never in the repo,
+# and least of all in a repo that may go public.
+data/cost/
+
+# Git bundles used to hand work between the agent's sandbox and the owner's
+# machine. Pure transport. Once fetched, the commits are in history and the
+# file is dead weight; before being fetched it is the only copy, which is why
+# they are ignored rather than deleted by tooling.
+*.bundle
+
+# Scratch copies made while CLAUDE.md was still gitignored.
+CLAUDE.md.new
+*_tmp.tsv
+
 # Node / Frontend / PWA
 node_modules/
 npm-debug.log*
