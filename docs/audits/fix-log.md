@@ -2806,3 +2806,281 @@ this one was filled.
 repeatable and does not need to be. What stays open under `TODO.md` 2.3b is
 the monthly `reconcile_cost_log.py` run, at the end of every month or after
 any run that reports retries.
+
+---
+
+## Cycle 17: the verifier's recall is measured, and the fixture it was measured against is not a neutral sample
+
+Not a code fix either. This records the first run of `scripts/eval_verifier.py`
+with a real key, which is what TODO.md 2.3 existed for, plus what reading the
+result carefully turned out to change about it. One small code change came out
+of it, at the end.
+
+### The measurement
+
+`scripts/eval_verifier.py --batch-size 5`, paid lane, synchronous.
+
+| | |
+|---|---:|
+| Adversarial fixture (hand-confirmed defects) | 38 |
+| Rejected (caught) | 23 |
+| Verified (missed) | 15 |
+| `not_run` | 0 |
+| **Recall** | **60.5%** |
+| Known-clean fixture | 31 |
+| Verified (correct) | 27 |
+| Rejected (wrongly) | 4 |
+| **False-positive rate** | **12.9%** |
+| Cost | `$0.065604` |
+| Paid synchronous calls | 10, all successful |
+
+Zero `not_run` on both fixtures, so this is a valid measurement by the script's
+own bar and not a partial one. 69 items at batch size 5 is 15 batch prompts
+(8 adversarial, 7 known-clean) against 10 calls, so by arithmetic five prompts
+were served from the local content-addressed cache rather than re-called. That
+is the convergence mechanism the script's docstring describes, working.
+
+### The headline number understates the verifier, and for two reasons, not one
+
+The claim to test was that the fixture is not a neutral sample, because its 38
+records come from three audit cycles that differ in what a defect from them
+means. That claim is **confirmed**, and the arithmetic below was recomputed
+from `data/fixtures/verification/blanking_model_verifier_adversarial.jsonl`
+and the three cycle reports rather than taken on trust.
+
+The composition claim holds. `docs/audits/cycle-07-report.md` states outright
+that "The model verification backstop did not run. Zero of 370 items were"
+verified, so cycle 7's 14 defects were never screened by this pass and are a
+neutral sample of what the pipeline emitted. `cycle-08-report.md` and
+`cycle-09-report.md` hand-audited 286 and 428 **accepted** items with the
+verifier running (18 paid calls and 16 rejections in cycle 8, 97 rejections in
+cycle 9), so their 24 defects are by construction items this pass had already
+passed once.
+
+**Recall per record, split by cycle:**
+
+| Cycle | Defects | Caught | Recall |
+|---|---:|---:|---:|
+| 7 (verifier never ran) | 14 | 14 | **100.0%** |
+| 8 (verifier had passed them) | 7 | 4 | 57.1% |
+| 9 (verifier had passed them) | 17 | 5 | 29.4% |
+| **8 and 9 together** | **24** | **9** | **37.5%** |
+
+The class-level grouping that produced the first reading of this
+(classes drawn only from cycle 7: 11 defects, 11 caught; classes drawn only
+from cycles 8 and 9: 20 defects, 5 caught, 25%) reproduces exactly. Its stated
+limitation, that per-class printing cannot attribute an individual record in a
+class that mixes cycles, turns out not to bite here: the only two mixed classes
+(`nonword_in_carrier_wrong_lexeme`, five records from cycles 7 and 8;
+`nullartikel_fires_with_determiner_present`, two from cycles 7 and 9) were
+caught 5/5 and 2/2, and a class caught at 100% pins every record in it. So the
+per-record split above is exact, not an estimate.
+
+**The second reason was not in the original claim, and it points the same way.**
+Nine of cycle 7's 14 records are quoted from the audit report as truncated
+fragments rather than as whole sentences: `die neuen ___`,
+`Gegen ___ Unwohlsein`, `mit dem vor wenigen Wochen ___ Ball`,
+`hat ___ schwerste Kiste getragen`, `Es ___ sehr wichtig, dass...`,
+`...weil der Hausmeister ihn gestern schnell ___ hat`,
+`dass ein wichtiges Ereignis angekündigt worden ___`,
+`einen Kaffee, den er ___ frisch gekocht hatte`,
+`dem ___ oft helfenden Trainer`. Zero of the 24 cycle-8 and cycle-9 records
+are. A pass asked whether an item is well-formed German with one right answer
+rejects a bare fragment on its form, whatever the defect the record was
+actually filed for. So cycle 7's 100% is inflated by two independent
+mechanisms, and this run cannot separate them.
+
+Neither mechanism is a reason to change the fixture. It is a golden fixture
+(CLAUDE.md section 7) and the records are the audits' own words. It is a reason
+not to quote 60.5% as the verifier's recall on anything.
+
+### The larger correction: 18 of the 38 records describe a defect the verifier is structurally unable to see
+
+This is the finding the cycle split was pointing at without naming.
+
+`model_verification._format_item_block` sends the model four things and
+nothing else: the gap, the cue, the English gloss, the stated answer. It
+deliberately withholds `topic_id`, `rule_hint`, `facet`, `confusion_group`,
+`domain` and `carrier_lemmas`, because sending them would be the topic leak
+CLAUDE.md rule 2 forbids, aimed at a model prompt instead of a learner-facing
+one. That is correct and must not change.
+
+But 18 of the fixture's 38 records are **topic-attribution** defects: the item
+text is correct, natural German with exactly one right answer, and the only
+thing wrong with it is which topic it was filed under. `Um zwei Uhr treffen
+wir ___ alle vor dem Haupteingang.` with the answer `uns` is a perfectly good
+exercise; it is a defect only because it was filed under `verben_reflexiv_dat`
+when `sich treffen` is accusative. Without the topic, there is nothing there to
+reject.
+
+Splitting the fixture on that line:
+
+| | Records | Caught | Recall |
+|---|---:|---:|---:|
+| Defect visible in the item block | 20 | 15 | **75.0%** |
+| Defect needs `topic_id` to see | 18 | 8 | 44.4% |
+| **All** | **38** | **23** | 60.5% |
+
+And the 44.4% column is entirely explained by form. Seven of those eight
+catches are cycle-7 truncated fragments. The eighth (`c09_15`,
+`Wir möchten gerne wissen, ob Ihnen diese innovative ___ Lösung gefällt.`) was
+caught because its answer genuinely is not unique, which is a correct rejection
+for a reason unrelated to the recorded defect. **Every out-of-scope record that
+is a well-formed sentence with a unique answer was missed, all eleven of them.**
+
+So the honest statement is: on defects it can see, this pass caught 15 of 20.
+On defects it cannot see, it caught the ones that happened to look broken for
+another reason. It is not a 60.5% instrument and it is not an 82% instrument
+either; those 18 records are measuring the wrong thing and should be read as
+telling us about the fixture, not the verifier.
+
+### The five families of miss, and what already covers them
+
+The 15 misses fall into five families, and every one is deterministic rather
+than a matter of judgement. Each was checked against the machinery that
+already exists, by running that machinery on the fixture's own sentences.
+
+**1. Reflexive case direction, accusative against dative: 0 of 6.**
+`verb_government.reflexive_verdict` (the corpus-built lexicon,
+`scripts/build_verb_government.py`) does decide this for verbs it has evidence
+on, but it is not what covers these six. `selectors._reflexive_case` combines
+that lexicon with structural tests, and the fixes were structural:
+`_followed_by_dass_clause_object` (TODO.md 1.1) for the three `sich wünschen`
+records whose object is a `dass` clause, and `_has_bare_accusative_object`
+excluding accusative time adverbials, quantifier appositions and
+nominative-headed phrases for the three `treffen`/`ansammeln` records. Run
+today, all six route correctly: the three dative cases produce a
+`verben_reflexiv_dat` candidate and no accusative one, the three accusative
+cases the reverse.
+
+**2. Cue capitalization mismatch: 1 of 4.** This one is a string comparison and
+the rule exists: `selectors._cue_case_matched_to_answer`, applied at
+`_citation_cue`, the single choke point every cue in that module passes
+through. It maps `alt` to `Alt` for the answer `Alte` and `letzter` to
+`Letzter` for `Letzte`, which are the two records (`c08_06`, `c08_07`) the run
+genuinely missed.
+
+**A fixture-fidelity note that belongs with this family.** The other two
+records in it, `c08_04` and `c08_05`, do not encode the defect their own
+description names. Cycle 8 quoted the answers as the formal, capitalised
+`Ihrer` and `Ihren`; the fixture reconstructed the carriers with lowercase
+`ihrer` and `ihren`, which turns both into ordinary, correct sentences whose
+cue differs from the answer by inflection rather than by case. As encoded they
+are not capitalisation traps at all. Whichever of the two the run rejected, it
+rejected for some other reason. Recorded, not fixed: this is a golden fixture
+and correcting it is the owner's call, and it belongs in TODO.md rather than in
+a quiet edit.
+
+**3. Futur I confusable with a passive participle: 0 of 2.** spaCy's morphology
+alone was not sufficient here, which is worth stating because it is the
+obvious guess. `de_core_news_sm` mistags separable-prefix passive participles,
+`angebraten` and `aufgeladen` exactly, as `VVIZU` rather than `VVPP`, so a
+`VVPP` test misses them. `_select_futur_i` uses `_is_participle` (tag or
+spelling shape, via `paradigms.is_participle_shape`) and scopes both the
+participle exclusion and the infinitive requirement to the finite verb's own
+clause. Run today, both fixture sentences produce zero `futur_i` candidates.
+
+**4. Topic misfiling, no comparison present and wrong Konjunktiv tense: 0 of 2.**
+Both covered. The comparative case turns on a tag distinction spaCy does make
+and that is easy to miss: comparative `als` ("schneller als sein Bruder") tags
+`KOKOM`, while the "as"/"in the role of" homograph ("als kleines Dankeschön")
+tags `APPR`, and `_select_komparativ_superlativ` requires `KOKOM`. The
+Konjunktiv case is `_select_konjunktiv_ii_base` excluding a clause-local
+participle in **both** directions, since a verb-final `wenn` clause puts the
+participle before its auxiliary. Run today, `Später trinken wir dann ...`
+produces no comparative candidate, and `Wenn ich nur etwas früher ... geachtet
+hätte, wäre ich jetzt bestimmt fitter.` offers `hätte` only under
+`konjunktiv_ii_vergangenheit` and offers `wäre`, correctly, under
+`konjunktiv_ii_irreal_gegenwart`.
+
+**5. Swiss orthography elsewhere in the carrier: 2 of 4.** A rule exists, with
+a recorded limitation about `ä` (TODO.md section 1, `docs/known-defects.md`
+2.3). The limitation does not bite on any of these four: three are the same
+carrier containing `Schliesslich`, which the general diphthong rule
+(`_SWISS_DIPHTHONG_SS_PATTERN`, `ie` before `ss`) catches, and the fourth is
+`draussen`, closed-listed by name for the documented reason that a general
+`au` plus `ss` rule would reject dozens of correct `aus-` prefix compounds.
+Run today, `carrier_validation._sentence_shape_reason` returns
+`swiss_spelling` for both carriers, before spaCy is even loaded.
+
+### What that adds up to, and it is better news than the raw number
+
+**All five families are already covered deterministically, and four of the five
+were verified closed by running the shipped code against the fixture's own
+sentences.** These are historical defects the fixture preserves on purpose;
+they are not what the pipeline emits today.
+
+So the gap this measurement actually exposes is not five missing rules. It is
+that every one of those rules lives at **generation** time, in the selectors
+and in carrier validation, and there is no post-hoc, item-level re-check of a
+finished item. If a selector regresses, the model verifier is the only thing
+left, and this run measures what it will do about it: nothing, for anything
+that requires knowing the item's topic.
+
+**A stable, reproducible blind spot is operationally better than random
+failure, and this is worth being explicit about.** A pass that misses a class
+every time can be covered by a deterministic rule and then never thought about
+again. A pass that misses a class one run in three cannot be: no rule follows
+from it, the union of two passes only narrows it, and the residue is
+permanently unquantified. TODO.md 2.1c measured the random kind, roughly 2.5%
+of items decided by which run you happen to look at. This run measured the
+stable kind, and the stable kind is the one you can actually close.
+
+### What the 12.9% false-positive rate costs
+
+It discards good items. Roughly one good candidate in eight is thrown away by
+a pass whose whole job is to be a backstop, and unlike a miss, a false positive
+is invisible: the item is simply not in the bank and nothing says why.
+
+At bank scale that is real. 49 topics at 25 items is about 1,225 items
+(section 6.1), so landing them needs roughly 1,406 good candidates and discards
+about 181. That is affordable where the corpus is rich and it is not where it
+is thin: the topics that struggle to reach 25 items at all are exactly the ones
+a 12.9% discard can push under the floor, and those are the same topics 2.4 is
+waiting on a list of.
+
+**It also compounds under the fix for 2.1c.** `--verification-passes N` rejects
+anything any pass rejects, on purpose, because the union is what caught all 12
+of the instability cases. The union of rejections is also the union of false
+positives. If two passes were independent, 12.9% would become 24.1%; they are
+not independent, so the truth is somewhere between 12.9% and 24.1% and this run
+does not measure it. Two passes at batch 20 was the recommendation and it
+should still be run, but the number to watch alongside `pass_disagreements` is
+what it does to the accepted count on known-clean items.
+
+The eval does not name which four clean items were rejected, only that four
+were. Naming them needs the same change the misses needed, and got it.
+
+### The standing rule now has a measured inverse
+
+TODO.md section 1 has carried "anything the verifier catches twice becomes a
+deterministic rule" for several cycles, on the reasoning that the verifier is a
+discovery instrument and must never be the only thing between a known defect
+class and a learner. This run supplies the other half: **anything the verifier
+systematically misses must become a deterministic rule too, because it
+demonstrably will not learn it.** Six of six on reflexive routing, two of two on
+Futur I, two of two on topic misfiling, and it will be six of six and two of two
+and two of two on the next run as well, because the reason is structural. The
+inverse is recorded next to the original in TODO.md section 1.
+
+### The one code change
+
+`scripts/eval_verifier.py` printed per-defect-class totals only, which is why
+every number above had to be recomputed by hand from the fixture. `source_cycle`
+is a field on every record and was already being loaded into
+`AdversarialRecord`, so the split cost one pass over the verdicts. A complete
+run now prints, under the headline rate:
+
+- recall by defect class, as before,
+- **recall by source audit cycle**, so the composition problem is visible in the
+  output instead of having to be rediscovered,
+- **every missed defect by fixture id and defect class**, which is what a
+  per-class total structurally cannot carry: a class printed "1/2" names
+  neither the record that was caught nor the one that was missed, and the
+  missed one is the only one worth reading.
+
+No behaviour change, no new flag, nothing added to the network path. Three
+tests, one per block plus the perfect-recall case, and the existing end-to-end
+test now asserts both blocks are part of a complete run's own output rather
+than an opt-in. Test count 1785 before, 1788 after. `ruff check`,
+`ruff format --check` and `mypy --strict src/` all clean.

@@ -5,6 +5,12 @@ why no rule catches it, and what would have to exist before one could. Nothing
 here is a task. `TODO.md` section 1 is the work list; this file is the
 explanation, written so it can be read in five minutes.
 
+Classes 2.10 to 2.14 are the one exception to "known to let through", added in
+cycle 17 and marked as such where they start: each of those already has a
+deterministic rule and does not reach a learner today. They are listed with the
+rest because the model verification pass catches none of them, so those rules
+have nothing standing behind them.
+
 Every example below is a real sentence from a real pilot or a real audit. None
 is invented. Where a class has only one recorded example, it says so rather
 than padding.
@@ -352,14 +358,214 @@ measurement exist (`data/fixtures/adversarial/wrong_glosses.jsonl`,
 
 ---
 
+**The five classes below are a different kind of entry, and the difference is
+the point.** Every one of them already has a deterministic rule, shipped and
+checked against these exact sentences. They are here because the model
+verification pass misses all five, every time, and it will keep missing them:
+its prompt is deliberately given the gap, the cue, the English translation and
+the stated answer and nothing else (CLAUDE.md rule 2, so the model judges the
+item the way a learner does), and four of the five are defects you cannot see
+without knowing which topic the item was filed under. So these are not classes
+that get through today. They are classes with exactly one thing standing
+between them and a learner, and no second opinion behind it. Measured in
+`docs/audits/fix-log.md` cycle 17.
+
+### 2.10 A reflexive pronoun filed under the wrong case
+
+**What it is.** German reflexive verbs take either the accusative or the
+dative, and the pipeline has a topic for each. An item can be correct German
+with exactly one right answer and still be filed under the wrong one of the
+two, which teaches the learner the opposite of the truth.
+
+**Examples**, three of the six from cycle 9:
+
+```
+Wir wünschen ___, dass Sie uns Ihre ehrliche Meinung mitteilen.   -> uns
+    Filed as accusative. "sich etwas wünschen" is dative, and the
+    object it wants is the whole dass clause.
+
+Um zwei Uhr treffen wir ___ alle vor dem Haupteingang.            -> uns
+    Filed as dative. "sich treffen" is accusative; "alle" is an
+    apposition to the subject, not a direct object.
+
+...weil ___ darauf viel Staub angesammelt hat.                    -> sich
+    Filed as dative. "viel Staub" is the nominative subject.
+```
+
+**What already catches it.** `selectors._reflexive_case`, which asks the
+corpus-built verb government lexicon (`verb_government.reflexive_verdict`)
+first and falls back to a structural object test. The structural half is what
+these six needed: `_followed_by_dass_clause_object` for the first shape, and
+`_has_bare_accusative_object` excluding time adverbials, quantifier
+appositions and nominative-headed phrases for the second. Run against all six
+sentences today, every one routes to the right topic.
+
+**Why the verifier never will.** The item is good German with one right
+answer. The only thing wrong with it is the topic, and the verifier is never
+told the topic. It caught 0 of 6.
+
+### 2.11 A cue in the wrong case
+
+**What it is.** The bracketed cue is meant to be the answer's citation form. A
+gap at the very start of a sentence capitalises its answer for a reason that
+has nothing to do with the word, and `TypoGrader` strict-fails a capitalisation
+mismatch by design, so a learner who types exactly what the cue shows is marked
+wrong.
+
+**Examples**, both from cycle 8:
+
+```
+___ Batterien können im Supermarkt abgegeben werden.   -> Alte    cue: alt
+___ Woche hatte ich plötzlich fiese Bauchschmerzen.    -> Letzte  cue: letzter
+```
+
+**What already catches it.** `selectors._cue_case_matched_to_answer`, one line,
+applied at `_citation_cue`, which is the single choke point every cue in that
+module passes through. It returns `Alt` and `Letzter` for those two.
+
+**Why the verifier misses it anyway.** This one it can see: its fourth question
+asks whether the cue is the answer's correct citation form. It answered yes to
+both. This is the only one of the five that is a plain miss on a question the
+pass is actually asked, rather than a defect outside its view.
+
+### 2.12 Futur I that is really the present passive
+
+**What it is.** `werden` plus an infinitive is Futur I. `werden` plus a past
+participle is the present passive. Both put the same finite `werden` in the
+gap, so an item can be filed under `futur_i` while testing the passive.
+
+**Examples**, both from cycle 9:
+
+```
+Das Smartphone ___ jetzt aufgeladen, damit Sie es am Abend sofort
+nutzen können.                                                    -> wird
+
+...dass das Fleisch scharf angebraten ___, wenn ein tolles Aroma
+entstehen soll.                                                   -> wird
+```
+
+**What already catches it.** `_select_futur_i` requires a bare infinitive in
+the finite verb's own clause and excludes any participle in it. The obvious
+version of this rule does not work: `de_core_news_sm` tags `angebraten` and
+`aufgeladen` as `VVIZU`, not `VVPP`, so the check uses `_is_participle` (tag or
+spelling shape) rather than the tag alone. Run today, both sentences produce no
+`futur_i` candidate at all.
+
+**Why the verifier never will.** Same as 2.10. Both sentences are correct
+German with one right answer; only the topic is wrong, and the verifier does
+not see the topic. It caught 0 of 2.
+
+### 2.13 A comparative that is not comparing, and a Konjunktiv in the wrong tense
+
+**What it is.** Two more topic-attribution errors of the same family, kept
+together because they share a cause: a surface form that belongs to one topic
+in one reading and to another in a second.
+
+**Examples**, both from cycle 9:
+
+```
+___ trinken wir dann gemeinsam eine Tasse Kaffee als kleines
+Dankeschön.                                          -> Später   cue: Spät
+    Filed as comparative. "Später" here means "afterwards", and
+    "als kleines Dankeschön" means "as a small thank-you". Nothing
+    in the sentence is being compared to anything.
+
+Wenn ich nur etwas früher auf meine Ernährung geachtet ___, wäre ich
+jetzt bestimmt fitter.                               -> hätte
+    Filed as present irrealis. The condition is in the past, so the
+    blanked form belongs to konjunktiv_ii_vergangenheit.
+```
+
+**What already catches it.** For the comparative, a tag distinction spaCy does
+make and that is easy to overlook: comparative `als` ("schneller als sein
+Bruder") tags `KOKOM`, the unrelated "as"/"in the role of" homograph tags
+`APPR`, and `_select_komparativ_superlativ` requires `KOKOM`. For the
+Konjunktiv, `_select_konjunktiv_ii_base` excludes a clause-local participle in
+both directions, because a verb-final `wenn` clause puts the participle before
+its auxiliary. Run today, the first sentence yields no comparative candidate,
+and the second offers `hätte` only under `konjunktiv_ii_vergangenheit` while
+still correctly offering `wäre` under `konjunktiv_ii_irreal_gegenwart`.
+
+**Why the verifier never will.** Same as 2.10 and 2.12. Correct German, one
+right answer, wrong topic. It caught 0 of 2.
+
+### 2.14 Swiss spelling somewhere else in the sentence
+
+**What it is.** 2.3 above is about the one Swiss spelling no rule can decide.
+This is about the ones a rule can, sitting in the carrier rather than in the
+answer, where they are just as wrong and just as visible to a learner.
+
+**Examples**, the two carriers from cycle 9 that produced four items between
+them:
+
+```
+Schliesslich ___ ich mich auf meinen festen Platz gesetzt und wartete
+auf den Beginn der Vorstellung.                                   -> hatte
+    Standard German is "Schließlich". This carrier alone produced
+    three items.
+
+Gleich danach ___ ich noch einmal kurz nach draussen gegangen, um
+frische Luft zu holen.                                            -> war
+    Standard German is "draußen".
+```
+
+**What already catches it.** `carrier_validation._sentence_shape_reason`
+rejects both, before spaCy is loaded, as `swiss_spelling`. `Schliesslich` falls
+to the general diphthong rule (`ie` before `ss`, and a diphthong is always
+long), `draussen` to a one-word closed list, because a general `au` plus `ss`
+rule would reject `aussteigen`, `Aussage` and dozens of other correct words.
+**The `ä` limitation in 2.3 does not apply to any of these four**, which is
+worth stating plainly: that limitation is real, and it is not what let these
+through.
+
+**Why the verifier misses it anyway.** Like 2.11, this is in view: its third
+question asks whether every word in the completed sentence is a real German
+word someone would actually use. A Swiss spelling is a real German word, in
+Switzerland, which is presumably why it splits: 2 of 4.
+
+---
+
 ## 3. What this adds up to
 
-Of the nine classes above, four (2.1, 2.2, 2.6, 2.7) have no rule and are held
-by the verifier alone, and the verifier is the class in 2.9. Two (2.4, 2.5) are
-handled by dropping items rather than risking them, which costs coverage and
-never costs correctness. One (2.3) is reported in every audit instead of fixed.
-One (2.8) is a filter nobody has asked for yet.
+The fourteen classes above split into two groups, and they are not the same
+kind of problem.
 
-The measured cost of all of it together was 10 bad items in 430, and half of
-those were translation problems whose source has since been removed from the
-pipeline entirely.
+**Nine classes where no rule exists.** Four (2.1, 2.2, 2.6, 2.7) have no rule
+and are held by the verifier alone, and the verifier is the class in 2.9. Two
+(2.4, 2.5) are handled by dropping items rather than risking them, which costs
+coverage and never costs correctness. One (2.3) is reported in every audit
+instead of fixed. One (2.8) is a filter nobody has asked for yet.
+
+The measured cost of that group was 10 bad items in 430, and half of those were
+translation problems whose source has since been removed from the pipeline
+entirely.
+
+**Five classes where a rule exists and is the only thing there.** 2.10 to 2.14
+do not get through today. Each has a deterministic rule, shipped and checked
+against the exact sentences above. What they have in common is that the model
+verification pass catches none of them, so nothing is standing behind those
+rules: if one regresses, the next audit finds out by hand, months later. Four
+of the five (2.10, 2.12, 2.13, and half of what 2.11 is about) are invisible to
+the verifier by construction, because it is never told which topic an item was
+filed under and that is exactly what is wrong with them.
+
+The measured cost of that group is zero items today and unbounded on the day a
+selector changes. It is a different risk, and it is the reason these are
+written down alongside the other nine rather than treated as closed.
+
+**And the verifier's own numbers, measured for the first time in cycle 17**
+(`scripts/eval_verifier.py --batch-size 5`, `$0.065604`):
+
+| | |
+|---|---:|
+| Recall on 38 hand-confirmed defects | 60.5% |
+| Recall on the 20 of those it can actually see | 75.0% |
+| False-positive rate on 31 hand-confirmed clean items | **12.9%** |
+
+The false-positive rate is the number to sit with. Roughly one good candidate
+in eight is discarded by the pass whose job is to be a backstop, and unlike a
+miss, a discarded item leaves no trace: it is simply not in the bank. At 1,225
+items that is about 181 good candidates thrown away, which is affordable where
+the corpus is rich and is not where it is thin. `--verification-passes 2`
+(2.9) rejects on any pass's rejection, so it compounds this deliberately:
+somewhere between 12.9% and 24.1%, not yet measured.
