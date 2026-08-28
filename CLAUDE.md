@@ -1,6 +1,8 @@
 # CLAUDE.md
 
-Guidance for any agent or human working in this repository. Read this before writing code. Then read the stage document for the stage you are working on, in `docs/`.
+Guidance for any agent or human working in this repository. Read this before writing code.
+
+**New here? Read `docs/project-state.md` first.** It says what is built, what is not, and what will bite you. Then come back to this file for the rules, and read the stage document for the area you are touching, in `docs/`.
 
 ---
 
@@ -9,6 +11,8 @@ Guidance for any agent or human working in this repository. Read this before wri
 An interleaved German grammar trainer, A1 to B2. Single-topic exercises drawn from different grammar topics are presented back to back, scheduled by FSRS spaced repetition over grammar topics.
 
 The product thesis and full design rationale live in `docs/plan/german-grammar-app-plan.md`. Do not re-derive design decisions from first principles; they are already argued there. If you believe a decision is wrong, say so and stop. Do not silently deviate.
+
+That plan and the five stage documents are a **design record written before most of the code existed**. Each carries a header naming where the code has since departed. They are the contracts and the reasoning; they are not a description of what runs today. `docs/project-state.md` is.
 
 ---
 
@@ -306,7 +310,7 @@ Protocol for every marked item:
 
 ## 12. Working style for agents
 
-- **Read the stage document first.** It defines the contract, the deliverables, and the tests. Do not start coding from the product plan alone.
+- **Read `docs/project-state.md`, then the stage document for your area.** The stage document defines the contract, the deliverables and the tests, but it predates the code and says where it departs. Do not start coding from the product plan alone, and do not treat an unticked Definition of Done box as proof the work is undone.
 - **Do not skip ahead.** Stages assume their predecessors' contracts hold. Implementing stage 7 against an imagined stage 6 wastes both.
 - **Stop and ask when a contract is ambiguous.** Guessing an interface and building on it is the expensive failure mode here.
 - **Report the kill criteria honestly.** Stage 4 has a measured error-rate threshold that determines whether the project continues. Do not tune the audit to pass it.

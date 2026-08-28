@@ -30,7 +30,7 @@ There is no separate `spacy download` step.
 ## Run
 
 ```bash
-uv run pytest -q                              # 1788 tests, no network
+uv run pytest -q                              # whole suite, no network, no key
 uv run python -m scripts.step4_run_app        # terminal trainer
 ```
 
