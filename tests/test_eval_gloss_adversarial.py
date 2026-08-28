@@ -265,7 +265,9 @@ def test_main_with_no_client_configured_reports_not_run_and_exits_nonzero(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """The owner's explicit requirement: report 'not run', never a zero."""
-    monkeypatch.setattr(evg.sentence_source, "client_from_env", lambda: None)
+    monkeypatch.setattr(
+        evg.sentence_source, "client_from_env", lambda *, free_lane_only=False: None
+    )
     monkeypatch.setattr(evg, "load_env_file", lambda: None)
     monkeypatch.setattr(sys, "argv", ["eval_gloss_adversarial.py"])
 
@@ -278,6 +280,25 @@ def test_main_with_no_client_configured_reports_not_run_and_exits_nonzero(
     assert "0.0%" not in out
 
 
+def test_main_free_lane_only_refuses_to_start_without_an_explicit_free_key(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Zero paid spend is a hard requirement for this run, and
+    ``GEMINI_API_KEY`` is the owner's BILLED key. The real ``client_from_env``
+    runs here deliberately: stubbing it would test nothing about the guard."""
+    monkeypatch.delenv("GEMINI_FREE_API_KEY", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "the-billed-key")
+    monkeypatch.setattr(evg, "load_env_file", lambda: None)
+    monkeypatch.setattr(sys, "argv", ["eval_gloss_adversarial.py", "--free-lane-only"])
+
+    exit_code = evg.main()
+
+    assert exit_code == 1
+    out = capsys.readouterr().out
+    assert "FAILING" in out
+    assert "GEMINI_FREE_API_KEY=" in out
+
+
 def test_main_catches_a_transport_error_honestly(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -287,7 +308,9 @@ def test_main_catches_a_transport_error_honestly(
         ) -> list[str]:
             raise RuntimeError("simulated network failure")
 
-    monkeypatch.setattr(evg.sentence_source, "client_from_env", lambda: _AlwaysFailsClient())
+    monkeypatch.setattr(
+        evg.sentence_source, "client_from_env", lambda *, free_lane_only=False: _AlwaysFailsClient()
+    )
     monkeypatch.setattr(evg, "load_env_file", lambda: None)
     monkeypatch.setattr(sys, "argv", ["eval_gloss_adversarial.py"])
 
@@ -333,7 +356,9 @@ def test_main_end_to_end_reports_per_kind_recall_and_a_false_positive_rate(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     client = _ScriptedClient()
-    monkeypatch.setattr(evg.sentence_source, "client_from_env", lambda: client)
+    monkeypatch.setattr(
+        evg.sentence_source, "client_from_env", lambda *, free_lane_only=False: client
+    )
     monkeypatch.setattr(evg, "load_env_file", lambda: None)
     monkeypatch.setattr(sys, "argv", ["eval_gloss_adversarial.py", "--batch-size", "50"])
 
@@ -369,7 +394,9 @@ def test_main_verifies_the_two_arms_in_separate_calls(
             seen.extend(prompts)
             return super().generate_many(prompts, model, purpose, use_cache)
 
-    monkeypatch.setattr(evg.sentence_source, "client_from_env", lambda: _RecordingClient())
+    monkeypatch.setattr(
+        evg.sentence_source, "client_from_env", lambda *, free_lane_only=False: _RecordingClient()
+    )
     monkeypatch.setattr(evg, "load_env_file", lambda: None)
     monkeypatch.setattr(sys, "argv", ["eval_gloss_adversarial.py", "--batch-size", "50"])
 

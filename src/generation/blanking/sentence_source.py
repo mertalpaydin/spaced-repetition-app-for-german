@@ -995,26 +995,86 @@ class MockSentenceGenerator:
         return [pool[(offset + i) % len(pool)] for i in range(count)]
 
 
-def client_from_env() -> GeminiLlmClient | None:
+class FreeLaneKeyMissingError(RuntimeError):
+    """``client_from_env(free_lane_only=True)`` could not find an explicit
+    ``GEMINI_FREE_API_KEY``.
+
+    Its own error type rather than a bare ``ValueError`` so a caller can
+    catch exactly this and print it as a setup instruction instead of a
+    traceback, and so nothing can confuse it with a transport failure.
+    """
+
+
+#: What a free-lane-only run must find in the environment. Named here, once,
+#: because both the refusal message and the tests quote it.
+FREE_LANE_KEY_ENV_VAR = "GEMINI_FREE_API_KEY"
+
+_FREE_LANE_ONLY_REFUSAL = (
+    f"--free-lane-only was requested but {FREE_LANE_KEY_ENV_VAR} is not set. "
+    "Refusing to start: this run would otherwise fall back to GEMINI_API_KEY, "
+    "which on this project's machine is the BILLED key, and every call would "
+    "be paid spend under a flag that promises none.\n"
+    "Put the unbilled project's key in .env as:\n"
+    f"    {FREE_LANE_KEY_ENV_VAR}=<the key from the UNBILLED Google Cloud project>\n"
+    "It must come from the free (unbilled) project, not the billed one: "
+    "Gemini quota is enforced per Cloud project, so a billed project's key "
+    "has no free tier to run on (CLAUDE.md 9, 'Two lanes, two projects')."
+)
+
+
+def client_from_env(*, free_lane_only: bool = False) -> GeminiLlmClient | None:
     """Build a real ``GeminiLlmClient`` only when a lane key is actually
     configured in the environment; ``None`` otherwise. Mirrors
     ``src.generation.batch_client._build_llm_client_if_configured`` exactly
     -- kept as its own small copy here rather than importing that private
     helper, so this module stays self-contained within the new package.
 
-    Built with ``forbid_batch=True`` and ``forbid_paid_lane=False``: this is
-    a pilot script (``scripts/step6_blank_pilot.py``) with no ``--batch``
-    opt-in at all, so unlike the nightly automation there is no scenario
-    where this client should ever queue a real Batch API job. That is a
-    different thing from forbidding the paid lane outright, though -- the
-    project owner's own words: "no batch api ... for pilot go to paid on
+    **Default (``free_lane_only=False``), unchanged for every existing
+    caller.** Built with ``forbid_batch=True`` and ``forbid_paid_lane=False``:
+    this is a pilot script (``scripts/step6_blank_pilot.py``) with no
+    ``--batch`` opt-in at all, so unlike the nightly automation there is no
+    scenario where this client should ever queue a real Batch API job. That
+    is a different thing from forbidding the paid lane outright, though --
+    the project owner's own words: "no batch api ... for pilot go to paid on
     demand api, if free lane is already expired." So the paid lane itself
     stays open, synchronously, once the free lane's daily quota is spent;
-    only real batch submission is refused. See ``BatchForbiddenError`` in
-    ``src.llm.client`` for why this used to be ``forbid_paid_lane=True``
-    (which forbade the paid lane outright, sync or batch) and why that was
-    wrong: it made a spent free-lane quota degrade the whole run silently
-    instead of continuing on-demand."""
+    only real batch submission is refused.
+
+    **``free_lane_only=True``** is the opposite, deliberate choice, for a run
+    the owner has said must cost nothing at all: ``forbid_paid_lane=True``,
+    so ``_determine_lane`` can never return "paid" and a spent free-lane
+    daily quota raises ``PaidLaneForbiddenError`` instead of continuing on
+    the billed project. Nothing this client is handed to passes ``force_lane``
+    (the one documented bypass of that check), so under this flag no call can
+    reach the paid lane.
+
+    The key is resolved HERE and passed explicitly, which is the point of the
+    parameter rather than an incidental detail. ``GeminiLlmClient.__init__``
+    resolves its free key as ``GEMINI_FREE_API_KEY or GEMINI_API_KEY``, and on
+    this project owner's machine ``GEMINI_API_KEY`` is the same billed key as
+    ``GEMINI_PAID_API_KEY``. Left to that fallback, a "free lane only" run
+    would bill every single call while reporting itself as free. So a missing
+    ``GEMINI_FREE_API_KEY`` raises ``FreeLaneKeyMissingError`` before any
+    client exists, rather than being papered over. The check is on the
+    variable being SET, never on comparing key material: two keys can collide
+    in ways no comparison here would catch, and a value comparison would
+    invite reading secrets into logs.
+
+    Historical note, corrected: this docstring used to say ``forbid_paid_lane=
+    True`` "made a spent free-lane quota degrade the whole run silently". That
+    is stale. ``GeminiLlmClient`` raises ``PaidLaneForbiddenError`` on RPD
+    exhaustion under that flag, ``model_verification.verify_items`` degrades
+    every item to ``"not_run"`` (never to ``"verified"``), and both
+    ``scripts/step6_blank_pilot.py`` and ``scripts/step7_corpus_pilot.py``
+    exit non-zero on a nonzero ``not_run`` count, with ``step7`` additionally
+    refusing the bank write. Loud, not silent. What is true is that the run
+    stops instead of finishing, which is why this is opt-in and not the
+    default."""
+    if free_lane_only:
+        free_key = os.getenv(FREE_LANE_KEY_ENV_VAR)
+        if not free_key:
+            raise FreeLaneKeyMissingError(_FREE_LANE_ONLY_REFUSAL)
+        return GeminiLlmClient(free_api_key=free_key, forbid_paid_lane=True, forbid_batch=True)
     if (
         os.getenv("GEMINI_FREE_API_KEY")
         or os.getenv("GEMINI_PAID_API_KEY")

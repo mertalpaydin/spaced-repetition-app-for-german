@@ -472,7 +472,7 @@ from src.generation.blanking.pipeline import (
     UniquenessSkip,
     blank_sentences,
 )
-from src.generation.blanking.sentence_source import client_from_env
+from src.generation.blanking.sentence_source import FreeLaneKeyMissingError, client_from_env
 from src.generation.blanking.sentence_tagger import analysis_available
 from src.generation.pilot import _write_rejected_file, _write_review_file
 from src.lexicon.vocabulary import VocabularyStore
@@ -2075,13 +2075,34 @@ def main() -> int:
             "not written fails the run."
         ),
     )
+    parser.add_argument(
+        "--free-lane-only",
+        action="store_true",
+        help=(
+            "Forbid the paid lane outright for this run: verification runs on "
+            "the unbilled project or not at all. Requires GEMINI_FREE_API_KEY "
+            "to be set explicitly (the run refuses to start otherwise, rather "
+            "than falling back to GEMINI_API_KEY, which may be a billed key). "
+            "Off by default; without it this script behaves exactly as it did "
+            "before the flag existed, spilling onto the paid lane on demand "
+            "once the free lane's daily quota is spent. With it, a spent free "
+            "quota ends the run: verification reports every item as not-run, "
+            "the bank write is refused, and the exit code is nonzero."
+        ),
+    )
     parser.add_argument("--review-file", type=str, default=str(DEFAULT_REVIEW_PATH))
     parser.add_argument("--rejected-file", type=str, default=str(DEFAULT_REJECTED_PATH))
     parser.add_argument("--report-file", type=str, default=str(DEFAULT_REPORT_PATH))
     args = parser.parse_args()
 
     load_env_file()
-    llm_client = client_from_env()
+    try:
+        llm_client = client_from_env(free_lane_only=args.free_lane_only)
+    except FreeLaneKeyMissingError as exc:
+        # Before any corpus is read: hours of spaCy work would otherwise run
+        # before the run discovers it cannot verify anything.
+        print(f"\n  FAILING: {exc}")
+        return 1
     ran_live = llm_client is not None
 
     report = CorpusPilotReport(
