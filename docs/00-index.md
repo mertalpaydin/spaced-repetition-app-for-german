@@ -1,5 +1,18 @@
 # 00: Stage Index and Conventions
 
+> **Design record, written before most of the code existed. Not a description
+> of what the code does now.**
+>
+> The corpus pipeline that makes every exercise today, and the English
+> translation shown under every one, are absent from these contracts entirely:
+> neither "blank" nor "Azure" appears in any of the five stage documents.
+> `docs/project-state.md` has both.
+>
+> Named departures: `THINKING_VERIFY` is `"medium"` in the code, not `"low"`;
+> contracts live in one `src/contracts.py`, not in a `contracts.py` per module.
+> The 89 Definition-of-Done boxes across these five documents are all unticked,
+> which means nobody ticked them, not that the work is undone.
+
 The implementation is split into 14 stages across four documents.
 
 **Terminology.** A **round** is 5 to 8 items (default 6) and is the unit every pacing rule applies to. A **day** carries budgets that must not scale with round count, chiefly new-topic introductions. A **sitting** is however many rounds the user chooses and has no rules of its own. The word "session" is not used. Each stage has a contract, deliverables, a strict test set, and a Definition of Done. A stage is finished when its DoD is fully ticked and its tests pass on a clean checkout.

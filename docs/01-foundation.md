@@ -1,5 +1,19 @@
 # 01: Foundation (Stages 0 to 2)
 
+> **Design record, written before most of the code existed. Not a description
+> of what the code does now.**
+>
+> The corpus pipeline that makes every exercise today, and the English
+> translation shown under every one, are absent from these contracts entirely:
+> neither "blank" nor "Azure" appears in this document. `docs/project-state.md`
+> has both.
+>
+> Named departures: it calls the paid lane "batch only", and `CLAUDE.md`'s
+> "Two lanes, two projects" section supersedes that; it names
+> `data/taxonomy/topics.yaml`, and the file is `data/taxonomy.yaml`. Its
+> Definition-of-Done boxes are unticked because nobody ticked them, not because
+> the work is undone.
+
 ---
 
 ## Stage 0: Repo scaffold and CI

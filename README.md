@@ -38,8 +38,8 @@ The PWA in `web/` is static. Serve the directory and open `index.html`.
 `.github/workflows/deploy_pages.yml` publishes it to GitHub Pages on every
 push to `main`.
 
-To build a real item bank, follow `docs/building-the-bank.md`. It costs money
-and takes hours, so read it before starting.
+There is no item bank yet. To build one, follow `docs/building-the-bank.md`. It
+takes hours and it has never been run, so read all of it before starting.
 
 ---
 
@@ -51,9 +51,9 @@ and takes hours, so read it before starting.
 | `CLAUDE.md` | The rules for working in this repo: branches, commits, tests, cost discipline. |
 | `TODO.md` | Open work, in priority order. |
 | `docs/known-defects.md` | Every defect the pipeline lets through, with real examples. |
-| `docs/building-the-bank.md` | The five commands that build an item bank. |
+| `docs/building-the-bank.md` | The commands that build an item bank, and what each one costs. |
 | `docs/plan/german-grammar-app-plan.md` | The product design and why it is this way. |
 | `docs/00-index.md` and `docs/01-` to `04-` | The stage plans the code was built against. |
-| `docs/audits/` | Historical record. Accurate on its own date, not today. |
+| `docs/audits/README.md` | Index of the audit record: what each file measured, and on what date. Historical, never instructions. |
 
 Licence: `LICENSE.md`.

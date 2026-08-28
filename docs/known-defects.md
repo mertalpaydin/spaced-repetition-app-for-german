@@ -349,12 +349,18 @@ unsteady.
 anything any pass rejects. That is built:
 `step7_corpus_pilot.py --verification-passes N`, default 1. The union of two
 passes caught all 12 of the items above; either single pass did not. What is
-still unknown is how many passes are worth paying for, and there is a related
-unknown underneath it: the verifier now reads the English translation and
-relaxes its judgment against it, and **nobody has yet measured whether it
-notices a translation that is wrong.** The fixture and the harness for that
-measurement exist (`data/fixtures/adversarial/wrong_glosses.jsonl`,
-`scripts/eval_gloss_adversarial.py`); they need a key and a run.
+still unknown is how many passes are worth paying for.
+
+The related unknown underneath it is no longer unknown. The verifier reads the
+English translation and relaxes its judgment against it, and on **2026-08-28**
+`scripts/eval_gloss_adversarial.py` was run against
+`data/fixtures/adversarial/wrong_glosses.jsonl` for the first time: 36 matched
+pairs, each item verified once with a deliberately wrong translation and once
+with its real one, in separate calls. It catches **22 of 36** wrong
+translations, with **0 false positives** on the 36 correct ones. The zero is the
+good half: the pass does not invent translation defects, so nothing here argues
+for loosening it. The 22 splits very unevenly by kind, and one kind scores zero.
+That kind is 2.15.
 
 ---
 
@@ -525,16 +531,68 @@ Switzerland, which is presumably why it splits: 2 of 4.
 
 ---
 
+**The class below is not one of the five above.** It is the other kind: nothing
+catches it, deterministic or otherwise. It is last only because it was measured
+last.
+
+### 2.15 An English translation with the wrong number
+
+**What it is.** Every exercise shows its English translation, and the learner is
+meant to use it. When the translation says one thing and the German says
+several, or the other way round, the translation points at the wrong answer and
+the learner is marked wrong for reading it.
+
+**Example.** From the 2026-08-28 gloss eval fixture:
+
+```
+Ich habe schöne ___ gesehen.                                  -> Häuser
+    "I saw a beautiful house."
+```
+
+The learner reads the English, answers `Haus`, and is graded incorrect. The
+German is fine. The item is fine. Only the English is wrong, and it is the half
+the learner was told to trust.
+
+**Why no rule catches it.** No question in the live verification instruction
+asks whether the translation is correct. The four questions are about the
+German, the answer's uniqueness, whether every word exists, and the cue. The
+translation enters question 2 only as a reason to rule an alternative out. So
+every catch in the table below is incidental, and this is the one kind where
+nothing was caught by accident:
+
+| Wrong-translation kind | Caught |
+|---|---:|
+| Tense | 6 of 6 |
+| Polarity | 5 of 6 |
+| Unrelated sentence | 5 of 6 |
+| Person | 4 of 6 |
+| Definiteness | 2 of 6 |
+| **Number, singular against plural** | **0 of 6** |
+
+Number is the worst kind to be blind to, because it is the kind that changes the
+answer. A tense slip in the English leaves `Häuser` the only thing that fits the
+gap; a number slip does not.
+
+**What would have to exist.** Either a fifth question in the verification
+instruction, asking directly whether the English matches the German, or a
+deterministic check comparing the answer's number against the number of the
+matching English noun phrase. `en_core_web_sm` is already installed and
+`src/generation/gloss_validation.py` already uses it. This one is open work
+rather than an accepted limit: `TODO.md` item 4.
+
+---
+
 ## 3. What this adds up to
 
-The fourteen classes above split into two groups, and they are not the same
+The fifteen classes above split into two groups, and they are not the same
 kind of problem.
 
-**Nine classes where no rule exists.** Four (2.1, 2.2, 2.6, 2.7) have no rule
+**Ten classes where no rule exists.** Four (2.1, 2.2, 2.6, 2.7) have no rule
 and are held by the verifier alone, and the verifier is the class in 2.9. Two
 (2.4, 2.5) are handled by dropping items rather than risking them, which costs
 coverage and never costs correctness. One (2.3) is reported in every audit
-instead of fixed. One (2.8) is a filter nobody has asked for yet.
+instead of fixed. One (2.8) is a filter nobody has asked for yet. One (2.15) is
+held by nothing at all, and is the only entry in this file that is open work.
 
 The measured cost of that group was 10 bad items in 430, and half of those were
 translation problems whose source has since been removed from the pipeline

@@ -44,7 +44,8 @@ number behind it.
 The biggest single piece of open work. Item 1 is the only thing that goes
 first, and it is a decision, not code. Nothing below is a reason to delay this.
 
-**Do.** Follow `docs/building-the-bank.md`. Five commands, in order.
+**Do.** Follow `docs/building-the-bank.md`. Prerequisites, then four commands,
+in order.
 
 **Why.** There is no bank. Every downstream thing, the web bundle included, is
 a demo until this runs.
@@ -226,6 +227,16 @@ generated, and the rule for deciding. That becomes the standing policy.
   broken, in the script `docs/building-the-bank.md` tells you to run. The real
   CLI (`src/cli/`) does not do this, and neither does the PWA. Delete the
   line.
+
+- **CI's pull-request gate fails by construction.**
+  `.github/workflows/ci.yml`'s `simulation-tests` job runs
+  `uv run pytest -m simulation tests/` on every PR to `main`. No test carries
+  that marker, so pytest selects nothing and exits 5, and the job goes red
+  before any code is written. The nightly `live-tests` job on `main` runs
+  `pytest -m live` and fails identically. Either mark the tests that belong to
+  each lane (`tests/test_typo_simulation.py` is the simulation suite) or delete
+  the two jobs and the two markers. The owner's call, because it decides
+  whether those lanes exist at all.
 
 - **Three CSS class-name mismatches in `web/`.** Listed in
   `docs/project-state.md`. Each one is a one-word edit. Nothing renders wrong

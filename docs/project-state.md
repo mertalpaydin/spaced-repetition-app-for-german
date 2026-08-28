@@ -144,9 +144,13 @@ fix log mentions these workflows at all.
     never appears.
   - `web/index.html` gives the topic map `class="dag-tree-grid"`; the
     stylesheet defines `.dag-grid`. The grid layout never applies.
-- **CLAUDE.md's repository map is slightly stale.** Tests are flat in
-  `tests/`, not split into `tests/unit`, `tests/integration` and
-  `tests/simulation`. The markers exist; the directories do not.
+- **Two pytest markers are declared and used by nothing, and CI fails on it.**
+  `live` and `simulation` in `pyproject.toml` are applied to zero tests.
+  `pytest -m simulation` therefore selects nothing and exits 5, and
+  `.github/workflows/ci.yml` runs exactly that in its `simulation-tests` job on
+  every pull request to `main`. So the PR gate is red before you write a line.
+  The nightly `live-tests` job on `main` fails the same way. `golden` is used
+  and is fine. `TODO.md` carries it.
 
 ---
 
@@ -265,6 +269,8 @@ August. September resets it.
    describe the repository on the day they were written and several are now
    wrong on purpose. Where an audit and `CLAUDE.md` disagree, `CLAUDE.md`
    wins. One of them proposes relaxing rule 2. That proposal was not adopted.
+   `docs/audits/README.md` dates every file and marks the four that read as
+   live work and are not.
 
 8. **Do not weaken a test to make it pass.** Several constants are pinned by a
    test whose whole job is to make you ask the owner first: the spend ceiling,

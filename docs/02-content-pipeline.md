@@ -1,5 +1,21 @@
 # 02: Content Pipeline (Stages 3 to 5)
 
+> **Design record, written before most of the code existed. Not a description
+> of what the code does now, and the furthest from it of the five.**
+>
+> The corpus pipeline that makes every exercise today, and the English
+> translation shown under every one, are absent from these contracts entirely:
+> neither "blank" nor "Azure" appears in this document. `docs/project-state.md`
+> has both.
+>
+> Named departures: stage 3's model table lists a "topic-leak check" model call,
+> and there is no such call, only a deterministic blocklist
+> (`src/verification/layer_topic_leak.py`); it says item generation runs with
+> thinking off, and every Flash-Lite workload now runs `low`; stage 4's
+> seven-layer chain does not match the five the code ships
+> (`src/verification/pipeline.py`). Its Definition-of-Done boxes are unticked
+> because nobody ticked them, not because the work is undone.
+
 This document contains the kill gate. Stage 4 decides whether the project continues.
 
 ---

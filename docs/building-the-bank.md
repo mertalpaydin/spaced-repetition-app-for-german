@@ -1,7 +1,23 @@
 # Building the bank
 
-From a clean checkout to a populated `web/data`. Five commands. Run them in
-order; each one's "did it work" check is the input the next one needs.
+> **This has never been run.** It is a plan with measured figures behind it, not
+> a record of a build. There is no item bank.
+>
+> **The paid route in step 1 will not finish this month.** It costs about
+> 3.28 USD and August has spent 5.21 of its 7.50 USD ceiling, so
+> `GeminiLlmClient` raises `BudgetExceeded` partway through verification and the
+> bank write is refused. September resets the ceiling.
+>
+> **The route that works today is `--free-lane-only`**, in "Building it without
+> spending anything" below, spread across several days. It spends nothing and
+> needs no ceiling.
+>
+> Read `TODO.md` item 2 before starting. It is the same build, with the decision
+> that comes first and the two flags that quietly ruin the run.
+
+From a clean checkout to a populated `web/data`. Prerequisites once, then four
+commands. Run them in order; each one's "did it work" check is the input the
+next one needs.
 
 Costs and durations below are the owner's own measured figures for a
 **25-items-per-topic, 49-topic, ~1,225-item** build. Anything marked
@@ -25,6 +41,21 @@ Stage the two corpora at `data/raw/_extract/`:
 data/raw/_extract/tatoeba_deu.tsv
 data/raw/_extract/leipzig_sample.txt
 ```
+
+Neither is in the repository and neither is downloaded for you. Both are
+tab-separated plain text, and `scripts/corpus_reading.py` is the one reader for
+both:
+
+| File | Source | Format |
+|---|---|---|
+| `tatoeba_deu.tsv` | Tatoeba's per-language sentence export, `tatoeba.org` | `<id>\t<lang>\t<sentence>` |
+| `leipzig_sample.txt` | Leipzig Corpora Collection German news, `wortschatz.uni-leipzig.de` | `<id>\t<sentence>` |
+
+Check each one's terms before publishing anything built from it.
+`docs/plan/german-grammar-app-plan.md` section 2, "Sources (all free)", has the
+licence notes. Only
+lines of 25 to 160 characters and 5 to 18 words are read, so a smaller sample
+still works; it just yields fewer items.
 
 **Worked when:** `uv run pytest -q -p no:randomly` passes, and
 `ls data/raw/_extract` lists both files. If either corpus is missing the

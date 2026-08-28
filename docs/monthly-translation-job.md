@@ -173,8 +173,10 @@ Add these inside the `.cmd` file, after `scripts.monthly_translation_topup`:
 ## 8. What this job will and will not do
 
 It replaces every Tatoeba gloss in the store with a machine translation,
-because Tatoeba's own translations are not trusted (see TODO.md section 4: a
-hand audit of 430 accepted exercises found 4 wrong glosses and 3 of the 4 were
-Tatoeba's). It does this **after** it has glossed every carrier that has no
-gloss at all, and it never deletes a Tatoeba record until a real translation
-has landed to overwrite it, so feature 5.3's corpus never has a hole in it.
+because Tatoeba's own translations are not trusted (see `TODO.md`, "Do not
+change these without asking the owner": a hand audit of 430 accepted exercises
+found 4 wrong glosses and 3 of the 4 were Tatoeba's). It does this **after** it
+has glossed every carrier that has no gloss at all, and it never deletes a
+Tatoeba record until a real translation has landed to overwrite it, so the
+corpus behind `TODO.md` item 11, click a word to see it in context, never has a
+hole in it.

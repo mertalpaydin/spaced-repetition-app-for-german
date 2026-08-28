@@ -1,5 +1,19 @@
 # Interleaved German Grammar Trainer: Project Plan
 
+> **Design record, written before most of the code existed. Not a description
+> of what the code does now.** The product argument still holds; the numbers and
+> the mechanics have moved.
+>
+> The corpus pipeline that makes every exercise today, and the English
+> translation shown under every one, are absent from this document entirely:
+> neither "blank" nor "Azure" appears in it. `docs/project-state.md` has both.
+>
+> Named departures: the recurring budget here is 5 EUR/month, and the ceiling
+> enforced in code is 7.50 USD; the cold-start estimate of 11 to 15 EUR is
+> superseded by a measured 3.28 USD in `docs/building-the-bank.md`. The stage
+> documents' 89 Definition-of-Done boxes are all unticked, which means nobody
+> ticked them, not that the work is undone.
+
 **Scope:** German only, A1 to B2. Personal daily-use tool, built to also serve as a portfolio project.
 **Budget:** hosting 0 EUR/month (target ceiling 1-2 EUR). LLM spend up to 5 EUR/month recurring, plus a one-time bank build in the low tens of euros.
 **Platform:** installable PWA. Chrome is the primary target; built Safari-safe throughout.
