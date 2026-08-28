@@ -20,7 +20,12 @@ from scripts.eval_verifier import (
     load_known_clean_fixture,
 )
 from src.contracts import MODEL_VERIFY
-from src.generation.blanking.model_verification import _chunk, build_batch_prompt
+from src.generation.blanking.model_verification import (
+    ItemVerdict,
+    VerificationReport,
+    _chunk,
+    build_batch_prompt,
+)
 from src.llm.cache import LlmCache
 from src.llm.client import PaidLaneForbiddenError
 
@@ -281,6 +286,11 @@ def test_main_end_to_end_with_a_fake_client_reports_recall_and_fpr(
     assert exit_code == 0
     assert "recall: 100.0%" in out
     assert "false-positive rate: 0.0%" in out
+    # The two blocks added after the first paid run (fix log cycle 17) are
+    # part of a complete run's own output, not an opt-in.
+    assert "Recall by source audit cycle:" in out
+    assert "cycle 7: 14/14  (100.0%)" in out
+    assert "Missed defects: none." in out
     # A complete run's own numbers ARE the result. A progress block under
     # them would only muddy which of the two the reader is meant to take.
     assert "PROGRESS TOWARD A COMPLETE MEASUREMENT" not in out
@@ -451,3 +461,79 @@ def test_main_prints_progress_when_the_transport_raises_outright(
     assert exit_code == 1
     assert "NOT RUN" in out
     assert "items with a cached model verdict: 5 of 69" in out
+
+
+# ---------------------------------------------------------------------------
+# The two breakdowns added after the first real measurement (fix log cycle 17)
+#
+# The first paid run of this script printed per-defect-class totals only, and
+# the whole finding it produced -- that recall on the never-screened cycle-7
+# defects and recall on the cycle-8/9 defects the verifier had already passed
+# once are different numbers, and that a class printed "1/2" hides which
+# record was missed -- had to be reconstructed from the fixture by hand. Both
+# blocks below exist so the next run does not.
+# ---------------------------------------------------------------------------
+
+
+def _report_rejecting(ids: set[str]) -> VerificationReport:
+    """A ``VerificationReport`` over the real adversarial fixture, in fixture
+    order, rejecting exactly the records named in ``ids`` and verifying the
+    rest -- the shape ``verify_items`` returns, built directly so a print
+    helper can be exercised on a chosen pattern of catches and misses without
+    a client, real or fake."""
+    return VerificationReport(
+        attempted=True,
+        verdicts=[
+            ItemVerdict(outcome="rejected", reason="simulated")
+            if record.id in ids
+            else ItemVerdict(outcome="verified")
+            for record in load_adversarial_fixture()
+        ],
+    )
+
+
+def test_recall_by_source_cycle_splits_the_three_audit_cycles(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The fixture's own composition (14 from cycle 7, 7 from cycle 8, 17
+    from cycle 9) is the denominator of each line, and a run that rejects
+    only cycle 7's records reports 100% there and 0% for the other two."""
+    records = load_adversarial_fixture()
+    cycle_7 = {r.id for r in records if r.source_cycle == 7}
+
+    eval_verifier._print_recall_by_source_cycle(records, _report_rejecting(cycle_7))
+
+    out = capsys.readouterr().out
+    assert "cycle 7: 14/14  (100.0%)" in out
+    assert "cycle 8: 0/7  (0.0%)" in out
+    assert "cycle 9: 0/17  (0.0%)" in out
+
+
+def test_missed_records_names_every_defect_the_pass_did_not_reject(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A miss is named by fixture id and defect class, which is the part a
+    per-class total cannot carry: two records of one class, one caught and
+    one missed, must print the missed id and not the caught one."""
+    records = load_adversarial_fixture()
+    caught = {r.id for r in records if r.id != "c08_06"}
+
+    eval_verifier._print_missed_records(records, _report_rejecting(caught))
+
+    out = capsys.readouterr().out
+    assert "Missed defects (1), by fixture id:" in out
+    assert "c08_06 (cycle 8): cue_capitalization_mismatch_sentence_initial" in out
+    assert "c08_07" not in out
+
+
+def test_missed_records_says_none_rather_than_printing_an_empty_list(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Perfect recall prints a positive statement, not a header with nothing
+    under it that reads like a truncated report."""
+    records = load_adversarial_fixture()
+
+    eval_verifier._print_missed_records(records, _report_rejecting({r.id for r in records}))
+
+    out = capsys.readouterr().out
+    assert "Missed defects: none." in out

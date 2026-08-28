@@ -105,6 +105,20 @@ other.
   standing rule, not a task. The verifier is a discovery instrument and must
   never be the only thing between a known defect class and a learner.
 
+- **And the measured inverse: anything the verifier systematically MISSES must
+  become a deterministic rule too.** Also standing, also not a task. Cycle 17
+  supplied the measurement the original rule never had a counterpart for: the
+  pass caught 0 of 6 reflexive case-routing defects, 0 of 2 Futur I defects and
+  0 of 2 topic-misfiling defects, and it will score exactly the same on the
+  next run, because the reason is structural rather than a matter of attention
+  (`model_verification._format_item_block` withholds `topic_id`, correctly, per
+  CLAUDE.md rule 2, and those defects are invisible without it). A class the
+  verifier misses reproducibly cannot be improved by asking it again, at any
+  batch size or any number of passes. It has to be a rule, or it is nothing.
+  The good news buried in that: a stable blind spot is operationally better
+  than a random one, because only the stable kind can be closed. See
+  `docs/audits/fix-log.md` cycle 17.
+
 - **A whole-corpus `step7_corpus_pilot.py` run is silent for hours and its
   rejected file is enormous.** Both stand, both are recorded rather than
   fixed. The carrier-validation pass and the tagging pass each parse every
@@ -354,37 +368,10 @@ bank comes first and nothing below is a reason to delay it.
   distinguish them from legitimate Tatoeba records. Run the purge for 5.3's
   sake; it is no longer the thing blocking a pilot.
 
-- [ ] **2.3 Get real numbers out of `scripts/eval_verifier.py`.** The
-  adversarial set (38 confirmed defects, 31 confirmed clean) and the script
-  both exist. They have never been run with a key, so the verifier's recall
-  and false-positive rate are still unmeasured. **This half of 2.3 is still
-  open.**
-
-  **The batch-size half is done and is answered: batch size is not the
-  lever.** 475 identical candidates at batch 20 gave 444 accepted / 31
-  rejected, at batch 5 gave 438 accepted / 37 rejected. Item by item, 9 were
-  accepted at 20 and rejected at 5 and 3 went the other way, and all 12 were
-  read by hand and all 12 are genuinely bad items. Items late in a large
-  batch are not the problem; the verifier is simply unstable on about 2.5%
-  of this corpus, in both directions. See 2.1c for the full finding.
-
-  **What that produced:** `scripts/step7_corpus_pilot.py
-  --verification-passes N` (default 1, unchanged behaviour), which runs the
-  verification pass N times over the same items and rejects on ANY pass's
-  rejection. The union of two passes is the instrument that catches all 12;
-  either run alone does not. Passes after the first bypass the response
-  cache on purpose, since an identical prompt would otherwise replay the
-  first pass's verdict. `pass_disagreements` in the run report is the number
-  to watch: it is how unstable the verifier was on that run's own items.
-  Cost against the $7.50/month ceiling, from `cost_log`: about $0.18 per
-  cycle at batch 20, about $0.36 at batch 5, roughly doubled per extra pass.
-
-  `scripts/eval_verifier.py` itself does not have this flag. It runs against
-  a fixed 69-item adversarial set with known ground truth, where the honest
-  measurement is a single pass's own recall and false-positive rate; adding
-  a union there would measure the union rather than the verifier. If the
-  recall run below shows the same instability, that is the point to decide
-  whether the eval should report both.
+2.3 is closed. The verifier's recall (60.5%) and false-positive rate (12.9%)
+are measured, the batch-size half was already answered, and the writeup is in
+`docs/audits/fix-log.md` cycle 17. What came out of the measurement is 2.7
+below; do not re-open 2.3 for it.
 
 - [ ] **2.3b Keep reconciling, monthly.** The August repair itself is done
   and is written up in `docs/audits/fix-log.md` cycle 16: the log went from
@@ -425,6 +412,66 @@ bank comes first and nothing below is a reason to delay it.
   `docs/monthly-translation-job.md` (one `schtasks /Create` line). Until that
   task exists in Windows Task Scheduler, nothing runs and the corpus does not
   progress. See section 5.1 for the arithmetic and the standing job's contract.
+
+- [ ] **2.7 Five defect families the verifier will never catch, and no
+  post-hoc check that would.** Cycle 17's real finding, and it is not the
+  headline recall number. Fifteen defects were missed and they fall into five
+  families, every one of them deterministic rather than a matter of judgement.
+  **All five already have a shipped deterministic rule**, and four of the five
+  were verified closed by running the shipped code against the fixture's own
+  sentences, so none of them reaches a learner today.
+
+  | Family | Missed | What already covers it |
+  |---|---:|---|
+  | Reflexive case direction, Akk against Dat | 0 of 6 | `selectors._reflexive_case`, `_followed_by_dass_clause_object`, `_has_bare_accusative_object` |
+  | Cue capitalization mismatch | 1 of 4 | `selectors._cue_case_matched_to_answer` at `_citation_cue` |
+  | Futur I confusable with a passive participle | 0 of 2 | `_select_futur_i`, clause-scoped, `_is_participle` not a bare `VVPP` tag |
+  | Topic misfiling: no comparison, wrong Konjunktiv tense | 0 of 2 | `_select_komparativ_superlativ` (`KOKOM`), `_select_konjunktiv_ii_base` |
+  | Swiss orthography elsewhere in the carrier | 2 of 4 | `carrier_validation._sentence_shape_reason`, diphthong rule plus `draussen` |
+
+  **So the open work is not five rules.** Every one of those rules lives at
+  GENERATION time, in the selectors and in carrier validation. There is no
+  post-hoc, item-level re-check of a finished item anywhere in the pipeline. If
+  a selector regresses, the model verifier is all that is left, and cycle 17
+  measured what it does about it: nothing, for anything requiring the item's
+  topic, which is four of the five families.
+
+  The decision to make, and it is the owner's:
+
+  1. **Do nothing.** Defensible. The rules ship, the tests pin them, and the
+     cost of this option is that the next regression is found by hand, months
+     later, in an audit.
+  2. **A post-hoc item-level checker over finished `BankItem`s.** The natural
+     home is `src/audit/bank_health.py`, which already walks every item in the
+     bank checking gap presence, distractor count and non-empty answers, and
+     which has the `topic_id` the verifier is correctly denied. The cheapest
+     entry is the cue-case check: `cue[:1].isupper() != answer[:1].isupper()`,
+     no spaCy, no model call, and it closes the one family above that is a
+     plain miss on a question the verifier is actually asked.
+  3. **Re-run the selectors over accepted items and diff.** The strongest and
+     the most expensive: it would catch all four topic-attribution families,
+     but it means parsing every banked item a second time and deciding what a
+     disagreement means.
+
+  Do not start any of these without the owner choosing. Recorded in
+  `docs/known-defects.md` 2.10 to 2.14 with real examples.
+
+- [ ] **2.7b Two adversarial-fixture records do not encode the defect they
+  name.** `c08_04` and `c08_05` in
+  `data/fixtures/verification/blanking_model_verifier_adversarial.jsonl` are
+  filed as `cue_capitalization_mismatch`, and cycle 8 quoted their answers as
+  the formal capitalised `Ihrer` and `Ihren`. The fixture reconstructed the
+  carriers with lowercase `ihrer` and `ihren`, which makes both ordinary
+  correct sentences whose cue differs from the answer by inflection rather than
+  by case. As encoded they are not capitalisation traps, so whichever of the
+  two the cycle 17 run rejected, it rejected for a different reason, and that
+  family's "1 of 4" is partly an artefact of the fixture.
+
+  Left alone deliberately. This is a golden fixture (CLAUDE.md section 7) and
+  correcting a record is not a casual edit: it changes a published recall
+  number and needs a commit that says why. The owner decides whether to correct
+  the two records or leave them and note the caveat wherever the number is
+  quoted.
 
 ---
 
@@ -818,6 +865,9 @@ list is a reason to delay it, and it unblocks several of them.
   (section 4). 49 topics at 25 items is about **1,225 items**, read from the
   whole corpus rather than 40,000 lines per source, verified by two passes at
   batch size 5. Nightly top-up is the last resort, not the build path.
+  **Re-read the pass count against cycle 17's 12.9% false-positive rate before
+  running**: two passes union their rejections, which means unioning their
+  false positives too. See 6.3.
 - **Cost: $0.00268 an item, so $3.28 for the whole bank.** Measured from the
   owner's own Google bill, not estimated from the cost log. Against a
   $7.50/month ceiling. Glossing 1,225 carriers is about 73,000 characters,
@@ -850,11 +900,56 @@ report for that before starting either.
    now depends on.
 3. **2.2b, run the gloss purge**, then re-gloss, for 5.3's sake. No longer
    blocks a pilot.
-4. **2.3, run `scripts/eval_verifier.py` with a key**, for the verifier's own
-   recall and false-positive rate.
-5. ~~**2.3b, run the cost-log repair** against the real August log~~. Done
+4. ~~**2.3, run `scripts/eval_verifier.py` with a key**~~. Done 2026-08-28:
+   recall 60.5%, false-positive rate 12.9%, `$0.065604`; see cycle 17 in the
+   fix log. What it produced instead is item 5.
+5. **2.7, decide what to do about the five families the verifier cannot
+   catch.** After the bank build, deliberately. Reasoning below, because the
+   placement is the only genuinely arguable thing in this list.
+6. ~~**2.3b, run the cost-log repair** against the real August log~~. Done
    2026-08-27, exact match to the bill; see cycle 16 in the fix log. What
    remains under 2.3b is the monthly reconcile.
-6. **2.4, the AI generation pilot**, on the topic list 6.1 produces. Still
+7. **2.4, the AI generation pilot**, on the topic list 6.1 produces. Still
    open (see 2.4), still last.
-7. **2.5, write down the split** once 2.4 has run.
+8. **2.5, write down the split** once 2.4 has run.
+
+### 6.3 Why 2.7 goes after the bank build, and the one part of it that goes before
+
+The instinct after cycle 17 is to fix the verifier's blind spots before
+committing $3.28 and several hours to a 1,225-item bank. That instinct is
+wrong here, for a specific reason: **all five families already have shipped
+deterministic rules, verified against the fixture's own sentences.** The bank
+build is not made safer by doing 2.7 first, because 2.7 does not add a rule.
+It decides whether to add a second layer behind rules that currently work. A
+build run today produces the same items either way.
+
+Three further arguments for the same placement:
+
+- **The bank build is the better input to the decision.** 2.7's real question
+  is whether a post-hoc item-level checker earns its keep. That depends on how
+  often a selector actually regresses at scale and on which topics are thin
+  enough to care, and 6.1 is precisely the run that produces the per-topic
+  counts. Deciding first means deciding on a 38-record fixture instead of on
+  1,225 real items.
+- **Option 2 in 2.7 is a change to `bank_health.py`, which runs over a bank.**
+  There is no bank yet. Building the checker before the thing it checks means
+  testing it on synthetic data.
+- **6.1 already says nothing is a reason to delay it.** Cycle 17 did not
+  produce a reason, and inventing one out of a number that turned out to be
+  measuring the fixture as much as the verifier would be exactly the mistake
+  this section exists to prevent.
+
+**The one part that goes before 6.1, and it costs nothing to do.** 6.1 already
+specifies "verified by two passes at batch size 5", decided from 2.1c's
+instability finding, before any false-positive rate existed. Cycle 17 supplies
+the other side of that trade. `--verification-passes N` rejects on any pass's
+rejection, on purpose, so the union of rejections is also the union of false
+positives: two passes take the discard rate from a measured 12.9% to somewhere
+between 12.9% and 24.1% (not 24.1% exactly, because the passes are not
+independent, and unmeasured). Against 1,225 items that is roughly 181 good
+candidates discarded at one pass and up to about 295 at two, and the topics
+that struggle to reach 25 items at all are the ones that pushes under the
+floor. Two passes may still be right, since the alternative is 2.5% of items
+decided by coin flip. But the decision was made without half its evidence, so
+re-read it against the cycle 17 numbers before the build. That is a decision to
+make, not code to write, and it does not delay anything.

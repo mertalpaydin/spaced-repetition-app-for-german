@@ -32,6 +32,28 @@ new defect appends a record to the adversarial fixture rather than editing
 or replacing an existing one (TODO.md 3.3's own instruction, restated in
 each fixture's own ``_meta`` record so it is not only in this script).
 
+## What a complete run prints, and why three breakdowns rather than one
+
+A pooled recall figure over the adversarial fixture is not a neutral
+estimate of anything, because the fixture is not a neutral sample. Its 38
+records come from three cycles that differ in a way that changes what a
+miss means: cycle 7's verification backstop **did not run at all**
+(docs/audits/cycle-07-report.md: "Zero of 370 items were" verified), so
+its 14 defects are a neutral sample of pipeline output, while cycles 8 and
+9 hand-audited *accepted* items, so their 24 defects are by construction
+ones this pass already failed to catch once. Pooling the two averages a
+population the verifier had never seen with one selected for having beaten
+it. So a complete run prints, under the headline rate:
+
+- recall by defect class (what kind of defect),
+- **recall by source audit cycle** (which population it came from),
+- **every missed defect by fixture id** (which record to actually read).
+
+The last two were added after the first real measurement, where all three
+had to be reconstructed by hand from the fixture because only the per-class
+totals were printed, and a class shown "1/2" names neither the record that
+was caught nor the one that was missed. See docs/audits/fix-log.md cycle 17.
+
 ## TODO.md 3.4: batch size as a flag, not a fix
 
 Items are verified ``DEFAULT_VERIFICATION_BATCH_SIZE`` (20) to a prompt, and
@@ -312,6 +334,56 @@ def _print_recall_by_defect_class(
         print(f"    - {defect_class}: {caught[defect_class]}/{total[defect_class]}")
 
 
+def _print_recall_by_source_cycle(
+    adversarial: list[AdversarialRecord], report: VerificationReport
+) -> None:
+    """Recall split by the audit cycle each defect was found in --
+    ``source_cycle``, already a field on every fixture record.
+
+    This is not a curiosity. The three cycles are not three samples of one
+    population, and the difference decides how the headline number should
+    be read: docs/audits/cycle-07-report.md records that the verification
+    backstop did not run at all that cycle ("Zero of 370 items were"
+    verified), so its defects are a neutral sample of what the pipeline
+    emits; cycle 8 and cycle 9 hand-audited items the verifier had already
+    passed, so their defects are, by construction, ones it already failed
+    to catch once. A single pooled recall figure averages the two and
+    describes neither. Printing the split costs one pass over the verdicts
+    and saves the reader recomputing it from the fixture by hand."""
+    caught: Counter[int] = Counter()
+    total: Counter[int] = Counter()
+    for record, verdict in zip(adversarial, report.verdicts, strict=True):
+        total[record.source_cycle] += 1
+        if verdict.outcome == "rejected":
+            caught[record.source_cycle] += 1
+    print("  Recall by source audit cycle:")
+    for cycle in sorted(total):
+        n = total[cycle]
+        print(f"    - cycle {cycle}: {caught[cycle]}/{n}  ({caught[cycle] / n:.1%})")
+
+
+def _print_missed_records(adversarial: list[AdversarialRecord], report: VerificationReport) -> None:
+    """Every defect the pass did NOT reject, by record id and defect class.
+
+    The two blocks above report totals per class and per cycle, which is
+    enough to see the shape and not enough to act on it: a class printed
+    "1/2" names neither which record was caught nor which was missed, and
+    the missed one is the only one worth reading. Naming the ids here is
+    what makes the misses inspectable directly against the fixture file
+    instead of by re-deriving them from the totals."""
+    missed = [
+        record
+        for record, verdict in zip(adversarial, report.verdicts, strict=True)
+        if verdict.outcome != "rejected"
+    ]
+    if not missed:
+        print("  Missed defects: none.")
+        return
+    print(f"  Missed defects ({len(missed)}), by fixture id:")
+    for record in missed:
+        print(f"    - {record.id} (cycle {record.source_cycle}): {record.defect_class}")
+
+
 def _combined_cache_coverage(
     item_groups: Sequence[Sequence[BankItem]],
     llm_client: GeminiLlmClient | None,
@@ -468,6 +540,10 @@ def main() -> int:
     _print_result(recall_result, rate_name="recall")
     print()
     _print_recall_by_defect_class(adversarial, adversarial_report)
+    print()
+    _print_recall_by_source_cycle(adversarial, adversarial_report)
+    print()
+    _print_missed_records(adversarial, adversarial_report)
     print()
     _print_result(fpr_result, rate_name="false-positive rate")
 
