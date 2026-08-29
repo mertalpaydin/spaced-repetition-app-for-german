@@ -104,6 +104,14 @@ class CandidatePool(BaseModel):
     #: The phase-A inputs that decide what is in here. See the module
     #: docstring on why a mismatch warns rather than refuses.
     inputs_fingerprint: str = ""
+    #: Those same inputs in readable form, so phase B can SHOW what the pool
+    #: was built from rather than only assert a hash differs. Added after the
+    #: fingerprint alone proved useless in practice: phase B has no reason to
+    #: repeat phase A's flags, so it compared the pool against its own argparse
+    #: defaults and warned on every single normal invocation. A warning that
+    #: always fires is worse than none, because it trains the operator to
+    #: ignore the one time it means something.
+    phase_a_inputs: dict[str, str] = Field(default_factory=dict)
     seed: int = 0
     per_topic_quota: int = 0
     #: The assembled items, glossless. Phase B fills ``gloss_en``.

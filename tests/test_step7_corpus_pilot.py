@@ -6,6 +6,7 @@ with a fake verifier standing in for the model."""
 
 from __future__ import annotations
 
+import argparse
 import json
 import sqlite3
 import sys
@@ -33,6 +34,7 @@ from scripts.step7_corpus_pilot import (
 from src.contracts import CEFR, BankItem, CandidateItem, Topic
 from src.generation.blanking.pipeline import TOPIC_IDS, blank_sentences
 from src.generation.blanking.sentence_tagger import analysis_available
+from src.generation.candidate_pool import CandidatePool
 from src.lexicon.vocabulary import VocabularyStore
 from src.llm.translation import TranslationError
 from src.taxonomy.loader import load_taxonomy
@@ -2976,3 +2978,46 @@ def test_main_banks_the_judged_items_and_withholds_the_rest(
     # diagnosable from disk, which is why the bank is written last of all.
     assert (tmp_path / "review.jsonl").read_text().strip()
     assert (tmp_path / "rejected.jsonl").exists()
+
+
+def test_phase_b_does_not_warn_when_no_phase_a_flag_was_typed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The bug this replaced: phase B compared a fingerprint against its own
+    argparse defaults, so it warned on EVERY normal invocation. A warning that
+    always fires trains the operator to ignore the one that matters."""
+    monkeypatch.setattr(
+        sys, "argv", ["step7_corpus_pilot.py", "--phase", "b", "--pool-file", "p.json"]
+    )
+    args = argparse.Namespace(limit=40000, per_topic_quota=25, seed=7, max_items_per_lemma=3)
+    pool = CandidatePool(
+        phase_a_inputs={"limit_per_source": "1000000", "per_topic_quota": "25", "seed": "7"}
+    )
+    assert step7._phase_a_flag_conflicts(args, pool) == {}
+
+
+def test_phase_b_warns_only_about_a_flag_the_operator_actually_typed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["step7_corpus_pilot.py", "--phase", "b", "--per-topic-quota", "5"],
+    )
+    args = argparse.Namespace(limit=40000, per_topic_quota=5, seed=7, max_items_per_lemma=3)
+    pool = CandidatePool(
+        phase_a_inputs={"limit_per_source": "1000000", "per_topic_quota": "25", "seed": "7"}
+    )
+    conflicts = step7._phase_a_flag_conflicts(args, pool)
+    assert conflicts == {"--per-topic-quota": ("5", "25")}
+    # --limit differs too, but was never typed, so it is not reported.
+    assert "--limit" not in conflicts
+
+
+def test_phase_b_does_not_warn_when_a_typed_flag_agrees_with_the_pool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["step7_corpus_pilot.py", "--per-topic-quota=25"])
+    args = argparse.Namespace(limit=40000, per_topic_quota=25, seed=7, max_items_per_lemma=3)
+    pool = CandidatePool(phase_a_inputs={"per_topic_quota": "25"})
+    assert step7._phase_a_flag_conflicts(args, pool) == {}

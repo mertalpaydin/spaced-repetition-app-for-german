@@ -3825,3 +3825,58 @@ rather than the offered count.
 
 `uv run pytest -q`: 1911 passed. `ruff check`, `ruff format --check` and
 `mypy --strict src/` all clean.
+
+---
+
+## Cycle 27, 29 August 2026: a warning that always fired
+
+Caught by running the real phase B and reading its first ten lines.
+
+### The defect
+
+Phase B opened with:
+
+```
+WARNING: data\corpus_candidate_pool.json was built from different phase-A
+inputs (pool b02653f79831d815, this run ce905ec194fc3948).
+```
+
+The pool was three hours old and correct. Phase A had been run with
+`--limit 1000000 --per-topic-quota 25`; phase B has no reason to repeat those,
+so `_fingerprint_for(args)` hashed phase B's own argparse **defaults** and
+compared them against phase A's real values. It could never have matched, which
+means the check would have warned on every normal invocation for as long as it
+existed.
+
+That is worse than not checking. A warning that always fires is scrolled past,
+and the one time it means something is scrolled past with it. Cycle 21
+introduced this and its own justification ("what it catches is the case that
+silently produces nonsense, a pool built from one corpus verified as if it came
+from another") was reasonable and simply not what the code did.
+
+### The fix, and why it is a different shape
+
+Two changes, neither of them "make the hash match".
+
+**Show, do not assert.** The pool now records its phase-A inputs in readable
+form (`phase_a_inputs`) and phase B prints them. An operator who wants to know
+what the pool came from can now read it, which is what the fingerprint was
+reaching for and could not deliver.
+
+**Warn only about a flag the operator actually typed.**
+`_phase_a_flag_conflicts` reads `sys.argv` rather than comparing against
+argparse defaults, because a default is indistinguishable from a value someone
+chose to type and that indistinguishability is the whole bug. Phase B never
+re-samples, so a contradicting `--per-topic-quota` is not dangerous, merely
+ignored, and saying "you passed 5, the pool was built with 25, the pool wins"
+is something an operator can act on.
+
+Backward compatible: `phase_a_inputs` defaults to empty, so the existing
+263 MB pool built before this change still loads and simply prints nothing.
+Verified against that real pool rather than a fixture.
+
+Three tests: no warning when nothing was typed, a warning naming only the typed
+flag when it conflicts, and no warning when a typed flag agrees.
+
+`uv run pytest -q`: 104 passed across the two affected files. `ruff check` and
+`mypy --strict src/` clean.

@@ -1994,6 +1994,40 @@ def _fingerprint_for(args: argparse.Namespace) -> str:
     )
 
 
+#: Phase-A flags, mapped to the ``phase_a_inputs`` key each one decides. Used
+#: only to tell an operator that a flag they typed is being ignored.
+_PHASE_A_FLAGS: dict[str, tuple[str, str]] = {
+    "--limit": ("limit", "limit_per_source"),
+    "--per-topic-quota": ("per_topic_quota", "per_topic_quota"),
+    "--seed": ("seed", "seed"),
+    "--max-items-per-lemma": ("max_items_per_lemma", "max_items_per_lemma"),
+}
+
+
+def _phase_a_flag_conflicts(
+    args: argparse.Namespace, pool: CandidatePool
+) -> dict[str, tuple[str, str]]:
+    """Phase-A flags the operator EXPLICITLY passed that the pool contradicts.
+
+    Reads ``sys.argv`` rather than comparing against argparse defaults, because
+    a default is indistinguishable from a value the operator chose to type, and
+    that indistinguishability is exactly what made the old fingerprint check
+    fire on every run.
+
+    Phase B never re-samples, so a contradicting flag is not dangerous, only
+    ignored. Saying so is more use than a hash mismatch nobody can act on.
+    """
+    conflicts: dict[str, tuple[str, str]] = {}
+    for flag, (attribute, pool_key) in _PHASE_A_FLAGS.items():
+        if not any(argument == flag or argument.startswith(f"{flag}=") for argument in sys.argv):
+            continue
+        given = str(getattr(args, attribute, ""))
+        in_pool = pool.phase_a_inputs.get(pool_key, "")
+        if in_pool and given != in_pool:
+            conflicts[flag] = (given, in_pool)
+    return conflicts
+
+
 def _pool_from_phase_a(
     args: argparse.Namespace, report: CorpusPilotReport, phase_a: PhaseAResult
 ) -> CandidatePool:
@@ -2016,6 +2050,14 @@ def _pool_from_phase_a(
     }
     return CandidatePool(
         inputs_fingerprint=_fingerprint_for(args),
+        phase_a_inputs={
+            "tatoeba": "(skipped)" if args.skip_tatoeba else str(args.tatoeba),
+            "leipzig": "(skipped)" if args.skip_leipzig else str(args.leipzig),
+            "limit_per_source": str(args.limit),
+            "per_topic_quota": str(args.per_topic_quota),
+            "seed": str(args.seed),
+            "max_items_per_lemma": str(args.max_items_per_lemma),
+        },
         seed=args.seed,
         per_topic_quota=args.per_topic_quota,
         items=phase_a.bank_items,
@@ -2468,16 +2510,26 @@ def main() -> int:
         except PoolFormatError as exc:
             print(f"\n  FAILING: {exc}")
             return 1
-        expected = _fingerprint_for(args)
-        if pool.inputs_fingerprint and pool.inputs_fingerprint != expected:
-            # A warning, not a refusal: see candidate_pool's module
-            # docstring on which flags are in the fingerprint and why.
+        # Show what the pool was built from, rather than compare a hash against
+        # this run's own defaults. Phase B has no reason to repeat phase A's
+        # flags, so comparing fingerprints unconditionally warned on EVERY
+        # normal invocation, which is worse than not checking at all: it trains
+        # the operator to scroll past the one time it means something.
+        if pool.phase_a_inputs:
+            print("\n  Pool was built from:")
+            for key, value in pool.phase_a_inputs.items():
+                print(f"    {key:<20} {value}")
+        # Only a flag the operator actually typed can contradict the pool, and
+        # only then is there anything to warn about.
+        conflicts = _phase_a_flag_conflicts(args, pool)
+        if conflicts:
             print(
-                f"\n  WARNING: {args.pool_file} was built from different phase-A"
-                f" inputs (pool {pool.inputs_fingerprint}, this run {expected})."
-                f" Continuing, because a deliberate re-verification of an older"
-                f" pool looks exactly like this."
+                "\n  WARNING: this run was given phase-A flags that contradict "
+                "the pool.\n  Phase B does not re-sample, so the pool wins and "
+                "these are ignored:"
             )
+            for flag, (given, in_pool) in conflicts.items():
+                print(f"    {flag}: you passed {given!r}, the pool was built with {in_pool!r}")
         print(f"\n  Loaded candidate pool: {pool.describe()}")
         for key, value in pool.report_prefix.items():
             if not hasattr(report, key):
