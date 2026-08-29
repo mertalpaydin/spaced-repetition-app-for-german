@@ -7,6 +7,7 @@ with a fake verifier standing in for the model."""
 from __future__ import annotations
 
 import json
+import sqlite3
 import sys
 from collections import Counter
 from collections.abc import Sequence
@@ -2835,13 +2836,19 @@ def test_main_free_lane_only_refuses_to_start_without_an_explicit_free_key(
     assert not report_path.exists()
 
 
-def test_main_write_bank_refuses_when_the_verification_backstop_did_not_run(
+def test_main_banks_nothing_when_no_item_was_judged(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
 ) -> None:
-    """``final_items`` keeps an item no pass could judge -- right for the
-    review file, wrong for the bank the app ships from. With no LLM client
-    configured every item is ``not_run``, the run already fails, and the bank
-    must stay untouched rather than receive unverified content."""
+    """The invariant: an item nothing judged must not reach the bank.
+
+    Rewritten 2026-08-29, and deliberately not weakened. This test used to
+    assert the bank FILE did not exist, pinning a rule that refused the entire
+    write whenever a single item went unjudged. That rule was changed at the
+    owner's instruction because it threw away every verdict a budget-exhausted
+    run had already paid for. The invariant it was protecting is unchanged and
+    is what is asserted now: with no LLM client every item is ``not_run``, so
+    the bank must end up with zero items in it. Whether the file was created is
+    incidental -- an empty database leaks nothing."""
     tatoeba, leipzig = _tiny_corpora
     _clear_gemini_env(monkeypatch)
     db_path = tmp_path / "bank.db"
@@ -2875,16 +2882,97 @@ def test_main_write_bank_refuses_when_the_verification_backstop_did_not_run(
     )
 
     assert step7.main() == 1
-    assert not db_path.exists()
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["bank_write"]["inserted"] == 0
+    assert report["bank_write"]["withheld_unverified"] > 0
+    if db_path.exists():
+        with sqlite3.connect(db_path) as conn:
+            assert conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 0
 
-    report = json.loads(report_path.read_text())
+
+def test_main_banks_the_judged_items_and_withholds_the_rest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
+) -> None:
+    """A partially completed run must keep what it paid for.
+
+    The owner's instruction, 2026-08-29: "Incomplete result should not go to
+    waste. Whatever fulfilled within budget must be written to the bank." A run
+    that exhausts the monthly ceiling partway has already been billed for every
+    verdict it reached, and discarding them meant paying for the same work
+    again next month.
+    """
+    tatoeba, leipzig = _tiny_corpora
+    _clear_gemini_env(monkeypatch)
+    db_path = tmp_path / "bank.db"
+    report_path = tmp_path / "report.json"
+
+    from src.generation.blanking.model_verification import (
+        ItemVerdict,
+        VerificationReport,
+    )
+
+    def _half_verified(
+        items: list[BankItem],
+        llm_client: object,
+        *,
+        batch_size: int = 20,
+        use_cache: bool = True,
+    ) -> VerificationReport:
+        # First half judged and sound, second half never reached: exactly the
+        # shape a run that trips the spend ceiling mid-way produces.
+        verdicts = [
+            ItemVerdict(outcome="verified")
+            if i < len(items) // 2
+            else ItemVerdict(outcome="not_run", reason="budget_exceeded")
+            for i, _item in enumerate(items)
+        ]
+        return VerificationReport(attempted=True, verdicts=verdicts)
+
+    monkeypatch.setattr(step7, "verify_items", _half_verified)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "step7_corpus_pilot.py",
+            "--translations",
+            str(tmp_path / "translations.jsonl"),
+            "--no-translate",
+            "--tatoeba",
+            str(tatoeba),
+            "--leipzig",
+            str(leipzig),
+            "--limit",
+            "100",
+            "--per-topic-quota",
+            "2",
+            "--write-bank",
+            str(db_path),
+            "--review-file",
+            str(tmp_path / "review.jsonl"),
+            "--rejected-file",
+            str(tmp_path / "rejected.jsonl"),
+            "--report-file",
+            str(report_path),
+        ],
+    )
+
+    # Still nonzero: the run did not finish what it was asked to do, and the
+    # operator has to know to come back for the rest.
+    assert step7.main() == 1
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    bank = report["bank_write"]
+    assert bank["attempted"] is True
+    assert bank["inserted"] > 0, "the judged half must survive the incomplete run"
+    assert bank["withheld_unverified"] > 0, "the unjudged half must be held back"
+    # And what landed is exactly the judged half, never the unjudged one.
+    with sqlite3.connect(db_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] == bank["inserted"]
+
     assert report["verification"]["not_run_count"] > 0
-    bank_write = report["bank_write"]
-    assert bank_write["requested"] is True
-    assert bank_write["attempted"] is False
-    assert bank_write["inserted"] == 0
-    assert "did not run" in bank_write["error"]
+    assert bank["requested"] is True
 
-    # The audit files are still there, which is the whole point.
+    # The audit files are still there. An incomplete run has to stay
+    # diagnosable from disk, which is why the bank is written last of all.
     assert (tmp_path / "review.jsonl").read_text().strip()
     assert (tmp_path / "rejected.jsonl").exists()

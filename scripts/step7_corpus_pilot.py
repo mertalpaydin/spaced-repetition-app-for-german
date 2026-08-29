@@ -1028,6 +1028,13 @@ class BankWriteReport:
     # module docstring for why this is counted rather than repaired here.
     stale_gloss_rows: int = 0
     total_items_in_bank: int = 0
+    #: Items this run produced that no verification pass could judge, and which
+    #: were therefore NOT offered to the bank. The invariant is "an item nothing
+    #: judged must not reach the bank", and holding those items back satisfies
+    #: it exactly. Refusing the whole write, which is what this script used to
+    #: do, satisfies it too but throws away every item that WAS judged -- and on
+    #: a budget-exhausted run that is most of them, paid for and discarded.
+    withheld_unverified: int = 0
     error: str | None = None
 
     def to_dict(self) -> dict[str, object]:
@@ -1042,6 +1049,7 @@ class BankWriteReport:
             "failed": self.failed,
             "failure_reasons": self.failure_reasons,
             "stale_gloss_rows": self.stale_gloss_rows,
+            "withheld_unverified": self.withheld_unverified,
             "total_items_in_bank": self.total_items_in_bank,
             "error": self.error,
         }
@@ -2613,29 +2621,34 @@ def main() -> int:
     # bank is additive, and the audit files this run exists to produce must
     # already be on disk before a database is touched.
     if args.write_bank is not None:
-        if verification_report.not_run_count > 0:
-            # ``final_items`` is "everything the model did not reject", which
-            # includes items no pass could judge at all. That is the right
-            # content for a review file -- the audit needs to see them -- and
-            # exactly the wrong content for the bank the app ships from. This
-            # script already treats a nonzero ``not_run_count`` as a failed
-            # run; letting the bank write proceed anyway would put unverified
-            # items in front of a learner on precisely the runs the failure
-            # rule exists to catch.
-            report.bank_write = BankWriteReport(
-                requested=True,
-                db_path=str(args.write_bank),
-                items_offered=len(final_items),
-                error=(
-                    "refused: the model verification backstop did not run for "
-                    f"{verification_report.not_run_count} item(s), so this run has "
-                    "unverified items in it and none of them may reach the bank"
-                ),
-            )
-        else:
-            report.bank_write = write_accepted_to_bank(
-                final_items, Path(args.write_bank), source_batch_id=batch_id
-            )
+        # ``final_items`` is "everything the model did not reject", which
+        # includes items no pass could judge at all. That is the right content
+        # for a review file, because the audit needs to see them, and exactly
+        # the wrong content for the bank the app ships from.
+        #
+        # So the bank is offered only the items that actually earned a
+        # ``verified`` verdict, and the unjudged ones are held back and
+        # counted. That satisfies the real invariant -- an item nothing judged
+        # must not reach the bank -- without the collateral damage of the rule
+        # this replaces, which refused the ENTIRE write whenever a single item
+        # went unjudged.
+        #
+        # The owner's instruction, 2026-08-29: "Incomplete result should not go
+        # to waste. Whatever fulfilled within budget must be written to the
+        # bank." A run that exhausts the monthly ceiling partway through has
+        # already paid for every verdict it did reach, and discarding them
+        # meant paying again next month for work already done. Re-running is
+        # cheap and additive: item ids are content hashes, so a later run skips
+        # what is banked and verifies only what is not.
+        verified_items = [
+            item
+            for item, verdict in zip(bank_items, verification_report.verdicts, strict=True)
+            if verdict.outcome == "verified"
+        ]
+        report.bank_write = write_accepted_to_bank(
+            verified_items, Path(args.write_bank), source_batch_id=batch_id
+        )
+        report.bank_write.withheld_unverified = len(final_items) - len(verified_items)
 
     # TODO.md 2.1b: printed BEFORE the verification block and never folded
     # into it. The gloss check is a rejection cause now, and this task's own
@@ -2751,6 +2764,16 @@ def main() -> int:
         print(f"    Failed:                {bank_write.failed}")
         for reason in bank_write.failure_reasons:
             print(f"      - {reason}")
+        if bank_write.withheld_unverified:
+            print(
+                f"    Withheld (unjudged):   {bank_write.withheld_unverified}"
+                "  <- no verdict this run, so not banked"
+            )
+            print(
+                "      These are not lost. Re-run --phase b once quota or budget "
+                "allows;\n      item ids are content hashes, so what is already "
+                "banked is skipped\n      and only the unjudged items are verified."
+            )
         print(f"    Items in bank now:     {bank_write.total_items_in_bank}")
         if bank_write.stale_gloss_rows:
             print(
@@ -2777,10 +2800,24 @@ def main() -> int:
     if verification_report.not_run_count > 0:
         print()
         print(
-            "  FAILING: the model verification backstop did not run for "
-            f"{verification_report.not_run_count} item(s). A run where this "
-            "backstop did not execute is not a valid pilot run."
+            "  INCOMPLETE: the model verification backstop did not run for "
+            f"{verification_report.not_run_count} item(s), so this is not a "
+            "complete pilot run."
         )
+        if bank_write.requested and bank_write.attempted:
+            print(
+                f"  Everything that WAS judged is banked ({bank_write.inserted} "
+                "inserted). Only the unjudged items were held back."
+            )
+        print(
+            "  Re-run --phase b when quota or budget allows. Verdicts already "
+            "reached\n  replay from the cache for free, so a re-run pays only for "
+            "what is left."
+        )
+        # Still nonzero: the run did not do what it was asked to do, and an
+        # operator (or a scheduled tick) has to know to come back. What changed
+        # is that the partial work now survives the failure instead of being
+        # discarded with it.
         return 1
 
     # Checked LAST, and only after every output file is on disk: a bank the

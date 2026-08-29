@@ -3774,3 +3774,54 @@ test on a quiet machine found the second instance within minutes.
 `uv run pytest -q`: 1910 passed. `ruff check`, `ruff format --check` and
 `mypy --strict src/` all clean.
 
+
+---
+
+## Cycle 26, 29 August 2026: a partial run keeps what it paid for
+
+The owner's instruction, on being told a budget-exhausted phase B would refuse
+the bank write: "Incomplete result should not go to waste. Whatever fulfilled
+within budget must be written to the bank."
+
+### What the old rule did, and what was right about it
+
+`--write-bank` refused the ENTIRE write whenever a single item went unjudged.
+The invariant behind that is correct and unchanged: **an item nothing judged
+must not reach the bank.** `final_items` is "everything the model did not
+reject", which includes items no pass could judge, and that set is right for a
+review file and wrong for the bank the app ships from.
+
+What was wrong was the conclusion. Refusing everything satisfies the invariant,
+but so does holding back only the unjudged items, and the stronger rule threw
+away every verdict the run had already been billed for. On a run that trips the
+monthly ceiling partway that is most of them, paid for and discarded, and the
+same work had to be paid for again next month.
+
+### The change
+
+The bank is offered only items whose verdict is `verified`. The unjudged ones
+are held back and counted in a new `bank_write.withheld_unverified`. The exit
+code stays nonzero, because the run genuinely did not do what it was asked and
+an operator or a scheduled tick has to know to come back; what changed is that
+the partial work survives the failure instead of being discarded with it.
+
+Re-running is cheap and additive: item ids are content hashes, so a later run
+skips what is banked, and verdicts already reached replay from the cache for
+free, so it pays only for what is left.
+
+### A golden-rule test, rewritten rather than weakened
+
+`test_main_write_bank_refuses_when_the_verification_backstop_did_not_run`
+asserted `not db_path.exists()`, pinning the removed rule. CLAUDE.md rule 7
+forbids weakening a failing test to make it pass, so it was rewritten to pin
+the invariant instead of the mechanism: with nothing judged, the bank must end
+up with **zero items in it**. Whether the file was created is incidental, since
+an empty database leaks nothing. Its new name says what it checks.
+
+A second test now covers the case that motivated the change: half the items
+judged and half not, asserting that the judged half is inserted, the unjudged
+half is withheld, and the row count in the database equals the inserted count
+rather than the offered count.
+
+`uv run pytest -q`: 1911 passed. `ruff check`, `ruff format --check` and
+`mypy --strict src/` all clean.
