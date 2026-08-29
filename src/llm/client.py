@@ -703,7 +703,7 @@ class GeminiLlmClient:
         forbid_paid_lane: bool = False,
         forbid_batch: bool = False,
         detach_batch: bool = False,
-        batch_job_store_path: Path | str = DEFAULT_BATCH_JOB_STORE,
+        batch_job_store_path: Path | str | None = None,
     ) -> None:
         self.free_api_key = (
             free_api_key or os.getenv("GEMINI_FREE_API_KEY") or os.getenv("GEMINI_API_KEY")
@@ -715,7 +715,14 @@ class GeminiLlmClient:
         # is not optional, because a job Google has accepted is billable
         # whether or not this process lives long enough to collect it.
         self.detach_batch = detach_batch
-        self.batch_job_store_path = Path(batch_job_store_path)
+        # Resolved here rather than as a default argument, so the module
+        # constant is read at construction time. A default argument binds once
+        # at import, which makes the path impossible to redirect afterwards --
+        # and the unit suite has to redirect it, or every test that submits a
+        # fake batch job writes into the real store beside the cache. That is
+        # not hypothetical: two `purpose="unit_test"` jobs were found in the
+        # real store the first time this ran.
+        self.batch_job_store_path = Path(batch_job_store_path or DEFAULT_BATCH_JOB_STORE)
         self.spend_ceiling_usd = spend_ceiling_usd
         self.cost_log_path = Path(cost_log_path)
         self.cache = LlmCache(cache_dir=cache_dir)

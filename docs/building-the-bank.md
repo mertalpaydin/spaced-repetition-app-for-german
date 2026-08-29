@@ -171,6 +171,89 @@ it (corpus paths, per-source limit, quota, seed, lemma cap) and phase B
 with different verification settings is a legitimate experiment. The
 verification flags are deliberately not in the fingerprint.
 
+## The scheduled pilot tick
+
+`scripts/pilot_tick.py` is one wake-up. It collects any batch jobs that
+finished since last time, then runs phase B over the candidate pool: cached
+responses cost nothing, free-lane quota is spent until it is gone, and the
+remainder queues as a real Batch API job for a later tick to collect.
+
+```bat
+schtasks /Create /TN "LLA pilot tick" /TR "C:\Users\merta\Desktop\Language_Learning_App\run-pilot-tick.cmd" /SC MINUTE /MO 30 /F
+```
+
+Then, in PowerShell, the settings `schtasks` cannot set:
+
+```powershell
+$s = Get-ScheduledTask -TaskName "LLA pilot tick"
+$s.Settings.StartWhenAvailable = $true
+$s.Settings.ExecutionTimeLimit = "PT4H"
+$s.Settings.MultipleInstances = "IgnoreNew"
+$s.Settings.DisallowStartIfOnBatteries = $false
+$s.Settings.StopIfGoingOnBatteries = $false
+Set-ScheduledTask -TaskName "LLA pilot tick" -Settings $s.Settings
+```
+
+**The task ships DISABLED.** Enable it only once phase A has produced a pool:
+
+```powershell
+schtasks /Change /TN "LLA pilot tick" /ENABLE
+```
+
+Until then every tick would exit 1 saying there is no pool, forty-eight times a
+day, and a task history that is all red is a history nobody reads.
+
+### Phase A is not part of a tick
+
+Phase A is the ~2.5 hours of spaCy over the corpus. Run it once, by hand:
+
+```bash
+uv run python -m scripts.step7_corpus_pilot --phase a \
+    --limit 1000000 --per-topic-quota 25 \
+    --pool-file data/corpus_candidate_pool.json
+```
+
+Putting it inside a thirty-minute tick would mean every tick restarted it and
+no tick ever finished it, which is the exact failure the phase split removed.
+
+### Two locks, not one
+
+- **`MultipleInstances = IgnoreNew`** tells Task Scheduler not to start a
+  second copy.
+- **`.cache/pilot_tick.lock`** (`src/run_lock.py`) enforces the same thing for
+  any run started another way, by hand or by a second machine sharing the
+  directory.
+
+Both exist because the cost of getting it wrong is not a wasted run: two
+concurrent phase-B runs would both find the same prompts uncached and both
+submit them as batch jobs, paying twice for work that is used once. A tick that
+finds the lock held exits **0**, because "the previous one is still going" is
+the normal state of a job scheduled more often than it finishes.
+
+The lock recovers from a crashed holder two ways: the recorded process being
+gone (checked without `os.kill`, which on Windows would terminate the process
+it is asking about), and an age backstop of six hours for a PID that has been
+recycled.
+
+### Watching it
+
+```powershell
+Get-Content -Wait -Tail 40 logs\pilot-tick.log
+schtasks /Query /TN "LLA pilot tick" /FO LIST /V | Select-String "Status|Last Result"
+uv run python -m scripts.collect_batch_jobs --status
+```
+
+`--status` is the one that answers "is anything outstanding at Google", and it
+contacts nobody.
+
+### What a tick costs
+
+Once enabled and once a pool exists, a tick spends free-lane quota first and
+then submits paid batch work. That is real money against the 7.50 USD/month
+ceiling, which `GeminiLlmClient` still enforces: a tick that would breach it
+raises `BudgetExceeded`, the items degrade to `not_run`, and the bank write is
+refused. Nothing silently overspends, but nothing asks first either.
+
 ### Building it without spending anything
 
 `--free-lane-only` builds the client with `forbid_paid_lane=True`, so the run

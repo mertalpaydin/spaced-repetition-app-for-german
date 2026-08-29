@@ -3622,3 +3622,90 @@ anything it owns. This applies to the store as much as to the ledger.
 
 `uv run pytest -q`: 1890 passed. `ruff check`, `ruff format --check` and
 `mypy --strict src/` all clean.
+
+---
+
+## Cycle 24, 29 August 2026: the scheduled pilot tick
+
+TODO.md item 1, the last piece of the resumable-pilot design. Phase A/B split
+(cycle 21) made the work re-runnable; detached batch (cycle 22) made a queued
+job survive its process; this is what wakes up and drives them.
+
+### What was built
+
+`scripts/pilot_tick.py` is one wake-up: collect finished batch jobs, then run
+phase B over the pool. `src/run_lock.py` is the mutex. `run-pilot-tick.cmd` and
+a `/SC MINUTE /MO 30` scheduled task are the operator surface.
+
+### Two locks, deliberately
+
+`MultipleInstances = IgnoreNew` stops Task Scheduler starting a second copy,
+and `.cache/pilot_tick.lock` stops anything else doing so, including a run
+started by hand. Belt and braces is justified by what a double run costs: two
+concurrent phase-B runs both find the same prompts uncached and both submit
+them as batch jobs, so the work is paid for twice and one copy is discarded.
+
+A tick that finds the lock held exits **0**. That is the normal state of a job
+scheduled more often than it finishes, and a task history that is all red is a
+history nobody reads, which is how the one real failure goes unnoticed.
+
+### Not using os.kill for liveness
+
+The usual `os.kill(pid, 0)` liveness idiom is **actively dangerous on Windows**,
+where CPython implements `os.kill` with `TerminateProcess` for any signal that
+is not `CTRL_C_EVENT` or `CTRL_BREAK_EVENT`. Asking "is this process alive"
+that way would kill it. The lock uses `OpenProcess`/`GetExitCodeProcess` on
+Windows and keeps the signal-0 idiom on POSIX.
+
+Two independent recoveries, because either alone has a hole: the recorded
+process being gone (the common case, a reboot or a kill, recovering in seconds)
+and a six-hour age backstop (for a PID the OS has recycled, which liveness
+cannot see through). A PID recorded by another host is never asked about, since
+that number means nothing on this machine.
+
+### A defect this found in its own tests
+
+The first real tick left two entries in the operator's real
+`.cache/pending_batch_jobs.json` with `purpose="unit_test"` and job names
+`batches/fake-job`. `GeminiLlmClient` records a submitted batch job the instant
+Google accepts it, unconditionally and by design, and no test in
+`tests/test_llm_client.py` passed a store path, so every test submitting a fake
+batch job wrote into the real store. The scheduled collector would have gone
+looking for those at Google.
+
+Fixed in two places. `batch_job_store_path` now resolves the module constant at
+construction rather than binding it as a default argument, which is what makes
+it redirectable at all; and an autouse fixture in `tests/conftest.py` points it
+at a temp directory for the whole suite. Autouse rather than opt-in, because
+the tests that need it are not the obvious ones and a test added later would
+silently reintroduce the pollution.
+
+### Verified end to end, and one thing left open
+
+A real tick against a 64-item pool: free-lane quota spent, overflow queued,
+64 items recorded `batch_queued_awaiting_collection`, phase B exiting 1
+(correctly: no item got a verdict) while the tick exits 0 (correctly: queued
+work is not a failure), and 13 jobs left for the next tick.
+
+**Thirteen jobs, one prompt each.** That is the open part, and it is not what
+CLAUDE.md section 9 describes ("remaining work queues and ships as one batch").
+The cause is that `generate_many` dispatches the free lane per prompt, and
+`_call_transport_with_lane_handling`'s free-to-paid fallback therefore fires per
+prompt too, so each overflowing prompt submits its own single-prompt job. The
+batch discount still applies and nothing waits on the queue, so the cost is
+polling overhead rather than money: a real bank build would leave 245 jobs
+instead of one. Recorded in TODO.md rather than fixed here, because the fix is
+in the lane-fallback path and not in the tick.
+
+### The task ships disabled
+
+There is no candidate pool yet, so every tick would exit 1 with "run phase A
+first", forty-eight times a day. Enable it once phase A has produced a pool:
+
+```powershell
+schtasks /Change /TN "LLA pilot tick" /ENABLE
+```
+
+`uv run pytest -q`: 1909 passed. `ruff check`, `ruff format --check` and
+`mypy --strict src/` all clean.
+

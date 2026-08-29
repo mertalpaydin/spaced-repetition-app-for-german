@@ -13,24 +13,7 @@ documents cite them. They are labels, not an order. The order is top to bottom.
 
 ---
 
-## 1. The scheduled job (6.4)
-
-**Do.** A Windows scheduled task, following the pattern in
-`docs/monthly-translation-job.md`:
-
-- Trigger `ONLOGON` plus a 30-minute repetition, so an interrupted run resumes
-  after the machine is switched back on.
-- **A lock file.** A repeating task with no mutex starts a second copy while the
-  first is still running, and two concurrent phase-B runs would double-submit.
-- Each wake-up: collect any finished batch jobs, spend whatever free-lane quota
-  is available, queue the remainder, exit.
-
-**Done when.** The task survives a reboot mid-run, and the pilot completes across
-several sittings without being watched.
-
----
-
-## 2. The large pilot (6.5)
+## 1. The large pilot (6.5)
 
 **Do.** Phase A at a much larger scale than any previous cycle, then phase B with
 `--verification-passes 2 --verification-batch-size 5`.
@@ -54,11 +37,11 @@ two passes both at 5 sample only the model's run-to-run noise, which is a
 smaller effect. `pass_disagreements` in the report is the direct measure of it.
 
 **Done when.** A pilot report exists with per-topic counts, `pass_disagreements`,
-and a rejected file large enough for item 3 to sample from.
+and a rejected file large enough for item 2 to sample from.
 
 ---
 
-## 3. Measure the true false-positive rate (6.6)
+## 2. Measure the true false-positive rate (6.6)
 
 **Do.** Review `data/corpus_pilot_rejected.jsonl` with agents and count how many
 rejected items were actually good. The false-positive rate is that count over
@@ -86,7 +69,7 @@ the two vendors' conflict list, and the hand-checked subsample.
 
 ---
 
-## 4. Zero defects that reach a learner (6.7)
+## 3. Zero defects that reach a learner (6.7)
 
 The target is zero defects for the overall pipeline. Zero *produced* is not
 reachable: machine translation, the tagger's own accuracy ceiling
@@ -124,7 +107,7 @@ and a reports-per-hundred-items figure exists.
 
 ---
 
-## 5. Collocation evidence, for defect class 2.1 (6.8)
+## 4. Collocation evidence, for defect class 2.1 (6.8)
 
 **Do.** Mine collocation evidence from the corpus the same way
 `scripts/build_verb_government.py` already mines case government: count real
@@ -166,9 +149,9 @@ well-attested pairs, measured against a pilot's defect rate for class 2.1.
 
 ---
 
-## 6. Build the item bank (6.1)
+## 5. Build the item bank (6.1)
 
-The biggest single piece of open work. Items 1 to 3 come first: they close the
+The biggest single piece of open work. Items 1 and 2 come first: they close the
 one defect nothing catches, make the run resumable, and measure the
 false-positive rate that decides how the build is configured.
 
@@ -192,7 +175,7 @@ topics the corpus cannot fill to 25.
 
 ---
 
-## 7. Decide whether the gloss consistency check rejects (2.1b)
+## 6. Decide whether the gloss consistency check rejects (2.1b)
 
 **Do.** Run a pilot, read the flag count, then set the default. The check runs
 and reports today; `--enforce-gloss-check` makes it reject.
@@ -214,7 +197,7 @@ whose glosses are machine translations.
 
 ---
 
-## 8. Run the gloss purge on the real store, then re-gloss (2.2b)
+## 7. Run the gloss purge on the real store, then re-gloss (2.2b)
 
 **Do.** `scripts/purge_mismatched_glosses.py --dry-run` first, read the
 examples, then apply, then re-run `scripts/build_translations.py
@@ -235,7 +218,7 @@ English one.
 
 ---
 
-## 9. The AI-generation pilot (2.4)
+## 8. The AI-generation pilot (2.4)
 
 Explicitly open. Not deferred, not folded into item 9.
 
@@ -256,16 +239,16 @@ are either measured or disabled.
 
 ---
 
-## 10. Write down the split (2.5)
+## 9. Write down the split (2.5)
 
-**Do.** After item 9. Write which topics are corpus-sourced, which are
+**Do.** After item 8. Write which topics are corpus-sourced, which are
 generated, and the rule for deciding. That becomes the standing policy.
 
 **Done when.** The policy is in `docs/` and the pipeline follows it.
 
 ---
 
-## 11. Two one-line defects, neither on the bank path
+## 10. Two one-line defects, neither on the bank path
 
 Deferred deliberately. Both are known, both are small, and neither blocks the
 bank build. Do them when the bank build is not the active work.
@@ -293,6 +276,17 @@ bank build. Do them when the bank build is not the active work.
   over it with `|| [ $? -eq 5 ]`, which makes an empty lane indistinguishable
   from a working one.
 
+- **Batch overflow submits one job per prompt, not one job per run.** Measured
+  on the first real tick: 13 outstanding jobs carrying one prompt each, where
+  CLAUDE.md section 9 says "remaining work queues and ships as one batch". The
+  cause is that `generate_many` dispatches the free lane per prompt, so
+  `_call_transport_with_lane_handling`'s free-to-paid fallback fires per
+  prompt too, and each overflowing prompt submits its own single-prompt batch
+  job. The batch discount still applies and nothing waits on the queue, so this
+  costs polling overhead rather than money: a 1,225-item build would leave about
+  245 jobs outstanding instead of one. The fix belongs in the lane-fallback
+  path, which would need to accumulate the overflow and submit it once, not in
+  the tick. Not urgent, but it is a documented invariant the code does not hold.
 - **`mypy --strict src/ scripts/` fails on a clean checkout.** Five errors in
   four files, none of them recent: `build_verb_government.py:338` (an unused
   `type: ignore` masking a real `call-overload`), `check_gold_examples.py:211`,
@@ -305,7 +299,7 @@ bank build. Do them when the bank build is not the active work.
 
 **Why later.** The first is a one-line deletion that changes no test. The
 second is the owner's call, because it decides whether those two test lanes
-exist at all. The third is four small type fixes. None of them blocks item 6,
+exist at all. The third is four small type fixes. None of them blocks item 5,
 but between them **every CI job in the repository currently fails**, so the
 first green build will need all three.
 
