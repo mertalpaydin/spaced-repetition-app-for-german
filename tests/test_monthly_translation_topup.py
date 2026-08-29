@@ -969,3 +969,117 @@ def test_a_permanently_locked_destination_still_raises(
     with pytest.raises(OSError):
         save_ledger_atomic(tmp_path / "ledger.json", TranslationLedger())
     assert not list(tmp_path.glob("*.tmp"))
+
+
+# ---------------------------------------------------------------------------
+# Pass 0 and the carrier-validity filter. Added 2026-08-29 after a real phase B
+# found 462 of its 1,224 carriers with no gloss at all and only 79 with an
+# Azure one, because the job's ordering had no notion of which sentences ever
+# become exercises.
+
+
+def _line(text: str) -> CorpusLine:
+    return CorpusLine(line_id=text[:8], text=text, source=SOURCE_LEIPZIG)
+
+
+def test_exercise_carriers_are_translated_before_the_rest_of_the_corpus() -> None:
+    """Pass 0. A 1,225-item bank needs 3.4% of one month; the corpus at large
+    is 13.4 months. Without this the bank waits on coincidence."""
+    carriers = {t: _line(t) for t in ("aaa", "bbb", "ccc", "ddd")}
+    result = topup.prioritise(carriers, {}, seed=7, exercise_carriers=frozenset({"ccc", "ddd"}))
+    assert {line.text for line in result.exercises} == {"ccc", "ddd"}
+    assert {line.text for line in result.ungossed} == {"aaa", "bbb"}
+    # And the concatenated order really does put them first.
+    assert [line.text for line in result.todo][:2] == [line.text for line in result.exercises]
+
+
+def test_an_exercise_carrier_with_a_tatoeba_gloss_is_still_pass_zero() -> None:
+    """A distrusted gloss is work to do, and it is work to do FIRST when the
+    carrier is an actual exercise."""
+    carriers = {t: _line(t) for t in ("aaa", "bbb")}
+    store = {
+        "aaa": TranslationRecord(
+            german="aaa",
+            english="A",
+            source="tatoeba",
+            written_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+    }
+    result = topup.prioritise(carriers, store, seed=7, exercise_carriers=frozenset({"aaa"}))
+    assert [line.text for line in result.exercises] == ["aaa"]
+    assert result.replacements == []
+
+
+def test_an_exercise_carrier_that_is_already_trusted_is_not_retranslated() -> None:
+    """Pass 0 jumps the queue; it does not spend allowance on work already done."""
+    carriers = {"aaa": _line("aaa")}
+    store = {
+        "aaa": TranslationRecord(
+            german="aaa",
+            english="A",
+            source="azure",
+            written_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+    }
+    result = topup.prioritise(carriers, store, seed=7, exercise_carriers=frozenset({"aaa"}))
+    assert result.exercises == []
+    assert result.trusted == 1
+
+
+def test_carriers_that_cannot_host_an_exercise_are_skipped_entirely() -> None:
+    """129,469 of 450,502 real corpus lines fail carrier validation and were
+    previously queued for allowance they can never repay."""
+    carriers = {t: _line(t) for t in ("good one", "junk", "also good")}
+    result = topup.prioritise(carriers, {}, seed=7, is_carrier_valid=lambda text: text != "junk")
+    assert {line.text for line in result.ungossed} == {"good one", "also good"}
+    assert result.carrier_invalid == 1
+    assert "junk" not in {line.text for line in result.todo}
+
+
+def test_an_exercise_carrier_is_exempt_from_the_validity_filter() -> None:
+    """It demonstrably hosts an exercise: it is in the pool. Whatever a re-run
+    of the validator says about it today, the allowance is already committed."""
+    carriers = {"odd but sampled": _line("odd but sampled")}
+    result = topup.prioritise(
+        carriers,
+        {},
+        seed=7,
+        exercise_carriers=frozenset({"odd but sampled"}),
+        is_carrier_valid=lambda _text: False,
+    )
+    assert [line.text for line in result.exercises] == ["odd but sampled"]
+    assert result.carrier_invalid == 0
+
+
+def test_no_validity_predicate_keeps_every_carrier() -> None:
+    """The default for the pure function: a caller that has already filtered
+    must not have spaCy imposed on it."""
+    carriers = {t: _line(t) for t in ("a", "b")}
+    result = topup.prioritise(carriers, {}, seed=7)
+    assert len(result.ungossed) == 2
+    assert result.carrier_invalid == 0
+
+
+def test_load_exercise_carriers_reads_a_pool(tmp_path: Path) -> None:
+    from src.generation.candidate_pool import CandidatePool, PooledProvenance
+
+    pool_path = tmp_path / "pool.json"
+    CandidatePool(
+        provenance={
+            "h1": PooledProvenance(source="leipzig", line_id="1", text="Erster Satz."),
+            "h2": PooledProvenance(source="tatoeba", line_id="2", text="Zweiter Satz."),
+        }
+    ).save(pool_path)
+
+    texts, notes = topup.load_exercise_carriers(pool_path, None)
+    assert texts == frozenset({"Erster Satz.", "Zweiter Satz."})
+    assert any("2 carrier(s)" in note for note in notes)
+
+
+def test_load_exercise_carriers_is_not_an_error_when_there_is_no_pool(
+    tmp_path: Path,
+) -> None:
+    """A machine that has never run phase A simply has no pass 0."""
+    texts, notes = topup.load_exercise_carriers(tmp_path / "absent.json", None)
+    assert texts == frozenset()
+    assert any("no candidate pool" in note for note in notes)

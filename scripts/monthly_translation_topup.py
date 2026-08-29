@@ -66,18 +66,40 @@ than as a clean stop. ``src/llm/translation_ledger.py`` is that missing number.
 
 ## Priority order over the corpus
 
-Two passes, in this order, and the second is not started until the first is
-exhausted:
+**Sentences that cannot host an exercise are skipped entirely**, before any
+pass. Measured on the real corpus: 129,469 of 450,502 lines fail carrier
+validation, and every one of them was previously queued for a share of a
+2,000,000-character monthly allowance it could never repay. Scraped junk,
+headlines with no finite verb, Swiss spelling, quotations opening mid-sentence.
+``--keep-carrier-invalid`` restores the old behaviour.
 
+Then three passes, in this order, each exhausted before the next begins:
+
+0. **Carriers that are, or are about to be, exercises.** Everything in the
+   phase-A candidate pool, plus anything already banked.
 1. **Carriers with no gloss at all.** Nothing in the store for that exact
    German text.
 2. **Carriers whose stored gloss has** ``source == "tatoeba"``. Replacements.
    The old record stays on disk until a real translation lands to overwrite it,
    so 5.3's corpus never has a hole in it.
 
-Group 1 first because a carrier with no gloss cannot be shown at all, whereas a
-carrier with a Tatoeba gloss is merely one this project will not put in front of
-a learner. Coverage before quality, when the alternative is nothing.
+**Pass 0 exists because of arithmetic, and it was added after that arithmetic
+went wrong in practice.** A 1,225-item bank needs about 68,000 characters,
+3.4% of one month. The corpus at large is 13.4 months. With ordering by a hash
+of the sentence -- which is what this job did throughout, and still does inside
+each pass -- those 1,225 carriers were reached by coincidence somewhere across
+13 months. On 2026-08-29 a real phase B found 462 of its 1,224 carriers with no
+gloss at all and only 79 with an Azure one, so it fell through to the Gemini
+fallback for 1,144 of them: the built consumer starved while the allowance went
+to sentences for an unbuilt one.
+
+Groups 1 and 2 in that order because a carrier with no gloss cannot be shown at
+all, whereas a carrier with a Tatoeba gloss is merely one this project will not
+put in front of a learner. Coverage before quality, when the alternative is
+nothing.
+
+Feature 5.3 is not harmed by pass 0. It wants breadth, and pass 0 is 3.4% of
+one month out of thirteen.
 
 **Ordering inside each group is a keyed hash of the sentence, not a shuffle.**
 ``blake2b(text, key=seed)`` gives every carrier a fixed rank that depends on
@@ -127,11 +149,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sqlite3
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from src.generation.blanking import carrier_validation
 from src.generation.blanking.sentence_source import client_from_env
+from src.generation.candidate_pool import DEFAULT_POOL_PATH, CandidatePool, PoolFormatError
 from src.llm.env import load_env_file
 from src.llm.translation import AZURE_F0_MONTHLY_CHARACTERS, Translator
 from src.llm.translation_ledger import (
@@ -219,36 +245,113 @@ def _order_key(text: str, seed: int) -> bytes:
     ).digest()
 
 
+def _carrier_is_usable(text: str) -> bool:
+    """Whether ``text`` could host an exercise at all.
+
+    The same validator the pipeline itself uses, so a sentence this job pays to
+    translate is one the pipeline would accept. Measured on the real corpus:
+    129,469 of 450,502 lines fail it, and every one of those was previously
+    queued for a share of a 2,000,000-character monthly allowance it could never
+    repay -- scraped junk, headlines with no finite verb, Swiss spelling,
+    quotations that open mid-sentence.
+
+    Degrades to accepting everything when spaCy is unavailable, rather than
+    rejecting everything. A missing model must not silently turn a translation
+    job into a no-op; it should behave as it did before this filter existed.
+    """
+    if not carrier_validation.analysis_available():
+        return True
+    return carrier_validation.validate_carrier(text).accepted
+
+
+def load_exercise_carriers(
+    pool_path: Path | None, bank_path: Path | None
+) -> tuple[frozenset[str], list[str]]:
+    """German carrier texts that are, or are about to be, real exercises.
+
+    Read from a phase-A candidate pool and from a built bank. Both are
+    optional and a missing one is not an error: a machine that has never run
+    phase A simply has no pass 0, and the job behaves as it did before.
+
+    Returns the texts plus human-readable notes for the report, because "pass 0
+    was empty" and "pass 0 was skipped because the file is not there" look
+    identical in a character count and are very different to an operator.
+    """
+    texts: set[str] = set()
+    notes: list[str] = []
+
+    if pool_path is not None:
+        if pool_path.exists():
+            try:
+                pool = CandidatePool.load(pool_path)
+            except PoolFormatError as exc:
+                notes.append(f"pool at {pool_path} could not be read ({exc})")
+            else:
+                found = {p.text for p in pool.provenance.values()}
+                texts |= found
+                notes.append(f"{len(found)} carrier(s) from the candidate pool {pool_path}")
+        else:
+            notes.append(f"no candidate pool at {pool_path}")
+
+    if bank_path is not None:
+        if bank_path.exists():
+            try:
+                with sqlite3.connect(bank_path) as connection:
+                    rows = connection.execute("SELECT prompt FROM items").fetchall()
+            except sqlite3.Error as exc:
+                notes.append(f"bank at {bank_path} could not be read ({exc})")
+            else:
+                # A banked item stores its prompt with the gap, not the carrier
+                # it came from, so this cannot be matched against corpus text
+                # directly. Counted and reported rather than silently ignored;
+                # closing the gap needs the carrier recorded on the item, which
+                # is a schema change and not this job's to make.
+                notes.append(
+                    f"{len(rows)} item(s) in the bank at {bank_path}, not matched: "
+                    "a banked item records its gapped prompt, not its carrier"
+                )
+        else:
+            notes.append(f"no bank at {bank_path}")
+
+    return frozenset(texts), notes
+
+
 @dataclass(frozen=True)
 class PrioritisedCarriers:
-    """The corpus split into this job's two passes, each already in order."""
+    """The corpus split into this job's passes, each already in order."""
 
+    #: Pass 0: carriers that are, or are about to be, real exercises -- the
+    #: candidate pool and anything already in the bank. See ``prioritise``.
+    exercises: list[CorpusLine]
     #: Pass a: nothing in the store for this German text at all.
     ungossed: list[CorpusLine]
     #: Pass b: in the store, but the gloss is Tatoeba's, so it is a replacement.
     replacements: list[CorpusLine]
     #: Carriers whose stored gloss this job trusts. Nothing to do for these.
     trusted: int
+    #: Corpus lines dropped because they cannot host an exercise at all.
+    #: Counted rather than silently discarded: this is a large number and an
+    #: operator should see it.
+    carrier_invalid: int = 0
 
     @property
     def todo(self) -> list[CorpusLine]:
-        """Both passes, concatenated. Pass a is exhausted before pass b begins
-        purely by being first in this list: ``run_backfill`` consumes it in
-        order and stops at a whole-batch boundary, so the only batch that can
-        ever mix the two is the single one that straddles the join."""
-        return [*self.ungossed, *self.replacements]
+        """Every pass, concatenated, in priority order. Each pass is exhausted
+        before the next begins purely by being earlier in this list:
+        ``run_backfill`` consumes it in order and stops at a whole-batch
+        boundary, so the only batch that can ever mix two passes is the single
+        one that straddles a join."""
+        return [*self.exercises, *self.ungossed, *self.replacements]
 
     @property
     def carriers_untrusted(self) -> int:
-        return len(self.ungossed) + len(self.replacements)
+        return len(self.exercises) + len(self.ungossed) + len(self.replacements)
 
     @property
     def characters_untrusted(self) -> int:
         """Measured, not estimated: these carriers were read, so this is the
         sum of their own German text lengths."""
-        return sum(len(line.text) for line in self.ungossed) + sum(
-            len(line.text) for line in self.replacements
-        )
+        return sum(len(line.text) for line in self.todo)
 
 
 def prioritise(
@@ -257,26 +360,61 @@ def prioritise(
     *,
     seed: int,
     distrusted_sources: frozenset[str] = DISTRUSTED_STORE_SOURCES,
+    exercise_carriers: frozenset[str] = frozenset(),
+    is_carrier_valid: Callable[[str], bool] | None = None,
 ) -> PrioritisedCarriers:
-    """Split ``carriers`` into the two passes, ordered (module docstring).
+    """Split ``carriers`` into the passes, ordered (module docstring).
 
-    Pure: no I/O, no clock, no network. The store is passed in already loaded so
-    this can be driven directly from a test with a dict.
+    ``exercise_carriers`` is pass 0: German texts that are already in the bank
+    or in a candidate pool waiting to be verified. They jump the queue, and the
+    reason is arithmetic. A 1,225-item bank needs about 68,000 characters, 3.4%
+    of one month's Azure allowance, while the corpus at large is 13.4 months of
+    it. Ordering by a hash of the sentence, as this job used to do throughout,
+    reaches those carriers by coincidence somewhere across those 13 months, so
+    the one consumer that exists today waits on the one that does not.
+
+    ``is_carrier_valid`` drops sentences that cannot host an exercise at all.
+    Measured on the real corpus: 129,469 of 450,502 lines fail carrier
+    validation -- scraped junk, headlines with no finite verb, Swiss spelling,
+    quotations that start mid-sentence. They were previously queued on equal
+    terms with everything else. Passing ``None`` keeps every carrier, which is
+    what a caller wants when it has already filtered.
+
+    Pure: no I/O, no clock, no network. The store and the predicate are passed
+    in so this can be driven directly from a test with a dict.
     """
+    exercises: list[CorpusLine] = []
     ungossed: list[CorpusLine] = []
     replacements: list[CorpusLine] = []
     trusted = 0
+    carrier_invalid = 0
     for text, line in carriers.items():
         record = store.get(text)
-        if record is None:
-            ungossed.append(line)
-        elif record.source in distrusted_sources:
-            replacements.append(line)
-        else:
+        is_exercise = text in exercise_carriers
+        # A carrier already sampled into the pool or the bank is exempt from
+        # the validity filter: it demonstrably hosts an exercise, whatever a
+        # re-run of the validator would say about it today.
+        if not is_exercise and is_carrier_valid is not None and not is_carrier_valid(text):
+            carrier_invalid += 1
+            continue
+        if record is not None and record.source not in distrusted_sources:
             trusted += 1
-    ungossed.sort(key=lambda line: (_order_key(line.text, seed), line.text))
-    replacements.sort(key=lambda line: (_order_key(line.text, seed), line.text))
-    return PrioritisedCarriers(ungossed=ungossed, replacements=replacements, trusted=trusted)
+            continue
+        if is_exercise:
+            exercises.append(line)
+        elif record is None:
+            ungossed.append(line)
+        else:
+            replacements.append(line)
+    for group in (exercises, ungossed, replacements):
+        group.sort(key=lambda line: (_order_key(line.text, seed), line.text))
+    return PrioritisedCarriers(
+        exercises=exercises,
+        ungossed=ungossed,
+        replacements=replacements,
+        trusted=trusted,
+        carrier_invalid=carrier_invalid,
+    )
 
 
 @dataclass
@@ -411,6 +549,8 @@ def run_topup(
     limit_per_source: int = DEFAULT_LIMIT_PER_SOURCE,
     checkpoint_every: int = DEFAULT_CHECKPOINT_EVERY,
     carriers_source: str = "corpora",
+    exercise_carriers: frozenset[str] = frozenset(),
+    is_carrier_valid: Callable[[str], bool] | None = None,
     clock: Clock = utc_now,
 ) -> MonthlyTopupReport:
     """One scheduled top-up, independent of argparse, the environment and file
@@ -440,7 +580,15 @@ def run_topup(
     )
 
     store = _load_store(store_path)
-    prioritised = prioritise(carriers, store, seed=seed)
+    # Pass 0 first, then the corpus at large, and never a sentence that cannot
+    # host an exercise. See `prioritise` for the arithmetic behind both.
+    prioritised = prioritise(
+        carriers,
+        store,
+        seed=seed,
+        exercise_carriers=exercise_carriers,
+        is_carrier_valid=is_carrier_valid,
+    )
     todo = prioritised.todo
     resolved_batch_size = (
         batch_size if batch_size is not None else _default_batch_size(translator_mode)
@@ -655,6 +803,37 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skip-leipzig", action="store_true")
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT_PER_SOURCE)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    parser.add_argument(
+        "--pool-file",
+        type=str,
+        default=str(DEFAULT_POOL_PATH),
+        help=(
+            "Phase-A candidate pool. Its carriers are translated FIRST, before "
+            "the corpus at large: they are the sentences that actually become "
+            "exercises, and a 1,225-item bank needs about 3.4%% of one month's "
+            "allowance."
+        ),
+    )
+    parser.add_argument(
+        "--bank-file",
+        type=str,
+        default="data/bank.db",
+        help="Built bank, read alongside the pool for pass 0.",
+    )
+    parser.add_argument(
+        "--no-priority-carriers",
+        action="store_true",
+        help="Disable pass 0 and treat the corpus uniformly, as before.",
+    )
+    parser.add_argument(
+        "--keep-carrier-invalid",
+        action="store_true",
+        help=(
+            "Translate sentences that cannot host an exercise. Off by default: "
+            "129,469 of 450,502 corpus lines fail carrier validation and were "
+            "previously queued for allowance they can never repay."
+        ),
+    )
     parser.add_argument("--store", type=Path, default=DEFAULT_STORE_PATH)
     parser.add_argument("--ledger", type=Path, default=DEFAULT_LEDGER_PATH)
     parser.add_argument(
@@ -723,6 +902,16 @@ def main(argv: list[str] | None = None) -> int:
     if not carriers:
         print("No carriers read; nothing to do. Check --tatoeba/--leipzig.")
         return 1
+
+    exercise_carriers, pass_zero_notes = load_exercise_carriers(
+        None if args.no_priority_carriers else Path(args.pool_file),
+        None if args.no_priority_carriers else Path(args.bank_file),
+    )
+    print("\n  Pass 0, carriers that are or will be exercises:")
+    for note in pass_zero_notes:
+        print(f"    {note}")
+    if not exercise_carriers and not args.no_priority_carriers:
+        print("    none found; this run is corpus-wide only")
 
     gemini_client = client_from_env()
     translator, mode = translator_from_env(gemini_client)

@@ -2437,6 +2437,19 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--require-gloss",
+        action="store_true",
+        help=(
+            "Verify only items that have a trusted English gloss, holding the "
+            "rest back for a later run. Every exercise ships with its "
+            "translation and the verifier may use it to rule out a second "
+            "answer, so an un-glossed item is unshippable and judged on less "
+            "evidence than a real one. Use this when the translation allowance "
+            "is spent: it stops the LLM ceiling being spent on items that "
+            "cannot ship yet and would have to be verified again anyway."
+        ),
+    )
+    parser.add_argument(
         "--batch",
         action="store_true",
         help=(
@@ -2609,6 +2622,33 @@ def main() -> int:
     )
     gloss_report.gloss_check_enforced = args.enforce_gloss_check
     report.gloss = gloss_report
+
+    if args.require_gloss:
+        # Verify only what the learner could actually be shown. Every exercise
+        # ships with its English translation (a settled decision, not a
+        # workaround), and the verifier is allowed to use that translation to
+        # rule out a second possible answer -- so an item with no gloss is both
+        # unshippable and judged on less evidence than a real one.
+        #
+        # The reason to have the flag at all is budget. When the translation
+        # allowance is spent, verifying un-glossed items spends the LLM ceiling
+        # on items that cannot ship yet, and the same items must be verified
+        # again once they have a gloss. Owner's instruction, 2026-08-29: run
+        # the verifier over the sentences that are translated, and spend
+        # nothing more on translation.
+        glossed = [item for item in bank_items if item.gloss_en]
+        dropped = len(bank_items) - len(glossed)
+        print(
+            f"\n  --require-gloss: verifying {len(glossed)} item(s) that have a "
+            f"trusted gloss, holding back {dropped} that do not."
+        )
+        if dropped:
+            print(
+                "    Those are not rejected and not lost. They stay in the pool "
+                "and are\n    verified by a later run, once a translation "
+                "allowance has reached them."
+            )
+        bank_items = glossed
 
     gloss_outcomes = _run_gloss_check(bank_items, topics_by_id)
     gloss_rejections = [o for o in gloss_outcomes if o.reason is not None]
