@@ -232,6 +232,30 @@ class PaidLaneForbiddenError(RuntimeError):
     """
 
 
+class PaidBatchDeferred(Exception):
+    """Internal signal: this prompt's free lane closed and its paid fallback
+    would be a batch submission, so the caller should gather it rather than let
+    it submit alone.
+
+    Never escapes ``generate_many``, which is the only thing that raises the
+    flag enabling it. It exists because the free lane dispatches one request
+    per prompt, so its built-in free-to-paid fallback also fires once per
+    prompt -- and when the paid lane is in batch mode, that means every
+    overflowing prompt submitting its own single-prompt batch job.
+
+    Measured on the first real scheduled tick: 13 outstanding jobs carrying one
+    prompt each. CLAUDE.md section 9 says the opposite ("remaining work queues
+    and ships as one batch"), and the reason it says so is in
+    ``_call_batch_many``'s own docstring: one job per item pays the batch API's
+    scheduling overhead once per item. A 1,225-item build would have left about
+    245 jobs to poll instead of one.
+    """
+
+    def __init__(self, prompt: str) -> None:
+        super().__init__("free lane closed; deferring this prompt to a shared batch job")
+        self.prompt = prompt
+
+
 class BatchQueuedError(RuntimeError):
     """Raised when a client built with ``detach_batch=True`` has submitted work
     to the real Batch API and deliberately did not wait for it.
@@ -1822,9 +1846,16 @@ class GeminiLlmClient:
         lane: Lane,
         purpose: str,
         ref_time: datetime,
+        defer_paid_batch: bool = False,
     ) -> TransportResult:
         """Call the transport, handling RPM/RPD 429s and 5xx server overload
         per the two-lane rules.
+
+        ``defer_paid_batch`` changes ONE thing: instead of this prompt moving
+        itself to the paid batch lane when the free lane closes under it, it
+        raises ``PaidBatchDeferred`` so the caller can gather every such prompt
+        and submit them as one job. See that exception for why per-prompt
+        failover is the wrong shape for a batch submission.
 
         **Every attempt that reaches Google writes a cost-log row**, not only
         the one that succeeds: each ``except`` branch below calls
@@ -1915,6 +1946,8 @@ class GeminiLlmClient:
                     raise PaidLaneForbiddenError(
                         self._paid_lane_forbidden_message(ref_time)
                     ) from exc
+                if defer_paid_batch and self._mode_for_lane("paid") == "batch":
+                    raise PaidBatchDeferred(prompt) from exc
                 lane = "paid"
                 mode = self._mode_for_lane(lane)
             except ServerUnavailableError:
@@ -1938,6 +1971,8 @@ class GeminiLlmClient:
                         # cost money, so it is worth waiting out rather than
                         # repeating, whereas a free-lane run is cheap to
                         # re-run from the cache and so fails fast instead.
+                        if defer_paid_batch and self._mode_for_lane("paid") == "batch":
+                            raise PaidBatchDeferred(prompt) from None
                         lane = "paid"
                         mode = self._mode_for_lane(lane)
                         server_attempts = 0
@@ -2241,6 +2276,20 @@ class GeminiLlmClient:
         # instead of batch, this condition only decides which of the two
         # dispatch strategies below is used.
         if lane == "free" or (lane == "paid" and self.forbid_batch):
+            # Prompts whose free lane closed under them, when the paid fallback
+            # would be a batch submission. Gathered here and shipped as ONE job
+            # below, rather than each one submitting its own single-prompt job:
+            # see ``PaidBatchDeferred``. Only ever non-empty when the caller
+            # asked to defer, which today means a detached-batch client.
+            deferred_indices: list[int] = []
+            # Not gated on ``detach_batch``. A blocking client overflowing into
+            # the batch lane wastes the same way -- N single-prompt jobs, each
+            # paying the batch API's queueing overhead, polled one after
+            # another -- so accumulating is right for both. ``forbid_batch``
+            # clients are excluded because their paid fallback is synchronous,
+            # and a synchronous fallback per prompt is exactly what that mode
+            # is for.
+            defer = not self.forbid_batch
             with ThreadPoolExecutor(max_workers=self.FREE_LANE_MAX_CONCURRENCY) as pool:
                 future_to_index = {
                     pool.submit(
@@ -2250,12 +2299,17 @@ class GeminiLlmClient:
                         lane=lane,
                         purpose=purpose,
                         ref_time=ref_time,
+                        defer_paid_batch=defer,
                     ): i
                     for i in pending_indices
                 }
                 for future in as_completed(future_to_index):
                     i = future_to_index[future]
-                    result = future.result()
+                    try:
+                        result = future.result()
+                    except PaidBatchDeferred:
+                        deferred_indices.append(i)
+                        continue
                     self._log_cost(
                         self._build_cost_row(
                             model=model,
@@ -2270,56 +2324,98 @@ class GeminiLlmClient:
                     if use_cache:
                         self.cache.set(model=model, prompt=prompts[i], response=result.text)
                     results[i] = result.text
-        else:  # paid, batch mode (self.forbid_batch is not set)
-            client = self._get_sdk_client("paid")
-            config = genai_types.GenerateContentConfig(
-                thinking_config=self._thinking_config_for(model, purpose)
-            )
-            # Chunked so each real batch job stays within Google's inline
-            # submission limits (BATCH_INLINE_MAX_BYTES/_COUNT) -- for every
-            # group this codebase actually submits (bounded by
-            # NIGHTLY_ITEM_CAP) this is exactly one chunk, i.e. one job; it
-            # only splits into more than one job if a caller ever hands
-            # ``generate_many`` a genuinely oversized group.
-            for chunk in self._chunk_indices_for_inline_batch(pending_indices, prompts):
-                chunk_prompts = [prompts[i] for i in chunk]
-                batch = self._call_batch_many_with_retry(
-                    client,
+
+            if deferred_indices:
+                # Submitted in the prompts' own order rather than the order the
+                # thread pool happened to finish in, so a job's prompt list is
+                # reproducible and reads the same as the caller's input.
+                self._dispatch_paid_batch(
+                    sorted(deferred_indices),
+                    prompts=prompts,
                     model=model,
-                    prompts=chunk_prompts,
-                    config=config,
                     purpose=purpose,
+                    results=results,
+                    use_cache=use_cache,
                 )
-                for i, (text, usage) in zip(chunk, batch.results, strict=True):
-                    # This branch is only reachable for a real Batch API
-                    # submission on the paid lane, so the mode is known here
-                    # directly rather than derived: these rows, and only
-                    # these, get Google's batch discount.
-                    #
-                    # Every prompt in the job carries the job's own attempt
-                    # index and call id: the job is the unit that retried, so
-                    # a group that took three submissions to land shows as
-                    # attempt=3 on all of its rows, alongside the two
-                    # ``server_error`` rows the failed submissions wrote.
-                    self._log_cost(
-                        self._build_cost_row(
-                            model=model,
-                            lane="paid",
-                            mode="batch",
-                            usage=usage,
-                            purpose=purpose,
-                            attempt=batch.attempt,
-                            call_id=batch.call_id,
-                        )
-                    )
-                    if use_cache:
-                        self.cache.set(model=model, prompt=prompts[i], response=text)
-                    results[i] = text
+        else:  # paid, batch mode (self.forbid_batch is not set)
+            self._dispatch_paid_batch(
+                pending_indices,
+                prompts=prompts,
+                model=model,
+                purpose=purpose,
+                results=results,
+                use_cache=use_cache,
+            )
 
         assert all(text is not None for text in results), (
             "generate_many must fill every index before returning"
         )
         return [text for text in results if text is not None]
+
+    def _dispatch_paid_batch(
+        self,
+        indices: list[int],
+        *,
+        prompts: list[str],
+        model: str,
+        purpose: str,
+        results: list[str | None],
+        use_cache: bool,
+    ) -> None:
+        """Submit ``indices`` as real Batch API job(s) and fill ``results``.
+
+        Shared by the two callers that reach the paid batch lane: a client
+        routed there up front, and the free lane's overflow once its daily
+        quota closes. Sharing it is the point -- the overflow path used to let
+        each prompt fall over on its own, which produced one single-prompt job
+        per prompt (see ``PaidBatchDeferred``).
+        """
+        if not indices:
+            return
+        client = self._get_sdk_client("paid")
+        config = genai_types.GenerateContentConfig(
+            thinking_config=self._thinking_config_for(model, purpose)
+        )
+        # Chunked so each real batch job stays within Google's inline
+        # submission limits (BATCH_INLINE_MAX_BYTES/_COUNT) -- for every group
+        # this codebase actually submits (bounded by NIGHTLY_ITEM_CAP) this is
+        # exactly one chunk, i.e. one job; it only splits into more than one
+        # job if a caller ever hands ``generate_many`` a genuinely oversized
+        # group.
+        for chunk in self._chunk_indices_for_inline_batch(indices, prompts):
+            chunk_prompts = [prompts[i] for i in chunk]
+            batch = self._call_batch_many_with_retry(
+                client,
+                model=model,
+                prompts=chunk_prompts,
+                config=config,
+                purpose=purpose,
+            )
+            for i, (text, usage) in zip(chunk, batch.results, strict=True):
+                # Only reachable for a real Batch API submission on the paid
+                # lane, so the mode is known here directly rather than
+                # derived: these rows, and only these, get Google's batch
+                # discount.
+                #
+                # Every prompt in the job carries the job's own attempt index
+                # and call id: the job is the unit that retried, so a group
+                # that took three submissions to land shows as attempt=3 on all
+                # of its rows, alongside the two ``server_error`` rows the
+                # failed submissions wrote.
+                self._log_cost(
+                    self._build_cost_row(
+                        model=model,
+                        lane="paid",
+                        mode="batch",
+                        usage=usage,
+                        purpose=purpose,
+                        attempt=batch.attempt,
+                        call_id=batch.call_id,
+                    )
+                )
+                if use_cache:
+                    self.cache.set(model=model, prompt=prompts[i], response=text)
+                results[i] = text
 
     def generate_text(
         self,

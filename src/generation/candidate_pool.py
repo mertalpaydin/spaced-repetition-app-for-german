@@ -60,6 +60,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.atomic_write import write_text_atomic
 from src.contracts import BankItem
 from src.generation.batch_client import RejectedCandidateRecord
 
@@ -123,12 +124,11 @@ class CandidatePool(BaseModel):
         Written whole and then moved into place, so an interrupted write
         cannot leave a half-file that a later phase B would read as real.
         """
-        target = Path(path)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        payload = self.model_dump_json(indent=2)
-        temporary = target.with_suffix(target.suffix + ".partial")
-        temporary.write_text(payload, encoding="utf-8")
-        temporary.replace(target)
+        # Through ``write_text_atomic`` rather than ``Path.replace`` directly:
+        # on Windows the replace fails whenever another process holds the
+        # destination open, even for reading, and a pool represents hours of
+        # spaCy nobody wants to repeat. See ``src/atomic_write.py``.
+        write_text_atomic(Path(path), self.model_dump_json(indent=2))
 
     @classmethod
     def load(cls, path: Path | str) -> CandidatePool:

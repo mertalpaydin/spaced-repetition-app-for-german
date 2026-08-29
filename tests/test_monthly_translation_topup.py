@@ -887,7 +887,7 @@ def test_save_ledger_retries_when_the_destination_is_briefly_in_use(
 ) -> None:
     """A reader holding the file open must cost a retry, not the run. The
     allowance a crashed run does not spend expires with the month."""
-    import src.llm.translation_ledger as ledger_mod
+    import src.atomic_write as atomic_mod
 
     path = tmp_path / "ledger.json"
     attempts: list[int] = []
@@ -899,8 +899,8 @@ def test_save_ledger_retries_when_the_destination_is_briefly_in_use(
             raise _os_error(5)
         real_replace(src, dst)
 
-    monkeypatch.setattr(ledger_mod.os, "replace", flaky)
-    monkeypatch.setattr(ledger_mod.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(atomic_mod.os, "replace", flaky)
+    monkeypatch.setattr(atomic_mod.time, "sleep", lambda _s: None)
 
     ledger = TranslationLedger()
     ledger.record_batch("2026-08", azure_characters=10)
@@ -916,7 +916,7 @@ def test_both_windows_sharing_errors_are_retried(
 ) -> None:
     """5 is ERROR_ACCESS_DENIED and 32 is ERROR_SHARING_VIOLATION. Antivirus
     scanning the file produces one, an editor with it open the other."""
-    import src.llm.translation_ledger as ledger_mod
+    import src.atomic_write as atomic_mod
 
     attempts: list[int] = []
     real_replace = os.replace
@@ -927,8 +927,8 @@ def test_both_windows_sharing_errors_are_retried(
             raise _os_error(winerror)
         real_replace(src, dst)
 
-    monkeypatch.setattr(ledger_mod.os, "replace", flaky)
-    monkeypatch.setattr(ledger_mod.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(atomic_mod.os, "replace", flaky)
+    monkeypatch.setattr(atomic_mod.time, "sleep", lambda _s: None)
     save_ledger_atomic(tmp_path / "ledger.json", TranslationLedger())
     assert len(attempts) == 2
 
@@ -938,7 +938,7 @@ def test_a_non_transient_error_is_raised_without_retrying(
 ) -> None:
     """A read-only directory is not transient, and retrying it six times only
     delays the report of a real problem."""
-    import src.llm.translation_ledger as ledger_mod
+    import src.atomic_write as atomic_mod
 
     attempts: list[int] = []
 
@@ -946,8 +946,8 @@ def test_a_non_transient_error_is_raised_without_retrying(
         attempts.append(1)
         raise _os_error(13)
 
-    monkeypatch.setattr(ledger_mod.os, "replace", always_fails)
-    monkeypatch.setattr(ledger_mod.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(atomic_mod.os, "replace", always_fails)
+    monkeypatch.setattr(atomic_mod.time, "sleep", lambda _s: None)
 
     with pytest.raises(OSError):
         save_ledger_atomic(tmp_path / "ledger.json", TranslationLedger())
@@ -958,13 +958,13 @@ def test_a_permanently_locked_destination_still_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Retrying is not pretending. A file locked forever is still an error."""
-    import src.llm.translation_ledger as ledger_mod
+    import src.atomic_write as atomic_mod
 
     def always_locked(src: Any, dst: Any) -> None:
         raise _os_error(5)
 
-    monkeypatch.setattr(ledger_mod.os, "replace", always_locked)
-    monkeypatch.setattr(ledger_mod.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(atomic_mod.os, "replace", always_locked)
+    monkeypatch.setattr(atomic_mod.time, "sleep", lambda _s: None)
 
     with pytest.raises(OSError):
         save_ledger_atomic(tmp_path / "ledger.json", TranslationLedger())

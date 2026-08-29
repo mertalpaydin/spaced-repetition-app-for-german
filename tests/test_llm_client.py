@@ -2448,3 +2448,55 @@ def test_spend_ceiling_default_is_the_owners_current_figure() -> None:
     code."""
     client = GeminiLlmClient(cost_log_path=Path("/nonexistent/cost_log.jsonl"))
     assert client.spend_ceiling_usd == 7.50
+
+
+# ---------------------------------------------------------------------------
+# Overflow batching. Regression test for the behaviour the first real scheduled
+# tick exposed: 13 outstanding batch jobs carrying one prompt each, where
+# CLAUDE.md section 9 says overflow "queues and ships as one batch".
+
+
+class _OverflowBatches:
+    """Fake ``client.batches`` that records what was submitted."""
+
+    def __init__(self, job: genai_types.BatchJob) -> None:
+        self._job = job
+        self.create_calls: list[dict[str, Any]] = []
+
+    def create(self, *, model: str, src: object) -> genai_types.BatchJob:
+        self.create_calls.append({"model": model, "src": src})
+        return self._job
+
+    def get(self, *, name: str) -> genai_types.BatchJob:
+        return self._job
+
+
+def test_free_lane_overflow_ships_as_one_batch_job(tmp_path: Path) -> None:
+    """Every prompt whose free lane closes must ride in ONE job.
+
+    Before this, the free lane's per-prompt dispatch meant its per-prompt
+    free-to-paid fallback submitted a separate single-prompt batch job each
+    time, paying the batch API's scheduling overhead once per item and leaving
+    hundreds of jobs to poll.
+    """
+    rpd = _client_error_429("GenerateRequestsPerDayPerProjectPerModel-FreeTier")
+    fake_models = _FakeModels(error=rpd)
+    fake_batches = _OverflowBatches(_fake_batch_job_many(["A", "B", "C", "D", "E"]))
+    fake_sdk = _FakeSdkClient(models=fake_models, batches=fake_batches)
+
+    client = GeminiLlmClient(
+        free_api_key="free",
+        paid_api_key="paid",
+        cost_log_path=tmp_path / "cost.jsonl",
+        cache_dir=tmp_path / "llm",
+        batch_job_store_path=tmp_path / "pending.json",
+        sleep_fn=lambda _s: None,
+    )
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    out = client.generate_many(["p1", "p2", "p3", "p4", "p5"], model="m", use_cache=False)
+
+    assert out == ["A", "B", "C", "D", "E"]
+    assert len(fake_batches.create_calls) == 1, (
+        f"expected one batch job for five overflowing prompts, got {len(fake_batches.create_calls)}"
+    )

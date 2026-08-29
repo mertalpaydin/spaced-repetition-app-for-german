@@ -51,6 +51,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.atomic_write import write_text_atomic
+
 #: Bumped only when the on-disk shape changes incompatibly.
 STORE_FORMAT_VERSION = 1
 
@@ -119,11 +121,11 @@ class BatchJobStore(BaseModel):
         Atomic because this file is the only record that a billable job exists:
         a half-written one is a job nobody will ever collect.
         """
-        target = Path(path)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        temporary = target.with_suffix(target.suffix + ".partial")
-        temporary.write_text(self.model_dump_json(indent=2), encoding="utf-8")
-        temporary.replace(target)
+        # Through ``write_text_atomic`` rather than ``Path.replace`` directly:
+        # on Windows the replace fails whenever another process holds the
+        # destination open, even for reading, and this file is the only record
+        # that a billable job exists. See ``src/atomic_write.py``.
+        write_text_atomic(Path(path), self.model_dump_json(indent=2))
 
     def add(self, job: PendingBatchJob) -> None:
         """Record a submitted job, replacing any earlier entry of that name."""

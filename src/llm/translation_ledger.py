@@ -53,12 +53,19 @@ mysteriously translated nothing.
 
 ## Written the same way the store is written
 
-Temp file in the target's own directory, ``fsync``, then ``os.replace``, which
-is an atomic rename on one filesystem. The path on disk is the complete old
-content or the complete new content at every instant, never a half-written
-object. This is the same pattern as ``build_translations._write_store_atomic``
-and for the same reason; it is spelled again here rather than shared because
-the payload is a JSON object and that function writes JSONL.
+Temp file in the target's own directory, ``fsync``, then a replace, so the path
+on disk is the complete old content or the complete new content at every
+instant and never a half-written object. Same pattern and same reasoning as
+``build_translations._write_store_atomic``.
+
+**The replace goes through ``src.atomic_write.replace_with_retry``**, because
+``os.replace`` is not reliably atomic on Windows against a reader: it fails
+with ``WinError`` 5 or 32 whenever another process holds the destination open,
+even for reading. That killed the first real run of the scheduled job at 27% of
+a month's allowance, and an F0 allowance not spent inside its calendar month
+expires, so the crash cost a month rather than a retry. That helper is shared
+with the batch-job store and the candidate pool, which had the identical
+temp-and-replace pattern and the identical hole.
 
 ## Why the clock is an argument
 
@@ -74,13 +81,14 @@ import json
 import math
 import os
 import tempfile
-import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from src.atomic_write import replace_with_retry
 
 #: Bumped only if the on-disk shape changes incompatibly. A ledger written by a
 #: newer version is refused rather than silently misread, because misreading it
@@ -243,44 +251,6 @@ def load_ledger(path: Path) -> TranslationLedger:
         return TranslationLedger()
 
 
-#: Windows error codes for "somebody else has this file open". Both are
-#: transient: the other process is a reader that closes microseconds later.
-#: 5 is ERROR_ACCESS_DENIED, 32 is ERROR_SHARING_VIOLATION.
-_WINDOWS_TRANSIENT_REPLACE_ERRNOS = frozenset({5, 32})
-
-#: Total wait is about 3 seconds, which is far longer than any reader holds a
-#: 200-byte JSON file and far shorter than the hour a full run takes.
-_REPLACE_RETRY_DELAYS_SECONDS = (0.05, 0.1, 0.2, 0.4, 0.8, 1.6)
-
-
-def _replace_with_retry(
-    source: Path,
-    destination: Path,
-    *,
-    sleep_fn: Callable[[float], None] = time.sleep,
-) -> None:
-    """``os.replace``, retried while Windows says the destination is in use.
-
-    Only the two transient codes are retried. Any other ``OSError`` is a real
-    problem (a read-only directory, a bad path) and is raised immediately
-    rather than slept over six times first.
-
-    ``sleep_fn`` is injected so the retry path is testable without a test that
-    actually waits three seconds (CLAUDE.md section 8).
-    """
-    for delay in _REPLACE_RETRY_DELAYS_SECONDS:
-        try:
-            os.replace(source, destination)
-            return
-        except OSError as exc:
-            if getattr(exc, "winerror", None) not in _WINDOWS_TRANSIENT_REPLACE_ERRNOS:
-                raise
-            sleep_fn(delay)
-    # One last attempt, so the final failure raises the real error rather than
-    # a synthesised one, and carries the traceback an operator needs.
-    os.replace(source, destination)
-
-
 def save_ledger_atomic(path: Path, ledger: TranslationLedger) -> None:
     """Write ``ledger`` so the path is never observed half-written.
 
@@ -315,7 +285,7 @@ def save_ledger_atomic(path: Path, ledger: TranslationLedger) -> None:
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        _replace_with_retry(tmp_path, path)
+        replace_with_retry(tmp_path, path)
     except BaseException:
         tmp_path.unlink(missing_ok=True)
         raise

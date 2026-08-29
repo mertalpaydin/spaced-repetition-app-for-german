@@ -3709,3 +3709,68 @@ schtasks /Change /TN "LLA pilot tick" /ENABLE
 `uv run pytest -q`: 1909 passed. `ruff check`, `ruff format --check` and
 `mypy --strict src/` all clean.
 
+
+---
+
+## Cycle 25, 29 August 2026: overflow ships as one batch job
+
+The open item from cycle 24, closed. Also collapses three copies of an atomic
+write into one, after the second of them was caught failing.
+
+### One job per prompt, and why it happened
+
+The first real scheduled tick left **13 outstanding batch jobs carrying one
+prompt each**. CLAUDE.md section 9 says the opposite: "remaining work queues
+and ships as one batch. Per-request failover forfeits the batch discount on
+exactly the requests you pay for."
+
+The cause is a seam between two correct pieces. ``generate_many`` dispatches the
+free lane one request per prompt, because on the free lane each prompt is its
+own HTTP round trip. ``_call_transport_with_lane_handling`` carries the owner's
+free-to-paid fallback, so a prompt whose free lane closes moves itself to paid.
+Both are right on their own; together they mean each overflowing prompt moves
+itself independently, and when the paid lane is in batch mode that is a
+single-prompt batch job each. ``_call_batch_many``'s own docstring warns about
+exactly this shape: one job per item pays the batch API's scheduling overhead
+once per item.
+
+### The fix
+
+``PaidBatchDeferred`` is an internal signal. With ``defer_paid_batch`` set, a
+prompt whose free lane closes raises it instead of moving itself, and
+``generate_many`` gathers every such prompt and submits them through one shared
+``_dispatch_paid_batch``. The batch submission itself was extracted from the
+paid-lane branch rather than duplicated, so both routes to the batch API are
+now the same code.
+
+Deferral is **not** gated on ``detach_batch``. A blocking client overflowing
+into the batch lane wastes the same way, N single-prompt jobs polled one after
+another, so accumulating is right for both. Clients with ``forbid_batch`` are
+excluded because their paid fallback is synchronous, and a synchronous fallback
+per prompt is precisely what that mode exists for.
+
+Deferred prompts are submitted in the caller's own order, not the order the
+thread pool happened to finish in, so a job's prompt list is reproducible.
+
+### The same Windows bug, in two more places
+
+Writing the regression test surfaced ``WinError 32`` from
+``BatchJobStore.save`` inside a pytest temp directory. That is the failure
+cycle 23 fixed in ``save_ledger_atomic``: ``os.replace`` is atomic on POSIX and
+is not reliably atomic on Windows against a reader, failing whenever any other
+process holds the destination open, even for reading.
+
+Cycle 23 fixed the one call site that had been observed failing. Two others had
+the identical temp-and-replace pattern and the identical hole
+(``BatchJobStore.save``, ``CandidatePool.save``), for no better reason than
+that nobody had watched them fail yet. ``src/atomic_write.py`` is now the one
+implementation, used by all three, and the ledger's own docstring no longer
+claims the pattern is deliberately unshared.
+
+The lesson worth keeping is not about Windows. It is that a fix applied only
+where a bug was observed leaves the same bug everywhere else it lives, and a
+test on a quiet machine found the second instance within minutes.
+
+`uv run pytest -q`: 1910 passed. `ruff check`, `ruff format --check` and
+`mypy --strict src/` all clean.
+

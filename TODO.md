@@ -276,17 +276,6 @@ bank build. Do them when the bank build is not the active work.
   over it with `|| [ $? -eq 5 ]`, which makes an empty lane indistinguishable
   from a working one.
 
-- **Batch overflow submits one job per prompt, not one job per run.** Measured
-  on the first real tick: 13 outstanding jobs carrying one prompt each, where
-  CLAUDE.md section 9 says "remaining work queues and ships as one batch". The
-  cause is that `generate_many` dispatches the free lane per prompt, so
-  `_call_transport_with_lane_handling`'s free-to-paid fallback fires per
-  prompt too, and each overflowing prompt submits its own single-prompt batch
-  job. The batch discount still applies and nothing waits on the queue, so this
-  costs polling overhead rather than money: a 1,225-item build would leave about
-  245 jobs outstanding instead of one. The fix belongs in the lane-fallback
-  path, which would need to accumulate the overflow and submit it once, not in
-  the tick. Not urgent, but it is a documented invariant the code does not hold.
 - **`mypy --strict src/ scripts/` fails on a clean checkout.** Five errors in
   four files, none of them recent: `build_verb_government.py:338` (an unused
   `type: ignore` masking a real `call-overload`), `check_gold_examples.py:211`,
