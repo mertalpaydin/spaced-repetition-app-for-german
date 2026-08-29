@@ -67,12 +67,29 @@ Gestern ___ 15'000 Tickets verkauft.   -> waren
 The model's stated objection is correct: with *gestern* the sentence needs a
 Vorgangspassiv (`wurden verkauft`) or a Perfekt, not a Zustandspassiv.
 
-**It also missed a second defect it was not looking for.** `15'000` is Swiss
-number formatting, which is defect class 2.14 in `docs/known-defects.md` and is
-supposed to be caught deterministically upstream, by a rule, before any model
-sees the item. The model rejected this item for an unrelated reason and the
-Swiss-formatting rule did not fire at all. That is a rule gap, not a verifier
-success, and it is the most actionable finding in this cycle.
+**It also carries a second defect it was not rejected for.** `15'000` is the
+Swiss thousands separator; standard German writes `15.000`.
+
+**Correction, made while fixing it.** This section first said the deterministic
+Swiss rule "did not fire", implying a rule with a hole. That was wrong and the
+distinction matters. Every Swiss check in `carrier_validation` matched *letters*
+-- `ss` for `ß` -- so none of them could ever have matched punctuation between
+digits. This was an **uncovered case, not a broken rule**, and the two need
+different fixes: widening a pattern versus writing one that did not exist.
+
+Fixed the same day. `_SWISS_NUMBER_SEPARATOR_PATTERN` matches a digit, an
+apostrophe (both `U+0027` and the typographic `U+2019` that scraped news prose
+actually carries), and three more digits. Anchored on digits either side so it
+cannot fire on ordinary punctuation: `Wie geht's dir`, a quoted `'Das ist gut.'`
+and the German decimal comma in `15,50` all survive.
+
+**Blast radius, measured on the pool rather than estimated: one carrier.** The
+offending sentence itself, which was already rejected. Nothing else in the 1,224
+is affected.
+
+What remains true is the point about backstops. The model caught this item for
+an unrelated reason and on the second pass only; had it not, a Swiss-formatted
+number would have reached a learner with nothing standing behind it.
 
 ### What this settles
 

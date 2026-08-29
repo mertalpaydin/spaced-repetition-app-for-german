@@ -911,6 +911,27 @@ _SWISS_DIPHTHONG_SS_EXCLUSIONS: frozenset[str] = frozenset({"diesseits", "jensei
 # collision (unlike "Gross"/"Weiss" below).
 _SWISS_DRAUSSEN_PATTERN = re.compile(r"\bdraussen\b", re.IGNORECASE)
 
+#: Swiss thousands separator: an apostrophe between digits, "15'000" where
+#: standard German writes "15.000" or a narrow space. Cycle 28 found one in an
+#: ACCEPTED item ("Gestern ___ 15'000 Tickets verkauft."), rejected only
+#: because a later verification pass happened to object to the sentence's
+#: Zustandspassiv on unrelated grounds.
+#:
+#: This is the one Swiss check in this module that is NOT about "ss" for "ß".
+#: Every other pattern here matches letters, so none of them could ever have
+#: caught punctuation between digits: this was an uncovered case rather than a
+#: rule with a hole in it, which is worth saying because the two need different
+#: fixes and only one of them is "widen an existing pattern".
+#:
+#: Both apostrophes are matched. U+0027 is what plain text and most scrapes
+#: carry; U+2019 is the typographic one a Swiss publication actually sets, and
+#: scraped news prose is full of it.
+#:
+#: Anchored on digits either side, so it cannot fire on ordinary punctuation:
+#: "Wie geht's dir" and a quoted 'Das ist gut.' both survive, and so does the
+#: German decimal comma in "15,50".
+_SWISS_NUMBER_SEPARATOR_PATTERN = re.compile(r"\d['’]\d{3}(?!\d)")
+
 # The long-vowel-STEM half of the rule TODO.md 1.4 also names ("Strasse",
 # "Fuss", "Mass", "Spass"): a single vowel LETTER carries no long/short
 # information this module (or the tagger) can read -- "Fluss" (short "u")
@@ -1123,6 +1144,7 @@ def _sentence_shape_reason(text: str) -> str | None:
         or _SWISS_WEISS_PATTERN.search(stripped)
         or _SWISS_DRAUSSEN_PATTERN.search(stripped)
         or _SWISS_LONG_VOWEL_STEM_PATTERN.search(stripped)
+        or _SWISS_NUMBER_SEPARATOR_PATTERN.search(stripped)
         or _has_swiss_diphthong_spelling(stripped)
     ):
         return REASON_SWISS_SPELLING

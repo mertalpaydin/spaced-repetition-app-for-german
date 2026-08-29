@@ -3880,3 +3880,58 @@ flag when it conflicts, and no warning when a typed flag agrees.
 
 `uv run pytest -q`: 104 passed across the two affected files. `ruff check` and
 `mypy --strict src/` clean.
+
+---
+
+## Cycle 29, 29 August 2026: the Swiss thousands separator
+
+TODO.md item 0, opened by the cycle 28 hand audit and closed the same day.
+
+### What was wrong
+
+```
+Gestern ___ 15'000 Tickets verkauft.   -> waren
+```
+
+`15'000` is the Swiss thousands separator; standard German writes `15.000`.
+This reached an **accepted** item, and was rejected only because a second
+verification pass happened to object to the sentence's Zustandspassiv on
+entirely unrelated grounds. Had that pass not run, or not objected, a
+Swiss-formatted number would have reached a learner with nothing behind it.
+
+### A correction to what cycle 28 first said
+
+That audit called this a rule that "did not fire", implying a hole in an
+existing check. That was wrong, and the distinction decides the fix. Every
+Swiss check in `carrier_validation` matched **letters** -- `ss` where standard
+German has `ß` -- so none of them could ever have matched punctuation between
+digits. This was an **uncovered case**, not a broken rule. Widening a pattern
+and writing one that never existed are different jobs, and only the second was
+available here. `docs/audits/cycle-28-glossed-verification.md` now carries the
+correction inline rather than silently reading as if it had been right.
+
+### The fix
+
+`_SWISS_NUMBER_SEPARATOR_PATTERN`: a digit, an apostrophe, three more digits,
+with a negative lookahead so it does not fire mid-number.
+
+Both apostrophes are matched. `U+0027` is what plain text and most scrapes
+carry; `U+2019` is the typographic one a Swiss publication actually sets, and
+scraped news prose is full of it. Missing the second would have made the rule
+look correct while failing on the more common real-world form.
+
+Anchored on digits either side, which is what keeps it narrow. Nine tests: four
+Swiss numbers rejected, and five sentences that must survive -- the German
+thousands separator `15.000`, an unseparated `15000`, a quoted `'Das ist gut.'`,
+the clitic in `Wie geht's dir`, and the German decimal comma in `15,50`. An
+apostrophe rule that fired on `geht's` would have rejected a large slice of
+ordinary German.
+
+### Blast radius, measured rather than estimated
+
+**One carrier of the 1,224 in the pool**: the offending sentence itself, which
+was already rejected. Nothing else in the pool is affected, so the fix costs no
+coverage on the run it was found in.
+
+`uv run pytest -q`: 1931 passed. `ruff check`, `ruff format --check` and
+`mypy --strict src/` all clean.

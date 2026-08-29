@@ -13,33 +13,6 @@ documents cite them. They are labels, not an order. The order is top to bottom.
 
 ---
 
-## 0. A Swiss-formatted number reached an accepted item (2.14 gap)
-
-Found by the cycle 28 hand audit. Small, and it goes before the large pilot
-because the large pilot would bank more of them.
-
-**Do.** Write a failing test for `15'000` and fix the rule.
-
-```text
-Gestern ___ 15'000 Tickets verkauft.   -> waren
-```
-
-`15'000` is Swiss number formatting. Defect class 2.14 has a deterministic rule
-that is supposed to catch Swiss orthography before any model sees the item, and
-it did not fire. The item was rejected only because pass 2 happened to object to
-its Zustandspassiv on unrelated grounds, and only on the second pass at that.
-
-**Why it matters more than one item.** `TODO.md`'s own standing rule says
-anything the model verifier misses every time becomes a deterministic rule, and
-the reverse holds here: this defect class already HAS its rule, so the model is
-explicitly not the backstop for it. A rule that does not fire on
-`15'000` is a rule with a hole, and the model catching this one was luck.
-
-**Done when.** A test pins `15'000` as rejected by the deterministic Swiss check,
-and the existing 2.14 fixtures still pass.
-
----
-
 ## 1. The large pilot (6.5)
 
 **Do.** Phase A at a much larger scale than any previous cycle, then phase B with
@@ -70,10 +43,9 @@ defects, 9 of which only batch 5 caught. Batch 10 would lose batch 5's closer
 scrutiny without gaining the diversity effect, and it is the one value with no
 hand-audited data behind it.
 
-What two passes at one size does and does not buy is worth remembering when the
-numbers come in: the 12-defect result came from comparing two batch *sizes*, so
-two passes both at 5 sample only the model's run-to-run noise, which is a
-smaller effect. `pass_disagreements` in the report is the direct measure of it.
+That caveat has since been settled by measurement and is recorded above: two
+passes at one size catch real defects, not merely run-to-run noise.
+`pass_disagreements` in the report remains the direct measure.
 
 **Done when.** A pilot report exists with per-topic counts, `pass_disagreements`,
 and a rejected file large enough for item 2 to sample from.

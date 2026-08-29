@@ -531,9 +531,33 @@ frische Luft zu holen.                                            -> war
     Standard German is "draußen".
 ```
 
+**A third example, cycle 28**, and it is a different shape from the two above:
+
+```
+Gestern ___ 15'000 Tickets verkauft.                              -> waren
+    Standard German writes "15.000". The apostrophe thousands
+    separator is Swiss.
+```
+
+This one reached an **accepted** item. It was rejected only because a second
+verification pass happened to object to the sentence's Zustandspassiv on
+entirely unrelated grounds, and only on that second pass.
+
+**Why no rule caught it, and why that is not the same as a rule failing.**
+Every Swiss check in this module matched *letters* -- `ss` where standard German
+has `ß`. A thousands separator is punctuation between digits, so none of those
+patterns could ever have matched it. It was an uncovered case rather than a hole
+in an existing rule, which matters because the two need different fixes. Closed
+2026-08-29 by `_SWISS_NUMBER_SEPARATOR_PATTERN`, which matches a digit, an
+apostrophe (both `U+0027` and the typographic `U+2019` that scraped news prose
+carries) and three more digits, anchored on digits either side so `Wie geht's
+dir`, a quoted `'Das ist gut.'` and the German decimal comma in `15,50` all
+survive. Measured blast radius on the 1,224-carrier pool: one carrier, the
+offending sentence itself.
+
 **What already catches it.** `carrier_validation._sentence_shape_reason`
-rejects both, before spaCy is loaded, as `swiss_spelling`. `Schliesslich` falls
-to the general diphthong rule (`ie` before `ss`, and a diphthong is always
+rejects all three, before spaCy is loaded, as `swiss_spelling`. `Schliesslich`
+falls to the general diphthong rule (`ie` before `ss`, and a diphthong is always
 long), `draussen` to a one-word closed list, because a general `au` plus `ss`
 rule would reject `aussteigen`, `Aussage` and dozens of other correct words.
 **The `ä` limitation in 2.3 does not apply to any of these four**, which is

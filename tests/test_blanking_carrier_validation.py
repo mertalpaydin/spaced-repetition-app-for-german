@@ -1215,3 +1215,52 @@ def test_known_bad_carriers_fixture_has_at_least_the_eight_named_sentences() -> 
     parametrized per-record test above; it guards against the fixture file
     itself being trimmed."""
     assert len(_KNOWN_BAD_CARRIERS) >= 8
+
+
+# -- Swiss number formatting ("15'000" for "15.000") -------------------------
+# Cycle 28. The apostrophe thousands separator is Swiss, and unlike every other
+# Swiss check in this file it is not about "ss" for "ss": it is punctuation
+# between digits, so none of the existing patterns could ever have matched it.
+# Found in an ACCEPTED item, where it was rejected only because a later
+# verification pass happened to object to the sentence's Zustandspassiv on
+# entirely unrelated grounds.
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Gestern wurden 15'000 Tickets verkauft.",
+        "Die Stadt hat 1'200'000 Einwohner.",
+        "Er zahlte 2'500 Franken dafuer.",
+        # The typographic apostrophe, which is what a real Swiss publication
+        # actually sets and what scraped text therefore often carries.
+        "Gestern wurden 15\u2019000 Tickets verkauft.",
+    ],
+)
+def test_validate_carrier_rejects_swiss_number_formatting(sentence: str) -> None:
+    """A learner shown "15'000" is shown a number written the Swiss way. The
+    German thousands separator is a full stop or a narrow space."""
+    result = cv.validate_carrier(sentence)
+    assert not result.accepted
+    assert result.reason == cv.REASON_SWISS_SPELLING
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        # German thousands separator: correct, must survive.
+        "Gestern wurden 15.000 Tickets verkauft.",
+        # No separator at all: correct.
+        "Gestern wurden 15000 Tickets verkauft.",
+        # An apostrophe that is not between digits is ordinary punctuation and
+        # says nothing about Swiss orthography.
+        "Er sagte: 'Das ist gut.'",
+        "Wie geht's dir heute?",
+        # A decimal comma, which is German and must not be confused for it.
+        "Der Preis betraegt 15,50 Euro heute.",
+    ],
+)
+def test_validate_carrier_keeps_sentences_without_a_swiss_number(sentence: str) -> None:
+    """The check must fire on the separator, not on apostrophes generally."""
+    result = cv.validate_carrier(sentence)
+    assert result.reason != cv.REASON_SWISS_SPELLING
