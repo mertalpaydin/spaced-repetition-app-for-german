@@ -3935,3 +3935,65 @@ coverage on the run it was found in.
 
 `uv run pytest -q`: 1931 passed. `ruff check`, `ruff format --check` and
 `mypy --strict src/` all clean.
+
+---
+
+## Cycle 30, 29 August 2026: a retry that was really a hang
+
+Found by running `--free-lane-only` at the owner's instruction, over 15 items.
+
+### What happened
+
+The run translated all 15 carriers (every one a local-cache hit, so no API call
+and no cost), then started verifying: one successful call, ten 503s, and then
+**23 minutes with no request, no output and no error** before it was killed by
+hand. CPU frozen, process alive, nothing in the log.
+
+### The cause
+
+`_extract_retry_delay_seconds` reads Google's suggested backoff off the
+`google.rpc.RetryInfo` error detail and returns it **verbatim and unbounded**.
+The RPM branch then slept it: `self._sleep(exc.retry_delay_seconds or
+RPM_BACKOFF_SECONDS)`.
+
+Reading that figure at all is right, and the reasoning behind it still holds:
+the free tier's per-minute window is tens of seconds, so a fixed one-second
+backoff retries into the same exhausted window. What was missing is that the
+same field can carry hours. A 429 whose window is a whole day, or an RPD that
+`_classify_quota_error` read as an RPM because the message text did not name a
+window, both produce a sleep nobody is watching.
+
+### Two fixes, both the owner's own framing
+
+**Cap the wait.** `MAX_BACKOFF_SECONDS = 600`, and every sleep whose duration
+comes from the provider rather than from this file now goes through
+`_bounded_backoff`. Ten minutes is far longer than any real per-minute window
+(the live free tier asks for about 48 seconds) and far shorter than a person's
+patience with a job that looks dead.
+
+**With no paid lane, stop rather than wait.** `_can_reach_paid` answers whether
+this call could still move to the paid lane if it gave up on the free one. When
+it cannot, a long wait is not a retry, because there is no second lane the wait
+is buying access to. The call raises instead, so the caller gets a report, a
+rejected file and an exit code. That is the shape a `--free-lane-only` run
+should have had all along, and it is now what it does.
+
+The audit of the remaining sleeps: the batch poller and both server-error
+schedules use constants defined in this file, and the rate limiter's wait is
+bounded by its own window. Only the two RPM paths took a provider figure, and
+both are now bounded.
+
+### Two test defects found while writing the tests for it
+
+**A no-op `sleep_fn` makes the rate limiter busy-spin.** It computes its wait
+from the real monotonic clock, so a test that records sleeps instead of taking
+them loops for a full minute of wall time. One new test took 68 seconds before
+its limiter was neutralised.
+
+**A test that passed alone and failed in the suite.** `paid_api_key=None` is
+resolved from `GEMINI_PAID_API_KEY`, so the case depended on whether an earlier
+test had loaded `.env` into the environment. Fixed with an explicit
+`monkeypatch.delenv` rather than by trusting test order.
+
+`uv run pytest -q`: 1939 passed. `ruff check`, `ruff format --check` and
+`mypy --strict src/` all clean.

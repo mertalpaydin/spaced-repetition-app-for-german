@@ -574,6 +574,20 @@ class GeminiLlmClient:
     # window is tens of seconds, not one, and a fixed 1s backoff retries into
     # the same still-exhausted window and fails a pilot run outright.
     RPM_BACKOFF_SECONDS: float = 1.0
+
+    #: Nothing in this client ever sleeps longer than this in one go, however
+    #: long Google says to wait. ``_extract_retry_delay_seconds`` returns the
+    #: provider's own figure verbatim, and a 429 can carry a ``retryDelay``
+    #: measured in hours -- the seconds remaining until a daily window reopens,
+    #: for instance, or an RPD that ``_classify_quota_error`` read as an RPM
+    #: because the message text did not name a window.
+    #:
+    #: Measured on 2026-08-29: a ``--free-lane-only`` verification run made one
+    #: successful call, then sat for 23 minutes with no request, no output and
+    #: no error before it was killed by hand. Ten minutes is far longer than any
+    #: real per-minute window (the live free tier asks for about 48 seconds) and
+    #: far shorter than a person's patience with a job that looks dead.
+    MAX_BACKOFF_SECONDS: float = 600.0
     # Operator-tuned against observed live rate limiting, deliberately
     # conservative. Reverted to 2 across three separate cycles, each time
     # costing the owner a live pilot run; pinned by
@@ -1325,6 +1339,25 @@ class GeminiLlmClient:
                     return None
         return None
 
+    def _bounded_backoff(self, seconds: float) -> float:
+        """``seconds``, clamped to ``MAX_BACKOFF_SECONDS``.
+
+        Every sleep whose duration comes from the provider rather than from
+        this file goes through here. See ``MAX_BACKOFF_SECONDS`` for the run
+        that made it necessary.
+        """
+        return min(seconds, self.MAX_BACKOFF_SECONDS)
+
+    def _can_reach_paid(self, lane: Lane) -> bool:
+        """Whether this call could still move to the paid lane if it gave up on
+        the free one.
+
+        False means waiting is the only option left, which is exactly when
+        waiting a long time stops being a retry and becomes a hang: there is no
+        second lane that a longer wait is buying access to.
+        """
+        return lane == "free" and not self.forbid_paid_lane and bool(self.paid_api_key)
+
     def _server_error_max_retries(self, lane: Lane) -> int:
         """How many 5xx retries ``lane`` gets.
 
@@ -1674,7 +1707,9 @@ class GeminiLlmClient:
                 if rpm_attempts >= self.RPM_MAX_RETRIES:
                     raise
                 rpm_attempts += 1
-                self._sleep(exc.retry_delay_seconds or self.RPM_BACKOFF_SECONDS)
+                self._sleep(
+                    self._bounded_backoff(exc.retry_delay_seconds or self.RPM_BACKOFF_SECONDS)
+                )
                 continue
             except ServerUnavailableError:
                 self._log_failed_attempt(
@@ -1936,8 +1971,19 @@ class GeminiLlmClient:
                 if exc.quota_type == "rpm":
                     if rpm_attempts >= self.RPM_MAX_RETRIES:
                         raise
+                    requested = exc.retry_delay_seconds or self.RPM_BACKOFF_SECONDS
+                    if requested > self.MAX_BACKOFF_SECONDS and not self._can_reach_paid(lane):
+                        # Google is asking us to wait longer than this client is
+                        # willing to, and there is no paid lane to move the work
+                        # to. Sleeping here is indistinguishable from hanging:
+                        # measured 2026-08-29, a --free-lane-only run sat for 23
+                        # minutes with no call and no output before it was
+                        # killed. Stop instead, so the caller gets a report and
+                        # an exit code and can come back when the window has
+                        # reopened.
+                        raise
                     rpm_attempts += 1
-                    self._sleep(exc.retry_delay_seconds or self.RPM_BACKOFF_SECONDS)
+                    self._sleep(self._bounded_backoff(requested))
                     continue
                 # RPD: close the free lane, then either move the work to paid
                 # or, if paid is forbidden, fail loudly instead.

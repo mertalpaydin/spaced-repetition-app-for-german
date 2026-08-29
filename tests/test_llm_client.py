@@ -2500,3 +2500,135 @@ def test_free_lane_overflow_ships_as_one_batch_job(tmp_path: Path) -> None:
     assert len(fake_batches.create_calls) == 1, (
         f"expected one batch job for five overflowing prompts, got {len(fake_batches.create_calls)}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Backoff bounding. Regression tests for a --free-lane-only verification run
+# that made one successful call on 2026-08-29 and then sat for 23 minutes with
+# no request, no output and no error before it was killed by hand.
+
+
+def test_a_long_retry_delay_is_clamped(tmp_path: Path) -> None:
+    """Google's retryDelay is taken verbatim from the provider and can be
+    measured in hours. Nothing here sleeps longer than MAX_BACKOFF_SECONDS."""
+    slept: list[float] = []
+    rpm = _client_error_429(
+        "GenerateRequestsPerMinutePerProjectPerModel-FreeTier", retry_delay="7200s"
+    )
+    fake_sdk = _FakeSdkClient(models=_FakeModels(error=rpm))
+    client = GeminiLlmClient(
+        free_api_key="free",
+        paid_api_key="paid",
+        cost_log_path=tmp_path / "cost.jsonl",
+        cache_dir=tmp_path / "llm",
+        batch_job_store_path=tmp_path / "pending.json",
+        sleep_fn=slept.append,
+    )
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+    # The free-lane rate limiter would otherwise contribute its own waits to
+    # `slept` and, with a no-op sleep, spin against the real clock for a
+    # minute. This test is about the RETRY delay, not the pacing.
+    client._free_lane_limiter.acquire = lambda: None  # type: ignore[method-assign]
+
+    with pytest.raises(QuotaExceededError):
+        client.generate("p", model="m", use_cache=False)
+
+    assert slept, "it should have retried at least once"
+    assert max(slept) <= client.MAX_BACKOFF_SECONDS
+    assert max(slept) == client.MAX_BACKOFF_SECONDS, "clamped, not shortened to the default"
+
+
+def test_a_long_retry_delay_with_no_paid_lane_raises_instead_of_sleeping(
+    tmp_path: Path,
+) -> None:
+    """The hang itself. With no paid lane to move to, a long wait is not a
+    retry: there is no second lane it is buying access to. Stop, so the caller
+    gets a report and an exit code."""
+    slept: list[float] = []
+    rpm = _client_error_429(
+        "GenerateRequestsPerMinutePerProjectPerModel-FreeTier", retry_delay="7200s"
+    )
+    fake_sdk = _FakeSdkClient(models=_FakeModels(error=rpm))
+    client = GeminiLlmClient(
+        free_api_key="free",
+        paid_api_key=None,
+        forbid_paid_lane=True,
+        cost_log_path=tmp_path / "cost.jsonl",
+        cache_dir=tmp_path / "llm",
+        batch_job_store_path=tmp_path / "pending.json",
+        sleep_fn=slept.append,
+    )
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+    client._free_lane_limiter.acquire = lambda: None  # type: ignore[method-assign]
+
+    with pytest.raises(QuotaExceededError):
+        client.generate("p", model="m", use_cache=False)
+
+    assert slept == [], "it must not sleep at all when waiting cannot help"
+
+
+def test_a_short_retry_delay_is_still_honoured_exactly(tmp_path: Path) -> None:
+    """The cap must not break the ordinary case. The live free tier asks for
+    about 48 seconds and that figure is the whole reason the delay is read off
+    the error rather than fixed at one second."""
+    slept: list[float] = []
+    rpm = _client_error_429(
+        "GenerateRequestsPerMinutePerProjectPerModel-FreeTier", retry_delay="48s"
+    )
+    fake_sdk = _FakeSdkClient(models=_FakeModels(error=rpm))
+    client = GeminiLlmClient(
+        free_api_key="free",
+        paid_api_key=None,
+        forbid_paid_lane=True,
+        cost_log_path=tmp_path / "cost.jsonl",
+        cache_dir=tmp_path / "llm",
+        batch_job_store_path=tmp_path / "pending.json",
+        sleep_fn=slept.append,
+    )
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+    client._free_lane_limiter.acquire = lambda: None  # type: ignore[method-assign]
+
+    with pytest.raises(QuotaExceededError):
+        client.generate("p", model="m", use_cache=False)
+
+    assert slept and set(slept) == {48.0}
+
+
+def test_bounded_backoff_clamps_and_passes_through() -> None:
+    client = GeminiLlmClient(free_api_key="k", cache_dir=".cache/llm")
+    assert client._bounded_backoff(5.0) == 5.0
+    assert client._bounded_backoff(99999.0) == client.MAX_BACKOFF_SECONDS
+
+
+@pytest.mark.parametrize(
+    ("lane", "forbid_paid", "paid_key", "expected"),
+    [
+        ("free", False, "paid", True),
+        ("free", True, "paid", False),
+        ("free", False, None, False),
+        ("paid", False, "paid", False),
+    ],
+)
+def test_can_reach_paid(
+    lane: str,
+    forbid_paid: bool,
+    paid_key: str | None,
+    expected: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """False means waiting is the only option left, which is when a long wait
+    stops being a retry and becomes a hang.
+
+    The environment is cleared explicitly. ``__init__`` resolves a missing paid
+    key from ``GEMINI_PAID_API_KEY``, so without this the ``paid_key=None`` case
+    passes alone and fails in the full suite, depending on whether an earlier
+    test happened to load ``.env`` into ``os.environ``.
+    """
+    monkeypatch.delenv("GEMINI_PAID_API_KEY", raising=False)
+    client = GeminiLlmClient(
+        free_api_key="k",
+        paid_api_key=paid_key,
+        forbid_paid_lane=forbid_paid,
+        cache_dir=".cache/llm",
+    )
+    assert client._can_reach_paid(lane) is expected  # type: ignore[arg-type]
