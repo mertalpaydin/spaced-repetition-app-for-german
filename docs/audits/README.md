@@ -55,5 +55,6 @@ records none.
 | `cycle-11-corpus-report.md` | 23 Aug | Corpus pilot re-run: 337 items, 44 topics. |
 | `cycle-12-corpus-report.md` | 23 Aug | Corpus pilot after the four decisions: 396 items, 48 topics. |
 | `local-verifier-eval.md` | 28 Aug | Five local models measured as the verification backstop; none adopted. Records the harness defects that invalidated the first two attempts. |
+| `cycle-28-glossed-verification.md` | 29 Aug | First completed two-pass verification, 80 items all hand audited. Pass disagreements 2 of 80. Content filtering decided. |
 | `fix-log.md` | running, to 28 Aug | Closed work, with what was measured. Holds cycles 13 to 18. |
 | `data/` | 20 Aug | The JSON counts behind `corpus-coverage.md`. |

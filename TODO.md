@@ -13,10 +13,49 @@ documents cite them. They are labels, not an order. The order is top to bottom.
 
 ---
 
+## 0. A Swiss-formatted number reached an accepted item (2.14 gap)
+
+Found by the cycle 28 hand audit. Small, and it goes before the large pilot
+because the large pilot would bank more of them.
+
+**Do.** Write a failing test for `15'000` and fix the rule.
+
+```text
+Gestern ___ 15'000 Tickets verkauft.   -> waren
+```
+
+`15'000` is Swiss number formatting. Defect class 2.14 has a deterministic rule
+that is supposed to catch Swiss orthography before any model sees the item, and
+it did not fire. The item was rejected only because pass 2 happened to object to
+its Zustandspassiv on unrelated grounds, and only on the second pass at that.
+
+**Why it matters more than one item.** `TODO.md`'s own standing rule says
+anything the model verifier misses every time becomes a deterministic rule, and
+the reverse holds here: this defect class already HAS its rule, so the model is
+explicitly not the backstop for it. A rule that does not fire on
+`15'000` is a rule with a hole, and the model catching this one was luck.
+
+**Done when.** A test pins `15'000` as rejected by the deterministic Swiss check,
+and the existing 2.14 fixtures still pass.
+
+---
+
 ## 1. The large pilot (6.5)
 
 **Do.** Phase A at a much larger scale than any previous cycle, then phase B with
 `--verification-passes 2 --verification-batch-size 5`.
+
+**Phase A is DONE** (2026-08-29): 1,225 items over 49 topics, zero topics short
+of quota, in `data/corpus_candidate_pool.json`. Phase B has verified 80 of them
+(the ones that had a trusted gloss) and banked 73; see
+`docs/audits/cycle-28-glossed-verification.md`. The remaining 1,145 are waiting
+on translations, not on verification.
+
+**Two passes at batch 5 is now measured, not assumed.** Cycle 28 found 2
+disagreements in 80 items, both real defects that one pass would have banked.
+2.5%, matching the batch-size experiment's own 2.5% from a different variable.
+The question this item used to carry, whether two passes at ONE size samples
+only run-to-run noise, is answered: it does not.
 
 **Batch size is 5, never 20.** Hand-audited on 475 identical candidates: batch 20
 gave 444 accepted / 31 rejected, batch 5 gave 438 / 37, and of the 12 items the
@@ -319,10 +358,12 @@ to `main` goes green.
   `docs/project-state.md`. Each one is a one-word edit. Nothing renders wrong
   enough to fail a test, which is why they have survived.
 
-- **Decide whether Leipzig needs a content filter.** Leipzig is news prose and
-  has turned up a quote about genocide and a report of an assault. Neither is
-  a grammar defect. A blocklist applied to Leipzig only is cheap if the owner
-  wants one.
+- **Content filtering is decided: there is none, and none is planned.** The
+  owner's decision, 2026-08-29. This was carried here as an open question
+  ("decide whether Leipzig needs a content filter"); it is now closed and the
+  reasoning lives in `docs/known-defects.md` 2.8. Not work. Listed only so the
+  question is not re-opened by someone who finds a Leipzig sentence
+  distasteful.
 
 ---
 

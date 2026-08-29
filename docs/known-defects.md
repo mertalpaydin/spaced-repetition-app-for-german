@@ -306,9 +306,25 @@ in the audits, so they are described here too rather than reconstructed:
 **Why no rule catches it.** Nobody has written one. Neither sentence is a
 grammar defect, and every grammar check in the pipeline passed them correctly.
 
-**What would have to exist.** A word blocklist applied to Leipzig carriers
-only. It is cheap and it has not been built because it has not been asked for.
-Say the word.
+**DECIDED, 2026-08-29: no filter, and none is planned.** The owner was asked
+directly and the answer was that content filtering is not wanted. The corpus is
+real news prose and exercises are drawn from it as it is. This is a settled
+decision rather than an unbuilt feature, so it is not in `TODO.md` and should
+not be re-opened by someone who finds a Leipzig sentence distasteful.
+
+**What the decision covers**, all three surfaced by real audits rather than
+hypothesised:
+
+- **Subject matter.** The two occurrences above.
+- **Register.** Cycle 28 accepted `Ein guter Hintern findet selbst ___ Bank
+  für sich.` Grammatically correct, crude.
+- **Real contact details carried through from news text.** Cycle 28 accepted
+  `Er ___ gebeten sich bei der Polizei unter der Rufnummer 05271/962-0 zu
+  melden.` A real published phone number. Recorded here so that its presence is
+  a choice and not an oversight.
+
+**What would have existed otherwise.** A word blocklist applied to Leipzig
+carriers only. Cheap to build; deliberately not built.
 
 ### 2.9 The verifier does not agree with itself
 
