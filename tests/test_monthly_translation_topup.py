@@ -17,11 +17,15 @@ is to wait until the first of the month.
 
 from __future__ import annotations
 
+import io
 import json
 import os
+import urllib.error
+import urllib.request
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from email.message import Message
 from pathlib import Path
 from typing import Any
 
@@ -36,7 +40,7 @@ from scripts.monthly_translation_topup import (
     prioritise,
     run_topup,
 )
-from src.llm.translation import TranslationError
+from src.llm.translation import AzureTranslator, TranslationError
 from src.llm.translation_ledger import (
     LedgerVersionError,
     MonthlySpend,
@@ -107,6 +111,68 @@ class FakeTranslator:
     @property
     def translated(self) -> list[str]:
         return [text for call in self.calls for text in call]
+
+
+class _AzureWithQuota:
+    """A fake Azure endpoint that answers until ``limit`` characters have
+    been sent in this process, then answers HTTP 403 with Azure's own quota
+    message. Driven through a REAL ``AzureTranslator`` so the refusal takes the
+    exact path a live one does. This is the month boundary now: the job stops
+    on Azure saying no, not on its own count."""
+
+    def __init__(self, limit: int) -> None:
+        self.limit = limit
+        self.sent = 0
+        self.calls: list[list[str]] = []
+
+    def __call__(self, request: urllib.request.Request, timeout: float | None = None) -> Any:
+        body = json.loads(request.data.decode("utf-8"))  # type: ignore[union-attr]
+        texts = [entry["Text"] for entry in body]
+        characters = sum(len(t) for t in texts)
+        if self.sent + characters > self.limit:
+            raise urllib.error.HTTPError(
+                request.full_url,
+                403,
+                "Forbidden",
+                Message(),
+                io.BytesIO(
+                    b'{"error":{"code":403001,"message":"The operation isn\'t allowed '
+                    b'because the subscription has exceeded its free quota."}}'
+                ),
+            )
+        self.sent += characters
+        self.calls.append(texts)
+        return _AzureBody([{"translations": [{"text": f"EN {t}"}]} for t in texts])
+
+    @property
+    def translated(self) -> list[str]:
+        return [text for call in self.calls for text in call]
+
+
+class _AzureBody:
+    def __init__(self, payload: object) -> None:
+        self._raw = json.dumps(payload).encode("utf-8")
+
+    def read(self) -> bytes:
+        return self._raw
+
+    def __enter__(self) -> _AzureBody:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+
+def _azure_with_quota(limit: int, tmp_path: Path) -> tuple[AzureTranslator, _AzureWithQuota]:
+    endpoint = _AzureWithQuota(limit)
+    translator = AzureTranslator(
+        api_key="k",
+        urlopen=endpoint,
+        characters_per_minute=0,
+        sleep=lambda _s: None,
+        cost_log_path=tmp_path / "cost_log.jsonl",
+    )
+    return translator, endpoint
 
 
 @dataclass
@@ -300,17 +366,18 @@ def test_run_report_months_remaining_is_right_for_a_known_store_and_corpus(
     tmp_path: Path,
 ) -> None:
     # Ten 10-character carriers; two already have a trusted azure gloss, so
-    # eight are untrusted, 80 characters. A 45-character month translates four
-    # of them (a fifth batch would exceed the budget), leaving four carriers and
-    # 40 characters: 40 / 45 = 0.888... months, so one more monthly run.
+    # eight are untrusted, 80 characters. Azure accepts 45 characters and then
+    # refuses: four land, the fifth batch is the refusal, leaving four carriers
+    # and 40 characters: 40 / 45 = 0.888... months, so one more monthly run.
     carriers = _carriers(10)
     texts = sorted(carriers)
     _seed_store(tmp_path / "de_en.jsonl", {texts[0]: "azure", texts[1]: "gemini"})
+    translator, _endpoint = _azure_with_quota(45, tmp_path)
 
     report = _run(
         tmp_path,
         carriers=carriers,
-        translator=FakeTranslator(),
+        translator=translator,
         clock=FakeClock(datetime(2026, 8, 27, tzinfo=UTC)),
         monthly_budget=45,
     )
@@ -318,6 +385,7 @@ def test_run_report_months_remaining_is_right_for_a_known_store_and_corpus(
     assert report.carriers_trusted_before == 2
     assert report.carriers_ungossed_before == 8
     assert report.translated == 4
+    assert report.azure_quota_rejected
     assert report.carriers_untrusted_after == 4
     assert report.characters_untrusted_after == 40
     assert report.months_remaining == pytest.approx(40 / 45)
@@ -332,9 +400,10 @@ def test_run_report_months_remaining_is_right_for_a_known_store_and_corpus(
 def test_two_runs_in_one_month_do_not_exceed_the_monthly_budget_between_them(
     tmp_path: Path,
 ) -> None:
-    # This is the whole reason the ledger exists. AzureTranslator.characters_used
-    # is per process, so before the ledger a second run started from zero and
-    # spent the month's allowance twice.
+    # The month is bounded by Azure, not by the count (owner's instruction,
+    # 2026-09-08: the count cannot see what other scripts sent). The first run
+    # is bounded by --max-characters; the second keeps sending until Azure
+    # refuses, and that refusal is what the ledger remembers.
     carriers = _carriers(20)
     clock = FakeClock(datetime(2026, 8, 10, tzinfo=UTC))
 
@@ -347,7 +416,8 @@ def test_two_runs_in_one_month_do_not_exceed_the_monthly_budget_between_them(
         max_characters=25,
     )
     clock.set(datetime(2026, 8, 24, tzinfo=UTC))
-    second_translator = FakeTranslator()
+    # Azure has 25 of its 45 left after the first run's 20.
+    second_translator, _endpoint = _azure_with_quota(25, tmp_path)
     second = _run(
         tmp_path,
         carriers=carriers,
@@ -357,17 +427,18 @@ def test_two_runs_in_one_month_do_not_exceed_the_monthly_budget_between_them(
     )
 
     assert first.azure_characters == 20  # two 10-character carriers
-    assert second.azure_characters == 20  # 45 - 20 = 25 remaining, so two more
+    assert second.azure_characters == 20  # two more, then Azure says no
+    assert second.azure_quota_rejected
+    assert not first.azure_quota_rejected
     total = first.azure_characters + second.azure_characters
     assert total == 40
-    assert total <= 45
-    # And the stop really was the budget, not the corpus running out.
-    assert total + CARRIER_CHARS > 45
     assert second.month_remaining_after == 5
 
     ledger = load_ledger(tmp_path / "azure_f0_ledger.json")
     assert ledger.spend_for("2026-08").azure_characters == 40
     assert ledger.spend_for("2026-08").runs == 2
+    assert ledger.quota_rejected("2026-08")
+    assert ledger.spend_for("2026-08").azure_quota_rejected_at == datetime(2026, 8, 24, tzinfo=UTC)
 
 
 def test_a_third_run_in_a_spent_month_translates_nothing_and_says_why(
@@ -375,7 +446,8 @@ def test_a_third_run_in_a_spent_month_translates_nothing_and_says_why(
 ) -> None:
     carriers = _carriers(20)
     clock = FakeClock(datetime(2026, 8, 10, tzinfo=UTC))
-    _run(tmp_path, carriers=carriers, translator=FakeTranslator(), clock=clock, monthly_budget=40)
+    refused, _endpoint = _azure_with_quota(40, tmp_path)
+    _run(tmp_path, carriers=carriers, translator=refused, clock=clock, monthly_budget=40)
 
     clock.set(datetime(2026, 8, 28, tzinfo=UTC))
     translator = FakeTranslator()
@@ -383,37 +455,71 @@ def test_a_third_run_in_a_spent_month_translates_nothing_and_says_why(
         tmp_path, carriers=carriers, translator=translator, clock=clock, monthly_budget=40
     )
 
+    # Not one call: the ledger's flag, not a count, says the month is spent.
     assert translator.calls == []
     assert report.translated == 0
     assert report.run_budget == 0
-    assert any("already spent its" in w for w in report.warnings)
+    assert any("refused month 2026-08 on quota" in w for w in report.warnings)
+
+
+def test_a_count_past_the_allowance_does_not_stop_a_run_azure_has_not_refused(
+    tmp_path: Path,
+) -> None:
+    """The 2026-09-08 case exactly: the ledger read 1,999,321 of 2,000,000 and a
+    pilot had put 66,000 more through Azure unrecorded, yet Azure kept
+    answering. The count is an estimate; only the refusal stops a run."""
+    carriers = _carriers(20)
+    clock = FakeClock(datetime(2026, 8, 10, tzinfo=UTC))
+    _run(
+        tmp_path,
+        carriers=carriers,
+        translator=FakeTranslator(),
+        clock=clock,
+        monthly_budget=40,
+        max_characters=40,
+    )
+    ledger = load_ledger(tmp_path / "azure_f0_ledger.json")
+    assert ledger.remaining("2026-08", 40) == 0
+    assert not ledger.quota_rejected("2026-08")
+
+    clock.set(datetime(2026, 8, 20, tzinfo=UTC))
+    translator = FakeTranslator()
+    report = _run(
+        tmp_path, carriers=carriers, translator=translator, clock=clock, monthly_budget=40
+    )
+
+    assert report.translated == 16  # everything left, Azure never said no
+    assert not report.azure_quota_rejected
+    assert any("has not refused a call yet" in w for w in report.warnings)
 
 
 def test_a_run_in_a_new_month_starts_from_zero(tmp_path: Path) -> None:
     carriers = _carriers(20)
     clock = FakeClock(datetime(2026, 8, 28, tzinfo=UTC))
-    august = _run(
-        tmp_path, carriers=carriers, translator=FakeTranslator(), clock=clock, monthly_budget=40
-    )
+    refused, _endpoint = _azure_with_quota(40, tmp_path)
+    august = _run(tmp_path, carriers=carriers, translator=refused, clock=clock, monthly_budget=40)
     assert august.month_remaining_after == 0
+    assert august.azure_quota_rejected
 
-    # Rollover is automatic: nobody edits anything, the month key just changes.
+    # Rollover is automatic: nobody edits anything, the month key just changes,
+    # and August's refusal does not carry into September.
     clock.set(datetime(2026, 9, 1, tzinfo=UTC))
-    september = _run(
-        tmp_path, carriers=carriers, translator=FakeTranslator(), clock=clock, monthly_budget=40
-    )
+    fresh, _endpoint = _azure_with_quota(40, tmp_path)
+    september = _run(tmp_path, carriers=carriers, translator=fresh, clock=clock, monthly_budget=40)
 
     assert september.month == "2026-09"
     assert september.month_to_date_before == 0
-    assert september.run_budget == 40
+    assert september.run_budget == topup.UNBOUNDED_RUN_CHARACTERS
     assert september.translated == 4
 
     ledger = load_ledger(tmp_path / "azure_f0_ledger.json")
     assert ledger.spend_for("2026-08").azure_characters == 40
     assert ledger.spend_for("2026-09").azure_characters == 40
+    assert ledger.quota_rejected("2026-08")
+    assert ledger.quota_rejected("2026-09")
 
 
-def test_headroom_is_subtracted_from_the_monthly_budget(tmp_path: Path) -> None:
+def test_headroom_shapes_the_estimate_but_no_longer_gates_the_run(tmp_path: Path) -> None:
     carriers = _carriers(20)
     report = _run(
         tmp_path,
@@ -423,9 +529,12 @@ def test_headroom_is_subtracted_from_the_monthly_budget(tmp_path: Path) -> None:
         monthly_budget=100,
         headroom_characters=65,
     )
-    # 100 - 65 = 35, so three 10-character carriers, not ten.
-    assert report.run_budget == 35
-    assert report.translated == 3
+    # Headroom used to stop the run at 35 characters. Since 2026-09-08 only
+    # Azure's refusal stops a run; headroom survives in the printed allowance
+    # and the months-remaining arithmetic, where it is still 100 - 65.
+    assert report.run_budget == topup.UNBOUNDED_RUN_CHARACTERS
+    assert report.translated == 20
+    assert report.monthly_budget - report.headroom_characters == 35
 
 
 # ==============================================================================
@@ -483,13 +592,14 @@ def test_ungossed_carriers_are_exhausted_before_any_tatoeba_replacement(
     assert len(ungossed) == 4
 
     translator = FakeTranslator()
-    # Budget for exactly the four ungossed carriers and not one more.
+    # Room for exactly the four ungossed carriers and not one more.
     report = _run(
         tmp_path,
         carriers=carriers,
         translator=translator,
         clock=FakeClock(datetime(2026, 8, 10, tzinfo=UTC)),
         monthly_budget=4 * CARRIER_CHARS,
+        max_characters=4 * CARRIER_CHARS,
     )
 
     assert set(translator.translated) == ungossed
@@ -514,6 +624,7 @@ def test_tatoeba_replacements_start_only_after_the_ungossed_are_gone(
         translator=FakeTranslator(),
         clock=clock,
         monthly_budget=4 * CARRIER_CHARS,
+        max_characters=4 * CARRIER_CHARS,
     )
 
     clock.set(datetime(2026, 9, 10, tzinfo=UTC))
@@ -524,6 +635,7 @@ def test_tatoeba_replacements_start_only_after_the_ungossed_are_gone(
         translator=translator,
         clock=clock,
         monthly_budget=3 * CARRIER_CHARS,
+        max_characters=3 * CARRIER_CHARS,
     )
 
     assert set(translator.translated) <= tatoeba
@@ -559,6 +671,7 @@ def test_consecutive_runs_advance_through_the_carrier_set_instead_of_repeating_i
             translator=translator,
             clock=clock,
             monthly_budget=4 * CARRIER_CHARS,
+            max_characters=4 * CARRIER_CHARS,
         )
         seen.append(set(translator.translated))
 
@@ -590,6 +703,7 @@ def test_two_runs_in_one_month_also_advance_rather_than_repeat(tmp_path: Path) -
         translator=second,
         clock=clock,
         monthly_budget=8 * CARRIER_CHARS,
+        max_characters=4 * CARRIER_CHARS,
     )
 
     assert len(first.translated) == 4
@@ -679,8 +793,10 @@ def test_a_provider_failure_degrades_and_still_writes_the_ledger_and_the_report(
     translator = FailingTranslator()
 
     monkeypatch.setattr(topup, "load_env_file", lambda: None)
-    monkeypatch.setattr(topup, "client_from_env", lambda: None)
+    monkeypatch.setattr(topup, "client_from_env", lambda **kwargs: None)
     monkeypatch.setattr(topup, "_read_corpora", lambda args: carriers)
+    # "Satz 0001." has no finite verb; the validity filter is not under test here.
+    monkeypatch.setattr(topup, "_carrier_is_usable", lambda text: True)
     monkeypatch.setattr(topup, "translator_from_env", lambda client: (translator, "azure_only"))
 
     exit_code = main(
@@ -773,8 +889,10 @@ def test_main_returns_zero_when_the_month_is_legitimately_spent(
         ),
     )
     monkeypatch.setattr(topup, "load_env_file", lambda: None)
-    monkeypatch.setattr(topup, "client_from_env", lambda: None)
+    monkeypatch.setattr(topup, "client_from_env", lambda **kwargs: None)
     monkeypatch.setattr(topup, "_read_corpora", lambda args: carriers)
+    # "Satz 0001." has no finite verb; the validity filter is not under test here.
+    monkeypatch.setattr(topup, "_carrier_is_usable", lambda text: True)
     monkeypatch.setattr(
         topup, "translator_from_env", lambda client: (FakeTranslator(), "azure_only")
     )
@@ -816,15 +934,18 @@ def test_a_budget_below_one_whole_batch_is_reported_as_normal_not_as_failure(
     batch size of 100 and 71.5-character carriers wanted 7,150 for its first
     batch, translated nothing, and looked exactly like a broken job.
 
-    ``run_backfill`` never sends a partial batch to use up a remainder, so the
-    last few thousand characters of every month expire unspent. That is normal
-    and must not exit 1, or a weekly schedule cries wolf for three weeks in
-    four and the exit code stops being read."""
+    ``run_backfill`` never sends a partial batch to use up a remainder, so a
+    per-run cap below one batch buys nothing. That is normal and must not exit
+    1, or a schedule cries wolf and the exit code stops being read. (Since
+    2026-09-08 the month itself is not a count, so the case arrives through
+    --max-characters rather than through a nearly spent month.)"""
     carriers = _carriers(10)
     translator = FakeTranslator()
     monkeypatch.setattr(topup, "load_env_file", lambda: None)
-    monkeypatch.setattr(topup, "client_from_env", lambda: None)
+    monkeypatch.setattr(topup, "client_from_env", lambda **kwargs: None)
     monkeypatch.setattr(topup, "_read_corpora", lambda args: carriers)
+    # "Satz 0001." has no finite verb; the validity filter is not under test here.
+    monkeypatch.setattr(topup, "_carrier_is_usable", lambda text: True)
     monkeypatch.setattr(topup, "translator_from_env", lambda client: (translator, "azure_only"))
 
     report_path = tmp_path / "report.json"
@@ -836,7 +957,7 @@ def test_a_budget_below_one_whole_batch_is_reported_as_normal_not_as_failure(
             str(tmp_path / "ledger.json"),
             "--report-file",
             str(report_path),
-            "--monthly-budget",
+            "--max-characters",
             "25",
             "--batch-size",
             "5",
@@ -853,20 +974,24 @@ def test_a_budget_below_one_whole_batch_is_reported_as_normal_not_as_failure(
 def test_the_tail_of_a_month_is_at_most_one_batch_of_wasted_allowance(
     tmp_path: Path,
 ) -> None:
-    # 45 characters of budget, 10-character carriers, batches of 4: one batch of
-    # 40 lands, the second would need 40 more and only 5 are left, so 5
-    # characters expire. The waste is bounded by one batch, never more.
+    # Azure accepts 45 characters, 10-character carriers, batches of 4: one
+    # batch of 40 lands, the second is refused, and the run stops there. The
+    # refused batch spent nothing and stays queued for next month; nothing
+    # after it was attempted, so at most one batch's worth of calls is wasted.
+    translator, endpoint = _azure_with_quota(45, tmp_path)
     report = _run(
         tmp_path,
         carriers=_carriers(20),
-        translator=FakeTranslator(),
+        translator=translator,
         clock=FakeClock(datetime(2026, 8, 10, tzinfo=UTC)),
         monthly_budget=45,
         batch_size=4,
     )
     assert report.translated == 4
+    assert report.failed == 4
+    assert report.azure_quota_rejected
+    assert len(endpoint.calls) == 1
     assert report.month_remaining_after == 5
-    assert report.month_remaining_after < report.next_batch_characters
 
 
 # ---------------------------------------------------------------------------
@@ -1083,3 +1208,138 @@ def test_load_exercise_carriers_is_not_an_error_when_there_is_no_pool(
     texts, notes = topup.load_exercise_carriers(tmp_path / "absent.json", None)
     assert texts == frozenset()
     assert any("no candidate pool" in note for note in notes)
+
+
+def test_main_wires_the_pool_into_pass_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The scheduled job, not just ``run_topup``, must translate the pool first.
+
+    Regression: the September 2026 run printed the pass 0 notes and then spent
+    the whole 2,000,000-character month in corpus order, because ``main`` loaded
+    the pool and never handed it to ``run_topup``. Only ``prioritise`` and
+    ``run_topup`` were tested; the wiring between them was not.
+    """
+    from src.generation.candidate_pool import CandidatePool, PooledProvenance
+
+    carriers = _carriers(40)
+    # Two carriers from deep in the corpus order are "in the pool".
+    pooled = [_sentence(37), _sentence(23)]
+    pool_path = tmp_path / "pool.json"
+    CandidatePool(
+        provenance={
+            f"h{i}": PooledProvenance(source="leipzig", line_id=str(i), text=text)
+            for i, text in enumerate(pooled)
+        }
+    ).save(pool_path)
+    translator = FakeTranslator()
+    invalid_calls: list[str] = []
+
+    def rejecting_validator(text: str) -> bool:
+        invalid_calls.append(text)
+        return text != _sentence(0)
+
+    monkeypatch.setattr(topup, "load_env_file", lambda: None)
+    monkeypatch.setattr(topup, "client_from_env", lambda **kwargs: None)
+    monkeypatch.setattr(topup, "_read_corpora", lambda args: carriers)
+    monkeypatch.setattr(topup, "translator_from_env", lambda client: (translator, "azure_only"))
+    monkeypatch.setattr(topup, "_carrier_is_usable", rejecting_validator)
+
+    exit_code = main(
+        [
+            "--store",
+            str(tmp_path / "de_en.jsonl"),
+            "--ledger",
+            str(tmp_path / "ledger.json"),
+            "--report-file",
+            str(tmp_path / "report.json"),
+            "--pool-file",
+            str(pool_path),
+            "--bank-file",
+            str(tmp_path / "absent.db"),
+            "--monthly-budget",
+            "100000",
+            "--batch-size",
+            "2",
+        ]
+    )
+
+    assert exit_code == 0
+    # Pass 0 is the first batch, whatever the hash order says.
+    assert set(translator.calls[0]) == set(pooled)
+    # And the validity filter is wired too: the rejected carrier never ships.
+    assert invalid_calls
+    assert _sentence(0) not in translator.translated
+
+
+def test_ledger_quota_rejection_roundtrips_and_is_per_month(tmp_path: Path) -> None:
+    ledger = TranslationLedger()
+    assert not ledger.quota_rejected("2026-09")
+    ledger.record_quota_rejection("2026-09", datetime(2026, 9, 8, 12, tzinfo=UTC))
+    save_ledger_atomic(tmp_path / "ledger.json", ledger)
+
+    loaded = load_ledger(tmp_path / "ledger.json")
+    assert loaded.quota_rejected("2026-09")
+    assert loaded.spend_for("2026-09").azure_quota_rejected_at == datetime(
+        2026, 9, 8, 12, tzinfo=UTC
+    )
+    assert not loaded.quota_rejected("2026-10")
+
+
+def test_a_ledger_written_before_the_flag_existed_still_loads(tmp_path: Path) -> None:
+    """The field is additive: every ledger on disk today lacks it."""
+    (tmp_path / "ledger.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "months": {"2026-09": {"azure_characters": 1999321, "batches": 285, "runs": 2}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    ledger = load_ledger(tmp_path / "ledger.json")
+    assert ledger.spend_for("2026-09").azure_characters == 1999321
+    assert not ledger.quota_rejected("2026-09")
+
+
+def test_a_401001_is_recorded_as_the_month_spent_with_azures_words(tmp_path: Path) -> None:
+    """A month with characters recorded, then a 401001: that is the allowance
+    spent, and the ledger says so with Azure's own words attached."""
+    carriers = _carriers(20)
+    clock = FakeClock(datetime(2026, 8, 10, tzinfo=UTC))
+    _run(
+        tmp_path,
+        carriers=carriers,
+        translator=FakeTranslator(),
+        clock=clock,
+        monthly_budget=40,
+        max_characters=20,
+    )
+
+    class _Unauthorized:
+        def __call__(self, request: urllib.request.Request, timeout: float | None = None) -> Any:
+            raise urllib.error.HTTPError(
+                request.full_url,
+                401,
+                "Unauthorized",
+                Message(),
+                io.BytesIO(
+                    b'{"error":{"code":401001,"message":"credentials are missing or invalid."}}'
+                ),
+            )
+
+    azure = AzureTranslator(
+        api_key="k",
+        urlopen=_Unauthorized(),
+        characters_per_minute=0,
+        cost_log_path=tmp_path / "cost_log.jsonl",
+    )
+    clock.set(datetime(2026, 8, 11, tzinfo=UTC))
+    report = _run(tmp_path, carriers=carriers, translator=azure, clock=clock, monthly_budget=40)
+
+    assert report.azure_quota_rejected
+    assert report.translated == 0
+    ledger = load_ledger(tmp_path / "azure_f0_ledger.json")
+    assert ledger.quota_rejected("2026-08")
+    detail = ledger.spend_for("2026-08").azure_quota_rejected_detail
+    assert detail is not None and "401001" in detail

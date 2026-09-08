@@ -759,6 +759,7 @@ def _run_machine_translation(
     now: datetime,
     on_batch: Callable[[BatchOutcome], None] | None = None,
     checkpoint: Callable[[], None] | None = None,
+    stop_when: Callable[[], bool] | None = None,
 ) -> None:
     """Step 3 of the module docstring's priority order. Mutates ``store``
     and ``report`` in place. Stops cleanly at a whole-batch boundary once
@@ -812,6 +813,8 @@ def _run_machine_translation(
             if len(report.failure_examples) < 10:
                 report.failure_examples.append(str(exc))
             index += len(chunk)
+            if stop_when is not None and stop_when():
+                break
             continue
         except Exception as exc:  # noqa: BLE001 -- a deliberate last resort
             # Both translators now wrap every failure of their own as a
@@ -868,6 +871,13 @@ def _run_machine_translation(
                     gemini_characters=0 if source == "azure" else chunk_chars,
                 )
             )
+        # Asked AFTER the batch is stored and accounted, never before, so a
+        # stop leaves nothing half-done. The one caller today is the monthly
+        # top-up asking "has Azure refused us on quota yet?": from that point
+        # every further batch would either be refused again or, under a
+        # fallback translator, silently move to the paid provider.
+        if stop_when is not None and stop_when():
+            break
 
     report.skipped_for_budget += len(still_todo) - translated_here - failed_here
 
@@ -892,6 +902,7 @@ def run_backfill(
     distrust_stored_sources: frozenset[str] = NO_DISTRUSTED_SOURCES,
     on_batch: Callable[[BatchOutcome], None] | None = None,
     checkpoint_every: int = 0,
+    stop_when: Callable[[], bool] | None = None,
     now: datetime | None = None,
 ) -> TranslationBackfillReport:
     """The whole backfill, independent of argparse, the environment, and
@@ -1008,6 +1019,7 @@ def run_backfill(
         now=ref_time,
         on_batch=on_batch,
         checkpoint=checkpoint,
+        stop_when=stop_when,
     )
 
     if report.from_tatoeba or report.machine_translated:

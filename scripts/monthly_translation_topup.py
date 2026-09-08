@@ -159,7 +159,14 @@ from src.generation.blanking import carrier_validation
 from src.generation.blanking.sentence_source import client_from_env
 from src.generation.candidate_pool import DEFAULT_POOL_PATH, CandidatePool, PoolFormatError
 from src.llm.env import load_env_file
-from src.llm.translation import AZURE_F0_MONTHLY_CHARACTERS, Translator
+from src.llm.translation import (
+    AZURE_F0_MONTHLY_CHARACTERS,
+    AzureTranslator,
+    FallbackTranslator,
+    Translator,
+    azure_quota_detail,
+    azure_quota_exhausted,
+)
 from src.llm.translation_ledger import (
     Clock,
     LedgerVersionError,
@@ -211,6 +218,10 @@ DEFAULT_HEADROOM_CHARACTERS = 0
 #: owner's 2026-08-27 decision, and the reason this job has any work to do:
 #: 200,555 of the 201,794 records in the store today are Tatoeba's.
 DISTRUSTED_STORE_SOURCES = frozenset({"tatoeba"})
+
+#: The per-run character bound when ``--max-characters`` is not given. Large
+#: enough to never be the thing that stops a run; Azure's quota refusal is.
+UNBOUNDED_RUN_CHARACTERS = 10**9
 
 #: How many successful batches between full store flushes. Every batch would be
 #: safest and costs a complete rewrite of a store that will reach 450,000
@@ -457,6 +468,8 @@ class MonthlyTopupReport:
     azure_characters: int = 0
     gemini_characters: int = 0
     batches: int = 0
+    # Azure answered a quota 403 during THIS run. The month is spent from here.
+    azure_quota_rejected: bool = False
 
     # Where the month stands now.
     month_to_date_after: int = 0
@@ -509,6 +522,7 @@ class MonthlyTopupReport:
                 "failed": self.failed,
                 "failure_examples": self.failure_examples,
                 "azure_characters": self.azure_characters,
+                "azure_quota_rejected": self.azure_quota_rejected,
                 "gemini_characters": self.gemini_characters,
                 "batches": self.batches,
             },
@@ -573,11 +587,20 @@ def run_topup(
     effective_budget = max(0, monthly_budget - headroom_characters)
     spent_before = ledger.spend_for(key)
     remaining_this_month = ledger.remaining(key, effective_budget)
-    run_budget = (
-        remaining_this_month
-        if max_characters is None
-        else min(max_characters, remaining_this_month)
-    )
+    # The gate is Azure's own refusal, recorded in the ledger as a binary
+    # fact, NOT the character count (owner's instruction, 2026-09-08). The
+    # count only sees what this job sent: on 2026-09-08 a pilot run put
+    # ~66,000 characters through Azure with no ledger, and the ledger still
+    # read "679 left" while Azure was happily answering. So a month that has
+    # not been refused keeps sending until it is, and a month that has been
+    # refused sends nothing. ``--max-characters`` still bounds ONE run.
+    already_rejected = ledger.quota_rejected(key)
+    if already_rejected:
+        run_budget = 0
+    elif max_characters is None:
+        run_budget = UNBOUNDED_RUN_CHARACTERS
+    else:
+        run_budget = max_characters
 
     store = _load_store(store_path)
     # Pass 0 first, then the corpus at large, and never a sentence that cannot
@@ -639,11 +662,20 @@ def run_topup(
             "NO TRANSLATOR CONFIGURED: no Azure key and no Gemini key. Nothing was "
             "translated this run."
         )
-    if remaining_this_month <= 0 and effective_budget > 0:
+    if already_rejected:
+        stamp = spent_before.azure_quota_rejected_at
+        when = stamp.isoformat() if stamp is not None else "an earlier run"
         report.warnings.append(
-            f"Month {key} has already spent its {effective_budget:,}-character budget "
-            f"({spent_before.azure_characters:,} used). Nothing to do until the month "
-            "rolls over, which needs no action."
+            f"Azure refused month {key} on quota at {when}. Nothing is sent until the "
+            "month rolls over, which needs no action. The character count "
+            f"({spent_before.azure_characters:,} recorded) is an estimate, not the gate."
+        )
+    elif remaining_this_month <= 0 and effective_budget > 0:
+        report.warnings.append(
+            f"Month {key}'s recorded Azure characters ({spent_before.azure_characters:,}) "
+            f"are at or past the {effective_budget:,} allowance, but Azure has not refused "
+            "a call yet, so this run keeps sending until it does. The count is what this "
+            "job saw; Azure's answer is what counts."
         )
 
     # The Gemini circuit breaker (module docstring, "Stopping"). Checked before
@@ -691,6 +723,7 @@ def run_topup(
         save_ledger_atomic(ledger_path, ledger)
 
     ordered: dict[str, CorpusLine] = {line.text: line for line in todo}
+    _lift_azure_character_ceiling(translator)
     backfill = run_backfill(
         carriers=ordered,
         store_path=store_path,
@@ -707,7 +740,17 @@ def run_topup(
         on_batch=on_batch,
         checkpoint_every=checkpoint_every,
         now=now,
+        stop_when=lambda: azure_quota_exhausted(translator),
     )
+    if azure_quota_exhausted(translator):
+        detail = azure_quota_detail(translator)
+        ledger.record_quota_rejection(key, now, detail)
+        save_ledger_atomic(ledger_path, ledger)
+        report.azure_quota_rejected = True
+        report.warnings.append(
+            f"Azure refused a batch on quota ({detail}): month {key} is spent. Recorded "
+            "in the ledger; no further batch is sent until the month rolls over."
+        )
 
     report.translated = backfill.machine_translated
     # Counted from the batches themselves, not inferred from how far the cursor
@@ -745,6 +788,17 @@ def run_topup(
     return report
 
 
+def _lift_azure_character_ceiling(translator: Translator | None) -> None:
+    """Let Azure, not the translator's own per-process counter, say when the
+    allowance is spent. The counter starts at zero every process anyway, so it
+    only ever guarded a single run against itself; here that guard would stop
+    a run short of a refusal that is the whole point of the run."""
+    if isinstance(translator, AzureTranslator):
+        translator.monthly_character_budget = UNBOUNDED_RUN_CHARACTERS
+    elif isinstance(translator, FallbackTranslator):
+        _lift_azure_character_ceiling(translator.primary)
+
+
 def _print_report(report: MonthlyTopupReport) -> None:
     print(f"\n  Month:                     {report.month}")
     print(f"  Translator mode:           {report.translator_mode}")
@@ -764,7 +818,11 @@ def _print_report(report: MonthlyTopupReport) -> None:
         f"  Month to date (Azure):     {report.month_to_date_after:,} / "
         f"{report.monthly_budget - report.headroom_characters:,}"
     )
-    print(f"  Remaining this month:      {report.month_remaining_after:,}")
+    print(f"  Remaining this month:      {report.month_remaining_after:,} (estimate)")
+    print(
+        "  Azure refused on quota:    "
+        + ("YES, this run; month is spent" if report.azure_quota_rejected else "no")
+    )
     print(f"  Store size:                {report.store_size_after:,}")
     print(f"\n  Still untrusted:           {report.carriers_untrusted_after:,} carriers")
     print(f"  Months remaining:          {report.months_remaining:.1f}")
@@ -913,7 +971,11 @@ def main(argv: list[str] | None = None) -> int:
     if not exercise_carriers and not args.no_priority_carriers:
         print("    none found; this run is corpus-wide only")
 
-    gemini_client = client_from_env()
+    # Free lane only. Owner's instruction, 2026-09-08: when Azure refuses,
+    # the Gemini fallback may take the refused batch on the FREE lane, and
+    # if that is refused too the run ends. A billed translation is never
+    # acceptable from this job.
+    gemini_client = client_from_env(free_lane_only=True)
     translator, mode = translator_from_env(gemini_client)
     if mode == "gemini_only":
         print("\n  *** NO AZURE KEY CONFIGURED. This job exists to spend Azure F0. ***\n")
@@ -935,6 +997,10 @@ def main(argv: list[str] | None = None) -> int:
             seed=args.seed,
             limit_per_source=args.limit,
             checkpoint_every=args.checkpoint_every,
+            # Both were loaded above and, until 2026-09-08, never passed on: the
+            # notes printed, and the run spent the month in corpus order anyway.
+            exercise_carriers=exercise_carriers,
+            is_carrier_valid=_carrier_is_usable,
         )
     except LedgerVersionError as exc:
         # The one thing worth refusing to run over: a ledger this code cannot

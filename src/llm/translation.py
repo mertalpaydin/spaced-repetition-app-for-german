@@ -116,6 +116,21 @@ class TranslationError(RuntimeError):
     """
 
 
+class AzureQuotaExhausted(TranslationError):
+    """Azure refused the call because the F0 allowance is spent.
+
+    Its own type because it is the ONE failure the monthly job must remember
+    across processes: a bad key or an outage is worth retrying tomorrow, a
+    spent allowance is not worth retrying until the month rolls over. The
+    ledger records it as a binary fact (``MonthlySpend.azure_quota_rejected``)
+    and the top-up job stops on that fact, not on its own character count.
+    The count is kept for the estimate, but it under-reads whenever anything
+    other than the top-up job spends the allowance, which happened on
+    2026-09-08 when a pilot run put ~66,000 characters through Azure that no
+    ledger saw. Azure's own answer is the only authoritative one.
+    """
+
+
 class TranslationProtocolError(TranslationError):
     """The provider answered, but not in the shape this module expects.
 
@@ -217,6 +232,14 @@ class AzureTranslator:
     #: pacing and retry backoff through these with no real waiting at all.
     sleep: Callable[[float], None] | None = None
     monotonic: Callable[[], float] | None = None
+
+    #: Set the first time Azure answers a quota 403 (``AzureQuotaExhausted``),
+    #: and never cleared in-process: the allowance does not come back until
+    #: the month rolls over, so every later call this process could make
+    #: would be refused the same way.
+    quota_exhausted: bool = False
+    #: The provider's own words for the refusal, for the ledger and the log.
+    quota_exhausted_detail: str = ""
 
     #: (timestamp, characters) for the sends inside the current pacing
     #: window. In-process only, like ``characters_used``: a fresh nightly
@@ -332,6 +355,12 @@ class AzureTranslator:
                 if retryable and attempt <= self.max_retries:
                     self._sleep_fn()(self.retry_backoff_seconds)
                     continue
+                if self._is_quota_refusal(exc.code, detail):
+                    self.quota_exhausted = True
+                    self.quota_exhausted_detail = f"HTTP {exc.code}: {detail}"
+                    raise AzureQuotaExhausted(
+                        f"Azure F0 allowance is spent ({self.quota_exhausted_detail})"
+                    ) from exc
                 raise TranslationError(f"Azure returned HTTP {exc.code}: {detail}") from exc
             except urllib.error.URLError as exc:
                 raise TranslationError(f"Azure unreachable: {exc.reason}") from exc
@@ -351,6 +380,23 @@ class AzureTranslator:
                 # Found while building scripts/build_translations.py, which
                 # had to add its own blanket guard to work around this gap.
                 raise TranslationError(f"Azure transport failure: {exc}") from exc
+
+    def _is_quota_refusal(self, code: int, detail: str) -> bool:
+        """Whether this HTTP error is Azure saying the allowance is spent.
+
+        The documented answer is 403 with code 403001 ("exceeded its free
+        quota"). The observed answer, on 2026-09-08 and in Microsoft's own
+        Q&A, is 401 with code 401001, the same body a wrong key gets: the key
+        that had translated 1,070 sentences eighty minutes earlier answered
+        it with nothing changed. The owner confirmed the key that day and
+        decided 401001 counts as spent, unconditionally. A genuinely bad key
+        therefore also records a "spent" month; the ledger keeps Azure's
+        words (``azure_quota_rejected_detail``) so that case can be read off
+        the file, and clearing the flag by hand is the recovery.
+        """
+        if code == 403 and _is_quota_403(detail):
+            return True
+        return code == 401 and "401001" in detail
 
     def _log(self, characters: int) -> None:
         """Write a ``cost_log`` row so this provider is visible to the budget.
@@ -417,6 +463,19 @@ def _parse_azure_payload(payload: object, *, expected: int) -> list[str]:
     return out
 
 
+def _is_quota_403(detail: str) -> bool:
+    """Whether a 403 body is Azure saying the free allowance is spent.
+
+    Azure Translator reports it as error code 403000 or 403001 with a message
+    naming the quota ("The operation isn't allowed because the subscription has
+    exceeded its free quota."). Any other 403 is a bad key or a wrong region
+    and must NOT be recorded as a spent month, or a mistyped key would silence
+    the job until the first of next month.
+    """
+    lowered = detail.lower()
+    return "403000" in detail or "403001" in detail or "quota" in lowered
+
+
 @dataclass
 class GeminiTranslator:
     """The fallback, for when Azure errors or its quota is spent.
@@ -478,6 +537,12 @@ class FallbackTranslator:
     fallback: Translator
     failures: list[str] = field(default_factory=list)
 
+    @property
+    def azure_quota_exhausted(self) -> bool:
+        """Whether the primary has reported a spent allowance (see
+        ``azure_quota_exhausted``, the module-level helper)."""
+        return azure_quota_exhausted(self.primary)
+
     def translate(self, sentences: Sequence[str]) -> list[str]:
         try:
             return self.primary.translate(sentences)
@@ -486,6 +551,27 @@ class FallbackTranslator:
         except TranslationError as exc:
             self.failures.append(str(exc))
             return self.fallback.translate(sentences)
+
+
+def azure_quota_detail(translator: Translator | None) -> str:
+    """The provider's words for the refusal ``azure_quota_exhausted`` reports,
+    or an empty string."""
+    if isinstance(translator, AzureTranslator):
+        return translator.quota_exhausted_detail
+    if isinstance(translator, FallbackTranslator):
+        return azure_quota_detail(translator.primary)
+    return ""
+
+
+def azure_quota_exhausted(translator: Translator | None) -> bool:
+    """Whether ``translator`` is, or wraps, an Azure translator that has been
+    refused on quota this process. ``False`` for anything else, including
+    ``None``, so a caller can ask without knowing what it was handed."""
+    if isinstance(translator, AzureTranslator):
+        return translator.quota_exhausted
+    if isinstance(translator, FallbackTranslator):
+        return azure_quota_exhausted(translator.primary)
+    return False
 
 
 def azure_from_env(

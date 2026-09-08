@@ -145,6 +145,17 @@ class MonthlySpend(BaseModel):
     #: is the case this whole module exists to make safe, so it is counted.
     runs: int = 0
     last_run_at: datetime | None = None
+    #: Azure answered a quota 403 this month. THE stop condition for the
+    #: top-up job, replacing the character count as the gate at the owner's
+    #: instruction (2026-09-08): the count only sees what this job sent, and
+    #: another script put ~66,000 characters through Azure that month with no
+    #: ledger. Azure's refusal is the only figure that cannot drift. The
+    #: character count stays for the months-remaining estimate.
+    azure_quota_rejected: bool = False
+    azure_quota_rejected_at: datetime | None = None
+    #: What Azure actually answered, so a refusal that was really a bad key
+    #: can be told from a spent month by reading the file.
+    azure_quota_rejected_detail: str | None = None
 
 
 class TranslationLedger(BaseModel):
@@ -198,6 +209,24 @@ class TranslationLedger(BaseModel):
                 "gemini_characters": current.gemini_characters + gemini_characters,
                 "batches": current.batches + 1,
                 "last_run_at": at if at is not None else current.last_run_at,
+            }
+        )
+
+    def quota_rejected(self, key: str) -> bool:
+        """Whether Azure has already refused ``key`` on quota. A month with no
+        entry has not been refused, which is what rollover means."""
+        return self.spend_for(key).azure_quota_rejected
+
+    def record_quota_rejection(self, key: str, at: datetime, detail: str | None = None) -> None:
+        """Azure said no. Remembered until the month rolls over, so no later
+        run this month sends a batch that can only be refused the same way
+        or, worse, fall through to a paid provider for it."""
+        current = self.spend_for(key)
+        self.months[key] = current.model_copy(
+            update={
+                "azure_quota_rejected": True,
+                "azure_quota_rejected_at": at,
+                "azure_quota_rejected_detail": detail,
             }
         )
 

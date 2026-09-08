@@ -43,6 +43,7 @@ from src.llm.translation import (
     AZURE_COST_LOG_MODEL,
     AZURE_GLOBAL_HOST,
     AZURE_MAX_BATCH,
+    AzureQuotaExhausted,
     AzureTranslator,
     FallbackTranslator,
     GeminiTranslator,
@@ -50,6 +51,7 @@ from src.llm.translation import (
     TranslationProtocolError,
     _parse_azure_payload,
     azure_from_env,
+    azure_quota_exhausted,
 )
 
 
@@ -977,3 +979,102 @@ def test_gemini_translator_transport_failure_becomes_a_translation_error() -> No
     translator = GeminiTranslator(llm_client=_Client(), model="m")  # type: ignore[arg-type]
     with pytest.raises(TranslationError, match="Gemini transport failure"):
         translator.translate(["Hallo."])
+
+
+# ---------------------------------------------------------------------------
+# The quota refusal is its own fact. Owner's instruction, 2026-09-08: the
+# monthly job stops on Azure saying no, not on its own character count.
+
+
+def _forbidden(body: bytes, code: int = 403):  # type: ignore[no-untyped-def]
+    def fake_urlopen(request: urllib.request.Request, timeout: float | None = None) -> object:
+        raise urllib.error.HTTPError(request.full_url, code, "Refused", Message(), io.BytesIO(body))
+
+    return fake_urlopen
+
+
+def test_azure_quota_403_raises_its_own_type_and_sets_the_flag() -> None:
+    body = (
+        b'{"error":{"code":403001,"message":"The operation isn\'t allowed because '
+        b'the subscription has exceeded its free quota."}}'
+    )
+    translator = AzureTranslator(api_key="k", urlopen=_forbidden(body), characters_per_minute=0)
+    assert not translator.quota_exhausted
+
+    with pytest.raises(AzureQuotaExhausted):
+        translator.translate(["Hallo Welt."])
+
+    assert translator.quota_exhausted
+    assert azure_quota_exhausted(translator)
+    # Still a TranslationError, so every existing degradation path holds.
+    assert issubclass(AzureQuotaExhausted, TranslationError)
+
+
+def test_azure_403_for_a_bad_key_is_not_recorded_as_a_spent_month() -> None:
+    """A mistyped key must not silence the job until the first of next month."""
+    body = (
+        b'{"error":{"code":401000,"message":"The request is not authorized because '
+        b'credentials are missing or invalid."}}'
+    )
+    translator = AzureTranslator(api_key="k", urlopen=_forbidden(body), characters_per_minute=0)
+
+    with pytest.raises(TranslationError) as exc_info:
+        translator.translate(["Hallo Welt."])
+
+    assert not isinstance(exc_info.value, AzureQuotaExhausted)
+    assert not translator.quota_exhausted
+    assert not azure_quota_exhausted(translator)
+
+
+def test_azure_quota_exhausted_looks_through_the_fallback_wrapper() -> None:
+    body = b'{"error":{"code":403000,"message":"quota"}}'
+    azure = AzureTranslator(api_key="k", urlopen=_forbidden(body), characters_per_minute=0)
+    wrapped = FallbackTranslator(primary=azure, fallback=_NeverCalledTranslator())
+    assert not azure_quota_exhausted(wrapped)
+    assert not azure_quota_exhausted(None)
+    azure.quota_exhausted = True
+    assert azure_quota_exhausted(wrapped)
+    assert wrapped.azure_quota_exhausted
+
+
+def test_azure_401001_after_a_successful_call_is_the_allowance_spent() -> None:
+    """Measured 2026-09-08: the key that translated 1,070 sentences an hour
+    earlier answered 401001, and Microsoft's own Q&A says that is what a
+    consumed F0 allowance looks like."""
+    body = (
+        b'{"error":{"code":401001,"message":"The request is not authorized because '
+        b'credentials are missing or invalid."}}'
+    )
+    translator = AzureTranslator(
+        api_key="k", urlopen=_forbidden(body, 401), characters_per_minute=0
+    )
+
+    with pytest.raises(AzureQuotaExhausted):
+        translator.translate(["Hallo Welt."])
+    assert translator.quota_exhausted
+    assert "401001" in translator.quota_exhausted_detail
+
+
+def test_azure_401001_is_the_allowance_spent_even_on_the_first_call() -> None:
+    """Owner's decision, 2026-09-08, after confirming the key in the portal:
+    401001 means spent, unconditionally. A bad key is read off the ledger's
+    detail field instead."""
+    body = b'{"error":{"code":401001,"message":"credentials are missing or invalid."}}'
+    translator = AzureTranslator(
+        api_key="k", urlopen=_forbidden(body, 401), characters_per_minute=0
+    )
+
+    with pytest.raises(AzureQuotaExhausted):
+        translator.translate(["Hallo Welt."])
+    assert translator.quota_exhausted
+
+
+def test_azure_401_with_another_code_is_a_plain_error() -> None:
+    body = b'{"error":{"code":401000,"message":"missing subscription key"}}'
+    translator = AzureTranslator(
+        api_key="k", urlopen=_forbidden(body, 401), characters_per_minute=0
+    )
+    with pytest.raises(TranslationError) as exc_info:
+        translator.translate(["Hallo Welt."])
+    assert not isinstance(exc_info.value, AzureQuotaExhausted)
+    assert not translator.quota_exhausted
