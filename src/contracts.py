@@ -1,11 +1,14 @@
 """Shared types and constants.
 
-Phase 0 of the phrase-deck pivot: only what the surviving modules import.
-Phase 1a adds the phrase models (``PhraseUnit``, ``PhraseCard``, the deck
-manifest) here; nothing else may define a shared type.
+Every persisted record of the phrase deck is defined here, once: the units
+the deck teaches, the cards that test them, the generated context sentences,
+and the exported deck's manifest. Nothing else may define a shared type.
 """
 
+from datetime import datetime
 from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # ==============================================================================
 # Core enumerations
@@ -35,3 +38,231 @@ THINKING_FLASH_LITE: str = "low"
 # literal.
 PURPOSE_SENTENCE_GENERATION: str = "sentence_generation"
 PURPOSE_PHRASE_CONTEXT: str = "phrase_context"
+
+# ==============================================================================
+# The phrase deck
+# ==============================================================================
+
+PhraseKind = Literal[
+    "verb_prep",
+    "reflexive_verb",
+    "separable_verb",
+    "noun_verb",
+    "adj_noun",
+    "connector",
+    "two_part_connector",
+    "idiom",
+]
+
+#: ``unit_id`` prefix per kind. Ids are stable across builds because they are
+#: derived from the unit's lemma key, never from a row number: the review log
+#: joins on them.
+UNIT_ID_PREFIX: dict[str, str] = {
+    "verb_prep": "vp",
+    "reflexive_verb": "rv",
+    "separable_verb": "sv",
+    "noun_verb": "nv",
+    "adj_noun": "an",
+    "connector": "cn",
+    "two_part_connector": "c2",
+    "idiom": "id",
+}
+
+Case = Literal["Akk", "Dat", "Gen"]
+UnitSource = Literal["mined", "curated", "mined+curated"]
+#: Only machine glosses reach a learner (CLAUDE.md rule 9). ``tatoeba`` is
+#: deliberately not a member.
+GlossSource = Literal["azure", "gemini"]
+CorpusSource = Literal["tatoeba", "leipzig"]
+
+DECK_SCHEMA_VERSION: int = 1
+
+
+class GapSpan(BaseModel):
+    """One blank: a character span of ``sentence_de`` and the token it covers."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    start: int = Field(ge=0)
+    end: int = Field(gt=0)
+    answer: str = Field(min_length=1)
+    token_index: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _span_is_forward(self) -> "GapSpan":
+        if self.start >= self.end:
+            raise ValueError(f"gap span must be forward, got {self.start}..{self.end}")
+        return self
+
+
+class PhraseUnit(BaseModel):
+    """A phrase the deck teaches. What FSRS schedules."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    unit_id: str = Field(min_length=4)
+    kind: PhraseKind
+    #: Lowercased lemma key the miners aggregate on, e.g. ``"warten auf"``.
+    lemma_key: str = Field(min_length=1)
+    #: The unit's parts in citation order, e.g. ``["warten", "auf"]``.
+    parts: list[str] = Field(min_length=1)
+    #: What the learner sees after answering, e.g. ``"warten auf"`` or
+    #: ``"zur Verfügung stehen"``.
+    display_de: str = Field(min_length=1)
+    case: Case | None = None
+    cefr: CEFR | None = None
+    #: Unit-level English, curated lists only. Mined units have none until an
+    #: opt-in gloss run adds them.
+    gloss_en: str | None = None
+    #: Distinct corpus sentences containing the unit, both corpora together.
+    sentence_count: int = Field(ge=0)
+    count_by_source: dict[str, int] = Field(default_factory=dict)
+    #: 1 is the most frequent unit in the deck.
+    rank: int = Field(ge=1)
+    trivial: bool = False
+    trivial_reason: str | None = None
+    source: UnitSource
+    card_count: int = Field(ge=0)
+
+
+class PhraseCard(BaseModel):
+    """One corpus sentence with one unit's tokens blanked."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    #: ``sha1(unit_id + "\n" + sentence_de)[:12]``; stable across builds.
+    card_id: str = Field(min_length=12, max_length=12)
+    unit_id: str
+    kind: PhraseKind
+    sentence_de: str = Field(min_length=1)
+    gloss_en: str = Field(min_length=1)
+    gloss_source: GlossSource
+    gaps: list[GapSpan] = Field(min_length=1)
+    #: Always a list, one per gap, in gap order (CLAUDE.md rule 6).
+    answers: list[str] = Field(min_length=1)
+    #: Which surface realisation of the unit this card shows, e.g.
+    #: ``"Fin|Pres|3|Sing|discontinuous"``; cards for one unit are chosen to
+    #: cover distinct keys so the unit is taught, not memorised as a string.
+    form_key: str
+    corpus_source: CorpusSource
+    corpus_line_id: str
+    #: A sentence-initial connector needs a preceding sentence to connect to.
+    needs_context: bool = False
+    context_de: str | None = None
+    context_en: str | None = None
+    context_source: Literal["gemini"] | None = None
+
+    @model_validator(mode="after")
+    def _gaps_slice_back(self) -> "PhraseCard":
+        if [g.answer for g in self.gaps] != self.answers:
+            raise ValueError("answers must equal the gap answers, in gap order")
+        previous_end = -1
+        for gap in self.gaps:
+            if gap.start < previous_end:
+                raise ValueError("gaps must be sorted and disjoint")
+            if self.sentence_de[gap.start : gap.end] != gap.answer:
+                raise ValueError(
+                    f"gap {gap.start}..{gap.end} does not slice to {gap.answer!r} "
+                    f"in {self.sentence_de!r}"
+                )
+            previous_end = gap.end
+        if (self.context_de is None) != (self.context_en is None):
+            raise ValueError("context_de and context_en come together or not at all")
+        if self.context_de is not None and self.context_source is None:
+            raise ValueError("a context needs a context_source")
+        return self
+
+
+# ------------------------------------------------------------------------------
+# Context generation (the one LLM stage; opt-in)
+# ------------------------------------------------------------------------------
+
+
+class ContextRequest(BaseModel):
+    """What the prompt is built from, and therefore what the cache key covers."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    card_id: str
+    unit_id: str
+    connector_display: str
+    sentence_de: str
+    gloss_en: str
+    prompt_version: int = Field(ge=1)
+
+
+class ContextResponse(BaseModel):
+    """The JSON the model must return. Anything else is a rejection."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    context_de: str = Field(min_length=1)
+    context_en: str = Field(min_length=1)
+
+
+class ContextRecord(BaseModel):
+    """One row of ``data/phrases/contexts.jsonl``: accepted or rejected, with why."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    card_id: str
+    unit_id: str
+    sentence_de: str
+    context_de: str | None = None
+    context_en: str | None = None
+    accepted: bool
+    reject_reason: str | None = None
+    model: str
+    prompt_version: int
+    generated_at: datetime
+
+
+# ------------------------------------------------------------------------------
+# The exported deck
+# ------------------------------------------------------------------------------
+
+
+class ShardInfo(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    file: str
+    band: int = Field(ge=0)
+    rank_from: int = Field(ge=1)
+    rank_to: int = Field(ge=1)
+    unit_count: int = Field(ge=0)
+    card_count: int = Field(ge=0)
+
+
+class DeckManifest(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: int = DECK_SCHEMA_VERSION
+    #: Changes whenever the deck content changes; the PWA keys its cache on it.
+    deck_version: str
+    built_at: datetime
+    corpus: dict[str, int] = Field(default_factory=dict)
+    unit_count: int = Field(ge=0)
+    card_count: int = Field(ge=0)
+    trivial_count: int = Field(ge=0)
+    contexts_generated: int = Field(ge=0)
+    kinds: dict[str, int] = Field(default_factory=dict)
+    units_file: str
+    shards: list[ShardInfo]
+
+
+class UnitsIndex(BaseModel):
+    """Every unit, no cards: what the triage screen loads."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: int = DECK_SCHEMA_VERSION
+    units: list[PhraseUnit]
+
+
+class DeckShard(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: int = DECK_SCHEMA_VERSION
+    band: int = Field(ge=0)
+    units: list[PhraseUnit]
+    cards: list[PhraseCard]

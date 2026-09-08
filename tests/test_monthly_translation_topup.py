@@ -519,6 +519,34 @@ def test_a_run_in_a_new_month_starts_from_zero(tmp_path: Path) -> None:
     assert ledger.quota_rejected("2026-09")
 
 
+def test_a_refused_month_skips_the_validity_filter_entirely(tmp_path: Path) -> None:
+    """The daily task was paying 35 minutes of spaCy on every run of an
+    already-spent month. Nothing is sent, so nothing needs validating."""
+    carriers = _carriers(20)
+    clock = FakeClock(datetime(2026, 8, 28, tzinfo=UTC))
+    refused, _endpoint = _azure_with_quota(40, tmp_path)
+    _run(tmp_path, carriers=carriers, translator=refused, clock=clock, monthly_budget=40)
+    calls: list[str] = []
+
+    def counting_validator(text: str) -> bool:
+        calls.append(text)
+        return True
+
+    fresh, _endpoint = _azure_with_quota(40, tmp_path)
+    report = run_topup(
+        carriers=carriers,
+        store_path=tmp_path / "de_en.jsonl",
+        ledger_path=tmp_path / "azure_f0_ledger.json",
+        translator=fresh,
+        translator_mode="azure_only",
+        monthly_budget=40,
+        is_carrier_valid=counting_validator,
+        clock=clock,
+    )
+    assert report.run_budget == 0
+    assert calls == []
+
+
 def test_headroom_shapes_the_estimate_but_no_longer_gates_the_run(tmp_path: Path) -> None:
     carriers = _carriers(20)
     report = _run(

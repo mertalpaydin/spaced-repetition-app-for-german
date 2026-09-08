@@ -1,0 +1,660 @@
+{
+  "manifest": {
+    "$defs": {
+      "ShardInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "band": {
+            "minimum": 0,
+            "title": "Band",
+            "type": "integer"
+          },
+          "card_count": {
+            "minimum": 0,
+            "title": "Card Count",
+            "type": "integer"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "rank_from": {
+            "minimum": 1,
+            "title": "Rank From",
+            "type": "integer"
+          },
+          "rank_to": {
+            "minimum": 1,
+            "title": "Rank To",
+            "type": "integer"
+          },
+          "unit_count": {
+            "minimum": 0,
+            "title": "Unit Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file",
+          "band",
+          "rank_from",
+          "rank_to",
+          "unit_count",
+          "card_count"
+        ],
+        "title": "ShardInfo",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "built_at": {
+        "format": "date-time",
+        "title": "Built At",
+        "type": "string"
+      },
+      "card_count": {
+        "minimum": 0,
+        "title": "Card Count",
+        "type": "integer"
+      },
+      "contexts_generated": {
+        "minimum": 0,
+        "title": "Contexts Generated",
+        "type": "integer"
+      },
+      "corpus": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "title": "Corpus",
+        "type": "object"
+      },
+      "deck_version": {
+        "title": "Deck Version",
+        "type": "string"
+      },
+      "kinds": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "title": "Kinds",
+        "type": "object"
+      },
+      "schema_version": {
+        "default": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      },
+      "shards": {
+        "items": {
+          "$ref": "#/$defs/ShardInfo"
+        },
+        "title": "Shards",
+        "type": "array"
+      },
+      "trivial_count": {
+        "minimum": 0,
+        "title": "Trivial Count",
+        "type": "integer"
+      },
+      "unit_count": {
+        "minimum": 0,
+        "title": "Unit Count",
+        "type": "integer"
+      },
+      "units_file": {
+        "title": "Units File",
+        "type": "string"
+      }
+    },
+    "required": [
+      "deck_version",
+      "built_at",
+      "unit_count",
+      "card_count",
+      "trivial_count",
+      "contexts_generated",
+      "units_file",
+      "shards"
+    ],
+    "title": "DeckManifest",
+    "type": "object"
+  },
+  "shard": {
+    "$defs": {
+      "GapSpan": {
+        "additionalProperties": false,
+        "description": "One blank: a character span of ``sentence_de`` and the token it covers.",
+        "properties": {
+          "answer": {
+            "minLength": 1,
+            "title": "Answer",
+            "type": "string"
+          },
+          "end": {
+            "exclusiveMinimum": 0,
+            "title": "End",
+            "type": "integer"
+          },
+          "start": {
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "token_index": {
+            "minimum": 0,
+            "title": "Token Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "answer",
+          "token_index"
+        ],
+        "title": "GapSpan",
+        "type": "object"
+      },
+      "PhraseCard": {
+        "additionalProperties": false,
+        "description": "One corpus sentence with one unit's tokens blanked.",
+        "properties": {
+          "answers": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Answers",
+            "type": "array"
+          },
+          "card_id": {
+            "maxLength": 12,
+            "minLength": 12,
+            "title": "Card Id",
+            "type": "string"
+          },
+          "context_de": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Context De"
+          },
+          "context_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Context En"
+          },
+          "context_source": {
+            "anyOf": [
+              {
+                "const": "gemini",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Context Source"
+          },
+          "corpus_line_id": {
+            "title": "Corpus Line Id",
+            "type": "string"
+          },
+          "corpus_source": {
+            "enum": [
+              "tatoeba",
+              "leipzig"
+            ],
+            "title": "Corpus Source",
+            "type": "string"
+          },
+          "form_key": {
+            "title": "Form Key",
+            "type": "string"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/$defs/GapSpan"
+            },
+            "minItems": 1,
+            "title": "Gaps",
+            "type": "array"
+          },
+          "gloss_en": {
+            "minLength": 1,
+            "title": "Gloss En",
+            "type": "string"
+          },
+          "gloss_source": {
+            "enum": [
+              "azure",
+              "gemini"
+            ],
+            "title": "Gloss Source",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "verb_prep",
+              "reflexive_verb",
+              "separable_verb",
+              "noun_verb",
+              "adj_noun",
+              "connector",
+              "two_part_connector",
+              "idiom"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "needs_context": {
+            "default": false,
+            "title": "Needs Context",
+            "type": "boolean"
+          },
+          "sentence_de": {
+            "minLength": 1,
+            "title": "Sentence De",
+            "type": "string"
+          },
+          "unit_id": {
+            "title": "Unit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "card_id",
+          "unit_id",
+          "kind",
+          "sentence_de",
+          "gloss_en",
+          "gloss_source",
+          "gaps",
+          "answers",
+          "form_key",
+          "corpus_source",
+          "corpus_line_id"
+        ],
+        "title": "PhraseCard",
+        "type": "object"
+      },
+      "PhraseUnit": {
+        "additionalProperties": false,
+        "description": "A phrase the deck teaches. What FSRS schedules.",
+        "properties": {
+          "card_count": {
+            "minimum": 0,
+            "title": "Card Count",
+            "type": "integer"
+          },
+          "case": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Akk",
+                  "Dat",
+                  "Gen"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Case"
+          },
+          "cefr": {
+            "anyOf": [
+              {
+                "enum": [
+                  "A1",
+                  "A2",
+                  "B1",
+                  "B2"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cefr"
+          },
+          "count_by_source": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Count By Source",
+            "type": "object"
+          },
+          "display_de": {
+            "minLength": 1,
+            "title": "Display De",
+            "type": "string"
+          },
+          "gloss_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Gloss En"
+          },
+          "kind": {
+            "enum": [
+              "verb_prep",
+              "reflexive_verb",
+              "separable_verb",
+              "noun_verb",
+              "adj_noun",
+              "connector",
+              "two_part_connector",
+              "idiom"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "lemma_key": {
+            "minLength": 1,
+            "title": "Lemma Key",
+            "type": "string"
+          },
+          "parts": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Parts",
+            "type": "array"
+          },
+          "rank": {
+            "minimum": 1,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "sentence_count": {
+            "minimum": 0,
+            "title": "Sentence Count",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "mined",
+              "curated",
+              "mined+curated"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "trivial": {
+            "default": false,
+            "title": "Trivial",
+            "type": "boolean"
+          },
+          "trivial_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trivial Reason"
+          },
+          "unit_id": {
+            "minLength": 4,
+            "title": "Unit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit_id",
+          "kind",
+          "lemma_key",
+          "parts",
+          "display_de",
+          "sentence_count",
+          "rank",
+          "source",
+          "card_count"
+        ],
+        "title": "PhraseUnit",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "band": {
+        "minimum": 0,
+        "title": "Band",
+        "type": "integer"
+      },
+      "cards": {
+        "items": {
+          "$ref": "#/$defs/PhraseCard"
+        },
+        "title": "Cards",
+        "type": "array"
+      },
+      "schema_version": {
+        "default": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      },
+      "units": {
+        "items": {
+          "$ref": "#/$defs/PhraseUnit"
+        },
+        "title": "Units",
+        "type": "array"
+      }
+    },
+    "required": [
+      "band",
+      "units",
+      "cards"
+    ],
+    "title": "DeckShard",
+    "type": "object"
+  },
+  "units": {
+    "$defs": {
+      "PhraseUnit": {
+        "additionalProperties": false,
+        "description": "A phrase the deck teaches. What FSRS schedules.",
+        "properties": {
+          "card_count": {
+            "minimum": 0,
+            "title": "Card Count",
+            "type": "integer"
+          },
+          "case": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Akk",
+                  "Dat",
+                  "Gen"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Case"
+          },
+          "cefr": {
+            "anyOf": [
+              {
+                "enum": [
+                  "A1",
+                  "A2",
+                  "B1",
+                  "B2"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cefr"
+          },
+          "count_by_source": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Count By Source",
+            "type": "object"
+          },
+          "display_de": {
+            "minLength": 1,
+            "title": "Display De",
+            "type": "string"
+          },
+          "gloss_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Gloss En"
+          },
+          "kind": {
+            "enum": [
+              "verb_prep",
+              "reflexive_verb",
+              "separable_verb",
+              "noun_verb",
+              "adj_noun",
+              "connector",
+              "two_part_connector",
+              "idiom"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "lemma_key": {
+            "minLength": 1,
+            "title": "Lemma Key",
+            "type": "string"
+          },
+          "parts": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Parts",
+            "type": "array"
+          },
+          "rank": {
+            "minimum": 1,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "sentence_count": {
+            "minimum": 0,
+            "title": "Sentence Count",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "mined",
+              "curated",
+              "mined+curated"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "trivial": {
+            "default": false,
+            "title": "Trivial",
+            "type": "boolean"
+          },
+          "trivial_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trivial Reason"
+          },
+          "unit_id": {
+            "minLength": 4,
+            "title": "Unit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit_id",
+          "kind",
+          "lemma_key",
+          "parts",
+          "display_de",
+          "sentence_count",
+          "rank",
+          "source",
+          "card_count"
+        ],
+        "title": "PhraseUnit",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "Every unit, no cards: what the triage screen loads.",
+    "properties": {
+      "schema_version": {
+        "default": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      },
+      "units": {
+        "items": {
+          "$ref": "#/$defs/PhraseUnit"
+        },
+        "title": "Units",
+        "type": "array"
+      }
+    },
+    "required": [
+      "units"
+    ],
+    "title": "UnitsIndex",
+    "type": "object"
+  }
+}

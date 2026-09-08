@@ -1,0 +1,297 @@
+[
+ {
+  "card_id": "051f5f3946a9",
+  "unit_id": "rv:sich_merken",
+  "sentence_de": "Ein gutes Gedächtnis merkt sich nicht alles, sondern vergisst das Unwichtige.",
+  "answers": [
+   "merkt",
+   "sich"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
+  "card_id": "0a9aea705354",
+  "unit_id": "id:es_kommt_darauf_an",
+  "sentence_de": "Es kommt darauf an, was Sie darunter verstehen.",
+  "answers": [
+   "Es",
+   "kommt",
+   "darauf",
+   "an"
+  ],
+  "form_key": "es|kommt|darauf|an"
+ },
+ {
+  "card_id": "0adc420f83e5",
+  "unit_id": "cn:aber",
+  "sentence_de": "Die Situation war schwierig, aber Liisa half Markku aus der Klemme.",
+  "answers": [
+   "aber"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "0af6db25819f",
+  "unit_id": "vp:halten_fuer",
+  "sentence_de": "Das hätte ich nicht für möglich gehalten.",
+  "answers": [
+   "für",
+   "gehalten"
+  ],
+  "form_key": "Part"
+ },
+ {
+  "card_id": "17ce15c03dd1",
+  "unit_id": "vp:bestehen_aus",
+  "sentence_de": "Die Ringelwürmer sind Würmer, deren Körper aus ringförmigen Segmenten bestehen.",
+  "answers": [
+   "aus",
+   "bestehen"
+  ],
+  "form_key": "Inf"
+ },
+ {
+  "card_id": "1831877f75c5",
+  "unit_id": "cn:sondern",
+  "sentence_de": "Es ist nicht wichtig, was gegeben wurde, sondern die Liebe, mit der es gegeben worden ist.",
+  "answers": [
+   "sondern"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "27aa56cb4c1d",
+  "unit_id": "vp:glauben_an",
+  "sentence_de": "Es gibt solche, die an Ufos glauben, und solche, die es nicht tun.",
+  "answers": [
+   "an",
+   "glauben"
+  ],
+  "form_key": "Fin|Pres|3|Plur"
+ },
+ {
+  "card_id": "31cf20936dd7",
+  "unit_id": "cn:dass",
+  "sentence_de": "Ich glaube nicht, dass wir genug zu essen haben.",
+  "answers": [
+   "dass"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "32abba85df47",
+  "unit_id": "cn:wenn",
+  "sentence_de": "Wer wird dich trösten, wenn du traurig bist?",
+  "answers": [
+   "wenn"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "36b7ad5a363f",
+  "unit_id": "id:es_gibt",
+  "sentence_de": "Es gibt solche, die an Ufos glauben, und solche, die es nicht tun.",
+  "answers": [
+   "Es",
+   "gibt"
+  ],
+  "form_key": "es|gibt"
+ },
+ {
+  "card_id": "427957b1b17b",
+  "unit_id": "cn:denn",
+  "sentence_de": "Ich will mich in dieser Angelegenheit nicht einmischen, denn der Mann ist offensichtlich schuldig.",
+  "answers": [
+   "denn"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "4314888d81f0",
+  "unit_id": "cn:indem",
+  "sentence_de": "Glück kann man nur festhalten, indem man es weitergibt.",
+  "answers": [
+   "indem"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "4e6aa3158a22",
+  "unit_id": "id:es_gibt",
+  "sentence_de": "Es gibt nichts schöneres als einen Spaziergang.",
+  "answers": [
+   "Es",
+   "gibt"
+  ],
+  "form_key": "es|gibt"
+ },
+ {
+  "card_id": "60bd448dbea4",
+  "unit_id": "cn:damit",
+  "sentence_de": "Heute arbeite ich ein bisschen länger, damit ich morgen nicht mit Arbeit überlastet werde.",
+  "answers": [
+   "damit"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "65200ecb8805",
+  "unit_id": "cn:waehrend",
+  "sentence_de": "Während ich daran dachte, packte mich das Grauen.",
+  "answers": [
+   "Während"
+  ],
+  "form_key": "initial"
+ },
+ {
+  "card_id": "705becddf573",
+  "unit_id": "id:nicht_einmal",
+  "sentence_de": "Tom fing an zu schluchzen, als er den Prüfungsbogen vor sich sah und nicht einmal die Aufgaben verstand.",
+  "answers": [
+   "nicht",
+   "einmal"
+  ],
+  "form_key": "nicht|einmal"
+ },
+ {
+  "card_id": "7d2723eeacd3",
+  "unit_id": "vp:gehen_um",
+  "sentence_de": "Wenn es um Süßigkeiten geht, kann ich mich einfach nicht beherrschen.",
+  "answers": [
+   "um",
+   "geht"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
+  "card_id": "7de809797230",
+  "unit_id": "cn:solange",
+  "sentence_de": "Solange der Schuldner mein Geld braucht, muss er mir Zins davon geben.",
+  "answers": [
+   "Solange"
+  ],
+  "form_key": "initial"
+ },
+ {
+  "card_id": "88d79b18d2b3",
+  "unit_id": "cn:sondern",
+  "sentence_de": "Ein gutes Gedächtnis merkt sich nicht alles, sondern vergisst das Unwichtige.",
+  "answers": [
+   "sondern"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "8c5191ac98d2",
+  "unit_id": "cn:wenn",
+  "sentence_de": "Wenn die Ameisen sich verkriechen, kommt der Regen.",
+  "answers": [
+   "Wenn"
+  ],
+  "form_key": "initial"
+ },
+ {
+  "card_id": "9e619dc61aa9",
+  "unit_id": "vp:warten_auf",
+  "sentence_de": "Letzte Nacht bin ich zuhause geblieben, um auf deinen Anruf zu warten.",
+  "answers": [
+   "auf",
+   "warten"
+  ],
+  "form_key": "Inf"
+ },
+ {
+  "card_id": "a094cbbb3d57",
+  "unit_id": "vp:halten_fuer",
+  "sentence_de": "Ich halte dieses Mädchen für ehrlich.",
+  "answers": [
+   "halte",
+   "für"
+  ],
+  "form_key": "Fin|Pres|1|Sing"
+ },
+ {
+  "card_id": "a13903a883ba",
+  "unit_id": "cn:zum_beispiel",
+  "sentence_de": "Franzosen, zum Beispiel, können über russische Witze nicht lachen.",
+  "answers": [
+   "zum",
+   "Beispiel"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "a55cf769e740",
+  "unit_id": "cn:dass",
+  "sentence_de": "Ich zähle auf dich, dass du dich uns anschließen wirst.",
+  "answers": [
+   "dass"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "cc336383f225",
+  "unit_id": "cn:und",
+  "sentence_de": "Sie essen Früchte und Getreidesprossen.",
+  "answers": [
+   "und"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "dcaf3315b3a2",
+  "unit_id": "cn:vorher",
+  "sentence_de": "Das, was du nun sagst, stimmt nicht überein mit dem, was du vorher gesagt hast.",
+  "answers": [
+   "vorher"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "f1ac0c87522f",
+  "unit_id": "cn:und",
+  "sentence_de": "Und doch, war es nicht ihr Aussehen, was ihn angezogen hat?",
+  "answers": [
+   "Und"
+  ],
+  "form_key": "initial"
+ },
+ {
+  "card_id": "f21666628418",
+  "unit_id": "vp:bestehen_aus",
+  "sentence_de": "Meine Arbeitsgruppe besteht aus zehn Personen.",
+  "answers": [
+   "besteht",
+   "aus"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
+  "card_id": "fa64ae688a48",
+  "unit_id": "cn:danach",
+  "sentence_de": "Wer einmal ein Konzert dieser Sängerin erlebt hat, der lässt sich danach keines mehr entgehen.",
+  "answers": [
+   "danach"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "fa9ac1763fbd",
+  "unit_id": "cn:dagegen",
+  "sentence_de": "Hättest du etwas dagegen, wenn ich dieses Gespräch aufzeichne?",
+  "answers": [
+   "dagegen"
+  ],
+  "form_key": "medial"
+ },
+ {
+  "card_id": "fd9fe4fb6dcf",
+  "unit_id": "id:es_gibt",
+  "sentence_de": "Es ist nicht wichtig, was gegeben wurde, sondern die Liebe, mit der es gegeben worden ist.",
+  "answers": [
+   "es",
+   "gegeben"
+  ],
+  "form_key": "es|gegeben"
+ }
+]

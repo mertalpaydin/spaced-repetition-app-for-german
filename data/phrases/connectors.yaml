@@ -1,0 +1,128 @@
+# Connectors are matched against this list, never mined. One entry per unit.
+#
+#   key                        unit key and id source
+#   kind                       connector | two_part_connector
+#   forms                      surface forms (lowercase, may be multi-word)
+#   pos                        optional POS guard on the first token
+#   needs_context_when_initial a sentence-initial match needs a preceding sentence
+#   trivial                    known from week one; never a card by default
+#   first / second             the two parts of a two_part_connector
+#
+# Adverbial connectors (position 0 or after the verb).
+- {key: trotzdem, kind: connector, forms: [trotzdem], pos: [ADV], cefr: B1, gloss_en: nevertheless, needs_context_when_initial: true}
+- {key: dennoch, kind: connector, forms: [dennoch], pos: [ADV], cefr: B2, gloss_en: nonetheless, needs_context_when_initial: true}
+- {key: allerdings, kind: connector, forms: [allerdings], pos: [ADV], cefr: B1, gloss_en: however / admittedly, needs_context_when_initial: true}
+- {key: jedoch, kind: connector, forms: [jedoch], pos: [ADV, CCONJ], cefr: B1, gloss_en: however, needs_context_when_initial: true}
+- {key: deshalb, kind: connector, forms: [deshalb], pos: [ADV], cefr: A2, gloss_en: therefore, needs_context_when_initial: true}
+- {key: deswegen, kind: connector, forms: [deswegen], pos: [ADV], cefr: B1, gloss_en: that is why, needs_context_when_initial: true}
+- {key: daher, kind: connector, forms: [daher], pos: [ADV], cefr: B1, gloss_en: hence, needs_context_when_initial: true}
+- {key: darum, kind: connector, forms: [darum], pos: [ADV], cefr: A2, gloss_en: that is why, needs_context_when_initial: true}
+- {key: also, kind: connector, forms: [also], pos: [ADV], cefr: A2, gloss_en: so / therefore, needs_context_when_initial: true}
+- {key: außerdem, kind: connector, forms: [außerdem], pos: [ADV], cefr: A2, gloss_en: besides / in addition, needs_context_when_initial: true}
+- {key: zudem, kind: connector, forms: [zudem], pos: [ADV], cefr: B2, gloss_en: moreover, needs_context_when_initial: true}
+- {key: dagegen, kind: connector, forms: [dagegen], pos: [ADV], cefr: B1, gloss_en: on the other hand, needs_context_when_initial: true}
+- {key: hingegen, kind: connector, forms: [hingegen], pos: [ADV], cefr: B2, gloss_en: whereas / by contrast, needs_context_when_initial: true}
+- {key: sonst, kind: connector, forms: [sonst], pos: [ADV], cefr: A2, gloss_en: otherwise, needs_context_when_initial: true}
+- {key: ansonsten, kind: connector, forms: [ansonsten], pos: [ADV], cefr: B1, gloss_en: otherwise, needs_context_when_initial: true}
+- {key: nämlich, kind: connector, forms: [nämlich], pos: [ADV], cefr: B1, gloss_en: namely / you see, needs_context_when_initial: true}
+- {key: immerhin, kind: connector, forms: [immerhin], pos: [ADV], cefr: B1, gloss_en: at least / after all, needs_context_when_initial: true}
+- {key: zumindest, kind: connector, forms: [zumindest], pos: [ADV], cefr: B1, gloss_en: at least, needs_context_when_initial: true}
+- {key: schließlich, kind: connector, forms: [schließlich], pos: [ADV], cefr: B1, gloss_en: finally / after all, needs_context_when_initial: true}
+- {key: stattdessen, kind: connector, forms: [stattdessen], pos: [ADV], cefr: B1, gloss_en: instead, needs_context_when_initial: true}
+- {key: danach, kind: connector, forms: [danach], pos: [ADV], cefr: A2, gloss_en: after that, needs_context_when_initial: true}
+- {key: vorher, kind: connector, forms: [vorher], pos: [ADV], cefr: A2, gloss_en: beforehand, needs_context_when_initial: true}
+- {key: zuerst, kind: connector, forms: [zuerst], pos: [ADV], cefr: A2, gloss_en: first, needs_context_when_initial: false}
+- {key: zunächst, kind: connector, forms: [zunächst], pos: [ADV], cefr: B1, gloss_en: first of all, needs_context_when_initial: false}
+- {key: inzwischen, kind: connector, forms: [inzwischen], pos: [ADV], cefr: B1, gloss_en: in the meantime, needs_context_when_initial: true}
+- {key: mittlerweile, kind: connector, forms: [mittlerweile], pos: [ADV], cefr: B1, gloss_en: by now, needs_context_when_initial: true}
+- {key: übrigens, kind: connector, forms: [übrigens], pos: [ADV], cefr: B1, gloss_en: by the way, needs_context_when_initial: true}
+- {key: im gegenteil, kind: connector, forms: [im gegenteil], cefr: B1, gloss_en: on the contrary, needs_context_when_initial: true}
+- {key: zum beispiel, kind: connector, forms: [zum beispiel], cefr: A2, gloss_en: for example, needs_context_when_initial: true}
+- {key: vor allem, kind: connector, forms: [vor allem], cefr: B1, gloss_en: above all, needs_context_when_initial: false}
+- {key: auf jeden fall, kind: connector, forms: [auf jeden fall], cefr: A2, gloss_en: in any case / definitely, needs_context_when_initial: true}
+- {key: in diesem fall, kind: connector, forms: [in diesem fall], cefr: B1, gloss_en: in this case, needs_context_when_initial: true}
+- {key: aus diesem grund, kind: connector, forms: [aus diesem grund], cefr: B1, gloss_en: for this reason, needs_context_when_initial: true}
+- {key: im gegensatz zu, kind: connector, forms: [im gegensatz zu], cefr: B2, gloss_en: in contrast to, needs_context_when_initial: false}
+# Subordinating conjunctions (verb goes to the end).
+- {key: obwohl, kind: connector, forms: [obwohl], pos: [SCONJ], cefr: B1, gloss_en: although}
+- {key: während, kind: connector, forms: [während], pos: [SCONJ], cefr: B1, gloss_en: while / whereas}
+- {key: nachdem, kind: connector, forms: [nachdem], pos: [SCONJ], cefr: B1, gloss_en: after}
+- {key: bevor, kind: connector, forms: [bevor], pos: [SCONJ], cefr: A2, gloss_en: before}
+- {key: sobald, kind: connector, forms: [sobald], pos: [SCONJ], cefr: B1, gloss_en: as soon as}
+- {key: solange, kind: connector, forms: [solange], pos: [SCONJ], cefr: B1, gloss_en: as long as}
+- {key: seitdem, kind: connector, forms: [seitdem], pos: [SCONJ, ADV], cefr: B1, gloss_en: since (then)}
+- {key: damit, kind: connector, forms: [damit], pos: [SCONJ], cefr: B1, gloss_en: so that}
+- {key: falls, kind: connector, forms: [falls], pos: [SCONJ], cefr: B1, gloss_en: in case / if}
+- {key: sofern, kind: connector, forms: [sofern], pos: [SCONJ], cefr: B2, gloss_en: provided that}
+- {key: indem, kind: connector, forms: [indem], pos: [SCONJ], cefr: B1, gloss_en: by (doing)}
+- {key: sodass, kind: connector, forms: [sodass, so dass], cefr: B1, gloss_en: so that (result)}
+- {key: ohne dass, kind: connector, forms: [ohne dass], cefr: B2, gloss_en: without (doing)}
+- {key: anstatt dass, kind: connector, forms: [anstatt dass, statt dass], cefr: B2, gloss_en: instead of (doing)}
+- {key: als ob, kind: connector, forms: [als ob], cefr: B1, gloss_en: as if}
+- {key: bis, kind: connector, forms: [bis], pos: [SCONJ], cefr: A2, gloss_en: until}
+- {key: dass, kind: connector, forms: [dass], pos: [SCONJ], cefr: A1, gloss_en: that, trivial: true}
+- {key: weil, kind: connector, forms: [weil], pos: [SCONJ], cefr: A1, gloss_en: because, trivial: true}
+- {key: wenn, kind: connector, forms: [wenn], pos: [SCONJ], cefr: A1, gloss_en: if / when, trivial: true}
+- {key: ob, kind: connector, forms: [ob], pos: [SCONJ], cefr: A2, gloss_en: whether, trivial: true}
+- {key: und, kind: connector, forms: [und], pos: [CCONJ], cefr: A1, gloss_en: and, trivial: true}
+- {key: oder, kind: connector, forms: [oder], pos: [CCONJ], cefr: A1, gloss_en: or, trivial: true}
+- {key: aber, kind: connector, forms: [aber], pos: [CCONJ], cefr: A1, gloss_en: but, trivial: true}
+- {key: denn, kind: connector, forms: [denn], pos: [CCONJ], cefr: A2, gloss_en: because / for, trivial: true}
+- {key: sondern, kind: connector, forms: [sondern], pos: [CCONJ], cefr: A2, gloss_en: but rather}
+# Two-part connectors.
+- key: sowohl … als auch
+  kind: two_part_connector
+  first: {forms: [sowohl]}
+  second: {forms: [als auch, wie auch]}
+  display: "sowohl … als auch"
+  cefr: B1
+  gloss_en: both … and
+- key: nicht nur … sondern auch
+  kind: two_part_connector
+  first: {forms: [nicht nur]}
+  second: {forms: [sondern auch, sondern]}
+  display: "nicht nur … sondern auch"
+  cefr: B1
+  gloss_en: not only … but also
+- key: weder … noch
+  kind: two_part_connector
+  first: {forms: [weder]}
+  second: {forms: [noch]}
+  display: "weder … noch"
+  cefr: B1
+  gloss_en: neither … nor
+- key: entweder … oder
+  kind: two_part_connector
+  first: {forms: [entweder]}
+  second: {forms: [oder]}
+  display: "entweder … oder"
+  cefr: A2
+  gloss_en: either … or
+- key: zwar … aber
+  kind: two_part_connector
+  first: {forms: [zwar], not_after: [und]}
+  second: {forms: [aber, doch, jedoch, allerdings]}
+  display: "zwar … aber"
+  cefr: B1
+  gloss_en: admittedly … but
+- key: einerseits … andererseits
+  kind: two_part_connector
+  first: {forms: [einerseits]}
+  second: {forms: [andererseits, anderseits]}
+  display: "einerseits … andererseits"
+  cefr: B1
+  gloss_en: on the one hand … on the other
+- key: je … desto
+  kind: two_part_connector
+  first: {forms: [je], next_must_be_comparative: true}
+  second: {forms: [desto, umso], next_must_be_comparative: true}
+  display: "je … desto"
+  cefr: B1
+  gloss_en: the (more) … the (more)
+- key: mal … mal
+  kind: two_part_connector
+  first: {forms: [mal], pos: [ADV]}
+  second: {forms: [mal], pos: [ADV]}
+  display: "mal … mal"
+  cefr: B2
+  gloss_en: sometimes … sometimes

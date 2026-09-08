@@ -1,0 +1,39 @@
+# Collocations that are units whatever the association measure says.
+# Bootstrapped from the grammar taxonomy's Funktionsverbgefüge examples.
+# key = lowercased lemma key the miner produces ("<noun> <verb>" or
+# "<prep> <noun> <verb>" for a Funktionsverbgefüge).
+- {key: "zur verfügung stehen", kind: noun_verb, display: "zur Verfügung stehen", cefr: B2, gloss_en: to be available}
+- {key: "zur verfügung stellen", kind: noun_verb, display: "zur Verfügung stellen", cefr: B2, gloss_en: to make available}
+- {key: "in frage kommen", kind: noun_verb, display: "in Frage kommen", cefr: B2, gloss_en: to be an option}
+- {key: "in frage stellen", kind: noun_verb, display: "in Frage stellen", cefr: B2, gloss_en: to call into question}
+- {key: "entscheidung treffen", kind: noun_verb, display: "eine Entscheidung treffen", cefr: B1, gloss_en: to make a decision}
+- {key: "rolle spielen", kind: noun_verb, display: "eine Rolle spielen", cefr: B1, gloss_en: to play a role}
+- {key: "frage stellen", kind: noun_verb, display: "eine Frage stellen", cefr: A2, gloss_en: to ask a question}
+- {key: "antwort geben", kind: noun_verb, display: "eine Antwort geben", cefr: A2, gloss_en: to give an answer}
+- {key: "hunger haben", kind: noun_verb, display: "Hunger haben", cefr: A1, gloss_en: to be hungry}
+- {key: "durst haben", kind: noun_verb, display: "Durst haben", cefr: A1, gloss_en: to be thirsty}
+- {key: "angst haben", kind: noun_verb, display: "Angst haben", cefr: A1, gloss_en: to be afraid}
+- {key: "recht haben", kind: noun_verb, display: "Recht haben", cefr: A2, gloss_en: to be right}
+- {key: "zeit haben", kind: noun_verb, display: "Zeit haben", cefr: A1, gloss_en: to have time}
+- {key: "lust haben", kind: noun_verb, display: "Lust haben", cefr: A2, gloss_en: to feel like}
+- {key: "spaß machen", kind: noun_verb, display: "Spaß machen", cefr: A1, gloss_en: to be fun}
+- {key: "sinn machen", kind: noun_verb, display: "Sinn machen", cefr: B1, gloss_en: to make sense}
+- {key: "platz nehmen", kind: noun_verb, display: "Platz nehmen", cefr: B1, gloss_en: to take a seat}
+- {key: "abschied nehmen", kind: noun_verb, display: "Abschied nehmen", cefr: B1, gloss_en: to say goodbye}
+- {key: "rücksicht nehmen", kind: noun_verb, display: "Rücksicht nehmen", cefr: B2, gloss_en: to show consideration}
+- {key: "in anspruch nehmen", kind: noun_verb, display: "in Anspruch nehmen", cefr: B2, gloss_en: to make use of}
+- {key: "zum ausdruck bringen", kind: noun_verb, display: "zum Ausdruck bringen", cefr: B2, gloss_en: to express}
+- {key: "in kraft treten", kind: noun_verb, display: "in Kraft treten", cefr: B2, gloss_en: to come into force}
+- {key: "unter druck stehen", kind: noun_verb, display: "unter Druck stehen", cefr: B2, gloss_en: to be under pressure}
+- {key: "im mittelpunkt stehen", kind: noun_verb, display: "im Mittelpunkt stehen", cefr: B2, gloss_en: to be the focus}
+- {key: "in erfüllung gehen", kind: noun_verb, display: "in Erfüllung gehen", cefr: B2, gloss_en: to come true}
+- {key: "zu ende gehen", kind: noun_verb, display: "zu Ende gehen", cefr: B1, gloss_en: to come to an end}
+- {key: "unterschied machen", kind: noun_verb, display: "einen Unterschied machen", cefr: B1, gloss_en: to make a difference}
+- {key: "fehler machen", kind: noun_verb, display: "einen Fehler machen", cefr: A2, gloss_en: to make a mistake}
+- {key: "vorschlag machen", kind: noun_verb, display: "einen Vorschlag machen", cefr: B1, gloss_en: to make a suggestion}
+- {key: "termin vereinbaren", kind: noun_verb, display: "einen Termin vereinbaren", cefr: B1, gloss_en: to make an appointment}
+- {key: "kontakt aufnehmen", kind: noun_verb, display: "Kontakt aufnehmen", cefr: B1, gloss_en: to get in touch}
+- {key: "bescheid geben", kind: noun_verb, display: "Bescheid geben", cefr: B1, gloss_en: to let someone know}
+- {key: "bescheid wissen", kind: noun_verb, display: "Bescheid wissen", cefr: B1, gloss_en: to be informed}
+- {key: "erfahrung sammeln", kind: noun_verb, display: "Erfahrung sammeln", cefr: B1, gloss_en: to gain experience}
+- {key: "verantwortung übernehmen", kind: noun_verb, display: "Verantwortung übernehmen", cefr: B2, gloss_en: to take responsibility}

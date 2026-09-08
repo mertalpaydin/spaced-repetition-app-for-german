@@ -77,10 +77,19 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
 - **675 tests pass.** `ruff`, `ruff format --check` and
   `mypy --strict src/ scripts/` are clean. Coverage on `src/` is 87%.
 
+- **The deck build, phase 1.** `scripts/build_phrase_deck.py` parses both
+  corpora once (about 10 minutes), mines every phrase kind, ranks units by
+  distinct sentence count, picks glossed cards covering distinct surface
+  forms, and exports `data/deck/` with a content-hashed `deck_version`.
+  `docs/phrase-deck.md` is the runbook; `data/phrases/build/report.json` is
+  what to read after a build. The one model stage (context sentences for
+  sentence-initial connectors) is opt-in and has not been run.
+
 ## What is not built
 
-- **Everything in phase 1.** No contracts, no parser layer, no miners, no
-  cards, no export. `docs/phrase-deck.md` records the intended commands.
+- **The phase 1 kill decision** is the owner's, from the report and sampled
+  cards. Thresholds and the curated lists have had one review round on a
+  30,000-sentence slice, not on the full deck.
 - **Phase 2 and 3.** `web/` is the grammar trainer's PWA, untouched; it falls
   back to six seed items because `web/data/` was deleted.
 

@@ -25,26 +25,23 @@ Nothing open. Left deliberately for later phases:
   dependencies (`en-core-web-sm`, `pypdf`, `rich`, `typer`) are still
   installed locally. Harmless; a later `uv sync` with the IDE closed cleans it.
 
-## Phase 1: exercise generation
+## Phase 1: exercise generation (code done 2026-09-08; owner reviews the deck)
 
-Kill criterion: after 1c, `data/phrases/build/report.json` shows sensible
-top-200 units per kind and most top-500 units have at least 6 valid cards.
+The pipeline runs end to end (`docs/phrase-deck.md`). Open:
 
-- 1a. `src/contracts.py`: `PhraseKind`, `GapSpan`, `PhraseUnit`, `PhraseCard`,
-  context and deck models, with the slicing validators.
-- 1b. `src/phrases/parse.py`: one parser load, `parse_many`, `lexical_verb`,
-  `verb_lemma_key`, `is_sentence_initial`; `--stage parse` writes
-  `occurrences.jsonl` and `lemma_counts.json`.
-- 1c. `src/phrases/mining/`: verb_prep, reflexive, separable, collocations
-  (G² with abstention), connectors (curated), idioms (curated);
-  `src/phrases/units.py` thresholds, rank, trivial flag, CEFR; report.
-- 1d. `src/phrases/cards.py` (Azure/Gemini glosses only, form diversity,
-  `wanted_carriers.txt`); `src/phrases/contexts.py` (opt-in, free lane,
-  `--approved-by-owner`); fix the top-up to check the ledger refusal flag
-  before the 35-minute validity filter.
-- 1e. `src/phrases/export.py`: manifest, `units.json`, rank-band shards, JSON
-  schema fixture, byte-determinism; `scripts/build_phrase_deck.py` stages.
-- Tests as listed in the plan; golden end-to-end on a 300-line sample corpus.
+- **Kill decision.** The owner reads `data/phrases/build/report.json` and
+  samples cards per kind from `data/deck/`. If the mined units are junk,
+  stop here.
+- **First curation round.** Move noise from the report into
+  `data/phrases/exclude.yaml`; add missing units to the seed lists.
+  Thresholds in `src/phrases/units.py` are starting values.
+- **Contexts.** No context sentence has been generated yet. Sentence-initial
+  connector cards show a single sentence until the owner approves one run of
+  `--stage contexts --generate-contexts --approved-by-owner` (free lane,
+  under 200 calls).
+- **Unit-level glosses.** Mined units have no English of their own; only the
+  sentence gloss. A later opt-in free-lane batch could add them.
+- The 1M-line `leipzig_news_2025.txt` is not read; the 205k-line sample is.
 
 ## Phase 2: FSRS and the laptop client
 

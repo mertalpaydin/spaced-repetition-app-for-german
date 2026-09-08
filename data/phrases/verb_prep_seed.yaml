@@ -1,0 +1,63 @@
+# Verb + preposition units that are units whatever the corpus counts say.
+# The seed's case wins over the corpus tally; a disagreement is reported.
+# reflexive: true makes the unit "sich <verb> <prep>".
+- {verb: warten, prep: auf, case: Akk, cefr: A1, gloss_en: to wait for}
+- {verb: denken, prep: an, case: Akk, cefr: A2, gloss_en: to think of}
+- {verb: sprechen, prep: über, case: Akk, cefr: A2, gloss_en: to talk about}
+- {verb: sprechen, prep: mit, case: Dat, cefr: A1, gloss_en: to speak with}
+- {verb: fragen, prep: nach, case: Dat, cefr: A2, gloss_en: to ask about}
+- {verb: suchen, prep: nach, case: Dat, cefr: A2, gloss_en: to search for}
+- {verb: bitten, prep: um, case: Akk, cefr: A2, gloss_en: to ask for}
+- {verb: danken, prep: für, case: Akk, cefr: A1, gloss_en: to thank for}
+- {verb: gehören, prep: zu, case: Dat, cefr: A2, gloss_en: to belong to}
+- {verb: glauben, prep: an, case: Akk, cefr: B1, gloss_en: to believe in}
+- {verb: hoffen, prep: auf, case: Akk, cefr: B1, gloss_en: to hope for}
+- {verb: achten, prep: auf, case: Akk, cefr: B1, gloss_en: to pay attention to}
+- {verb: antworten, prep: auf, case: Akk, cefr: A2, gloss_en: to answer (a question)}
+- {verb: arbeiten, prep: an, case: Dat, cefr: B1, gloss_en: to work on}
+- {verb: teilnehmen, prep: an, case: Dat, cefr: B1, gloss_en: to take part in}
+- {verb: leiden, prep: an, case: Dat, cefr: B1, gloss_en: to suffer from (an illness)}
+- {verb: leiden, prep: unter, case: Dat, cefr: B1, gloss_en: to suffer from}
+- {verb: sterben, prep: an, case: Dat, cefr: B1, gloss_en: to die of}
+- {verb: bestehen, prep: aus, case: Dat, cefr: B1, gloss_en: to consist of}
+- {verb: bestehen, prep: auf, case: Dat, cefr: B2, gloss_en: to insist on}
+- {verb: abhängen, prep: von, case: Dat, cefr: B1, gloss_en: to depend on}
+- {verb: träumen, prep: von, case: Dat, cefr: A2, gloss_en: to dream of}
+- {verb: erzählen, prep: von, case: Dat, cefr: A2, gloss_en: to tell about}
+- {verb: halten, prep: von, case: Dat, cefr: B1, gloss_en: to think of (have an opinion)}
+- {verb: halten, prep: für, case: Akk, cefr: B1, gloss_en: to consider (to be)}
+- {verb: sorgen, prep: für, case: Akk, cefr: B1, gloss_en: to take care of}
+- {verb: kämpfen, prep: für, case: Akk, cefr: B1, gloss_en: to fight for}
+- {verb: kämpfen, prep: gegen, case: Akk, cefr: B1, gloss_en: to fight against}
+- {verb: gehen, prep: um, case: Akk, cefr: B1, gloss_en: to be about (es geht um)}
+- {verb: handeln, prep: von, case: Dat, cefr: B1, gloss_en: to be about (a story)}
+- {verb: einladen, prep: zu, case: Dat, cefr: A2, gloss_en: to invite to}
+- {verb: passen, prep: zu, case: Dat, cefr: A2, gloss_en: to suit / to go with}
+- {verb: führen, prep: zu, case: Dat, cefr: B1, gloss_en: to lead to}
+- {verb: zählen, prep: zu, case: Dat, cefr: B2, gloss_en: to count among}
+- {verb: verzichten, prep: auf, case: Akk, cefr: B1, gloss_en: to do without}
+- {verb: reagieren, prep: auf, case: Akk, cefr: B1, gloss_en: to react to}
+- {verb: verlassen, prep: auf, case: Akk, reflexive: true, cefr: B1, gloss_en: to rely on}
+- {verb: freuen, prep: auf, case: Akk, reflexive: true, cefr: A2, gloss_en: to look forward to}
+- {verb: freuen, prep: über, case: Akk, reflexive: true, cefr: A2, gloss_en: to be pleased about}
+- {verb: interessieren, prep: für, case: Akk, reflexive: true, cefr: A2, gloss_en: to be interested in}
+- {verb: kümmern, prep: um, case: Akk, reflexive: true, cefr: B1, gloss_en: to take care of}
+- {verb: erinnern, prep: an, case: Akk, reflexive: true, cefr: A2, gloss_en: to remember}
+- {verb: ärgern, prep: über, case: Akk, reflexive: true, cefr: A2, gloss_en: to be annoyed about}
+- {verb: beschweren, prep: über, case: Akk, reflexive: true, cefr: B1, gloss_en: to complain about}
+- {verb: bedanken, prep: für, case: Akk, reflexive: true, cefr: B1, gloss_en: to say thank you for}
+- {verb: entschuldigen, prep: für, case: Akk, reflexive: true, cefr: A2, gloss_en: to apologise for}
+- {verb: bewerben, prep: um, case: Akk, reflexive: true, cefr: B1, gloss_en: to apply for}
+- {verb: unterhalten, prep: über, case: Akk, reflexive: true, cefr: B1, gloss_en: to talk about}
+- {verb: unterhalten, prep: mit, case: Dat, reflexive: true, cefr: B1, gloss_en: to talk with}
+- {verb: treffen, prep: mit, case: Dat, reflexive: true, cefr: A2, gloss_en: to meet with}
+- {verb: verabreden, prep: mit, case: Dat, reflexive: true, cefr: B1, gloss_en: to arrange to meet}
+- {verb: streiten, prep: mit, case: Dat, reflexive: true, cefr: B1, gloss_en: to argue with}
+- {verb: gewöhnen, prep: an, case: Akk, reflexive: true, cefr: B1, gloss_en: to get used to}
+- {verb: konzentrieren, prep: auf, case: Akk, reflexive: true, cefr: B1, gloss_en: to concentrate on}
+- {verb: vorbereiten, prep: auf, case: Akk, reflexive: true, cefr: B1, gloss_en: to prepare for}
+- {verb: entscheiden, prep: für, case: Akk, reflexive: true, cefr: B1, gloss_en: to decide on}
+- {verb: wundern, prep: über, case: Akk, reflexive: true, cefr: B1, gloss_en: to be surprised at}
+- {verb: fürchten, prep: vor, case: Dat, reflexive: true, cefr: B1, gloss_en: to be afraid of}
+- {verb: handeln, prep: um, case: Akk, reflexive: true, cefr: B1, gloss_en: to be a matter of (es handelt sich um)}
+- {verb: sehnen, prep: nach, case: Dat, reflexive: true, cefr: B2, gloss_en: to long for}

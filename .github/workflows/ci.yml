@@ -38,5 +38,8 @@ jobs:
       - name: Mypy Strict Type Check
         run: uv run mypy --strict src/ scripts/
 
+      - name: Validate the committed deck
+        run: uv run python scripts/build_phrase_deck.py --check
+
       - name: Run Test Suite with Coverage Gate (>= 85%)
         run: uv run pytest --cov=src --cov-fail-under=85 tests/

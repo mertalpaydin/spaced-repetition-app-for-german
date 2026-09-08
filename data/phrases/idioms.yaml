@@ -1,0 +1,61 @@
+# Fixed expressions, matched as a token sequence. Pattern elements are surface
+# forms (case-insensitive) or "lemma:<lemma>"; max_gap is how many tokens may
+# sit between consecutive elements. Zero-hit idioms are kept and ranked last.
+- {key: es geht um, pattern: [es, "lemma:gehen", um], max_gap: 2, display: "es geht um", cefr: B1, gloss_en: it is about}
+- {key: es gibt, pattern: [es, "lemma:geben"], max_gap: 0, display: "es gibt", cefr: A1, gloss_en: there is / there are}
+- {key: es tut mir leid, pattern: [es, "lemma:tun", mir, leid], max_gap: 0, display: "es tut mir leid", cefr: A1, gloss_en: I am sorry}
+- {key: es kommt darauf an, pattern: [es, "lemma:kommen", darauf, an], max_gap: 1, display: "es kommt darauf an", cefr: B1, gloss_en: it depends}
+- {key: es handelt sich um, pattern: [es, "lemma:handeln", sich, um], max_gap: 1, display: "es handelt sich um", cefr: B1, gloss_en: it is a matter of}
+- {key: es lohnt sich, pattern: [es, "lemma:lohnen", sich], max_gap: 0, display: "es lohnt sich", cefr: B1, gloss_en: it is worth it}
+- {key: es macht nichts, pattern: [es, "lemma:machen", nichts], max_gap: 0, display: "es macht nichts", cefr: A2, gloss_en: it does not matter}
+- {key: es ist mir egal, pattern: [es, ist, mir, egal], max_gap: 0, display: "es ist mir egal", cefr: A2, gloss_en: I do not care}
+- {key: wie geht es dir, pattern: [wie, "lemma:gehen", es, dir], max_gap: 0, display: "wie geht es dir", cefr: A1, gloss_en: how are you}
+- {key: im großen und ganzen, pattern: [im, großen, und, ganzen], max_gap: 0, display: "im Großen und Ganzen", cefr: B2, gloss_en: on the whole}
+- {key: nach wie vor, pattern: [nach, wie, vor], max_gap: 0, display: "nach wie vor", cefr: B2, gloss_en: "still, as before"}
+- {key: ab und zu, pattern: [ab, und, zu], max_gap: 0, display: "ab und zu", cefr: A2, gloss_en: now and then}
+- {key: hin und wieder, pattern: [hin, und, wieder], max_gap: 0, display: "hin und wieder", cefr: B1, gloss_en: every now and then}
+- {key: nach und nach, pattern: [nach, und, nach], max_gap: 0, display: "nach und nach", cefr: B1, gloss_en: little by little}
+- {key: mehr oder weniger, pattern: [mehr, oder, weniger], max_gap: 0, display: "mehr oder weniger", cefr: B1, gloss_en: more or less}
+- {key: von zeit zu zeit, pattern: [von, zeit, zu, zeit], max_gap: 0, display: "von Zeit zu Zeit", cefr: B1, gloss_en: from time to time}
+- {key: seit langem, pattern: [seit, langem], max_gap: 0, display: "seit langem", cefr: B1, gloss_en: for a long time}
+- {key: vor kurzem, pattern: [vor, kurzem], max_gap: 0, display: "vor kurzem", cefr: B1, gloss_en: recently}
+- {key: in letzter zeit, pattern: [in, letzter, zeit], max_gap: 0, display: "in letzter Zeit", cefr: B1, gloss_en: lately}
+- {key: im laufe, pattern: [im, laufe], max_gap: 0, display: "im Laufe (+ Gen)", cefr: B2, gloss_en: in the course of}
+- {key: auf dauer, pattern: [auf, dauer], max_gap: 0, display: "auf Dauer", cefr: B2, gloss_en: in the long run}
+- {key: im voraus, pattern: [im, voraus], max_gap: 0, display: "im Voraus", cefr: B1, gloss_en: in advance}
+- {key: auf einmal, pattern: [auf, einmal], max_gap: 0, display: "auf einmal", cefr: A2, gloss_en: all at once / suddenly}
+- {key: zum glück, pattern: [zum, glück], max_gap: 0, display: "zum Glück", cefr: A2, gloss_en: luckily}
+- {key: zum schluss, pattern: [zum, schluss], max_gap: 0, display: "zum Schluss", cefr: A2, gloss_en: in the end}
+- {key: zum teil, pattern: [zum, teil], max_gap: 0, display: "zum Teil", cefr: B1, gloss_en: partly}
+- {key: im allgemeinen, pattern: [im, allgemeinen], max_gap: 0, display: "im Allgemeinen", cefr: B2, gloss_en: in general}
+- {key: im grunde, pattern: [im, grunde], max_gap: 0, display: "im Grunde", cefr: B2, gloss_en: basically}
+- {key: in der regel, pattern: [in, der, regel], max_gap: 0, display: "in der Regel", cefr: B1, gloss_en: as a rule}
+- {key: in der tat, pattern: [in, der, tat], max_gap: 0, display: "in der Tat", cefr: B2, gloss_en: indeed}
+- {key: in ordnung, pattern: [in, ordnung], max_gap: 0, display: "in Ordnung", cefr: A1, gloss_en: all right / okay}
+- {key: in ruhe, pattern: [in, ruhe], max_gap: 0, display: "in Ruhe", cefr: A2, gloss_en: in peace / without hurry}
+- {key: in eile, pattern: [in, eile], max_gap: 0, display: "in Eile", cefr: B1, gloss_en: in a hurry}
+- {key: in der nähe, pattern: [in, der, nähe], max_gap: 0, display: "in der Nähe", cefr: A1, gloss_en: nearby}
+- {key: auf dem land, pattern: [auf, dem, land], max_gap: 0, display: "auf dem Land", cefr: A2, gloss_en: in the countryside}
+- {key: zu hause, pattern: [zu, hause], max_gap: 0, display: "zu Hause", cefr: A1, gloss_en: at home}
+- {key: nach hause, pattern: [nach, hause], max_gap: 0, display: "nach Hause", cefr: A1, gloss_en: (to) home}
+- {key: zu fuß, pattern: [zu, fuß], max_gap: 0, display: "zu Fuß", cefr: A1, gloss_en: on foot}
+- {key: unterwegs sein, pattern: [unterwegs], max_gap: 0, display: "unterwegs (sein)", cefr: A2, gloss_en: to be on the way}
+- {key: recht behalten, pattern: [recht, "lemma:behalten"], max_gap: 2, display: "Recht behalten", cefr: B2, gloss_en: to turn out to be right}
+- {key: keine ahnung, pattern: [keine, ahnung], max_gap: 0, display: "keine Ahnung", cefr: A2, gloss_en: no idea}
+- {key: kein wunder, pattern: [kein, wunder], max_gap: 0, display: "kein Wunder", cefr: B1, gloss_en: no wonder}
+- {key: um jeden preis, pattern: [um, jeden, preis], max_gap: 0, display: "um jeden Preis", cefr: B2, gloss_en: at any price}
+- {key: auf keinen fall, pattern: [auf, keinen, fall], max_gap: 0, display: "auf keinen Fall", cefr: A2, gloss_en: under no circumstances}
+- {key: so schnell wie möglich, pattern: [so, schnell, wie, möglich], max_gap: 0, display: "so schnell wie möglich", cefr: A2, gloss_en: as fast as possible}
+- {key: so bald wie möglich, pattern: [so, bald, wie, möglich], max_gap: 0, display: "so bald wie möglich", cefr: B1, gloss_en: as soon as possible}
+- {key: immer wieder, pattern: [immer, wieder], max_gap: 0, display: "immer wieder", cefr: A2, gloss_en: again and again}
+- {key: noch einmal, pattern: [noch, einmal], max_gap: 0, display: "noch einmal", cefr: A1, gloss_en: once more}
+- {key: gar nicht, pattern: [gar, nicht], max_gap: 0, display: "gar nicht", cefr: A2, gloss_en: not at all}
+- {key: überhaupt nicht, pattern: [überhaupt, nicht], max_gap: 0, display: "überhaupt nicht", cefr: B1, gloss_en: not at all}
+- {key: noch nie, pattern: [noch, nie], max_gap: 0, display: "noch nie", cefr: A2, gloss_en: never (yet)}
+- {key: nicht mehr, pattern: [nicht, mehr], max_gap: 0, display: "nicht mehr", cefr: A1, gloss_en: no longer}
+- {key: nicht einmal, pattern: [nicht, einmal], max_gap: 0, display: "nicht einmal", cefr: B1, gloss_en: not even}
+- {key: ganz und gar, pattern: [ganz, und, gar], max_gap: 0, display: "ganz und gar", cefr: B2, gloss_en: completely}
+- {key: sich auf den weg machen, pattern: ["lemma:machen", sich, auf, den, weg], max_gap: 2, display: "sich auf den Weg machen", cefr: B1, gloss_en: to set off}
+- {key: sich mühe geben, pattern: ["lemma:geben", sich, mühe], max_gap: 2, display: "sich Mühe geben", cefr: B1, gloss_en: to make an effort}
+- {key: ums leben kommen, pattern: [ums, leben, "lemma:kommen"], max_gap: 1, display: "ums Leben kommen", cefr: B2, gloss_en: "to lose one's life"}
+- {key: was ist los, pattern: [was, ist, los], max_gap: 0, display: "was ist los?", cefr: A1, gloss_en: what is going on}

@@ -582,13 +582,16 @@ def run_topup(
 
     store = _load_store(store_path)
     # Pass 0 first, then the corpus at large, and never a sentence that cannot
-    # host an exercise. See `prioritise` for the arithmetic behind both.
+    # host an exercise. See `prioritise` for the arithmetic behind both. A
+    # refused month sends nothing, so it skips the validity filter too: that
+    # filter is 35 minutes of spaCy over the corpus, and the daily task was
+    # paying it for every run of an already-spent month.
     prioritised = prioritise(
         carriers,
         store,
         seed=seed,
         exercise_carriers=exercise_carriers,
-        is_carrier_valid=is_carrier_valid,
+        is_carrier_valid=None if already_rejected else is_carrier_valid,
     )
     todo = prioritised.todo
     resolved_batch_size = (
