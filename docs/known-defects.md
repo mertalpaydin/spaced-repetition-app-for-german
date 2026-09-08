@@ -1,5 +1,7 @@
 # Known and accepted defects
 
+> **STALE as of 2026-09-08.** This describes the German grammar trainer, which was shut down and pruned on `feat/phrase-deck`. Kept for the reasoning only. The current project is the phrase trainer; read `docs/project-state.md`.
+>
 Every defect class this pipeline is known to let through, with real examples,
 why no rule catches it, and what would have to exist before one could. Nothing
 here is a task. `TODO.md` is the work list; this file is the

@@ -2,20 +2,15 @@ name: CI Quality Gate
 
 on:
   push:
-    branches: [ main, "stage/*" ]
+    branches: [ main, "feat/*" ]
   pull_request:
     branches: [ main ]
-  schedule:
-    # Nightly live-API run, main only (CLAUDE.md rule 7 / docs/00-index.md test
-    # taxonomy: @pytest.mark.live runs nightly on main, never on a PR).
-    - cron: "0 5 * * *"
 
 jobs:
   quality-checks:
     name: Lint, Type Check & Test
-    # Unit + golden tests only: no network, no simulation-scale runs. This is the
-    # gate every push and PR must pass.
-    if: github.event_name != 'schedule'
+    # The whole suite: no network, no key. This is the gate every push and PR
+    # must pass.
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -44,59 +39,4 @@ jobs:
         run: uv run mypy --strict src/ scripts/
 
       - name: Run Test Suite with Coverage Gate (>= 85%)
-        run: uv run pytest -m "not live and not simulation" --cov=src --cov-fail-under=85 tests/
-
-  simulation-tests:
-    name: Synthetic-Learner Simulation Tests
-    # Slow, deterministic-seed scheduler runs. PRs to main only, per
-    # docs/00-index.md's test taxonomy table.
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          version: "latest"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Dependencies
-        run: uv sync
-
-      - name: Run Simulation Tests
-        run: uv run pytest -m simulation tests/
-
-  live-tests:
-    name: Live API Tests (Nightly, main only)
-    # Real API / real network calls. CLAUDE.md rule 7: run only on main, only on
-    # a nightly schedule -- never on a push or a PR, however main-adjacent.
-    if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          version: "latest"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Dependencies
-        run: uv sync
-
-      - name: Run Live Tests
-        run: uv run pytest -m live tests/
-        env:
-          GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
-          GEMINI_PAID_API_KEY: ${{ secrets.GEMINI_PAID_API_KEY }}
+        run: uv run pytest --cov=src --cov-fail-under=85 tests/

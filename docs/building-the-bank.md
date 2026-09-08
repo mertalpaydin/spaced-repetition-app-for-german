@@ -1,5 +1,7 @@
 # Building the bank
 
+> **STALE as of 2026-09-08.** This describes the German grammar trainer, which was shut down and pruned on `feat/phrase-deck`. Kept for the reasoning only. The current project is the phrase trainer; read `docs/project-state.md`.
+>
 > **This has never been run.** It is a plan with measured figures behind it, not
 > a record of a build. There is no item bank.
 >

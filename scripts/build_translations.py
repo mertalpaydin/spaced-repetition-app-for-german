@@ -262,9 +262,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 from src.contracts import MODEL_GENERATE
-from src.generation.blanking.sentence_source import client_from_env
 from src.llm.client import GeminiLlmClient
-from src.llm.env import load_env_file
+from src.llm.env import client_from_env, load_env_file
 from src.llm.translation import (
     AZURE_MAX_BATCH,
     AzureTranslator,

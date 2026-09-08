@@ -1,4 +1,4 @@
-"""Unit tests for the FSRS engine, parity vectors, and hint policy."""
+"""Unit tests for the FSRS engine and its parity vectors."""
 
 import json
 from datetime import UTC, datetime, timedelta
@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 from src.contracts import FsrsRating
 from src.engine.fsrs import FSRSEngine, FSRSRecord
-from src.engine.hints import HintPolicy
 
 
 @pytest.fixture
@@ -76,22 +75,3 @@ def test_fsrs_parity_vectors() -> None:
             card = engine.schedule_review(card, rating=rating, now=curr_time)
             assert card.state == step["expected_state"]
             assert card.stability is not None and card.stability > 0
-
-
-def test_hint_policy_evaluations() -> None:
-    """Test hint level translation to FSRS ratings."""
-    # Hint 0 + correct -> good (or easy if fast)
-    assert HintPolicy.evaluate_attempt(hint_level=0, is_correct=True, is_fast=False) == "good"
-    assert HintPolicy.evaluate_attempt(hint_level=0, is_correct=True, is_fast=True) == "easy"
-
-    # Hint 1 or 2 + correct -> hard
-    assert HintPolicy.evaluate_attempt(hint_level=1, is_correct=True) == "hard"
-    assert HintPolicy.evaluate_attempt(hint_level=2, is_correct=True) == "hard"
-
-    # Hint 3 (rule stated) or Hint 4 (revealed) -> again
-    assert HintPolicy.evaluate_attempt(hint_level=3, is_correct=True) == "again"
-    assert HintPolicy.evaluate_attempt(hint_level=4, is_correct=True) == "again"
-
-    # Any incorrect answer -> again
-    assert HintPolicy.evaluate_attempt(hint_level=0, is_correct=False) == "again"
-    assert HintPolicy.evaluate_attempt(hint_level=2, is_correct=False) == "again"

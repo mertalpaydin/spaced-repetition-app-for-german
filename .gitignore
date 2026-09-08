@@ -149,7 +149,11 @@ Thumbs.db
 # CLAUDE.md already named and tracked from 2026-08-28.
 logs/
 
-# Phase A output: hundreds of MB of generated candidates, rebuilt by re-running
-# phase A. Never committed (CLAUDE.md section 5).
+# Phrase-deck build intermediates (scripts/build_phrase_deck.py): hundreds of MB
+# of parsed occurrences, rebuilt by re-running the parse stage. Never committed.
+data/phrases/build/
+data/review_log.jsonl
+
+# Grammar-trainer leftovers on the owner's disk; deleted by hand, never committed.
 data/corpus_candidate_pool.json
 data/*_pool.json

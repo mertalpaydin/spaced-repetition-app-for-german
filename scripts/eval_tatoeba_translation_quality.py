@@ -62,7 +62,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from scripts.corpus_reading import SOURCE_TATOEBA, read_corpus_lines
+from scripts.corpus_reading import SOURCE_TATOEBA, CorpusLine, read_corpus_lines
 
 DEFAULT_GERMAN_PATH = Path("data/raw/_extract/tatoeba_deu.tsv")
 
@@ -217,14 +217,13 @@ def main() -> int:
         f"({100 * len(covered) / max(len(carriers), 1):.1f}%)"
     )
 
-    covered_pairs = [
-        (
-            (by_german_id.get(c.line_id) if c.source == SOURCE_TATOEBA else None)
-            or by_german_text.get(c.text)
-            or [None]
-        )[0]
-        for c in covered
-    ]
+    def _first_pair(c: CorpusLine) -> Pair | None:
+        found = (by_german_id.get(c.line_id) if c.source == SOURCE_TATOEBA else None) or (
+            by_german_text.get(c.text)
+        )
+        return found[0] if found else None
+
+    covered_pairs = [_first_pair(c) for c in covered]
     usable = [p for p in covered_pairs if p is not None]
     implausible = [p for p in usable if _length_ratio_implausible(p)]
     print(

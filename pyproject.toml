@@ -1,7 +1,7 @@
 [project]
-name = "german-grammar-trainer"
+name = "german-phrase-trainer"
 version = "0.1.0"
-description = "Interleaved German Grammar Trainer (A1-B2)"
+description = "German phrase spaced-repetition trainer"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -11,23 +11,11 @@ dependencies = [
     "google-genai>=1.0.0",
     "httpx>=0.27.0",
     "spacy>=3.7.4",
-    # German morphological tagging model for src/taxonomy/tagger.py. Pinned to
+    # German tagger/parser model for src/phrases/. Pinned to
     # an exact wheel build (rather than a spaCy-style `de_core_news_sm==...`
     # extra, which relies on pip's now-deprecated direct-URL "egg" hack) so a
     # fresh `uv sync` fetches it with no manual `spacy download` step.
     "de-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl",
-    # English morphological tagging model for
-    # src/generation/gloss_validation.py's mechanical gloss-consistency
-    # check (docs/audits/generation-track-plan.md Cycle 3). Pinned the same
-    # way as de-core-news-sm above, same reason: without this, a fresh
-    # checkout silently falls back to gloss_validation's closed-list
-    # heuristic (it logs a warning when that happens, but nothing forces
-    # anyone to read the log), which under-detects a wrong gloss instead of
-    # failing loudly.
-    "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
-    "rich>=13.7.1",
-    "typer>=0.12.3",
-    "pypdf>=6.16.0",
     # Windows ships no system tz database; ZoneInfo needs this for the
     # Pacific-midnight Gemini RPD quota reset (docs/01-foundation.md stage 0).
     "tzdata>=2024.1",
@@ -90,8 +78,6 @@ warn_return_any = true
 minversion = "8.0"
 testpaths = ["tests"]
 markers = [
-    "simulation: synthetic-learner scheduler runs (slow, deterministic seed)",
-    "live: real API or real network (nightly only)",
     "golden: compares against a versioned fixture",
 ]
 filterwarnings = [

@@ -149,16 +149,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import sqlite3
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from src.generation.blanking import carrier_validation
-from src.generation.blanking.sentence_source import client_from_env
-from src.generation.candidate_pool import DEFAULT_POOL_PATH, CandidatePool, PoolFormatError
-from src.llm.env import load_env_file
+from src.llm.env import client_from_env, load_env_file
 from src.llm.translation import (
     AZURE_F0_MONTHLY_CHARACTERS,
     AzureTranslator,
@@ -177,6 +173,7 @@ from src.llm.translation_ledger import (
     save_ledger_atomic,
     utc_now,
 )
+from src.phrases import carrier_validation
 
 from scripts.build_translations import (
     DEFAULT_LEIPZIG_PATH,
@@ -275,14 +272,16 @@ def _carrier_is_usable(text: str) -> bool:
     return carrier_validation.validate_carrier(text).accepted
 
 
-def load_exercise_carriers(
-    pool_path: Path | None, bank_path: Path | None
-) -> tuple[frozenset[str], list[str]]:
-    """German carrier texts that are, or are about to be, real exercises.
+DEFAULT_WANTED_CARRIERS_PATH = Path("data/phrases/build/wanted_carriers.txt")
 
-    Read from a phase-A candidate pool and from a built bank. Both are
-    optional and a missing one is not an error: a machine that has never run
-    phase A simply has no pass 0, and the job behaves as it did before.
+
+def load_exercise_carriers(carriers_path: Path | None) -> tuple[frozenset[str], list[str]]:
+    """German carrier texts the phrase deck wants glossed first (pass 0).
+
+    ``scripts/build_phrase_deck.py --stage cards`` writes one line per wanted
+    sentence, ``source<TAB>line_id<TAB>text`` (a bare ``text`` line is accepted
+    too). A missing file is not an error: a machine that has never built the
+    deck simply has no pass 0, and the job behaves as it did before.
 
     Returns the texts plus human-readable notes for the report, because "pass 0
     was empty" and "pass 0 was skipped because the file is not there" look
@@ -290,40 +289,19 @@ def load_exercise_carriers(
     """
     texts: set[str] = set()
     notes: list[str] = []
-
-    if pool_path is not None:
-        if pool_path.exists():
-            try:
-                pool = CandidatePool.load(pool_path)
-            except PoolFormatError as exc:
-                notes.append(f"pool at {pool_path} could not be read ({exc})")
-            else:
-                found = {p.text for p in pool.provenance.values()}
-                texts |= found
-                notes.append(f"{len(found)} carrier(s) from the candidate pool {pool_path}")
-        else:
-            notes.append(f"no candidate pool at {pool_path}")
-
-    if bank_path is not None:
-        if bank_path.exists():
-            try:
-                with sqlite3.connect(bank_path) as connection:
-                    rows = connection.execute("SELECT prompt FROM items").fetchall()
-            except sqlite3.Error as exc:
-                notes.append(f"bank at {bank_path} could not be read ({exc})")
-            else:
-                # A banked item stores its prompt with the gap, not the carrier
-                # it came from, so this cannot be matched against corpus text
-                # directly. Counted and reported rather than silently ignored;
-                # closing the gap needs the carrier recorded on the item, which
-                # is a schema change and not this job's to make.
-                notes.append(
-                    f"{len(rows)} item(s) in the bank at {bank_path}, not matched: "
-                    "a banked item records its gapped prompt, not its carrier"
-                )
-        else:
-            notes.append(f"no bank at {bank_path}")
-
+    if carriers_path is None:
+        return frozenset(), notes
+    if not carriers_path.exists():
+        notes.append(f"no wanted-carriers file at {carriers_path}")
+        return frozenset(), notes
+    for raw in carriers_path.read_text(encoding="utf-8").splitlines():
+        line = raw.rstrip("\r")
+        if not line.strip():
+            continue
+        text = line.split("\t")[-1].strip()
+        if text:
+            texts.add(text)
+    notes.append(f"{len(texts)} carrier(s) wanted by the phrase deck, from {carriers_path}")
     return frozenset(texts), notes
 
 
@@ -862,21 +840,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT_PER_SOURCE)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument(
-        "--pool-file",
+        "--carriers-file",
         type=str,
-        default=str(DEFAULT_POOL_PATH),
+        default=str(DEFAULT_WANTED_CARRIERS_PATH),
         help=(
-            "Phase-A candidate pool. Its carriers are translated FIRST, before "
-            "the corpus at large: they are the sentences that actually become "
-            "exercises, and a 1,225-item bank needs about 3.4%% of one month's "
-            "allowance."
+            "Sentences the phrase deck wants glossed, written by "
+            "scripts/build_phrase_deck.py --stage cards. Translated FIRST, before "
+            "the corpus at large: they are the sentences that actually become cards."
         ),
-    )
-    parser.add_argument(
-        "--bank-file",
-        type=str,
-        default="data/bank.db",
-        help="Built bank, read alongside the pool for pass 0.",
     )
     parser.add_argument(
         "--no-priority-carriers",
@@ -962,8 +933,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     exercise_carriers, pass_zero_notes = load_exercise_carriers(
-        None if args.no_priority_carriers else Path(args.pool_file),
-        None if args.no_priority_carriers else Path(args.bank_file),
+        None if args.no_priority_carriers else Path(args.carriers_file),
     )
     print("\n  Pass 0, carriers that are or will be exercises:")
     for note in pass_zero_notes:

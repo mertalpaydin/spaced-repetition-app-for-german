@@ -1,22 +1,6 @@
-"""Learning Engine package for multi-dimensional FSRS scheduling, topic state, and pacing."""
+"""Learning engine: FSRS over phrase units and typo-tolerant grading."""
 
-from src.contracts import HintLevel
 from src.engine.fsrs import FSRSEngine, FSRSRecord
-from src.engine.hints import HintPolicy
-from src.engine.scheduler import LearningScheduler
-from src.engine.simulation import LearnerSimulationHarness, SimulationSummary
-from src.engine.topic_state import TopicStateManager
 from src.engine.typo_grader import ScopedTypoGrader, TypoGradeResult
 
-__all__ = [
-    "FSRSEngine",
-    "FSRSRecord",
-    "HintLevel",
-    "HintPolicy",
-    "TopicStateManager",
-    "LearningScheduler",
-    "ScopedTypoGrader",
-    "TypoGradeResult",
-    "LearnerSimulationHarness",
-    "SimulationSummary",
-]
+__all__ = ["FSRSEngine", "FSRSRecord", "ScopedTypoGrader", "TypoGradeResult"]

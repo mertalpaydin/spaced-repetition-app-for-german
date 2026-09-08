@@ -1,352 +1,108 @@
-# Project state, 28 August 2026
+# Project state, 8 September 2026
 
 Written for the next person to work on this repository. It says what the
-project is, how it works, what is built, what is not, and what will trip you
-up.
+project is, what is built, what is not, and what will trip you up.
 
-Read `README.md` first for setup and where things live. Read `CLAUDE.md` for
-the rules you have to follow while working here. Open work is in `TODO.md`.
+Read `README.md` first for setup. Read `CLAUDE.md` for the rules. Open work is
+in `TODO.md`, by phase.
 
 ---
 
 ## What this is
 
-A German grammar trainer, A1 to B2. The learner reads a German sentence with
-one word missing and types the missing word.
+A personal, German-only phrase spaced-repetition trainer. The learner reads a
+real German sentence with the tokens of one phrase blanked, sees the sentence's
+English translation, and types the missing tokens. FSRS schedules phrase units;
+units are introduced most-frequent first, trivial function words are skipped,
+and a one-time triage lets the learner mark phrases already known.
 
-Exercises from different grammar topics are shown back to back, on purpose.
-Ten dative questions in a row is easier and teaches less. Mixed topics force
-the learner to work out which rule applies before applying it. That work is
-the product.
+A phrase unit is a verb with its preposition (`warten auf`), a reflexive verb
+(`sich interessieren für`), a separable verb (`aufstehen`), a noun-verb or
+adjective-noun collocation (`eine Entscheidung treffen`), a connector including
+two-part ones (`trotzdem`, `zwar … aber`), or a fixed expression
+(`auf jeden Fall`). A unit may be discontinuous in the sentence and is taught
+across its surface forms, never as one fixed string. Sentence-initial connectors
+get a generated preceding sentence so the connector has something to connect.
 
-Which topic comes up when is scheduled by spaced repetition. The scheduler is
-FSRS, and it schedules grammar topics, not individual sentences.
+## Where it came from
 
-The full design argument is in `docs/plan/german-grammar-app-plan.md`. It is
-already argued there. Do not re-derive it.
+Until 2026-09-08 this repository was an interleaved German grammar trainer.
+It was shut down that day after its first bank audit found 3.7% defective
+items, 76% of them wrong topic attribution that the design could not catch
+(`docs/audits/cycle-31-bank-audit.md`). The owner decided to salvage the
+corpus, the translation store, the sentence validator and the frequency data
+into a phrase trainer instead.
 
----
+The grammar trainer's code survives on `main` and `feat/generate-then-blank`.
+Its design record (`docs/plan/`, `docs/00-` to `04-*.md`,
+`docs/building-the-bank.md`, `docs/known-defects.md`) carries a dated STALE
+header and is kept for the reasoning, not as instructions. `docs/audits/` is
+untouched.
 
-## The one rule that shapes everything
+## The phases
 
-**An exercise must never say which grammar point it tests.** No "put this in
-the dative". The learner has to work that out from the sentence.
+Owner's instruction: strictly ordered, each confirmed before the next starts.
 
-This is CLAUDE.md rule 2. Everything bends around it. It is why the model that
-checks finished exercises is not told the topic either, and that is why the
-model is blind to a whole family of defect. See "What we know because we
-measured it" below.
-
----
-
-## How an exercise is made
-
-Five steps. No step invents German.
-
-1. **Read a real sentence** from a corpus. Two corpora: Tatoeba (everyday
-   sentences) and Leipzig (news prose).
-2. **Check the sentence can carry an exercise.** Scraped junk, a headline with
-   no main verb, Swiss spelling, a quote that starts mid-sentence: dropped.
-3. **Tag it** with spaCy (`de_core_news_sm`), and work out which grammar topic
-   the sentence can teach.
-4. **Blank one word.** That word is the answer. A short cue in brackets, like
-   `(gehen)`, names the word but not the grammar.
-5. **Check the finished exercise.** First a chain of deterministic rules, then
-   one call to a Gemini model as a backstop.
-
-Every exercise also carries an English translation of the whole sentence. It
-is machine translation from Azure Translator's free tier. The learner always
-sees it. The checker in step 5 sees it too, and may use it to rule out a
-second possible answer. Example: `(können)` alone leaves `kann`, `konnte` and
-`könnte` all open, and the English settles which one.
-
-The code is `src/generation/blanking/` (steps 2 to 4) and `src/verification/`
-plus `src/generation/blanking/model_verification.py` (step 5).
+1. **Exercise generation.** Mine every phrase kind from the corpus, pick
+   glossed sentences, export a deck. If the mined units are junk, stop here.
+2. **FSRS and a terminal client.** Usable on the laptop without any web part.
+3. **The PWA.** GitHub Pages, offline, phone. Least critical.
 
 ---
 
 ## What is built and working
 
-As of 2026-08-28.
+As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
 
-- **The corpus pipeline, end to end.** 450,490 usable sentences from the two
-  corpora, counted on the owner's machine. `scripts/step7_corpus_pilot.py`
-  runs the whole thing.
-- **The verification chain.** Deterministic rules for schema, topic leak,
-  morphology, answer uniqueness, vocabulary level and duplicates, plus the one
-  model call.
-- **Topic coverage.** `data/taxonomy.yaml` has 87 topics. 49 of them have a
-  selector, so 49 can be filled from the corpus today.
-- **Translation.** Azure Translator free tier, Gemini as fallback, a store on
-  disk, and a monthly top-up script that remembers what it has already spent.
-- **Cost accounting.** Every API attempt writes a row, failures included. The
-  monthly ceiling is enforced in code. `scripts/reconcile_cost_log.py` compares
-  the log against Google's own bill.
-- **The learning engine.** FSRS over topics, the Kalibrierung diagnostic, a
-  synthetic-learner simulation harness.
-- **A terminal client** with typo-tolerant grading.
-- **A PWA** in `web/`. Offline, installable, IndexedDB, and it renders the
-  English translation under the sentence.
-- **A Cloudflare Worker** in `worker/` for review-log sync.
-- **1788 tests pass.** `ruff check`, `ruff format --check` and
-  `mypy --strict src/` are all clean.
-
----
+- **The corpus reader.** `scripts/corpus_reading.py` reads both corpora: about
+  400,000 Tatoeba and 205,000 Leipzig lines under `data/raw/_extract/`.
+- **The sentence validator.** `src/phrases/carrier_validation.py`,
+  21 deterministic rules over a spaCy parse, measured on the grammar trainer.
+  It is the only module that loads the German parser.
+- **Verb tables and government.** `src/phrases/paradigms.py` (reflexive hand
+  lists, modal and auxiliary lemmas, prefix tables) and
+  `src/phrases/verb_government.py` over the frozen fixture
+  `data/fixtures/verb_government/lexicon.v1.jsonl` (2,720 verbs, corpus
+  counts of reflexive and object case).
+- **Frequency and CEFR.** `src/lexicon/` with the OpenSubtitles 50k list and
+  a 16,825-lemma CEFR list.
+- **The gloss store and its top-up.** `data/fixtures/translations/de_en.jsonl`
+  holds 258,806 records: 199,837 Tatoeba (never shown), 58,709 Azure, 260
+  Gemini. `scripts/monthly_translation_topup.py` spends Azure's free 2,000,000
+  characters a month and now takes `--carriers-file` so the deck can steer it.
+- **The LLM client** with cost log, cache and the two-lane policy, unchanged.
+  `client_from_env` moved to `src/llm/env.py`.
+- **The FSRS wrapper** (`src/engine/fsrs.py`, over the `fsrs` package) and the
+  typo grader, kept for phase 2.
+- **675 tests pass.** `ruff`, `ruff format --check` and
+  `mypy --strict src/ scripts/` are clean. Coverage on `src/` is 87%.
 
 ## What is not built
 
-### The item bank exists since 2026-09-08, audited once, and the project is shut down
-
-**The owner shut the project down on 2026-09-08.** Nothing is scheduled to
-change from here except the daily "LLA monthly translation" task, which is
-still enabled and sends nothing until October's Azure allowance, and can be
-disabled with `schtasks /Change /TN "LLA monthly translation" /DISABLE`.
-
-The 1,021 items banked that day were audited by eight Claude agents
-(`docs/audits/cycle-31-bank-audit.md`): 38 defective (3.7%), 5 of them
-HIGH. 29 are wrong topic attribution, which the model verifier cannot see by
-design; 5 are missing accepted answers; 2 are wrong glosses. None were
-removed.
-
-
-`data/bank.db` holds 1,495 items: 474 from earlier cycles and 1,021 banked on
-2026-09-08 by the two-pass phase B over the 1,225-item candidate pool (fix-log
-cycle 31). Every one of the 1,021 was accepted by both verifier passes at
-batch 5 and carries an English gloss. The pass disagreement rate was 16 of
-1,225 (1.3%); 79 items were rejected by at least one pass and 54 more were
-refused by the bank's own validator (`TODO.md` item 1).
-
-What has NOT been done: the false-positive audit over the rejections
-(`TODO.md` item 2), any hand audit of the 1,021 beyond cycle 28's 73, and the
-web export. `web/data/` is still a demo export from 84 development items.
-
-### The AI-generation path is running in CI and nobody has measured it
-
-There are two ways to make an exercise in this repository. The corpus path
-above is the one that is used, measured and audited.
-
-The other one asks a Gemini model to write German sentences, then blanks and
-verifies those. It lives in `src/generation/batch_client.py`. It has unit
-tests with fake clients, and it is wired into two scheduled workflows:
-
-- `.github/workflows/generate-submit.yml`, daily at 02:00 UTC
-- `.github/workflows/generate-ingest.yml`, daily at 08:00 UTC
-
-Both read `GEMINI_FREE_API_KEY` and `GEMINI_PAID_API_KEY` from repository
-secrets. With no secrets set they do nothing. Set the secrets, on a fork or
-anywhere else, and this path starts generating and spending every night.
-
-Its output has not been audited since the project moved to the corpus path.
-The last real measurements of it are the stage 4 pilots of 13 to 15 August
-2026 in `docs/audits/`. Nothing in `TODO.md`, `docs/known-defects.md` or the
-fix log mentions these workflows at all.
-
-### Smaller gaps
-
-- **Vocabulary FSRS.** Specified, not started. `TODO.md`.
-- **Click a word to see it in other sentences.** Specified, not started. It
-  needs the translation store finished first.
-- **CSS wiring bugs in `web/`.** Three confirmed, all class-name mismatches
-  between the markup and `web/styles.css`:
-  - `web/app.js` sets `feedback-box correct` and `feedback-box incorrect`;
-    the stylesheet defines `.feedback-box.success` and `.feedback-box.error`.
-    Right and wrong answers get no colour.
-  - `web/app.js` toggles `active` on the hint box; the stylesheet defines
-    `.hint-content.visible`, and `.hint-content` is `display: none`. The hint
-    never appears.
-  - `web/index.html` gives the topic map `class="dag-tree-grid"`; the
-    stylesheet defines `.dag-grid`. The grid layout never applies.
-- **Two pytest markers are declared and used by nothing, and CI fails on it.**
-  `live` and `simulation` in `pyproject.toml` are applied to zero tests.
-  `pytest -m simulation` therefore selects nothing and exits 5, and
-  `.github/workflows/ci.yml` runs exactly that in its `simulation-tests` job on
-  every pull request to `main`. So the PR gate is red before you write a line.
-  The nightly `live-tests` job on `main` fails the same way. `golden` is used
-  and is fine. `TODO.md` carries it.
-
----
-
-## What we know because we measured it
-
-`docs/known-defects.md` explains every defect class in plain English, with real
-examples. Read that for the detail. What follows is only what the numbers mean.
-
-**The model backstop was measured for the first time on 2026-08-28.** Recall
-60.5%, false positives 12.9%.
-
-- **The 60.5% understates it, and the fixture is why.** 18 of its 38 records
-  are exercises that are correct German with one right answer, and are defects
-  only because of which topic they were filed under. The model is never told
-  the topic, per the rule above, so it cannot see those at all. On the 20
-  records whose defect is visible in what the model is actually shown, it
-  caught 15.
-- The 14 records that this pass had never screened before were all 14 caught.
-  Read that with a caveat: 9 of the 14 are quoted as sentence fragments rather
-  than whole sentences, and a fragment gets rejected on its form whatever it
-  was filed for.
-- **The 15 misses do not reach a learner.** They fall into five families, every
-  one of which already has a deterministic rule that runs earlier. Four of the
-  five were verified closed by running the shipped code against the fixture's
-  own sentences. The model is a weak second net over a working first net. It is
-  a discovery instrument, not a gate.
-- The 12.9% is the number that costs money. It throws away roughly one good
-  exercise in eight, silently. Nothing says why an item is missing.
-
-**The translation checker was measured the same day.** It catches 22 of 36
-deliberately wrong translations, with 0 false positives on 36 correct ones. It
-catches **0 of 6** where the translation has the wrong number, singular against
-plural.
-
-That last one matters more than the total. The learner sees the translation and
-uses it. A translation with the wrong number points at the wrong answer:
-
-    Ich habe schöne ___ gesehen.        answer: Häuser
-    "I saw a beautiful house."
-
-**An open question, not a settled one.** `docs/building-the-bank.md` specifies
-two verification passes. Two passes reject anything either pass rejects, so
-they union their false positives as well as their catches. That decision was
-made before the 12.9% existed. Re-read it before you build the bank. `TODO.md`
-carries it as an item.
-
-**Free-tier reality.** The verify model gets roughly 25 to 36 requests a day on
-Google's free tier, and most come back 503. Verifying a 1,225-item bank is 245
-requests for one pass and 490 for two. Neither finishes on the free lane in one
-sitting. `docs/building-the-bank.md` has the way to spread a one-pass build
-across several days without spending anything.
-
----
-
-## Local models were evaluated as the verifier, and rejected
-
-**Measured 2026-08-28. Full record in `docs/audits/local-verifier-eval.md`.**
-
-Five local models were run against the same two golden fixtures, through the
-same `verify_items` pass, on the owner's RTX 4070 Laptop (8188 MiB). None is
-usable. Ranked by false-positive rate, the figure that decides affordability:
-
-| Model | Recall (visible) | False positives |
-|---|---:|---:|
-| Gemini 3.7 Flash (baseline) | 75.0% | 12.9% |
-| Gemma 4 12B Q3_K_S | 11.1% | 3.4% |
-| Qwen3.5 9B IQ4_XS | 47.4% | 26.9% |
-| Ministral 3 14B Instruct UD-IQ2_M | 60.0% | 51.7% |
-| Granite 4.2 3B Q5_K_M | 69.2% | 53.3% |
-
-Every model that catches a useful share of defects rejects a quarter to half of
-all good candidates. Gemma is the exception and catches almost nothing. GLM-4.7
-Flash was not tested: it is a ~30B mixture of experts whose smallest
-quantisation is 13.78 GB. Ministral Reasoning was stopped after 3 calls, needing
-17.7 hours at best for a real bank build against the hosted verifier's 30 to 45
-minutes.
-
-The saving would have been about $3.28 per bank build. The cost would have been
-most of the corpus's good candidates.
-
-**What was kept.** `src/llm/local_client.py` (an ollama-backed client, writing a
-`cost_log` row per call with `lane="local"` and zero cost) and
-`scripts/eval_local_verifier.py`, so the next cheap model release is a
-one-command question rather than a day's work.
-
-**Two contract changes, flagged per CLAUDE.md rule 8.** `verify_items` and
-`cache_coverage` now take a `VerifyingLlmClient` Protocol rather than a concrete
-`GeminiLlmClient` (a widening; every existing caller satisfies it structurally).
-`Lane` and `LoggedMode` gained a `"local"` value (additive; no historical row
-carries it).
-
-**Four things that would have produced wrong numbers, and did until they were
-found.** They are the reusable part of this exercise:
-
-- **Use ollama's `/api/chat`, never `/api/generate`.** Only the chat endpoint
-  applies the model's chat template, which is what separates a reasoning model's
-  thinking from its answer. Through the completion endpoint Granite's reasoning
-  arrived as unmarked prose with no JSON anywhere.
-- **The hosted baseline was measured at `--batch-size 5`,** not the script's
-  default of 20. The default gives a number that looks comparable and is not.
-- **Local models cannot hold five items in one prompt.** Four of five failed at
-  batch 5 and passed at batch 2. Start any future local work at batch 2.
-- **Reasoning cannot be bounded on these models, only switched off.** ollama's
-  `think: "low"` and `"medium"` are silently ignored. With reasoning on, neither
-  Qwen nor Granite ever answered, at any batch size or token cap up to 32,768.
-  Every number above is therefore measured with reasoning off.
-
----
-
-## Money
-
-The recurring budget is **7.50 USD a month**. It is enforced in code, in
-`GeminiLlmClient.spend_ceiling_usd`, and pinned by a test. August 2026 spent
-5.21 USD of it.
-
-There are two Gemini lanes, backed by two separate Google Cloud projects: a
-free one and a billed one. Two projects are mandatory, not an optimisation.
-Enabling billing on a project destroys its free tier.
-
-`--free-lane-only` on the eval and pilot scripts guarantees zero spend. It
-refuses to start rather than risk billing you.
-
-The English translation is Azure Translator's free F0 tier: 2,000,000
-characters a month, no card. Translating the whole corpus at that rate takes
-about 12 monthly runs. **Since 2026-09-08 the month ends when Azure refuses a
-call, not when the ledger's count reaches 2,000,000**: the count is an
-estimate (another script spent ~66,000 characters past it that day and Azure
-kept answering), the refusal is recorded as `azure_quota_rejected` in
-`data/fixtures/translations/azure_f0_ledger.json`, and both the monthly job
-and phase B of the pilot gate on that flag. **The candidate pool is fully
-glossed** as of that day (1,208 Azure, 16 Gemini of 1,224 carriers), so phase
-B no longer waits on translation.
-
-**Read CLAUDE.md section 9 before you make any API call.** It has the lane
-rules, the model routing, the two kinds of 429, and the caching policy. Do not
-work around it.
-
-Because 5.21 of 7.50 is already spent, the 3.28 USD bank build does not fit in
-August. September resets it.
+- **Everything in phase 1.** No contracts, no parser layer, no miners, no
+  cards, no export. `docs/phrase-deck.md` records the intended commands.
+- **Phase 2 and 3.** `web/` is the grammar trainer's PWA, untouched; it falls
+  back to six seed items because `web/data/` was deleted.
 
 ---
 
 ## What would bite you first
 
-1. **`data/fixtures/translations/de_en.jsonl` is not a test fixture.** The path
-   says `fixtures` and it is a lie inherited from a default argument. It is a
-   35 MB operational store of about 200,000 machine translations, built a bit
-   at a time against a free monthly allowance. It is gitignored, so it exists
-   only on the owner's machine. Rebuilding it costs weeks of free tier.
-   Deleting it is the most expensive mistake available in this repository.
-   Never delete it, never commit it, do not "tidy" `data/fixtures/`.
-
-2. **Set `GEMINI_FREE_API_KEY` to a key from an unbilled project.** If it is
-   unset, the code falls back to `GEMINI_API_KEY`. On the owner's machine that
-   was the billed key, so every "free" call would have billed. This is why
-   `--free-lane-only` refuses to run without `GEMINI_FREE_API_KEY` set
-   explicitly.
-
-3. **The nightly workflows spend money on an unmeasured path.** See "What is
-   not built". Do not enable repository secrets on a fork without deciding
-   about those two workflows first.
-
-4. **The repo root is the working directory.** There is no nested project
-   folder. Old documents referring to a `Language_Learning_App/` directory are
-   wrong.
-
-5. **`uv sync` installs both spaCy models.** German and English, from pinned
-   wheels, pinned in `pyproject.toml`. There is no separate `spacy download`
-   step, and adding one would pull a version the pins do not expect.
-
-6. **The corpora are not in the repository.** They are staged by hand at
-   `data/raw/_extract/tatoeba_deu.tsv` and
-   `data/raw/_extract/leipzig_sample.txt`. If they are missing, the pipeline
-   does not fail. It quietly produces fewer items. Check the files are there
-   rather than trusting the exit code.
-
-7. **`docs/audits/` is a historical record, not instructions.** Those files
-   describe the repository on the day they were written and several are now
-   wrong on purpose. Where an audit and `CLAUDE.md` disagree, `CLAUDE.md`
-   wins. One of them proposes relaxing rule 2. That proposal was not adopted.
-   `docs/audits/README.md` dates every file and marks the four that read as
-   live work and are not.
-
-8. **Do not weaken a test to make it pass.** Several constants are pinned by a
-   test whose whole job is to make you ask the owner first: the spend ceiling,
-   the retry shape, and the decision not to trust Tatoeba's own English. The
-   test failing is the feature.
+1. **`data/fixtures/translations/de_en.jsonl` is not a test fixture.** It is a
+   48 MB operational store built a bit at a time against a free monthly
+   allowance, gitignored, existing only on the owner's machine. Never delete
+   it, never commit it.
+2. **Only 59k of the 259k stored glosses may reach a learner.** Cards need an
+   Azure or Gemini gloss. Coverage grows about 33,000 sentences a month; the
+   deck build tells the monthly job which sentences to gloss first.
+3. **Set `GEMINI_FREE_API_KEY` from an unbilled project.** The client falls
+   back to `GEMINI_API_KEY`, which on the owner's machine is the billed key.
+4. **The corpora are not in the repository** and the raw corpora are already
+   split into shuffled sentences: adjacent Leipzig lines are unrelated, so
+   two-sentence context cannot be mined, only generated.
+5. **The Windows scheduled task "LLA monthly translation" is still enabled.**
+   It sends nothing until October's Azure allowance and runs the script on
+   this branch's code once the branch is checked out.
+6. **Do not weaken a test to make it pass.** The spend ceiling, the retry
+   shapes and the Tatoeba trust decision are pinned by tests whose job is to
+   make you ask the owner first.

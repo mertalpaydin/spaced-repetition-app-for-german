@@ -48,14 +48,14 @@ def isolate_azure_ledger(
 ) -> None:
     """Keep every test off the operator's real Azure F0 ledger.
 
-    ``scripts/step7_corpus_pilot.py`` reads ``--ledger`` (default: the real
+    ``scripts/monthly_translation_topup.py`` reads ``--ledger`` (default: the real
     ``data/fixtures/translations/azure_f0_ledger.json``) before it decides
     whether to translate. Found 2026-09-08: the suite's phase B tests printed
     "the Azure ledger says month 2026-09 was refused on quota" because they
     were reading the owner's file. A test must never depend on, or write to,
     the month's real accounting.
     """
-    import scripts.step7_corpus_pilot as step7
+    import scripts.monthly_translation_topup as step7
 
     ledger_dir = tmp_path_factory.mktemp("azure-ledger")
     monkeypatch.setattr(step7, "DEFAULT_LEDGER_PATH", ledger_dir / "azure_f0_ledger.json")

@@ -1,5 +1,7 @@
 # 01: Foundation (Stages 0 to 2)
 
+> **STALE as of 2026-09-08.** This describes the German grammar trainer, which was shut down and pruned on `feat/phrase-deck`. Kept for the reasoning only. The current project is the phrase trainer; read `docs/project-state.md`.
+>
 > **Design record, written before most of the code existed. Not a description
 > of what the code does now.**
 >

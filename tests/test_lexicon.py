@@ -1,9 +1,8 @@
-"""Unit tests for the vocabulary store, frequency bander, and PDF extractor."""
+"""Unit tests for the vocabulary store and frequency bander."""
 
 from pathlib import Path
 
 import pytest
-from src.lexicon.extractor import WordlistPdfExtractor
 from src.lexicon.frequency import FrequencyBander
 from src.lexicon.lemmatizer import compound_split_candidates, lemma_candidates, normalise
 from src.lexicon.vocabulary import VocabularyStore
@@ -79,23 +78,6 @@ def test_frequency_bander() -> None:
         bander.classify_difficulty(["bundesverfassungsgericht", "arbeitsunfähigkeitsbescheinigung"])
         == 3
     )
-
-
-def test_pdf_extractor_handles_empty_dir(tmp_path: Path) -> None:
-    """Test PDF extractor returns empty dict when no files exist."""
-    extractor = WordlistPdfExtractor(tmp_path)
-    result = extractor.extract_all()
-    assert result == {}
-
-
-def test_pdf_extractor_extracts_from_raw_dir() -> None:
-    """Test PDF extractor extracts real lemmas from data/raw PDFs if present."""
-    raw_dir = Path(__file__).parent.parent / "data" / "raw"
-    if raw_dir.exists() and list(raw_dir.glob("*.pdf")):
-        extractor = WordlistPdfExtractor(raw_dir)
-        vocab = extractor.extract_all()
-        assert len(vocab) > 1000
-        assert "tisch" in vocab or "haus" in vocab
 
 
 def test_lemmatisation_handles_separable_verbs() -> None:
@@ -492,22 +474,6 @@ def test_genuinely_rare_specialist_words_are_not_mislabeled_b2(
     unresolved ("unknown"), the same honest state absence has always meant
     in this store -- not a false B2 label."""
     assert vocab_store.get_level(word) is None
-
-
-def test_extractor_no_longer_produces_english_contaminated_b2() -> None:
-    """WordlistPdfExtractor.extract_all used to scrape B2 from a bilingual
-    course glossary and, for that one source only, pick up English
-    translation-column words alongside the German headwords ("accompany",
-    "administer", "advertisement" were all tagged as German B2 vocabulary).
-    extract_all no longer extracts B2 at all (see its docstring), so no
-    English contamination and no B2 level can come from it any more."""
-    raw_dir = Path(__file__).parent.parent / "data" / "raw"
-    if not raw_dir.exists() or not list(raw_dir.glob("*.pdf")):
-        pytest.skip("data/raw PDFs not present in this environment")
-    extractor = WordlistPdfExtractor(raw_dir)
-    vocab = extractor.extract_all()
-    assert "B2" not in vocab.values()
-    assert "accompany" not in vocab
 
 
 def test_compound_split_candidates_finds_projekt_leiter() -> None:

@@ -16,11 +16,13 @@ SUFFIX_TOLERANCE_WINDOW = 2
 
 @lru_cache(maxsize=1)
 def _load_default_morph_spec_map() -> dict[str, bool]:
-    """Lazily load the taxonomy once and cache topic_id -> "is faceted" (has morph_spec)."""
-    from src.taxonomy.loader import load_taxonomy
+    """No topic is faceted any more.
 
-    topics = load_taxonomy()
-    return {t.id: bool(t.morph_spec) for t in topics}
+    The grammar taxonomy that used to scope typo tolerance per topic was
+    deleted with the pivot to the phrase deck; every phrase unit is graded at
+    the wider, unscoped tolerance (the same choice ``web/`` always made).
+    """
+    return {}
 
 
 class TypoGradeResult(BaseModel):

@@ -1162,7 +1162,7 @@ def test_carriers_that_cannot_host_an_exercise_are_skipped_entirely() -> None:
 
 
 def test_an_exercise_carrier_is_exempt_from_the_validity_filter() -> None:
-    """It demonstrably hosts an exercise: it is in the pool. Whatever a re-run
+    """It demonstrably hosts an exercise: it is wanted by the deck. Whatever a re-run
     of the validator says about it today, the allowance is already committed."""
     carriers = {"odd but sampled": _line("odd but sampled")}
     result = topup.prioritise(
@@ -1185,53 +1185,43 @@ def test_no_validity_predicate_keeps_every_carrier() -> None:
     assert result.carrier_invalid == 0
 
 
-def test_load_exercise_carriers_reads_a_pool(tmp_path: Path) -> None:
-    from src.generation.candidate_pool import CandidatePool, PooledProvenance
+def test_load_exercise_carriers_reads_a_wanted_carriers_file(tmp_path: Path) -> None:
+    carriers_path = tmp_path / "wanted_carriers.txt"
+    carriers_path.write_text(
+        "leipzig\t1\tErster Satz.\ntatoeba\t2\tZweiter Satz.\n\nDritter Satz.\n",
+        encoding="utf-8",
+    )
 
-    pool_path = tmp_path / "pool.json"
-    CandidatePool(
-        provenance={
-            "h1": PooledProvenance(source="leipzig", line_id="1", text="Erster Satz."),
-            "h2": PooledProvenance(source="tatoeba", line_id="2", text="Zweiter Satz."),
-        }
-    ).save(pool_path)
-
-    texts, notes = topup.load_exercise_carriers(pool_path, None)
-    assert texts == frozenset({"Erster Satz.", "Zweiter Satz."})
-    assert any("2 carrier(s)" in note for note in notes)
+    texts, notes = topup.load_exercise_carriers(carriers_path)
+    assert texts == frozenset({"Erster Satz.", "Zweiter Satz.", "Dritter Satz."})
+    assert any("3 carrier(s)" in note for note in notes)
 
 
-def test_load_exercise_carriers_is_not_an_error_when_there_is_no_pool(
+def test_load_exercise_carriers_is_not_an_error_when_there_is_no_file(
     tmp_path: Path,
 ) -> None:
-    """A machine that has never run phase A simply has no pass 0."""
-    texts, notes = topup.load_exercise_carriers(tmp_path / "absent.json", None)
+    """A machine that has never built the deck simply has no pass 0."""
+    texts, notes = topup.load_exercise_carriers(tmp_path / "absent.txt")
     assert texts == frozenset()
-    assert any("no candidate pool" in note for note in notes)
+    assert any("no wanted-carriers file" in note for note in notes)
 
 
-def test_main_wires_the_pool_into_pass_zero(
+def test_main_wires_the_wanted_carriers_into_pass_zero(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The scheduled job, not just ``run_topup``, must translate the pool first.
+    """The scheduled job, not just ``run_topup``, must translate pass 0 first.
 
     Regression: the September 2026 run printed the pass 0 notes and then spent
     the whole 2,000,000-character month in corpus order, because ``main`` loaded
-    the pool and never handed it to ``run_topup``. Only ``prioritise`` and
-    ``run_topup`` were tested; the wiring between them was not.
+    the priority list and never handed it to ``run_topup``.
     """
-    from src.generation.candidate_pool import CandidatePool, PooledProvenance
-
     carriers = _carriers(40)
-    # Two carriers from deep in the corpus order are "in the pool".
-    pooled = [_sentence(37), _sentence(23)]
-    pool_path = tmp_path / "pool.json"
-    CandidatePool(
-        provenance={
-            f"h{i}": PooledProvenance(source="leipzig", line_id=str(i), text=text)
-            for i, text in enumerate(pooled)
-        }
-    ).save(pool_path)
+    # Two carriers from deep in the corpus order are wanted by the deck.
+    wanted = [_sentence(37), _sentence(23)]
+    carriers_path = tmp_path / "wanted_carriers.txt"
+    carriers_path.write_text(
+        "".join(f"leipzig\t{i}\t{text}\n" for i, text in enumerate(wanted)), encoding="utf-8"
+    )
     translator = FakeTranslator()
     invalid_calls: list[str] = []
 
@@ -1253,10 +1243,8 @@ def test_main_wires_the_pool_into_pass_zero(
             str(tmp_path / "ledger.json"),
             "--report-file",
             str(tmp_path / "report.json"),
-            "--pool-file",
-            str(pool_path),
-            "--bank-file",
-            str(tmp_path / "absent.db"),
+            "--carriers-file",
+            str(carriers_path),
             "--monthly-budget",
             "100000",
             "--batch-size",
@@ -1266,7 +1254,7 @@ def test_main_wires_the_pool_into_pass_zero(
 
     assert exit_code == 0
     # Pass 0 is the first batch, whatever the hash order says.
-    assert set(translator.calls[0]) == set(pooled)
+    assert set(translator.calls[0]) == set(wanted)
     # And the validity filter is wired too: the rejected carrier never ships.
     assert invalid_calls
     assert _sentence(0) not in translator.translated
