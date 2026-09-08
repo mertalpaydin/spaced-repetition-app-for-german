@@ -194,7 +194,18 @@ $s.Settings.StopIfGoingOnBatteries = $false
 Set-ScheduledTask -TaskName "LLA pilot tick" -Settings $s.Settings
 ```
 
-**The task ships DISABLED.** Enable it only once phase A has produced a pool:
+**The task ships DISABLED, and is disabled again as of 2026-09-08.** Two
+things to know before enabling it, both learnt that day:
+
+- It runs under an interactive logon, so **a console window appears on the
+  desktop** for as long as a tick runs. That is the tick, not a hang.
+- Its phase B command has no `--require-gloss`, so a tick **translates** every
+  un-glossed pool carrier on Azure before verifying, against the shared Azure
+  ledger (phase B now reads and writes it). Do not enable it while another
+  phase B is running, and read `_gloss_translator` in
+  `scripts/step7_corpus_pilot.py` for what decides whether a run translates.
+
+Enable it only once phase A has produced a pool:
 
 ```powershell
 schtasks /Change /TN "LLA pilot tick" /ENABLE

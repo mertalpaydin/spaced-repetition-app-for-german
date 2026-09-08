@@ -3997,3 +3997,175 @@ test had loaded `.env` into the environment. Fixed with an explicit
 
 `uv run pytest -q`: 1939 passed. `ruff check`, `ruff format --check` and
 `mypy --strict src/` all clean.
+
+## Cycle 31, 8 September 2026: three defects that cost a month of Azure
+
+All three were found in one morning, in this order, and all three were mine.
+The owner's words: "your mistakes are costing me." They were. This entry is
+the account.
+
+### 1. Pass 0 never fired
+
+`91fa678` (29 August) added pass 0 to the monthly translation job: carriers
+that are or will be exercises are translated before the corpus at large,
+because a 1,225-item pool needs about 67,000 characters, 3.4% of one month,
+and hash order reaches them by coincidence somewhere across thirteen months.
+
+`main()` loaded the pool, printed "Pass 0: 1224 carrier(s)", and never passed
+`exercise_carriers` or `is_carrier_valid` into `run_topup`. Both defaulted
+off. The unit tests drove `prioritise` and `run_topup` directly and never
+`main`, so the wiring between them was untested and wrong.
+
+Measured cost: the 6 September run spent 1,999,321 characters in plain hash
+order. Of the 1,070 pool carriers that needed a gloss it reached 59, which is
+what chance predicts (1,070 of 392,691 untrusted carriers, times 28,500
+translated, is 78). The carrier-invalid skip was off as well, so the month
+also paid for sentences that can never host an exercise.
+
+Fix: two arguments passed through, and a test that drives `main` with a real
+pool file and asserts the pool is the first batch out. Three existing
+`main`-level tests needed an accept-all validator stub, because their
+synthetic `"Satz 0001."` carriers have no finite verb and the now-live spaCy
+filter rejected them; they test budget and degradation, not validity.
+
+### 2. `--require-gloss` translated 1,070 sentences it was meant to leave alone
+
+The flag's documented purpose is "verify what is already translated, spend
+nothing on translation". It filtered AFTER the gloss step. A run meant to
+verify the 154 glossed pool carriers first translated the other 1,070 (on
+Azure, ~66,000 characters, past a ledger that read 679 remaining) and then
+verified all 1,224. Killed after 27 minutes, at $0.03, nothing banked.
+
+Two things fell out of that:
+
+- **Azure accepted ~66,000 characters the ledger said it would not.** The
+  ledger counts what the monthly job sent; phase B had no ledger at all. The
+  count was an estimate pretending to be a gate.
+- **The pool is now fully glossed** (1,208 Azure, 16 Gemini), a month early.
+  The mistake bought the outcome; it just was not the way to buy it.
+
+Fix: `--require-gloss` now means no translator (`_gloss_translator`, one
+function with the three reasons to translate nothing, each with its own
+printed note). Phase B also reads the shared Azure ledger before translating
+and writes its own Azure characters and any refusal back to it, through a
+new `--ledger` flag.
+
+### 3. The ledger gated on its own count
+
+Owner's instruction: keep the character count, add a binary field for
+"Azure rejected the last call on quota", and gate on that, not the count.
+
+- `AzureTranslator` raises `AzureQuotaExhausted` (a `TranslationError`) on a
+  403 whose body names the quota (codes 403000/403001), and sets
+  `quota_exhausted`. Any other 403 (a bad key, a wrong region) is still a
+  plain `TranslationError` and is NOT recorded as a spent month, or a typo
+  would silence the job until the first of next month.
+- `MonthlySpend.azure_quota_rejected` and `azure_quota_rejected_at`, both
+  additive: every ledger on disk still loads.
+- `run_topup`: a month already refused sends nothing; a month not refused
+  sends until Azure refuses, whatever the count says, then records the
+  refusal and stops (`run_backfill(stop_when=...)`, checked after each batch
+  so nothing is left half-done). `--max-characters` still bounds one run;
+  `--headroom-characters` survives only in the printed allowance and the
+  months-remaining estimate.
+
+Eleven tests asserted the old contract (the count stops the run). They were
+rewritten to the new one, not deleted: each now drives a real
+`AzureTranslator` against a fake endpoint that answers 403 after N characters,
+so the refusal takes the exact path a live one does.
+
+### The cmd window
+
+While the first phase B run was being investigated, a console window appeared
+on the owner's desktop and sat there. It was the "LLA pilot tick" task, which
+I had enabled: it runs under an interactive logon, so its console is visible,
+and its own command is a FULL phase B (no `--require-gloss`) every thirty
+minutes. It was killed at 20 minutes, before its first API call, and the task
+is disabled again. Do not enable it while any other phase B is running, and
+not at all until it is given `--require-gloss`.
+
+### What the two live runs then found (same afternoon)
+
+**Azure says "spent" with a 401, not a 403.** The manual top-up sent its
+first batch and Azure answered `401001 "The request is not authorized because
+credentials are missing or invalid"`, the same body a wrong key gets. The
+same key had translated 1,070 sentences eighty minutes earlier and nothing had
+changed. Microsoft Q&A threads report exactly this once the 2,000,000
+characters are consumed. So `AzureTranslator` now treats 401001 as the
+allowance being spent **only when the key is known to have worked**: this
+process has had a successful call, or the ledger shows Azure characters this
+month and the caller says so (`assume_401_is_quota`). A 401001 on a key that
+never worked stays a bad key. The ledger keeps Azure's words in
+`azure_quota_rejected_detail` so the two can be told apart by reading the
+file. The first refused batch went through the Gemini fallback (100
+sentences, free lane, 6,572 characters, $0) before `stop_when` fired; that is
+the documented one-batch cost of the fallback wiring.
+
+**The Gemini Batch API refused every submission, until the owner fixed the
+key.** Phase B, with `--require-gloss` now translating nothing, spent 245
+free-lane calls (16 cache hits for the 80 verified items, 229 RPD refusals,
+$0) and then `batches.create` answered `400 FAILED_PRECONDITION "Precondition
+check failed."` for the one deferred job, so all 1,225 items ended `not_run`.
+A two-prompt reproduction got the same answer while a synchronous call on
+the same paid key worked. The owner corrected the key on his side; the next
+run submitted both passes as two jobs (229 and 245 prompts) and Google
+answered them in twelve minutes, $1.27 at the batch rate. The message itself
+had been invisible in the run: only the exception's type name survived, per
+item. `_verify_pass_guarded` now prints it once.
+
+**Then the replay tried to buy pass 2 again.** Pass 1 and pass 2 build
+byte-identical prompts, and pass 2 bypassed the cache by design so it could
+not return pass 1's verdict. Synchronously that was right. Detached it was
+wrong twice over: the collector wrote both jobs' responses into ONE cache
+slot (the second overwrote the first, so one of the two independent samples
+is gone), and the replay's pass 2, bypassing the cache, deferred every prompt
+to a fresh batch job. Killed before submission; $0 lost, one sample lost.
+
+The fix: `generate_many(cache_namespace=...)`. Pass n>1 now asks under its
+own slot (`passN`), which is a fresh model sample the first time and a free
+replay after; the namespace rides with the submitted job
+(`PendingBatchJob.cache_namespace`, additive) so collection writes into the
+right slot. `cache_key_kwargs(None)` is an empty dict, so every key written
+before today is still the key an un-namespaced call computes. Three tests
+that pinned "pass 2 bypasses the cache" were rewritten to pin "pass 2 has
+its own slot". Pass 2 was re-bought under the new slot the same afternoon.
+
+Two more things found by the suite on the way: the phase B tests were
+reading the owner's REAL Azure ledger through the new `--ledger` default (an
+autouse fixture in `tests/conftest.py` now keeps every test off it), and the
+detached submission logs its rows as `outcome="server_error"`, which is what
+`BatchQueuedError` maps to; a queued job is not a server error (open).
+
+Two smaller things seen on the way: a closed free lane is not skipped by
+prompts the thread pool had already queued with `lane="free"`, so each of the
+229 spent ~10 s at the free-lane limiter before deferring (time, not money);
+and the "LLA pilot tick" must not be re-enabled until it passes
+`--require-gloss` (see building-the-bank.md).
+
+### The pilot's result, once the slot fix and the recovery were in
+
+Both passes replayed from cache, the 16 prompts that had only one sample
+went through one last batch job ($0.04), and the final replay banked:
+
+| | pass 1 | pass 2 |
+|---|---|---|
+| verified | 1,153 | 1,155 |
+| rejected | 72 | 70 |
+| rejected only by this pass | 9 | 7 |
+
+Rejected by any pass 79; **pass disagreements 16 of 1,225 (1.3%)**, against
+cycle 28's 2 of 80. Offered to the bank 1,146, inserted 1,021, already
+present 71, refused by the bank's validator 54 ("accepted answer outside the
+gap"). Bank: 474 to 1,495. Spend for the whole day: $1.34 on Gemini, $0 on
+Azure.
+
+Before that final replay, a replay whose pass 2 was partly queued (229
+cached, 16 deferred) had degraded the WHOLE pass and banked 1,028 items on
+pass 1 alone; those rows were deleted by hand at the owner's instruction
+(`DELETE FROM items WHERE created_at >= '2026-09-08'`, 1,502 back to 474)
+and re-banked from the two-pass result. `TODO.md` item 1 carries the defect.
+
+### Test and lint
+
+`uv run pytest -q`: 1955 passed after the last code change. `ruff check`,
+`ruff format --check` and `mypy --strict src/` clean.

@@ -95,18 +95,18 @@ As of 2026-08-28.
 
 ## What is not built
 
-### No item bank has been built yet
+### The item bank exists since 2026-09-08, and has not been audited
 
-This is the biggest gap and it is not written down anywhere else.
+`data/bank.db` holds 1,495 items: 474 from earlier cycles and 1,021 banked on
+2026-09-08 by the two-pass phase B over the 1,225-item candidate pool (fix-log
+cycle 31). Every one of the 1,021 was accepted by both verifier passes at
+batch 5 and carries an English gloss. The pass disagreement rate was 16 of
+1,225 (1.3%); 79 items were rejected by at least one pass and 54 more were
+refused by the bank's own validator (`TODO.md` item 1).
 
-`data/bank.db` holds 84 items left over from development runs. It is not a
-bank. The plan is 25 items for each of the 49 topics, about 1,225 items, built
-in one run. `docs/building-the-bank.md` is the command sequence, with the cost
-and the duration of each step.
-
-Everything downstream waits on this. `web/data/` is a demo export from those
-84 items. Nothing in the bank carries an English translation yet, because the
-pilot writes its items to a review file and not to the bank.
+What has NOT been done: the false-positive audit over the rejections
+(`TODO.md` item 2), any hand audit of the 1,021 beyond cycle 28's 73, and the
+web export. `web/data/` is still a demo export from 84 development items.
 
 ### The AI-generation path is running in CI and nobody has measured it
 
@@ -275,7 +275,14 @@ refuses to start rather than risk billing you.
 
 The English translation is Azure Translator's free F0 tier: 2,000,000
 characters a month, no card. Translating the whole corpus at that rate takes
-about 14 monthly runs.
+about 12 monthly runs. **Since 2026-09-08 the month ends when Azure refuses a
+call, not when the ledger's count reaches 2,000,000**: the count is an
+estimate (another script spent ~66,000 characters past it that day and Azure
+kept answering), the refusal is recorded as `azure_quota_rejected` in
+`data/fixtures/translations/azure_f0_ledger.json`, and both the monthly job
+and phase B of the pilot gate on that flag. **The candidate pool is fully
+glossed** as of that day (1,208 Azure, 16 Gemini of 1,224 carriers), so phase
+B no longer waits on translation.
 
 **Read CLAUDE.md section 9 before you make any API call.** It has the lane
 rules, the model routing, the two kinds of 429, and the caching policy. Do not

@@ -11,6 +11,16 @@ allowance (2,000,000 characters a month, no card) on the carriers that still
 have no trusted English gloss. It remembers what the month has already spent, so
 it is safe to run more than once.
 
+> **Changed 2026-09-08: the month ends when Azure says so, not when the count
+> says so.** The ledger still counts characters, but the count is an estimate:
+> it only sees what this job sent, and on 2026-09-08 a pilot run put ~66,000
+> characters through Azure that no ledger saw, while the ledger read "679
+> left" and Azure kept answering. The gate is now
+> `azure_quota_rejected` in the ledger: a run keeps sending batches until Azure
+> answers a quota 403, records that, and stops; every later run that month
+> sends nothing. `--headroom-characters` no longer stops anything. Owner's
+> instruction, that day.
+
 At today's numbers the corpus needs about **13.4 months** of free tier
 (26,933,263 characters left, 2,000,000 a month). Set this up once and leave it.
 
@@ -118,8 +128,8 @@ schtasks /Create /TN "LLA monthly translation" /TR "C:\lla\run-monthly-translati
 ```
 
 Three of every four weekly runs will correctly do nothing, exit 0, and say
-"Month 2026-09 has already spent its 2,000,000-character budget" in the log.
-That is the ledger working.
+"Azure refused month 2026-09 on quota at ..." in the log. That is the ledger
+working.
 
 ## 3. Where things go
 
@@ -183,7 +193,9 @@ enabled and that the machine is awake at 03:00.
       "gemini_characters": 0,
       "batches": 331,
       "runs": 1,
-      "last_run_at": "2026-09-02T03:41:12.004000+00:00"
+      "last_run_at": "2026-09-02T03:41:12.004000+00:00",
+      "azure_quota_rejected": true,
+      "azure_quota_rejected_at": "2026-09-02T03:41:12.004000+00:00"
     }
   }
 }
@@ -195,6 +207,13 @@ enabled and that the machine is awake at 03:00.
   translated nothing. Read `warnings` in the report. The usual causes are a
   missing or expired `AZURE_TRANSLATOR_KEY` in `.env`, or Azure refusing every
   batch.
+- **`azure_quota_rejected` false at the end of a full run** means Azure never
+  said no, so the month is not finished from Azure's point of view whatever
+  `azure_characters` reads. The next daily run keeps sending. This is the
+  normal state on every day before the allowance is actually spent.
+- **`azure_quota_rejected` true** means Azure refused a batch. Nothing more
+  is sent this month, and nothing needs doing. `scripts/step7_corpus_pilot.py`
+  reads the same flag and translates nothing either.
 - **`gemini_characters` above 0** means Azure was failing and the paid Gemini
   fallback picked up the work. That costs real money against the 7.50 USD/month
   ceiling. It stops itself at 100,000 characters a month
@@ -223,8 +242,8 @@ Add these inside the `.cmd` file, after `scripts.monthly_translation_topup`:
 
 | Flag | Why |
 |---|---|
-| `--headroom-characters 20000` | Stop 20,000 characters short of the ceiling, in case Azure's own count disagrees with the ledger's. |
-| `--max-characters 100000` | Cap one invocation. Use this for the first supervised run. |
+| `--headroom-characters 20000` | Since 2026-09-08 this changes only the printed allowance and the months-remaining estimate. It does not stop a run; Azure's refusal does. |
+| `--max-characters 100000` | Cap one invocation. Use this for the first supervised run. The only character figure that still stops a run. |
 | `--monthly-budget N` | If the Azure resource is not F0. |
 | `--checkpoint-every N` | Flush the store every N batches. Lower is safer against a crash, higher is less disk I/O. Default 10. |
 | `--seed N` | Changes the order carriers are worked through. Do not change it once the job is running: the order is what makes consecutive months move forward instead of re-drawing the same slice. |

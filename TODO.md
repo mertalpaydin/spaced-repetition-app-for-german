@@ -13,42 +13,37 @@ documents cite them. They are labels, not an order. The order is top to bottom.
 
 ---
 
-## 1. The large pilot (6.5)
+## 1. Defects left by the large pilot (6.5, follow-ups)
 
-**Do.** Phase A at a much larger scale than any previous cycle, then phase B with
-`--verification-passes 2 --verification-batch-size 5`.
+The pilot itself is DONE (2026-09-08, fix-log cycle 31): 1,225 items, two
+passes at batch 5, 16 disagreements, 1,021 items banked, bank at 1,495. The
+decisions it settled (two passes, both at batch 5, never 20) are recorded in
+`docs/building-the-bank.md` and the fix-log. What it left open:
 
-**Phase A is DONE** (2026-08-29): 1,225 items over 49 topics, zero topics short
-of quota, in `data/corpus_candidate_pool.json`. Phase B has verified 80 of them
-(the ones that had a trusted gloss) and banked 73; see
-`docs/audits/cycle-28-glossed-verification.md`. The remaining 1,145 are waiting
-on translations, not on verification.
-
-**Two passes at batch 5 is now measured, not assumed.** Cycle 28 found 2
-disagreements in 80 items, both real defects that one pass would have banked.
-2.5%, matching the batch-size experiment's own 2.5% from a different variable.
-The question this item used to carry, whether two passes at ONE size samples
-only run-to-run noise, is answered: it does not.
-
-**Batch size is 5, never 20.** Hand-audited on 475 identical candidates: batch 20
-gave 444 accepted / 31 rejected, batch 5 gave 438 / 37, and of the 12 items the
-two disagreed on, **all 12 were genuinely bad**. Batch 5 caught 9 of them, batch
-20 caught 3. `DEFAULT_VERIFICATION_BATCH_SIZE` in the code is still 20, so the
-flag has to be passed explicitly every time.
-
-**Decided by the owner, 2026-08-28: two passes, both at batch 5.** Batch 10 was
-considered and rejected. The measured effect is not a dial where 10 splits the
-difference: batch 5 and batch 20 *disagree*, and all 12 disagreements were real
-defects, 9 of which only batch 5 caught. Batch 10 would lose batch 5's closer
-scrutiny without gaining the diversity effect, and it is the one value with no
-hand-audited data behind it.
-
-That caveat has since been settled by measurement and is recorded above: two
-passes at one size catch real defects, not merely run-to-run noise.
-`pass_disagreements` in the report remains the direct measure.
-
-**Done when.** A pilot report exists with per-topic counts, `pass_disagreements`,
-and a rejected file large enough for item 2 to sample from.
+- **A partly queued pass degrades whole.** `generate_many` raises
+  `BatchQueuedError` when ANY prompt is deferred to a detached job, so a pass
+  with 229 cached verdicts and 16 queued prompts reports all 1,225 items
+  not-run, and the "one pass verified, the other could not judge" rule then
+  banks on one pass. Measured: 1,028 items were banked on pass 1 alone and
+  had to be deleted by hand. The queued prompts must degrade per item, not
+  per pass.
+- **54 items refused by the bank's own validator** ("prompt contains accepted
+  answer outside the gap": `die`, `der`, `zu`, `wäre` ...). They passed both
+  verifier passes and the blanker let them through. Decide whether the
+  blanker should reject them earlier or the validator is too strict for
+  function words; see `data/corpus_pilot_report.json`.
+- The detached submission writes its cost rows as `outcome="server_error"`
+  (`BatchQueuedError` maps to it). A queued job is not a server error; it
+  needs its own outcome value, flagged per CLAUDE.md rule 8 as a log-format
+  change.
+- The monthly top-up runs the 35-minute spaCy validity filter BEFORE it
+  checks the ledger's refusal flag, so a refused month still costs 35 minutes
+  of CPU per daily run. Check the flag first.
+- Prompts already queued in the free-lane thread pool are not re-routed
+  when the lane closes on an RPD 429; each still spends ~10 s at the free
+  limiter before deferring. Time only (229 prompts, about 40 minutes a pass).
+- `scripts/pilot_tick.py` runs phase B without `--require-gloss`, so a tick
+  translates on Azure. The task is disabled until the tick passes the flag.
 
 ---
 
