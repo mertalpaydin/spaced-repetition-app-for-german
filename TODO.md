@@ -13,6 +13,16 @@ documents cite them. They are labels, not an order. The order is top to bottom.
 
 ---
 
+## 0. Project shut down by the owner, 2026-09-08
+
+Nothing below is being worked on. The last state: bank of 1,495 items, of
+which the 1,021 banked that day were audited by eight Claude agents and
+found 3.7% defective (38 items, 5 HIGH), `docs/audits/cycle-31-bank-audit.md`
+has every id. Nothing was removed from the bank. If the project is picked up
+again, that audit and item 1 below are where to start.
+
+---
+
 ## 1. Defects left by the large pilot (6.5, follow-ups)
 
 The pilot itself is DONE (2026-09-08, fix-log cycle 31): 1,225 items, two

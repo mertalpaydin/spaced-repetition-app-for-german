@@ -95,7 +95,19 @@ As of 2026-08-28.
 
 ## What is not built
 
-### The item bank exists since 2026-09-08, and has not been audited
+### The item bank exists since 2026-09-08, audited once, and the project is shut down
+
+**The owner shut the project down on 2026-09-08.** Nothing is scheduled to
+change from here except the daily "LLA monthly translation" task, which is
+still enabled and sends nothing until October's Azure allowance, and can be
+disabled with `schtasks /Change /TN "LLA monthly translation" /DISABLE`.
+
+The 1,021 items banked that day were audited by eight Claude agents
+(`docs/audits/cycle-31-bank-audit.md`): 38 defective (3.7%), 5 of them
+HIGH. 29 are wrong topic attribution, which the model verifier cannot see by
+design; 5 are missing accepted answers; 2 are wrong glosses. None were
+removed.
+
 
 `data/bank.db` holds 1,495 items: 474 from earlier cycles and 1,021 banked on
 2026-09-08 by the two-pass phase B over the 1,225-item candidate pool (fix-log
