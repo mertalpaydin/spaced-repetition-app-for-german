@@ -6,6 +6,17 @@ from pathlib import Path
 from typing import Any
 
 
+def cache_key_kwargs(namespace: str | None) -> dict[str, str]:
+    """The extra key parameters for a namespaced cache slot, or none.
+
+    ``None`` maps to NO parameter rather than ``namespace=None``, so every
+    key written before namespaces existed is still the key an un-namespaced
+    call computes today. The cache is the idempotency mechanism (CLAUDE.md
+    section 9); changing the default key would re-buy everything in it.
+    """
+    return {} if namespace is None else {"namespace": namespace}
+
+
 class LlmCache:
     """Local disk cache keyed by SHA-256 hash of the complete LLM request payload."""
 

@@ -25,6 +25,7 @@ from scripts.step7_corpus_pilot import (
     _cefr_rejection_to_record,
     _filter_candidates_by_topic_cefr,
     _gloss_rejection_to_record,
+    _gloss_translator,
     _lemma_key,
     _populate_glosses,
     _run_gloss_check,
@@ -37,6 +38,7 @@ from src.generation.blanking.sentence_tagger import analysis_available
 from src.generation.candidate_pool import CandidatePool
 from src.lexicon.vocabulary import VocabularyStore
 from src.llm.translation import TranslationError
+from src.llm.translation_ledger import TranslationLedger
 from src.taxonomy.loader import load_taxonomy
 from src.verification.pipeline import GLOSS_REJECTION_PREFIX
 
@@ -627,6 +629,7 @@ def test_main_uses_fake_verifier_and_reports_rejections_honestly(
         *,
         batch_size: int = 20,
         use_cache: bool = True,
+        cache_namespace: str | None = None,
     ) -> VerificationReport:
         verdicts = [ItemVerdict(outcome="rejected", reason="nicht plausibel") for _ in items]
         rejections = [
@@ -1476,6 +1479,7 @@ def _run_main_with_glosses(
     extra_args: list[str] | None = None,
     batch_sizes: list[int] | None = None,
     use_cache_values: list[bool] | None = None,
+    namespace_values: list[str | None] | None = None,
     reject_per_pass: list[dict[int, str]] | None = None,
     pass_errors: dict[int, Exception] | None = None,
     expected_exit: int = 0,
@@ -1532,6 +1536,7 @@ def _run_main_with_glosses(
         *,
         batch_size: int = 20,
         use_cache: bool = True,
+        cache_namespace: str | None = None,
     ) -> VerificationReport:
         pass_number = len(calls) + 1
         calls.append(pass_number)
@@ -1539,6 +1544,8 @@ def _run_main_with_glosses(
             batch_sizes.append(batch_size)
         if use_cache_values is not None:
             use_cache_values.append(use_cache)
+        if namespace_values is not None:
+            namespace_values.append(cache_namespace)
         if pass_errors is not None and pass_number in pass_errors:
             raise pass_errors[pass_number]
 
@@ -1878,6 +1885,7 @@ def test_main_translation_failure_still_reaches_verification(
         *,
         batch_size: int = 20,
         use_cache: bool = True,
+        cache_namespace: str | None = None,
     ) -> VerificationReport:
         verified.append(len(items))
         return VerificationReport(
@@ -2033,18 +2041,20 @@ def test_main_verification_passes_defaults_to_one_cached_pass(
     assert per_pass[0]["use_cache"] is True
 
 
-def test_main_verification_passes_bypasses_the_cache_on_every_pass_after_the_first(
+def test_main_verification_passes_give_every_pass_after_the_first_its_own_cache_slot(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _tiny_corpora: tuple[Path, Path]
 ) -> None:
     """The trap this whole feature can fall into. ``src/llm/cache.py`` is
     content-addressed on a hash of the full request, so pass 2 over identical
-    items builds a byte-identical prompt. With the cache left on it would hit,
+    items builds a byte-identical prompt. In pass 1's slot it would hit,
     return pass 1's verdict verbatim, log a ``lane="cache"`` row and report
     zero disagreements no matter how unstable the verifier is -- a feature one
-    default argument away from being silently inert. Pass 1 keeps the cache
-    (CLAUDE.md 9: a rerun after a crash must still be cheap); every later pass
-    must not."""
+    default argument away from being silently inert. Until 2026-09-08 later
+    passes bypassed the cache; that broke detached batch runs (two jobs, one
+    slot, the replay re-bought pass 2). Now every pass keeps the cache and
+    each later pass asks under its own namespace."""
     seen_cache: list[bool] = []
+    seen_namespaces: list[str | None] = []
     report = _run_main_with_glosses(
         tmp_path,
         monkeypatch,
@@ -2052,12 +2062,15 @@ def test_main_verification_passes_bypasses_the_cache_on_every_pass_after_the_fir
         store={},
         extra_args=["--verification-passes", "3"],
         use_cache_values=seen_cache,
+        namespace_values=seen_namespaces,
     )
 
-    assert seen_cache == [True, False, False]
+    assert seen_cache == [True, True, True]
+    assert seen_namespaces == [None, "pass2", "pass3"]
     per_pass = _multi_pass(report)["per_pass"]
     assert isinstance(per_pass, list)
-    assert [p["use_cache"] for p in per_pass] == [True, False, False]
+    assert [p["use_cache"] for p in per_pass] == [True, True, True]
+    assert [p["cache_namespace"] for p in per_pass] == [None, "pass2", "pass3"]
 
 
 def test_run_verification_passes_reaches_generate_many_with_the_right_cache_flag() -> None:
@@ -2082,12 +2095,17 @@ def test_run_verification_passes_reaches_generate_many_with_the_right_cache_flag
 
     class _CacheRecordingClient:
         def __init__(self) -> None:
-            self.use_cache_seen: list[bool] = []
+            self.use_cache_seen: list[tuple[bool, str | None]] = []
 
         def generate_many(
-            self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+            self,
+            prompts: list[str],
+            model: str,
+            purpose: str,
+            use_cache: bool = True,
+            cache_namespace: str | None = None,
         ) -> list[str]:
-            self.use_cache_seen.append(use_cache)
+            self.use_cache_seen.append((use_cache, cache_namespace))
             return [
                 json.dumps(
                     {
@@ -2114,7 +2132,7 @@ def test_run_verification_passes_reaches_generate_many_with_the_right_cache_flag
         passes=2,
     )
 
-    assert client.use_cache_seen == [True, False]
+    assert client.use_cache_seen == [(True, None), (True, "pass2")]
     assert result.combined.verified_count == 1
 
 
@@ -2361,6 +2379,7 @@ def test_main_every_pass_failing_still_fails_the_run(
         *,
         batch_size: int = 20,
         use_cache: bool = True,
+        cache_namespace: str | None = None,
     ) -> VerificationReport:
         raise BudgetExceeded("ceiling reached")
 
@@ -2419,6 +2438,7 @@ def test_main_prints_every_pass_number_not_just_the_totals(
         *,
         batch_size: int = 20,
         use_cache: bool = True,
+        cache_namespace: str | None = None,
     ) -> VerificationReport:
         return VerificationReport(
             attempted=True, verdicts=[ItemVerdict(outcome="verified") for _ in items]
@@ -2463,7 +2483,7 @@ def test_main_prints_every_pass_number_not_just_the_totals(
     assert exit_code == 0
     assert "Verification passes (TODO.md 2.3): 2" in out
     assert "Pass 1 (cache on):" in out
-    assert "Pass 2 (cache BYPASSED):" in out
+    assert "Pass 2 (cache on, own slot pass2):" in out
     assert "REJECTED BY ANY PASS:" in out
     assert "PASS DISAGREEMENTS:" in out
 
@@ -2919,6 +2939,7 @@ def test_main_banks_the_judged_items_and_withholds_the_rest(
         *,
         batch_size: int = 20,
         use_cache: bool = True,
+        cache_namespace: str | None = None,
     ) -> VerificationReport:
         # First half judged and sound, second half never reached: exactly the
         # shape a run that trips the spend ceiling mid-way produces.
@@ -3021,3 +3042,62 @@ def test_phase_b_does_not_warn_when_a_typed_flag_agrees_with_the_pool(
     args = argparse.Namespace(limit=40000, per_topic_quota=25, seed=7, max_items_per_lemma=3)
     pool = CandidatePool(phase_a_inputs={"per_topic_quota": "25"})
     assert step7._phase_a_flag_conflicts(args, pool) == {}
+
+
+# ---------------------------------------------------------------------------
+# Who translates in phase B, and when nobody does. Owner's instruction,
+# 2026-09-08, after --require-gloss translated 1,070 sentences it was meant
+# to leave alone.
+
+
+def test_require_gloss_translates_nothing(tmp_path: Path) -> None:
+    translator, mode, note = _gloss_translator(
+        no_translate=False,
+        require_gloss=True,
+        ledger=TranslationLedger(),
+        month="2026-09",
+        ledger_path=tmp_path / "ledger.json",
+        llm_client=None,
+    )
+    assert translator is None
+    assert mode == "none"
+    assert "--require-gloss" in note
+
+
+def test_a_month_azure_refused_translates_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ledger = TranslationLedger()
+    ledger.record_quota_rejection("2026-09", datetime(2026, 9, 8, tzinfo=UTC))
+    monkeypatch.setattr(
+        step7, "translator_from_env", lambda client: pytest.fail("must not build a translator")
+    )
+    translator, mode, note = _gloss_translator(
+        no_translate=False,
+        require_gloss=False,
+        ledger=ledger,
+        month="2026-09",
+        ledger_path=tmp_path / "ledger.json",
+        llm_client=None,
+    )
+    assert translator is None
+    assert mode == "none"
+    assert "refused on quota" in note
+
+
+def test_an_unrefused_month_uses_the_environment_translator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sentinel = _FakeTranslator()
+    monkeypatch.setattr(step7, "translator_from_env", lambda client: (sentinel, "fallback"))
+    translator, mode, note = _gloss_translator(
+        no_translate=False,
+        require_gloss=False,
+        ledger=TranslationLedger(),
+        month="2026-09",
+        ledger_path=tmp_path / "ledger.json",
+        llm_client=None,
+    )
+    assert translator is sentinel
+    assert mode == "fallback"
+    assert note == ""

@@ -30,7 +30,7 @@ from src.llm.batch_jobs import (
     BatchJobStore,
     record_submission,
 )
-from src.llm.cache import LlmCache
+from src.llm.cache import LlmCache, cache_key_kwargs
 from src.llm.config import DEFAULT_CONFIG_PATH, load_restrict_user_content_to_paid_lane
 
 #: ``"local"`` is a fourth lane, additive on the same terms as every other
@@ -1559,6 +1559,7 @@ class GeminiLlmClient:
         prompts: list[str],
         config: genai_types.GenerateContentConfig,
         purpose: str,
+        cache_namespace: str | None = None,
     ) -> list[tuple[str, TokenUsage]]:
         """Submit MANY prompts as ONE real Gemini batch job and poll it once.
 
@@ -1601,6 +1602,7 @@ class GeminiLlmClient:
                 model=model,
                 purpose=purpose,
                 prompts=prompts,
+                cache_namespace=cache_namespace,
                 path=self.batch_job_store_path,
             )
 
@@ -1658,6 +1660,7 @@ class GeminiLlmClient:
         prompts: list[str],
         config: genai_types.GenerateContentConfig,
         purpose: str,
+        cache_namespace: str | None = None,
     ) -> BatchTransportResult:
         """Transient-retry wrapper around ``_call_batch_many``, scoped to the
         paid lane's group submission: no RPD lane-switch (there is nowhere
@@ -1690,7 +1693,12 @@ class GeminiLlmClient:
             attempt += 1
             try:
                 results = self._call_batch_many(
-                    client, model=model, prompts=prompts, config=config, purpose=purpose
+                    client,
+                    model=model,
+                    prompts=prompts,
+                    config=config,
+                    purpose=purpose,
+                    cache_namespace=cache_namespace,
                 )
                 return BatchTransportResult(results=results, attempt=attempt, call_id=call_id)
             except QuotaExceededError as exc:
@@ -2187,7 +2195,12 @@ class GeminiLlmClient:
                 text, usage = self._extract_response(
                     response.response, prompt=prompt, purpose=pending.purpose
                 )
-                self.cache.set(model=pending.model, prompt=prompt, response=text)
+                self.cache.set(
+                    model=pending.model,
+                    prompt=prompt,
+                    response=text,
+                    **cache_key_kwargs(pending.cache_namespace),
+                )
                 self._log_cost(
                     self._build_cost_row(
                         model=pending.model,
@@ -2224,9 +2237,21 @@ class GeminiLlmClient:
         is_user_content: bool = False,
         now: datetime | None = None,
         force_lane: Literal["free", "paid"] | None = None,
+        cache_namespace: str | None = None,
     ) -> list[str]:
         """Execute many independent prompts as one logical call, returning
         responses in the same order as ``prompts``.
+
+        ``cache_namespace`` gives the call its own slot in the local cache:
+        the same prompt under a different namespace is a different key, so a
+        second verification pass over byte-identical prompts is a fresh model
+        sample the first time and a replay every time after. Before this
+        existed (2026-09-08) a second pass had to bypass the cache outright,
+        which worked synchronously and silently broke detached: two batch
+        jobs for the two passes were collected into ONE cache slot, the
+        second overwrote the first, and a replay re-bought the second pass.
+        The namespace rides with a submitted job (``PendingBatchJob``) so
+        collection writes to the right slot.
 
         This is the fix for both the batch-API and the wall-clock problem a
         loop of ``generate()`` calls has:
@@ -2286,9 +2311,10 @@ class GeminiLlmClient:
 
         results: list[str | None] = [None] * len(prompts)
         pending_indices: list[int] = []
+        cache_kwargs = cache_key_kwargs(cache_namespace)
         for i, prompt in enumerate(prompts):
             if use_cache:
-                cached = self.cache.get(model=model, prompt=prompt)
+                cached = self.cache.get(model=model, prompt=prompt, **cache_kwargs)
                 if cached is not None:
                     self._log_cost(
                         CostLogRow(
@@ -2368,7 +2394,9 @@ class GeminiLlmClient:
                         )
                     )
                     if use_cache:
-                        self.cache.set(model=model, prompt=prompts[i], response=result.text)
+                        self.cache.set(
+                            model=model, prompt=prompts[i], response=result.text, **cache_kwargs
+                        )
                     results[i] = result.text
 
             if deferred_indices:
@@ -2382,6 +2410,7 @@ class GeminiLlmClient:
                     purpose=purpose,
                     results=results,
                     use_cache=use_cache,
+                    cache_namespace=cache_namespace,
                 )
         else:  # paid, batch mode (self.forbid_batch is not set)
             self._dispatch_paid_batch(
@@ -2391,6 +2420,7 @@ class GeminiLlmClient:
                 purpose=purpose,
                 results=results,
                 use_cache=use_cache,
+                cache_namespace=cache_namespace,
             )
 
         assert all(text is not None for text in results), (
@@ -2407,6 +2437,7 @@ class GeminiLlmClient:
         purpose: str,
         results: list[str | None],
         use_cache: bool,
+        cache_namespace: str | None = None,
     ) -> None:
         """Submit ``indices`` as real Batch API job(s) and fill ``results``.
 
@@ -2436,6 +2467,7 @@ class GeminiLlmClient:
                 prompts=chunk_prompts,
                 config=config,
                 purpose=purpose,
+                cache_namespace=cache_namespace,
             )
             for i, (text, usage) in zip(chunk, batch.results, strict=True):
                 # Only reachable for a real Batch API submission on the paid
@@ -2460,7 +2492,12 @@ class GeminiLlmClient:
                     )
                 )
                 if use_cache:
-                    self.cache.set(model=model, prompt=prompts[i], response=text)
+                    self.cache.set(
+                        model=model,
+                        prompt=prompts[i],
+                        response=text,
+                        **cache_key_kwargs(cache_namespace),
+                    )
                 results[i] = text
 
     def generate_text(

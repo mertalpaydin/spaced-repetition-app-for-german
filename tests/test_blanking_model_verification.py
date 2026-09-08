@@ -89,7 +89,12 @@ class _FakeVerifyLlmClient:
         self.calls: list[dict[str, object]] = []
 
     def generate_many(
-        self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+        self,
+        prompts: list[str],
+        model: str,
+        purpose: str,
+        use_cache: bool = True,
+        cache_namespace: str | None = None,
     ) -> list[str]:
         self.calls.append(
             {"prompts": list(prompts), "model": model, "purpose": purpose, "use_cache": use_cache}

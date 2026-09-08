@@ -75,6 +75,11 @@ class PendingBatchJob(BaseModel):
     #: key, and the reason order is load-bearing: Google returns inlined
     #: responses positionally.
     prompts: list[str]
+    #: Which cache slot the results belong in (``GeminiLlmClient.generate_many``'s
+    #: ``cache_namespace``). ``None`` is the default slot. Additive, so a store
+    #: written before 2026-09-08 still loads and collects into the default slot,
+    #: which is where its results would have gone anyway.
+    cache_namespace: str | None = None
     submitted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     @property
@@ -154,6 +159,7 @@ def record_submission(
     model: str,
     purpose: str,
     prompts: list[str],
+    cache_namespace: str | None = None,
     path: Path | str = DEFAULT_BATCH_JOB_STORE,
 ) -> PendingBatchJob:
     """Append one submitted job to the on-disk store and return it.
@@ -164,7 +170,13 @@ def record_submission(
     window in which work can be paid for and lost.
     """
     store = BatchJobStore.load(path)
-    job = PendingBatchJob(job_name=job_name, model=model, purpose=purpose, prompts=prompts)
+    job = PendingBatchJob(
+        job_name=job_name,
+        model=model,
+        purpose=purpose,
+        prompts=prompts,
+        cache_namespace=cache_namespace,
+    )
     store.add(job)
     store.save(path)
     return job

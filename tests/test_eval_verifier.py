@@ -207,7 +207,12 @@ def test_main_catches_a_transport_error_honestly(
 
     class _AlwaysFailsClient:
         def generate_many(
-            self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+            self,
+            prompts: list[str],
+            model: str,
+            purpose: str,
+            use_cache: bool = True,
+            cache_namespace: str | None = None,
         ) -> list[str]:
             raise RuntimeError("simulated network failure")
 
@@ -240,7 +245,12 @@ def test_main_end_to_end_with_a_fake_client_reports_recall_and_fpr(
 
     class _ScriptedClient:
         def generate_many(
-            self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+            self,
+            prompts: list[str],
+            model: str,
+            purpose: str,
+            use_cache: bool = True,
+            cache_namespace: str | None = None,
         ) -> list[str]:
             call_index = len(calls)
             calls.append(call_index)
@@ -350,7 +360,12 @@ class _QuotaRefusingClient:
         self.cache = cache
 
     def generate_many(
-        self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+        self,
+        prompts: list[str],
+        model: str,
+        purpose: str,
+        use_cache: bool = True,
+        cache_namespace: str | None = None,
     ) -> list[str]:
         cached = [self.cache.get(model=model, prompt=p) for p in prompts]
         if any(text is None for text in cached):
@@ -443,7 +458,12 @@ def test_main_prints_progress_when_the_transport_raises_outright(
 
     class _UnreachableClient(_QuotaRefusingClient):
         def generate_many(
-            self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+            self,
+            prompts: list[str],
+            model: str,
+            purpose: str,
+            use_cache: bool = True,
+            cache_namespace: str | None = None,
         ) -> list[str]:
             raise RuntimeError("simulated proxy 403")
 

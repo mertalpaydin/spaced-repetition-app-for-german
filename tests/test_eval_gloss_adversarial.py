@@ -309,7 +309,12 @@ def test_main_catches_a_transport_error_honestly(
 ) -> None:
     class _AlwaysFailsClient:
         def generate_many(
-            self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+            self,
+            prompts: list[str],
+            model: str,
+            purpose: str,
+            use_cache: bool = True,
+            cache_namespace: str | None = None,
         ) -> list[str]:
             raise RuntimeError("simulated network failure")
 
@@ -336,7 +341,12 @@ class _ScriptedClient:
         self.calls = 0
 
     def generate_many(
-        self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+        self,
+        prompts: list[str],
+        model: str,
+        purpose: str,
+        use_cache: bool = True,
+        cache_namespace: str | None = None,
     ) -> list[str]:
         reject = self.calls == 0
         self.calls += 1
@@ -398,7 +408,12 @@ def test_main_verifies_the_two_arms_in_separate_calls(
 
     class _RecordingClient(_ScriptedClient):
         def generate_many(
-            self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+            self,
+            prompts: list[str],
+            model: str,
+            purpose: str,
+            use_cache: bool = True,
+            cache_namespace: str | None = None,
         ) -> list[str]:
             seen.extend(prompts)
             return super().generate_many(prompts, model, purpose, use_cache)
@@ -463,7 +478,12 @@ class _QuotaRefusingClient:
         self.cache = cache
 
     def generate_many(
-        self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+        self,
+        prompts: list[str],
+        model: str,
+        purpose: str,
+        use_cache: bool = True,
+        cache_namespace: str | None = None,
     ) -> list[str]:
         cached = [self.cache.get(model=model, prompt=p) for p in prompts]
         if any(text is None for text in cached):
@@ -550,7 +570,12 @@ def test_main_prints_progress_when_the_transport_raises_outright(
 
     class _UnreachableClient(_QuotaRefusingClient):
         def generate_many(
-            self, prompts: list[str], model: str, purpose: str, use_cache: bool = True
+            self,
+            prompts: list[str],
+            model: str,
+            purpose: str,
+            use_cache: bool = True,
+            cache_namespace: str | None = None,
         ) -> list[str]:
             raise RuntimeError("simulated proxy 403")
 

@@ -567,6 +567,7 @@ class LocalLlmClient:
         model: str | None = None,
         purpose: str = "generation",
         use_cache: bool = True,
+        cache_namespace: str | None = None,
         **_ignored: Any,
     ) -> list[str]:
         """Run every prompt in order and return the replies in that order.

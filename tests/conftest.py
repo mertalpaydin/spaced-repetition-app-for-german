@@ -40,3 +40,34 @@ def isolate_batch_job_store(
         "src.llm.client.DEFAULT_BATCH_JOB_STORE",
         tmp_path_factory.mktemp("batch_jobs") / "pending_batch_jobs.json",
     )
+
+
+@pytest.fixture(autouse=True)
+def isolate_azure_ledger(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep every test off the operator's real Azure F0 ledger.
+
+    ``scripts/step7_corpus_pilot.py`` reads ``--ledger`` (default: the real
+    ``data/fixtures/translations/azure_f0_ledger.json``) before it decides
+    whether to translate. Found 2026-09-08: the suite's phase B tests printed
+    "the Azure ledger says month 2026-09 was refused on quota" because they
+    were reading the owner's file. A test must never depend on, or write to,
+    the month's real accounting.
+    """
+    import scripts.step7_corpus_pilot as step7
+
+    ledger_dir = tmp_path_factory.mktemp("azure-ledger")
+    monkeypatch.setattr(step7, "DEFAULT_LEDGER_PATH", ledger_dir / "azure_f0_ledger.json")
+    monkeypatch.setattr(
+        step7,
+        "load_ledger",
+        lambda path: (
+            step7.TranslationLedger()
+            if str(path).endswith("azure_f0_ledger.json") and "fixtures" in str(path)
+            else _real_load_ledger(path)
+        ),
+    )
+
+
+from src.llm.translation_ledger import load_ledger as _real_load_ledger  # noqa: E402

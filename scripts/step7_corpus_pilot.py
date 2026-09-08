@@ -296,15 +296,18 @@ everything; the two runs together catch strictly more than either alone.
 look at, and the union of two passes is the instrument that catches all of
 them.
 
-**Passes after the first bypass the local cache, deliberately.**
+**Passes after the first get their own cache slot, not no cache.**
 ``src/llm/cache.py`` is content-addressed on a hash of the full request and
 a repeated pass over identical items builds a byte-identical prompt. Left
-on, pass 2 would hit the cache, return pass 1's verdict verbatim, log a
-``lane="cache"`` row, cost nothing and report zero disagreements no matter
-how unstable the verifier actually is -- a feature that looks like it
-worked while measuring nothing. Pass 1 keeps the cache, because a rerun
-after a crash must still be cheap (CLAUDE.md section 9); every later pass
-passes ``use_cache=False`` through ``verify_items`` to ``generate_many``.
+in one slot, pass 2 would hit the cache, return pass 1's verdict verbatim,
+log a ``lane="cache"`` row, cost nothing and report zero disagreements no
+matter how unstable the verifier actually is -- a feature that looks like
+it worked while measuring nothing. Until 2026-09-08 pass 2 therefore
+bypassed the cache (``use_cache=False``). That was right synchronously and
+wrong detached: the two passes' batch jobs were collected into ONE slot,
+the second overwrote the first, and the replay re-bought pass 2. Now pass
+n asks under ``cache_namespace="passN"``: a different key, so a fresh
+sample the first time and a free replay after, on both paths.
 
 **What it costs.** Measured from the owner's own ``cost_log``, against a
 $7.50/month ceiling: about $0.18 per pilot cycle at batch size 20, about
@@ -485,7 +488,18 @@ from src.generation.pilot import _write_rejected_file, _write_review_file
 from src.lexicon.vocabulary import VocabularyStore
 from src.llm.client import GeminiLlmClient
 from src.llm.env import load_env_file
-from src.llm.translation import AZURE_MAX_BATCH, Translator
+from src.llm.translation import (
+    AZURE_MAX_BATCH,
+    Translator,
+    azure_quota_detail,
+    azure_quota_exhausted,
+)
+from src.llm.translation_ledger import (
+    TranslationLedger,
+    load_ledger,
+    month_key,
+    save_ledger_atomic,
+)
 from src.taxonomy.facets import derive_facet
 from src.taxonomy.loader import load_taxonomy
 from src.verification.pipeline import check_gloss
@@ -510,6 +524,7 @@ from scripts.corpus_reading import (
     default_corpus_path,
     read_corpus_lines,
 )
+from scripts.monthly_translation_topup import DEFAULT_LEDGER_PATH
 
 DEFAULT_REVIEW_PATH = Path("data/corpus_pilot_review.jsonl")
 DEFAULT_REJECTED_PATH = Path("data/corpus_pilot_rejected.jsonl")
@@ -688,6 +703,7 @@ class PassOutcome:
     index: int
     attempted: bool
     use_cache: bool
+    cache_namespace: str | None = None
     verified: int = 0
     rejected: int = 0
     not_run: int = 0
@@ -699,6 +715,7 @@ class PassOutcome:
             "pass": self.index,
             "attempted": self.attempted,
             "use_cache": self.use_cache,
+            "cache_namespace": self.cache_namespace,
             "verified": self.verified,
             "rejected": self.rejected,
             "not_run": self.not_run,
@@ -751,6 +768,7 @@ def _one_verification_pass(
     *,
     batch_size: int,
     use_cache: bool,
+    cache_namespace: str | None = None,
 ) -> VerificationReport:
     """One call to ``verify_items``, wrapped in this script's own long-standing
     catch-all guard (see ``main()``'s original comment, preserved here
@@ -770,8 +788,19 @@ def _one_verification_pass(
     intact and reports pass 2 as not-run, which is what the brief for
     ``--verification-passes`` asks for."""
     try:
-        return verify_items(items, llm_client, batch_size=batch_size, use_cache=use_cache)
+        return verify_items(
+            items,
+            llm_client,
+            batch_size=batch_size,
+            use_cache=use_cache,
+            cache_namespace=cache_namespace,
+        )
     except Exception as exc:  # noqa: BLE001 -- mirrors scripts/eval_verifier.py's own precedent
+        # Said once, here, with the provider's words. Until 2026-09-08 only
+        # the exception's type name survived, per item, and a run that ended
+        # with "not run: transport_error:ModelRejectedError: 1225" gave no
+        # way to learn that the Batch API had answered FAILED_PRECONDITION.
+        print(f"\n  *** VERIFICATION PASS DID NOT RUN: {type(exc).__name__}: {exc} ***")
         return VerificationReport(
             attempted=True,
             verdicts=[
@@ -836,9 +865,19 @@ def run_verification_passes(
     outcomes: list[PassOutcome] = []
 
     for pass_index in range(1, effective_passes + 1):
-        use_cache = pass_index == 1
+        # Every pass keeps the cache, each in its own slot: pass 1 in the
+        # default one, pass n in ``passN``. A byte-identical prompt under a
+        # different slot is a fresh model sample the first time it is asked
+        # and a free replay after, which is what a detached batch run needs
+        # (module docstring, "Passes after the first").
+        use_cache = True
+        namespace = None if pass_index == 1 else f"pass{pass_index}"
         report = _one_verification_pass(
-            items, llm_client, batch_size=batch_size, use_cache=use_cache
+            items,
+            llm_client,
+            batch_size=batch_size,
+            use_cache=use_cache,
+            cache_namespace=namespace,
         )
         reports.append(report)
         outcomes.append(
@@ -846,6 +885,7 @@ def run_verification_passes(
                 index=pass_index,
                 attempted=report.attempted,
                 use_cache=use_cache,
+                cache_namespace=namespace,
                 verified=report.verified_count,
                 rejected=report.rejected_count,
                 not_run=report.not_run_count,
@@ -958,6 +998,13 @@ class GlossReport:
     # Azure half spends the F0 allowance; this one has no F0 accounting to
     # do, it only needs to know what the run cost against its own guard).
     characters_spent: int = 0
+    # The Azure half of ``characters_spent`` on its own, because that half is
+    # what the F0 ledger records. Before 2026-09-08 this step spent Azure
+    # allowance with no ledger at all: one run put ~66,000 characters through
+    # while the monthly job's ledger read "679 left".
+    azure_characters_spent: int = 0
+    # Azure refused a batch on quota during this run.
+    azure_quota_rejected: bool = False
     translation_failures: int = 0
     translation_failure_examples: list[str] = field(default_factory=list)
     # ``False`` under --no-gloss-check: the check still RAN and its numbers
@@ -1705,6 +1752,52 @@ def _cefr_rejection_to_record(
     )
 
 
+def _gloss_translator(
+    *,
+    no_translate: bool,
+    require_gloss: bool,
+    ledger: TranslationLedger,
+    month: str,
+    ledger_path: Path,
+    llm_client: GeminiLlmClient | None,
+) -> tuple[Translator | None, TranslatorMode, str]:
+    """Which translator the gloss step gets, and why, in one place.
+
+    Three reasons to translate nothing, checked in this order, each with its
+    own note so the run log says which one applied:
+
+    1. ``--no-translate``: the operator said so.
+    2. ``--require-gloss``: the flag's whole purpose is "spend nothing on
+       translation, verify what is already translated". Until 2026-09-08 it
+       filtered AFTER the translation step, so a run meant to verify 154
+       glossed items first translated the other 1,070 and then verified all
+       1,224. Owner's instruction that day: fix it so it does not.
+    3. The Azure ledger says this month was refused on quota. That flag, not
+       a character count, is the month boundary (see
+       ``translation_ledger.MonthlySpend.azure_quota_rejected``).
+
+    Otherwise the environment's translator, exactly as before.
+    """
+    if no_translate:
+        return None, "none", "--no-translate given; the store is read but nothing is translated."
+    if require_gloss:
+        return (
+            None,
+            "none",
+            "--require-gloss given; nothing is translated. Only items whose gloss is "
+            "already in the store are verified.",
+        )
+    if ledger.quota_rejected(month):
+        return (
+            None,
+            "none",
+            f"the Azure ledger at {ledger_path} says month {month} was refused on quota. "
+            "Nothing is translated this run; items without a gloss are held back.",
+        )
+    translator, mode = translator_from_env(llm_client)
+    return translator, mode, ""
+
+
 def _populate_glosses(
     items: list[BankItem],
     provenance_by_hash: dict[str, CorpusProvenance],
@@ -1833,8 +1926,14 @@ def _populate_glosses(
             store=store,
             report=backfill,
             now=now,
+            # From the first quota refusal on, a fallback translator would
+            # quietly move every remaining batch to Gemini. Stop instead; the
+            # un-glossed items are held back, not lost.
+            stop_when=lambda: azure_quota_exhausted(translator),
         )
         report.characters_spent = backfill.characters_spent + backfill.gemini_fallback_characters
+        report.azure_characters_spent = backfill.characters_spent
+        report.azure_quota_rejected = azure_quota_exhausted(translator)
         report.translation_failures = backfill.failed
         report.translation_failure_examples = list(backfill.failure_examples)
         report.skipped_for_budget = backfill.skipped_for_budget
@@ -2437,6 +2536,17 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ledger",
+        type=Path,
+        default=DEFAULT_LEDGER_PATH,
+        help=(
+            "The Azure F0 ledger shared with scripts/monthly_translation_topup.py. "
+            "Read before translating (a month Azure has refused on quota translates "
+            "nothing) and written after (this run's Azure characters, and the "
+            "refusal if one happened)."
+        ),
+    )
+    parser.add_argument(
         "--require-gloss",
         action="store_true",
         help=(
@@ -2592,11 +2702,20 @@ def main() -> int:
     translator: Translator | None
     translator_mode: TranslatorMode
     print(f"\n  Gloss policy: {stored_tatoeba_policy_sentence(args.trust_stored_tatoeba)}")
-    if args.no_translate:
-        translator, translator_mode = None, "none"
-        print("\n  Gloss: --no-translate given; the store is read but nothing is translated.")
+    ledger_path = Path(args.ledger)
+    ledger = load_ledger(ledger_path)
+    ledger_month = month_key(datetime.now(UTC))
+    translator, translator_mode, gloss_note = _gloss_translator(
+        no_translate=args.no_translate,
+        require_gloss=args.require_gloss,
+        ledger=ledger,
+        month=ledger_month,
+        ledger_path=ledger_path,
+        llm_client=llm_client,
+    )
+    if gloss_note:
+        print(f"\n  Gloss: {gloss_note}")
     else:
-        translator, translator_mode = translator_from_env(llm_client)
         if translator_mode == "gemini_only":
             print(
                 "\n  *** GLOSS: NO AZURE KEY CONFIGURED, translating Gemini-only. "
@@ -2622,6 +2741,24 @@ def main() -> int:
     )
     gloss_report.gloss_check_enforced = args.enforce_gloss_check
     report.gloss = gloss_report
+    # What this run put through Azure goes into the same ledger the monthly
+    # job keeps, so the two scripts share one month-to-date figure and one
+    # "Azure said no" flag.
+    if gloss_report.azure_characters_spent > 0 or gloss_report.azure_quota_rejected:
+        ledger_now = datetime.now(UTC)
+        if gloss_report.azure_characters_spent > 0:
+            ledger.record_batch(
+                ledger_month,
+                azure_characters=gloss_report.azure_characters_spent,
+                at=ledger_now,
+            )
+        if gloss_report.azure_quota_rejected:
+            ledger.record_quota_rejection(ledger_month, ledger_now, azure_quota_detail(translator))
+            print(
+                f"\n  Gloss: Azure refused a batch on quota; month {ledger_month} is "
+                "spent and recorded in the ledger."
+            )
+        save_ledger_atomic(ledger_path, ledger)
 
     if args.require_gloss:
         # Verify only what the learner could actually be shown. Every exercise
@@ -2817,7 +2954,7 @@ def main() -> int:
     print(f"\n  Verification passes (TODO.md 2.3): {multi_pass.passes_requested}")
     print(f"    Passes that produced verdicts: {multi_pass.passes_completed}")
     for outcome in multi_pass.passes:
-        cache_note = "cache on" if outcome.use_cache else "cache BYPASSED"
+        cache_note = "cache on" if outcome.index == 1 else f"cache on, own slot pass{outcome.index}"
         print(
             f"    Pass {outcome.index} ({cache_note}): "
             f"verified {outcome.verified}, rejected {outcome.rejected}, "

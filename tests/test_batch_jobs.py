@@ -352,3 +352,43 @@ def test_collect_writes_a_cost_row_per_response(tmp_path: Path) -> None:
     assert rows[0]["lane"] == "paid"
     assert rows[0]["purpose"] == "verify"
     assert rows[0]["call_id"] == "batches/one"
+
+
+def test_a_job_remembers_its_cache_slot_and_an_old_record_defaults_to_none(tmp_path: Path) -> None:
+    """The second verification pass submits under ``cache_namespace="pass2"``;
+    collection must write into that slot, not the default one, or the two
+    passes' jobs overwrite each other (measured 2026-09-08)."""
+    from src.llm.batch_jobs import BatchJobStore, PendingBatchJob, record_submission
+
+    path = tmp_path / "jobs.json"
+    record_submission(
+        job_name="batches/p2",
+        model="m",
+        purpose="item_verification",
+        prompts=["a"],
+        cache_namespace="pass2",
+        path=path,
+    )
+    record_submission(
+        job_name="batches/p1", model="m", purpose="item_verification", prompts=["a"], path=path
+    )
+    loaded = BatchJobStore.load(path)
+    by_name = {job.job_name: job for job in loaded.jobs}
+    assert by_name["batches/p2"].cache_namespace == "pass2"
+    assert by_name["batches/p1"].cache_namespace is None
+    # A record written before the field existed.
+    old = PendingBatchJob.model_validate(
+        {"job_name": "batches/old", "model": "m", "purpose": "x", "prompts": ["a"]}
+    )
+    assert old.cache_namespace is None
+
+
+def test_cache_key_kwargs_leave_the_default_slot_untouched() -> None:
+    from src.llm.cache import LlmCache, cache_key_kwargs
+
+    assert cache_key_kwargs(None) == {}
+    assert cache_key_kwargs("pass2") == {"namespace": "pass2"}
+    cache = LlmCache.__new__(LlmCache)
+    default_key = cache._compute_key("m", "p", **cache_key_kwargs(None))
+    assert default_key == cache._compute_key("m", "p")
+    assert default_key != cache._compute_key("m", "p", **cache_key_kwargs("pass2"))

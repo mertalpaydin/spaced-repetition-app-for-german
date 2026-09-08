@@ -317,6 +317,7 @@ class VerifyingLlmClient(Protocol):
         model: str = ...,
         purpose: str = ...,
         use_cache: bool = ...,
+        cache_namespace: str | None = ...,
     ) -> list[str]: ...
 
 
@@ -819,6 +820,7 @@ def verify_items(
     *,
     batch_size: int = DEFAULT_VERIFICATION_BATCH_SIZE,
     use_cache: bool = True,
+    cache_namespace: str | None = None,
 ) -> VerificationReport:
     """Run the model verification pass over ``items``, batched
     ``batch_size`` at a time, and return a report whose three counts
@@ -861,7 +863,11 @@ def verify_items(
 
     try:
         response_texts = llm_client.generate_many(
-            prompts, model=MODEL_VERIFY, purpose="item_verification", use_cache=use_cache
+            prompts,
+            model=MODEL_VERIFY,
+            purpose="item_verification",
+            use_cache=use_cache,
+            cache_namespace=cache_namespace,
         )
     except _DEGRADE_EXCEPTION_TYPES as exc:
         degrade_reason = next(
