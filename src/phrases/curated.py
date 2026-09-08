@@ -106,6 +106,8 @@ class CuratedLists(BaseModel):
     trivial_stoplist: list[str] = Field(default_factory=list)
     #: Lemma keys dropped outright, whatever the counts say.
     exclude: list[str] = Field(default_factory=list)
+    #: Card ids a review found defective; never selected again.
+    excluded_cards: list[str] = Field(default_factory=list)
 
 
 def _load_yaml_list(path: Path) -> list[object]:
@@ -150,6 +152,7 @@ def load_curated(phrases_dir: Path = DEFAULT_PHRASES_DIR) -> CuratedLists:
     ]
     stoplist = [str(raw).lower() for raw in _load_yaml_list(phrases_dir / "trivial_stoplist.yaml")]
     exclude = [str(raw).lower() for raw in _load_yaml_list(phrases_dir / "exclude.yaml")]
+    excluded_cards = [str(raw) for raw in _load_yaml_list(phrases_dir / "excluded_cards.yaml")]
     keys = [c.key for c in connectors]
     if len(keys) != len(set(keys)):
         raise ValueError("duplicate connector keys in connectors.yaml")
@@ -160,4 +163,5 @@ def load_curated(phrases_dir: Path = DEFAULT_PHRASES_DIR) -> CuratedLists:
         collocation_seeds=colloc,
         trivial_stoplist=stoplist,
         exclude=exclude,
+        excluded_cards=excluded_cards,
     )

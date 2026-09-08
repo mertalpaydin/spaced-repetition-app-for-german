@@ -36,12 +36,24 @@ def _occ(text: str, verb: str, prep: str, form_key: str = "Fin|Pres|3|Sing") -> 
     )
 
 
-def test_tatoeba_gloss_never_yields_a_card_but_lands_in_wanted() -> None:
+def test_tatoeba_gloss_yields_an_unglossed_card_that_lands_in_wanted() -> None:
+    """Cards come from the whole corpus; Tatoeba's English is never used."""
     occ = _occ("Er wartet auf den Bus.", "wartet", "auf")
     glosses = {occ.text: Gloss("He waits for the bus.", "tatoeba")}
     selection = select_cards([UNIT], {UNIT.unit_id: [occ]}, glosses, validate=lambda _: True)
-    assert selection.cards == []
+    assert len(selection.cards) == 1
+    assert selection.cards[0].gloss_en is None and selection.cards[0].gloss_source is None
     assert [w.text for w in selection.wanted] == [occ.text]
+    assert selection.stats["glossed_cards"] == 0
+
+
+def test_a_glossed_sentence_beats_an_unglossed_twin_of_the_same_form() -> None:
+    a = _occ("Er wartet auf den Bus.", "wartet", "auf")
+    b = _occ("Er wartet auf den Zug.", "wartet", "auf")
+    glosses = {b.text: Gloss("He waits for the train.", "azure")}
+    selection = select_cards([UNIT], {UNIT.unit_id: [a, b]}, glosses, validate=lambda _: True, k=1)
+    assert selection.cards[0].sentence_de == b.text
+    assert selection.wanted == []
 
 
 def test_azure_gloss_yields_a_card_whose_gaps_slice_back() -> None:
@@ -121,3 +133,17 @@ def test_card_validator_accepts_gaps_that_slice_back_and_rejects_drift(words: li
     except ValueError:
         return
     raise AssertionError("drifted answers must not validate")
+
+
+def test_a_card_excluded_by_review_is_never_selected_again() -> None:
+    occ = _occ("Er wartet auf den Bus.", "wartet", "auf")
+    glosses = {occ.text: Gloss("He waits for the bus.", "azure")}
+    selection = select_cards(
+        [UNIT],
+        {UNIT.unit_id: [occ]},
+        glosses,
+        validate=lambda _: True,
+        excluded_card_ids=frozenset({card_id_for(UNIT.unit_id, occ.text)}),
+    )
+    assert selection.cards == []
+    assert selection.stats["excluded_by_review"] == 1

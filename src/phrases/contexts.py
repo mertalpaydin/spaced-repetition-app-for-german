@@ -107,7 +107,9 @@ def save_records(records: Iterable[ContextRecord], path: Path = DEFAULT_CONTEXTS
 
 
 def cards_needing_context(cards: Iterable[PhraseCard]) -> list[PhraseCard]:
-    return [c for c in cards if c.needs_context and c.context_de is None]
+    """Glossed cards only: the prompt hands the model the English, and a card
+    without a gloss is not shown to a learner yet anyway."""
+    return [c for c in cards if c.needs_context and c.context_de is None and c.gloss_en is not None]
 
 
 def generate_contexts(
@@ -140,7 +142,7 @@ def generate_contexts(
             unit_id=card.unit_id,
             connector_display=unit.display_de,
             sentence_de=card.sentence_de,
-            gloss_en=card.gloss_en,
+            gloss_en=card.gloss_en or "",
             prompt_version=PROMPT_VERSION,
         )
         raw = client.generate(

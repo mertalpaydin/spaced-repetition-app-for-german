@@ -1,8 +1,13 @@
-"""Pick the sentences that become cards, and say which ones the deck wants
-glossed next.
+"""Pick the sentences that become cards, and say which ones still need a gloss.
 
-Only sentences with an Azure or Gemini gloss qualify (CLAUDE.md rule 9). A
-unit's cards cover distinct surface forms first (``wartet auf``, ``wartete
+Cards come from the whole corpus: the best sentences for a unit are chosen
+first, and the English is fetched afterwards (owner's instruction,
+2026-09-08). A sentence with an Azure or Gemini gloss wins a tie, so the
+cards a client can show today are as many as possible; every chosen sentence
+without one goes to ``wanted_carriers.txt`` for the monthly Azure job. Tatoeba's
+own English is never used (CLAUDE.md rule 9).
+
+A unit's cards cover distinct surface forms first (``wartet auf``, ``wartete
 auf``, ``warte … auf``, ``gewartet auf``), then fill to the cap by length.
 """
 
@@ -16,6 +21,9 @@ from src.phrases.occurrences import Occurrence
 
 TRUSTED_GLOSS_SOURCES: frozenset[str] = frozenset({"azure", "gemini"})
 GLOSS_LENGTH_RATIO: tuple[float, float] = (0.4, 2.5)
+#: Score penalty for a sentence with no gloss yet: a glossed sentence of the
+#: same form wins, an un-glossed short one still beats a glossed long one.
+UNGLOSSED_PENALTY: float = 30.0
 
 
 @dataclass(frozen=True)
@@ -50,9 +58,17 @@ def gloss_is_sane(german: str, english: str) -> bool:
     return GLOSS_LENGTH_RATIO[0] <= ratio <= GLOSS_LENGTH_RATIO[1]
 
 
-def _score(occ: Occurrence, *, taken_forms: set[str]) -> float:
+def usable_gloss(text: str, gloss: Gloss | None) -> Gloss | None:
+    if gloss is None or gloss.source not in TRUSTED_GLOSS_SOURCES:
+        return None
+    if not gloss_is_sane(text, gloss.english):
+        return None
+    return gloss
+
+
+def _score(occ: Occurrence, *, taken_forms: set[str], glossed: bool) -> float:
     """Lower is better: short, plain sentences first, a new surface form
-    before a repeat."""
+    before a repeat, a glossed sentence before an un-glossed twin."""
     score = float(len(occ.text))
     words = occ.text.split()
     score += 15.0 * sum(1 for w in words[1:] if w[:1].isupper() and w.isalpha() and len(w) > 3)
@@ -61,10 +77,12 @@ def _score(occ: Occurrence, *, taken_forms: set[str]) -> float:
         score += 20.0
     if occ.form_key in taken_forms:
         score += 25.0
+    if not glossed:
+        score += UNGLOSSED_PENALTY
     return score
 
 
-def _to_card(unit: PhraseUnit, occ: Occurrence, gloss: Gloss) -> PhraseCard:
+def _to_card(unit: PhraseUnit, occ: Occurrence, gloss: Gloss | None) -> PhraseCard:
     gaps = [
         GapSpan(start=start, end=end, answer=surface, token_index=index)
         for (start, end), surface, index in zip(
@@ -76,8 +94,8 @@ def _to_card(unit: PhraseUnit, occ: Occurrence, gloss: Gloss) -> PhraseCard:
         unit_id=unit.unit_id,
         kind=unit.kind,
         sentence_de=occ.text,
-        gloss_en=gloss.english,
-        gloss_source=gloss.source,  # type: ignore[arg-type]
+        gloss_en=gloss.english if gloss else None,
+        gloss_source=gloss.source if gloss else None,  # type: ignore[arg-type]
         gaps=gaps,
         answers=[g.answer for g in gaps],
         form_key=occ.form_key,
@@ -95,23 +113,28 @@ def select_cards(
     validate: Callable[[str], bool],
     k: int = 6,
     k_trivial: int = 2,
-    wanted_per_unit: int = 10,
-    max_validations: int = 3000,
+    max_validations: int | None = None,
+    excluded_card_ids: frozenset[str] = frozenset(),
 ) -> CardSelection:
     """``occurrences_by_unit`` maps ``unit_id`` to that unit's occurrences.
     ``glosses`` maps sentence text to its stored gloss (any source; the trust
-    rule is applied here). ``validate`` is the carrier validator, injected."""
+    rule is applied here). ``validate`` is the carrier validator, injected.
+    ``max_validations`` bounds the validator calls; past it, remaining units
+    get no cards this run and the stats say so."""
     cards: list[PhraseCard] = []
     wanted: list[WantedCarrier] = []
     validation_cache: dict[str, bool] = {}
     validations = 0
     stats: dict[str, int] = defaultdict(int)
 
-    def is_valid(text: str) -> bool:
+    def is_valid(text: str) -> bool | None:
         nonlocal validations
-        if text not in validation_cache:
-            validation_cache[text] = validate(text)
-            validations += 1
+        if text in validation_cache:
+            return validation_cache[text]
+        if max_validations is not None and validations >= max_validations:
+            return None
+        validation_cache[text] = validate(text)
+        validations += 1
         return validation_cache[text]
 
     for unit in units:
@@ -122,48 +145,43 @@ def select_cards(
         per_sentence: dict[str, list[Occurrence]] = defaultdict(list)
         for occ in occurrences:
             per_sentence[occ.text].append(occ)
-        glossed: list[tuple[Occurrence, Gloss]] = []
-        unglossed: list[Occurrence] = []
+        candidates: list[tuple[Occurrence, Gloss | None]] = []
         for text, group in per_sentence.items():
             if len(group) != 1:
                 stats["ambiguous_sentence"] += 1
                 continue
-            occ = group[0]
-            gloss = glosses.get(text)
-            if gloss is None or gloss.source not in TRUSTED_GLOSS_SOURCES:
-                unglossed.append(occ)
+            if card_id_for(unit.unit_id, text) in excluded_card_ids:
+                stats["excluded_by_review"] += 1
                 continue
-            if not gloss_is_sane(text, gloss.english):
-                stats["gloss_insane"] += 1
-                continue
-            glossed.append((occ, gloss))
+            candidates.append((group[0], usable_gloss(text, glosses.get(text))))
 
         chosen: list[PhraseCard] = []
         taken_forms: set[str] = set()
-        remaining = list(glossed)
+        remaining = candidates
+        budget_hit = False
         while remaining and len(chosen) < cap:
-            remaining.sort(key=lambda pair: _score(pair[0], taken_forms=taken_forms))
+            remaining.sort(
+                key=lambda pair: _score(
+                    pair[0], taken_forms=taken_forms, glossed=pair[1] is not None
+                )
+            )
             occ, gloss = remaining.pop(0)
-            if not is_valid(occ.text):
+            verdict = is_valid(occ.text)
+            if verdict is None:
+                budget_hit = True
+                break
+            if not verdict:
                 stats["carrier_rejected"] += 1
                 continue
             chosen.append(_to_card(unit, occ, gloss))
             taken_forms.add(occ.form_key)
+            if gloss is None:
+                wanted.append(WantedCarrier(unit.unit_id, occ.corpus_source, occ.line_id, occ.text))
+        if budget_hit:
+            stats["units_past_validation_budget"] += 1
         cards.extend(chosen)
-        if len(chosen) < cap and unglossed:
-            unglossed.sort(key=lambda o: len(o.text))
-            for occ in unglossed[:wanted_per_unit]:
-                if validations >= max_validations:
-                    stats["wanted_unvalidated"] += 1
-                    wanted.append(
-                        WantedCarrier(unit.unit_id, occ.corpus_source, occ.line_id, occ.text)
-                    )
-                    continue
-                if is_valid(occ.text):
-                    wanted.append(
-                        WantedCarrier(unit.unit_id, occ.corpus_source, occ.line_id, occ.text)
-                    )
     stats["cards"] = len(cards)
+    stats["glossed_cards"] = sum(1 for c in cards if c.gloss_en is not None)
     stats["wanted"] = len(wanted)
     stats["validations"] = validations
     return CardSelection(cards=cards, wanted=wanted, stats=dict(stats))
@@ -171,6 +189,17 @@ def select_cards(
 
 def with_card_counts(units: Iterable[PhraseUnit], cards: Iterable[PhraseCard]) -> list[PhraseUnit]:
     counts: dict[str, int] = defaultdict(int)
+    glossed: dict[str, int] = defaultdict(int)
     for card in cards:
         counts[card.unit_id] += 1
-    return [unit.model_copy(update={"card_count": counts.get(unit.unit_id, 0)}) for unit in units]
+        if card.gloss_en is not None:
+            glossed[card.unit_id] += 1
+    return [
+        unit.model_copy(
+            update={
+                "card_count": counts.get(unit.unit_id, 0),
+                "glossed_card_count": glossed.get(unit.unit_id, 0),
+            }
+        )
+        for unit in units
+    ]

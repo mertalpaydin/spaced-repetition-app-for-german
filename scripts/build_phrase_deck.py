@@ -196,6 +196,7 @@ def stage_cards(args: argparse.Namespace) -> int:
     def validate(text: str) -> bool:
         return carrier_validation.validate_carrier(text).accepted
 
+    curated = load_curated(args.phrases_dir)
     selection = cards_module.select_cards(
         units,
         by_unit,
@@ -203,6 +204,7 @@ def stage_cards(args: argparse.Namespace) -> int:
         validate=validate,
         k=args.k,
         max_validations=args.max_validations,
+        excluded_card_ids=frozenset(curated.excluded_cards),
     )
     _write_models(build_dir / "cards.jsonl", selection.cards)
     write_text_atomic(
@@ -320,7 +322,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--out", type=Path, default=DEFAULT_DECK_DIR)
     parser.add_argument("--shard-size", type=int, default=200)
     parser.add_argument("--k", type=int, default=6, help="cards per unit")
-    parser.add_argument("--max-validations", type=int, default=3000)
+    parser.add_argument(
+        "--max-validations",
+        type=int,
+        default=None,
+        help="bound the carrier-validator calls (a partial build); default unbounded",
+    )
     parser.add_argument("--generate-contexts", action="store_true")
     parser.add_argument("--approved-by-owner", action="store_true")
     parser.add_argument("--max-context-calls", type=int, default=100)

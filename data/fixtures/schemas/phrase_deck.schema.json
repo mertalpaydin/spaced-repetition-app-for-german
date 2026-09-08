@@ -74,6 +74,12 @@
         "title": "Deck Version",
         "type": "string"
       },
+      "glossed_card_count": {
+        "default": 0,
+        "minimum": 0,
+        "title": "Glossed Card Count",
+        "type": "integer"
+      },
       "kinds": {
         "additionalProperties": {
           "type": "integer"
@@ -237,17 +243,32 @@
             "type": "array"
           },
           "gloss_en": {
-            "minLength": 1,
-            "title": "Gloss En",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Gloss En"
           },
           "gloss_source": {
-            "enum": [
-              "azure",
-              "gemini"
+            "anyOf": [
+              {
+                "enum": [
+                  "azure",
+                  "gemini"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Gloss Source",
-            "type": "string"
+            "default": null,
+            "title": "Gloss Source"
           },
           "kind": {
             "enum": [
@@ -283,8 +304,6 @@
           "unit_id",
           "kind",
           "sentence_de",
-          "gloss_en",
-          "gloss_source",
           "gaps",
           "answers",
           "form_key",
@@ -361,6 +380,12 @@
             ],
             "default": null,
             "title": "Gloss En"
+          },
+          "glossed_card_count": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Glossed Card Count",
+            "type": "integer"
           },
           "kind": {
             "enum": [
@@ -550,6 +575,12 @@
             ],
             "default": null,
             "title": "Gloss En"
+          },
+          "glossed_card_count": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Glossed Card Count",
+            "type": "integer"
           },
           "kind": {
             "enum": [

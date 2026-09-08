@@ -1,0 +1,2 @@
+# Card ids (sha1 of unit_id + sentence) a review found defective. Each entry
+# names the card and why, so the reason survives the card. Never selected again.

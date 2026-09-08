@@ -344,8 +344,15 @@ class UnitBuilder:
             )
         if s.count < self.t.colloc_min_count:
             return _Decision(False, "count")
+        # A mined collocation is taught only when its noun is on the Goethe
+        # A1-B1 lists or in the B2 frequency band. This is what keeps the news
+        # corpus's "Täter festnehmen" out while "Frage stellen" stays in: the
+        # word lists are the learner's vocabulary, the corpus is not.
         if min(a, b) < self.t.colloc_min_lemma_count:
             return _Decision(False, "sparse")
+        noun = parts[-2].lower() if s.kind == "noun_verb" else parts[1].lower()
+        if self._cefr_for(noun) is None:
+            return _Decision(False, "noun_not_in_wordlist")
         if g2 < self.t.colloc_min_g2:
             return _Decision(False, "g2")
         if lift_value < self.t.colloc_min_lift:
@@ -524,4 +531,31 @@ class UnitBuilder:
         self.report["top_by_kind"] = dict(by_kind)
         self.report["unit_count"] = len(units)
         self.report["kinds"] = dict(Counter(u.kind for u in units))
+        self.report["wordlist_coverage"] = self._wordlist_coverage(units)
         return units
+
+    def _head_lemma(self, unit: PhraseUnit) -> str:
+        if unit.kind in {"verb_prep", "separable_verb"}:
+            return unit.parts[0]
+        if unit.kind == "reflexive_verb":
+            return unit.parts[1]
+        if unit.kind == "noun_verb":
+            return unit.parts[-2].lower()
+        if unit.kind == "adj_noun":
+            return unit.parts[1].lower()
+        return unit.lemma_key
+
+    def _wordlist_coverage(self, units: list[PhraseUnit]) -> dict[str, Any]:
+        """Every unit's head lemma against the Goethe A1-B1 lists and the B2
+        band (``data/fixtures/corpus/vocab_levels.json``). Units whose head is
+        on no list are listed per kind for review."""
+        by_level: Counter[str] = Counter()
+        missing: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for unit in units:
+            level = unit.cefr or self._cefr_for(self._head_lemma(unit))
+            by_level[level or "none"] += 1
+            if level is None and len(missing[unit.kind]) < 200:
+                missing[unit.kind].append(
+                    {"unit": unit.lemma_key, "rank": unit.rank, "count": unit.sentence_count}
+                )
+        return {"by_level": dict(by_level), "not_in_wordlist": dict(missing)}

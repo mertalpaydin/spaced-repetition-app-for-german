@@ -85,6 +85,7 @@ def export_deck(
         corpus=corpus or {},
         unit_count=len(units),
         card_count=len(cards),
+        glossed_card_count=sum(1 for c in cards if c.gloss_en is not None),
         trivial_count=sum(1 for u in units if u.trivial),
         contexts_generated=sum(1 for c in cards if c.context_de is not None),
         kinds=dict(Counter(u.kind for u in units)),

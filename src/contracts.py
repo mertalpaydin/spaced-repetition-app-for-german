@@ -123,6 +123,7 @@ class PhraseUnit(BaseModel):
     trivial_reason: str | None = None
     source: UnitSource
     card_count: int = Field(ge=0)
+    glossed_card_count: int = Field(default=0, ge=0)
 
 
 class PhraseCard(BaseModel):
@@ -135,8 +136,10 @@ class PhraseCard(BaseModel):
     unit_id: str
     kind: PhraseKind
     sentence_de: str = Field(min_length=1)
-    gloss_en: str = Field(min_length=1)
-    gloss_source: GlossSource
+    #: ``None`` until the monthly Azure job has glossed this sentence; a
+    #: client shows only cards with a gloss (the translation is the cue).
+    gloss_en: str | None = None
+    gloss_source: GlossSource | None = None
     gaps: list[GapSpan] = Field(min_length=1)
     #: Always a list, one per gap, in gap order (CLAUDE.md rule 6).
     answers: list[str] = Field(min_length=1)
@@ -166,6 +169,8 @@ class PhraseCard(BaseModel):
                     f"in {self.sentence_de!r}"
                 )
             previous_end = gap.end
+        if (self.gloss_en is None) != (self.gloss_source is None):
+            raise ValueError("gloss_en and gloss_source come together or not at all")
         if (self.context_de is None) != (self.context_en is None):
             raise ValueError("context_de and context_en come together or not at all")
         if self.context_de is not None and self.context_source is None:
@@ -243,6 +248,8 @@ class DeckManifest(BaseModel):
     corpus: dict[str, int] = Field(default_factory=dict)
     unit_count: int = Field(ge=0)
     card_count: int = Field(ge=0)
+    #: Cards a client can show today.
+    glossed_card_count: int = Field(default=0, ge=0)
     trivial_count: int = Field(ge=0)
     contexts_generated: int = Field(ge=0)
     kinds: dict[str, int] = Field(default_factory=dict)

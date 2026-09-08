@@ -1,14 +1,14 @@
 # Fixed expressions, matched as a token sequence. Pattern elements are surface
 # forms (case-insensitive) or "lemma:<lemma>"; max_gap is how many tokens may
 # sit between consecutive elements. Zero-hit idioms are kept and ranked last.
-- {key: es geht um, pattern: [es, "lemma:gehen", um], max_gap: 2, display: "es geht um", cefr: B1, gloss_en: it is about}
-- {key: es gibt, pattern: [es, "lemma:geben"], max_gap: 0, display: "es gibt", cefr: A1, gloss_en: there is / there are}
-- {key: es tut mir leid, pattern: [es, "lemma:tun", mir, leid], max_gap: 0, display: "es tut mir leid", cefr: A1, gloss_en: I am sorry}
-- {key: es kommt darauf an, pattern: [es, "lemma:kommen", darauf, an], max_gap: 1, display: "es kommt darauf an", cefr: B1, gloss_en: it depends}
-- {key: es handelt sich um, pattern: [es, "lemma:handeln", sich, um], max_gap: 1, display: "es handelt sich um", cefr: B1, gloss_en: it is a matter of}
-- {key: es lohnt sich, pattern: [es, "lemma:lohnen", sich], max_gap: 0, display: "es lohnt sich", cefr: B1, gloss_en: it is worth it}
+- {key: es geht um, pattern: [es, "lemma:gehen", um], max_gap: 2, display: "es geht um + Akk", cefr: B1, gloss_en: it is about}
+- {key: es gibt, pattern: [es, "lemma:geben"], max_gap: 0, display: "es gibt + Akk", cefr: A1, gloss_en: there is / there are}
+- {key: es tut mir leid, pattern: [es, "lemma:tun", mir, leid], max_gap: 0, display: "es tut mir leid (, dass …)", cefr: A1, gloss_en: I am sorry}
+- {key: es kommt darauf an, pattern: [es, "lemma:kommen", darauf, an], max_gap: 1, display: "es kommt darauf an (, ob / wie …)", cefr: B1, gloss_en: it depends}
+- {key: es handelt sich um, pattern: [es, "lemma:handeln", sich, um], max_gap: 1, display: "es handelt sich um + Akk", cefr: B1, gloss_en: it is a matter of}
+- {key: es lohnt sich, pattern: [es, "lemma:lohnen", sich], max_gap: 0, display: "es lohnt sich (, zu … / für + Akk)", cefr: B1, gloss_en: it is worth it}
 - {key: es macht nichts, pattern: [es, "lemma:machen", nichts], max_gap: 0, display: "es macht nichts", cefr: A2, gloss_en: it does not matter}
-- {key: es ist mir egal, pattern: [es, ist, mir, egal], max_gap: 0, display: "es ist mir egal", cefr: A2, gloss_en: I do not care}
+- {key: es ist mir egal, pattern: [es, ist, mir, egal], max_gap: 0, display: "es ist mir egal (, ob / was …)", cefr: A2, gloss_en: I do not care}
 - {key: wie geht es dir, pattern: [wie, "lemma:gehen", es, dir], max_gap: 0, display: "wie geht es dir", cefr: A1, gloss_en: how are you}
 - {key: im großen und ganzen, pattern: [im, großen, und, ganzen], max_gap: 0, display: "im Großen und Ganzen", cefr: B2, gloss_en: on the whole}
 - {key: nach wie vor, pattern: [nach, wie, vor], max_gap: 0, display: "nach wie vor", cefr: B2, gloss_en: "still, as before"}
@@ -20,7 +20,7 @@
 - {key: seit langem, pattern: [seit, langem], max_gap: 0, display: "seit langem", cefr: B1, gloss_en: for a long time}
 - {key: vor kurzem, pattern: [vor, kurzem], max_gap: 0, display: "vor kurzem", cefr: B1, gloss_en: recently}
 - {key: in letzter zeit, pattern: [in, letzter, zeit], max_gap: 0, display: "in letzter Zeit", cefr: B1, gloss_en: lately}
-- {key: im laufe, pattern: [im, laufe], max_gap: 0, display: "im Laufe (+ Gen)", cefr: B2, gloss_en: in the course of}
+- {key: im laufe, pattern: [im, laufe], max_gap: 0, display: "im Laufe + Gen", cefr: B2, gloss_en: in the course of}
 - {key: auf dauer, pattern: [auf, dauer], max_gap: 0, display: "auf Dauer", cefr: B2, gloss_en: in the long run}
 - {key: im voraus, pattern: [im, voraus], max_gap: 0, display: "im Voraus", cefr: B1, gloss_en: in advance}
 - {key: auf einmal, pattern: [auf, einmal], max_gap: 0, display: "auf einmal", cefr: A2, gloss_en: all at once / suddenly}
@@ -34,7 +34,7 @@
 - {key: in ordnung, pattern: [in, ordnung], max_gap: 0, display: "in Ordnung", cefr: A1, gloss_en: all right / okay}
 - {key: in ruhe, pattern: [in, ruhe], max_gap: 0, display: "in Ruhe", cefr: A2, gloss_en: in peace / without hurry}
 - {key: in eile, pattern: [in, eile], max_gap: 0, display: "in Eile", cefr: B1, gloss_en: in a hurry}
-- {key: in der nähe, pattern: [in, der, nähe], max_gap: 0, display: "in der Nähe", cefr: A1, gloss_en: nearby}
+- {key: in der nähe, pattern: [in, der, nähe], max_gap: 0, display: "in der Nähe (von + Dat)", cefr: A1, gloss_en: nearby}
 - {key: auf dem land, pattern: [auf, dem, land], max_gap: 0, display: "auf dem Land", cefr: A2, gloss_en: in the countryside}
 - {key: zu hause, pattern: [zu, hause], max_gap: 0, display: "zu Hause", cefr: A1, gloss_en: at home}
 - {key: nach hause, pattern: [nach, hause], max_gap: 0, display: "nach Hause", cefr: A1, gloss_en: (to) home}
