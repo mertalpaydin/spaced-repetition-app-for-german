@@ -1081,3 +1081,29 @@
 - "zusammenbrauen"  # DUPLICATE: Duplicates rv:sich_zusammenbrauen, the usual form.
 - "zuschlagen hinter"  # NOT_A_PHRASE: Parser artefact of 'die Tuer faellt hinter ihm zu'; not a governed preposition.
 - "zuspitzen"  # DUPLICATE: Duplicates rv:sich_zuspitzen, which is the normal usage.
+# Phase 1 review, round 3 (2026-09-09): units the reviewers rejected.
+- "auflaufen für"  # BAD_UNIT: "fuer einen Verein auflaufen" is narrow sports-reporting jargon, not general A1-B2 vocabulary.
+- "beste geben"  # BAD_UNIT: Bad citation form; the phrase is 'sein Bestes geben'.
+- "chance verdienen"  # NOT_A_PHRASE: Free combination; the established collocations are Chance bekommen/nutzen.
+- "dutzend kaufen"  # BAD_UNIT: 'Dutzend' is a quantifier, not the verb's object; the pair is not a real collocation.
+- "erdbeer essen"  # BAD_UNIT: "Erdbeer" is only a compound stem; the lemma is "Erdbeere", so the unit display teaches a wrong noun
+- "französisch präsident"  # NOT_A_PHRASE: News-only topical co-occurrence, a free adjective-noun combination.
+- "geöffnet fenster"  # NOT_A_PHRASE: Free participle-noun combination, not a collocation.
+- "hand stecken"  # BAD_UNIT: Not a usable collocation on its own; the real phrase is 'die Haende in die Taschen stecken'.
+- "klassenzimmer betreten"  # NOT_A_PHRASE: Free combination of betreten plus an arbitrary room noun, no fixed collocation.
+- "mantel ziehen"  # BAD_UNIT: 'Mantel ziehen' is not a German phrase; every card actually shows anziehen/ausziehen/ueberziehen wit
+- "menge ausgeben"  # BAD_UNIT: "Menge" is a quantifier in "eine Menge Geld"; the verb's object is "Geld", so the pair is noise.
+- "neu staffel"  # NOT_A_PHRASE: Free combination from TV reporting.
+- "recht seite"  # DUPLICATE: Duplicates an:rechter_seite (auf der rechten Seite), which is the useful form.
+- "reis essen"  # NOT_A_PHRASE: Free verb-object combination, nothing idiomatic to learn.
+- "sandwich essen"  # NOT_A_PHRASE: Free verb-object combination with a loan noun.
+- "satz löschen"  # NOT_A_PHRASE: Tatoeba corpus meta-artefact about editing the sentence database, not a German phrase.
+- "satz ändern"  # NOT_A_PHRASE: Same Tatoeba corpus meta-artefact as nv:satz_loeschen.
+- "schlüssel legen"  # NOT_A_PHRASE: Parser artefact of 'den Schlüssel irgendwohin legen'; not a collocation.
+- "schnecke essen"  # NOT_A_PHRASE: Free combination and wrong number; would have to be 'Schnecken essen' at best.
+- "sich ablesen"  # BAD_UNIT: Not a reflexive verb; all cards are the 'lassen sich + infinitive' passive construction.
+- "sich weinen in"  # BAD_UNIT: Citation form misleading; the idiom is 'sich in den Schlaf weinen' and 'sich weinen' does not exist 
+- "vorwurf weisen"  # BAD_UNIT: 'Vorwurf weisen' is not a German phrase; the real collocations are 'Vorwuerfe zurueckweisen' and 'vo
+- "wort missverstanden"  # BAD_UNIT: The unit is cited in the participle form instead of "Wort missverstehen".
+- "zweitgrößter stadt"  # NOT_A_PHRASE: Free combination from encyclopedic/news text, nothing to learn as a unit.
+- "öffentlich raum"  # BAD_UNIT: Inflected citation form; the phrase should be presented as 'oeffentlicher Raum' or 'im oeffentlichen

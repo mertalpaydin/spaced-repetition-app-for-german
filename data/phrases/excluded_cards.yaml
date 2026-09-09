@@ -1185,3 +1185,38 @@
 - f8946291abe9  # WRONG_UNIT: The verb is "anrufen"; "aus" belongs to "von Toms Mobiltelefon aus".
 - fa7baefdca50  # WRONG_UNIT: "von Rekord zu Rekord" is a fixed idiom, not the verb complement "zu jemandem eilen".
 - fcdb72472a8f  # WRONG_UNIT: "auf dem Radweg" is a dative location, not the accusative complement of ausweichen.
+# Phase 1 review, round 3 (2026-09-09).
+- 01fd207afcaf  # WRONG_UNIT: 'mir' is a plain dative object of a different subject (Miky), not a reflexive pronoun.
+- 03e179f20d61  # WRONG_UNIT: The verb is 'sich ausbreiten'; the prefix 'aus' is left outside the gaps.
+- 03ec7f4015aa  # WRONG_UNIT: The verb in the sentence is (mit) anhoeren, not angehoeren.
+- 0db421bbdc28  # WRONG_CASE: 'Die Mädchen schauten sich an' is reciprocal accusative, not the dative reflexive shown.
+- 21c85fb2d950  # WRONG_UNIT: The verb is 'sich ausbreiten'; the prefix 'aus' is left outside the gaps.
+- 2ae39db2da65  # BAD_SENTENCE: Truncated subject: 'Doch die mittlerweile war nicht mehr konkurrenzfaehig' is ungrammatical.
+- 30ecd760854c  # BAD_SENTENCE: Content describes child sexual abuse; unsuitable as a practice sentence.
+- 40ffc38e41b7  # BAD_SENTENCE: Broken sentence: 'unter die Unterlagen zur Anmeldung anfordern' has a dangling 'unter' (stripped
+- 505df6129f4a  # WRONG_UNIT: 'nach der grausamen Tat' is temporal, not the thing searched for.
+- 50f1a05f5eb2  # WRONG_UNIT: The verb is 'sich ausbreiten'; the prefix 'aus' is left outside the gaps.
+- 542b015765fa  # WRONG_UNIT: 'darum' here is the pronominal adverb of 'es geht um', not the causal connector.
+- 5adfbe64dbe1  # WRONG_UNIT: Impersonal 'es geht zu' with a locative dative 'auf einer Privatschule', not the verb complement '
+- 5aff9c41fee7  # BAD_SENTENCE: Truncated subject: 'Ein unterstuetzt dich dabei' is missing its noun.
+- 669acf9ecbcb  # WRONG_CASE: With the direct object 'die Beine' the reflexive is dative, not accusative.
+- 69fe3b50f269  # WRONG_GAPS: The pronoun 'mir' belongs to the unit but is left outside the brackets.
+- 7d918b690eae  # WRONG_UNIT: 'auf Erfolg' belongs to the noun 'Hoffnung' and is accusative; bestehen here means 'exist'.
+- 8f58045da99a  # BAD_SENTENCE: Context-free and ambiguous/vulgar reading of 'abgehen'; not usable standalone.
+- 8fe8b2df7e46  # BAD_SENTENCE: Ungrammatical: should be 'jemandem den Hals umdrehen'.
+- 9168c1a90a35  # WRONG_UNIT: 'darum' here is the pronominal adverb of 'es geht um', not the causal connector.
+- 94f652a409ee  # WRONG_UNIT: 'darum' is the prepositional object of 'sich Sorgen machen um', not the causal connector.
+- 99c6f72bf075  # BAD_GLOSS: 'Das Blättchen hat sich gewendet' is the idiom for the tide turning, not 'The paper has turned'.
+- a3f6660a44c8  # WRONG_UNIT: 'darum' is the prepositional object of 'bitten um', not the causal connector.
+- afec44042e13  # WRONG_UNIT: 'auf freien Fuß setzen' is a fixed idiom meaning to release, not the unit 'setzen auf' (to bet on)
+- b03bcfea250a  # WRONG_UNIT: The verb here is "sich ausweiten" (prefix "aus" unbracketed), not "sich weiten".
+- b0bc09ed336e  # BAD_SENTENCE: Swiss spelling 'Ausserdem' instead of 'Außerdem'.
+- b5f479088a63  # BAD_SENTENCE: Subordinate clause only, no main clause, so not a self-contained sentence.
+- bc2c74b0a6e7  # BAD_SENTENCE: Unnatural word order: 'Ein Knopf ist vom Mantel abgegangen' is the correct form.
+- bfebace14425  # BAD_SENTENCE: Swiss spelling 'Grösse' instead of 'Größe'.
+- c1885f9e3c73  # BAD_SENTENCE: Missing article: should be 'zur Landung ansetzen', not 'zu Landung'.
+- cf9a78327842  # WRONG_UNIT: The verb is separable 'eindringen' (prefix 'ein' left ungapped), not 'dringen durch'.
+- d368a72d7659  # WRONG_UNIT: 'ausgezeichnet' is an adverb here, not a form of the verb auszeichnen.
+- eb861a53c4ce  # BAD_SENTENCE: Truncated subject 'Die gesamten an die Kunden' makes the sentence ungrammatical.
+- f20451d57619  # BAD_SENTENCE: Ungrammatical coordination: the plural 'wurden' does not agree with the singular passive clause 
+- f80f8039e75d  # BAD_GLOSS: 'auspacken' here means to spill the beans, not literally 'unpack'.
