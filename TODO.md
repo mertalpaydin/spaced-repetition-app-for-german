@@ -33,14 +33,11 @@ first, by Claude Opus and Gemini Flash (`docs/audits/phase-1-review/`,
 "Step 1"): read a band, turn the systematic causes into rules, rebuild, read
 the next band of what survives. Open:
 
-- **Step 5 onward.** Steps 1 to 4 covered every glossed card and every
-  unit once; each next step reads only what the rebuild replaced, until a
-  step finds no new systematic cause and few findings.
-  After each rebuild: `uv run python scripts/review_deck.py batches <dir>`
-  (skips reviewed ids), Claude agents in waves of at most 8, Gemini via
-  `review_deck.py gemini <dir> --model gemini-3.8-flash-low --workers 4`
-  with 200-card batches, merge with the `reviewer` tag, apply, rebuild.
-  Stop when a step finds no new systematic cause and few findings.
+- **Rerun the review after each Azure gloss month.** Newly glossed cards
+  get their gloss checked (`review_deck.py batches` lists only unread
+  ids; a card read without a gloss is not read again, so add
+  `--everything` for the glossed band, or extend the script to track
+  "read with gloss").
 - **The owner's kill decision** on the reviewed deck.
 - **Gloss the picked sentences.** `data/phrases/build/wanted_carriers.txt`
   holds every card sentence without a machine gloss (about 2.9M characters

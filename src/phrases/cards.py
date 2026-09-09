@@ -93,6 +93,7 @@ def usable_gloss(text: str, gloss: Gloss | None) -> Gloss | None:
 #: ("Weil er mich eingeladen hat.") is a fragment the validator lets through.
 _SUBORDINATORS: frozenset[str] = frozenset(
     {
+        "sodass",
         "weil",
         "dass",
         "obwohl",
@@ -143,6 +144,8 @@ def unsuitable_reason(occ: Occurrence) -> str | None:
         return "dialogue_fragment"
     if _MOJIBAKE.search(text):
         return "mojibake"
+    if "http" in text.lower() or "www." in text.lower():
+        return "url"
     if _OLD_SPELLING.search(text):
         return "old_spelling"
     if _BROKEN_HYPHEN.search(text) and "e-mail" not in text.lower():

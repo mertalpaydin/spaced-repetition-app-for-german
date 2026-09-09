@@ -281,11 +281,27 @@ applied as well; they are harmless once the keys no longer exist.
 
 Curated lists: 91 units, 32 cards, 6 overrides.
 
+## Step 5 and convergence (9 September 2026)
+
+After the step 4 rebuild (deck `90f9ee70f43a`) six cards and no units
+were unread. Read by hand: one subordinate fragment opening with `Sodass`
+and one sentence ending in a URL stub, both now card rules (`sodass` and
+`falls` join the fragment subordinators; any `http` or `www.` is a `url`
+rejection, which removed 1,830 candidate sentences). The rebuild
+(`07aa6af3fab5`: 7,603 units, 41,502 cards) left six unread cards, read
+by hand with no finding. The stepped review of the wide-corpus deck is
+complete: every unit and every glossed card has been read by both
+vendors or by hand, and the last rebuild produced nothing new.
+
+Totals over the five steps: 26 systematic causes turned into rules with
+tests; 1,005 units, 728 cards and 631 overrides added to the curated
+lists with the reviewer's reason.
+
 ## What is still open
 
-- Steps 1 to 4 have read every glossed card and every unit of the
-  wide-corpus deck once, by both vendors. Cards and units new in the next
-  rebuild (replacements for dropped ones) are the next step's batches.
+- The 38,000 cards without a gloss have been read for sentence quality
+  and unit fit but not against an English translation; the gloss check
+  happens when the Azure job supplies one.
 - Adjective-noun and collocation displays that carry a governing
   preposition (`auf freiem Fuß`) blank only the adjective and noun. Both
   reviewers keep flagging the unbracketed preposition; blanking it would

@@ -218,3 +218,13 @@ def test_separable_card_with_a_reflexive_reading_is_unsuitable() -> None:
         "reflexive_reading"
     )
     assert unsuitable_reason(sep("Sie stellt die Vase heraus.", "stellt", "heraus")) is None
+
+
+def test_url_stubs_and_sodass_fragments_are_unsuitable() -> None:
+    from src.phrases.cards import unsuitable_reason
+
+    assert unsuitable_reason(_occ("Er wartet auf den Bus, https://www.", "wartet", "auf")) == "url"
+    assert (
+        unsuitable_reason(_occ("Sodass er auf den Bus wartet.", "wartet", "auf"))
+        == "subordinate_fragment"
+    )

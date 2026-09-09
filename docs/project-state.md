@@ -96,14 +96,15 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
 - **The stepped review, from 2026-09-09.** The wide-corpus deck is read from
   the top of the ranking down, by Claude Opus and Gemini Flash (the
   `gemini-executor` skill), with a rebuild after each step so the rules of
-  one step remove the same defects from the unread part. Step 1 (top 2,400
-  cards, 700 units) is applied; its cross-vendor diff is in the audit
-  README.
+  one step remove the same defects from the unread part. Five steps on 9
+  September 2026 read every unit and every glossed card, both vendors,
+  and converged: the last rebuild produced nothing unread. 26 causes
+  became rules; the audit README has each step's cross-vendor diff.
 
 ## What is not built
 
-- **Steps 2 onward of the stepped review**: the wide-corpus deck below the
-  first 700 units has not been read by either vendor yet.
+- **Gloss checks for the 38,000 unglossed cards**, once the Azure job
+  supplies translations.
 - **Phase 2 and 3.** `web/` is the grammar trainer's PWA, untouched; it falls
   back to six seed items because `web/data/` was deleted.
 
