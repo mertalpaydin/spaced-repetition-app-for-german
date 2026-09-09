@@ -356,3 +356,27 @@ def test_stats_counts_bands_and_retention() -> None:
     assert s.retention_30d == 0.5
     assert s.coverage[1] == (1, 4)
     assert s.new_remaining == 1  # trotzdem (und trivial, aufstehen unglossed)
+
+
+def test_merge_appends_only_the_other_devices_new_entries(tmp_path: Path) -> None:
+    out: list[str] = []
+    client = _client(tmp_path, [], out)
+    client.log.record_mark(unit_id="cn:und", known=True, source="triage")
+    other = tmp_path / "phone.jsonl"
+    phone = ReviewLog(other, now=lambda: T0 + timedelta(hours=2))
+    phone.record_mark(unit_id="cn:und", known=True, source="triage")  # different time: kept
+    phone.record_review(
+        unit_id="vp:warten_auf",
+        card_id="w10000000000",
+        rating="good",
+        outcome="exact",
+        answers=["wartet", "auf"],
+        expected=["wartet", "auf"],
+        elapsed_ms=5,
+        deck_version="t",
+    )
+    assert client.merge(other) == 0
+    assert client.merge(other) == 0  # idempotent
+    assert [e.seq for e in client.log.entries] == [1, 2, 3]
+    assert "2 Einträge" in out[0] and "0 Einträge" in out[1]
+    assert client.state().records["vp:warten_auf"].reps == 1

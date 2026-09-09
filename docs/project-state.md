@@ -127,8 +127,8 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
 - **Phase 3.** `web/` is the grammar trainer's PWA, untouched; it falls back
   to six seed items because `web/data/` was deleted. The review-log format
   it must read is the one in `src/contracts.py` (`ReviewEntry`, `MarkEntry`).
-- **Log merging across devices** exists as a function
-  (`review_log.merge_entries`) but has no command yet.
+- **Nothing else of phase 2**; `train merge <other.jsonl>` folds a second
+  device's log in, so the phone log can be merged once phase 3 exists.
 
 ---
 

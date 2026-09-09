@@ -21,7 +21,14 @@ from pathlib import Path
 from src.contracts import PhraseCard, PhraseUnit
 from src.engine.fsrs import FSRSEngine
 from src.engine.grading import grade_card, render_marked, render_with_gaps
-from src.engine.review_log import DEFAULT_LOG_PATH, LearnerState, ReviewLog, derive_state
+from src.engine.review_log import (
+    DEFAULT_LOG_PATH,
+    LearnerState,
+    ReviewLog,
+    derive_state,
+    merge_entries,
+    read_entries,
+)
 from src.engine.session import Deck, Settings, next_unit, pick_card, untriaged_units
 from src.engine.stats import compute_stats
 from src.phrases.export import DEFAULT_DECK_DIR
@@ -157,6 +164,23 @@ class Client:
         self.write(f"  {unit.display_de}{case}\n")
         return True
 
+    # -- merge ----------------------------------------------------------------
+
+    def merge(self, other: Path) -> int:
+        """Fold another device's log into this one: entries this log does not
+        have (by type, unit and time) are appended, renumbered after ours."""
+        incoming = read_entries(other)
+        merged = merge_entries(self.log.entries, incoming)
+        have = {(e.type, e.unit_id, e.ts) for e in self.log.entries}
+        added = 0
+        for entry in merged:
+            if (entry.type, entry.unit_id, entry.ts) in have:
+                continue
+            self.log.append(entry.model_copy(update={"seq": self.log.next_seq}))
+            added += 1
+        self.write(f"{added} Einträge aus {other} übernommen.\n")
+        return 0
+
     # -- stats ----------------------------------------------------------------
 
     def stats(self) -> int:
@@ -176,7 +200,8 @@ class Client:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["triage", "practice", "stats"])
+    parser.add_argument("mode", choices=["triage", "practice", "stats", "merge"])
+    parser.add_argument("other", nargs="?", type=Path, help="merge: the other device's log")
     parser.add_argument("--deck", type=Path, default=DEFAULT_DECK_DIR)
     parser.add_argument("--log", type=Path, default=DEFAULT_LOG_PATH)
     parser.add_argument("--batch", type=int, default=50, help="triage: units per run")
@@ -211,6 +236,11 @@ def main(argv: list[str] | None = None) -> int:
         return client.triage(args.batch)
     if args.mode == "practice":
         return client.practice(args.limit)
+    if args.mode == "merge":
+        if args.other is None:
+            print("merge needs the other log's path")
+            return 2
+        return client.merge(args.other)
     return client.stats()
 
 

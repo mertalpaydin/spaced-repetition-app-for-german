@@ -66,7 +66,6 @@ the next band of what survives. Open:
 
 - **Use it for a week** before phase 3: triage the first bands, practise
   daily, watch `stats`. Report what feels wrong in the scheduler or grader.
-- A `merge` command for two review logs (`review_log.merge_entries` exists).
 - Reviewed card sentences with a Gemini-agent gloss have not had the gloss
   itself reviewed; the next review step (cards new to the reviewers) covers
   them.
