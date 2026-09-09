@@ -499,7 +499,12 @@ class UnitBuilder:
 
         ordered = sorted(
             accepted.items(),
-            key=lambda item: (-item[1][0].count, _KIND_ORDER[item[1][0].kind], item[1][0].key),
+            key=lambda item: (
+                -self._per_million(item[1][0]),
+                -item[1][0].count,
+                _KIND_ORDER[item[1][0].kind],
+                item[1][0].key,
+            ),
         )
         units: list[PhraseUnit] = []
         seen_ids: set[str] = set()
@@ -524,6 +529,7 @@ class UnitBuilder:
                     gloss_en=(override.gloss_en if override and override.gloss_en else d.gloss_en),
                     sentence_count=s.count,
                     count_by_source=dict(s.count_by_source),
+                    per_million=round(self._per_million(s), 3),
                     rank=rank,
                     trivial=trivial,
                     trivial_reason=reason,
@@ -543,6 +549,17 @@ class UnitBuilder:
         self.report["kinds"] = dict(Counter(u.kind for u in units))
         self.report["wordlist_coverage"] = self._wordlist_coverage(units)
         return units
+
+    def _per_million(self, s: UnitStats) -> float:
+        """Mean over the corpora of sentences-per-million in that corpus, so a
+        400k everyday corpus and a 1M news corpus each get one vote and no
+        register dominates the ranking."""
+        totals = self.counts.sentences_by_source
+        if not totals:
+            return float(s.count)
+        return sum(
+            1e6 * s.count_by_source.get(source, 0) / n for source, n in totals.items() if n
+        ) / len(totals)
 
     def _head_lemma(self, unit: PhraseUnit) -> str:
         if unit.kind in {"verb_prep", "separable_verb"}:

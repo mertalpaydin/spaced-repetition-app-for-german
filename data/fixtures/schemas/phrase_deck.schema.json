@@ -223,10 +223,6 @@
             "type": "string"
           },
           "corpus_source": {
-            "enum": [
-              "tatoeba",
-              "leipzig"
-            ],
             "title": "Corpus Source",
             "type": "string"
           },
@@ -413,6 +409,12 @@
             "minItems": 1,
             "title": "Parts",
             "type": "array"
+          },
+          "per_million": {
+            "default": 0.0,
+            "minimum": 0,
+            "title": "Per Million",
+            "type": "number"
           },
           "rank": {
             "minimum": 1,
@@ -608,6 +610,12 @@
             "minItems": 1,
             "title": "Parts",
             "type": "array"
+          },
+          "per_million": {
+            "default": 0.0,
+            "minimum": 0,
+            "title": "Per Million",
+            "type": "number"
           },
           "rank": {
             "minimum": 1,

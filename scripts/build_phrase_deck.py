@@ -18,7 +18,7 @@ import json
 import sys
 import time
 from collections import Counter, defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 from src.atomic_write import write_text_atomic
@@ -37,7 +37,6 @@ from src.run_lock import LockHeld, run_lock
 
 from scripts.build_translations import DEFAULT_STORE_PATH, _load_store
 from scripts.corpus_reading import (
-    SOURCE_LEIPZIG,
     SOURCE_TATOEBA,
     CorpusLine,
     default_corpus_path,
@@ -46,7 +45,16 @@ from scripts.corpus_reading import (
 
 DEFAULT_BUILD_DIR = Path("data/phrases/build")
 DEFAULT_TATOEBA_PATH = default_corpus_path("tatoeba_deu.tsv")
-DEFAULT_LEIPZIG_PATH = default_corpus_path("leipzig_sample.txt")
+DEFAULT_LEIPZIG_PATH = default_corpus_path("leipzig_news_2025.txt")
+#: The corpora beyond Tatoeba and the 2025 Leipzig news file, added 2026-09-09
+#: so no single register dominates the ranking. Every one is `id<TAB>sentence`
+#: under data/raw/_extract/; the extraction is described in docs/phrase-deck.md.
+DEFAULT_EXTRA_CORPORA: tuple[tuple[str, str], ...] = (
+    ("leipzig_news_2024", "deu_news_2024_1M-sentences.txt"),
+    ("leipzig_mixed_2011", "deu_mixed-typical_2011_1M-sentences.txt"),
+    ("leipzig_web_2021", "deu-de_web_2021_1M-sentences.txt"),
+    ("opensubtitles_2018", "opensubtitles_2018_sample.txt"),
+)
 DEFAULT_LIMIT = 2_000_000
 DEFAULT_SEED = 7
 STAGES = ("parse", "mine", "cards", "contexts", "export", "all")
@@ -60,15 +68,23 @@ def _log(message: str) -> None:
 
 
 def read_corpora(
-    tatoeba: Path | None, leipzig: Path | None, *, limit: int, seed: int
+    tatoeba: Path | None,
+    leipzig: Path | None,
+    *,
+    limit: int,
+    seed: int,
+    extra: Sequence[tuple[str, Path]] = (),
 ) -> dict[str, CorpusLine]:
-    """Both corpora, deduplicated on sentence text. A missing file is an
-    error, not a smaller deck."""
+    """Every corpus, deduplicated on sentence text (the first corpus to
+    contribute a sentence owns it). A missing file is an error, not a
+    smaller deck."""
     lines: dict[str, CorpusLine] = {}
-    for path, fmt, source in (
+    corpora: list[tuple[Path | None, str, str]] = [
         (tatoeba, "tatoeba", SOURCE_TATOEBA),
-        (leipzig, "lines", SOURCE_LEIPZIG),
-    ):
+        (leipzig, "lines", "leipzig_news_2025"),
+    ]
+    corpora += [(path, "lines", name) for name, path in extra]
+    for path, fmt, source in corpora:
         if path is None:
             continue
         if not path.exists():
@@ -86,11 +102,21 @@ def stage_parse(args: argparse.Namespace) -> int:
     build_dir.mkdir(parents=True, exist_ok=True)
     curated = load_curated(args.phrases_dir)
     dictionary = carrier_validation._load_dictionary()  # noqa: SLF001
+    extra: list[tuple[str, Path]] = []
+    if not args.no_default_extras:
+        extra += [(name, default_corpus_path(file)) for name, file in DEFAULT_EXTRA_CORPORA]
+    for spec in args.extra_corpus:
+        name, _, path = spec.partition("=")
+        if not name or not path:
+            _log(f"--extra-corpus expects name=path, got {spec!r}")
+            return 1
+        extra.append((name, Path(path)))
     lines = read_corpora(
         None if args.skip_tatoeba else args.tatoeba,
         None if args.skip_leipzig else args.leipzig,
         limit=args.limit,
         seed=args.seed,
+        extra=extra,
     )
     ordered = sorted(lines.values(), key=lambda line: (line.source, line.line_id))
     _log(f"parse: {len(ordered):,} distinct sentences")
@@ -105,7 +131,7 @@ def stage_parse(args: argparse.Namespace) -> int:
         for index, (line, parsed) in enumerate(
             zip(ordered, parse_many(entry.text for entry in ordered), strict=True), start=1
         ):
-            counts.add(parsed)
+            counts.add(parsed, line.source)
             for occ in detect_all(
                 parsed, curated, source=line.source, line_id=line.line_id, dictionary=dictionary
             ):
@@ -313,6 +339,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--leipzig", type=Path, default=DEFAULT_LEIPZIG_PATH)
     parser.add_argument("--skip-tatoeba", action="store_true")
     parser.add_argument("--skip-leipzig", action="store_true")
+    parser.add_argument(
+        "--extra-corpus",
+        action="append",
+        default=[],
+        metavar="NAME=PATH",
+        help="an additional id<TAB>sentence corpus; repeatable",
+    )
+    parser.add_argument(
+        "--no-default-extras",
+        action="store_true",
+        help="read only Tatoeba and the 2025 Leipzig news file (tests, quick runs)",
+    )
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--build-dir", type=Path, default=DEFAULT_BUILD_DIR)

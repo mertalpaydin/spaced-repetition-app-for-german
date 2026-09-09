@@ -9,7 +9,9 @@ export stage writes `data/deck/` (committed).
 | Input | Path | Notes |
 |---|---|---|
 | Tatoeba German sentences | `data/raw/_extract/tatoeba_deu.tsv` | `id<TAB>lang<TAB>sentence`, gitignored, staged by hand |
-| Leipzig news sample | `data/raw/_extract/leipzig_sample.txt` | `id<TAB>sentence`, gitignored |
+| Leipzig news 2025 | `data/raw/_extract/leipzig_news_2025.txt` | 1M lines, `id<TAB>sentence`, gitignored |
+| Leipzig news 2024, mixed 2011, web 2021 | `data/raw/_extract/<package>-sentences.txt` | 1M lines each; the `-sentences.txt` member of each `*_1M.tar.gz` from `downloads.wortschatz-leipzig.de/corpora/` |
+| OpenSubtitles 2018, German | `data/raw/_extract/opensubtitles_2018_sample.txt` | a seeded 1M-line reservoir sample of plausible carriers from OPUS `v2018/mono/de.txt.gz`, numbered |
 | Gloss store | `data/fixtures/translations/de_en.jsonl` | operational, gitignored, never delete; only `azure`/`gemini` rows become cards |
 | Frequency list | `data/fixtures/corpus/frequency/de_opensubtitles2018_top50k.txt` | surface ranks, used for the trivial flag |
 | CEFR lemmas | `data/fixtures/corpus/vocab_levels.json` | |
@@ -17,7 +19,13 @@ export stage writes `data/deck/` (committed).
 | Curated lists | `data/phrases/*.yaml` | see below |
 
 A missing corpus file is an error. The build never produces a smaller deck
-silently.
+silently. `--no-default-extras` reads only Tatoeba and Leipzig news 2025;
+`--extra-corpus name=path` adds another `id<TAB>sentence` file.
+
+Ranking uses the mean, over the corpora, of a unit's sentences per million
+sentences of that corpus, so a 400k everyday corpus and a 1M news corpus get
+one vote each and no register dominates. Thresholds still use raw counts.
+Subtitle lines become cards only when the sentence validator passes them.
 
 ## The curated lists
 

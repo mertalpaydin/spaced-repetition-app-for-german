@@ -195,3 +195,18 @@ def test_excluded_keys_never_become_units() -> None:
     builder = _builder(_counts(kommen=100), CuratedLists(exclude=["kommen zu"]))
     assert builder.build(_occ("verb_prep", "kommen zu", ["kommen", "zu"], 40, case="Dat")) == []
     assert builder.report["rejected"]["verb_prep:excluded"] == 1
+
+
+def test_rank_uses_mean_per_source_relative_frequency() -> None:
+    """A phrase common in the small everyday corpus outranks one that is only
+    common in the large news corpus, whatever the raw counts say."""
+    counts = _counts(warten=100, denken=100)
+    counts.sentences_by_source = Counter({"tatoeba": 1_000, "leipzig_news_2025": 9_000})
+    everyday = _occ("verb_prep", "warten auf", ["warten", "auf"], 20, case="Akk")
+    news = [
+        o.model_copy(update={"corpus_source": "leipzig_news_2025"})
+        for o in _occ("verb_prep", "denken an", ["denken", "an"], 30, case="Akk")
+    ]
+    units = _builder(counts).build(everyday + news)
+    assert [(u.rank, u.lemma_key) for u in units] == [(1, "warten auf"), (2, "denken an")]
+    assert units[0].per_million == 10_000.0  # 20 of 1,000, averaged with 0 of 9,000

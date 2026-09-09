@@ -51,6 +51,7 @@ def test_build_over_the_sample_corpus_matches_the_golden_outputs(tmp_path: Path)
                 "--tatoeba",
                 str(FIXTURES / "sample_corpus.tsv"),
                 "--skip-leipzig",
+                "--no-default-extras",
                 *common,
             ]
         )

@@ -73,7 +73,10 @@ UnitSource = Literal["mined", "curated", "mined+curated"]
 #: Only machine glosses reach a learner (CLAUDE.md rule 9). ``tatoeba`` is
 #: deliberately not a member.
 GlossSource = Literal["azure", "gemini"]
-CorpusSource = Literal["tatoeba", "leipzig"]
+#: A corpus name from the build script's corpus list ("tatoeba",
+#: "leipzig_news_2025", "opensubtitles_2018", ...). Widened from a two-value
+#: Literal on 2026-09-09 when the corpus grew; flagged per CLAUDE.md rule 8.
+CorpusSource = str
 
 DECK_SCHEMA_VERSION: int = 1
 
@@ -114,9 +117,13 @@ class PhraseUnit(BaseModel):
     #: Unit-level English, curated lists only. Mined units have none until an
     #: opt-in gloss run adds them.
     gloss_en: str | None = None
-    #: Distinct corpus sentences containing the unit, both corpora together.
+    #: Distinct corpus sentences containing the unit, all corpora together.
     sentence_count: int = Field(ge=0)
     count_by_source: dict[str, int] = Field(default_factory=dict)
+    #: Mean over the corpora of the unit's sentences per million sentences
+    #: of that corpus. Ranking uses this, so no single register dominates;
+    #: additive field, 2026-09-09.
+    per_million: float = Field(default=0.0, ge=0)
     #: 1 is the most frequent unit in the deck.
     rank: int = Field(ge=1)
     trivial: bool = False

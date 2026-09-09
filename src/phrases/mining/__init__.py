@@ -22,13 +22,16 @@ class LemmaCounts:
     """Sentence counts per lemma, by role, for lift and log-likelihood."""
 
     sentences: int = 0
+    sentences_by_source: Counter[str] = field(default_factory=Counter)
     verbs: Counter[str] = field(default_factory=Counter)
     nouns: Counter[str] = field(default_factory=Counter)
     adjectives: Counter[str] = field(default_factory=Counter)
     prepositions: Counter[str] = field(default_factory=Counter)
 
-    def add(self, sentence: ParsedSentence) -> None:
+    def add(self, sentence: ParsedSentence, source: str = "") -> None:
         self.sentences += 1
+        if source:
+            self.sentences_by_source[source] += 1
         verbs: set[str] = set()
         nouns: set[str] = set()
         adjs: set[str] = set()
@@ -54,6 +57,7 @@ class LemmaCounts:
     def to_dict(self) -> dict[str, object]:
         return {
             "sentences": self.sentences,
+            "sentences_by_source": dict(self.sentences_by_source),
             "verbs": dict(self.verbs),
             "nouns": dict(self.nouns),
             "adjectives": dict(self.adjectives),
@@ -71,6 +75,7 @@ class LemmaCounts:
         assert isinstance(sentences, int)
         return cls(
             sentences=sentences,
+            sentences_by_source=counter("sentences_by_source"),
             verbs=counter("verbs"),
             nouns=counter("nouns"),
             adjectives=counter("adjectives"),

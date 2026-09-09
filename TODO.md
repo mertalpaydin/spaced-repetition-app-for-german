@@ -44,6 +44,28 @@ Four review rounds read every unit and every card
   cross-vendor pass has not happened.
 - The 1M-line `leipzig_news_2025.txt` is not read; the 205k-line sample is.
 
+## Before phase 2 (owner's instruction, 2026-09-09)
+
+- **Widen the corpus for the frequency ranking.** Add the full 1M-line
+  `leipzig_news_2025.txt`, the Leipzig `deu_mixed` and `deu_web` 1M
+  packages, and a sample of the OpenSubtitles German side (OPUS v2024), with
+  per-source normalisation so no register dominates. Cards keep coming from
+  Tatoeba and Leipzig; subtitle lines only where the validator passes them.
+  Check the top pairs against DWDS Wortprofil where its terms allow.
+- **Second reviewer from another vendor.** Run the card and unit review
+  batches through the `gemini-executor` skill (Gemini via `agy`) and diff
+  against the Claude findings; disagreements are surfaced, never
+  auto-resolved (CLAUDE.md section 10).
+- **Connector context sentences via `gemini-executor`.** Generate the
+  preceding sentence for sentence-initial connector cards with the
+  executor skill instead of the Gemini API stage, so the run needs no key
+  and no spend; the deterministic acceptance checks in
+  `src/phrases/contexts.py` still apply to every reply.
+- **Connectors in the ranking.** They are ranked already (matched inside
+  every sentence, initial or medial: `und` 1, `jedoch` 12, `trotzdem` 86).
+  What the corpus cannot supply is the preceding sentence, which is the item
+  above. Re-check the ranks after the corpus widens.
+
 ## Phase 2: FSRS and the laptop client
 
 - `src/engine/review_log.py` (JSONL log, replay), `session.py`, `grading.py`

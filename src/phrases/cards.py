@@ -150,7 +150,7 @@ def _to_card(unit: PhraseUnit, occ: Occurrence, gloss: Gloss | None) -> PhraseCa
         gaps=gaps,
         answers=[g.answer for g in gaps],
         form_key=occ.form_key,
-        corpus_source=occ.corpus_source,  # type: ignore[arg-type]
+        corpus_source=occ.corpus_source,
         corpus_line_id=occ.line_id,
         needs_context=occ.needs_context,
     )
