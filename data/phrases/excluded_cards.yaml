@@ -1235,3 +1235,8 @@
 - da54090af42b  # WRONG_UNIT: Here 'darum' is the pronominal adverb complement of 'jemanden um etwas bitten', not the causal con
 - e8cb432f0192  # BAD_SENTENCE: 'Eier sind zwar rund, aber darum keine Nuesse.' is semantically incoherent and 'aber darum' is n
 - fdbcff3c12b3  # WRONG_UNIT: Not reflexive: subject 'du' and dative object 'mir' are not coreferent, so the sentence does not i
+# Phase 1 review, round 6 (2026-09-09).
+- 85d7635e4df3  # BAD_SENTENCE: "Das konnte ich fuer einen IT-ler noch nie." is not idiomatic self-contained German; "fuer einen
+- ba1ea4e56dd7  # BAD_GLOSS: Etoile Carouge is a football club, so the gloss should read "re-establishing itself", not "himself"
+# Phase 1 review, round 7 (2026-09-09).
+- 6cd14ee61efe  # BAD_SENTENCE: encyclopedia fragment about an unnamed person, resting on a film title and a co-star

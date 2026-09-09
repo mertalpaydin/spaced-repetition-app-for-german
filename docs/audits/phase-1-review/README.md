@@ -66,7 +66,7 @@ reason: 834 units into `data/phrases/exclude.yaml`, 1,085 cards into
 `data/phrases/excluded_cards.yaml`, and 345 case, citation-form and CEFR
 corrections into `data/phrases/unit_overrides.yaml`.
 
-## Rounds 2 to 4
+## Rounds 2 to 8
 
 Each later round read only what the previous round had not: the cards and
 units new since the last reviewed deck version.
@@ -76,6 +76,10 @@ units new since the last reviewed deck version.
 | 2 | `c9e740cf8713` | 1,931 | 117 | 1,111 | 347 |
 | 3 | `0494e734f279` | 550 | 52 | 959 | 72 |
 | 4 | `3b48362f0ed8` | 57 | 11 | 7 | 3 |
+| 5 | `a6bfeddcf4b1` | 9 | 4 | 0 | 0 |
+| 6 | `dc5c95711d0d` | 56 | 2 | 0 | 0 |
+| 7 | `04b08c6a02f5` | 2 | 1 | 0 | 0 |
+| 8 | `54a2856481dd` | 1 | 0 | 0 | 0 |
 
 Round 2 exposed a second layer of systematic causes, now rules with tests:
 existential `es gibt` is not `eine Möglichkeit geben`; a particle inside
@@ -84,7 +88,11 @@ correlative `da` and a postpositional `aus` are not prefixes; a participle
 used adverbially is an adjective; spelled-out clock times are frames; `ob`
 inside `als ob` belongs to `als ob`; a reflexive pronoun on the auxiliary
 still marks the verb reflexive; reciprocal `gegenseitig` and `einander`
-sentences teach no reflexive unit. Rounds 3 and 4 found no new cause.
+sentences teach no reflexive unit. Rounds 3 and 4 found no new cause; round
+5 found two more (a pronominal adverb of a seeded verb read as a connector
+whatever the parser's label, and a subordinate-clause fragment the validator
+accepts), both rules now. Each rebuild replaces dropped cards with new ones,
+so the rounds shrink until the replacements are clean.
 
 ## What is still open
 
