@@ -10,7 +10,7 @@ nothing.
 import math
 import re
 from collections import Counter, defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -22,6 +22,7 @@ from src.phrases import paradigms, verb_government
 from src.phrases.carrier_validation import _load_dictionary
 from src.phrases.curated import CuratedLists
 from src.phrases.mining import LemmaCounts
+from src.phrases.mining.collocations import _STOP_ADJECTIVES
 from src.phrases.mining.common import CONTRACTED_PREPS
 from src.phrases.occurrences import Occurrence
 
@@ -126,6 +127,10 @@ class UnitStats:
     #: precedes them, so the citation form reads "ein guter Zweck", not the
     #: oblique "guten Zweck" the corpus shows most often.
     nominative_surfaces: Counter[str] = field(default_factory=Counter)
+    #: Adjective-noun units only: the pair with the preposition that governs
+    #: it, for units that live inside one ("in sicherer Entfernung", "mit
+    #: offenen Armen") and never occur in the nominative.
+    prep_phrases: Counter[str] = field(default_factory=Counter)
     form_keys: Counter[str] = field(default_factory=Counter)
     discontinuous: int = 0
     fused: int = 0
@@ -311,6 +316,31 @@ _GE_INFINITIVES: frozenset[str] = frozenset(
 )
 
 
+def _infinitive_of_preterite(part: str, dictionary: frozenset[str] | None) -> str | None:
+    """The infinitive behind a preterite string left as lemma: strong
+    ("ankamen" -> "ankommen") through the stem table under any prefix,
+    weak ("füllten" -> "füllen") gated on the dictionary."""
+    prefix = ""
+    rest = part
+    for _ in range(3):
+        for ending in ("en", "st", "t", "e", ""):
+            stem = rest[: len(rest) - len(ending)] if ending else rest
+            if stem in paradigms.PRAETERITUM_STEMS:
+                return prefix + paradigms.PRAETERITUM_STEMS[stem]
+        hit = next(
+            (p for p in _ALL_PREFIXES if rest.startswith(p) and len(rest) > len(p) + 2), None
+        )
+        if hit is None or hit == "ge":
+            break
+        prefix += hit
+        rest = rest[len(hit) :]
+    if part.endswith("ten") and len(part) > 5:
+        candidate = part[:-3] + "en"
+        if dictionary is not None and normalise(candidate) in dictionary:
+            return candidate
+    return None
+
+
 def _infinitive_of_participle(part: str, dictionary: frozenset[str] | None) -> str | None:
     """The infinitive behind a Partizip II string, or ``None``. Strong forms
     resolve through ``_STRONG_STEMS`` under any prefix; weak forms
@@ -344,7 +374,11 @@ def _infinitive_of_participle(part: str, dictionary: frozenset[str] | None) -> s
 
 
 def canonical_verb(
-    verb: str, surfaces: list[str], form_key: str, dictionary: frozenset[str] | None
+    verb: str,
+    surfaces: list[str],
+    form_key: str,
+    dictionary: frozenset[str] | None,
+    infinitives: Mapping[str, object] | None = None,
 ) -> str | None:
     """The infinitive a mined verb part stands for, or ``None`` when the part
     is not one the deck can cite.
@@ -356,15 +390,30 @@ def canonical_verb(
     zu-infinitive left as lemma ("sich einzubringen") loses its ``zu``.
     """
     lowered = {s.lower() for s in surfaces}
-    if form_key.startswith("Part") and verb.lower() in lowered and verb not in _GE_INFINITIVES:
-        looks_like_infinitive = verb.endswith("n") and _infinitive_of_participle(
-            verb, dictionary
-        ) in {None, verb}
-        if not looks_like_infinitive:
-            mapped = _infinitive_of_participle(verb, dictionary)
+    # A separated verb's lemma is particle + verb surface ("wuchsen … auf").
+    lowered.add("".join(s.lower() for s in reversed(surfaces)))
+    known_infinitive = verb in _GE_INFINITIVES or (
+        infinitives is not None and normalise(verb) in infinitives
+    )
+    # The surface is the lemma: right for an infinitive ("wir kommen",
+    # "hat erhalten"), a tagger slip for a participle, a preterite or a
+    # zu-infinitive, whatever VerbForm the tagger claims ("hat eingestochen"
+    # comes back as Inf).
+    if verb.lower() in lowered and not known_infinitive:
+        if form_key.startswith("Fin|Past") or not verb.endswith("n"):
+            mapped = _infinitive_of_preterite(verb, dictionary) or (
+                _infinitive_of_participle(verb, dictionary) if not verb.endswith("n") else None
+            )
             if mapped is None:
                 return None
             verb = mapped
+        else:
+            participle = _infinitive_of_participle(verb, dictionary)
+            preterite = _infinitive_of_preterite(verb, dictionary)
+            if participle not in {None, verb}:
+                verb = participle
+            elif preterite is not None and preterite != verb:
+                verb = preterite
     if form_key.startswith("Inf"):
         for prefix in sorted(SEPARABLE_PREFIXES, key=len, reverse=True):
             if verb.startswith(prefix + "zu"):
@@ -390,6 +439,12 @@ def _junk_particle(occ: Occurrence, dictionary: frozenset[str] | None) -> bool:
         return False
     particle = occ.surfaces[-1].lower()
     fused_is_word = dictionary is None or normalise(occ.unit_key) in dictionary
+    if (
+        particle not in SEPARABLE_PREFIXES
+        and particle not in paradigms.KNOWN_PARTICLES
+        and not fused_is_word
+    ):
+        return True
     if particle.startswith(_PRONOMINAL_ADVERB_PREFIXES) and particle != "dazu":
         if not fused_is_word:
             return True
@@ -399,8 +454,14 @@ def _junk_particle(occ: Occurrence, dictionary: frozenset[str] | None) -> bool:
     return _PP_OBJECT_NEXT.match(tail) is not None
 
 
-def canonical_occurrence(occ: Occurrence, dictionary: frozenset[str] | None) -> Occurrence | None:
+def canonical_occurrence(
+    occ: Occurrence,
+    dictionary: frozenset[str] | None,
+    infinitives: Mapping[str, object] | None = None,
+) -> Occurrence | None:
     """Rewrite an occurrence's key to its citation form, or drop it."""
+    if occ.kind == "adj_noun" and occ.parts[0].lower() in _STOP_ADJECTIVES:
+        return None
     index = _VERB_INDEX.get(occ.kind)
     if index is None:
         return occ
@@ -413,7 +474,7 @@ def canonical_occurrence(occ: Occurrence, dictionary: frozenset[str] | None) -> 
             return None
         if prep in _PASSIVE_AGENT_PREPS and occ.form_key.startswith("Part"):
             return None
-    verb = canonical_verb(parts[index], occ.surfaces, occ.form_key, dictionary)
+    verb = canonical_verb(parts[index], occ.surfaces, occ.form_key, dictionary, infinitives)
     if verb is None:
         return None
     if verb == parts[index]:
@@ -423,25 +484,62 @@ def canonical_occurrence(occ: Occurrence, dictionary: frozenset[str] | None) -> 
     return occ.model_copy(update={"parts": parts, "unit_key": key})
 
 
-_ARTICLES: frozenset[str] = frozenset(
-    {"der", "die", "das", "ein", "eine", "kein", "keine", "dieser", "diese", "dieses"}
+_ARTICLES: frozenset[str] = frozenset({"der", "die", "das", "ein", "eine"})
+_PHRASE_PREPS: frozenset[str] = frozenset(
+    {
+        "in",
+        "im",
+        "an",
+        "am",
+        "auf",
+        "mit",
+        "bei",
+        "beim",
+        "unter",
+        "aus",
+        "vor",
+        "nach",
+        "zu",
+        "zur",
+        "zum",
+        "von",
+        "vom",
+        "für",
+        "über",
+        "ohne",
+        "durch",
+    }
 )
 
 
-def _nominative_phrase(occ: Occurrence) -> str:
-    phrase = " ".join(occ.surfaces)
+def _adj_noun_surface(occ: Occurrence) -> str:
+    """The pair as written, adjective lower-cased: a sentence-initial
+    "Heftiger Regen" is not a citation form."""
+    adj, *rest = occ.surfaces
+    return " ".join([adj[:1].lower() + adj[1:], *rest])
+
+
+def _word_before(occ: Occurrence) -> str:
     before = occ.text[: occ.spans[0][0]].split()
-    if before and before[-1].lower() in _ARTICLES:
-        return f"{before[-1].lower()} {phrase}"
+    return before[-1].lower().strip('"„“(') if before else ""
+
+
+def _nominative_phrase(occ: Occurrence) -> str:
+    phrase = _adj_noun_surface(occ)
+    before = _word_before(occ)
+    if before in _ARTICLES:
+        return f"{before} {phrase}"
     return phrase
 
 
 def aggregate(
-    occurrences: Iterable[Occurrence], dictionary: frozenset[str] | None = None
+    occurrences: Iterable[Occurrence],
+    dictionary: frozenset[str] | None = None,
+    infinitives: Mapping[str, object] | None = None,
 ) -> dict[tuple[str, str], UnitStats]:
     stats: dict[tuple[str, str], UnitStats] = {}
     for raw in occurrences:
-        canonical = canonical_occurrence(raw, dictionary)
+        canonical = canonical_occurrence(raw, dictionary, infinitives)
         if canonical is None:
             continue
         occ = canonical
@@ -455,8 +553,12 @@ def aggregate(
         entry.count_by_source[occ.corpus_source] += 1
         entry.parts[tuple(occ.parts)] += 1
         entry.surface_tally[" ".join(occ.surfaces)] += 1
-        if occ.kind == "adj_noun" and occ.form_key.startswith("Nom|"):
-            entry.nominative_surfaces[_nominative_phrase(occ)] += 1
+        if occ.kind == "adj_noun":
+            if occ.form_key.startswith("Nom|"):
+                entry.nominative_surfaces[_nominative_phrase(occ)] += 1
+            before = _word_before(occ)
+            if before in _PHRASE_PREPS:
+                entry.prep_phrases[f"{before} {_adj_noun_surface(occ)}"] += 1
         if occ.kind == "noun_verb" and len(occ.parts) == 2:
             stem = normalise(occ.parts[0])[:4]
             for surface in occ.surfaces:
@@ -762,7 +864,12 @@ class UnitBuilder:
         if s.kind == "adj_noun":
             if s.nominative_surfaces:
                 return s.nominative_surfaces.most_common(1)[0][0]
-            return s.surface_tally.most_common(1)[0][0] if s.surface_tally else " ".join(parts)
+            if s.prep_phrases and sum(s.prep_phrases.values()) * 2 >= s.count:
+                return s.prep_phrases.most_common(1)[0][0]
+            if s.surface_tally:
+                adj, _, noun = s.surface_tally.most_common(1)[0][0].partition(" ")
+                return f"{adj[:1].lower()}{adj[1:]} {noun}"
+            return " ".join(parts)
         return s.key
 
     def _trivial(self, s: UnitStats, decision: _Decision) -> tuple[bool, str | None]:
@@ -831,7 +938,7 @@ class UnitBuilder:
                 self.report["zero_hit_curated"].append(colloc.key)
 
     def build(self, occurrences: Iterable[Occurrence]) -> list[PhraseUnit]:
-        stats = aggregate(occurrences, self.dictionary)
+        stats = aggregate(occurrences, self.dictionary, self.vocabulary.vocab)
         self._ensure_curated_present(stats)
         accepted: dict[tuple[str, str], tuple[UnitStats, _Decision]] = {}
         for ident, s in stats.items():

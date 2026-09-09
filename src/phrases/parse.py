@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
-from src.lexicon.lemmatizer import normalise
+from src.lexicon.lemmatizer import SEPARABLE_PREFIXES, normalise
 from src.phrases import paradigms
 
 if TYPE_CHECKING:
@@ -218,6 +218,12 @@ def separable_particle(sentence: ParsedSentence, verb: ParsedToken) -> ParsedTok
         if not _fuses_with(lower, verb.lemma.lower()):
             return None
     if lower in _ADVERB_PARTICLES and not _fuses_with(lower, verb.lemma.lower()):
+        return None
+    if (
+        lower not in SEPARABLE_PREFIXES
+        and lower not in paradigms.KNOWN_PARTICLES
+        and not _fuses_with(lower, verb.lemma.lower())
+    ):
         return None
     before = sentence.tokens[particle.i - 1] if particle.i > 0 else None
     after = sentence.tokens[particle.i + 1] if particle.i + 1 < len(sentence.tokens) else None

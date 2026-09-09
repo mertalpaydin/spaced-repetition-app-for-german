@@ -1182,3 +1182,760 @@
 - "vorbleiben"  # NOT_A_PHRASE: vorbleiben is not a valid German word.
 - "wort benutzen"  # NOT_A_PHRASE: Wort benutzen is a free verb-object combination.
 - "ziel angreifen"  # NOT_A_PHRASE: Ziel angreifen is a free verb-object combination.
+# Review round step2: units the reviewer rejected.
+- "abdichten mit"  # NOT_A_PHRASE: Free instrumental prepositional adjunct.
+- "abend versauen"  # NOT_A_PHRASE: Compositional colloquial direct object and verb.
+- "abend vorbeikommen"  # BAD_UNIT: 'Abend vorbeikommen' is an arbitrary temporal adverbial collocation rather than a lexicalized phrase
+- "abhausen"  # NOT_A_PHRASE: Almost certainly a mis-lemmatisation of abhauen.
+- "abheißen"  # NOT_A_PHRASE: Non-existent German verb / OCR or parser artefact.
+- "abrissen"  # BAD_UNIT: Unit display is an inflected form; the citation form is 'abreißen'.
+- "abschalen"  # BAD_UNIT: 'abschalen' is not the intended lemma for turning off devices ('abschalten').
+- "abschenken"  # NOT_A_PHRASE: Not a German verb.
+- "abtransportieren mit"  # NOT_A_PHRASE: Completely free prepositional instrumental adjunct.
+- "akte überprüfen"  # NOT_A_PHRASE: Free syntactic combination of noun and verb.
+- "akustisch gitarre"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "alt brauch"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "alt mühle"  # NOT_A_PHRASE: Free combination or proper place name.
+- "alternativ realität"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "amerikanisch held"  # NOT_A_PHRASE: Free combination of nationality adjective and noun.
+- "amerikanisch soldat"  # NOT_A_PHRASE: News-only free combination.
+- "amerikanisch wirtschaft"  # NOT_A_PHRASE: News-only free combination.
+- "anbegleiten"  # NOT_A_PHRASE: Not a valid German verb; anbegleiten does not exist.
+- "anbitten"  # NOT_A_PHRASE: Non-existent German verb / parser artefact (likely confusion with anbieten/anbeten).
+- "anbrechen für"  # NOT_A_PHRASE: anbrechen does not govern fuer; the phrase is a free adjunct.
+- "anbrennen gegen"  # NOT_A_PHRASE: Ungrammatical fragment / parser artefact (likely from nichts anbrennen lassen).
+- "andr leute"  # BAD_UNIT: 'andrer Leute' is an archaic or non-standard genitive phrase not suitable as a vocabulary unit for A
+- "anerinnern"  # NOT_A_PHRASE: Non-existent German verb / parser artefact.
+- "anfinden"  # NOT_A_PHRASE: Not a valid German verb; anfinden does not exist.
+- "anfing regnen"  # BAD_CITATION: Ungrammatical fragment combining inflected past verb without zu.
+- "anfliegen mit"  # BAD_UNIT: 'mit' is merely an instrumental/manner adjunct, not a fixed verb-preposition valency of 'anfliegen'.
+- "angelten"  # NOT_A_PHRASE: Finite preterite of angeln misparsed as a separable verb.
+- "angriffen"  # BAD_UNIT: Unit display is the conjugated subjunctive form 'angriffen' instead of infinitive 'angreifen'.
+- "anhoffen"  # NOT_A_PHRASE: No such verb; parser artefact.
+- "ankamen"  # BAD_UNIT: The unit is listed as the conjugated past tense ankamen rather than the infinitive ankommen.
+- "ankennen"  # NOT_A_PHRASE: Non-existent German verb / parser artefact.
+- "anmeinen"  # NOT_A_PHRASE: No such verb; parser artefact.
+- "anonym anruf"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "anonym quelle"  # NOT_A_PHRASE: News-desk collocation with no idiomatic content.
+- "anordnung befolgen"  # NOT_A_PHRASE: Compositional transitive verb phrase.
+- "anpackten"  # BAD_CITATION: Past tense plural form used instead of infinitive anpacken.
+- "anpiepen"  # DUPLICATE: Spelling variant of sv:anpiepsen in the same batch.
+- "anschalen"  # BAD_UNIT: Unit display has a typo ('anschalen' instead of 'anschalten').
+- "antik stadt"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "anverdammen"  # NOT_A_PHRASE: Anverdammen ist kein deutsches Wort.
+- "anwissen"  # NOT_A_PHRASE: Non-existent German verb.
+- "arbeitend mensch"  # NOT_A_PHRASE: Free combination without idiomatic or collocational status.
+- "arm junge"  # NOT_A_PHRASE: Free combination without idiomatic or collocational status.
+- "armbleiben"  # NOT_A_PHRASE: Spurious compound of adjective and copular verb arm bleiben.
+- "artikel kommentieren"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "asche verstreuen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "asiatisch küche"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "ast absägen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "atmen durch"  # NOT_A_PHRASE: Free directional combination, the preposition is not governed by the verb.
+- "attraktivermachen"  # NOT_A_PHRASE: Spurious compound formed from comparative adjective and verb.
+- "aufbäumen"  # DUPLICATE: aufbäumen exists only reflexively; duplicates rv:sich_aufbaeumen.
+- "aufdenken"  # NOT_A_PHRASE: No such verb; parser artefact.
+- "auffinden in"  # NOT_A_PHRASE: Free prepositional combination rather than a fixed lexicalized verb-preposition phrase.
+- "aufgefahren auf"  # BAD_UNIT: The unit is displayed as a participle instead of the lemma "auffahren auf +Akk".
+- "aufgesprungen auf"  # BAD_UNIT: The unit display uses the past participle form instead of the infinitive 'aufspringen auf +Akk'.
+- "aufheißen"  # NOT_A_PHRASE: Not a German word; parser garbage.
+- "auflernen"  # NOT_A_PHRASE: No such verb; parser artefact.
+- "aufregend abenteuer"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "aufrissen"  # BAD_CITATION: Past tense plural form used instead of infinitive.
+- "aufverdammen"  # NOT_A_PHRASE: Non-existent verb / corpus error.
+- "aufweißen"  # NOT_A_PHRASE: Not a German word; aufweisen was mangled.
+- "aufwissen"  # NOT_A_PHRASE: Non-existent German verb / parser artefact.
+- "aufwuchsen"  # BAD_UNIT: Unit display is an inflected past form; the citation form is 'aufwachsen'.
+- "ausbissen"  # BAD_CITATION: Past-tense form; also duplicates rv:sich_ausbissen.
+- "auserfolgen"  # NOT_A_PHRASE: No such verb; parser garbage.
+- "auserkoren als"  # NOT_A_PHRASE: Participle plus als from a passive clause, not a verb-preposition unit.
+- "ausmeinen"  # NOT_A_PHRASE: Non-existent German verb / parser artefact.
+- "ausrasen"  # NOT_A_PHRASE: Likely a misparse of ausrasten; not worth teaching.
+- "ausschweigen"  # BAD_UNIT: The verb exists only as reflexive "sich ausschweigen", duplicating that unit.
+- "aussehen verändern"  # NOT_A_PHRASE: Compositional verb phrase.
+- "aussorgen"  # BAD_UNIT: No verb 'aussorgen'; 'aus' belongs to 'Komfortschichten aus ...' and the sentence is truncated.
+- "ausverdammen"  # NOT_A_PHRASE: Ausverdammen ist kein deutsches Wort.
+- "befahren straße"  # NOT_A_PHRASE: Free participle-noun combination, normally with an intensifier.
+- "behörde alarmieren"  # NOT_A_PHRASE: Free compositional direct object and verb.
+- "belieben bei"  # NOT_A_PHRASE: Erroneous extraction or free combination; belied by corpus artefact.
+- "bemerkten bei"  # BAD_UNIT: Unit lemma is a conjugated past tense form 'bemerkten' rather than the infinitive 'bemerken'.
+- "bereitliegen für"  # NOT_A_PHRASE: bereitliegen has no fixed prepositional complement; parser artefact.
+- "bereitliegen zu"  # NOT_A_PHRASE: bereitliegen does not govern zu; parser artefact.
+- "bergaufgehen nach"  # NOT_A_PHRASE: nach + Dat is an optional temporal modifier, not a prepositional complement of bergauf gehen.
+- "berühmt persönlichkeit"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "besen fressen"  # NOT_A_PHRASE: Fragment of ich fresse einen Besen, wenn ...
+- "bewaffnet mann"  # NOT_A_PHRASE: Free adjective-noun combination from crime news, not a lexical unit.
+- "bissch angst"  # BAD_UNIT: bisschen Angst is an arbitrary fragment rather than a valid lexical unit.
+- "bissch kleingeld"  # NOT_A_PHRASE: Pronoun quantifier and noun phrase, not an adjective-noun collocation.
+- "bissch leise"  # NOT_A_PHRASE: Adverbial modifier with comparative adjective, not an adj_noun phrase.
+- "bissch müde"  # BAD_UNIT: Not an adjective-noun collocation; 'ein bisschen' plus any adjective is a free combination.
+- "bisschen ausruhen"  # BAD_CITATION: Lacks reflexive pronoun (sich ein bisschen ausruhen).
+- "bisschen umsehen"  # NOT_A_PHRASE: bisschen is a quantifier, not a noun; free combination.
+- "bisschen unterhalten"  # NOT_A_PHRASE: Adverbial modifier with verb, not a lexicalized noun-verb collocation.
+- "bisschen übertreiben"  # BAD_UNIT: 'ein bisschen' is a degree quantifier, not a noun object of 'übertreiben'.
+- "blankliegen bei"  # BAD_UNIT: The idiom is 'die Nerven liegen blank', not a verb complement 'blankliegen bei'.
+- "blass aussehen"  # NOT_A_PHRASE: Adjective + copular verb combination, not a noun_verb phrase.
+- "blau anzug"  # NOT_A_PHRASE: Free colour-noun combination.
+- "blau hose"  # NOT_A_PHRASE: Free colour-noun combination.
+- "blau jacke"  # NOT_A_PHRASE: Free combination of color adjective and clothing noun.
+- "blau uniform"  # NOT_A_PHRASE: Free colour-noun combination.
+- "bleibend eindruck"  # BAD_UNIT: Ungrammatical unit lemma mixing plural article with masculine accusative/dative noun phrase.
+- "boden ausschlagen"  # BAD_CITATION: Incomplete citation form of dem Fass den Boden ausschlagen.
+- "boden fegen"  # NOT_A_PHRASE: Free object-verb combination, near-identical to Boden wischen.
+- "boden wischen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "boot versenken"  # NOT_A_PHRASE: Free combination and not an established multiword phrase or collocation.
+- "boten schicken"  # NOT_A_PHRASE: Free compositional direct object and verb.
+- "braun schuh"  # NOT_A_PHRASE: Free colour-plus-garment combination.
+- "braut küssen"  # NOT_A_PHRASE: Free verb-object combination.
+- "breitmachen"  # DUPLICATE: Duplicates rv:sich_breitmachen; the verb is only used reflexively.
+- "brennend flugzeug"  # NOT_A_PHRASE: Free combination of participial adjective and noun.
+- "briefmarkensammlung sehen"  # NOT_A_PHRASE: Free verb-object combination from a single corpus scene.
+- "brille vergessen"  # NOT_A_PHRASE: Free verb-object combination.
+- "britisch kolonie"  # NOT_A_PHRASE: Free combination of nationality adjective and noun.
+- "britisch pfund"  # NOT_A_PHRASE: News-only currency reference, not a phrase unit.
+- "britisch soldat"  # NOT_A_PHRASE: Nationality adjective plus noun, news-only free combination.
+- "brötchen backen"  # NOT_A_PHRASE: Free object-verb combination.
+- "brücke sprengen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "butter streichen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "böse brief"  # NOT_A_PHRASE: Free adjective-noun combination, not a collocation.
+- "böse erinnerung"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "böse hexe"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "böse traum"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "büro durchsuchen"  # NOT_A_PHRASE: Free verb-object combination.
+- "chemisch formel"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "chemisch substanz"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "christbaum schmücken"  # NOT_A_PHRASE: Compositional seasonal activity phrase.
+- "code entschlüsseln"  # NOT_A_PHRASE: Free compositional noun-verb combination.
+- "cops rufen"  # NOT_A_PHRASE: Free compositional slang noun-verb combination.
+- "cousin heiraten"  # NOT_A_PHRASE: Free combination of direct object and transitive verb.
+- "dach reparieren"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "dazubringen"  # BAD_UNIT: 'jemanden dazu bringen' has a pronominal adverb, not a separable prefix; 'dazubringen' is not a verb
+- "dazufinden"  # BAD_UNIT: 'dazufinden' is not a recognized separable verb here; 'dazu' is a pronominal adverb modifying 'Inhal
+- "denkweise ändern"  # NOT_A_PHRASE: Compositional direct object and transitive verb.
+- "detailliert beschreibung"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "deutlich wort"  # BAD_UNIT: Citation form carries 'mit' although the sentence uses 'vor deutlichen Worten'; the unit is just 'de
+- "dialekt verstehen"  # NOT_A_PHRASE: Free compositional noun-verb combination.
+- "direkt angriff"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "doppelt portion"  # NOT_A_PHRASE: Free compositional modifier-noun combination.
+- "dorf zerstören"  # NOT_A_PHRASE: Free object-verb combination with no idiomatic content.
+- "drache töten"  # NOT_A_PHRASE: Free verb-object combination from fiction subtitles.
+- "drangewöhnen"  # BAD_CITATION: Colloquial contraction lacking reflexive pronoun (sich daran gewöhnen).
+- "drauffreuen"  # BAD_CITATION: Spurious compound lacking reflexive pronoun (sich darauf freuen).
+- "drausmachen"  # BAD_UNIT: Non-standard colloquial contraction that is not a recognized separable verb lemma.
+- "dreck interessieren"  # BAD_CITATION: Incomplete idiom; standard form is einen Dreck interessieren / sich einen Dreck interessieren.
+- "dreck kümmern"  # BAD_CITATION: Missing reflexive pronoun and preposition; idiom is sich einen Dreck um etwas kümmern.
+- "drehbuch lesen"  # NOT_A_PHRASE: Free combination of object noun and verb.
+- "dringeben"  # NOT_A_PHRASE: Not an established verb; written as drin geben.
+- "dringen nach"  # BAD_UNIT: nach außen dringen uses nach außen as a directional local phrase, making dringen nach +Dat an invali
+- "drinliegen"  # NOT_A_PHRASE: Colloquial das liegt drin written as one verb; not a lexical unit.
+- "drinmachen"  # NOT_A_PHRASE: Drinmachen existiert nicht als deutsches Verb.
+- "drinmachen zu"  # NOT_A_PHRASE: Parser artefact representing a corrupted non-phrase.
+- "duft riechen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "dunkel farbe"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "dunkel höhle"  # NOT_A_PHRASE: Free compositional adjective-noun pairing.
+- "durchkämpfen"  # DUPLICATE: Duplicates rv:sich_durchkaempfen as it is primarily reflexive in this usage.
+- "durchleisen"  # NOT_A_PHRASE: Non-existent verb / OCR artefact.
+- "durchrasseln mit"  # DUPLICATE: Overlaps sv:durchrasseln and mit is not fixed by the verb.
+- "dutzend töten"  # NOT_A_PHRASE: Free combination of noun/numeral and verb.
+- "dämon bekämpfen"  # NOT_A_PHRASE: Free syntactic combination rather than a fixed collocation or multiword unit.
+- "ehe annullieren"  # NOT_A_PHRASE: Free compositional verb phrase.
+- "ehefrau betrügen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "ehemann töten"  # NOT_A_PHRASE: Free object-verb combination from subtitle text.
+- "einbefinden"  # NOT_A_PHRASE: Non-existent German verb.
+- "einbiegen nach"  # NOT_A_PHRASE: Free directional adjunct, not a fixed prepositional verb.
+- "einbüssen auf"  # BAD_UNIT: Unit display uses the Swiss spelling 'einbüssen' instead of 'einbüßen'.
+- "eindeutig beweis"  # BAD_UNIT: The unit display carries a stray negation; it should be 'ein eindeutiger Beweis'.
+- "einfliessen"  # BAD_UNIT: Unit display uses the Swiss spelling; should be 'einfließen'.
+- "einjagen"  # BAD_UNIT: 'einjagen' is incomplete; it only occurs in idioms like 'Angst/Schrecken einjagen'.
+- "einkommen"  # NOT_A_PHRASE: Einkommen existiert nicht als trennbares Verb im Gegenwartsdeutschen.
+- "einkriegen"  # WRONG_UNIT: The verb is inherently reflexive 'sich einkriegen', but displayed as non-reflexive with reflexive 
+- "einleben"  # DUPLICATE: Duplicates rv:sich_einleben, which is the correct reflexive form.
+- "eins drücken"  # NOT_A_PHRASE: Menu-prompt fragment ('drücken Sie die Eins'), not a teachable collocation.
+- "einschalen"  # NOT_A_PHRASE: Almost certainly a mis-lemmatisation of einschalten.
+- "einschleichen"  # DUPLICATE: Duplicates rv:sich_einschleichen; the verb is used reflexively.
+- "einschläfen"  # BAD_CITATION: Misspelling of einschlafen or einschläfern.
+- "einstürzen durch"  # NOT_A_PHRASE: Free causal adjunct with durch, not a fixed prepositional verb.
+- "einzelheit besprechen"  # NOT_A_PHRASE: Free compositional direct object and transitive verb.
+- "elektrisch feld"  # NOT_A_PHRASE: Technical term rather than a teachable phrase unit.
+- "elektromagnetisch feld"  # NOT_A_PHRASE: Technical compound term rather than a teachable phrase unit.
+- "emotion kontrollieren"  # NOT_A_PHRASE: Free compositional noun-verb combination.
+- "empfindlich haut"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "eng raum"  # BAD_UNIT: The unit lemma is 'die engen Räume' (plural), which is not a standard collocation, unlike the idiom 
+- "enorm energie"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "entgegenblicken mit"  # BAD_UNIT: 'entgegenblicken' governs a dative object (dem Jahr 2025), 'mit gemischten Gefühlen' is only a manne
+- "entgegenneigen"  # NOT_A_PHRASE: Not an established German verb, and duplicates rv:sich_entgegenneigen.
+- "entschuldigung akzeptieren"  # NOT_A_PHRASE: Free compositional direct object and verb.
+- "entsprechendgelten"  # NOT_A_PHRASE: Adverb glued to gelten; not a verb.
+- "erbeten unter"  # NOT_A_PHRASE: Classified-ad formula ('Auskunft erbeten unter'), not a verb-preposition unit.
+- "erbitten unter"  # NOT_A_PHRASE: erbitten does not govern unter; this is an adjunct picked up by the miner.
+- "erbärmlich zustand"  # BAD_UNIT: The unit display carries a stray negation; it should be 'ein erbärmlicher Zustand'.
+- "erde beben"  # NOT_A_PHRASE: Parser artefact from Erdbeben and from free subject-verb pairs.
+- "erde beherrschen"  # NOT_A_PHRASE: Free combination of noun and verb without idiomatic status.
+- "erde umkreisen"  # NOT_A_PHRASE: Free object-verb combination from encyclopedic text.
+- "erlaubnis brauchen"  # NOT_A_PHRASE: Free combination rather than a fixed collocation.
+- "ernst gespräch"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "erwachsen sohn"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "erwachsen tochter"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "eur waffe"  # NOT_A_PHRASE: Free phrase with possessive pronoun, not a lexical multiword unit.
+- "fabrik bauen"  # NOT_A_PHRASE: Free object-verb combination with no idiomatic content.
+- "falsch identität"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "falsch prophet"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "fatal fehler"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "faul ei"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "fein sand"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "feind bekämpfen"  # NOT_A_PHRASE: Entirely compositional noun and verb combination.
+- "feind vernichten"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "festzeigen"  # NOT_A_PHRASE: No such verb; artefact of festgezeigt or fest zeigen.
+- "fett arsch"  # NOT_A_PHRASE: Vulgar free combination with no idiomatic value.
+- "finger legen"  # BAD_CITATION: Idiom requires 'den Finger in die Wunde legen'.
+- "flasche mitnehmen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "fleisch schneiden"  # NOT_A_PHRASE: Free object-verb combination.
+- "flugzeug landen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "flügel bewegen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "fortbilden"  # DUPLICATE: Duplicates rv:sich_fortbilden; the verb is reflexive.
+- "foto löschen"  # NOT_A_PHRASE: Free verb-object combination.
+- "frau erwürgen"  # NOT_A_PHRASE: Free compositional combination.
+- "frau vergewaltigen"  # BAD_UNIT: Rape collocation is distressing and not a useful A1-B2 learning unit.
+- "frau vögeln"  # NOT_A_PHRASE: Free vulgar compositional combination.
+- "frei himmel"  # BAD_UNIT: Citation form is a case-inflected fragment; the real unit is 'unter freiem Himmel'.
+- "freibrauchen"  # NOT_A_PHRASE: Non-existent German compound verb.
+- "freifühlen"  # NOT_A_PHRASE: Non-standard spurious compound verb from sich frei fühlen.
+- "fremd kultur"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "fremd schiff"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "fresse polieren"  # BAD_UNIT: Crude violent slang, not a useful A1-B2 collocation.
+- "freundin besuchen"  # NOT_A_PHRASE: Free combination without idiomatic or collocational status.
+- "freundschaft zerstören"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "frieden wollen"  # NOT_A_PHRASE: Free combination of noun and modal verb without phrase status.
+- "frisch duft"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "frisch fleisch"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "fröhlich stimmung"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "früh aufstehen"  # NOT_A_PHRASE: Free combination without idiomatic or collocational status.
+- "fuß stillhalten"  # NOT_A_PHRASE: Parser artefact; the idiom is stillhalten or keinen Fuß vor die Tür setzen.
+- "fuß waschen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "fürgeben"  # BAD_UNIT: 'fürgeben' is not a valid German separable verb or phrase.
+- "fürhaben"  # NOT_A_PHRASE: No such verb; vorhaben was mangled.
+- "fürmachen"  # NOT_A_PHRASE: No such verb; fuer is not a separable prefix here.
+- "garten gießen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "gaul schauen"  # NOT_A_PHRASE: Fragment of the proverb einem geschenkten Gaul schaut man nicht ins Maul.
+- "gebaut haus"  # NOT_A_PHRASE: Free participle-noun combination with no collocational status.
+- "gebrochen bein"  # NOT_A_PHRASE: Free participle-noun combination.
+- "gedicht lesen"  # NOT_A_PHRASE: Free verb-object combination.
+- "gedächtnis verbessern"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "gefallen schnee"  # NOT_A_PHRASE: Free participle combination; the real collocation is frisch gefallener Schnee.
+- "gegenüberhaben"  # NOT_A_PHRASE: Not a standard lexical German separable verb.
+- "gegnerisch team"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "geheim mission"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "geisel erschießen"  # NOT_A_PHRASE: Free syntactic combination of direct object and verb.
+- "geliebt person"  # NOT_A_PHRASE: Free combination of participial adjective and noun.
+- "gepäck mitnehmen"  # NOT_A_PHRASE: Completely free compositional combination.
+- "geruch lieben"  # NOT_A_PHRASE: Free verb-object combination.
+- "gesichtsausdruck sehen"  # BAD_UNIT: Not an established idiomatic collocation or fixed phrase.
+- "gestohlen auto"  # NOT_A_PHRASE: Free participle-noun combination.
+- "gestossen auf"  # BAD_UNIT: The unit is listed as a participle gestossen with Swiss spelling instead of the infinitive stoßen au
+- "gesund frühstück"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "getrennt zimmer"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "glatt oberfläche"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "glücklich paar"  # NOT_A_PHRASE: Free combination without idiomatic or collocational status.
+- "gott segnen"  # NOT_A_PHRASE: Artefact of 'Gott segne dich'; the noun is the subject, not the object.
+- "grab graben"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "gras fressen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "griechisch götter"  # NOT_A_PHRASE: Free combination of nationality adjective and noun.
+- "groß fragezeichen"  # NOT_A_PHRASE: Free combination unless taught as ein großes Fragezeichen stehen hinter.
+- "großzügig angebot"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "grün gras"  # NOT_A_PHRASE: Free combination of color adjective and noun.
+- "grün salat"  # NOT_A_PHRASE: Free compositional noun phrase.
+- "grün zweig"  # NOT_A_PHRASE: Free colour-noun combination.
+- "gut cop"  # NOT_A_PHRASE: Dubbing anglicism, a free combination not worth teaching.
+- "gute darausmachen"  # NOT_A_PHRASE: Parserartefakt und keine reguläre deutsche Phrase.
+- "gute drausmachen"  # NOT_A_PHRASE: Broken fragment of das Beste daraus machen; drausmachen is not a verb.
+- "habweißen"  # NOT_A_PHRASE: Non-existent German verb / parser artefact.
+- "hafen für"  # NOT_A_PHRASE: Hafen ist ein Substantiv und kein Verb.
+- "halb meile"  # NOT_A_PHRASE: Quantity phrase from dubbed subtitles, not a German phrase unit.
+- "handtasche stehlen"  # NOT_A_PHRASE: Free object-verb combination with no idiomatic content.
+- "haus anzünden"  # NOT_A_PHRASE: Free verb-object combination.
+- "heftig wind"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "heiß dusche"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "heiß getränk"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "heiß milch"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "hell farbe"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "hemd waschen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "heranarbeiten"  # DUPLICATE: Duplicates rv:sich_heranarbeiten; heranarbeiten is inherently reflexive.
+- "herangewachsen zu"  # BAD_UNIT: The unit display is in the past participle 'herangewachsen' instead of the infinitive 'heranwachsen'
+- "herankämpfen"  # DUPLICATE: Duplicates rv:sich_herankaempfen as this usage is reflexive.
+- "herausentstehen"  # NOT_A_PHRASE: Not a German verb.
+- "herausentstehen aus"  # NOT_A_PHRASE: 'herausentstehen' is not a German verb.
+- "herausentwickeln"  # NOT_A_PHRASE: Not an established verb; artefact of sich heraus entwickeln.
+- "herausgezogen aus"  # BAD_CITATION: Past participle form used instead of infinitive herausziehen.
+- "heraushängen zu"  # NOT_A_PHRASE: heraushängen does not govern zu; parser artefact.
+- "herausputzen"  # DUPLICATE: Duplicates rv:sich_herausputzen, which is the usual form.
+- "heraussagen"  # NOT_A_PHRASE: Heraussagen existiert nicht als deutsches Verb.
+- "hergehen bei"  # NOT_A_PHRASE: Truncated idiom fragment; hergehen bei does not exist as a fixed verb-preposition unit.
+- "herkennen"  # NOT_A_PHRASE: Not a German verb.
+- "herschieben vor"  # BAD_UNIT: The fixed phrase is 'vor sich her schieben' with 'herschieben' not taking a direct PP complement thi
+- "herumplagen"  # DUPLICATE: Duplicates rv:sich_herumplagen_mit as the verb is reflexive in this meaning.
+- "himmel erhellen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "hinauswachsen"  # DUPLICATE: Duplicates vp:hinauswachsen_ueber.
+- "hinauswirken"  # NOT_A_PHRASE: Not an established verb; artefact of über etwas hinaus wirken.
+- "hineindauern"  # NOT_A_PHRASE: No such verb; parser artefact.
+- "hineinsteigern"  # DUPLICATE: Duplicates reflexive verb unit rv:sich_hineinsteigern; hineinsteigern requires sich.
+- "hineinzuziehen in"  # BAD_CITATION: zu-infinitive; also duplicates rv:sich_hineinziehen_in.
+- "hinplätschern vor"  # NOT_A_PHRASE: hinplätschern does not govern vor; duplicates sv:hinplaetschern.
+- "hintrainieren"  # NOT_A_PHRASE: Non-existent verb / spurious particle combination (trainieren auf).
+- "hinwegsetzen"  # DUPLICATE: Duplicates rv:sich_hinwegsetzen; the verb is only used reflexively.
+- "historisch roman"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "hoch absätze"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "hoch dosis"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "hoch erreichen"  # NOT_A_PHRASE: Parser artefact from an adverbial hoch, not a noun-verb unit.
+- "hocharbeiten"  # DUPLICATE: Only reflexive; duplicates rv:sich_hocharbeiten.
+- "hochbleiben"  # BAD_UNIT: 'hochbleiben' is not an established lexical verb in German.
+- "hochfinden"  # NOT_A_PHRASE: Not an established verb; parser artefact.
+- "hochstehen"  # BAD_UNIT: '1,40 Meter hoch stehen' is an adverbial, not the separable verb 'hochstehen'.
+- "honig schmieren"  # BAD_CITATION: Incomplete citation form of the idiom Honig ums Maul schmieren.
+- "hosen auf"  # NOT_A_PHRASE: hosen is not a verb; noun Hose mis-tagged, and A1 makes it worse.
+- "hund erschießen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "hunde wecken"  # NOT_A_PHRASE: Free verb-object combination.
+- "hübsch kleid"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "hübsch mädel"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "hübsch paar"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "ihnen verdanken"  # NOT_A_PHRASE: Pronoun plus verb, not a noun-verb collocation.
+- "ihnen versichern"  # NOT_A_PHRASE: Free pronoun-verb combination (Ihnen versichern) rather than a multiword lexical unit.
+- "immun gegen"  # BAD_CITATION: Adjective + preposition combination misclassified under verb_prep.
+- "infragekommen"  # NOT_A_PHRASE: Standard German orthography requires separate spelling in Frage kommen or infrage kommen as thre
+- "ingeben"  # NOT_A_PHRASE: Nonexistent verb resulting from OCR or tokenization artifact.
+- "inklusivegeben"  # NOT_A_PHRASE: Not a word; adverb glued to a verb.
+- "innehmen"  # NOT_A_PHRASE: Non-existent German verb / parser artefact.
+- "israelisch botschaft"  # NOT_A_PHRASE: News-only proper reference, not a phrase unit.
+- "jacke ausziehen"  # NOT_A_PHRASE: Free object-verb combination.
+- "japanisch insel"  # NOT_A_PHRASE: Free combination of nationality adjective and geographic noun.
+- "jemand kennen"  # NOT_A_PHRASE: Not a noun-verb collocation; jemanden is a pronoun and this is just the transitive verb kennen.
+- "jude töten"  # NOT_A_PHRASE: Free combination and offensive corpus artefact, not a phrase to teach.
+- "jung bursche"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "jung pärchen"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "junge adoptieren"  # NOT_A_PHRASE: Free compositional noun-verb combination.
+- "katze retten"  # NOT_A_PHRASE: Free object-verb combination with no idiomatic content.
+- "kehren unter"  # BAD_UNIT: Incomplete idiom truncated from 'unter den Teppich kehren'.
+- "keinst weise"  # BAD_UNIT: "in keinster Weise" is a non-standard hypercorrection; the correct phrase is "in keiner Weise".
+- "kette bilden"  # NOT_A_PHRASE: Compositional verb phrase (usually eine Kette bilden).
+- "killer jagen"  # NOT_A_PHRASE: Free syntactic combination rather than a fixed phrase.
+- "kind großzuziehen"  # BAD_UNIT: The unit contains the zu-infinitive großzuziehen instead of the base infinitive Kinder großziehen.
+- "kiste öffnen"  # NOT_A_PHRASE: Free object-verb combination with no idiomatic content.
+- "klargewinnen"  # NOT_A_PHRASE: No such verb; parser artefact.
+- "klarzeigen"  # NOT_A_PHRASE: Non-existent German compound verb.
+- "klasse überspringen"  # NOT_A_PHRASE: Compositional transitive verb phrase (usually eine Klasse überspringen).
+- "kleid ausziehen"  # NOT_A_PHRASE: Free compositional clothing collocation.
+- "klein flirt"  # NOT_A_PHRASE: Free compositional modifier-noun combination.
+- "klein nutte"  # NOT_A_PHRASE: Free derogatory combination not constituting a fixed multiword unit.
+- "klein portion"  # NOT_A_PHRASE: Free combination without idiomatic or collocational status.
+- "klein snack"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "klempner rufen"  # NOT_A_PHRASE: Free object-verb combination.
+- "knicken nach"  # NOT_A_PHRASE: Free directional combination, not a fixed verb-preposition idiom.
+- "komisch sache"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "kopie besorgen"  # NOT_A_PHRASE: Free syntactic combination rather than a lexicalized phrase.
+- "krank tier"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "krebs verursachen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "kriechen unter"  # BAD_UNIT: 'kriechen unter' is a free verb-preposition combination with variable case (directional Akk vs locat
+- "krieg überstehen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "kriminell vergangenheit"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "krimis lesen"  # NOT_A_PHRASE: Free object-verb combination.
+- "kritisch phase"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "kugel jagen"  # NOT_A_PHRASE: Fragment of jemandem eine Kugel in den Kopf jagen.
+- "kurz gedächtnis"  # NOT_A_PHRASE: Calque or free combination; idiomatic German is 'ein kurzes Gedächtnis haben'.
+- "kurz röck"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "könntest aufhören"  # NOT_A_PHRASE: Arbitrary conjugated sentence fragment rather than a multiword lexical unit.
+- "körperlich schmerz"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "körpertemperatur messen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "küche putzen"  # NOT_A_PHRASE: Free object-verb combination.
+- "kühl ort"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "lang arbeitstag"  # BAD_UNIT: Inflected form in accusative/dative masculine presented as lemma instead of base form.
+- "lang wanderung"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "lang warten"  # NOT_A_PHRASE: Free combination with a nominalised infinitive.
+- "lasen auf"  # BAD_CITATION: Past tense form used instead of infinitive lesen.
+- "lebendig wesen"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "lebensmittel einkaufen"  # NOT_A_PHRASE: Free object-verb combination.
+- "leer batterie"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "leer flasche"  # NOT_A_PHRASE: Free compositional adjective-noun combination with nothing idiomatic to teach.
+- "leer raum"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "leer zimmer"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "leib zusammenhalten"  # NOT_A_PHRASE: Fragment of Leib und Seele zusammenhalten.
+- "leiche ausgraben"  # NOT_A_PHRASE: Free syntactic combination rather than a fixed multiword expression.
+- "leicht brise"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "leichtsinken"  # NOT_A_PHRASE: Nonexistent compound verb resulting from incorrect token merging.
+- "leichtverletzen"  # BAD_UNIT: 'leicht verletzen' is adverb plus verb, not a separable verb 'leichtverletzen'.
+- "lieb kollege"  # NOT_A_PHRASE: Salutation fragment, better taught with the full formula.
+- "link bein"  # NOT_A_PHRASE: Free combination of adjective and body part.
+- "linker ohr"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "listen als"  # NOT_A_PHRASE: No such German verb pattern; artefact of participial 'gelistet als'.
+- "loch schneiden"  # NOT_A_PHRASE: Free compositional noun-verb combination.
+- "lockerreichen"  # NOT_A_PHRASE: Spurious compound from adverb locker and verb erreichen.
+- "lossurfen"  # NOT_A_PHRASE: Marginal nonce formation, not an established multiword unit worth teaching.
+- "luden zu"  # BAD_UNIT: The unit is given as an inflected past tense form luden instead of the infinitive einladen zu.
+- "lust kochen"  # NOT_A_PHRASE: Free syntactic combination or fragment rather than a multiword expression.
+- "lügnerin nennen"  # NOT_A_PHRASE: Free predicative accusative combination.
+- "mail beantworten"  # NOT_A_PHRASE: Free compositional direct object and verb.
+- "maus wetten"  # NOT_A_PHRASE: Corrupted or nonsensical fragment, not an established phrase.
+- "maß erfordern"  # NOT_A_PHRASE: Parser fragment of 'ein hohes Maß an ... erfordern'.
+- "medizinisch eingriff"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "medizinisch gut"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "meile zurücklegen"  # NOT_A_PHRASE: Free combination of measure noun and verb.
+- "menschheit vernichten"  # NOT_A_PHRASE: Compositional direct object and verb.
+- "menschlich bedürfnis"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "menschlich gestalt"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "menschlich handeln"  # NOT_A_PHRASE: Adjective plus nominalised infinitive, a free combination.
+- "metall verwandeln"  # NOT_A_PHRASE: Fragment of Metall in Gold verwandeln; free combination on its own.
+- "mission beenden"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "miteinanderreden"  # NOT_A_PHRASE: Spurious compound formed from adverb and verb written together.
+- "miteinanderstehen"  # NOT_A_PHRASE: Not a verb; miteinander plus stehen.
+- "miteinanderverbinden"  # BAD_UNIT: 'miteinanderverbinden' is written separately as an adverb plus verb.
+- "miteinanderverbringen"  # NOT_A_PHRASE: Free combination written together, not a recognized compound or separable verb.
+- "mitgefühl aussprechen"  # DUPLICATE: Overlaps nv:mitgefuehl_ausdruecken and is the less idiomatic verb choice.
+- "mitgehören"  # NOT_A_PHRASE: Not a German verb; a parser artefact.
+- "mitkicken"  # NOT_A_PHRASE: Ad hoc mit- coinage, not worth a card.
+- "mitliegen"  # NOT_A_PHRASE: Non-existent German verb / parser artefact.
+- "mitnehmen aussehen"  # NOT_A_PHRASE: Parser artefact / corrupted form (mitgenommen aussehen).
+- "mitschießen"  # NOT_A_PHRASE: Ad hoc mit- coinage, not a lexicalised verb.
+- "mitstehen"  # BAD_UNIT: 'mitstehen' is not a real verb; 'mit' is a preposition here.
+- "mitstehen auf"  # NOT_A_PHRASE: Non-existent verbal construction / parser artefact.
+- "mittel heiligen"  # NOT_A_PHRASE: Parser artefact truncated from the proverb Der Zweck heiligt die Mittel.
+- "mittendrinstecken"  # NOT_A_PHRASE: Free adverbial combination incorrectly merged into a single verb.
+- "mitwählen"  # NOT_A_PHRASE: Ad hoc mit- coinage, not a lexicalised verb.
+- "morgen aufwachen"  # NOT_A_PHRASE: Free combination of temporal adverb/noun and verb.
+- "motor reparieren"  # NOT_A_PHRASE: Free compositional combination.
+- "musik anmachen"  # NOT_A_PHRASE: Everyday compositional collocation.
+- "mädchen belästigen"  # NOT_A_PHRASE: Free verb-object combination.
+- "mädchen bumsen"  # NOT_A_PHRASE: Free vulgar combination rather than a multiword lexical unit.
+- "mädchen entführen"  # NOT_A_PHRASE: Free compositional noun-verb combination.
+- "mädchen vergewaltigen"  # NOT_A_PHRASE: Freie Kombination und ungeeignet für ein Sprachlern-Deck.
+- "möbliert zimmer"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "mörder fangen"  # DUPLICATE: Same collocation as nv:moerder_fassen.
+- "nachfolgen als"  # NOT_A_PHRASE: Free functional apposition with als.
+- "nachgehören"  # NOT_A_PHRASE: No such verb; parser artefact.
+- "nachhause fahren"  # NOT_A_PHRASE: Free combination of directional adverb and common motion verb.
+- "nachlegen nach"  # NOT_A_PHRASE: nachlegen governs no preposition; not a valid verb-preposition pair.
+- "nachnehmen"  # NOT_A_PHRASE: Not an established German verb.
+- "nachproduzieren"  # NOT_A_PHRASE: Trade jargon ad hoc formation, not a taught unit.
+- "nachrecherchieren"  # NOT_A_PHRASE: Journalistic ad hoc formation, not a taught unit.
+- "nachrücken als"  # NOT_A_PHRASE: Free syntactic appositive complement with als.
+- "nachsteigen"  # NOT_A_PHRASE: Extremely marginal/non-standard as a general German vocabulary unit.
+- "nachwirken bis"  # NOT_A_PHRASE: bis is a free temporal adjunct, not a governed preposition.
+- "nackt frau"  # BAD_UNIT: The unit 'nackte Frauen' is trivial and not a useful lexical phrase for language learners.
+- "nackt haut"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "nahescheinen"  # BAD_UNIT: 'nahescheinen' is not a recognized German verb.
+- "nahescheinen zu"  # NOT_A_PHRASE: Parser artefact fusing nahe scheinen into a pseudo-verb.
+- "nett junge"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "nett lächeln"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "neue einfallen"  # NOT_A_PHRASE: Artefact of 'mir fällt etwas Neues ein', not a teachable noun-verb unit.
+- "nordisch land"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "nummer aufschreiben"  # NOT_A_PHRASE: Free syntactic combination of noun and verb.
+- "nächsten samstag"  # NOT_A_PHRASE: Adverbial time expression misparsed as an adjective-noun unit.
+- "obendraufgeben"  # NOT_A_PHRASE: Free adverb-verb combination written as one word.
+- "obendraufkommen"  # NOT_A_PHRASE: Obendrauf kommen ist kein lexikalisiertes zusammengesetztes Verb.
+- "obendreingeben"  # NOT_A_PHRASE: Adverbial phrase obendrein geben written as a non-existent compound verb.
+- "offengeben"  # NOT_A_PHRASE: No such verb; parser artefact.
+- "offentragen"  # NOT_A_PHRASE: Not a verb; offen tragen is a free adjective-verb combination.
+- "offenzeigen"  # NOT_A_PHRASE: Offenzeigen ist kein zusammengesetztes deutsches Verb.
+- "ohnegehen"  # NOT_A_PHRASE: Not a valid German verb; ohnegehen does not exist.
+- "paar wären"  # NOT_A_PHRASE: Subjunctive of sein plus a noun; not a collocation.
+- "papier unterschreiben"  # NOT_A_PHRASE: Free combination without idiomatic or collocational status.
+- "pass ausstellen"  # NOT_A_PHRASE: Free compositional verb phrase.
+- "peinlich moment"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "pendeln um"  # NOT_A_PHRASE: pendeln does not govern um; the usual frames are zwischen and nach.
+- "perfekt kandidat"  # NOT_A_PHRASE: Free compositional modifier-noun combination.
+- "persönlich datum"  # BAD_UNIT: The unit display is inflected with an adjectival ending instead of the base form persönliche Daten.
+- "persönlich fragen"  # NOT_A_PHRASE: Free combination of nominalized adjective and verb.
+- "pfeifen hören"  # NOT_A_PHRASE: Free compositional infinitive perception verb construction.
+- "pflanze gießen"  # NOT_A_PHRASE: Free everyday compositional direct object and verb.
+- "pfund wiegen"  # BAD_UNIT: 'Pfund' is a measure phrase here, not a collocating object; no real noun-verb unit.
+- "physikalisch gesetz"  # NOT_A_PHRASE: Technical term rather than a teachable phrase unit.
+- "pizza gegessen"  # BAD_CITATION: Past participle form used instead of standard infinitive citation form.
+- "plätzchen suchen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "porträt malen"  # NOT_A_PHRASE: Free compositional noun-verb combination.
+- "position durchgeben"  # NOT_A_PHRASE: Free syntactic combination of noun and separable verb.
+- "positiv resultat"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "priester töten"  # NOT_A_PHRASE: Free compositional combination.
+- "prinzessin heiraten"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "präsentation vorbereiten"  # NOT_A_PHRASE: Free compositional combination.
+- "psychiatrisch anstalt"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "psychiatrisch gutachten"  # NOT_A_PHRASE: Courtroom-jargon free combination.
+- "pudelwohlfühlen"  # DUPLICATE: Duplicates rv:sich_pudelwohlfuehlen as this verb is inherently reflexive.
+- "pumpen durch"  # NOT_A_PHRASE: Free directional combination, not a governed preposition.
+- "pur gold"  # BAD_UNIT: The unit combines the definite article das with the strong neuter ending pures Gold.
+- "purbieten"  # NOT_A_PHRASE: Non-existent German word / parser artefact.
+- "pyjama anziehen"  # NOT_A_PHRASE: Free compositional combination of article-less clothing item and anziehen.
+- "qmbetragen"  # NOT_A_PHRASE: Unit abbreviation glued to betragen; parser garbage.
+- "rache wollen"  # NOT_A_PHRASE: Free compositional direct object and modal verb.
+- "rad reparieren"  # NOT_A_PHRASE: Free compositional noun-verb combination.
+- "radioaktiv strahlung"  # NOT_A_PHRASE: Technical term rather than a teachable phrase unit.
+- "rauchen unterlassen"  # NOT_A_PHRASE: Free combination of nominalized verb and verb.
+- "rausverdammen"  # NOT_A_PHRASE: Nonsensical parser artefact, not a real German verb.
+- "rechner ausschalten"  # NOT_A_PHRASE: Free object-verb combination.
+- "recht bein"  # NOT_A_PHRASE: Completely free compositional body part phrase.
+- "recht verdammen"  # NOT_A_PHRASE: Parser artefact from adverbial recht plus verdammen, not a collocation.
+- "reiben unter"  # BAD_UNIT: The fixed idiom is 'unter die Nase reiben', 'unter +Akk' alone is not the unit.
+- "rein tisch"  # NOT_A_PHRASE: Truncated idiom; the phrase is reinen Tisch machen.
+- "reise absagen"  # NOT_A_PHRASE: Free combination rather than a fixed collocation.
+- "religiös gruppe"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "rest freinehmen"  # NOT_A_PHRASE: Free syntactic combination rather than an established multiword unit.
+- "riesig welle"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "rissen aus"  # BAD_CITATION: Past tense plural form used instead of infinitive reißen.
+- "riten auf"  # BAD_UNIT: Typo in unit lemma 'riten' instead of 'reiten'.
+- "roh ei"  # NOT_A_PHRASE: Free combination unless taught as jemanden wie ein rohes Ei behandeln.
+- "rohr reparieren"  # NOT_A_PHRASE: Free syntactic combination of direct object and verb.
+- "rot jacke"  # NOT_A_PHRASE: Free colour-plus-garment combination.
+- "rot mantel"  # NOT_A_PHRASE: Free combination of color adjective and clothing noun in oblique case.
+- "ruhig nacht"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "rumhacken"  # DUPLICATE: Duplicates vp:rumhacken_auf.
+- "rummachen"  # DUPLICATE: Duplicates vp:rummachen_mit in the same file.
+- "rumtreiben"  # DUPLICATE: Bare rumtreiben is not used non-reflexively; duplicates rv:sich_rumtreiben.
+- "runter holen"  # BAD_CITATION: Misspelled separable verb and missing reflexive pronoun (sich einen runterholen).
+- "rupfen mit"  # BAD_UNIT: Not a verb-preposition unit; it is a fragment of the idiom 'mit jemandem ein Hühnchen rupfen'.
+- "russisch botschaft"  # NOT_A_PHRASE: News-only free combination.
+- "russisch geheimdienst"  # NOT_A_PHRASE: News-only free combination.
+- "sache darausmachen"  # NOT_A_PHRASE: Tokenisation artefact of 'eine große Sache daraus machen'; 'darausmachen' is not a verb.
+- "salat gegessen"  # BAD_CITATION: Past participle used instead of infinitive citation form.
+- "saur apfel"  # BAD_UNIT: The idiom is 'in den sauren Apfel beißen', not an isolated adjective-noun collocation in accusative.
+- "scannen ermöglichen"  # NOT_A_PHRASE: Nominalised infinitive plus verb; a parser artefact, not a unit.
+- "schachspielen beibringen"  # NOT_A_PHRASE: Artefact of jemandem das Schachspielen beibringen; not a stable collocation.
+- "schalen auf"  # NOT_A_PHRASE: Not a verb-preposition unit; same mangling as umschalen.
+- "schalter betätigen"  # NOT_A_PHRASE: Free compositional verb phrase.
+- "scheidung wollen"  # NOT_A_PHRASE: Free combination of noun and modal verb.
+- "scheiß interessieren"  # NOT_A_PHRASE: Fragment of das interessiert mich einen Scheiß; not a teachable citation form.
+- "scheißdreck interessieren"  # BAD_CITATION: Missing reflexive pronoun and preposition (sich einen Scheißdreck interessieren).
+- "scheißen auf"  # BAD_UNIT: Vulgar phrase, unsuitable for an A1-B2 learner deck.
+- "schießen beibringen"  # NOT_A_PHRASE: Nominalised infinitive in a free object slot, not a collocation.
+- "schiff zerstören"  # NOT_A_PHRASE: Free object-verb combination with no idiomatic content.
+- "schlafanzug anziehen"  # NOT_A_PHRASE: Free compositional clothing collocation.
+- "schlecht geruch"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "schlimm ding"  # NOT_A_PHRASE: Free combination without idiomatic or collocational status.
+- "schlimm unfall"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "schlimm verletzung"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "schlummern unter"  # NOT_A_PHRASE: Free spatial prepositional adjunct.
+- "schlüssel vergessen"  # NOT_A_PHRASE: Free combination without idiomatic or collocational status.
+- "schmetterling sehen"  # BAD_UNIT: Not a fixed collocation or useful phraseological unit for language learners.
+- "schmuck stehlen"  # NOT_A_PHRASE: Free verb-object combination.
+- "schmutz entfernen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "schnellen nach"  # NOT_A_PHRASE: Parser artefact from nach oben schnellen, the preposition is not verb-governed.
+- "schock überwinden"  # NOT_A_PHRASE: Compositional transitive verb phrase.
+- "schokolade gegessen"  # BAD_CITATION: Past participle form used instead of infinitive citation form.
+- "schreibtisch aufräumen"  # NOT_A_PHRASE: Free object-verb combination.
+- "schuß abfeuern"  # BAD_SENTENCE: Unit uses obsolete pre-reform spelling 'Schuß' instead of modern 'Schuss'.
+- "schwanz lutschen"  # NOT_A_PHRASE: Vulgar subtitle collocation with no teaching value in an A1-B2 deck.
+- "schwanz stecken"  # NOT_A_PHRASE: Free vulgar compositional fragment.
+- "schwarz gürtel"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "schwarz kleid"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "schwarz kleidung"  # NOT_A_PHRASE: Free compositional adjective-noun combination, also miscapitalised.
+- "schwarz rauch"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "schwarz schuh"  # NOT_A_PHRASE: Free colour-plus-garment combination.
+- "schwer depression"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "schwer verbrechen"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "schwerbeschädigen"  # NOT_A_PHRASE: Adverb + participle/verb falsely joined as a single compound verb.
+- "schwerfinden"  # NOT_A_PHRASE: Not a valid German verb; schwerfinden does not exist.
+- "schwerstürzen"  # BAD_UNIT: 'schwerstürzen' is not a valid German separable verb.
+- "schwertreffen"  # BAD_UNIT: 'schwertreffen' is not an established compound verb; 'schwer' is an adverb modifying 'treffen'.
+- "schwester heiraten"  # NOT_A_PHRASE: Free combination and not a phrase worth teaching.
+- "schön melodie"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "schönfinden"  # NOT_A_PHRASE: Non-standard compound verb resulting from a parsing artifact or colloquial spacing error.
+- "see überqueren"  # NOT_A_PHRASE: Free compositional combination.
+- "seele ruhen"  # BAD_CITATION: Incomplete citation form lacking reflexive pronoun and preposition (die Seele ruhen lassen).
+- "selber raum"  # NOT_A_PHRASE: derselbe is a determiner, not an adjective collocation.
+- "seltsame sehen"  # NOT_A_PHRASE: Free syntactic combination of nominalized adjective and verb.
+- "sexuell aktivität"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "sich abgefunden"  # BAD_UNIT: Unit lemma is given in past participle form instead of infinitive 'sich abfinden'.
+- "sich abrasieren"  # NOT_A_PHRASE: Abrasieren wird im Deutschen nicht als reflexives Verb verwendet.
+- "sich anerinnern"  # NOT_A_PHRASE: No such verb; artefact of sich an etwas erinnern.
+- "sich auffreuen"  # NOT_A_PHRASE: Sich auffreuen ist kein deutsches Verb.
+- "sich beugen"  # BAD_UNIT: The unit should be 'sich beugen +Dat' or is incomplete without case specification.
+- "sich durchlesen"  # DUPLICATE: Duplicates sv:durchlesen.
+- "sich eigenen"  # BAD_UNIT: Typo in lemma and sentence verb: should be 'sich eignen'.
+- "sich einbefinden in"  # NOT_A_PHRASE: Nonexistent verb formed by erroneous prefix merging.
+- "sich einschlichen"  # DUPLICATE: Preterite form and a duplicate of sv:einschlichen, both for sich einschleichen.
+- "sich engagierten"  # BAD_CITATION: Past tense form used instead of infinitive.
+- "sich entgegenneigen"  # DUPLICATE: Duplicates sv:entgegenneigen in the same dataset.
+- "sich erschliessen"  # BAD_UNIT: Swiss spelling 'erschliessen' with 'ss' instead of standard German 'erschließen'.
+- "sich festzeigen"  # NOT_A_PHRASE: No such verb; duplicates sv:festzeigen.
+- "sich filtern nach"  # NOT_A_PHRASE: Not a reflexive unit; passive-like artefact.
+- "sich freifühlen"  # NOT_A_PHRASE: Free syntactic combination of sich fühlen and predicate adjective frei.
+- "sich füllten"  # BAD_UNIT: Unit display is an inflected past tense form rather than an infinitive or base form.
+- "sich helfen"  # BAD_UNIT: Helfen is not a true reflexive verb and the unit display is artificial.
+- "sich herzen"  # NOT_A_PHRASE: Herzen is transitive, not a reflexive verb in standard German.
+- "sich hungern zu"  # NOT_A_PHRASE: Not a German unit; parser artefact.
+- "sich investieren in"  # BAD_CITATION: Grammatically incorrect reflexivization in German (calque from English/French; should be Zeit/Ge
+- "sich jagen in"  # NOT_A_PHRASE: Parser artifact from 'sich eine Kugel in den Kopf jagen'.
+- "sich klopfen auf"  # NOT_A_PHRASE: Fragment of idiom sich auf die Schulter klopfen; not an independent reflexive verb.
+- "sich konzentrierten auf"  # BAD_CITATION: Past tense form used instead of infinitive.
+- "sich leichtverletzen"  # NOT_A_PHRASE: Parser artifact merging adverb 'leicht' and verb 'verletzen'.
+- "sich liessen"  # NOT_A_PHRASE: Parser artefact: past-tense form of lassen, not a reflexive verb.
+- "sich offengeben"  # NOT_A_PHRASE: No such verb; duplicates the equally bogus sv:offengeben.
+- "sich schnorren"  # NOT_A_PHRASE: Schnorren wird im Deutschen nicht reflexiv verwendet.
+- "sich schon"  # NOT_A_PHRASE: Reflexive pronoun plus a particle; pure parser artefact.
+- "sich sprengen in"  # NOT_A_PHRASE: Corpus artefact from 'sich in die Luft sprengen'.
+- "sich tippen an"  # NOT_A_PHRASE: Fragment of sich an den Kopf tippen; bare form is not a unit, and A2 is wrong.
+- "sich umgesehen"  # BAD_UNIT: The unit is listed as the participle sich umgesehen instead of the infinitive sich umsehen.
+- "sich umhängen"  # NOT_A_PHRASE: Free non-reflexive or transitive action with reflexive dative (etwas umhängen).
+- "sich verkrochen"  # BAD_UNIT: The unit display uses the past participle instead of infinitive 'sich verkriechen'.
+- "sich verleiten zu"  # BAD_CITATION: Verleiten is not a true reflexive verb (jemanden verleiten zu).
+- "sich verschworen"  # BAD_UNIT: Unit display is a participle; the infinitive 'sich verschwören' already exists as a separate unit.
+- "sich verschwören"  # DUPLICATE: Duplikat zu rv:sich_verschworen.
+- "sich voneinanderunterscheiden"  # DUPLICATE: Duplicates sv:voneinanderunterscheiden and is misspelled as one word.
+- "sich wiedererholen"  # NOT_A_PHRASE: Redundant tautological non-standard compound (sich erholen / wieder gesund werden).
+- "sich wiedermelden"  # NOT_A_PHRASE: Spurious compound of adverb wieder and reflexive sich melden.
+- "sich wiedernormalisieren"  # NOT_A_PHRASE: Artefact of sich wieder normalisieren; wieder is not a prefix here.
+- "sich wiederspiegeln in"  # BAD_UNIT: Misspelling of 'sich widerspiegeln', and the wrong form 'wieder' sits in a gap.
+- "sich wiedertrennen"  # NOT_A_PHRASE: Spurious compound of adverb wieder and reflexive sich trennen.
+- "sich wirken auf"  # BAD_UNIT: Duplicate case tag '+Akk +Akk' in unit display.
+- "sich zeichnen durch"  # BAD_UNIT: Duplicate case tag '+Akk +Akk' in unit display.
+- "sich zurückführen auf"  # NOT_A_PHRASE: Not a reflexive verb; construction is sich zurückführen lassen auf.
+- "sofortig wirkung"  # BAD_UNIT: Citation form is a case-inflected fragment; the real unit is 'mit sofortiger Wirkung'.
+- "sohn schenken"  # BAD_UNIT: Unit 'Sohn schenken' is not a fixed or useful German phrase collocation for learners.
+- "sohn zurückbringen"  # NOT_A_PHRASE: Free verb-object combination with no collocational value.
+- "soldat schicken"  # NOT_A_PHRASE: Free verb-object combination, not a collocation or Funktionsverbgefuege.
+- "spielend kind"  # NOT_A_PHRASE: Free combination without idiomatic or collocational status.
+- "stabil zustand"  # BAD_UNIT: The unit citation form is inflected as accusative/dative ('stabilen Zustand') instead of nominative 
+- "starkvariieren"  # NOT_A_PHRASE: Adverb glued to variieren; not a verb.
+- "statuieren an"  # BAD_UNIT: 'statuieren an +Dat' is incomplete; the lexicalized idiom is 'ein Exempel statuieren an +Dat'.
+- "stellvertretend kommandant"  # NOT_A_PHRASE: Compositional occupational title collocation.
+- "stiefel ausziehen"  # NOT_A_PHRASE: Free object-verb combination duplicating the pattern of Jacke ausziehen.
+- "stillbleiben"  # BAD_UNIT: 'still bleiben' is bleiben plus adjective, not a separable verb.
+- "stimme imitieren"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "strahlen über"  # BAD_UNIT: über beide Ohren strahlen is a fixed idiom, not a general prepositional verb complement strahlen übe
+- "strahlend zukunft"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "sägen aus"  # NOT_A_PHRASE: Free directional combination, not a governed preposition.
+- "sünde bereuen"  # NOT_A_PHRASE: Free compositional combination.
+- "tagebuch lesen"  # NOT_A_PHRASE: Free verb-object combination.
+- "tanz tanzen"  # NOT_A_PHRASE: Cognate-object artefact, not a taught collocation.
+- "tatsache ignorieren"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "taube fliegen"  # NOT_A_PHRASE: Keine sinnvolle oder gebräuchliche deutsche Wendung.
+- "telefon abhören"  # NOT_A_PHRASE: Free compositional noun-verb combination.
+- "telefonnummer austauschen"  # NOT_A_PHRASE: Free compositional verb phrase.
+- "test durchfahren"  # NOT_A_PHRASE: Free combination or mistranslation (Tests durchführen).
+- "toast aussprechen"  # NOT_A_PHRASE: Denglisch calque; correct German collocation is 'einen Trinkspruch ausbringen'.
+- "toll party"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "toll show"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "tom anrufen"  # NOT_A_PHRASE: Contains a specific proper name (Tom) making it a free combination/Tatoeba artefact.
+- "tom hassen"  # NOT_A_PHRASE: Freie syntaktische Kombination mit einem Eigennamen.
+- "tom heiraten"  # NOT_A_PHRASE: Free combination containing the proper name Tom.
+- "tomate anbauen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "topf füllen"  # NOT_A_PHRASE: Free object-verb combination.
+- "tor aufmachen"  # NOT_A_PHRASE: Free compositional combination.
+- "tot fisch"  # NOT_A_PHRASE: Free combination without idiomatic or collocational status.
+- "tot katze"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "tot mädchen"  # BAD_UNIT: Unit 'ein totes Mädchen' is not a fixed, useful phrase or collocation for learners.
+- "tot vogel"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "traumatisch erlebnis"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "traurig gestalt"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "treppe herunterkommen"  # NOT_A_PHRASE: Free motion combination, one of three near-identical Treppe units.
+- "treppe hochgehen"  # DUPLICATE: Same unit as nv:treppe_hinaufgehen with a colloquial variant of the verb.
+- "tresor öffnen"  # NOT_A_PHRASE: Free object-verb combination with no idiomatic content.
+- "treu freund"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "trick anwenden"  # NOT_A_PHRASE: Completely compositional standard transitive verb phrase.
+- "türkisch regierung"  # NOT_A_PHRASE: News-only free combination of nationality adjective and noun.
+- "umbitten"  # BAD_CITATION: Non-existent compound verb; erroneous form of um etwas bitten.
+- "umblicken"  # DUPLICATE: Duplicates rv:sich_umblicken, and the verb only exists reflexively.
+- "umbrauchen"  # NOT_A_PHRASE: No such verb; parser artefact.
+- "umgangen durch"  # NOT_A_PHRASE: Passive participle plus agent phrase, not a verb-preposition unit.
+- "umschalen"  # NOT_A_PHRASE: Misspelling or OCR artifact for umschalten.
+- "umschalen auf"  # NOT_A_PHRASE: Typo or parser error for umschalten auf.
+- "unanständig witze"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "unbezahlt rechnung"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "undgehen"  # NOT_A_PHRASE: Parser artefact concatenating conjunction and verb, not a real verb.
+- "unehelich sohn"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "ungewöhnliche auffallen"  # NOT_A_PHRASE: Parserartefakt aus Subjekt und Verb, keine feste Phrase.
+- "unschuldig zivilist"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "untergeben"  # NOT_A_PHRASE: untergeben is an adjective, not a separable verb.
+- "untergehend sonne"  # NOT_A_PHRASE: Free participle-noun combination.
+- "unterspeichern"  # NOT_A_PHRASE: Non-existent German verb / parser artefact.
+- "unvergesslich nacht"  # NOT_A_PHRASE: Free compositional adjective-noun pairing.
+- "unwohlfühlen"  # BAD_CITATION: Spurious separable verb without reflexive pronoun: sich unwohl fühlen.
+- "ursache herausfinden"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "ursache verwechseln"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "vase zerbrechen"  # NOT_A_PHRASE: Free object-verb combination with no idiomatic content.
+- "verborgen schatz"  # NOT_A_PHRASE: Free participle-noun combination.
+- "verbrannt leiche"  # NOT_A_PHRASE: Free compositional modifier-noun combination.
+- "verbündeter suchen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "verdammt scheiße"  # BAD_UNIT: Vulgar expletive, not a useful adjective-noun collocation for a learner.
+- "verdammt tür"  # NOT_A_PHRASE: Expletive plus noun, a subtitle artefact rather than a unit.
+- "vergangenheit ruhen"  # BAD_CITATION: Incomplete citation form of die Vergangenheit ruhen lassen.
+- "verletzt spieler"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "verlobter vorstellen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "verlockend angebot"  # NOT_A_PHRASE: Free participle-noun combination.
+- "vermisst junge"  # BAD_UNIT: Incomplete noun phrase lemma missing the definite article.
+- "verspätung verzeihen"  # NOT_A_PHRASE: Free compositional combination.
+- "verstorben mutter"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "verwundet soldat"  # NOT_A_PHRASE: Free participle-noun combination.
+- "video anschauen"  # NOT_A_PHRASE: Free verb-object combination.
+- "viralgehen"  # NOT_A_PHRASE: Spelled as two separate words viral gehen in standard German orthography.
+- "virus verbreiten"  # NOT_A_PHRASE: Free compositional direct object and transitive verb.
+- "vogel füttern"  # NOT_A_PHRASE: Free object-verb combination with no idiomatic content.
+- "vogel singen"  # NOT_A_PHRASE: Free combination of subject and intransitive verb, not a collocation.
+- "voll gang"  # BAD_UNIT: Fixed prepositional phrase is 'in vollem Gange', omitting the preposition makes it an unnatural unit
+- "voneinandertrennen"  # BAD_UNIT: 'voneinandertrennen' is written separately as pronoun/adverb plus verb.
+- "voranliegen"  # NOT_A_PHRASE: Not a valid German verb; voranliegen does not exist.
+- "vorbeischeinen"  # BAD_UNIT: 'vorbeischeinen' is not a compound/separable verb; 'vorbei sein/scheinen' is copula + predicate adve
+- "vorbeizukommen an"  # BAD_UNIT: The infinitive with 'zu' was included in the lemma form instead of 'vorbeikommen an +Dat'.
+- "vorbeizuschauen bei"  # DUPLICATE: zu-infinitive duplicate of vp:vorbeischaun_bei.
+- "vorhang zuziehen"  # NOT_A_PHRASE: Free compositional combination.
+- "vorknöpfen"  # BAD_UNIT: The verb exists only as "sich jemanden vorknöpfen", duplicating that unit.
+- "vorkämpfen"  # DUPLICATE: Duplicates rv:sich_vorkaempfen; the verb is obligatorily reflexive.
+- "vormeinen"  # NOT_A_PHRASE: Non-existent verb / corpus artefact.
+- "wachmann töten"  # NOT_A_PHRASE: Free syntactic combination of direct object and verb.
+- "wahr schönheit"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "wahrdenken"  # NOT_A_PHRASE: Non-existent German compound verb.
+- "wahrfahren"  # NOT_A_PHRASE: Nonexistent German compound verb.
+- "wahrgeben"  # BAD_UNIT: 'wahrgeben' is not a real German verb.
+- "wahrgehen um"  # NOT_A_PHRASE: Non-existent verb / garbled construction.
+- "wahrglauben"  # NOT_A_PHRASE: Not a German verb or fixed multiword unit, parser artefact for wahr glauben.
+- "wahrhassen"  # NOT_A_PHRASE: Nonexistent German compound verb.
+- "wahrkennen"  # NOT_A_PHRASE: Wahrkennen ist kein deutsches Wort.
+- "wahrklingen"  # NOT_A_PHRASE: Written separately as free combination wahr klingen.
+- "wahrlieben"  # NOT_A_PHRASE: Not a valid German verb; wahrlieben does not exist.
+- "wahrsprechen"  # NOT_A_PHRASE: Wahrsprechen existiert nicht als deutsches Verb.
+- "wahrwissen"  # NOT_A_PHRASE: Not a German verb or recognized lexical unit.
+- "warm semmel"  # NOT_A_PHRASE: Free combination unless taught as the idiom weggehen wie warme Semmeln.
+- "wasser pumpen"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "wasser schütten"  # NOT_A_PHRASE: Free compositional combination.
+- "wasserhahn aufdrehen"  # NOT_A_PHRASE: Free compositional direct object and separable verb.
+- "wegliegen"  # NOT_A_PHRASE: Free combination of adverb and verb, not a lexical unit.
+- "wegwohnen"  # NOT_A_PHRASE: Nonexistent German compound verb.
+- "weihnachtsbaum schmücken"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "weiterspielen nach"  # NOT_A_PHRASE: nach + Dat is an optional adverbial phrase, not a fixed prepositional complement.
+- "weiß hose"  # NOT_A_PHRASE: Free colour-plus-garment combination.
+- "weiß pferd"  # NOT_A_PHRASE: Free compositional adjective-noun combination.
+- "welle erzeugen"  # NOT_A_PHRASE: Free compositional verb phrase.
+- "wertvoll schatz"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "widergeben"  # BAD_UNIT: Misspelling of 'wiedergeben' with 'wider-'.
+- "wiegehen um"  # NOT_A_PHRASE: Nonsensical parser artefact ('wie gehen... um').
+- "wiewissen"  # NOT_A_PHRASE: Not a word; wie plus wissen was glued.
+- "winter überleben"  # NOT_A_PHRASE: Free combination of noun and verb.
+- "wirtschaftlich krise"  # NOT_A_PHRASE: Free news collocation, also miscapitalised.
+- "wodka trinken"  # NOT_A_PHRASE: Free object-verb combination with no idiomatic content.
+- "wunderschön morgen"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "wüste durchkämmen"  # NOT_A_PHRASE: Free compositional combination.
+- "zahnarzt aufsuchen"  # NOT_A_PHRASE: Compositional verb phrase.
+- "zerbrochen spiegel"  # NOT_A_PHRASE: Free combination of participial adjective and noun.
+- "zigarre ausmachen"  # NOT_A_PHRASE: Free syntactic combination rather than a fixed phrase.
+- "zorn spüren"  # NOT_A_PHRASE: Free syntactic combination rather than a fixed phrase.
+- "zueinanderstehen in"  # NOT_A_PHRASE: Spurious collocation rather than a genuine lexical unit.
+- "zufällig begegnung"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "zuhaufgeben"  # BAD_UNIT: 'zuhaufgeben' is not a valid German verb.
+- "zukünftig könig"  # NOT_A_PHRASE: Free combination of adjective and noun.
+- "zumissen"  # BAD_CITATION: Typographical error or non-existent verb form (zumessen).
+- "zunutzemachen"  # DUPLICATE: Duplicate of 'rv:sich_zunutzemachen'.
+- "zurasen"  # DUPLICATE: Duplicates vp:zurasen_auf, which carries the obligatory preposition.
+- "zurechtfinden"  # WRONG_UNIT: The displayed unit is 'zurechtfinden' but the verb is strictly reflexive 'sich zurechtfinden' and 
+- "zurückkamen"  # BAD_UNIT: Unit display is in the past tense 'zurückkamen' rather than infinitive 'zurückkommen'.
+- "zusammenessen"  # NOT_A_PHRASE: Not an established separable verb; zusammen is a free adverb here.
+- "zusammenfeiern"  # NOT_A_PHRASE: Not a compound verb; free combination spelled separately as zusammen feiern.
+- "zusammenhaben"  # BAD_UNIT: 'zusammenhaben' is not an established German verb worth teaching.
+- "zusammensehen"  # NOT_A_PHRASE: Not an established separable verb or idiomatic collocation in German.
+- "zusammenstehen als"  # NOT_A_PHRASE: Free combination / parser artefact, not a fixed prepositional verb phrase.
+- "zusammensterben"  # NOT_A_PHRASE: Non-existent German compound verb.
+- "zusammentanzen"  # NOT_A_PHRASE: Spurious separable verb compound of together + dance.
+- "zusammentrainieren"  # NOT_A_PHRASE: Free combination zusammen trainieren, not a lexical verb.
+- "zusammentrinken"  # NOT_A_PHRASE: Free combination zusammen trinken, not a lexical verb.
+- "zustandekommen durch"  # BAD_UNIT: Duplicate case tag '+Akk +Akk' in unit display.
+- "zutrauten"  # BAD_CITATION: Past tense plural form used instead of infinitive zutrauen.
+- "zuverdammen"  # NOT_A_PHRASE: Parser artefact from zu + verdammen, not a separable verb.
+- "zweifach mord"  # BAD_UNIT: Inflected genitive form presented as lemma instead of base form 'zweifacher Mord'.
+- "zweimaltreffen"  # BAD_UNIT: 'zweimaltreffen' is not a recognized German compound or separable verb.
+- "zwiebel schneiden"  # NOT_A_PHRASE: Free object-verb combination.
+- "äpfel pflücken"  # NOT_A_PHRASE: Free object-verb combination, duplicating Frucht pflücken.
+- "”stehen"  # BAD_CITATION: Typographical error with extraneous quotation mark in lemma.

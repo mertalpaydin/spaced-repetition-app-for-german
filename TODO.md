@@ -33,7 +33,8 @@ first, by Claude Opus and Gemini Flash (`docs/audits/phase-1-review/`,
 "Step 1"): read a band, turn the systematic causes into rules, rebuild, read
 the next band of what survives. Open:
 
-- **Step 2 onward.** Step 1 covered the top 2,400 cards and 700 units.
+- **Step 3 onward.** Steps 1 and 2 covered every glossed card and every
+  unit once; the next step reads only what the rebuild replaced.
   After each rebuild: `uv run python scripts/review_deck.py batches <dir>`
   (skips reviewed ids), Claude agents in waves of at most 8, Gemini via
   `review_deck.py gemini <dir> --model gemini-3.8-flash-low --workers 4`
@@ -49,8 +50,13 @@ the next band of what survives. Open:
   preceding sentence with the executor skill (no key, no spend); the
   deterministic acceptance checks in `src/phrases/contexts.py` still apply.
 - **Unit-level glosses** for mined units: none yet; a later opt-in batch.
-- **Adjective-noun citation forms without a nominative occurrence** still
-  show the commonest oblique form; a gender lookup would fix the rest.
+- **Adjective-noun citation forms without a nominative or a governing
+  preposition** still show the commonest oblique form; a gender lookup
+  would fix the rest.
+- **Gaps for prepositional displays.** `auf freiem Fuß`, `ein Auge werfen
+  auf` blank only the unit's own tokens; both reviewers flag the
+  unbracketed preposition. Decide whether the miner should record the
+  preposition token so it can be gapped too.
 
 ## Before phase 2 (owner's instruction, 2026-09-09)
 

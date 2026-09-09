@@ -1,57 +1,103 @@
 # Reviewer corrections to units: case, citation form, CEFR level. Applied
 # after the unit decision; the key is the miner's lowercase lemma key.
+- {key: "abbogen", display: "abbiegen"}
+- {key: "abdriften in", case: "Akk"}
 - {key: "abend essen", display: "zu Abend essen"}
 - {key: "abfüllen in", case: "Akk"}
 - {key: "abgeben", cefr: "B1"}
+- {key: "abgebogen nach", display: "abbiegen nach +Dat"}
+- {key: "abgeglichen mit", display: "abgleichen mit +Dat"}
 - {key: "abgeraten von", display: "abraten von +Dat"}
 - {key: "abgezogen von", display: "abziehen von +Dat"}
+- {key: "abhingen von", display: "abhängen von +Dat"}
+- {key: "abhingen", display: "abhängen"}
+- {key: "abprallen nach", display: "abprallen von +Dat"}
+- {key: "abregen", display: "sich abregen"}
 - {key: "absagen", cefr: "B1"}
 - {key: "abschluss bilden", cefr: "B2"}
+- {key: "absicheren", display: "absichern"}
 - {key: "abspeichern", cefr: "A2"}
 - {key: "absägen", cefr: "B2"}
+- {key: "achter stock", display: "der achte Stock"}
 - {key: "achtgeben auf", cefr: "B1"}
 - {key: "aktuell stand", cefr: "B2"}
+- {key: "allmächtig gott", display: "allmächtiger Gott"}
 - {key: "alphabetisch reihenfolge", display: "alphabetische Reihenfolge"}
+- {key: "alt eiche", display: "alte Eichen"}
+- {key: "alt eisen", display: "das alte Eisen"}
+- {key: "alternativ energie", display: "alternative Energie"}
 - {key: "amerikanisch bürgerkrieg", display: "der amerikanische Bürgerkrieg"}
 - {key: "amerikanisch traum", display: "der amerikanische Traum"}
 - {key: "amtierend präsident", display: "der amtierende Präsident"}
+- {key: "anbinden an", case: "Dat"}
+- {key: "andocken an", case: "Akk"}
 - {key: "anerkennen als", cefr: "B2"}
 - {key: "anerkennen", cefr: "B2"}
 - {key: "angabe machen", display: "Angaben machen"}
 - {key: "angelegenheit besprechen", cefr: "B2"}
 - {key: "angelegenheit untersuchen", cefr: "B2"}
+- {key: "angenehm duft", display: "angenehmer Duft"}
+- {key: "angst hatten", display: "Angst haben"}
+- {key: "anlogen", display: "anlügen"}
+- {key: "anmaßen", display: "sich anmaßen"}
+- {key: "annäheren", display: "annähern"}
+- {key: "anreden mit", cefr: "B2"}
+- {key: "anriefen", display: "anrufen"}
+- {key: "ansahen", display: "ansehen"}
 - {key: "anschauen", cefr: "A2"}
 - {key: "anschreiben", cefr: "B2"}
 - {key: "ansprache halten", cefr: "B2"}
 - {key: "anstoß geben", cefr: "B2"}
 - {key: "anteil verkaufen", cefr: "B1"}
 - {key: "antrag stellen", cefr: "B1"}
+- {key: "antworteten auf", display: "antworten auf +Akk"}
 - {key: "anweisung folgen", cefr: "B1"}
 - {key: "anzeigen", cefr: "B1"}
 - {key: "arm leute", display: "arme Leute"}
+- {key: "arm verhältnis", display: "aus armen Verhältnissen"}
+- {key: "arsch aufgerissen", display: "sich den Arsch aufreißen"}
+- {key: "aufdringen", display: "aufdrängen"}
+- {key: "aufenthalt gestalten", cefr: "B2"}
 - {key: "aufessen", cefr: "A2"}
+- {key: "auflockeren", display: "auflockern"}
+- {key: "aufrechthalten", display: "aufrechterhalten"}
 - {key: "aufrufen zu", cefr: "B2"}
+- {key: "aufräumen mit", cefr: "B2"}
 - {key: "aufsaugen", cefr: "B2"}
+- {key: "aufschließen gegenüber", cefr: "B2"}
 - {key: "aufstieg schaffen", cefr: "B2"}
 - {key: "auftragen", cefr: "B2"}
 - {key: "aufwecken", cefr: "A2"}
 - {key: "auge verschließen", display: "die Augen verschließen vor +Dat"}
 - {key: "auge werfen", display: "ein Auge werfen auf +Akk"}
+- {key: "augenblick dauern", display: "einen Augenblick dauern"}
+- {key: "ausarten zu", display: "ausarten in +Akk"}
 - {key: "ausbeißen", display: "sich die Zähne ausbeißen an +Dat"}
+- {key: "ausfüllten", display: "ausfüllen"}
+- {key: "ausgabe decken", cefr: "B1"}
+- {key: "ausgekommen mit", display: "auskommen mit +Dat"}
+- {key: "ausgestoßen bei", display: "ausstoßen bei +Dat"}
+- {key: "ausländisch akzent", display: "mit ausländischem Akzent"}
+- {key: "ausländisch firma", cefr: "B1"}
 - {key: "ausnahme bilden", cefr: "B2"}
+- {key: "ausreichend menge", display: "in ausreichender Menge"}
 - {key: "aussagen gegen", cefr: "B2"}
 - {key: "aussagen vor", cefr: "B2"}
 - {key: "aussagen über", cefr: "B2"}
 - {key: "aussagen", cefr: "B2"}
+- {key: "aussahen", display: "aussehen"}
 - {key: "ausschalten", cefr: "A2"}
 - {key: "ausschau halten", cefr: "B2"}
 - {key: "ausschlafen", cefr: "A2"}
 - {key: "ausschlag geben", cefr: "B2"}
+- {key: "aussähen", display: "aussehen"}
 - {key: "austragen", cefr: "B2"}
 - {key: "ausweichen auf", case: "Akk"}
 - {key: "ausweisen", cefr: "B2"}
 - {key: "auswirken", display: "sich auswirken"}
 - {key: "außer kontrolle geraten", cefr: "B2"}
+- {key: "außergewöhnlich fähigkeit", display: "außergewöhnliche Fähigkeiten"}
+- {key: "bar münze", display: "für bare Münze nehmen"}
 - {key: "beachtung finden", cefr: "B2"}
 - {key: "beachtung schenken", cefr: "B2"}
 - {key: "beachtung verdienen", cefr: "B2"}
@@ -69,32 +115,58 @@
 - {key: "beraten über", cefr: "B2"}
 - {key: "berg versetzen", display: "Berge versetzen"}
 - {key: "beruhen auf", case: "Dat"}
+- {key: "bescheid wussten", display: "Bescheid wissen"}
+- {key: "bescheiden verhältnis", display: "aus bescheidenen Verhältnissen"}
+- {key: "bescheidwissen über", display: "Bescheid wissen über +Akk"}
+- {key: "bescheidwissen", display: "Bescheid wissen"}
 - {key: "beschlossen sache", cefr: "B2"}
 - {key: "beschreiben als", cefr: "B2"}
 - {key: "besonderer anlaß", display: "besondere Anlässe"}
+- {key: "besseres einfallen", display: "sich etwas Besseres einfallen lassen"}
+- {key: "besserung wünschen", display: "gute Besserung wünschen"}
 - {key: "best wissen", cefr: "B2", display: "nach bestem Wissen"}
 - {key: "bestanden prüfung", display: "bestandene Prüfung"}
+- {key: "beste versuchen", display: "sein Bestes versuchen"}
 - {key: "betrag zahlen", cefr: "B1"}
+- {key: "betten auf", cefr: "B2"}
 - {key: "bevorstehen", cefr: "B2"}
 - {key: "beziehung pflegen", cefr: "B2"}
 - {key: "beziehung unterhalten", cefr: "B2"}
+- {key: "billig hotel", display: "ein billiges Hotel"}
 - {key: "bisherig erkenntnis", display: "nach bisherigen Erkenntnissen"}
 - {key: "bissch geld", display: "ein bisschen Geld"}
 - {key: "bitter ende", cefr: "B2"}
+- {key: "bitter geschmack", display: "bitterer Geschmack"}
+- {key: "blasse schimmer", display: "keinen blassen Schimmer haben"}
+- {key: "blau versprechen", display: "das Blaue vom Himmel versprechen"}
+- {key: "blau wunder", display: "sein blaues Wunder erleben"}
+- {key: "bleibe suchen", cefr: "B2"}
 - {key: "bloß auge", display: "mit bloßem Auge"}
 - {key: "bloß gedanke", display: "der bloße Gedanke"}
 - {key: "blume pflücken", cefr: "A2"}
+- {key: "bombe platzen", display: "die Bombe platzen lassen"}
 - {key: "breit öffentlichkeit", display: "breite Öffentlichkeit"}
+- {key: "brennend gebäude", display: "ein brennendes Gebäude"}
 - {key: "brennend haus", display: "brennendes Haus"}
 - {key: "brief verschicken", cefr: "A2"}
 - {key: "brille aufsetzen", cefr: "A2"}
+- {key: "britisch humor", display: "der britische Humor"}
 - {key: "brot verdienen", cefr: "B2"}
 - {key: "buch zurückbringen", cefr: "A2"}
+- {key: "bös blut", display: "böses Blut"}
+- {key: "böse bekämpfen", display: "das Böse bekämpfen"}
+- {key: "böse besiegen", display: "das Böse besiegen"}
+- {key: "böse blut", display: "böses Blut"}
+- {key: "böse tat", display: "böse Taten"}
+- {key: "böse wollen", cefr: "B1"}
+- {key: "böse zunge", display: "böse Zungen"}
 - {key: "chronisch krankheit", cefr: "B1"}
 - {key: "chronisch schmerz", cefr: "B2"}
 - {key: "comeback feiern", cefr: "B2"}
 - {key: "daherkommen", cefr: "B2"}
 - {key: "danebengehen", cefr: "B2"}
+- {key: "dastehen als", display: "dastehen als +Nom"}
+- {key: "datum abrufen", display: "Daten abrufen"}
 - {key: "derzeitig stand", display: "nach derzeitigem Stand"}
 - {key: "deuten auf", cefr: "B2"}
 - {key: "deutlich mehrheit", display: "deutliche Mehrheit"}
@@ -103,28 +175,62 @@
 - {key: "deutschsprachig raum", cefr: "B2"}
 - {key: "dicht nebel", display: "dichter Nebel"}
 - {key: "dienen als", display: "dienen als"}
+- {key: "dinger drehen", display: "ein Ding drehen"}
+- {key: "diplomatisch lösung", cefr: "B2"}
 - {key: "doppelt boden", cefr: "B2"}
+- {key: "doppelte kosten", display: "das Doppelte kosten"}
+- {key: "drachen steigen", display: "einen Drachen steigen lassen"}
+- {key: "drandenken", display: "daran denken"}
+- {key: "dranglauben", display: "dran glauben müssen"}
+- {key: "dreck angehen", display: "jdn einen Dreck angehen"}
+- {key: "dreck scheren", display: "sich einen Dreck um etwas scheren"}
+- {key: "dringend bitte", cefr: "B1"}
+- {key: "dringend fall", display: "in dringenden Fällen"}
+- {key: "dunkel anzug", display: "ein dunkler Anzug"}
+- {key: "dunkel ecke", display: "dunkle Ecken"}
+- {key: "dunkel gasse", display: "eine dunkle Gasse"}
+- {key: "dunkle wolke", display: "dunkle Wolken"}
 - {key: "durchlassen", cefr: "B1"}
 - {key: "durchschlagen", cefr: "B2"}
 - {key: "durchsehen", cefr: "B1"}
 - {key: "durchstarten", cefr: "B2"}
+- {key: "durchsuchten nach", display: "durchsuchen nach +Dat"}
+- {key: "durchzudringen zu", display: "durchdringen zu +Dat"}
+- {key: "dünn eis", display: "auf dünnem Eis"}
 - {key: "dürsten nach", cefr: "B2"}
+- {key: "echt leder", display: "echtes Leder"}
 - {key: "ehrenamtlich engagement", display: "ehrenamtliches Engagement"}
 - {key: "ehrlich haut", cefr: "B2"}
+- {key: "eigen nennen", display: "sein Eigen nennen"}
 - {key: "eigentlich problem", display: "das eigentliche Problem"}
 - {key: "einblick geben", cefr: "B2"}
 - {key: "eindruck vermitteln", cefr: "B2"}
 - {key: "einfach englisch", display: "in einfachem Englisch"}
 - {key: "einfluss nehmen", cefr: "B2"}
+- {key: "eingestochen auf", display: "einstechen auf +Akk"}
+- {key: "eingestochen mit", display: "einstechen auf +Akk"}
 - {key: "einheit bilden", cefr: "B2"}
+- {key: "einpackten", display: "einpacken"}
+- {key: "einrissen", display: "einreißen"}
+- {key: "einsam insel", display: "eine einsame Insel"}
 - {key: "einschlafen", cefr: "A2"}
+- {key: "einschlichen", display: "sich einschleichen"}
+- {key: "einschlägen", display: "einschlagen"}
+- {key: "einsingen", display: "sich einsingen"}
 - {key: "einstweilig verfügung", cefr: "B2"}
 - {key: "einteilen in", case: "Akk"}
 - {key: "eintragen in", case: "Akk"}
 - {key: "einwickeln in", case: "Akk"}
 - {key: "einzug halten", cefr: "B2"}
+- {key: "email schicken", display: "E-Mail schicken"}
+- {key: "empfanden als", display: "empfinden als"}
+- {key: "empfindlich stelle", cefr: "B2"}
+- {key: "empfingen mit", display: "empfangen mit +Dat"}
+- {key: "ende nähern", display: "sich dem Ende nähern"}
 - {key: "ende zuneigen", display: "sich dem Ende zuneigen"}
+- {key: "endlos diskussion", display: "endlose Diskussionen"}
 - {key: "entfernt verwandte", cefr: "B1"}
+- {key: "entkamen mit", display: "entkommen mit +Dat"}
 - {key: "entscheidend bedeutung", cefr: "B2"}
 - {key: "entscheidend moment", display: "entscheidender Moment"}
 - {key: "entscheidung fällen", cefr: "B2"}
@@ -134,64 +240,110 @@
 - {key: "erfolgreich abschluss", display: "erfolgreicher Abschluss"}
 - {key: "ergänzen durch", cefr: "B2"}
 - {key: "ergänzen um", cefr: "B1"}
+- {key: "erhaben über", display: "erhaben sein über +Akk"}
+- {key: "erhöht blutdruck", display: "erhöhter Blutdruck"}
 - {key: "erklärt ziel", display: "das erklärte Ziel"}
 - {key: "erklärung abgeben", cefr: "B2"}
 - {key: "erkältung holen", display: "sich eine Erkältung holen"}
 - {key: "ermittlung aufnehmen", display: "Ermittlungen aufnehmen"}
 - {key: "ermittlung übernehmen", cefr: "B2"}
+- {key: "erneuerbar energiequelle", display: "erneuerbare Energiequellen"}
+- {key: "ernsthaft schwierigkeit", display: "ernsthafte Schwierigkeiten"}
+- {key: "erschrocken über", display: "erschrecken über +Akk"}
+- {key: "erzählten von", display: "erzählen von +Dat"}
 - {key: "europäisch land", display: "europäische Länder"}
 - {key: "europäisch parlament", display: "das Europäische Parlament"}
 - {key: "ewig leben", display: "ewiges Leben"}
+- {key: "ewig liebe", display: "ewige Liebe"}
+- {key: "exakt wissenschaft", display: "eine exakte Wissenschaft"}
+- {key: "fach unterrichten", cefr: "B1"}
+- {key: "fade verlieren", cefr: "B2"}
 - {key: "faden ziehen", display: "die Fäden ziehen"}
+- {key: "fahrend zug", display: "auf einen fahrenden Zug aufspringen"}
 - {key: "fahrlässig tötung", display: "fahrlässige Tötung"}
 - {key: "fair handel", display: "fairer Handel"}
 - {key: "falle stellen", cefr: "B1"}
+- {key: "falsch ernährung", display: "falsche Ernährung"}
+- {key: "falsch fährte", cefr: "B2"}
+- {key: "falsch gerücht", display: "ein falsches Gerücht"}
+- {key: "falsch schluß", cefr: "B2"}
 - {key: "falsch weg", display: "der falsche Weg"}
+- {key: "falschen erwischen", display: "den Falschen erwischen"}
+- {key: "faul haut", display: "auf der faulen Haut liegen"}
+- {key: "feindlich gebiet", display: "in feindlichem Gebiet"}
+- {key: "ferngehalten von", display: "fernhalten von +Dat"}
 - {key: "fernliegen", cefr: "B2"}
 - {key: "fest bestandteil", cefr: "B2"}
+- {key: "fest nahrung", display: "feste Nahrung"}
+- {key: "festgebunden an", display: "festbinden an +Dat"}
 - {key: "festschreiben", cefr: "B2"}
 - {key: "feuer eröffnen", cefr: "B2"}
 - {key: "feuer legen", cefr: "B2"}
 - {key: "film anschauen", cefr: "A1"}
 - {key: "finanziell mittel", cefr: "B2"}
 - {key: "finanziell spielraum", cefr: "B2"}
+- {key: "finger rühren", display: "keinen Finger rühren"}
+- {key: "fithalten", display: "sich fit halten"}
 - {key: "fliegen über", case: "Akk"}
+- {key: "fliegend untertasse", cefr: "B2"}
 - {key: "flug streichen", cefr: "B1"}
 - {key: "flüchtig blick", cefr: "B2"}
 - {key: "forderung stellen", cefr: "B2"}
 - {key: "formen zu", cefr: "B2"}
+- {key: "fortpflanzen", display: "sich fortpflanzen"}
 - {key: "fossil energie", display: "fossile Energien"}
 - {key: "französisch präsident", display: "der französische Präsident"}
 - {key: "frei fuß", display: "auf freiem Fuß"}
 - {key: "frei natur", display: "freie Natur"}
+- {key: "frei presse", cefr: "B2"}
 - {key: "frei wildbahn", display: "in freier Wildbahn"}
 - {key: "frei wille", display: "der freie Wille"}
 - {key: "freimachen", cefr: "B2"}
 - {key: "freistehen", cefr: "B2"}
 - {key: "freiwillig feuerwehr", display: "freiwillige Feuerwehr"}
+- {key: "fremd macht", cefr: "B2"}
+- {key: "fremd planet", display: "fremder Planet"}
+- {key: "freudig erwartung", display: "freudige Erwartung"}
+- {key: "freundlich grüße", display: "mit freundlichen Grüßen"}
 - {key: "freundlich unterstützung", display: "mit freundlicher Unterstützung"}
 - {key: "freundschaft schließen", cefr: "B1"}
 - {key: "frieden schließen", cefr: "B2"}
+- {key: "friedlich absicht", display: "in friedlicher Absicht"}
 - {key: "frisch tat", display: "auf frischer Tat"}
+- {key: "frisches obst", display: "frisches Obst"}
+- {key: "froh kunde", cefr: "B2"}
 - {key: "fromm leute", cefr: "B2"}
 - {key: "fromm wunsch", cefr: "B2"}
 - {key: "frucht tragen", display: "Früchte tragen"}
 - {key: "früh morgenstunde", cefr: "B1"}
+- {key: "früh stadium", display: "ein frühes Stadium"}
+- {key: "fährt aufnehmen", display: "die Fährte aufnehmen"}
+- {key: "fünfter etage", display: "die fünfte Etage"}
 - {key: "fünfter rad", display: "das fünfte Rad am Wagen"}
+- {key: "ganze betrachten", display: "das Ganze betrachten"}
+- {key: "gebaut umwelt", cefr: "B2"}
 - {key: "gebrauch machen", cefr: "B2"}
+- {key: "gebührend respekt", cefr: "B2"}
 - {key: "gedanke fassen", display: "einen Gedanken fassen"}
 - {key: "gedanke lesen", display: "Gedanken lesen"}
 - {key: "gedanke machen", display: "sich Gedanken machen"}
+- {key: "gedeckt tisch", cefr: "B2"}
 - {key: "gefahr laufen", cefr: "B2"}
 - {key: "gefallen finden", cefr: "B2"}
+- {key: "gefälscht ausweis", cefr: "B1"}
 - {key: "gegenseitig respekt", display: "gegenseitiger Respekt"}
 - {key: "gegenseitig vertrauen", display: "gegenseitiges Vertrauen"}
 - {key: "gegenüberliegend seite", display: "auf der gegenüberliegenden Seite"}
+- {key: "gegenüberliegend straßenseite", display: "auf der gegenüberliegenden Straßenseite"}
 - {key: "gegenübersitzen", cefr: "B2"}
 - {key: "gegenüberstehen", cefr: "B2"}
+- {key: "gegnerisch anwalt", display: "der gegnerische Anwalt"}
+- {key: "gehangen an", display: "hängen an +Dat"}
 - {key: "gehör finden", cefr: "B2"}
 - {key: "gehör schenken", cefr: "B2"}
 - {key: "geistig eigentum", display: "geistiges Eigentum"}
+- {key: "gekocht ei", cefr: "A2"}
+- {key: "gekommen auf", display: "kommen auf +Akk"}
 - {key: "gelangen zu", cefr: "B2"}
 - {key: "geliebt mensch", display: "geliebter Mensch"}
 - {key: "gelitten unter", display: "leiden unter +Dat"}
@@ -200,7 +352,13 @@
 - {key: "gemeinsam ziel", display: "gemeinsames Ziel"}
 - {key: "genau datum", display: "das genaue Datum"}
 - {key: "genau gegenteil", display: "das genaue Gegenteil"}
+- {key: "genau vorstellung", display: "eine genaue Vorstellung"}
+- {key: "genau wortlaut", cefr: "B2"}
 - {key: "genau zeitpunkt", display: "der genaue Zeitpunkt"}
+- {key: "genetisch code", display: "genetischer Code"}
+- {key: "gerecht krieg", display: "der gerechte Krieg"}
+- {key: "germanisch stamm", display: "germanische Stämme"}
+- {key: "geschenkt gaul", display: "ein geschenkter Gaul"}
 - {key: "geschichte schreiben", cefr: "B2"}
 - {key: "geschlossen auge", display: "mit geschlossenen Augen"}
 - {key: "gesellschaftlich leben", display: "gesellschaftliches Leben"}
@@ -209,54 +367,95 @@
 - {key: "gesprochen wort", display: "das gesprochene Wort"}
 - {key: "geständnis ablegen", cefr: "B2"}
 - {key: "geständnis unterschreiben", cefr: "B2"}
+- {key: "gesundheit erfreuen", display: "sich guter Gesundheit erfreuen"}
 - {key: "gesundheitlich grund", display: "aus gesundheitlichen Gründen"}
 - {key: "getrennt weg", cefr: "B2"}
+- {key: "gewiss sinn", display: "in gewissem Sinne"}
 - {key: "gewiß weise", display: "in gewisser Weise"}
 - {key: "glaube schenken", display: "Glauben schenken"}
+- {key: "gleichaufliegen", display: "gleichauf liegen"}
 - {key: "gleichsetzen mit", cefr: "B2"}
+- {key: "glühend kohl", display: "glühende Kohlen"}
+- {key: "gnade kennen", display: "keine Gnade kennen"}
+- {key: "grau anzug", display: "graue Anzüge"}
 - {key: "grenze kennen", display: "seine Grenzen kennen"}
 - {key: "grenzen an", case: "Akk"}
+- {key: "groß eifer", display: "mit großem Eifer"}
 - {key: "groß los", display: "das große Los ziehen"}
 - {key: "groß stil", display: "in großem Stil"}
 - {key: "groß wurf", display: "großer Wurf"}
+- {key: "großartig job", display: "großartiger Job"}
+- {key: "grundlage entbehren", display: "jeder Grundlage entbehren"}
 - {key: "grundstein legen", cefr: "B2"}
+- {key: "grün daum", display: "einen grünen Daumen haben"}
 - {key: "grün licht", cefr: "B2"}
+- {key: "grün star", cefr: "B2"}
+- {key: "gut benehme", display: "gutes Benehmen"}
 - {key: "gut erziehung", display: "gute Erziehung"}
 - {key: "gut gedächtnis", cefr: "A2"}
+- {key: "gut geister", display: "von allen guten Geistern verlassen"}
 - {key: "gut gesundheit", display: "bei guter Gesundheit"}
 - {key: "gut letzt", cefr: "B2", display: "zu guter Letzt"}
 - {key: "gut verfassung", display: "in guter Verfassung"}
 - {key: "gut wünschen", display: "alles Gute wünschen"}
 - {key: "gut zweck", display: "guter Zweck"}
+- {key: "gürtel schnallen", display: "den Gürtel enger schnallen"}
 - {key: "haar bürsten", display: "Haare bürsten"}
 - {key: "haar kämmen", cefr: "A2"}
 - {key: "haar waschen", display: "Haare waschen"}
+- {key: "halb miete", cefr: "B2"}
 - {key: "halb strecke", display: "auf halber Strecke"}
+- {key: "hals riskieren", display: "seinen Hals riskieren"}
 - {key: "handel treiben", cefr: "B2"}
 - {key: "handlungsbedarf sehen", cefr: "B2"}
+- {key: "handwerk legen", display: "jemandem das Handwerk legen"}
+- {key: "hart bandage", display: "mit harten Bandagen kämpfen"}
+- {key: "hart tour", cefr: "B2"}
 - {key: "hausaufgabe fertigstellen", display: "Hausaufgaben fertigstellen"}
 - {key: "hausaufgabe machen", display: "Hausaufgaben machen"}
+- {key: "heftig regen", display: "heftiger Regen"}
 - {key: "heikel thema", cefr: "B2"}
+- {key: "heilig bund", display: "heiliger Bund"}
 - {key: "heiter himmel", cefr: "B2"}
 - {key: "heiß brei", display: "um den heißen Brei herumreden"}
+- {key: "heiß eisen", cefr: "B2"}
+- {key: "heiß ofen", display: "ein heißer Ofen"}
 - {key: "heiß wasser", display: "heißes Wasser"}
 - {key: "hell licht", display: "helles Licht"}
 - {key: "helm aufsetzen", cefr: "A2"}
+- {key: "heranfahren an", case: "Akk"}
 - {key: "herangehen an", cefr: "B2"}
 - {key: "herankommen an", cefr: "B2"}
 - {key: "herankommen", cefr: "B2"}
 - {key: "heranrücken", cefr: "B2"}
 - {key: "heranziehen", cefr: "B2"}
 - {key: "herausforderung stellen", display: "sich einer Herausforderung stellen"}
+- {key: "herausgehen aus", case: "Dat"}
+- {key: "herausgerissen aus", display: "herausreissen aus +Dat"}
+- {key: "herausgeschnitten aus", display: "herausschneiden aus +Dat"}
 - {key: "herausragend leistung", cefr: "B2"}
+- {key: "herausrissen", display: "herausreißen"}
+- {key: "hereingefallen auf", display: "hereinfallen auf +Akk"}
 - {key: "hereinkommen", cefr: "A2"}
+- {key: "hergefallen über", display: "herfallen über +Akk"}
 - {key: "herkommen", cefr: "A2"}
 - {key: "herumliegen", cefr: "B1"}
+- {key: "herumtragen mit", display: "sich herumtragen mit +Dat"}
+- {key: "hervorstichen", display: "hervorstechen"}
+- {key: "herz begehren", display: "was das Herz begehrt"}
 - {key: "herz gewinnen", cefr: "B2"}
+- {key: "herziehen hinter", case: "Dat"}
+- {key: "herzlich applaus", display: "herzlicher Applaus"}
 - {key: "hinausgehen über", cefr: "B2"}
+- {key: "hineinreichen in", case: "Akk"}
+- {key: "hinweggekommen über", display: "hinwegkommen über +Akk"}
+- {key: "hinzubekommen", display: "hinbekommen"}
+- {key: "hinzugehören", display: "hingehören"}
 - {key: "hinzusetzen", display: "hinsetzen"}
 - {key: "hoch alter", cefr: "B1"}
+- {key: "hoch bevölkerungsdicht", display: "hohe Bevölkerungsdichte"}
 - {key: "hoch geschwindigkeit", display: "mit hoher Geschwindigkeit"}
+- {key: "hoch gras", display: "im hohen Gras"}
 - {key: "hoch gut", cefr: "B2"}
 - {key: "hoch kosten", cefr: "B1"}
 - {key: "hoch maß", display: "in hohem Maße"}
@@ -286,82 +485,135 @@
 - {key: "in verbindung bringen", cefr: "B2"}
 - {key: "in verlegenheit bringen", cefr: "B2"}
 - {key: "infrage kommen", cefr: "B2", display: "infrage kommen"}
+- {key: "infragestellen", display: "infrage stellen"}
+- {key: "innerer angelegenheit", display: "innere Angelegenheiten"}
+- {key: "innerer frieden", display: "innerer Frieden"}
 - {key: "ins visier geraten", cefr: "B2"}
 - {key: "ins visier nehmen", cefr: "B2"}
+- {key: "intern untersuchung", cefr: "B2"}
 - {key: "international ebene", display: "internationale Ebene"}
+- {key: "international gewässer", cefr: "B2"}
 - {key: "international kommunikation", cefr: "B1"}
 - {key: "international vergleich", display: "internationaler Vergleich"}
 - {key: "international zusammenarbeit", cefr: "B1"}
 - {key: "involvieren in", case: "Akk"}
+- {key: "jahrelang erfahrung", display: "jahrelange Erfahrung"}
 - {key: "jetzig zeitpunkt", display: "zum jetzigen Zeitpunkt"}
+- {key: "junger mann", display: "ein junger Mann"}
+- {key: "juristisch fakultät", display: "die juristische Fakultät"}
+- {key: "kalt dusche", cefr: "B2"}
+- {key: "kalt schulter", cefr: "B2"}
 - {key: "kalt wetter", display: "kaltes Wetter"}
+- {key: "kaltes trinken", display: "etwas Kaltes trinken"}
 - {key: "kampf ansagen", cefr: "B2"}
+- {key: "kampf liefern", display: "sich einen Kampf liefern"}
+- {key: "kaution bezahlen", cefr: "B2"}
+- {key: "kekse gegessen", display: "Kekse essen"}
 - {key: "kerze anzünden", cefr: "A2"}
 - {key: "kind stillen", cefr: "B1"}
 - {key: "klagen gegen", cefr: "B2"}
 - {key: "klappe halten", cefr: "B1"}
+- {key: "klargekommen mit", display: "klarkommen mit +Dat"}
 - {key: "kleben an", case: "Dat"}
 - {key: "kleben auf", case: "Dat"}
+- {key: "klein kätzche", display: "ein kleines Kätzchen"}
+- {key: "klein luder", display: "kleines Luder"}
+- {key: "klemmen unter", case: "Akk"}
 - {key: "klinisch studie", display: "klinische Studien"}
 - {key: "knapp not", cefr: "B2"}
 - {key: "kommentar abgeben", cefr: "B1"}
 - {key: "komplex zahl", cefr: "B2"}
 - {key: "konsequenz fordern", display: "Konsequenzen fordern"}
 - {key: "konsequenz ziehen", cefr: "B2"}
+- {key: "konstruktiv diskussion", display: "eine konstruktive Diskussion"}
 - {key: "kopf zerbrechen", display: "sich den Kopf zerbrechen"}
 - {key: "koppeln an", case: "Akk"}
 - {key: "korrektur lesen", cefr: "B2"}
 - {key: "kosten decken", cefr: "B2"}
 - {key: "kosten tragen", cefr: "B2"}
+- {key: "kraft vereinen", display: "Kräfte vereinen"}
+- {key: "kranken an", cefr: "B2"}
 - {key: "kreisen über", case: "Dat"}
+- {key: "krieg anzetteln", display: "einen Krieg anzetteln"}
 - {key: "kritik üben", cefr: "B2"}
+- {key: "kräftig applaus", display: "kräftiger Applaus"}
+- {key: "kugel einfangen", display: "sich eine Kugel einfangen"}
 - {key: "kunst beherrschen", cefr: "B2"}
+- {key: "kurz leine", display: "an der kurzen Leine"}
 - {key: "körperlich verfassung", display: "in guter körperlicher Verfassung"}
 - {key: "kühl kopf", cefr: "B2", display: "kühler Kopf"}
 - {key: "künstlerisch leiter", display: "der künstlerische Leiter"}
 - {key: "künstlich koma", display: "künstliches Koma"}
 - {key: "kürzer ziehen", display: "den Kürzeren ziehen"}
+- {key: "lang schwanz", display: "der lange Schwanz"}
 - {key: "lasten auf", cefr: "B2"}
 - {key: "lauf nehmen", display: "seinen Lauf nehmen"}
+- {key: "laufbahn beginnen", cefr: "B2"}
 - {key: "laufend geschäftsjahr", display: "laufendes Geschäftsjahr"}
 - {key: "laufend verfahren", display: "laufendes Verfahren"}
 - {key: "leben schwermachen", display: "das Leben schwer machen"}
+- {key: "lebend legende", cefr: "B2"}
+- {key: "lebend organismus", display: "lebende Organismen"}
+- {key: "lebend verwandte", cefr: "B2"}
 - {key: "lebendig leib", display: "bei lebendigem Leibe"}
+- {key: "lebensgeschichte erzählen", cefr: "B1"}
 - {key: "lebensunterhalt verdienen", cefr: "B1"}
 - {key: "leer glas", display: "leeres Glas"}
 - {key: "leer hand", cefr: "B2", display: "mit leeren Händen"}
+- {key: "leer mag", display: "auf leeren Magen"}
+- {key: "leer versprechung", display: "leere Versprechungen"}
 - {key: "lehre ziehen", cefr: "B2"}
 - {key: "leiblich mutter", cefr: "B2"}
 - {key: "leiblich wohl", display: "das leibliche Wohl"}
 - {key: "leicht schulter", cefr: "B2"}
 - {key: "leid klagen", display: "jemandem sein Leid klagen"}
+- {key: "lektüre empfehlen", cefr: "B2"}
+- {key: "lerne kennen", display: "kennenlernen"}
+- {key: "letzt beißen", display: "den Letzten beißen die Hunde"}
+- {key: "leuchtend stern", display: "leuchtende Sterne"}
 - {key: "leute ausstehen", display: "jemanden nicht ausstehen können"}
 - {key: "licht ausschalten", cefr: "A2"}
 - {key: "lieb gott", display: "der liebe Gott"}
+- {key: "lieb kleine", cefr: "B2"}
 - {key: "liebe gestehen", cefr: "B2"}
 - {key: "linker bein", display: "linkes Bein"}
 - {key: "linker flügel", display: "linker Flügel"}
+- {key: "linker straßenseite", display: "auf der linken Straßenseite"}
+- {key: "lockersitzen", display: "locker sitzen"}
 - {key: "logik folgen", cefr: "B2"}
+- {key: "los mundwerk", cefr: "B2"}
+- {key: "luft verschaffen", display: "sich Luft verschaffen"}
 - {key: "ländlich gebiet", display: "ländliche Gebiete"}
+- {key: "löffel abgeben", cefr: "B2"}
 - {key: "lücke schließen", cefr: "B2"}
+- {key: "machtwort sprechen", cefr: "B2", display: "ein Machtwort sprechen"}
+- {key: "markt beherrschen", cefr: "B2"}
 - {key: "mathematisch problem", display: "mathematisches Problem"}
+- {key: "maul zerreißen", display: "sich das Maul zerreißen"}
 - {key: "medizinisch einrichtung", display: "medizinische Einrichtungen"}
 - {key: "medizinisch versorgung", cefr: "B1"}
 - {key: "mensch zusammenbringen", display: "Menschen zusammenbringen"}
 - {key: "menschlich gehirn", display: "das menschliche Gehirn"}
 - {key: "menschlich geist", display: "menschlicher Geist"}
 - {key: "menschlich herz", display: "das menschliche Herz"}
+- {key: "menschlich schwäche", display: "menschliche Schwächen"}
 - {key: "militärisch konflikt", display: "militärischer Konflikt"}
 - {key: "misslich lage", display: "missliche Lage"}
+- {key: "missverstehen als", case: "Akk"}
 - {key: "mitmachen bei", cefr: "B1"}
+- {key: "mitrissen", display: "mitreißen"}
 - {key: "mittlerer alter", cefr: "B1"}
+- {key: "mittlerer osten", display: "der Mittlere Osten"}
 - {key: "motor laufen", display: "den Motor laufen lassen"}
 - {key: "mund verbrennen", display: "sich den Mund verbrennen"}
 - {key: "mutter ähneln", display: "der Mutter ähneln"}
+- {key: "männlich leiche", display: "männliche Leiche"}
 - {key: "möglich verstoß", display: "mögliche Verstöße"}
 - {key: "möglichkeit eröffnen", cefr: "B2"}
+- {key: "möglichmachen", display: "möglich machen"}
 - {key: "mühe geben", display: "sich Mühe geben"}
 - {key: "münzen auf", cefr: "B2"}
+- {key: "nachbesseren", display: "nachbessern"}
 - {key: "nachfolgen", cefr: "B2"}
 - {key: "nachfolgend generation", display: "nachfolgende Generationen"}
 - {key: "nachfragen", cefr: "B1"}
@@ -369,6 +621,7 @@
 - {key: "nachlegen", cefr: "B2"}
 - {key: "nachlesen", cefr: "B2"}
 - {key: "nachrücken", cefr: "B2"}
+- {key: "nachschaun", display: "nachschauen"}
 - {key: "nachstehen", cefr: "B2"}
 - {key: "nachstellen", cefr: "B2"}
 - {key: "nachweisen", cefr: "B2"}
@@ -376,116 +629,196 @@
 - {key: "nachziehen", cefr: "B2"}
 - {key: "nah zukunft", display: "in naher Zukunft"}
 - {key: "name rufen", display: "beim Namen rufen"}
+- {key: "narr gefressen", display: "einen Narren gefressen haben an +Dat"}
 - {key: "nase stecken", display: "die Nase in etwas stecken"}
 - {key: "natürlich tod", display: "eines natürlichen Todes sterben"}
 - {key: "natürlich umwelt", cefr: "B1"}
+- {key: "nerv rauben", display: "den letzten Nerv rauben"}
 - {key: "nerv treffen", cefr: "B2"}
+- {key: "neu bleibe", cefr: "B1"}
 - {key: "neu gesetz", display: "neues Gesetz"}
 - {key: "neu glanz", display: "in neuem Glanz erstrahlen"}
 - {key: "neu produkt", display: "neues Produkt"}
 - {key: "neu rekord", display: "neuer Rekord"}
+- {key: "neu weltordnung", cefr: "B2"}
+- {key: "neunt klasse", display: "die neunte Klasse"}
+- {key: "neunzehnt jahrhundert", display: "das neunzehnte Jahrhundert"}
 - {key: "neust stand", display: "neuester Stand"}
+- {key: "neutral zone", display: "die neutrale Zone"}
+- {key: "notwendig änderung", display: "notwendige Änderungen"}
 - {key: "nutzen bringen", cefr: "B2"}
 - {key: "nutzen ziehen", cefr: "B2"}
+- {key: "nötig respekt", display: "der nötige Respekt"}
+- {key: "nüchtern magen", display: "nüchterner Magen"}
+- {key: "oberhand gewinnen", cefr: "B2"}
+- {key: "offen arm", display: "mit offenen Armen"}
+- {key: "offen arme", display: "mit offenen Armen"}
 - {key: "offen brief", display: "offener Brief"}
 - {key: "offen ohr", cefr: "B2"}
 - {key: "offiziell angabe", display: "nach offiziellen Angaben"}
+- {key: "ohr trauen", display: "seinen Ohren nicht trauen"}
 - {key: "operation unterziehen", display: "sich einer Operation unterziehen"}
 - {key: "operativ gewinn", display: "operativer Gewinn"}
 - {key: "organisiert verbrechen", display: "organisiertes Verbrechen"}
 - {key: "paaren mit", cefr: "B2"}
+- {key: "parathaben", display: "parat haben"}
 - {key: "partie gewinnen", cefr: "B2"}
 - {key: "passend wort", display: "die passenden Worte"}
+- {key: "persönlich gebrauch", display: "der persönliche Gebrauch"}
 - {key: "persönlich gespräch", display: "persönliches Gespräch"}
 - {key: "persönlich kontakt", display: "persönlicher Kontakt"}
 - {key: "pflastern mit", cefr: "B2"}
 - {key: "pflicht erfüllen", cefr: "B1"}
+- {key: "pflicht tuen", display: "seine Pflicht tun"}
 - {key: "plan zustimmen", display: "einem Plan zustimmen"}
 - {key: "platzen vor", cefr: "B2"}
 - {key: "politisch führung", cefr: "B1"}
 - {key: "politisch system", display: "politisches System"}
+- {key: "politisch überzeugung", display: "politische Überzeugungen"}
 - {key: "polizei melden", display: "der Polizei melden"}
+- {key: "polizeilich gewahrsam", display: "in polizeilichem Gewahrsam"}
+- {key: "positiv eindruck", display: "ein positiver Eindruck"}
 - {key: "potenzial sehen", cefr: "B2"}
 - {key: "preis treiben", cefr: "B2"}
+- {key: "prüfung unterziehen", display: "sich einer Prüfung unterziehen"}
 - {key: "psychisch störung", display: "psychische Störungen"}
+- {key: "radioaktiv material", cefr: "B2"}
 - {key: "rahmenbedingung schaffen", display: "Rahmenbedingungen schaffen"}
+- {key: "rangekommen an", display: "rankommen an +Akk"}
 - {key: "rangieren auf", case: "Dat"}
+- {key: "ranzukommen an", display: "rankommen an +Akk"}
+- {key: "rau see", display: "raue See"}
+- {key: "rauchen abgewöhnen", display: "sich das Rauchen abgewöhnen"}
 - {key: "rauchen aufgeben", display: "das Rauchen aufgeben"}
+- {key: "raum betraten", display: "Raum betreten"}
+- {key: "rauszukommen aus", display: "rauskommen aus +Dat"}
 - {key: "rechenschaft ablegen", cefr: "B2"}
 - {key: "rechnen mit", cefr: "B1"}
 - {key: "rechnung tragen", cefr: "B2"}
 - {key: "rechter fuß", display: "rechter Fuß"}
+- {key: "rechter schulter", display: "die rechte Schulter"}
 - {key: "rechter seite", display: "auf der rechten Seite"}
+- {key: "rechter straßenseite", display: "die rechte Straßenseite"}
+- {key: "rechter wange", display: "die rechte Wange"}
 - {key: "rechtlich grund", display: "rechtliche Gründe"}
+- {key: "rein formsache", cefr: "B2"}
 - {key: "rein wein", cefr: "B2"}
+- {key: "reingefallen auf", display: "reinfallen auf +Akk"}
 - {key: "rennen fahren", display: "Rennen fahren"}
 - {key: "respekt verdienen", cefr: "B1"}
 - {key: "respekt zollen", cefr: "B2"}
 - {key: "richtig augenblick", display: "im richtigen Augenblick"}
+- {key: "richtig riecher", cefr: "B2", display: "ein richtiger Riecher"}
+- {key: "richtig ton", display: "den richtigen Ton treffen"}
 - {key: "ringen mit", cefr: "B2"}
 - {key: "ringen um", cefr: "B2"}
 - {key: "risiko bergen", cefr: "B2"}
+- {key: "riten durch", display: "reiten durch +Akk"}
+- {key: "rochen nach", display: "riechen nach +Dat"}
 - {key: "rot faden", cefr: "B2"}
 - {key: "rot kleid", display: "rotes Kleid"}
 - {key: "rot zahl", cefr: "B2"}
 - {key: "ruf folgen", cefr: "B2"}
+- {key: "ruhe gönnen", display: "sich Ruhe gönnen"}
+- {key: "rumhacken auf", case: "Dat"}
 - {key: "rund tisch", display: "runder Tisch"}
+- {key: "russisch pass", display: "russischer Pass"}
 - {key: "römisch reich", display: "Römisches Reich"}
 - {key: "rücktritt anbieten", cefr: "B2"}
 - {key: "rücktritt erklären", cefr: "B2"}
+- {key: "schallend gelächter", cefr: "B2"}
+- {key: "scharen um", display: "sich scharen um +Akk"}
+- {key: "scharf zahn", display: "scharfe Zähne"}
+- {key: "scheißdreck angehen", display: "jemanden einen Scheißdreck angehen"}
+- {key: "scheren über", display: "über einen Kamm scheren"}
+- {key: "schief bahn", display: "auf die schiefe Bahn geraten"}
+- {key: "schiefgelaufen bei", display: "schieflaufen bei +Dat"}
+- {key: "schlecht erziehung", cefr: "B1"}
 - {key: "schlecht manier", display: "schlechte Manieren"}
+- {key: "schlecht presse", cefr: "B1"}
 - {key: "schlecht verfassung", display: "in schlechter Verfassung sein"}
 - {key: "schlecht wetter", display: "schlechtes Wetter"}
+- {key: "schlimme befürchten", display: "das Schlimmste befürchten"}
+- {key: "schlimme überstehen", display: "das Schlimmste überstehen"}
 - {key: "schlussfolgerung ziehen", cefr: "B2"}
 - {key: "schlussstrich ziehen", cefr: "B2"}
 - {key: "schmerz aushalten", display: "Schmerzen aushalten"}
+- {key: "schmissen aus", display: "schmeissen aus +Dat"}
 - {key: "schuld begleichen", cefr: "B2"}
 - {key: "schuld bezahlen", display: "Schulden bezahlen"}
 - {key: "schuld geben", cefr: "B1"}
 - {key: "schuld zurückzahlen", display: "Schulden zurückzahlen"}
+- {key: "schule schmissen", display: "die Schule schmeißen"}
 - {key: "schule verweisen", display: "von der Schule verweisen"}
+- {key: "schwarz liste", cefr: "B1"}
 - {key: "schwarz schaf", display: "das schwarze Schaf"}
 - {key: "schwarz zahl", cefr: "B2"}
 - {key: "schweben über", case: "Dat"}
 - {key: "schwer gerät", display: "schweres Gerät"}
 - {key: "schwer krankheit", display: "schwere Krankheit"}
 - {key: "schwer körperverletzung", display: "schwere Körperverletzung"}
+- {key: "schwerbelasten", display: "schwer belasten"}
 - {key: "schwerfallen", cefr: "B1"}
 - {key: "schwermachen", cefr: "B2"}
 - {key: "schwerpunkt legen", cefr: "B2"}
 - {key: "schwerwiegen", display: "schwer wiegen"}
 - {key: "schwerwiegend problem", cefr: "B2"}
+- {key: "schön gruß", display: "Schöne Grüße"}
 - {key: "schüchtern junge", display: "schüchterner Junge"}
 - {key: "sechsstellig bereich", cefr: "B2"}
+- {key: "sechster klasse", display: "die sechste Klasse"}
+- {key: "sechster stock", display: "der sechste Stock"}
 - {key: "seele verkaufen", cefr: "B2"}
 - {key: "seiden faden", display: "am seidenen Faden hängen"}
 - {key: "selber abend", display: "am selben Abend"}
+- {key: "selber boot", display: "im selben Boot sitzen"}
+- {key: "selber ort", display: "am selben Ort"}
+- {key: "selten art", cefr: "B1"}
 - {key: "selten buch", display: "seltene Bücher"}
 - {key: "selten fall", display: "seltener Fall"}
+- {key: "senf dazugeben", display: "seinen Senf dazugeben"}
 - {key: "setzen auf", cefr: "B2"}
 - {key: "sexuell orientierung", cefr: "B2"}
 - {key: "sexuell übergriff", display: "sexuelle Übergriffe"}
+- {key: "show stehlen", display: "jemandem die Show stehlen"}
+- {key: "sich abbringen von", display: "abbringen von +Dat"}
 - {key: "sich abgeben mit", cefr: "B2"}
 - {key: "sich abheben von", cefr: "B1"}
 - {key: "sich absetzen", cefr: "B2"}
+- {key: "sich aneignen", case: "Akk"}
 - {key: "sich anfreunden mit", cefr: "A2"}
+- {key: "sich angucken", case: "Akk"}
+- {key: "sich anmassen", display: "sich anmaßen"}
 - {key: "sich anmerken", display: "sich etwas anmerken lassen"}
+- {key: "sich annäheren", display: "sich annähern an +Akk"}
+- {key: "sich ansahen", display: "sich ansehen"}
 - {key: "sich ansammeln", display: "sich ansammeln"}
 - {key: "sich anstecken", display: "sich anstecken"}
+- {key: "sich aufdringen", display: "sich aufdrängen"}
 - {key: "sich aufteilen in", case: "Akk"}
+- {key: "sich ausbeißen", display: "sich die Zähne ausbeißen"}
+- {key: "sich ausbissen", display: "sich die Zähne ausbeißen an +Dat"}
+- {key: "sich ausgaben als", display: "sich ausgeben als"}
 - {key: "sich aussprechen", cefr: "B2"}
+- {key: "sich austragen aus", cefr: "B1"}
 - {key: "sich bahnen", cefr: "B2"}
 - {key: "sich bahnten", display: "sich einen Weg bahnen"}
 - {key: "sich beraten mit", cefr: "B2"}
+- {key: "sich besprechen mit", cefr: "B2"}
 - {key: "sich bewähren", cefr: "B2"}
+- {key: "sich bissen auf", display: "sich beißen auf +Akk"}
 - {key: "sich breiten", display: "sich ausbreiten"}
+- {key: "sich brennen in", display: "sich einbrennen in +Akk"}
 - {key: "sich brüsten", cefr: "B2"}
 - {key: "sich decken mit", cefr: "B2"}
+- {key: "sich drangewöhnen", display: "sich gewöhnen an +Akk"}
+- {key: "sich drauffreuen", display: "sich darauf freuen"}
 - {key: "sich einfangen", display: "sich etwas einfangen"}
 - {key: "sich eingeschlichen", display: "sich einschleichen"}
 - {key: "sich einlassen", cefr: "B2"}
 - {key: "sich einloggen", display: "sich einloggen"}
 - {key: "sich einmischen", display: "sich einmischen"}
+- {key: "sich einreden", display: "sich Dat etwas einreden"}
 - {key: "sich einschließen in", case: "Akk"}
 - {key: "sich einschüchtern", display: "sich einschüchtern lassen"}
 - {key: "sich einzubringen", display: "sich einbringen"}
@@ -495,68 +828,109 @@
 - {key: "sich ergeben", cefr: "B2"}
 - {key: "sich erlauben", cefr: "B1"}
 - {key: "sich erschließen", cefr: "B2"}
+- {key: "sich erträumen", case: "Akk"}
 - {key: "sich erweisen als", display: "sich erweisen als"}
+- {key: "sich freigenommen", display: "sich freinehmen"}
 - {key: "sich freinehmen", cefr: "B1"}
 - {key: "sich färben", cefr: "B1"}
+- {key: "sich gabeln", cefr: "B2"}
 - {key: "sich gegenübersehen", cefr: "B2"}
 - {key: "sich gesellen", cefr: "B2"}
 - {key: "sich gliedern in", case: "Akk"}
 - {key: "sich herausstellen", cefr: "B2"}
+- {key: "sich herumgetrieben", display: "sich herumtreiben"}
 - {key: "sich herumsprechen", cefr: "B2"}
 - {key: "sich herumtreiben", cefr: "B2"}
+- {key: "sich hingegeben", display: "sich hingeben"}
 - {key: "sich hinsetzen", cefr: "A2"}
+- {key: "sich hinwegsetzen", display: "sich hinwegsetzen über +Akk"}
 - {key: "sich hüllen in", case: "Akk"}
 - {key: "sich jähren", cefr: "B2"}
+- {key: "sich kennzeichnen durch", cefr: "B2"}
 - {key: "sich klammern an", case: "Akk"}
+- {key: "sich konfrontieren mit", display: "jemanden konfrontieren mit +Dat"}
 - {key: "sich kämmen", cefr: "A2"}
+- {key: "sich kümmerten", display: "sich kümmern um +Akk"}
+- {key: "sich küssten", display: "sich küssen"}
 - {key: "sich leiten von", display: "sich leiten lassen von +Dat"}
+- {key: "sich lumpen", display: "sich nicht lumpen lassen"}
 - {key: "sich mehren", cefr: "B2"}
 - {key: "sich nähern", case: "Dat"}
+- {key: "sich offenzeigen", display: "sich offen zeigen"}
+- {key: "sich pudelwohlfühlen", display: "sich pudelwohl fühlen"}
 - {key: "sich regen", cefr: "B2"}
 - {key: "sich revanchieren", display: "sich revanchieren"}
+- {key: "sich scharen", display: "sich scharen um +Akk"}
 - {key: "sich scheren um", cefr: "B2"}
 - {key: "sich scheren", display: "sich scheren um +Akk"}
+- {key: "sich schlichen in", display: "sich schleichen in +Akk"}
 - {key: "sich schmücken mit", cefr: "B2"}
+- {key: "sich speisen aus", cefr: "B2"}
+- {key: "sich tasten durch", cefr: "B2"}
+- {key: "sich umentschieden", display: "sich umentscheiden"}
+- {key: "sich umschaun", display: "sich umschauen"}
+- {key: "sich umwandeln in", case: "Akk"}
 - {key: "sich unterziehen", cefr: "B2"}
+- {key: "sich unwohlfühlen", display: "sich unwohl fühlen"}
 - {key: "sich verdienen", case: "Dat"}
 - {key: "sich vergleichen mit", cefr: "B1"}
 - {key: "sich vergnügen", display: "sich vergnügen"}
 - {key: "sich verkleiden", display: "sich verkleiden"}
+- {key: "sich verlegen auf", cefr: "B2"}
+- {key: "sich verschaffen", case: "Akk"}
 - {key: "sich verspäen", display: "sich verspäten"}
 - {key: "sich verwählen", display: "sich verwählen"}
 - {key: "sich vollziehen", cefr: "B2"}
 - {key: "sich weiten", cefr: "B2"}
 - {key: "sich wenden", display: "sich wenden an +Akk"}
+- {key: "sich wiegen in", case: "Dat"}
 - {key: "sich winden", cefr: "B2"}
 - {key: "sich wirken auf", display: "sich auswirken auf +Akk"}  # Gemini: the verb is auswirken, the parser split off aus
 - {key: "sich wärmen", display: "sich wärmen"}
 - {key: "sich zeichnen durch", display: "sich auszeichnen durch +Akk"}
 - {key: "sich zufriedengeben", cefr: "B2"}
 - {key: "sich zuhalten", display: "sich die Ohren zuhalten"}
+- {key: "sich zunutzemachen", display: "sich etwas zunutze machen"}
 - {key: "sich zurückmelden", display: "sich zurückmelden"}
 - {key: "sich zusammenfinden", cefr: "B2"}
 - {key: "sich zuzulegen", display: "sich zulegen"}
+- {key: "sich zählen zu", cefr: "B2"}
+- {key: "sich äusseren", display: "sich äußern zu +Dat"}
 - {key: "sich überschlagen", cefr: "B2"}
+- {key: "sicher entfernung", display: "in sicherer Entfernung"}
+- {key: "siebter klasse", display: "die siebte Klasse"}
 - {key: "sieg holen", cefr: "B2"}
 - {key: "sinkend schiff", display: "sinkendes Schiff"}
+- {key: "sitzenbleiben auf", case: "Dat"}
 - {key: "sorge machen", display: "sich Sorgen machen"}
 - {key: "sortieren nach", cefr: "A2"}
 - {key: "sozial medium", display: "soziale Medien"}
 - {key: "sozial netzwerke", display: "soziale Netzwerke"}
 - {key: "spannen vor", case: "Akk"}
+- {key: "spaß hatten", display: "Spaß haben"}
+- {key: "spiel mitspielen", display: "das Spiel mitspielen"}
 - {key: "sprache beherrschen", cefr: "B2"}
+- {key: "sprachen von", display: "sprechen von +Dat"}
 - {key: "staat anerkennen", cefr: "B2"}
 - {key: "staatlich fernsehen", display: "staatliches Fernsehen"}
 - {key: "staatlich programm", display: "staatliches Programm"}
+- {key: "stahlen aus", display: "stehlen aus +Dat"}
+- {key: "stange kosten", display: "eine Stange Geld kosten"}
+- {key: "stark persönlichkeit", display: "starke Persönlichkeiten"}
 - {key: "stark regen", display: "starker Regen"}
 - {key: "stark schneefall", display: "starker Schneefall"}
+- {key: "starkmachen", display: "sich starkmachen"}
+- {key: "statement abgeben", cefr: "B2"}
 - {key: "stattgeben", cefr: "B2"}
 - {key: "stecker ziehen", cefr: "B2"}
+- {key: "stehn auf", display: "stehen auf +Akk"}
 - {key: "stelle streichen", cefr: "B2"}
 - {key: "stellung nehmen", cefr: "B2"}
 - {key: "sterblich überrest", cefr: "B2", display: "sterbliche Überreste"}
 - {key: "steuer bezahlen", cefr: "B1"}
+- {key: "steuergeld sparen", cefr: "B2"}
 - {key: "stier packen", display: "den Stier bei den Hörnern packen"}
+- {key: "stießen auf", display: "stoßen auf +Akk"}
 - {key: "stillstehen", cefr: "B2"}
 - {key: "stimme abgeben", cefr: "B1"}
 - {key: "stimme enthalten", display: "sich der Stimme enthalten"}
@@ -564,45 +938,77 @@
 - {key: "strecke zurücklegen", cefr: "B1"}
 - {key: "streich spielen", cefr: "B2"}
 - {key: "streichholz anzünden", cefr: "A2"}
+- {key: "streit hatten", display: "Streit haben"}
+- {key: "streitigmachen", display: "streitig machen"}
+- {key: "strömend regen", display: "strömender Regen"}
+- {key: "studiengebühr bezahlen", cefr: "B2"}
 - {key: "studium widmen", display: "sich dem Studium widmen"}
-- {key: "tappen in", case: "Akk"}
+- {key: "stufen als", display: "einstufen als"}
+- {key: "ständig beobachtung", display: "unter ständiger Beobachtung"}
+- {key: "südlich richtung", display: "in südlicher Richtung"}
+- {key: "tappen in", case: "Dat"}
+- {key: "tasche durchsuchten", display: "Taschen durchsuchen"}
 - {key: "tat gestehen", cefr: "B2"}
+- {key: "tatort untersuchen", cefr: "B2"}
 - {key: "tatsache entsprechen", display: "den Tatsachen entsprechen"}
+- {key: "tee tranken", display: "Tee trinken"}
 - {key: "teil beitragen", display: "seinen Teil dazu beitragen"}
+- {key: "temperatur missen", display: "Temperatur messen"}
+- {key: "terroristisch anschlag", display: "terroristische Anschläge"}
+- {key: "test unterziehen", display: "sich einem Test unterziehen"}
+- {key: "teufel malen", display: "den Teufel an die Wand malen"}
 - {key: "tief trauer", display: "in tiefer Trauer"}
+- {key: "tief verständnis", cefr: "B2"}
+- {key: "tiefst herz", display: "aus tiefstem Herzen"}
 - {key: "titel holen", cefr: "B2"}
 - {key: "ton angeben", cefr: "B2"}
+- {key: "ton spucken", display: "große Töne spucken"}
+- {key: "tot hose", cefr: "B2"}
+- {key: "tote erwecken", display: "Tote erwecken"}
 - {key: "transparent kommunikation", cefr: "B2"}
+- {key: "treffen vereinbaren", cefr: "B1"}
 - {key: "trennung bekanntgeben", cefr: "B2"}
+- {key: "treppe runtergefallen", display: "die Treppe runterfallen"}
+- {key: "trocken hust", display: "trockener Husten"}
 - {key: "trocken tücher", display: "in trockenen Tüchern"}
 - {key: "trommeln auf", case: "Akk"}
 - {key: "täglich bedarf", display: "täglicher Bedarf"}
 - {key: "täglich leben", display: "tägliches Leben"}
 - {key: "tätlich angriff", display: "tätlicher Angriff"}
 - {key: "umbenennen in", case: "Akk"}
+- {key: "umfangreich wissen", cefr: "B2"}
 - {key: "umgang pflegen", cefr: "B2"}
+- {key: "umgekehrt reihenfolge", display: "in umgekehrter Reihenfolge"}
+- {key: "umschaun", display: "sich umschauen"}
 - {key: "umwandeln in", case: "Akk"}
 - {key: "unannehmlichkeit bereiten", display: "jemandem Unannehmlichkeiten bereiten"}
 - {key: "unbekannt ursache", display: "aus unbekannter Ursache"}
+- {key: "unbeschrieben blatt", display: "ein unbeschriebenes Blatt"}
 - {key: "ungeboren kind", display: "das ungeborene Kind"}
 - {key: "ungeklärt grund", display: "ungeklärte Gründe"}
 - {key: "ungeklärt ursache", display: "aus ungeklärter Ursache"}
 - {key: "ungewöhnlich verhalten", display: "ungewöhnliches Verhalten"}
+- {key: "unmittelbar gefahr", display: "eine unmittelbare Gefahr"}
 - {key: "unmittelbar nähe", display: "in unmittelbarer Nähe"}
+- {key: "unmögliche schaffen", display: "das Unmögliche schaffen"}
+- {key: "unmögliche versuchen", display: "das Unmögliche versuchen"}
 - {key: "unschätzbar wert", display: "unschätzbarer Wert"}
 - {key: "unter beweis stellen", cefr: "B2"}
 - {key: "unter druck geraten", cefr: "B2"}
 - {key: "unter kontrolle bringen", cefr: "B2"}
 - {key: "unterer bett", display: "unteres Bett"}
+- {key: "untergang weihen", display: "dem Untergang geweiht sein"}
 - {key: "unterkommen", cefr: "B2"}
 - {key: "unterrichten über", cefr: "B2"}
 - {key: "unterschiedlich größe", display: "unterschiedliche Größen"}
 - {key: "unterteilen in", case: "Akk"}
+- {key: "urinieren auf", case: "Akk"}
 - {key: "urteil abgeben", cefr: "B2"}
 - {key: "urteil fällen", cefr: "B2"}
 - {key: "urteilen nach", cefr: "B2"}
 - {key: "verantwortung entziehen", display: "sich der Verantwortung entziehen"}
 - {key: "verantwortung tragen", cefr: "B1"}
+- {key: "verband wechseln", cefr: "B1"}
 - {key: "vereint kraft", display: "mit vereinten Kräften"}
 - {key: "vergleichen mit", cefr: "B1"}
 - {key: "verglichen mit", display: "vergleichen mit +Dat"}
@@ -610,10 +1016,14 @@
 - {key: "verletzung zuziehen", display: "sich eine Verletzung zuziehen"}
 - {key: "verloben mit", display: "sich verloben mit +Dat"}
 - {key: "verlobung bekanntgeben", cefr: "B2"}
+- {key: "verloren sohn", cefr: "B2"}
 - {key: "vermisst kind", display: "vermisstes Kind"}
 - {key: "vermögen kosten", cefr: "B2"}
+- {key: "vernünftig preis", display: "ein vernünftiger Preis"}
 - {key: "verpflichtung erfüllen", cefr: "B1"}
+- {key: "verschon mit", display: "verschonen mit +Dat"}
 - {key: "versetzen in", case: "Akk"}
+- {key: "verstorben präsident", display: "der verstorbene Präsident"}
 - {key: "verstorben vater", display: "verstorbener Vater"}
 - {key: "vertrauen aufbauen", display: "Vertrauen aufbauen"}
 - {key: "vertrauen gewinnen", display: "Vertrauen gewinnen"}
@@ -623,20 +1033,40 @@
 - {key: "vokabel lernen", display: "Vokabeln lernen"}
 - {key: "voll gang", cefr: "B2"}
 - {key: "voll kraft", display: "volle Kraft"}
+- {key: "voll magen", display: "mit vollem Magen"}
 - {key: "voll mund", display: "mit vollem Mund"}
+- {key: "voll punktzahl", display: "die volle Punktzahl"}
+- {key: "voll terminkalender", display: "ein voller Terminkalender"}
 - {key: "voll wucht", display: "mit voller Wucht"}
 - {key: "voll zug", cefr: "B2"}
+- {key: "voneinanderunterscheiden", display: "sich voneinander unterscheiden"}
+- {key: "vorbeigefahren an", display: "vorbeifahren an +Dat"}
+- {key: "vorbeischaun bei", display: "vorbeischauen bei +Dat"}
+- {key: "vorbeischaun", display: "vorbeischauen"}
 - {key: "vorbereitung treffen", display: "Vorbereitungen treffen"}
 - {key: "vorbestellen", cefr: "A2"}
+- {key: "voreilig schluß", display: "voreilige Schlüsse ziehen"}
+- {key: "vorgefallen zwischen", display: "vorfallen zwischen +Dat"}
+- {key: "vorgehalten waffe", display: "mit vorgehaltener Waffe"}
 - {key: "vorhaben unterstützen", cefr: "B2"}
+- {key: "vorhatten", display: "vorhaben"}
 - {key: "vorkehrung treffen", cefr: "B2"}
 - {key: "vorlesung halten", cefr: "B1"}
+- {key: "vorschlägen", display: "vorschlagen"}
+- {key: "vorsicht walten", display: "Vorsicht walten lassen"}
+- {key: "vorsorge treffen", cefr: "B2"}
 - {key: "vorsorgen", cefr: "B1"}
+- {key: "vorstellten", display: "vorstellen"}
+- {key: "vorstoßen in", case: "Akk"}
 - {key: "vortragen", cefr: "B2"}
+- {key: "wahr ich", cefr: "B2"}
 - {key: "wappnen für", display: "sich wappnen für +Akk"}
 - {key: "weg bahnen", display: "sich einen Weg bahnen"}
+- {key: "weiblich geschlecht", cefr: "B1"}
 - {key: "weiche stellen", display: "die Weichen stellen"}
 - {key: "weihnachten wünschen", display: "frohe Weihnachten wünschen"}
+- {key: "weile dauern", display: "eine Weile dauern"}
+- {key: "weile nachdenken", display: "eine Weile nachdenken"}
 - {key: "weile warten", display: "eine Weile warten"}
 - {key: "weit ferne", display: "in weiter Ferne"}
 - {key: "weit teil", display: "in weiten Teilen"}
@@ -644,23 +1074,35 @@
 - {key: "weiterfahren", cefr: "A2"}
 - {key: "weiterfahrt untersagen", cefr: "B2"}
 - {key: "weiterkommen", cefr: "B1"}
+- {key: "weiß hai", display: "der weiße Hai"}
 - {key: "welle schlagen", cefr: "B2"}
 - {key: "wende schaffen", cefr: "B2"}
 - {key: "wert legen", display: "Wert legen auf +Akk"}
 - {key: "westlich welt", display: "westliche Welt"}
+- {key: "westlich zivilisation", display: "die westliche Zivilisation"}
 - {key: "wiedergeboren als", display: "wiedergeboren werden als"}
 - {key: "wild westen", cefr: "B2"}
 - {key: "wille durchsetzen", display: "seinen Willen durchsetzen"}
 - {key: "wirklich leben", display: "das wirkliche Leben"}
 - {key: "wirkung zeigen", cefr: "B2"}
+- {key: "wirtschaftswissenschaft studieren", cefr: "B1"}
 - {key: "wissenschaftlich erkenntnis", display: "wissenschaftliche Erkenntnisse"}
+- {key: "wuchsen um", display: "wachsen um +Akk"}
 - {key: "wunsch erfüllen", cefr: "B1"}
 - {key: "zahn putzen", display: "sich die Zähne putzen"}
+- {key: "zehnt lebensjahr", cefr: "B2", display: "das zehnte Lebensjahr"}
+- {key: "zeile lesen", display: "zwischen den Zeilen lesen"}
 - {key: "zentral bedeutung", cefr: "B2"}
 - {key: "zeug reden", display: "dummes Zeug reden"}
+- {key: "zeugnis ablegen", cefr: "B2"}
+- {key: "ziel nähern", display: "sich dem Ziel nähern"}
+- {key: "zimmern aus", cefr: "B2"}
+- {key: "zischen über", case: "Akk"}
+- {key: "zoologisch garten", display: "zoologischer Garten"}
 - {key: "zu bruch gehen", cefr: "B2"}
 - {key: "zubewegen", display: "sich zubewegen auf +Akk"}
 - {key: "zuflucht finden", cefr: "B2"}
+- {key: "zugegen bei", display: "zugegen sein bei +Dat"}
 - {key: "zugehen auf", case: "Akk"}
 - {key: "zugrundeliegen", cefr: "B2"}
 - {key: "zum opfer fallen", cefr: "B2"}
@@ -687,26 +1129,34 @@
 - {key: "zusammenarbeiten", cefr: "B1"}
 - {key: "zusammenbringen", cefr: "B2"}
 - {key: "zusammenfallen", cefr: "B2"}
+- {key: "zusammenfassten", display: "zusammenfassen"}
 - {key: "zusammenfinden", cefr: "B2"}
 - {key: "zusammengestoßen mit", display: "zusammenstoßen mit +Dat"}
+- {key: "zusammenhingen", display: "zusammenhängen"}
 - {key: "zusammenlaufen in", cefr: "B2"}
 - {key: "zusammenlaufen", cefr: "B2"}
 - {key: "zusammennehmen", cefr: "B2"}
 - {key: "zusammenstoßen mit", cefr: "B2"}
 - {key: "zusammentragen", cefr: "B2"}
 - {key: "zusammentreffen", cefr: "B1"}
+- {key: "zuschaun", display: "zuschauen"}
+- {key: "zusicheren", display: "zusichern"}
 - {key: "zustandebringen", display: "zustande bringen"}
 - {key: "zustandekommen durch", display: "zustande kommen durch +Akk"}
 - {key: "zuständig behörde", cefr: "B2"}
 - {key: "zuständig stelle", cefr: "B2"}
 - {key: "zwanzigster jahrhundert", display: "im zwanzigsten Jahrhundert"}
 - {key: "zwischenmenschlich beziehung", display: "zwischenmenschliche Beziehungen"}
+- {key: "ältest sohn", display: "der älteste Sohn"}
 - {key: "öffentlich bibliothek", display: "öffentliche Bibliotheken"}
 - {key: "öffentlich gebäude", display: "öffentliches Gebäude"}
 - {key: "öffentlich interesse", display: "öffentliches Interesse"}
 - {key: "öffentlich mittel", cefr: "B2", display: "öffentliche Mittel"}
 - {key: "öffentlich-rechtlich sender", cefr: "B2"}
 - {key: "örtlich behörde", display: "örtliche Behörden"}
+- {key: "übergelaufen zu", display: "überlaufen zu +Dat"}
 - {key: "überhöht geschwindigkeit", display: "mit überhöhter Geschwindigkeit"}
+- {key: "übersetzen", cefr: "B2"}
+- {key: "übertragen sinn", display: "im übertragenen Sinne"}
 - {key: "überziehen mit", cefr: "B2"}
 - {key: "übrigbleiben", display: "übrig bleiben"}

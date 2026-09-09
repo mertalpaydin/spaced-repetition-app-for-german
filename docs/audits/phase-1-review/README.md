@@ -171,10 +171,73 @@ Everything else went into the curated lists with the reviewer's reason:
 70 units into `exclude.yaml`, 225 cards into `excluded_cards.yaml`, 157
 corrections into `unit_overrides.yaml`.
 
+## Step 2 (9 September 2026)
+
+Deck `e9e2d3a05325` after step 1. Step 2 read everything step 1 had not:
+5,171 cards (every remaining card with a gloss) and 4,973 units, ranks 701
+to 8,885. Claude Opus read nine 600-card and eight 700-unit batches; Gemini
+Flash read 26 card and 15 unit batches (three unit batches wrote no file
+the first time and were rerun). `findings-round-step2.jsonl` holds both
+sets with the `reviewer` tag.
+
+| | Claude | Gemini | Both flagged | Claude only | Gemini only |
+|---|---:|---:|---:|---:|---:|
+| Card findings (5,171 cards) | 373 | 348 | 216 | 157 | 132 |
+| Unit findings (4,973 units) | 913 | 709 | 447 | 466 | 262 |
+
+Category agreement on shared items: 189 of 216 cards, 389 of 447 units.
+The finding rate is far higher than in step 1 (18% of units against 20%
+of the top 700, but the top 700 had been through eight rounds already):
+the tail of the ranking, sentence counts 5 to 8, is where the parser's
+inventions live.
+
+Disagreements, surfaced and not reconciled:
+
+- 13 Gemini "gaps miss the preposition" findings on units whose display
+  now carries a governing preposition (`auf freiem Fuß`, `ein Auge werfen
+  auf`, `zu guter Letzt`). Not applied; see the open item below.
+- 62 override conflicts, mostly Claude giving the fuller phrase (`in
+  sicherer Entfernung`) where Gemini gave the bare nominative (`sichere
+  Entfernung`); Claude's form was kept. Two were substantive and Claude
+  was right both times: `aussähen` is `aussehen` (Konjunktiv II), not
+  `aussäen`; `stahlen aus` is `stehlen`, not `strahlen`.
+- 165 units dropped by both, 288 by Claude only, 242 by Gemini only; all
+  dropped, reviewer named in the reason.
+
+Systematic causes from step 2, now rules with tests:
+
+- A separable particle outside the prefix list and outside a curated set
+  of adverbial particles (`offen`, `zugute`, `kennen`, `zurecht`, ...)
+  whose fusion is not a dictionary word is a parser artefact
+  (`wiewissen`, `starkvariieren`, `fürmachen`, `qmbetragen`).
+- A preterite left as its own lemma (`ankamen`, `aufwuchsen`, `rochen`,
+  `füllten`) is cited by its infinitive through a stem table, and the
+  participle mapping now applies whatever VerbForm the tagger claims
+  (`hat eingestochen` came back as `Inf`). The Goethe list is the oracle
+  for "this string is already an infinitive".
+- An adjective-noun unit that never occurs in the nominative is cited with
+  the preposition that governs it (`in sicherer Entfernung`, `mit offenen
+  Armen`); a sentence-initial capital is dropped (`heftiger Regen`); only
+  real articles are carried, not `kein` or `dieser`.
+- `ein bisschen` is a quantifier, not an adjective (`bissch Angst`).
+
+Not a rule: 101 of 925 reviewed adjective-noun units were "free
+compositional combinations" (`leere Flasche`, `treuer Freund`). Neither
+lift, G², count nor everyday share separates them from the accepted ones
+(medians identical), and a participle or word-list gate hits nine good
+units for each bad one. They stay reviewer judgements in `exclude.yaml`.
+
+Everything else went into the curated lists: 756 units, 401 cards, 451
+overrides.
+
 ## What is still open
 
-- Step 1 covered the top 2,400 cards and 700 units of the wide-corpus deck.
-  The rest of that deck is read step by step, by both vendors, after each
-  rebuild removes what the rules of the previous step already catch.
+- Steps 1 and 2 have read every glossed card and every unit of the
+  wide-corpus deck once, by both vendors. Cards and units new in the next
+  rebuild (replacements for dropped ones) are the next step's batches.
+- Adjective-noun and collocation displays that carry a governing
+  preposition (`auf freiem Fuß`) blank only the adjective and noun. Both
+  reviewers keep flagging the unbracketed preposition; blanking it would
+  need the miner to record the preposition token.
 - The CEFR default now follows the hardest word and the register; the
   reviewers' remaining per-unit CEFR corrections stay as overrides.

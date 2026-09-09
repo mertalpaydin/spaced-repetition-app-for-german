@@ -18,6 +18,9 @@ from src.phrases.parse import (
 #: Adjectives that combine with everything and teach nothing as a pair.
 _STOP_ADJECTIVES: frozenset[str] = frozenset(
     {
+        # "ein bisschen Glück": a quantifier the tagger lemmatises to "bissch".
+        "bissch",
+        "bisschen",
         "ander",
         "viel",
         "wenig",

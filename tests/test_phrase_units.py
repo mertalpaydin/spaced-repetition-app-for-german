@@ -429,9 +429,108 @@ def test_mined_unit_cefr_is_the_hardest_part_and_unknown_words_are_b2() -> None:
         Thresholds(),
         vocabulary=VocabularyStore({"weisen": "A1"}, frequency_ranks={}),
         frequency_ranks={},
-        dictionary=frozenset(),
+        dictionary=frozenset({"nachweisen"}),
     )
     sep = _occ(
         "separable_verb", "nachweisen", ["nachweisen"], 30, form_key="Fin|Pres|3|Sing|discontinuous"
     )
     assert [u.cefr for u in b2.build(sep)] == ["B2"]
+
+
+@pytest.mark.parametrize(
+    ("verb", "surface", "form_key", "expected"),
+    [
+        ("ankamen", "ankamen", "Part|fused", "ankommen"),
+        ("aufwuchsen", "wuchsen auf", "Fin|Past|3|Plur|discontinuous", "aufwachsen"),
+        ("füllten", "füllten", "Fin|Pres|3|Plur", "füllen"),
+        ("eingestochen", "eingestochen", "Inf", "einstechen"),
+        ("umgesehen", "umgesehen", "Inf", "umsehen"),
+        ("kommen", "kommen", "Fin|Pres|3|Plur", "kommen"),
+        ("erhalten", "erhalten", "Inf", "erhalten"),
+        ("warten", "warten", "Fin|Pres|3|Plur", "warten"),
+    ],
+)
+def test_inflected_forms_left_as_lemma_are_cited_as_infinitives(
+    verb: str, surface: str, form_key: str, expected: str
+) -> None:
+    from src.phrases.units import canonical_verb
+
+    words = frozenset({"füllen", "warten", "waren", "kommen", "erhalten"})
+    infinitives = {"warten": "A1", "kommen": "A1", "erhalten": "B1"}
+    assert canonical_verb(verb, surface.split(), form_key, words, infinitives) == expected
+
+
+def test_particle_outside_the_known_set_is_a_parser_artefact() -> None:
+    from src.phrases.units import canonical_occurrence
+
+    words = frozenset({"offenstehen"})
+    assert canonical_occurrence(_sep("Er weiß, wie.", "weiß", "wie", "wiewissen"), words) is None
+    assert canonical_occurrence(
+        _sep("Die Tür steht offen.", "steht", "offen", "offenstehen"), words
+    )
+    assert canonical_occurrence(
+        _sep("Es kommt uns zugute.", "kommt", "zugute", "zugutekommen"), words
+    )
+
+
+def test_adj_noun_display_uses_the_governing_preposition_when_never_nominative() -> None:
+    counts = _counts(bleiben=50)
+    counts.adjectives["sicher"] = 60
+    counts.nouns["entfernung"] = 40
+    builder = UnitBuilder(
+        counts,
+        CuratedLists(),
+        Thresholds(),
+        vocabulary=VocabularyStore({"sicher": "A2", "entfernung": "B1"}, frequency_ranks={}),
+        frequency_ranks={},
+        dictionary=frozenset(),
+    )
+    occs = [
+        o.model_copy(
+            update={
+                "surfaces": ["sicherer", "Entfernung"],
+                "form_key": "Dat|Sing",
+                "text": "Sie bleiben in sicherer Entfernung.",
+                "spans": [(15, 23), (24, 34)],
+            }
+        )
+        for o in _occ("adj_noun", "sicher entfernung", ["sicher", "Entfernung"], 12)
+    ]
+    assert [u.display_de for u in builder.build(occs)] == ["in sicherer Entfernung"]
+
+
+def test_adj_noun_display_drops_sentence_capital_and_negation() -> None:
+    counts = _counts(fallen=50)
+    counts.adjectives["heftig"] = 60
+    counts.nouns["regen"] = 40
+    builder = UnitBuilder(
+        counts,
+        CuratedLists(),
+        Thresholds(),
+        vocabulary=VocabularyStore({"heftig": "B1", "regen": "A1"}, frequency_ranks={}),
+        frequency_ranks={},
+        dictionary=frozenset(),
+    )
+    occs = [
+        o.model_copy(
+            update={
+                "surfaces": ["Heftiger", "Regen"],
+                "form_key": "Nom|Sing",
+                "text": "Heftiger Regen fiel.",
+                "spans": [(0, 8), (9, 14)],
+            }
+        )
+        for o in _occ("adj_noun", "heftig regen", ["heftig", "Regen"], 7)
+    ] + [
+        o.model_copy(
+            update={
+                "surfaces": ["heftiger", "Regen"],
+                "form_key": "Nom|Sing",
+                "text": "Es fiel kein heftiger Regen.",
+                "spans": [(13, 21), (22, 27)],
+                "line_id": f"k{o.line_id}",
+            }
+        )
+        for o in _occ("adj_noun", "heftig regen", ["heftig", "Regen"], 5)
+    ]
+    assert [u.display_de for u in builder.build(occs)] == ["heftiger Regen"]
