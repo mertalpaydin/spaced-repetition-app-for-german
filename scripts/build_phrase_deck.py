@@ -23,6 +23,7 @@ from pathlib import Path
 
 from src.atomic_write import write_text_atomic
 from src.contracts import ContextRecord, PhraseCard, PhraseUnit
+from src.lexicon.vocabulary import VocabularyStore
 from src.llm.env import FreeLaneKeyMissingError, client_from_env, load_env_file
 from src.phrases import cards as cards_module
 from src.phrases import carrier_validation
@@ -32,7 +33,14 @@ from src.phrases.export import DEFAULT_DECK_DIR, check_deck, export_deck, write_
 from src.phrases.mining import LemmaCounts, detect_all
 from src.phrases.occurrences import Occurrence, read_occurrences, write_occurrences
 from src.phrases.parse import parse_many, parser_available
-from src.phrases.units import Thresholds, UnitBuilder, unit_id_for
+from src.phrases.units import (
+    DEFAULT_VOCAB_PATH,
+    Thresholds,
+    UnitBuilder,
+    canonical_occurrence,
+    unit_id_for,
+    without_governing_preposition,
+)
 from src.run_lock import LockHeld, run_lock
 
 from scripts.build_translations import DEFAULT_STORE_PATH, _load_store
@@ -205,8 +213,16 @@ def stage_cards(args: argparse.Namespace) -> int:
     units = _read_units(units_path)
     wanted_ids = {u.unit_id for u in units}
     by_unit: dict[str, list[Occurrence]] = defaultdict(list)
-    for occ in read_occurrences(build_dir / "occurrences.jsonl"):
+    dictionary = carrier_validation._load_dictionary()  # noqa: SLF001
+    infinitives = VocabularyStore.load(DEFAULT_VOCAB_PATH).vocab
+    for raw in read_occurrences(build_dir / "occurrences.jsonl"):
+        occ = canonical_occurrence(raw, dictionary, infinitives)
+        if occ is None:
+            continue
         unit_id = unit_id_for(occ.kind, occ.unit_key)
+        if unit_id not in wanted_ids and occ.kind == "adj_noun" and len(occ.parts) == 3:
+            occ = without_governing_preposition(occ)
+            unit_id = unit_id_for(occ.kind, occ.unit_key)
         if unit_id in wanted_ids:
             by_unit[unit_id].append(occ)
     store = _load_store(args.store)

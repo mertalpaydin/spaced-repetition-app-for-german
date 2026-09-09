@@ -584,3 +584,101 @@ def test_capitalised_verb_surface_mid_sentence_is_a_noun() -> None:
         text="Das Schiff Hafen in Kiel.",
     )
     assert canonical_occurrence(occ, None) is None
+
+
+def _adj(
+    text: str, adj: str, noun: str, form_key: str = "Dat|Sing", line: str = "", lemma: str = ""
+) -> Occurrence:
+    a, n = text.index(adj), text.index(noun)
+    lemma = lemma or adj
+    return Occurrence(
+        kind="adj_noun",
+        unit_key=f"{lemma.lower()} {noun.lower()}",
+        parts=[lemma, noun],
+        token_indices=[3, 4],
+        spans=[(a, a + len(adj)), (n, n + len(noun))],
+        surfaces=[adj, noun],
+        corpus_source="tatoeba",
+        line_id=line or text,
+        text=text,
+        form_key=form_key,
+    )
+
+
+def test_governing_preposition_becomes_a_third_token() -> None:
+    from src.phrases.units import with_governing_preposition, without_governing_preposition
+
+    occ = with_governing_preposition(
+        _adj("Sie bleiben in sicherer Entfernung.", "sicherer", "Entfernung", lemma="sicher")
+    )
+    assert occ.parts == ["in", "sicher", "Entfernung"]
+    assert occ.surfaces == ["in", "sicherer", "Entfernung"]
+    assert occ.text[occ.spans[0][0] : occ.spans[0][1]] == "in"
+    assert occ.token_indices == [2, 3, 4]
+    assert without_governing_preposition(occ).parts == ["sicher", "Entfernung"]
+    contracted = with_governing_preposition(
+        _adj("Wir sitzen im hohen Gras.", "hohen", "Gras", lemma="hoch")
+    )
+    assert contracted.unit_key == "in hoch gras" and contracted.surfaces[0] == "im"
+    bare = with_governing_preposition(_adj("Das ist sicherer Boden.", "sicherer", "Boden"))
+    assert len(bare.parts) == 2
+
+
+def _adj_builder(adj: str, noun: str) -> UnitBuilder:
+    counts = _counts(bleiben=50)
+    counts.adjectives[adj] = 60
+    counts.nouns[noun] = 40
+    return UnitBuilder(
+        counts,
+        CuratedLists(),
+        Thresholds(),
+        vocabulary=VocabularyStore({adj: "A2", noun: "B1"}, frequency_ranks={}),
+        frequency_ranks={},
+        dictionary=frozenset(),
+    )
+
+
+def test_prepositional_unit_wins_at_eighty_percent_and_is_gapped_with_its_preposition() -> None:
+    builder = _adj_builder("sicher", "entfernung")
+    occs = [
+        _adj(
+            "Sie bleiben in sicherer Entfernung.",
+            "sicherer",
+            "Entfernung",
+            line=f"a{i}",
+            lemma="sicher",
+        )
+        for i in range(9)
+    ] + [_adj("Das ist sicherer Entfernung.", "sicherer", "Entfernung", line="b", lemma="sicher")]
+    units = builder.build(occs)
+    assert [u.lemma_key for u in units] == ["in sicher entfernung"]
+    assert units[0].display_de == "in sicherer Entfernung"
+    assert units[0].sentence_count == 10
+
+
+def test_bare_pair_wins_below_the_share_and_keeps_the_prepositional_sentences() -> None:
+    builder = _adj_builder("gut", "idee")
+    occs = [
+        _adj(
+            "Er hatte eine gute Idee.",
+            "gute",
+            "Idee",
+            form_key="Acc|Sing",
+            line=f"a{i}",
+            lemma="gut",
+        )
+        for i in range(6)
+    ] + [
+        _adj(
+            "Wir kamen auf gute Idee.",
+            "gute",
+            "Idee",
+            form_key="Acc|Sing",
+            line=f"b{i}",
+            lemma="gut",
+        )
+        for i in range(4)
+    ]
+    units = builder.build(occs)
+    assert [u.lemma_key for u in units] == ["gut idee"]
+    assert units[0].sentence_count == 10

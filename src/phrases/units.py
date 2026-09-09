@@ -92,6 +92,10 @@ class Thresholds:
     colloc_min_lift: float = 5.0
     colloc_min_lemma_count: int = 20
     colloc_cap_per_verb: int = 8
+    #: An adjective-noun pair is taught inside its preposition ("in
+    #: sicherer Entfernung", three gaps) when one preposition governs at
+    #: least this share of its sentences; otherwise as the bare pair.
+    prep_share: float = 0.8
     colloc_cap_per_noun: int = 4
     adj_cap_per_noun: int = 4
     #: Free adjective-noun combinations ("alter Mann") pass the collocation
@@ -484,14 +488,62 @@ def _junk_particle(occ: Occurrence, dictionary: frozenset[str] | None) -> bool:
     return _PP_OBJECT_NEXT.match(tail) is not None
 
 
+def with_governing_preposition(occ: Occurrence) -> Occurrence:
+    """An adjective-noun pair right after a preposition becomes a
+    three-token occurrence ("in sicherer Entfernung"): the preposition is
+    the hardest part of the phrase and must be a gap, not a giveaway.
+    Which variant becomes the unit is decided in ``UnitBuilder.build``
+    (``_settle_prepositional``); the cards stage folds back the loser."""
+    if len(occ.parts) != 2 or len(occ.spans) != 2:
+        return occ
+    start = occ.spans[0][0]
+    head = occ.text[:start]
+    if not head.endswith(" "):
+        return occ
+    before = head.rstrip().split(" ")[-1] if head.strip() else ""
+    clean = before.lower().strip('"„“(')
+    if clean not in _PHRASE_PREPS or before != clean:
+        return occ
+    prep_start = len(head.rstrip()) - len(before)
+    if occ.text[prep_start : prep_start + len(before)] != before:
+        return occ
+    bare = CONTRACTED_PREPS.get(clean, clean)
+    return occ.model_copy(
+        update={
+            "unit_key": f"{bare} {occ.unit_key}",
+            "parts": [bare, *occ.parts],
+            "token_indices": [occ.token_indices[0] - 1, *occ.token_indices],
+            "spans": [(prep_start, prep_start + len(before)), *occ.spans],
+            "surfaces": [before, *occ.surfaces],
+        }
+    )
+
+
+def without_governing_preposition(occ: Occurrence) -> Occurrence:
+    """The inverse, for the cards stage when the bare pair won."""
+    if occ.kind != "adj_noun" or len(occ.parts) != 3:
+        return occ
+    return occ.model_copy(
+        update={
+            "unit_key": " ".join(p.lower() for p in occ.parts[1:]),
+            "parts": list(occ.parts[1:]),
+            "token_indices": list(occ.token_indices[1:]),
+            "spans": list(occ.spans[1:]),
+            "surfaces": list(occ.surfaces[1:]),
+        }
+    )
+
+
 def canonical_occurrence(
     occ: Occurrence,
     dictionary: frozenset[str] | None,
     infinitives: Mapping[str, object] | None = None,
 ) -> Occurrence | None:
     """Rewrite an occurrence's key to its citation form, or drop it."""
-    if occ.kind == "adj_noun" and occ.parts[0].lower() in _STOP_ADJECTIVES:
-        return None
+    if occ.kind == "adj_noun":
+        if occ.parts[-2].lower() in _STOP_ADJECTIVES:
+            return None
+        return with_governing_preposition(occ)
     index = _VERB_INDEX.get(occ.kind)
     if index is None:
         return occ
@@ -566,6 +618,57 @@ def _nominative_phrase(occ: Occurrence) -> str:
     return phrase
 
 
+def _merge_counts(dst: UnitStats, src: UnitStats) -> None:
+    """Fold ``src``'s evidence into ``dst`` (everything but ``parts``, which
+    would let the loser's shape win ``best_parts``)."""
+    dst.sentences |= src.sentences
+    dst.count_by_source += src.count_by_source
+    dst.case_tally += src.case_tally
+    dst.pron_case_tally += src.pron_case_tally
+    dst.surface_tally += src.surface_tally
+    dst.form_keys += src.form_keys
+    dst.noun_surfaces += src.noun_surfaces
+    dst.nominative_surfaces += src.nominative_surfaces
+    dst.prep_phrases += src.prep_phrases
+
+
+def _settle_prepositional(stats: dict[tuple[str, str], UnitStats], share: float) -> None:
+    """One unit per adjective-noun pair: the prepositional variant when a
+    single preposition governs at least ``share`` of the pair's sentences,
+    else the bare pair. The loser's sentences count for the winner's rank;
+    its occurrences become the winner's cards only when they carry the
+    winner's tokens (the cards stage folds prepositional occurrences back
+    to a bare winner, never the reverse)."""
+    groups: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    for kind, key in list(stats):
+        if kind != "adj_noun":
+            continue
+        pair = " ".join(key.split()[-2:])
+        groups[pair].append((kind, key))
+    for pair, idents in groups.items():
+        if len(idents) == 1 and idents[0][1] == pair:
+            continue
+        total = sum(stats[i].count for i in idents)
+        preps = [i for i in idents if i[1] != pair]
+        best = max(preps, key=lambda i: stats[i].count) if preps else None
+        if best is not None and total and stats[best].count / total >= share:
+            winner = best
+        else:
+            winner = ("adj_noun", pair)
+            if winner not in stats:
+                stats[winner] = UnitStats(kind="adj_noun", key=pair)
+                stats[winner].parts[tuple(pair.split())] += 0
+        for ident in idents:
+            if ident == winner:
+                continue
+            _merge_counts(stats[winner], stats[ident])
+            if not stats[winner].parts or sum(stats[winner].parts.values()) == 0:
+                # A bare winner that never occurred bare: cite it from the
+                # prepositional shape's adjective and noun.
+                stats[winner].parts[tuple(stats[ident].best_parts[-2:])] += 1
+            del stats[ident]
+
+
 def aggregate(
     occurrences: Iterable[Occurrence],
     dictionary: frozenset[str] | None = None,
@@ -587,12 +690,9 @@ def aggregate(
         entry.count_by_source[occ.corpus_source] += 1
         entry.parts[tuple(occ.parts)] += 1
         entry.surface_tally[" ".join(occ.surfaces)] += 1
-        if occ.kind == "adj_noun":
+        if occ.kind == "adj_noun" and len(occ.parts) == 2:
             if occ.form_key.startswith("Nom|"):
                 entry.nominative_surfaces[_nominative_phrase(occ)] += 1
-            before = _word_before(occ)
-            if before in _PHRASE_PREPS:
-                entry.prep_phrases[f"{before} {_adj_noun_surface(occ)}"] += 1
         if occ.kind == "noun_verb" and len(occ.parts) == 2:
             stem = normalise(occ.parts[0])[:4]
             for surface in occ.surfaces:
@@ -819,9 +919,9 @@ class UnitBuilder:
             a, b = self.counts.nouns.get(noun_lemma, 0), self.counts.verbs.get(verb_lemma, 0)
             head = verb_lemma
         else:
-            a = self.counts.adjectives.get(parts[0].lower(), 0)
-            b = self.counts.nouns.get(parts[1].lower(), 0)
-            head = parts[1].lower()
+            a = self.counts.adjectives.get(parts[-2].lower(), 0)
+            b = self.counts.nouns.get(parts[-1].lower(), 0)
+            head = parts[-1].lower()
         n = self.counts.sentences
         g2 = log_likelihood(s.count, a, b, n)
         lift_value = lift(s.count, a, b, n)
@@ -844,7 +944,7 @@ class UnitBuilder:
         # word lists are the learner's vocabulary, the corpus is not.
         if min(a, b) < self.t.colloc_min_lemma_count:
             return _Decision(False, "sparse")
-        noun = parts[-2].lower() if s.kind == "noun_verb" else parts[1].lower()
+        noun = parts[-2].lower() if s.kind == "noun_verb" else parts[-1].lower()
         if self._cefr_for(noun) is None:
             return _Decision(False, "noun_not_in_wordlist")
         everyday = sum(s.count_by_source.get(src, 0) for src in EVERYDAY_SOURCES)
@@ -896,10 +996,12 @@ class UnitBuilder:
                 return f"{s.noun_surfaces.most_common(1)[0][0]} {parts[1]}"
             return " ".join(parts)
         if s.kind == "adj_noun":
+            if len(parts) == 3 and s.surface_tally:
+                prep, _, rest = s.surface_tally.most_common(1)[0][0].partition(" ")
+                adj, _, noun = rest.partition(" ")
+                return f"{prep.lower()} {adj[:1].lower()}{adj[1:]} {noun}"
             if s.nominative_surfaces:
                 return s.nominative_surfaces.most_common(1)[0][0]
-            if s.prep_phrases and sum(s.prep_phrases.values()) * 2 >= s.count:
-                return s.prep_phrases.most_common(1)[0][0]
             if s.surface_tally:
                 adj, _, noun = s.surface_tally.most_common(1)[0][0].partition(" ")
                 return f"{adj[:1].lower()}{adj[1:]} {noun}"
@@ -938,8 +1040,8 @@ class UnitBuilder:
             if s.kind == "noun_verb" and len(s.best_parts) >= 2:
                 taken["verb"][s.best_parts[-1]] += 1
                 taken["noun"][s.best_parts[-2].lower()] += 1
-            elif s.kind == "adj_noun" and len(s.best_parts) == 2:
-                taken["noun_adj"][s.best_parts[1].lower()] += 1
+            elif s.kind == "adj_noun" and len(s.best_parts) >= 2:
+                taken["noun_adj"][s.best_parts[-1].lower()] += 1
         for ident, (s, d) in accepted.items():
             if d.source != "mined":
                 continue
@@ -947,7 +1049,7 @@ class UnitBuilder:
                 by_verb[s.best_parts[-1]].append(ident)
                 by_noun[s.best_parts[-2].lower()].append(ident)
             elif s.kind == "adj_noun":
-                by_noun_adj[s.best_parts[1].lower()].append(ident)
+                by_noun_adj[s.best_parts[-1].lower()].append(ident)
 
         def trim(
             groups: dict[str, list[tuple[str, str]]],
@@ -998,6 +1100,7 @@ class UnitBuilder:
 
     def build(self, occurrences: Iterable[Occurrence]) -> list[PhraseUnit]:
         stats = aggregate(occurrences, self.dictionary, self.vocabulary.vocab)
+        _settle_prepositional(stats, self.t.prep_share)
         self._ensure_curated_present(stats)
         accepted: dict[tuple[str, str], tuple[UnitStats, _Decision]] = {}
         excluded_stats: list[UnitStats] = []
@@ -1053,7 +1156,7 @@ class UnitBuilder:
                     cefr=(override.cefr if override and override.cefr else self._unit_cefr(s, d)),  # type: ignore[arg-type]
                     gloss_en=(override.gloss_en if override and override.gloss_en else d.gloss_en),
                     sentence_count=s.count,
-                    count_by_source=dict(s.count_by_source),
+                    count_by_source=dict(sorted(s.count_by_source.items())),
                     per_million=round(self._per_million(s), 3),
                     rank=rank,
                     trivial=trivial,
@@ -1094,7 +1197,7 @@ class UnitBuilder:
         if unit.kind == "noun_verb":
             return unit.parts[-2].lower()
         if unit.kind == "adj_noun":
-            return unit.parts[1].lower()
+            return unit.parts[-1].lower()
         return unit.lemma_key
 
     def _wordlist_coverage(self, units: list[PhraseUnit]) -> dict[str, Any]:
