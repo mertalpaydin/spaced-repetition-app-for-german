@@ -1,0 +1,2 @@
+{"card_id": "4f6348db0c35", "unit": "zu Abend essen", "category": "WRONG_GAPS", "severity": "high", "note": "The preposition 'zu' from 'zu Abend essen' is entirely missing from the sentence and brackets.", "action": "drop_card", "reviewer": "gemini"}
+{"card_id": "b7741a34f0ee", "unit": "zu Abend essen", "category": "WRONG_GAPS", "severity": "high", "note": "The preposition 'zu' from 'zu Abend essen' is entirely missing from the sentence and brackets.", "action": "drop_card", "reviewer": "gemini"}

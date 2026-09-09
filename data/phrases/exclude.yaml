@@ -1939,3 +1939,92 @@
 - "zwiebel schneiden"  # NOT_A_PHRASE: Free object-verb combination.
 - "äpfel pflücken"  # NOT_A_PHRASE: Free object-verb combination, duplicating Frucht pflücken.
 - "”stehen"  # BAD_CITATION: Typographical error with extraneous quotation mark in lemma.
+# Review round step3: units the reviewer rejected.
+- "abend gegessen"  # BAD_UNIT: The past participle phrase 'Abend gegessen' is not a canonical dictionary form for a learner unit.
+- "akt lesen"  # NOT_A_PHRASE: Free object-verb combination, and the lemma is ambiguous between Akt and Akte.
+- "alleinstehend mutter"  # NOT_A_PHRASE: Free combination; the established collocation is 'alleinerziehende Mutter'.
+- "asiatisch land"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "bier austrinken"  # NOT_A_PHRASE: Free object-verb combination.
+- "blond frau"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "britisch botschaft"  # NOT_A_PHRASE: News-only free combination.
+- "buch durchlesen"  # NOT_A_PHRASE: Free object-verb combination.
+- "böse junge"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "cappuccino trinken"  # NOT_A_PHRASE: Free object-verb combination.
+- "datei öffnen"  # NOT_A_PHRASE: Free object-verb combination, fully compositional.
+- "diamant stehlen"  # NOT_A_PHRASE: Free object-verb combination.
+- "drink holen"  # NOT_A_PHRASE: Free object-verb combination.
+- "dämon töten"  # BAD_UNIT: Fantasy-specific pairing, not a useful general German collocation.
+- "entschieden nach"  # NOT_A_PHRASE: No such government; artefact, the verb takes 'sich entscheiden für'.
+- "erwachsen mensch"  # NOT_A_PHRASE: Free adjective-noun combination, nothing idiomatic to learn.
+- "finger stecken"  # BAD_UNIT: Unit 'Finger stecken' is an incomplete fragment rather than a useful lexical unit.
+- "französisch soldat"  # NOT_A_PHRASE: Free nationality-plus-noun combination.
+- "fremd wesen"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "frisch ei"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "futter suchen"  # NOT_A_PHRASE: Free object-verb combination.
+- "geldbeutel vergessen"  # NOT_A_PHRASE: Free object-verb combination.
+- "geschwiegen zu"  # BAD_UNIT: Unit is in past participle form instead of infinitive 'schweigen zu +Dat'.
+- "gold stehlen"  # NOT_A_PHRASE: Free object-verb combination.
+- "grün farbe"  # NOT_A_PHRASE: Free colour-plus-noun combination.
+- "haar geschnitten"  # BAD_UNIT: The past participle phrase 'Haare geschnitten' is not a canonical dictionary form for a learner unit
+- "hafen als"  # NOT_A_PHRASE: Hafen is a noun, not a verb governing prepositions.
+- "hafen an"  # NOT_A_PHRASE: Hafen is a noun, not a verb governing prepositions.
+- "hafen auf"  # BAD_UNIT: Typo in unit 'hafen auf' instead of 'haften auf', and 'auf' is part of 'auf jeden Fall'.
+- "hafen bei"  # NOT_A_PHRASE: Hafen is a noun, not a verb governing prepositions.
+- "hafen in"  # BAD_UNIT: Typo in unit lemma ('hafen' instead of 'haften').
+- "hafen mit"  # NOT_A_PHRASE: Hafen is a noun, not a verb governing prepositions.
+- "hamburger gegessen"  # NOT_A_PHRASE: Free combination, and cited in the participle.
+- "haus abfackeln"  # NOT_A_PHRASE: Free slang object-verb combination.
+- "hineinliegen"  # BAD_UNIT: 'hineinliegen' is not a German verb; the sentence has the circumposition 'in ... hinein'.
+- "hinterliegen bei"  # NOT_A_PHRASE: Non-existent verb in German.
+- "hinterliegen für"  # NOT_A_PHRASE: Non-existent verb in German.
+- "hinterliegen in"  # NOT_A_PHRASE: Non-existent verb in standard German.
+- "hinterliegen zu"  # NOT_A_PHRASE: Non-existent verb in German.
+- "hübsch junge"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "kaffee austrinken"  # NOT_A_PHRASE: Free object-verb combination.
+- "kennzeichen überprüfen"  # NOT_A_PHRASE: Free object-verb combination.
+- "kind großgezogen"  # BAD_UNIT: Unit is given as a past participle phrase instead of an infinitive phrase.
+- "küste erreichen"  # NOT_A_PHRASE: Free object-verb combination.
+- "leiche verstecken"  # NOT_A_PHRASE: Free object-verb combination from subtitle material.
+- "leicht wind"  # NOT_A_PHRASE: Free descriptive combination.
+- "lhr tochter"  # BAD_UNIT: Typo in unit with lowercase 'l' instead of uppercase 'I' in 'lhre Tochter'.
+- "loch füllen"  # NOT_A_PHRASE: Free object-verb combination.
+- "magisch ort"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "maskiert mann"  # NOT_A_PHRASE: News-report free combination, not a lexical unit.
+- "mauer bauen"  # NOT_A_PHRASE: Free object-verb combination.
+- "mitfahrgelegenheit brauchen"  # NOT_A_PHRASE: Free object-verb combination.
+- "mädchen ficken"  # BAD_UNIT: Vulgar/offensive collocation not appropriate for general language learning curriculum.
+- "nachhalten"  # BAD_UNIT: 'nachhalten' is corporate/administrative jargon, out of range for an A1-B2 learner.
+- "nachliegen"  # NOT_A_PHRASE: Non-existent verb in German, likely a parsing artifact.
+- "natürlich zustand"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "nett paar"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "pulli anziehen"  # NOT_A_PHRASE: Free object-verb combination.
+- "raben schicken"  # BAD_UNIT: Fiction-specific collocation with no general value for a learner.
+- "rechter ohr"  # BAD_UNIT: Inflected dative form 'rechten Ohr' is an invalid dictionary lemma/unit.
+- "reiche leute"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "saal betreten"  # NOT_A_PHRASE: Free object-verb combination.
+- "sagen hören"  # NOT_A_PHRASE: Not a noun-verb collocation but a parser artefact of the double-infinitive perception constructi
+- "schild lesen"  # NOT_A_PHRASE: Free object-verb combination.
+- "schlimm zustand"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "seele reinigen"  # NOT_A_PHRASE: Free combination, not an established collocation.
+- "sicherheitsdienst rufen"  # NOT_A_PHRASE: Free object-verb combination.
+- "sonnenfinsternis sehen"  # NOT_A_PHRASE: Free object-verb combination.
+- "streit schlichen"  # BAD_UNIT: Typo in lemma 'schlichen' instead of infinitive 'schlichten'.
+- "stromausfall verursachen"  # NOT_A_PHRASE: Free object-verb combination.
+- "tapfer soldat"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "test wiederholen"  # NOT_A_PHRASE: Free object-verb combination.
+- "töten beenden"  # BAD_UNIT: Nominalised infinitive 'das Töten' plus beenden is not a teachable A1-B2 collocation.
+- "ungewöhnliche sehen"  # NOT_A_PHRASE: Free combination of a nominalised adjective with a common verb.
+- "unglaublich energie"  # NOT_A_PHRASE: Free intensifier-plus-noun combination.
+- "ventil öffnen"  # NOT_A_PHRASE: Free technical object-verb combination.
+- "verdammt ding"  # NOT_A_PHRASE: Free combination with an intensifier, not a collocation.
+- "vergreifen für"  # BAD_CITATION: Verb is reflexive (sich vergreifen an +Dat).
+- "verletzt soldat"  # NOT_A_PHRASE: News-only free combination.
+- "vermisst mädchen"  # BAD_UNIT: Unit lemma is given in inflected form instead of standard base form.
+- "versunken in"  # BAD_UNIT: Citation form is a participle; it should display as 'versinken in'.
+- "verwandte besuchen"  # NOT_A_PHRASE: Free object-verb combination.
+- "visage sehen"  # BAD_UNIT: Not a real collocation; 'Visage' is pejorative slang paired with a generic verb.
+- "vorname aussprechen"  # NOT_A_PHRASE: Free object-verb combination.
+- "vorname kennen"  # NOT_A_PHRASE: Free object-verb combination.
+- "wasser gießen"  # NOT_A_PHRASE: Free combination; the collocation learners need is 'Blumen gießen'.
+- "wegweisen"  # BAD_UNIT: Swiss/Austrian police-law term for expulsion, not standard usable German.
+- "weiß haut"  # NOT_A_PHRASE: Free colour-plus-noun combination.

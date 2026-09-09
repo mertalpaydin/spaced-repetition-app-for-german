@@ -33,8 +33,9 @@ first, by Claude Opus and Gemini Flash (`docs/audits/phase-1-review/`,
 "Step 1"): read a band, turn the systematic causes into rules, rebuild, read
 the next band of what survives. Open:
 
-- **Step 3 onward.** Steps 1 and 2 covered every glossed card and every
-  unit once; the next step reads only what the rebuild replaced.
+- **Step 4 onward.** Steps 1 to 3 covered every glossed card and every
+  unit once; each next step reads only what the rebuild replaced, until a
+  step finds no new systematic cause and few findings.
   After each rebuild: `uv run python scripts/review_deck.py batches <dir>`
   (skips reviewed ids), Claude agents in waves of at most 8, Gemini via
   `review_deck.py gemini <dir> --model gemini-3.8-flash-low --workers 4`

@@ -392,9 +392,35 @@ def canonical_verb(
     lowered = {s.lower() for s in surfaces}
     # A separated verb's lemma is particle + verb surface ("wuchsen … auf").
     lowered.add("".join(s.lower() for s in reversed(surfaces)))
+    # The Goethe list also lists some participles ("geschrien", "gestritten"),
+    # so a listed string counts as an infinitive only when the participle
+    # tables do not resolve it to a different verb.
     known_infinitive = verb in _GE_INFINITIVES or (
-        infinitives is not None and normalise(verb) in infinitives
+        infinitives is not None
+        and normalise(verb) in infinitives
+        and verb.endswith("n")
+        and _infinitive_of_participle(verb, dictionary) in {None, verb}
     )
+    # A present plural surface is the infinitive itself ("sie haften"); when
+    # the tagger's lemma disagrees ("hafen") the surface wins.
+    if (
+        form_key.startswith("Fin|Pres")
+        and ("|1|Plur" in form_key or "|3|Plur" in form_key)
+        and not form_key.endswith("discontinuous")
+    ):
+        for s in surfaces:
+            low = s.lower()
+            if (
+                low != verb.lower()
+                and low.endswith("n")
+                and len(low) > 3
+                and (low.startswith(verb[:2]) or verb.startswith(low[:2]))
+                and low not in {"sein", "haben", "werden"}
+                and dictionary is not None
+                and normalise(low) in dictionary
+                and not known_infinitive
+            ):
+                return low
     # The surface is the lemma: right for an infinitive ("wir kommen",
     # "hat erhalten"), a tagger slip for a participle, a preterite or a
     # zu-infinitive, whatever VerbForm the tagger claims ("hat eingestochen"
@@ -474,6 +500,10 @@ def canonical_occurrence(
             return None
         if prep in _PASSIVE_AGENT_PREPS and occ.form_key.startswith("Part"):
             return None
+    verb_surface = next((s for s in occ.surfaces if s.lower() == parts[index].lower()), None)
+    if verb_surface is not None and verb_surface[:1].isupper() and occ.spans[0][0] > 0:
+        # "im Hafen in": a noun the tagger lemmatised as a verb.
+        return None
     verb = canonical_verb(parts[index], occ.surfaces, occ.form_key, dictionary, infinitives)
     if verb is None:
         return None
@@ -883,10 +913,29 @@ class UnitBuilder:
                 return True, f"rank<={self.t.trivial_rank_max}"
         return False, None
 
-    def _apply_caps(self, accepted: dict[tuple[str, str], tuple[UnitStats, _Decision]]) -> None:
+    def _apply_caps(
+        self,
+        accepted: dict[tuple[str, str], tuple[UnitStats, _Decision]],
+        excluded: list[UnitStats] | None = None,
+    ) -> None:
+        """Cap collocations per verb and per noun. A unit a reviewer excluded
+        still occupies its slot: otherwise every exclusion pulls the next,
+        weaker candidate into the deck ("Buch durchlesen" after "Buch
+        lesen"), and the review never converges (step 3 finding)."""
         by_verb: dict[str, list[tuple[str, str]]] = defaultdict(list)
         by_noun: dict[str, list[tuple[str, str]]] = defaultdict(list)
         by_noun_adj: dict[str, list[tuple[str, str]]] = defaultdict(list)
+        taken: dict[str, Counter[str]] = {
+            "verb": Counter(),
+            "noun": Counter(),
+            "noun_adj": Counter(),
+        }
+        for s in excluded or []:
+            if s.kind == "noun_verb" and len(s.best_parts) >= 2:
+                taken["verb"][s.best_parts[-1]] += 1
+                taken["noun"][s.best_parts[-2].lower()] += 1
+            elif s.kind == "adj_noun" and len(s.best_parts) == 2:
+                taken["noun_adj"][s.best_parts[1].lower()] += 1
         for ident, (s, d) in accepted.items():
             if d.source != "mined":
                 continue
@@ -896,20 +945,26 @@ class UnitBuilder:
             elif s.kind == "adj_noun":
                 by_noun_adj[s.best_parts[1].lower()].append(ident)
 
-        def trim(groups: dict[str, list[tuple[str, str]]], cap: int, reason: str) -> None:
-            for group in groups.values():
+        def trim(
+            groups: dict[str, list[tuple[str, str]]],
+            cap: int,
+            reason: str,
+            occupied: Counter[str],
+        ) -> None:
+            for head, group in groups.items():
                 members = [ident for ident in group if ident in accepted]
-                if len(members) <= cap:
+                free = max(cap - occupied[head], 0)
+                if len(members) <= free:
                     continue
                 members.sort(key=lambda ident: -accepted[ident][1].score)
-                for ident in members[cap:]:
+                for ident in members[free:]:
                     if ident in accepted:
                         del accepted[ident]
                         self.report["rejected"][reason] += 1
 
-        trim(by_verb, self.t.colloc_cap_per_verb, "cap_per_verb")
-        trim(by_noun, self.t.colloc_cap_per_noun, "cap_per_noun")
-        trim(by_noun_adj, self.t.adj_cap_per_noun, "cap_adj_per_noun")
+        trim(by_verb, self.t.colloc_cap_per_verb, "cap_per_verb", taken["verb"])
+        trim(by_noun, self.t.colloc_cap_per_noun, "cap_per_noun", taken["noun"])
+        trim(by_noun_adj, self.t.adj_cap_per_noun, "cap_adj_per_noun", taken["noun_adj"])
 
     def _ensure_curated_present(self, stats: dict[tuple[str, str], UnitStats]) -> None:
         """Curated entries with no corpus hit still become (card-less) units,
@@ -941,9 +996,11 @@ class UnitBuilder:
         stats = aggregate(occurrences, self.dictionary, self.vocabulary.vocab)
         self._ensure_curated_present(stats)
         accepted: dict[tuple[str, str], tuple[UnitStats, _Decision]] = {}
+        excluded_stats: list[UnitStats] = []
         for ident, s in stats.items():
             if s.key in self.excluded:
                 self.report["rejected"][f"{s.kind}:excluded"] += 1
+                excluded_stats.append(s)
                 continue
             if s.kind == "verb_prep":
                 decision = self._decide_verb_prep(s, stats)
@@ -959,7 +1016,7 @@ class UnitBuilder:
                 self.report["rejected"][f"{s.kind}:{decision.reason}"] += 1
                 continue
             accepted[ident] = (s, decision)
-        self._apply_caps(accepted)
+        self._apply_caps(accepted, excluded_stats)
 
         ordered = sorted(
             accepted.items(),

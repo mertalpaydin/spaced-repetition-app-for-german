@@ -8,7 +8,7 @@
 - {key: "abgebogen nach", display: "abbiegen nach +Dat"}
 - {key: "abgeglichen mit", display: "abgleichen mit +Dat"}
 - {key: "abgeraten von", display: "abraten von +Dat"}
-- {key: "abgezogen von", display: "abziehen von +Dat"}
+- {key: "abgezogen von", case: "Dat", display: "abziehen von +Dat"}
 - {key: "abhingen von", display: "abhängen von +Dat"}
 - {key: "abhingen", display: "abhängen"}
 - {key: "abprallen nach", display: "abprallen von +Dat"}
@@ -105,7 +105,7 @@
 - {key: "bedeutung unterstreichen", cefr: "B2"}
 - {key: "bedingung erfüllen", cefr: "B2"}
 - {key: "bedingung stellen", cefr: "B2"}
-- {key: "begonnen mit", display: "beginnen mit +Dat"}
+- {key: "begonnen mit", case: "Dat", display: "beginnen mit +Dat"}
 - {key: "behandelnd arzt", display: "behandelnder Arzt"}
 - {key: "beifall klatschen", cefr: "B1"}
 - {key: "beimissen", display: "beimessen"}
@@ -166,6 +166,7 @@
 - {key: "daherkommen", cefr: "B2"}
 - {key: "danebengehen", cefr: "B2"}
 - {key: "dastehen als", display: "dastehen als +Nom"}
+- {key: "datei heruntergeladen", display: "Dateien herunterladen"}
 - {key: "datum abrufen", display: "Daten abrufen"}
 - {key: "derzeitig stand", display: "nach derzeitigem Stand"}
 - {key: "deuten auf", cefr: "B2"}
@@ -201,6 +202,7 @@
 - {key: "echt leder", display: "echtes Leder"}
 - {key: "ehrenamtlich engagement", display: "ehrenamtliches Engagement"}
 - {key: "ehrlich haut", cefr: "B2"}
+- {key: "eid geschworen", display: "einen Eid schwören"}
 - {key: "eigen nennen", display: "sein Eigen nennen"}
 - {key: "eigentlich problem", display: "das eigentliche Problem"}
 - {key: "einblick geben", cefr: "B2"}
@@ -222,6 +224,7 @@
 - {key: "eintragen in", case: "Akk"}
 - {key: "einwickeln in", case: "Akk"}
 - {key: "einzug halten", cefr: "B2"}
+- {key: "eis gegessen", display: "Eis essen"}
 - {key: "email schicken", display: "E-Mail schicken"}
 - {key: "empfanden als", display: "empfinden als"}
 - {key: "empfindlich stelle", cefr: "B2"}
@@ -245,6 +248,7 @@
 - {key: "erklärt ziel", display: "das erklärte Ziel"}
 - {key: "erklärung abgeben", cefr: "B2"}
 - {key: "erkältung holen", display: "sich eine Erkältung holen"}
+- {key: "erkältung zuziehen", display: "sich eine Erkältung zuziehen"}
 - {key: "ermittlung aufnehmen", display: "Ermittlungen aufnehmen"}
 - {key: "ermittlung übernehmen", cefr: "B2"}
 - {key: "erneuerbar energiequelle", display: "erneuerbare Energiequellen"}
@@ -304,6 +308,7 @@
 - {key: "fremd macht", cefr: "B2"}
 - {key: "fremd planet", display: "fremder Planet"}
 - {key: "freudig erwartung", display: "freudige Erwartung"}
+- {key: "freund geliehen", display: "einem Freund leihen"}
 - {key: "freundlich grüße", display: "mit freundlichen Grüßen"}
 - {key: "freundlich unterstützung", display: "mit freundlicher Unterstützung"}
 - {key: "freundschaft schließen", cefr: "B1"}
@@ -346,7 +351,7 @@
 - {key: "gekommen auf", display: "kommen auf +Akk"}
 - {key: "gelangen zu", cefr: "B2"}
 - {key: "geliebt mensch", display: "geliebter Mensch"}
-- {key: "gelitten unter", display: "leiden unter +Dat"}
+- {key: "gelitten unter", case: "Dat", display: "leiden unter +Dat"}
 - {key: "gelten als", display: "gelten als"}
 - {key: "gemeinnützig arbeit", cefr: "B2"}
 - {key: "gemeinsam ziel", display: "gemeinsames Ziel"}
@@ -360,11 +365,16 @@
 - {key: "germanisch stamm", display: "germanische Stämme"}
 - {key: "geschenkt gaul", display: "ein geschenkter Gaul"}
 - {key: "geschichte schreiben", cefr: "B2"}
+- {key: "geschichte umschreiben", cefr: "B2"}
 - {key: "geschlossen auge", display: "mit geschlossenen Augen"}
+- {key: "geschmissen aus", display: "schmeißen aus +Dat"}
+- {key: "geschrien um", display: "schreien nach +Dat"}
 - {key: "gesellschaftlich leben", display: "gesellschaftliches Leben"}
 - {key: "gesetz verabschieden", cefr: "B2"}
 - {key: "gesetzlich mindestlohn", display: "gesetzlicher Mindestlohn"}
 - {key: "gesprochen wort", display: "das gesprochene Wort"}
+- {key: "gesprochen über", display: "sprechen über +Akk"}
+- {key: "gestritten über", display: "sich streiten über +Akk"}
 - {key: "geständnis ablegen", cefr: "B2"}
 - {key: "geständnis unterschreiben", cefr: "B2"}
 - {key: "gesundheit erfreuen", display: "sich guter Gesundheit erfreuen"}
@@ -597,6 +607,7 @@
 - {key: "menschlich geist", display: "menschlicher Geist"}
 - {key: "menschlich herz", display: "das menschliche Herz"}
 - {key: "menschlich schwäche", display: "menschliche Schwächen"}
+- {key: "messe lesen", cefr: "B2"}
 - {key: "militärisch konflikt", display: "militärischer Konflikt"}
 - {key: "misslich lage", display: "missliche Lage"}
 - {key: "missverstehen als", case: "Akk"}
@@ -842,6 +853,7 @@
 - {key: "sich herumsprechen", cefr: "B2"}
 - {key: "sich herumtreiben", cefr: "B2"}
 - {key: "sich hingegeben", display: "sich hingeben"}
+- {key: "sich hingezogen", display: "sich hingezogen fühlen zu +Dat"}
 - {key: "sich hinsetzen", cefr: "A2"}
 - {key: "sich hinwegsetzen", display: "sich hinwegsetzen über +Akk"}
 - {key: "sich hüllen in", case: "Akk"}
@@ -969,6 +981,7 @@
 - {key: "treffen vereinbaren", cefr: "B1"}
 - {key: "trennung bekanntgeben", cefr: "B2"}
 - {key: "treppe runtergefallen", display: "die Treppe runterfallen"}
+- {key: "treue geschworen", display: "Treue schwören"}
 - {key: "trocken hust", display: "trockener Husten"}
 - {key: "trocken tücher", display: "in trockenen Tüchern"}
 - {key: "trommeln auf", case: "Akk"}
@@ -1000,6 +1013,7 @@
 - {key: "untergang weihen", display: "dem Untergang geweiht sein"}
 - {key: "unterkommen", cefr: "B2"}
 - {key: "unterrichten über", cefr: "B2"}
+- {key: "unterschieden zwischen", cefr: "B1", display: "unterscheiden zwischen +Dat"}
 - {key: "unterschiedlich größe", display: "unterschiedliche Größen"}
 - {key: "unterteilen in", case: "Akk"}
 - {key: "urinieren auf", case: "Akk"}

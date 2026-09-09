@@ -230,9 +230,39 @@ units for each bad one. They stay reviewer judgements in `exclude.yaml`.
 Everything else went into the curated lists: 756 units, 401 cards, 451
 overrides.
 
+## Step 3 (9 September 2026)
+
+Deck `036b2bfff23e` after step 2: 665 cards and 154 units that the step 2
+rebuild had brought in as replacements. Both vendors read all of it.
+
+| | Claude | Gemini | Both flagged | Claude only | Gemini only |
+|---|---:|---:|---:|---:|---:|
+| Card findings (665 cards) | 79 | 55 | 44 | 35 | 11 |
+| Unit findings (154 units) | 99 | 34 | 33 | 66 | 1 |
+
+Two of 154 replacement units in three were flagged, most as free
+combinations (`Buch durchlesen`, `grüne Farbe`). The cause is the cap:
+a reviewer's exclusion freed a per-verb or per-noun slot and the next,
+weaker candidate filled it, so each round of exclusions produced a fresh
+band of junk. Now a rule: an excluded unit keeps occupying its slot.
+
+Also rules now: a present-plural surface is the infinitive and wins over
+a tagger lemma that disagrees (`sie haften`, not `hafen in`); a verb
+surface capitalised mid-sentence is a noun; and the Goethe list, which
+also lists some participles (`geschrien`, `gestritten`), no longer
+vouches for a string being an infinitive unless the participle tables
+agree.
+
+Disagreements: two Gemini gap findings on prepositional displays (set
+aside as before); four override conflicts, Claude's fuller form kept, one
+substantive (`geschrien um`: Claude's `schreien nach +Dat` over Gemini's
+`schreien um +Akk`).
+
+Curated lists: 88 units, 70 cards, 17 overrides.
+
 ## What is still open
 
-- Steps 1 and 2 have read every glossed card and every unit of the
+- Steps 1 to 3 have read every glossed card and every unit of the
   wide-corpus deck once, by both vendors. Cards and units new in the next
   rebuild (replacements for dropped ones) are the next step's batches.
 - Adjective-noun and collocation displays that carry a governing

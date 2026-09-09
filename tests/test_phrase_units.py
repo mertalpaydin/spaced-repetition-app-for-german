@@ -448,6 +448,8 @@ def test_mined_unit_cefr_is_the_hardest_part_and_unknown_words_are_b2() -> None:
         ("kommen", "kommen", "Fin|Pres|3|Plur", "kommen"),
         ("erhalten", "erhalten", "Inf", "erhalten"),
         ("warten", "warten", "Fin|Pres|3|Plur", "warten"),
+        ("geschrien", "geschrien um", "Part", "schreien"),
+        ("hafen", "haften im", "Fin|Pres|3|Plur", "haften"),
     ],
 )
 def test_inflected_forms_left_as_lemma_are_cited_as_infinitives(
@@ -455,8 +457,8 @@ def test_inflected_forms_left_as_lemma_are_cited_as_infinitives(
 ) -> None:
     from src.phrases.units import canonical_verb
 
-    words = frozenset({"füllen", "warten", "waren", "kommen", "erhalten"})
-    infinitives = {"warten": "A1", "kommen": "A1", "erhalten": "B1"}
+    words = frozenset({"füllen", "warten", "waren", "kommen", "erhalten", "haften", "hafen"})
+    infinitives = {"warten": "A1", "kommen": "A1", "erhalten": "B1", "geschrien": "B1"}
     assert canonical_verb(verb, surface.split(), form_key, words, infinitives) == expected
 
 
@@ -534,3 +536,46 @@ def test_adj_noun_display_drops_sentence_capital_and_negation() -> None:
         for o in _occ("adj_noun", "heftig regen", ["heftig", "Regen"], 5)
     ]
     assert [u.display_de for u in builder.build(occs)] == ["heftiger Regen"]
+
+
+def test_excluded_collocations_still_occupy_their_cap_slot() -> None:
+    curated = CuratedLists(exclude=["buch lesen"])
+    counts = _counts(lesen=200)
+    for noun in ("buch", "zeitung", "brief", "text", "roman", "artikel", "schild", "karte", "mail"):
+        counts.nouns[noun] = 40
+    builder = UnitBuilder(
+        counts,
+        curated,
+        Thresholds(colloc_cap_per_verb=2),
+        vocabulary=VocabularyStore(
+            dict.fromkeys(("lesen", "buch", "zeitung", "brief", "text"), "A1"), frequency_ranks={}
+        ),
+        frequency_ranks={},
+        dictionary=frozenset(),
+    )
+    occs = (
+        _occ("noun_verb", "buch lesen", ["Buch", "lesen"], 30)
+        + _occ("noun_verb", "zeitung lesen", ["Zeitung", "lesen"], 25)
+        + _occ("noun_verb", "brief lesen", ["Brief", "lesen"], 20)
+        + _occ("noun_verb", "text lesen", ["Text", "lesen"], 15)
+    )
+    keys = [u.lemma_key for u in builder.build(occs)]
+    assert "buch lesen" not in keys
+    assert len(keys) == 1  # the excluded unit keeps one of the two slots
+
+
+def test_capitalised_verb_surface_mid_sentence_is_a_noun() -> None:
+    from src.phrases.units import canonical_occurrence
+
+    occ = Occurrence(
+        kind="verb_prep",
+        unit_key="hafen in",
+        parts=["hafen", "in"],
+        token_indices=[2, 3],
+        spans=[(11, 16), (17, 19)],
+        surfaces=["Hafen", "in"],
+        corpus_source="tatoeba",
+        line_id="1",
+        text="Das Schiff Hafen in Kiel.",
+    )
+    assert canonical_occurrence(occ, None) is None

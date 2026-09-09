@@ -1809,3 +1809,50 @@
 - fda2ed74f1b2  # BAD_SENTENCE: Missing article before 'Unfall', reads as a headline fragment.
 - fe32a4e0473a  # WRONG_UNIT: "nun gibt es auch den Film dazu" instantiates "es gibt ... dazu", not dazugeben.
 - fefd45572bb3  # WRONG_GAPS: 'hineinschleichen' is reflexive here ('euch') but 'euch' was omitted from the gap brackets.
+# Review round step3.
+- 02081ff9e4b0  # BAD_SENTENCE: Subject 'es' with possessive 'sein letztes Hemd' does not cohere; likely a corrupted pronoun.
+- 03f26eb4e645  # WRONG_UNIT: Here 'danach' is the pronominal adverb governed by 'fragen nach', not a sentence connector.
+- 073e5e0b64e2  # WRONG_UNIT: 'Nach' indicates a distance ('Nach ca. 700 m'), not directional 'nach' for abbiegen.
+- 12e13b2fec23  # BAD_SENTENCE: Non-standard spoken spellings 'wär' and 'ne' make it a poor model sentence.
+- 21930602a9b9  # WRONG_UNIT: 'dazu' is a pronominal adverb depending on 'Sondereinheit', not separable 'dazugeben'.
+- 23732620917d  # BAD_SENTENCE: Archaic dative-e 'an einem Baume'.
+- 24405c5d4efc  # BAD_SENTENCE: Unnatural: German would say 'finden hierher', not bare 'finden ... her'.
+- 2448fb912a5c  # WRONG_UNIT: The sentence uses 'hinuntersteigen' rather than the unit 'Treppen steigen'.
+- 28c5fcf0867f  # BAD_SENTENCE: Uses obsolete pre-1996 spelling 'riß' instead of 'riss' inside the gap.
+- 2e4d857f1716  # BAD_SENTENCE: Uses Swiss spelling 'Massnahmen' instead of standard German 'Maßnahmen'.
+- 2fa9ff827d8d  # BAD_SENTENCE: 'Sehen, dass ich eine ehrliche Haut bin.' is a fragment with no main clause.
+- 31c995eb3507  # BAD_SENTENCE: Contains typo 'halbst Stunde' instead of 'halbe Stunde'.
+- 3aee52226b45  # BAD_SENTENCE: Sentence ends abruptly with an incomplete URL fragment 'https://www.'.
+- 3cb20f07d843  # BAD_SENTENCE: The sentence is an incomplete fragment lacking a main clause.
+- 41b61888d4fc  # WRONG_UNIT: 'auf dem Herd' is a locative dative complement, not the idiom 'pfeifen auf +Akk'.
+- 49b5f1c5b862  # WRONG_UNIT: 'dazu' is a pronominal adverb modifying 'sagen', not a separable verb 'dazusagen'.
+- 4f6348db0c35  # WRONG_UNIT: 'heute Abend' is a temporal adverbial; the unit 'zu Abend essen' is not instantiated.
+- 54370d20e121  # WRONG_UNIT: 'überlaufen in' with an unrelated 'zum Beispiel' bracketed as 'zu'.
+- 5e32eecbea89  # BAD_SENTENCE: 'erweiterte die Firma um eine Weberei' lacks the reflexive or a coherent object reading.
+- 5f601839f0e2  # WRONG_UNIT: Sentence uses impersonal directional 'es zieht heraus', not the unit meaning.
+- 631b8195f0de  # WRONG_UNIT: Sentence has 'wirres Zeug' instead of 'dummes Zeug'.
+- 7780637387be  # WRONG_UNIT: 'dazu' is a pronominal adverb depending on 'Alternative', not separable 'dazugeben'.
+- 7a4c8042db01  # WRONG_UNIT: The phrase is 'sein Fett wegkriegen/wegbekommen', where 'weg' belongs to 'sein Fett wegkriegen'.
+- 81116842ad20  # BAD_SENTENCE: Uses obsolete pre-1996 spelling 'vermißter' instead of 'vermisster' in the gap.
+- 86a2cfe7c917  # WRONG_UNIT: 'mit einer Faustabwehr' is an instrumental modifier of 'aufräumen', not the idiom 'aufräumen mit'.
+- 8b1e850f97a2  # WRONG_UNIT: 'in den unterschiedlichsten Weisen' is not the unit and is unidiomatic German.
+- 8edb45d915eb  # BAD_SENTENCE: Elliptical 'in die ferne' with a wrongly lowercased nominalised adjective.
+- 91826cf2aa6f  # BAD_SENTENCE: The subordinate clause is ungrammatical and missing its subject.
+- 91911e941340  # WRONG_UNIT: The sentence uses 'hinaufsteigen' rather than the unit 'Treppen steigen'.
+- 96129f1dc010  # WRONG_UNIT: 'dagegen' is a pronominal adverb (etwas dagegen tun), not the contrastive connector.
+- 9b2e4d0c4c09  # BAD_SENTENCE: Ungrammatical sentence ('Das reißt du dich nicht viel um sie' contains wrong pronoun/structure).
+- a574c9b08626  # WRONG_UNIT: The bracketed 'Vor allem' is an idiom meaning 'above all', not the prepositional verb complement.
+- a5d6ba8d7f09  # WRONG_UNIT: 'überlaufen' is a participial adjective meaning overcrowded and 'zu' is temporal.
+- b2c2c2535b87  # BAD_SENTENCE: Incoherent, garbled and gratuitously violent subtitle line.
+- b7741a34f0ee  # WRONG_UNIT: 'heute Abend' is temporal and 'auswärts essen' is the actual predicate.
+- ba29949220cf  # WRONG_GAPS: The reflexive pronoun 'sich' is omitted from the bracketed gaps.
+- be6cf94b41b4  # BAD_SENTENCE: 'ich habe aus verlässlicher Quelle, dass ...' is missing the verb (erfahren/gehört).
+- cba1a3ed98aa  # BAD_SENTENCE: Typo 'artizifiellen' for 'artifiziellen'.
+- d0a7190e2ff6  # WRONG_UNIT: Uses two separate clauses ('Finden wir keine Lösung...', '...muss europäisches Recht her'), not th
+- d26722a5df7e  # BAD_SENTENCE: Ungrammatical dative plural form 'auf unterschiedliche Weisen'.
+- e3172408134b  # BAD_SENTENCE: Transcript junk: internal ellipsis '...dann' and spoken-only ''ne'.
+- e6a8e11fd8ff  # BAD_SENTENCE: Not a self-contained sentence: dangling 'der' with no referent and an imperative infinitive frag
+- ec9e5a3ff00f  # BAD_SENTENCE: Corrupted idiom: mixes 'keinen Faden abbeißen' instead of 'keinen Faden abbrechen' / 'beißt die 
+- edda06f67295  # BAD_SENTENCE: Missing noun after 'kostenfreien' makes the sentence ungrammatical.
+- f2de21d33fe1  # BAD_SENTENCE: Mixed address: 'Wenn Sie möchten, bringe ich euch ...'.
+- f9161002dac4  # BAD_SENTENCE: Missing compound noun constituent before '-Teilnahme'.
