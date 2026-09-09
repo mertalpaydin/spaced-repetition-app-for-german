@@ -2,241 +2,62 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="DeutschMaster - Spec-driven German Grammar Trainer with Multi-Dimensional FSRS Memory Scheduling.">
-  <meta name="theme-color" content="#2563eb">
-  <title>DeutschMaster - Deutsche Grammatik Trainer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1f5f8b">
+  <title>Phrasen</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="stylesheet" href="./styles.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
   <header>
-    <div class="logo-group">
-      <span class="logo-badge">DM</span>
-      <h1 class="app-title">DeutschMaster</h1>
-    </div>
+    <h1>Phrasen</h1>
     <nav>
-      <button id="nav-practice-btn" class="nav-btn active">Üben</button>
-      <button id="nav-dag-btn" class="nav-btn">Grammatik-Baum</button>
-      <button id="nav-duels-btn" class="nav-btn">Duelle</button>
-      <button id="nav-challenge-btn" class="nav-btn">Freies Schreiben</button>
-      <button id="nav-stats-btn" class="nav-btn">Statistik & Bericht</button>
-      <button id="nav-settings-btn" class="nav-btn">⚙️</button>
+      <button data-view="practice" class="active">Üben</button>
+      <button data-view="triage">Sortieren</button>
+      <button data-view="stats">Statistik</button>
     </nav>
   </header>
 
   <main>
-    <!-- 1. Practice Round View -->
-    <section id="view-practice" class="view-section active">
-      <!-- Round Preview Bar -->
-      <div id="round-preview-box" class="preview-banner" style="display: flex; justify-content: space-between; align-items: center; background: #eff6ff; border: 1px solid #bfdbfe; padding: 8px 16px; border-radius: 8px; margin-bottom: 12px;">
-        <span>🎯 <strong>Runde:</strong> 6 Aufgaben (~2 Min)</span>
-        <span id="preview-due-info">Fällig heute: <strong id="preview-due-count">6</strong></span>
+    <section id="view-practice" class="view">
+      <div id="practice-card" class="card" hidden>
+        <p id="context-de" class="context"></p>
+        <p id="sentence" class="sentence"></p>
+        <p id="context-en" class="context muted"></p>
+        <p id="gloss" class="gloss"></p>
+        <div id="feedback" class="feedback" hidden></div>
+        <div class="actions">
+          <button id="btn-check" class="primary">Prüfen</button>
+          <button id="btn-reveal">Zeigen</button>
+          <button id="btn-known">Kannte ich schon</button>
+          <button id="btn-next" class="primary" hidden>Weiter</button>
+        </div>
+        <div class="umlauts">
+          <button data-ch="ä">ä</button><button data-ch="ö">ö</button><button data-ch="ü">ü</button><button data-ch="ß">ß</button>
+        </div>
       </div>
-
-      <div class="round-bar">
-        <div class="round-stats">
-          <span>Aufgabe: <strong id="stat-round-progress">1 / 6</strong></span>
-          <span>Fällig: <strong id="stat-due-topics">0 Themen</strong></span>
-          <span>Serie: <strong id="stat-streak">0 Tage 🔥</strong></span>
-        </div>
-        <div class="topic-tag-indicator">
-          <span id="card-tag-badge" class="tag-badge">Grammatik-Übung</span>
-        </div>
-      </div>
-      <div class="progress-track">
-        <div id="round-progress-fill" class="progress-fill"></div>
-      </div>
-
-      <div class="exercise-card">
-        <div class="card-header">
-          <span id="card-cefr-badge" class="tag-badge">A2</span>
-          <span id="card-diff-badge" class="difficulty-badge">Stufe 1</span>
-        </div>
-
-        <!--
-          The German sentence and its English translation are one unit, so
-          they sit in one tightly spaced group rather than as two siblings
-          separated by the card's own 1.5rem gap. #exercise-gloss ships empty
-          and [hidden]: app.js fills it from the item's gloss_en on every
-          render, and an item without a gloss leaves it hidden, which costs no
-          box, no placeholder text and no vertical space.
-        -->
-        <div class="prompt-group">
-          <div id="exercise-prompt" class="prompt-box">
-            Das Buch liegt auf <span class="gap-blank">___</span> Tisch.
-          </div>
-          <p id="exercise-gloss" class="gloss-box" lang="en" hidden></p>
-        </div>
-
-        <div id="cued-area" class="cued-box" style="display: none;">
-          <span class="cued-label">Hinweis:</span> <strong id="cued-word"></strong>
-        </div>
-
-        <!-- German Umlaut Soft Keys -->
-        <div class="umlaut-bar" style="display: flex; gap: 6px; margin-bottom: 8px; justify-content: center;">
-          <button type="button" class="btn-umlaut" data-char="ä">ä</button>
-          <button type="button" class="btn-umlaut" data-char="ö">ö</button>
-          <button type="button" class="btn-umlaut" data-char="ü">ü</button>
-          <button type="button" class="btn-umlaut" data-char="ß">ß</button>
-        </div>
-
-        <!-- Text Input Mode -->
-        <div id="text-input-area" class="input-area">
-          <input type="text" id="user-answer-input" class="text-input" placeholder="Lösung eingeben..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-          <button id="submit-btn" class="btn-primary">Prüfen</button>
-        </div>
-
-        <!-- Multiple Choice Mode (Options) -->
-        <div id="options-area" class="options-grid" style="display: none;">
-          <!-- Dynamically populated buttons -->
-        </div>
-
-        <!-- 4-Tier Hint Ladder -->
-        <div class="hint-container">
-          <div class="hint-header">
-            <span id="hint-status-text" class="stat-label">Hinweis-Stufe: 0 / 4</span>
-            <button id="request-hint-btn" class="btn-hint">💡 Hinweis anfordern (H)</button>
-          </div>
-          <div id="hint-box" class="hint-content"></div>
-        </div>
-
-        <div id="feedback-box" class="feedback-box"></div>
-      </div>
+      <p id="practice-empty" class="empty" hidden>Nichts fällig und keine neuen Einheiten für heute.</p>
     </section>
 
-    <!-- 2. Round Summary View -->
-    <section id="view-summary" class="view-section">
-      <div class="summary-card">
-        <h2>Runde Abgeschlossen! 🚀</h2>
-        <div id="summary-score-value" class="summary-score">6 Aufgaben Abgeschlossen</div>
-        <p id="summary-feedback-msg">Dein FSRS-Gedächtnisintervall und die Stabilität wurden deterministisch aktualisiert.</p>
-
-        <div class="summary-stats-grid">
-          <div class="stat-box">
-            <span id="summary-correct" class="stat-value">6 / 6</span>
-            <span class="stat-label">Richtig</span>
-          </div>
-          <div class="stat-box">
-            <span id="summary-unhinted" class="stat-value">5</span>
-            <span class="stat-label">Ohne Hinweis</span>
-          </div>
-          <div class="stat-box">
-            <span id="summary-promotions" class="stat-value">1</span>
-            <span class="stat-label">Themen Befördert</span>
-          </div>
+    <section id="view-triage" class="view" hidden>
+      <p class="hint">Kennst du die Phrase? Sortiere die häufigsten Einheiten einmal durch.</p>
+      <div id="triage-card" class="card" hidden>
+        <p id="triage-rank" class="muted"></p>
+        <p id="triage-display" class="sentence"></p>
+        <div class="actions">
+          <button id="btn-tri-known" class="primary">Kenne ich</button>
+          <button id="btn-tri-learn" class="primary">Lernen</button>
         </div>
-
-        <button id="btn-next-round" class="btn-primary" style="margin-top: 1.5rem; width: 100%;">Nächste Runde starten</button>
       </div>
+      <p id="triage-empty" class="empty" hidden>Nichts mehr zu sortieren.</p>
     </section>
 
-    <!-- 3. Grammar Taxonomy DAG Tree View -->
-    <section id="view-dag" class="view-section">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>Grammatik-Taxonomie DAG (A1–B2)</h2>
-        <button id="btn-reset-dag" class="btn-hint">Zurücksetzen</button>
-      </div>
-      <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
-        Visueller Abhängigkeitsgraph: Vorbedingungen schalten nachfolgende Grammatikthemen frei.
-      </p>
-      <div id="dag-container" class="dag-tree-grid">
-        <!-- Dynamically generated topics with prereq edges -->
-      </div>
+    <section id="view-stats" class="view" hidden>
+      <div id="stats" class="card"></div>
     </section>
-
-    <!-- 4. Duel Library View -->
-    <section id="view-duels" class="view-section">
-      <h2>Verwechslungs-Duelle (Minimal Pairs)</h2>
-      <p style="color: var(--text-muted); margin-bottom: 1rem;">Gezieltes Kontrasttraining für typische Fehlerpaare.</p>
-      <div id="duel-list" class="duel-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
-        <!-- Dynamically populated duels -->
-      </div>
-    </section>
-
-    <!-- 5. Daily Challenge Free-Writing View -->
-    <section id="view-challenge" class="view-section">
-      <h2>Freies Schreiben (Produktion)</h2>
-      <p style="color: var(--text-muted); margin-bottom: 1rem;">Bilde eigene Sätze mit Zielstrukturen. Die KI bewertet Struktur, Grammatik und Natürlichkeit.</p>
-      <div class="exercise-card">
-        <h3 id="challenge-prompt">Bilde einen Kausalsatz mit 'weil'.</h3>
-        <textarea id="challenge-input" class="text-input" style="width: 100%; min-height: 100px; margin: 12px 0;" placeholder="Schreibe deinen deutschen Satz hier..." autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
-        <button id="btn-submit-challenge" class="btn-primary">Satz Bewerten</button>
-        <div id="challenge-feedback" style="margin-top: 16px; display: none;" class="feedback-box"></div>
-      </div>
-    </section>
-
-    <!-- 6. Statistics, Retention & Progress Report View -->
-    <section id="view-stats" class="view-section">
-      <h2>Lernfortschritt & CEFR-Abdeckung</h2>
-      
-      <!-- 3-Segment CEFR Coverage Bar (acquired, learning, unseen) -->
-      <div style="background: var(--surface); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 16px;">
-        <h3>CEFR Stufen-Abdeckung</h3>
-        <div style="margin: 8px 0;"><strong>A1:</strong> <span id="cov-a1-text">0% erworben</span></div>
-        <div style="height: 12px; border-radius: 6px; background: #e2e8f0; overflow: hidden; display: flex;" id="bar-a1">
-          <div style="background: #22c55e; width: 0%;" id="bar-a1-acq"></div>
-          <div style="background: #eab308; width: 0%;" id="bar-a1-lrn"></div>
-        </div>
-
-        <div style="margin: 8px 0;"><strong>A2:</strong> <span id="cov-a2-text">0% erworben</span></div>
-        <div style="height: 12px; border-radius: 6px; background: #e2e8f0; overflow: hidden; display: flex;" id="bar-a2">
-          <div style="background: #22c55e; width: 0%;" id="bar-a2-acq"></div>
-          <div style="background: #eab308; width: 0%;" id="bar-a2-lrn"></div>
-        </div>
-
-        <div style="margin: 8px 0;"><strong>B1:</strong> <span id="cov-b1-text">0% erworben</span></div>
-        <div style="height: 12px; border-radius: 6px; background: #e2e8f0; overflow: hidden; display: flex;" id="bar-b1">
-          <div style="background: #22c55e; width: 0%;" id="bar-b1-acq"></div>
-          <div style="background: #eab308; width: 0%;" id="bar-b1-lrn"></div>
-        </div>
-
-        <div style="margin: 8px 0;"><strong>B2:</strong> <span id="cov-b2-text">0% erworben</span></div>
-        <div style="height: 12px; border-radius: 6px; background: #e2e8f0; overflow: hidden; display: flex;" id="bar-b2">
-          <div style="background: #22c55e; width: 0%;" id="bar-b2-acq"></div>
-          <div style="background: #eab308; width: 0%;" id="bar-b2-lrn"></div>
-        </div>
-      </div>
-
-      <!-- Weekly Progress Report -->
-      <div style="background: var(--surface); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 16px;">
-        <h3>Aktivitäts-Wochenbericht</h3>
-        <p id="weekly-report-text">Bislang wurden 0 Wiederholungen durchgeführt. Absolviere mehr Runden für detaillierte Berichte.</p>
-      </div>
-
-      <!-- JSON Data Export / Import Replay -->
-      <div style="display: flex; gap: 8px;">
-        <button id="btn-export-json" class="btn-hint">📥 Daten Exportieren (JSON)</button>
-        <button id="btn-import-json" class="btn-hint">📤 Daten Importieren</button>
-        <input type="file" id="file-import-input" style="display: none;" accept=".json">
-      </div>
-    </section>
-
-    <!-- 7. Settings Modal -->
-    <div id="settings-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-      <div style="background: white; padding: 24px; border-radius: 12px; max-width: 440px; width: 90%;">
-        <h3>⚙️ Einstellungen</h3>
-        <div style="margin: 16px 0;">
-          <label><strong>Rundengröße (4–10):</strong> <span id="val-round-size">6</span></label>
-          <input type="range" id="input-round-size" min="4" max="10" value="6" style="width: 100%;">
-        </div>
-        <div style="margin: 16px 0;">
-          <label><strong>Vokabel-Anteil (0–50%):</strong> <span id="val-vocab-ratio">30%</span></label>
-          <input type="range" id="input-vocab-ratio" min="0" max="50" value="30" style="width: 100%;">
-        </div>
-        <div style="margin: 16px 0;">
-          <label><strong>Forecast Belastungslimit:</strong> <span id="val-forecast-thresh">50</span></label>
-          <input type="range" id="input-forecast-thresh" min="10" max="150" value="50" style="width: 100%;">
-        </div>
-        <button id="btn-close-settings" class="btn-primary" style="width: 100%; margin-top: 12px;">Speichern & Schließen</button>
-      </div>
-    </div>
   </main>
 
-  <script src="./db.js"></script>
-  <script src="./app.js"></script>
+  <footer><span id="deck-info" class="muted"></span></footer>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>

@@ -120,13 +120,23 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one preposition in at least 80% of its sentences is a three-token unit
   with three gaps (`auf freiem Fuß`); 44 such units.
 
+- **Phase 3a, the browser page on a local server, 2026-09-09.**
+  `uv run python -m src.cli.serve` serves `web/` and a JSON API over the
+  phase 2 engine (standard library only); the page has practice (inline
+  gap inputs, umlaut bar, reveal, "Kannte ich schon"), triage and stats
+  views and works on the laptop and on the phone over the same Wi-Fi. The
+  review log stays on the laptop. Not yet offline and not on GitHub Pages:
+  that is phase 3b, the engine in JavaScript.
+
 ## What is not built
 
 - **Gloss checks for the 38,000 unglossed cards**, once the Azure job
   supplies translations.
-- **Phase 3.** `web/` is the grammar trainer's PWA, untouched; it falls back
-  to six seed items because `web/data/` was deleted. The review-log format
-  it must read is the one in `src/contracts.py` (`ReviewEntry`, `MarkEntry`).
+- **Phase 3b, the offline PWA.** `web/` now only talks to the local server;
+  the GitHub Pages build needs the scheduler and grader in JavaScript
+  (ts-fsrs, same parameters), IndexedDB for the log, a service worker for
+  the deck shards, and log export/import in the `ReviewEntry`/`MarkEntry`
+  shape so laptop and phone logs merge.
 - **Nothing else of phase 2**; `train merge <other.jsonl>` folds a second
   device's log in, so the phone log can be merged once phase 3 exists.
 

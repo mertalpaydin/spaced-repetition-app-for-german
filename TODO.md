@@ -83,11 +83,18 @@ the next band of what survives. Open:
   itself reviewed; the next review step (cards new to the reviewers) covers
   them.
 
-## Phase 3: the PWA
+## Phase 3: the web client
 
-- `web/` rewrite as ES modules with vendored ts-fsrs, IndexedDB v2,
-  deck-versioned service worker, triage/practice/stats/settings views,
-  export/import v3, `tests/js` under `node:test`.
+Phase 3a (done 2026-09-09): `uv run python -m src.cli.serve`, the page in
+`web/` on the laptop and on the phone over the LAN, engine and log in Python.
+
+- **Use 3a for a week on both devices** and note what the page needs
+  (keyboard on the phone, font size, what to show after an answer).
+- **Phase 3b, offline PWA on GitHub Pages:** vendor ts-fsrs, port
+  `grading.py` and `session.py` to `web/lib/` with a replay test against the
+  Python engine on a fixture log, IndexedDB log, deck-versioned service
+  worker, export/import of the log for `train merge`. Only after 3a has
+  been used.
 
 ## Any time
 
