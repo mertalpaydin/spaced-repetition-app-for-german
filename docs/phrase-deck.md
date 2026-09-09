@@ -98,12 +98,29 @@ and stores every result in `data/phrases/contexts.jsonl` (committed) so a
 re-run never re-asks. Without both flags it reports and does nothing. The
 owner approves each run in chat on top of the flag.
 
+## The agent jobs (no API spend)
+
+Since 2026-09-09 the context sentences and the glosses come from the Gemini
+agent (`agy`, the Antigravity CLI, headless) rather than the API stage above,
+at the owner's instruction; the API stage stays as the fallback.
+
+```
+uv run python scripts/agy_jobs.py contexts                       # sentence-initial connector cards
+uv run python scripts/agy_jobs.py glosses --max-batches 400      # build/wanted_carriers.txt, 150 a batch
+```
+
+Both treat the agent's output as untrusted: contexts go through the same
+deterministic checks as the API stage; glosses are checked for shape and
+stored in the translation store with `source: "gemini"`. The gloss job stops
+after two empty batches in a row, which is how a spent quota looks. Then
+`--stage cards`, `--stage export`, commit `data/deck/`.
+
 ## Growing the deck
 
 Cards are picked first and glossed afterwards. The monthly Azure job
 (`docs/monthly-translation-job.md`) reads `build/wanted_carriers.txt` as
 pass 0, so each month's 2,000,000 characters go to the sentences the deck
-wants first; the whole wanted list is about 1.3M characters. After it runs: `--stage cards` then `--stage export`, commit
+wants first. After it runs: `--stage cards` then `--stage export`, commit
 `data/deck/`.
 
 ## Review

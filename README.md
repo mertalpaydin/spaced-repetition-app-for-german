@@ -37,12 +37,19 @@ cp .env.example .env         # only needed for the gloss store and context gener
 ```bash
 uv run pytest -q                              # whole suite, no network, no key
 uv run python scripts/build_phrase_deck.py --stage all   # phase 1: build the deck
+uv run python -m src.cli.train triage                     # phase 2: sort the first units, 1 = known, 2 = learn
+uv run python -m src.cli.train practice                   # phase 2: fill the gaps
+uv run python -m src.cli.train stats
 ```
 
+Progress lives in `data/review_log.jsonl` (gitignored); `train merge
+<other.jsonl>` folds in a second device's log.
+
 The corpora are staged by hand under `data/raw/_extract/`; see
-`docs/phrase-deck.md`. The deck build reads only sentences that already have a
-machine-translated gloss in `data/fixtures/translations/de_en.jsonl`, which
-grows monthly through `scripts/monthly_translation_topup.py`.
+`docs/phrase-deck.md`. Cards come from the whole corpus, but only cards
+whose sentence has a machine gloss in `data/fixtures/translations/de_en.jsonl`
+are shown; the store grows through `scripts/agy_jobs.py glosses` and the
+monthly `scripts/monthly_translation_topup.py`.
 
 ---
 
