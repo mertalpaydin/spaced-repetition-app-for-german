@@ -1,4 +1,4 @@
-# Phase 1 card review, round 1 (8 to 9 September 2026)
+# Phase 1 card review (8 to 9 September 2026)
 
 The owner's zero-defect policy: every exercise is reviewed before a learner
 sees it. This directory is the record of the first review of the phrase deck.
@@ -66,12 +66,29 @@ reason: 834 units into `data/phrases/exclude.yaml`, 1,085 cards into
 `data/phrases/excluded_cards.yaml`, and 345 case, citation-form and CEFR
 corrections into `data/phrases/unit_overrides.yaml`.
 
+## Rounds 2 to 4
+
+Each later round read only what the previous round had not: the cards and
+units new since the last reviewed deck version.
+
+| Round | Deck | Cards read | Card findings | Units read | Unit findings |
+|---|---|---:|---:|---:|---:|
+| 2 | `c9e740cf8713` | 1,931 | 117 | 1,111 | 347 |
+| 3 | `0494e734f279` | 550 | 52 | 959 | 72 |
+| 4 | `3b48362f0ed8` | 57 | 11 | 7 | 3 |
+
+Round 2 exposed a second layer of systematic causes, now rules with tests:
+existential `es gibt` is not `eine Möglichkeit geben`; a particle inside
+`ab und zu` or `hin und her`, a second particle on one verb, the
+correlative `da` and a postpositional `aus` are not prefixes; a participle
+used adverbially is an adjective; spelled-out clock times are frames; `ob`
+inside `als ob` belongs to `als ob`; a reflexive pronoun on the auxiliary
+still marks the verb reflexive; reciprocal `gegenseitig` and `einander`
+sentences teach no reflexive unit. Rounds 3 and 4 found no new cause.
+
 ## What is still open
 
-- Unit batches 02 and 06 (1,400 units) were not reviewed.
-- The rebuilt deck contains cards that did not exist in `eb2427b97088`
-  (replacements for dropped cards, and cards changed by the new rules).
-  Those are unreviewed until round 2, which reads only card ids absent from
-  `reviewed-card-ids-round-1.txt`.
+- Every unit and every card of the current deck has been read once, by one
+  reviewer. A second reviewer, from another vendor, has not read any of it.
 - Reviewer CEFR corrections were applied as given; the reviewers noted that
   the automatic level defaults low for formal B2 phrases.

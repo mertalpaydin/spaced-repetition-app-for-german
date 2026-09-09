@@ -85,17 +85,16 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   what to read after a build. The one model stage (context sentences for
   sentence-initial connectors) is opt-in and has not been run.
 
-- **Review round 1, 2026-09-08/09.** Every card of deck `eb2427b97088` and
-  78% of its units were read by Claude Opus agents under the owner's
-  zero-defect policy (`docs/audits/phase-1-review/`): 5.7% of cards and
-  about a quarter of units drew a finding. Nine systematic causes became
-  code rules with tests; 834 units, 1,085 cards and 345 corrections went
-  into the curated lists with reasons.
+- **Four review rounds, 2026-09-08/09.** Every unit and every card of the
+  deck was read by Claude Opus agents under the owner's zero-defect policy
+  (`docs/audits/phase-1-review/`). Round 1 flagged 5.7% of cards; round 2
+  found a second layer of causes; rounds 3 and 4 found no new cause. All
+  systematic causes are rules with tests; the rest are curated-list entries
+  with reasons.
 
 ## What is not built
 
-- **Review round 2**: unit batches 02 and 06, and the cards new since the
-  reviewed version.
+- **A cross-vendor second review.** One reviewer has read everything once.
 - **Phase 2 and 3.** `web/` is the grammar trainer's PWA, untouched; it falls
   back to six seed items because `web/data/` was deleted.
 

@@ -92,7 +92,10 @@ def detect_all(
     found += detect_separable(sentence, source=source, line_id=line_id, dictionary=dictionary)
     found += detect_noun_verb(sentence, source=source, line_id=line_id)
     found += detect_adj_noun(sentence, source=source, line_id=line_id)
-    found += detect_connectors(sentence, curated.connectors, source=source, line_id=line_id)
+    governed = frozenset(seed.key for seed in curated.verb_prep_seeds)
+    found += detect_connectors(
+        sentence, curated.connectors, source=source, line_id=line_id, governed=governed
+    )
     found += detect_idioms(sentence, curated.idioms, source=source, line_id=line_id)
     if has_konjunktiv_i(sentence):
         found = [

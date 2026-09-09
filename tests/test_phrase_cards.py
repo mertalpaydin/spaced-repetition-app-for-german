@@ -158,5 +158,9 @@ def test_unsuitable_sentences_are_skipped_with_a_reason() -> None:
     assert unsuitable_reason(quote) == "unbalanced_quotes"
     k1 = _occ("Er warte auf den Bus.", "warte", "auf", form_key="Fin|Pres|3|Sing|K1")
     assert unsuitable_reason(k1) == "konjunktiv_i"
+    fragment = _occ("Weil er auf den Bus wartet.", "wartet", "auf")
+    assert unsuitable_reason(fragment) == "subordinate_fragment"
+    clause = _occ("Weil er auf den Bus wartet, kommt er später.", "wartet", "auf")
+    assert unsuitable_reason(clause) is None
     fine = _occ("Er wartet auf den Bus.", "wartet", "auf")
     assert unsuitable_reason(fine) is None

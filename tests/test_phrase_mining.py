@@ -194,3 +194,9 @@ def test_round_two_rules() -> None:
     assert not [o for o in _detect("Er tat so, als ob er schliefe.") if o.unit_key == "ob"]
     assert not [o for o in _detect("Er geht um eins nach Hause.") if o.kind == "verb_prep"]
     assert not [o for o in _detect("Er hat sich auf den Stuhl gesetzt.") if o.kind == "verb_prep"]
+
+
+@requires_model
+def test_a_pronominal_adverb_of_a_seeded_verb_prep_is_not_a_connector() -> None:
+    """ "bitten um" is a seed, so its "darum" is an object whatever the parser says."""
+    assert not [o for o in _detect("Ich habe ihn darum gebeten.") if o.kind == "connector"]

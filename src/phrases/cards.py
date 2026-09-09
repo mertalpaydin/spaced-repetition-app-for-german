@@ -67,6 +67,29 @@ def usable_gloss(text: str, gloss: Gloss | None) -> Gloss | None:
     return gloss
 
 
+#: A sentence that opens with one of these and never reaches a main clause
+#: ("Weil er mich eingeladen hat.") is a fragment the validator lets through.
+_SUBORDINATORS: frozenset[str] = frozenset(
+    {
+        "weil",
+        "dass",
+        "obwohl",
+        "wenn",
+        "als",
+        "ob",
+        "damit",
+        "nachdem",
+        "bevor",
+        "während",
+        "sobald",
+        "solange",
+        "falls",
+        "sofern",
+        "indem",
+        "seitdem",
+        "bis",
+    }
+)
 _QUOTE_CHARS = '"\u201e\u201c\u201d\u00ab\u00bb'
 _WORD = re.compile(r"[\w\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00df]+")
 
@@ -83,6 +106,9 @@ def unsuitable_reason(occ: Occurrence) -> str | None:
         return "konjunktiv_i"
     if sum(occ.text.count(ch) for ch in _QUOTE_CHARS) % 2 == 1:
         return "unbalanced_quotes"
+    first = _WORD.findall(occ.text.lower())[:1]
+    if first and first[0] in _SUBORDINATORS and "," not in occ.text:
+        return "subordinate_fragment"
     words = _WORD.findall(occ.text.lower())
     gap_words = [w.lower() for w in occ.surfaces]
     for word in set(gap_words):

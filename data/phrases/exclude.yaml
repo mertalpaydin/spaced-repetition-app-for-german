@@ -1107,3 +1107,6 @@
 - "wort missverstanden"  # BAD_UNIT: The unit is cited in the participle form instead of "Wort missverstehen".
 - "zweitgrößter stadt"  # NOT_A_PHRASE: Free combination from encyclopedic/news text, nothing to learn as a unit.
 - "öffentlich raum"  # BAD_UNIT: Inflected citation form; the phrase should be presented as 'oeffentlicher Raum' or 'im oeffentlichen
+# Phase 1 review, round 4 (2026-09-09): units the reviewers rejected.
+- "orang essen"  # BAD_UNIT: 'Orang' is not a German noun; the lemma is 'Orange'. All three cards of this unit bracket 'Orange', 
+# Phase 1 review, round 5 (2026-09-09): units the reviewers rejected.

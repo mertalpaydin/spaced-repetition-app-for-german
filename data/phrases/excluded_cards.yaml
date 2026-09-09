@@ -1220,3 +1220,18 @@
 - eb861a53c4ce  # BAD_SENTENCE: Truncated subject 'Die gesamten an die Kunden' makes the sentence ungrammatical.
 - f20451d57619  # BAD_SENTENCE: Ungrammatical coordination: the plural 'wurden' does not agree with the singular passive clause 
 - f80f8039e75d  # BAD_GLOSS: 'auspacken' here means to spill the beans, not literally 'unpack'.
+# Phase 1 review, round 4 (2026-09-09).
+- 0ca8bb64287d  # WRONG_UNIT: 'Das Blatt hat sich gewendet' is the idiom 'the tide has turned'; there is no 'an' + accusative ob
+- 59e07470e9de  # BAD_SENTENCE: Subordinate clause fragment (advertising slogan), no main clause: 'Weil ich es mir wert bin.' No
+- 60aff55cb0ea  # WRONG_GAPS: Reflexive 'sich' is a unit token but is left unbracketed; other reflexive cards (e.g. sich anschau
+- 87d9437c863a  # BAD_SENTENCE: 'aus vollem Halse' collocates with singen/lachen/schreien, not with 'Auskunft geben'; the senten
+- 95e619ddd117  # WRONG_CASE: Card instantiates the reciprocal accusative ('Tom und Mary schauten sich an' = looked at each othe
+- 9dcf35199765  # WRONG_UNIT: 'darum' here is the pronominal adverb bound to 'um etwas bitten' (bitten um -> darum gebeten), not
+- a7838fc81d35  # WRONG_UNIT: 'Machen Sie sich darum keine Sorgen' reads most naturally as the pronominal adverb of 'sich Sorgen
+- b17d5a48292d  # BAD_SENTENCE: Case error in the apposition: 'zwischen zwei Polen' is dative, so the apposition must be 'einer 
+- e4e84ffddb16  # WRONG_UNIT: 'Ich bitte dich, mir zu helfen' is not reflexive: 'mir' refers to the speaker while the implied su
+# Phase 1 review, round 5 (2026-09-09).
+- 7191847c47a7  # BAD_SENTENCE: Subordinate clause fragment with no main clause: 'Weil er mich eingeladen hat.' is not a self-co
+- da54090af42b  # WRONG_UNIT: Here 'darum' is the pronominal adverb complement of 'jemanden um etwas bitten', not the causal con
+- e8cb432f0192  # BAD_SENTENCE: 'Eier sind zwar rund, aber darum keine Nuesse.' is semantically incoherent and 'aber darum' is n
+- fdbcff3c12b3  # WRONG_UNIT: Not reflexive: subject 'du' and dative object 'mir' are not coreferent, so the sentence does not i

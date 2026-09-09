@@ -3,7 +3,13 @@
 from src.phrases.curated import ConnectorPart, ConnectorSpec, IdiomSpec
 from src.phrases.mining.common import make_occurrence
 from src.phrases.occurrences import Occurrence
-from src.phrases.parse import ParsedSentence, ParsedToken, is_sentence_initial
+from src.phrases.parse import (
+    ParsedSentence,
+    ParsedToken,
+    is_sentence_initial,
+    lexical_verb,
+    verb_lemma_key,
+)
 
 _NOT_A_CONNECTOR_DEPS: frozenset[str] = frozenset(
     {"op", "svp", "pd", "oa", "da", "sb", "nk", "ag", "mnr", "pg", "og"}
@@ -89,19 +95,46 @@ def _inside_longer_form(
     return False
 
 
+def _is_governed_pronominal_adverb(
+    sentence: ParsedSentence, token: ParsedToken, governed: frozenset[str]
+) -> bool:
+    """ "darum" in "ich bitte dich darum": the pronominal adverb stands for a
+    prepositional object of a verb that governs that preposition, whatever
+    dependency label the parser chose."""
+    lower = token.lower
+    if lower.startswith("dar"):
+        prep = lower[3:]
+    elif lower.startswith("da"):
+        prep = lower[2:]
+    else:
+        return False
+    if not prep:
+        return False
+    verb = lexical_verb(sentence, token.i)
+    if verb is None or verb.pos != "VERB":
+        return False
+    key = verb_lemma_key(sentence, verb)
+    return bool(key) and (f"{key} {prep}" in governed or f"sich {key} {prep}" in governed)
+
+
 def detect_connectors(
     sentence: ParsedSentence,
     specs: list[ConnectorSpec],
     *,
     source: str,
     line_id: str,
+    governed: frozenset[str] = frozenset(),
 ) -> list[Occurrence]:
+    """``governed`` holds "verb prep" keys (the seed lists) whose pronominal
+    adverb must not be read as a connector."""
     found: list[Occurrence] = []
     longer = _multiword_forms(specs)
     for spec in specs:
         if spec.kind == "connector":
             window = _match_part(sentence, spec.part(), start=0)
             if window is None or _inside_longer_form(sentence, window, longer):
+                continue
+            if len(window) == 1 and _is_governed_pronominal_adverb(sentence, window[0], governed):
                 continue
             initial = is_sentence_initial(sentence, window[0].i)
             found.append(

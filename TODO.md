@@ -25,23 +25,23 @@ Nothing open. Left deliberately for later phases:
   dependencies (`en-core-web-sm`, `pypdf`, `rich`, `typer`) are still
   installed locally. Harmless; a later `uv sync` with the IDE closed cleans it.
 
-## Phase 1: exercise generation (built and reviewed once; round 2 open)
+## Phase 1: exercise generation (built; every card reviewed once)
 
 The pipeline runs end to end over the whole corpus (`docs/phrase-deck.md`).
-Review round 1 read every card and 78% of units
-(`docs/audits/phase-1-review/`); its findings are applied. Open:
+Four review rounds read every unit and every card
+(`docs/audits/phase-1-review/`); their findings are applied. Open:
 
-- **Review round 2.** Unit batches 02 and 06 (1,400 units) were never read
-  (session limit), and the rebuilt deck has cards that did not exist in the
-  reviewed version. Read those only, apply, rebuild.
+- **The owner's kill decision** on the reviewed deck.
 - **Gloss the picked sentences.** `data/phrases/build/wanted_carriers.txt`
-  holds every card sentence without a machine gloss (about 1.3M characters,
-  one Azure month). The monthly job reads it as pass 0; October's allowance
-  is the first that can be spent on it.
+  holds every card sentence without a machine gloss (about 0.9M characters).
+  The monthly job reads it as pass 0; October's allowance is the first that
+  can be spent on it.
 - **Contexts.** No context sentence has been generated yet; sentence-initial
   connector cards show a single sentence until the owner approves one run of
   `--stage contexts --generate-contexts --approved-by-owner` (free lane).
 - **Unit-level glosses** for mined units: none yet; a later opt-in batch.
+- **A second reviewer.** One Claude reviewer read everything once; a
+  cross-vendor pass has not happened.
 - The 1M-line `leipzig_news_2025.txt` is not read; the 205k-line sample is.
 
 ## Phase 2: FSRS and the laptop client
