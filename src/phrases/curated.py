@@ -96,6 +96,18 @@ class CollocationSeed(BaseModel):
     gloss_en: str | None = None
 
 
+class UnitOverride(BaseModel):
+    """A reviewer's correction to one unit: case, citation form, level."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    key: str
+    case: Case | None = None
+    display: str | None = None
+    cefr: CEFR | None = None
+    gloss_en: str | None = None
+
+
 class CuratedLists(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -108,6 +120,8 @@ class CuratedLists(BaseModel):
     exclude: list[str] = Field(default_factory=list)
     #: Card ids a review found defective; never selected again.
     excluded_cards: list[str] = Field(default_factory=list)
+    #: Reviewer corrections applied after the unit decision.
+    overrides: list[UnitOverride] = Field(default_factory=list)
 
 
 def _load_yaml_list(path: Path) -> list[object]:
@@ -153,6 +167,10 @@ def load_curated(phrases_dir: Path = DEFAULT_PHRASES_DIR) -> CuratedLists:
     stoplist = [str(raw).lower() for raw in _load_yaml_list(phrases_dir / "trivial_stoplist.yaml")]
     exclude = [str(raw).lower() for raw in _load_yaml_list(phrases_dir / "exclude.yaml")]
     excluded_cards = [str(raw) for raw in _load_yaml_list(phrases_dir / "excluded_cards.yaml")]
+    overrides = [
+        UnitOverride.model_validate(raw)
+        for raw in _load_yaml_list(phrases_dir / "unit_overrides.yaml")
+    ]
     keys = [c.key for c in connectors]
     if len(keys) != len(set(keys)):
         raise ValueError("duplicate connector keys in connectors.yaml")
@@ -164,4 +182,5 @@ def load_curated(phrases_dir: Path = DEFAULT_PHRASES_DIR) -> CuratedLists:
         trivial_stoplist=stoplist,
         exclude=exclude,
         excluded_cards=excluded_cards,
+        overrides=overrides,
     )

@@ -126,15 +126,6 @@
   "form_key": "es|gibt"
  },
  {
-  "card_id": "60bd448dbea4",
-  "unit_id": "cn:damit",
-  "sentence_de": "Heute arbeite ich ein bisschen länger, damit ich morgen nicht mit Arbeit überlastet werde.",
-  "answers": [
-   "damit"
-  ],
-  "form_key": "medial"
- },
- {
   "card_id": "65200ecb8805",
   "unit_id": "cn:waehrend",
   "sentence_de": "Während ich daran dachte, packte mich das Grauen.",
@@ -211,16 +202,6 @@
   "form_key": "Fin|Pres|1|Sing"
  },
  {
-  "card_id": "a13903a883ba",
-  "unit_id": "cn:zum_beispiel",
-  "sentence_de": "Franzosen, zum Beispiel, können über russische Witze nicht lachen.",
-  "answers": [
-   "zum",
-   "Beispiel"
-  ],
-  "form_key": "medial"
- },
- {
   "card_id": "a55cf769e740",
   "unit_id": "cn:dass",
   "sentence_de": "Ich zähle auf dich, dass du dich uns anschließen wirst.",
@@ -274,24 +255,5 @@
    "danach"
   ],
   "form_key": "medial"
- },
- {
-  "card_id": "fa9ac1763fbd",
-  "unit_id": "cn:dagegen",
-  "sentence_de": "Hättest du etwas dagegen, wenn ich dieses Gespräch aufzeichne?",
-  "answers": [
-   "dagegen"
-  ],
-  "form_key": "medial"
- },
- {
-  "card_id": "fd9fe4fb6dcf",
-  "unit_id": "id:es_gibt",
-  "sentence_de": "Es ist nicht wichtig, was gegeben wurde, sondern die Liebe, mit der es gegeben worden ist.",
-  "answers": [
-   "es",
-   "gegeben"
-  ],
-  "form_key": "es|gegeben"
  }
 ]

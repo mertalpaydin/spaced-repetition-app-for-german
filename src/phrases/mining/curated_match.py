@@ -5,6 +5,10 @@ from src.phrases.mining.common import make_occurrence
 from src.phrases.occurrences import Occurrence
 from src.phrases.parse import ParsedSentence, ParsedToken, is_sentence_initial
 
+_NOT_A_CONNECTOR_DEPS: frozenset[str] = frozenset(
+    {"op", "svp", "pd", "oa", "da", "sb", "nk", "ag", "mnr", "pg", "og"}
+)
+
 _COMPARATIVE_WORDS: frozenset[str] = frozenset(
     {"mehr", "weniger", "eher", "lieber", "besser", "höher", "länger", "öfter", "größer"}
 )
@@ -35,6 +39,10 @@ def _match_part(
             if [t.lower for t in window] != words:
                 continue
             if part.pos is not None and window[0].pos not in part.pos:
+                continue
+            # "darum bitten", "dagegen sein", "daher|kommen": the same word
+            # as a prepositional object, predicate or separable prefix.
+            if len(words) == 1 and window[0].dep in _NOT_A_CONNECTOR_DEPS:
                 continue
             if part.not_after is not None:
                 previous = _previous_word(sentence, i)

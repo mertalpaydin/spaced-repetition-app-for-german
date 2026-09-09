@@ -230,6 +230,10 @@ def detect_adj_noun(sentence: ParsedSentence, *, source: str, line_id: str) -> l
         lemma = adj.lemma.lower()
         if lemma in _STOP_ADJECTIVES or len(lemma) < 3:
             continue
+        # A capitalised adjective inside the sentence is part of a proper
+        # name ("Vereinigten Staaten", "Deutsche Bahn"), not a collocation.
+        if adj.text[:1].isupper() and adj.i > 0:
+            continue
         noun = sentence.tokens[adj.head]
         if noun.pos != "NOUN" or not is_word(noun):
             continue

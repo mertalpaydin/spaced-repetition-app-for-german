@@ -148,3 +148,38 @@ def test_lemma_counts_count_each_lemma_once_per_sentence() -> None:
     assert counts.verbs["warten"] == 1
     assert counts.prepositions["auf"] == 1
     assert LemmaCounts.from_dict(counts.to_dict()).verbs == counts.verbs
+
+
+@requires_model
+def test_a_reflexively_used_verb_is_not_also_a_plain_verb_prep() -> None:
+    """ "sich setzen auf" belongs to the reflexive detector; "setzen auf" must
+    not be credited with it (review finding, 2026-09-08)."""
+    found = _detect("Er setzt sich auf den Stuhl.")
+    assert not [o for o in found if o.kind == "verb_prep"]
+    assert [o.unit_key for o in found if o.kind == "reflexive_verb"] == [
+        "sich setzen",
+        "sich setzen auf",
+    ]
+
+
+@requires_model
+def test_als_carries_no_case() -> None:
+    occ = _one("Er gilt als guter Lehrer.", "verb_prep", "gelten als")
+    assert occ.case is None
+
+
+@requires_model
+def test_a_pronominal_adverb_used_as_an_object_is_not_a_connector() -> None:
+    assert not [o for o in _detect("Ich bitte dich darum.") if o.kind == "connector"]
+    assert [o for o in _detect("Darum kam sie nicht.") if o.kind == "connector"]
+
+
+@requires_model
+def test_a_capitalised_adjective_is_part_of_a_name_not_a_collocation() -> None:
+    assert not [o for o in _detect("Er lebt in den Vereinigten Staaten.") if o.kind == "adj_noun"]
+
+
+@requires_model
+def test_konjunktiv_i_marks_every_occurrence_in_the_sentence() -> None:
+    found = _detect("Er sagte, es gebe keinen Grund, auf ihn zu warten.")
+    assert found and all(o.evidence.get("k1_sentence") == "true" for o in found)

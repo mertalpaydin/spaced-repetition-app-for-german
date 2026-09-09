@@ -64,7 +64,7 @@
   "trivial": true
  },
  {
-  "unit_id": "cn:danach",
+  "unit_id": "cn:sondern",
   "kind": "connector",
   "rank": 9,
   "sentence_count": 2,
@@ -72,17 +72,9 @@
   "trivial": false
  },
  {
-  "unit_id": "cn:sondern",
-  "kind": "connector",
-  "rank": 10,
-  "sentence_count": 2,
-  "case": null,
-  "trivial": false
- },
- {
   "unit_id": "vp:gehen_um",
   "kind": "verb_prep",
-  "rank": 11,
+  "rank": 10,
   "sentence_count": 1,
   "case": "Akk",
   "trivial": false
@@ -90,7 +82,7 @@
  {
   "unit_id": "vp:glauben_an",
   "kind": "verb_prep",
-  "rank": 12,
+  "rank": 11,
   "sentence_count": 1,
   "case": "Akk",
   "trivial": false
@@ -98,7 +90,7 @@
  {
   "unit_id": "vp:sprechen_mit",
   "kind": "verb_prep",
-  "rank": 13,
+  "rank": 12,
   "sentence_count": 1,
   "case": "Dat",
   "trivial": false
@@ -106,7 +98,7 @@
  {
   "unit_id": "vp:warten_auf",
   "kind": "verb_prep",
-  "rank": 14,
+  "rank": 13,
   "sentence_count": 1,
   "case": "Akk",
   "trivial": false
@@ -114,7 +106,7 @@
  {
   "unit_id": "rv:sich_merken",
   "kind": "reflexive_verb",
-  "rank": 15,
+  "rank": 14,
   "sentence_count": 1,
   "case": "Dat",
   "trivial": false
@@ -122,7 +114,7 @@
  {
   "unit_id": "nv:antwort_geben",
   "kind": "noun_verb",
-  "rank": 16,
+  "rank": 15,
   "sentence_count": 1,
   "case": null,
   "trivial": false
@@ -130,7 +122,7 @@
  {
   "unit_id": "nv:bescheid_geben",
   "kind": "noun_verb",
-  "rank": 17,
+  "rank": 16,
   "sentence_count": 1,
   "case": null,
   "trivial": false
@@ -138,7 +130,7 @@
  {
   "unit_id": "cn:also",
   "kind": "connector",
-  "rank": 18,
+  "rank": 17,
   "sentence_count": 1,
   "case": null,
   "trivial": true
@@ -146,7 +138,7 @@
  {
   "unit_id": "cn:bis",
   "kind": "connector",
-  "rank": 19,
+  "rank": 18,
   "sentence_count": 1,
   "case": null,
   "trivial": true
@@ -154,7 +146,7 @@
  {
   "unit_id": "cn:dagegen",
   "kind": "connector",
-  "rank": 20,
+  "rank": 19,
   "sentence_count": 1,
   "case": null,
   "trivial": false
@@ -162,10 +154,18 @@
  {
   "unit_id": "cn:damit",
   "kind": "connector",
-  "rank": 21,
+  "rank": 20,
   "sentence_count": 1,
   "case": null,
   "trivial": true
+ },
+ {
+  "unit_id": "cn:danach",
+  "kind": "connector",
+  "rank": 21,
+  "sentence_count": 1,
+  "case": null,
+  "trivial": false
  },
  {
   "unit_id": "cn:denn",
@@ -248,17 +248,9 @@
   "trivial": false
  },
  {
-  "unit_id": "cn:zum_beispiel",
-  "kind": "connector",
-  "rank": 32,
-  "sentence_count": 1,
-  "case": null,
-  "trivial": false
- },
- {
   "unit_id": "c2:weder_noch",
   "kind": "two_part_connector",
-  "rank": 33,
+  "rank": 32,
   "sentence_count": 1,
   "case": null,
   "trivial": false
@@ -266,7 +258,7 @@
  {
   "unit_id": "id:es_kommt_darauf_an",
   "kind": "idiom",
-  "rank": 34,
+  "rank": 33,
   "sentence_count": 1,
   "case": null,
   "trivial": false
@@ -274,7 +266,7 @@
  {
   "unit_id": "id:gar_nicht",
   "kind": "idiom",
-  "rank": 35,
+  "rank": 34,
   "sentence_count": 1,
   "case": null,
   "trivial": false
@@ -282,7 +274,7 @@
  {
   "unit_id": "id:in_letzter_zeit",
   "kind": "idiom",
-  "rank": 36,
+  "rank": 35,
   "sentence_count": 1,
   "case": null,
   "trivial": false
@@ -290,7 +282,7 @@
  {
   "unit_id": "id:nicht_einmal",
   "kind": "idiom",
-  "rank": 37,
+  "rank": 36,
   "sentence_count": 1,
   "case": null,
   "trivial": false
@@ -298,7 +290,7 @@
  {
   "unit_id": "id:noch_einmal",
   "kind": "idiom",
-  "rank": 38,
+  "rank": 37,
   "sentence_count": 1,
   "case": null,
   "trivial": false
@@ -306,7 +298,7 @@
  {
   "unit_id": "vp:abhaengen_von",
   "kind": "verb_prep",
-  "rank": 39,
+  "rank": 38,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -314,7 +306,7 @@
  {
   "unit_id": "vp:achten_auf",
   "kind": "verb_prep",
-  "rank": 40,
+  "rank": 39,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -322,7 +314,7 @@
  {
   "unit_id": "vp:antworten_auf",
   "kind": "verb_prep",
-  "rank": 41,
+  "rank": 40,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -330,7 +322,7 @@
  {
   "unit_id": "vp:arbeiten_an",
   "kind": "verb_prep",
-  "rank": 42,
+  "rank": 41,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -338,7 +330,7 @@
  {
   "unit_id": "vp:bestehen_auf",
   "kind": "verb_prep",
-  "rank": 43,
+  "rank": 42,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -346,7 +338,7 @@
  {
   "unit_id": "vp:bitten_um",
   "kind": "verb_prep",
-  "rank": 44,
+  "rank": 43,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -354,7 +346,7 @@
  {
   "unit_id": "vp:danken_fuer",
   "kind": "verb_prep",
-  "rank": 45,
+  "rank": 44,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -362,7 +354,7 @@
  {
   "unit_id": "vp:denken_an",
   "kind": "verb_prep",
-  "rank": 46,
+  "rank": 45,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -370,7 +362,7 @@
  {
   "unit_id": "vp:einladen_zu",
   "kind": "verb_prep",
-  "rank": 47,
+  "rank": 46,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -378,7 +370,7 @@
  {
   "unit_id": "vp:erzaehlen_von",
   "kind": "verb_prep",
-  "rank": 48,
+  "rank": 47,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -386,7 +378,7 @@
  {
   "unit_id": "vp:fragen_nach",
   "kind": "verb_prep",
-  "rank": 49,
+  "rank": 48,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -394,7 +386,7 @@
  {
   "unit_id": "vp:fuehren_zu",
   "kind": "verb_prep",
-  "rank": 50,
+  "rank": 49,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -402,7 +394,7 @@
  {
   "unit_id": "vp:gehoeren_zu",
   "kind": "verb_prep",
-  "rank": 51,
+  "rank": 50,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -410,7 +402,7 @@
  {
   "unit_id": "vp:halten_von",
   "kind": "verb_prep",
-  "rank": 52,
+  "rank": 51,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -418,7 +410,7 @@
  {
   "unit_id": "vp:handeln_von",
   "kind": "verb_prep",
-  "rank": 53,
+  "rank": 52,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -426,7 +418,7 @@
  {
   "unit_id": "vp:hoffen_auf",
   "kind": "verb_prep",
-  "rank": 54,
+  "rank": 53,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -434,7 +426,7 @@
  {
   "unit_id": "vp:kaempfen_fuer",
   "kind": "verb_prep",
-  "rank": 55,
+  "rank": 54,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -442,7 +434,7 @@
  {
   "unit_id": "vp:kaempfen_gegen",
   "kind": "verb_prep",
-  "rank": 56,
+  "rank": 55,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -450,7 +442,7 @@
  {
   "unit_id": "vp:leiden_an",
   "kind": "verb_prep",
-  "rank": 57,
+  "rank": 56,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -458,7 +450,7 @@
  {
   "unit_id": "vp:leiden_unter",
   "kind": "verb_prep",
-  "rank": 58,
+  "rank": 57,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -466,7 +458,7 @@
  {
   "unit_id": "vp:passen_zu",
   "kind": "verb_prep",
-  "rank": 59,
+  "rank": 58,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -474,7 +466,7 @@
  {
   "unit_id": "vp:reagieren_auf",
   "kind": "verb_prep",
-  "rank": 60,
+  "rank": 59,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -482,7 +474,7 @@
  {
   "unit_id": "vp:sorgen_fuer",
   "kind": "verb_prep",
-  "rank": 61,
+  "rank": 60,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -490,7 +482,7 @@
  {
   "unit_id": "vp:sprechen_ueber",
   "kind": "verb_prep",
-  "rank": 62,
+  "rank": 61,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -498,7 +490,7 @@
  {
   "unit_id": "vp:sterben_an",
   "kind": "verb_prep",
-  "rank": 63,
+  "rank": 62,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -506,7 +498,7 @@
  {
   "unit_id": "vp:suchen_nach",
   "kind": "verb_prep",
-  "rank": 64,
+  "rank": 63,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -514,7 +506,7 @@
  {
   "unit_id": "vp:teilnehmen_an",
   "kind": "verb_prep",
-  "rank": 65,
+  "rank": 64,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -522,7 +514,7 @@
  {
   "unit_id": "vp:traeumen_von",
   "kind": "verb_prep",
-  "rank": 66,
+  "rank": 65,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -530,7 +522,7 @@
  {
   "unit_id": "vp:verzichten_auf",
   "kind": "verb_prep",
-  "rank": 67,
+  "rank": 66,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -538,7 +530,7 @@
  {
   "unit_id": "vp:zaehlen_zu",
   "kind": "verb_prep",
-  "rank": 68,
+  "rank": 67,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -546,7 +538,7 @@
  {
   "unit_id": "rv:sich_bedanken_fuer",
   "kind": "reflexive_verb",
-  "rank": 69,
+  "rank": 68,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -554,7 +546,7 @@
  {
   "unit_id": "rv:sich_beschweren_ueber",
   "kind": "reflexive_verb",
-  "rank": 70,
+  "rank": 69,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -562,7 +554,7 @@
  {
   "unit_id": "rv:sich_bewerben_um",
   "kind": "reflexive_verb",
-  "rank": 71,
+  "rank": 70,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -570,7 +562,7 @@
  {
   "unit_id": "rv:sich_entscheiden_fuer",
   "kind": "reflexive_verb",
-  "rank": 72,
+  "rank": 71,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -578,7 +570,7 @@
  {
   "unit_id": "rv:sich_entschuldigen_fuer",
   "kind": "reflexive_verb",
-  "rank": 73,
+  "rank": 72,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -586,7 +578,7 @@
  {
   "unit_id": "rv:sich_erinnern_an",
   "kind": "reflexive_verb",
-  "rank": 74,
+  "rank": 73,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -594,7 +586,7 @@
  {
   "unit_id": "rv:sich_freuen_auf",
   "kind": "reflexive_verb",
-  "rank": 75,
+  "rank": 74,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -602,7 +594,7 @@
  {
   "unit_id": "rv:sich_freuen_ueber",
   "kind": "reflexive_verb",
-  "rank": 76,
+  "rank": 75,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -610,7 +602,7 @@
  {
   "unit_id": "rv:sich_fuerchten_vor",
   "kind": "reflexive_verb",
-  "rank": 77,
+  "rank": 76,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -618,7 +610,7 @@
  {
   "unit_id": "rv:sich_gewoehnen_an",
   "kind": "reflexive_verb",
-  "rank": 78,
+  "rank": 77,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -626,7 +618,7 @@
  {
   "unit_id": "rv:sich_handeln_um",
   "kind": "reflexive_verb",
-  "rank": 79,
+  "rank": 78,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -634,7 +626,7 @@
  {
   "unit_id": "rv:sich_interessieren_fuer",
   "kind": "reflexive_verb",
-  "rank": 80,
+  "rank": 79,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -642,7 +634,7 @@
  {
   "unit_id": "rv:sich_konzentrieren_auf",
   "kind": "reflexive_verb",
-  "rank": 81,
+  "rank": 80,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -650,7 +642,7 @@
  {
   "unit_id": "rv:sich_kuemmern_um",
   "kind": "reflexive_verb",
-  "rank": 82,
+  "rank": 81,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -658,7 +650,7 @@
  {
   "unit_id": "rv:sich_sehnen_nach",
   "kind": "reflexive_verb",
-  "rank": 83,
+  "rank": 82,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -666,7 +658,7 @@
  {
   "unit_id": "rv:sich_streiten_mit",
   "kind": "reflexive_verb",
-  "rank": 84,
+  "rank": 83,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -674,7 +666,7 @@
  {
   "unit_id": "rv:sich_treffen_mit",
   "kind": "reflexive_verb",
-  "rank": 85,
+  "rank": 84,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -682,7 +674,7 @@
  {
   "unit_id": "rv:sich_unterhalten_mit",
   "kind": "reflexive_verb",
-  "rank": 86,
+  "rank": 85,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -690,7 +682,7 @@
  {
   "unit_id": "rv:sich_unterhalten_ueber",
   "kind": "reflexive_verb",
-  "rank": 87,
+  "rank": 86,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -698,7 +690,7 @@
  {
   "unit_id": "rv:sich_verabreden_mit",
   "kind": "reflexive_verb",
-  "rank": 88,
+  "rank": 87,
   "sentence_count": 0,
   "case": "Dat",
   "trivial": false
@@ -706,7 +698,7 @@
  {
   "unit_id": "rv:sich_verlassen_auf",
   "kind": "reflexive_verb",
-  "rank": 89,
+  "rank": 88,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -714,7 +706,7 @@
  {
   "unit_id": "rv:sich_vorbereiten_auf",
   "kind": "reflexive_verb",
-  "rank": 90,
+  "rank": 89,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -722,7 +714,7 @@
  {
   "unit_id": "rv:sich_wundern_ueber",
   "kind": "reflexive_verb",
-  "rank": 91,
+  "rank": 90,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -730,7 +722,7 @@
  {
   "unit_id": "rv:sich_aergern_ueber",
   "kind": "reflexive_verb",
-  "rank": 92,
+  "rank": 91,
   "sentence_count": 0,
   "case": "Akk",
   "trivial": false
@@ -738,7 +730,7 @@
  {
   "unit_id": "nv:abschied_nehmen",
   "kind": "noun_verb",
-  "rank": 93,
+  "rank": 92,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -746,7 +738,7 @@
  {
   "unit_id": "nv:angst_haben",
   "kind": "noun_verb",
-  "rank": 94,
+  "rank": 93,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -754,7 +746,7 @@
  {
   "unit_id": "nv:bescheid_wissen",
   "kind": "noun_verb",
-  "rank": 95,
+  "rank": 94,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -762,7 +754,7 @@
  {
   "unit_id": "nv:durst_haben",
   "kind": "noun_verb",
-  "rank": 96,
+  "rank": 95,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -770,7 +762,7 @@
  {
   "unit_id": "nv:entscheidung_treffen",
   "kind": "noun_verb",
-  "rank": 97,
+  "rank": 96,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -778,7 +770,7 @@
  {
   "unit_id": "nv:erfahrung_sammeln",
   "kind": "noun_verb",
-  "rank": 98,
+  "rank": 97,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -786,7 +778,7 @@
  {
   "unit_id": "nv:fehler_machen",
   "kind": "noun_verb",
-  "rank": 99,
+  "rank": 98,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -794,7 +786,7 @@
  {
   "unit_id": "nv:frage_stellen",
   "kind": "noun_verb",
-  "rank": 100,
+  "rank": 99,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -802,7 +794,7 @@
  {
   "unit_id": "nv:hunger_haben",
   "kind": "noun_verb",
-  "rank": 101,
+  "rank": 100,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -810,7 +802,7 @@
  {
   "unit_id": "nv:im_mittelpunkt_stehen",
   "kind": "noun_verb",
-  "rank": 102,
+  "rank": 101,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -818,7 +810,7 @@
  {
   "unit_id": "nv:in_anspruch_nehmen",
   "kind": "noun_verb",
-  "rank": 103,
+  "rank": 102,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -826,7 +818,7 @@
  {
   "unit_id": "nv:in_erfuellung_gehen",
   "kind": "noun_verb",
-  "rank": 104,
+  "rank": 103,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -834,7 +826,7 @@
  {
   "unit_id": "nv:in_frage_kommen",
   "kind": "noun_verb",
-  "rank": 105,
+  "rank": 104,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -842,7 +834,7 @@
  {
   "unit_id": "nv:in_frage_stellen",
   "kind": "noun_verb",
-  "rank": 106,
+  "rank": 105,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -850,7 +842,7 @@
  {
   "unit_id": "nv:in_kraft_treten",
   "kind": "noun_verb",
-  "rank": 107,
+  "rank": 106,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -858,7 +850,7 @@
  {
   "unit_id": "nv:kontakt_aufnehmen",
   "kind": "noun_verb",
-  "rank": 108,
+  "rank": 107,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -866,7 +858,7 @@
  {
   "unit_id": "nv:lust_haben",
   "kind": "noun_verb",
-  "rank": 109,
+  "rank": 108,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -874,7 +866,7 @@
  {
   "unit_id": "nv:platz_nehmen",
   "kind": "noun_verb",
-  "rank": 110,
+  "rank": 109,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -882,7 +874,7 @@
  {
   "unit_id": "nv:recht_haben",
   "kind": "noun_verb",
-  "rank": 111,
+  "rank": 110,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -890,7 +882,7 @@
  {
   "unit_id": "nv:rolle_spielen",
   "kind": "noun_verb",
-  "rank": 112,
+  "rank": 111,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -898,7 +890,7 @@
  {
   "unit_id": "nv:ruecksicht_nehmen",
   "kind": "noun_verb",
-  "rank": 113,
+  "rank": 112,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -906,7 +898,7 @@
  {
   "unit_id": "nv:sinn_machen",
   "kind": "noun_verb",
-  "rank": 114,
+  "rank": 113,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -914,7 +906,7 @@
  {
   "unit_id": "nv:spass_machen",
   "kind": "noun_verb",
-  "rank": 115,
+  "rank": 114,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -922,7 +914,7 @@
  {
   "unit_id": "nv:termin_vereinbaren",
   "kind": "noun_verb",
-  "rank": 116,
+  "rank": 115,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -930,7 +922,7 @@
  {
   "unit_id": "nv:unter_druck_stehen",
   "kind": "noun_verb",
-  "rank": 117,
+  "rank": 116,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -938,7 +930,7 @@
  {
   "unit_id": "nv:unterschied_machen",
   "kind": "noun_verb",
-  "rank": 118,
+  "rank": 117,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -946,7 +938,7 @@
  {
   "unit_id": "nv:verantwortung_uebernehmen",
   "kind": "noun_verb",
-  "rank": 119,
+  "rank": 118,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -954,7 +946,7 @@
  {
   "unit_id": "nv:vorschlag_machen",
   "kind": "noun_verb",
-  "rank": 120,
+  "rank": 119,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -962,7 +954,7 @@
  {
   "unit_id": "nv:zeit_haben",
   "kind": "noun_verb",
-  "rank": 121,
+  "rank": 120,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -970,7 +962,7 @@
  {
   "unit_id": "nv:zu_ende_gehen",
   "kind": "noun_verb",
-  "rank": 122,
+  "rank": 121,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -978,7 +970,7 @@
  {
   "unit_id": "nv:zum_ausdruck_bringen",
   "kind": "noun_verb",
-  "rank": 123,
+  "rank": 122,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -986,7 +978,7 @@
  {
   "unit_id": "nv:zur_verfuegung_stehen",
   "kind": "noun_verb",
-  "rank": 124,
+  "rank": 123,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -994,7 +986,7 @@
  {
   "unit_id": "nv:zur_verfuegung_stellen",
   "kind": "noun_verb",
-  "rank": 125,
+  "rank": 124,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1002,7 +994,7 @@
  {
   "unit_id": "cn:allerdings",
   "kind": "connector",
-  "rank": 126,
+  "rank": 125,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1010,7 +1002,7 @@
  {
   "unit_id": "cn:als_ob",
   "kind": "connector",
-  "rank": 127,
+  "rank": 126,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1018,7 +1010,7 @@
  {
   "unit_id": "cn:ansonsten",
   "kind": "connector",
-  "rank": 128,
+  "rank": 127,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1026,23 +1018,7 @@
  {
   "unit_id": "cn:anstatt_dass",
   "kind": "connector",
-  "rank": 129,
-  "sentence_count": 0,
-  "case": null,
-  "trivial": false
- },
- {
-  "unit_id": "cn:auf_jeden_fall",
-  "kind": "connector",
-  "rank": 130,
-  "sentence_count": 0,
-  "case": null,
-  "trivial": false
- },
- {
-  "unit_id": "cn:aus_diesem_grund",
-  "kind": "connector",
-  "rank": 131,
+  "rank": 128,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1050,7 +1026,7 @@
  {
   "unit_id": "cn:ausserdem",
   "kind": "connector",
-  "rank": 132,
+  "rank": 129,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1058,7 +1034,7 @@
  {
   "unit_id": "cn:bevor",
   "kind": "connector",
-  "rank": 133,
+  "rank": 130,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1066,7 +1042,7 @@
  {
   "unit_id": "cn:daher",
   "kind": "connector",
-  "rank": 134,
+  "rank": 131,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1074,7 +1050,7 @@
  {
   "unit_id": "cn:darum",
   "kind": "connector",
-  "rank": 135,
+  "rank": 132,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1082,7 +1058,7 @@
  {
   "unit_id": "cn:dennoch",
   "kind": "connector",
-  "rank": 136,
+  "rank": 133,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1090,7 +1066,7 @@
  {
   "unit_id": "cn:deswegen",
   "kind": "connector",
-  "rank": 137,
+  "rank": 134,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1098,31 +1074,7 @@
  {
   "unit_id": "cn:falls",
   "kind": "connector",
-  "rank": 138,
-  "sentence_count": 0,
-  "case": null,
-  "trivial": false
- },
- {
-  "unit_id": "cn:im_gegensatz_zu",
-  "kind": "connector",
-  "rank": 139,
-  "sentence_count": 0,
-  "case": null,
-  "trivial": false
- },
- {
-  "unit_id": "cn:im_gegenteil",
-  "kind": "connector",
-  "rank": 140,
-  "sentence_count": 0,
-  "case": null,
-  "trivial": false
- },
- {
-  "unit_id": "cn:in_diesem_fall",
-  "kind": "connector",
-  "rank": 141,
+  "rank": 135,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1130,7 +1082,7 @@
  {
   "unit_id": "cn:inzwischen",
   "kind": "connector",
-  "rank": 142,
+  "rank": 136,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1138,7 +1090,7 @@
  {
   "unit_id": "cn:jedoch",
   "kind": "connector",
-  "rank": 143,
+  "rank": 137,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1146,7 +1098,7 @@
  {
   "unit_id": "cn:mittlerweile",
   "kind": "connector",
-  "rank": 144,
+  "rank": 138,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1154,7 +1106,7 @@
  {
   "unit_id": "cn:nachdem",
   "kind": "connector",
-  "rank": 145,
+  "rank": 139,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1162,7 +1114,7 @@
  {
   "unit_id": "cn:naemlich",
   "kind": "connector",
-  "rank": 146,
+  "rank": 140,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1170,7 +1122,7 @@
  {
   "unit_id": "cn:obwohl",
   "kind": "connector",
-  "rank": 147,
+  "rank": 141,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1178,7 +1130,7 @@
  {
   "unit_id": "cn:ohne_dass",
   "kind": "connector",
-  "rank": 148,
+  "rank": 142,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1186,7 +1138,7 @@
  {
   "unit_id": "cn:schliesslich",
   "kind": "connector",
-  "rank": 149,
+  "rank": 143,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1194,7 +1146,7 @@
  {
   "unit_id": "cn:seitdem",
   "kind": "connector",
-  "rank": 150,
+  "rank": 144,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1202,7 +1154,7 @@
  {
   "unit_id": "cn:sobald",
   "kind": "connector",
-  "rank": 151,
+  "rank": 145,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1210,7 +1162,7 @@
  {
   "unit_id": "cn:sodass",
   "kind": "connector",
-  "rank": 152,
+  "rank": 146,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1218,7 +1170,7 @@
  {
   "unit_id": "cn:sofern",
   "kind": "connector",
-  "rank": 153,
+  "rank": 147,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1226,7 +1178,7 @@
  {
   "unit_id": "cn:sonst",
   "kind": "connector",
-  "rank": 154,
+  "rank": 148,
   "sentence_count": 0,
   "case": null,
   "trivial": true
@@ -1234,7 +1186,7 @@
  {
   "unit_id": "cn:stattdessen",
   "kind": "connector",
-  "rank": 155,
+  "rank": 149,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1242,7 +1194,7 @@
  {
   "unit_id": "cn:trotzdem",
   "kind": "connector",
-  "rank": 156,
+  "rank": 150,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1250,7 +1202,7 @@
  {
   "unit_id": "cn:vor_allem",
   "kind": "connector",
-  "rank": 157,
+  "rank": 151,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1258,7 +1210,7 @@
  {
   "unit_id": "cn:weil",
   "kind": "connector",
-  "rank": 158,
+  "rank": 152,
   "sentence_count": 0,
   "case": null,
   "trivial": true
@@ -1266,7 +1218,7 @@
  {
   "unit_id": "cn:zudem",
   "kind": "connector",
-  "rank": 159,
+  "rank": 153,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1274,7 +1226,7 @@
  {
   "unit_id": "cn:zuerst",
   "kind": "connector",
-  "rank": 160,
+  "rank": 154,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1282,7 +1234,7 @@
  {
   "unit_id": "cn:zumindest",
   "kind": "connector",
-  "rank": 161,
+  "rank": 155,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1290,7 +1242,7 @@
  {
   "unit_id": "cn:zunaechst",
   "kind": "connector",
-  "rank": 162,
+  "rank": 156,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1298,7 +1250,7 @@
  {
   "unit_id": "cn:uebrigens",
   "kind": "connector",
-  "rank": 163,
+  "rank": 157,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1306,7 +1258,7 @@
  {
   "unit_id": "c2:einerseits_andererseits",
   "kind": "two_part_connector",
-  "rank": 164,
+  "rank": 158,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1314,7 +1266,7 @@
  {
   "unit_id": "c2:entweder_oder",
   "kind": "two_part_connector",
-  "rank": 165,
+  "rank": 159,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1322,7 +1274,7 @@
  {
   "unit_id": "c2:je_desto",
   "kind": "two_part_connector",
-  "rank": 166,
+  "rank": 160,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1330,7 +1282,7 @@
  {
   "unit_id": "c2:mal_mal",
   "kind": "two_part_connector",
-  "rank": 167,
+  "rank": 161,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1338,7 +1290,7 @@
  {
   "unit_id": "c2:nicht_nur_sondern_auch",
   "kind": "two_part_connector",
-  "rank": 168,
+  "rank": 162,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1346,7 +1298,7 @@
  {
   "unit_id": "c2:sowohl_als_auch",
   "kind": "two_part_connector",
-  "rank": 169,
+  "rank": 163,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1354,7 +1306,7 @@
  {
   "unit_id": "c2:zwar_aber",
   "kind": "two_part_connector",
-  "rank": 170,
+  "rank": 164,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1362,7 +1314,7 @@
  {
   "unit_id": "id:ab_und_zu",
   "kind": "idiom",
-  "rank": 171,
+  "rank": 165,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1370,7 +1322,7 @@
  {
   "unit_id": "id:auf_dauer",
   "kind": "idiom",
-  "rank": 172,
+  "rank": 166,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1378,7 +1330,7 @@
  {
   "unit_id": "id:auf_dem_land",
   "kind": "idiom",
-  "rank": 173,
+  "rank": 167,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1386,7 +1338,7 @@
  {
   "unit_id": "id:auf_einmal",
   "kind": "idiom",
-  "rank": 174,
+  "rank": 168,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1394,23 +1346,7 @@
  {
   "unit_id": "id:auf_keinen_fall",
   "kind": "idiom",
-  "rank": 175,
-  "sentence_count": 0,
-  "case": null,
-  "trivial": false
- },
- {
-  "unit_id": "id:es_geht_um",
-  "kind": "idiom",
-  "rank": 176,
-  "sentence_count": 0,
-  "case": null,
-  "trivial": false
- },
- {
-  "unit_id": "id:es_handelt_sich_um",
-  "kind": "idiom",
-  "rank": 177,
+  "rank": 169,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1418,15 +1354,7 @@
  {
   "unit_id": "id:es_ist_mir_egal",
   "kind": "idiom",
-  "rank": 178,
-  "sentence_count": 0,
-  "case": null,
-  "trivial": false
- },
- {
-  "unit_id": "id:es_lohnt_sich",
-  "kind": "idiom",
-  "rank": 179,
+  "rank": 170,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1434,7 +1362,7 @@
  {
   "unit_id": "id:es_macht_nichts",
   "kind": "idiom",
-  "rank": 180,
+  "rank": 171,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1442,7 +1370,7 @@
  {
   "unit_id": "id:es_tut_mir_leid",
   "kind": "idiom",
-  "rank": 181,
+  "rank": 172,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1450,7 +1378,7 @@
  {
   "unit_id": "id:ganz_und_gar",
   "kind": "idiom",
-  "rank": 182,
+  "rank": 173,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1458,7 +1386,7 @@
  {
   "unit_id": "id:hin_und_wieder",
   "kind": "idiom",
-  "rank": 183,
+  "rank": 174,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1466,7 +1394,7 @@
  {
   "unit_id": "id:im_allgemeinen",
   "kind": "idiom",
-  "rank": 184,
+  "rank": 175,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1474,7 +1402,7 @@
  {
   "unit_id": "id:im_grossen_und_ganzen",
   "kind": "idiom",
-  "rank": 185,
+  "rank": 176,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1482,7 +1410,7 @@
  {
   "unit_id": "id:im_grunde",
   "kind": "idiom",
-  "rank": 186,
+  "rank": 177,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1490,7 +1418,7 @@
  {
   "unit_id": "id:im_laufe",
   "kind": "idiom",
-  "rank": 187,
+  "rank": 178,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1498,7 +1426,7 @@
  {
   "unit_id": "id:im_voraus",
   "kind": "idiom",
-  "rank": 188,
+  "rank": 179,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1506,7 +1434,7 @@
  {
   "unit_id": "id:immer_wieder",
   "kind": "idiom",
-  "rank": 189,
+  "rank": 180,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1514,7 +1442,7 @@
  {
   "unit_id": "id:in_der_naehe",
   "kind": "idiom",
-  "rank": 190,
+  "rank": 181,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1522,7 +1450,7 @@
  {
   "unit_id": "id:in_der_regel",
   "kind": "idiom",
-  "rank": 191,
+  "rank": 182,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1530,7 +1458,7 @@
  {
   "unit_id": "id:in_der_tat",
   "kind": "idiom",
-  "rank": 192,
+  "rank": 183,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1538,7 +1466,7 @@
  {
   "unit_id": "id:in_eile",
   "kind": "idiom",
-  "rank": 193,
+  "rank": 184,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1546,7 +1474,7 @@
  {
   "unit_id": "id:in_ordnung",
   "kind": "idiom",
-  "rank": 194,
+  "rank": 185,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1554,7 +1482,7 @@
  {
   "unit_id": "id:in_ruhe",
   "kind": "idiom",
-  "rank": 195,
+  "rank": 186,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1562,7 +1490,7 @@
  {
   "unit_id": "id:kein_wunder",
   "kind": "idiom",
-  "rank": 196,
+  "rank": 187,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1570,7 +1498,7 @@
  {
   "unit_id": "id:keine_ahnung",
   "kind": "idiom",
-  "rank": 197,
+  "rank": 188,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1578,7 +1506,7 @@
  {
   "unit_id": "id:mehr_oder_weniger",
   "kind": "idiom",
-  "rank": 198,
+  "rank": 189,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1586,7 +1514,7 @@
  {
   "unit_id": "id:nach_hause",
   "kind": "idiom",
-  "rank": 199,
+  "rank": 190,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1594,7 +1522,7 @@
  {
   "unit_id": "id:nach_und_nach",
   "kind": "idiom",
-  "rank": 200,
+  "rank": 191,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1602,7 +1530,7 @@
  {
   "unit_id": "id:nach_wie_vor",
   "kind": "idiom",
-  "rank": 201,
+  "rank": 192,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1610,7 +1538,7 @@
  {
   "unit_id": "id:noch_nie",
   "kind": "idiom",
-  "rank": 202,
+  "rank": 193,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1618,7 +1546,7 @@
  {
   "unit_id": "id:recht_behalten",
   "kind": "idiom",
-  "rank": 203,
+  "rank": 194,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1626,7 +1554,7 @@
  {
   "unit_id": "id:seit_langem",
   "kind": "idiom",
-  "rank": 204,
+  "rank": 195,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1634,7 +1562,7 @@
  {
   "unit_id": "id:sich_auf_den_weg_machen",
   "kind": "idiom",
-  "rank": 205,
+  "rank": 196,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1642,7 +1570,7 @@
  {
   "unit_id": "id:sich_muehe_geben",
   "kind": "idiom",
-  "rank": 206,
+  "rank": 197,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1650,7 +1578,7 @@
  {
   "unit_id": "id:so_bald_wie_moeglich",
   "kind": "idiom",
-  "rank": 207,
+  "rank": 198,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1658,7 +1586,7 @@
  {
   "unit_id": "id:so_schnell_wie_moeglich",
   "kind": "idiom",
-  "rank": 208,
+  "rank": 199,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1666,7 +1594,7 @@
  {
   "unit_id": "id:um_jeden_preis",
   "kind": "idiom",
-  "rank": 209,
+  "rank": 200,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1674,7 +1602,7 @@
  {
   "unit_id": "id:ums_leben_kommen",
   "kind": "idiom",
-  "rank": 210,
+  "rank": 201,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1682,7 +1610,7 @@
  {
   "unit_id": "id:unterwegs_sein",
   "kind": "idiom",
-  "rank": 211,
+  "rank": 202,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1690,7 +1618,7 @@
  {
   "unit_id": "id:von_zeit_zu_zeit",
   "kind": "idiom",
-  "rank": 212,
+  "rank": 203,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1698,7 +1626,7 @@
  {
   "unit_id": "id:vor_kurzem",
   "kind": "idiom",
-  "rank": 213,
+  "rank": 204,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1706,7 +1634,7 @@
  {
   "unit_id": "id:was_ist_los",
   "kind": "idiom",
-  "rank": 214,
+  "rank": 205,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1714,7 +1642,7 @@
  {
   "unit_id": "id:wie_geht_es_dir",
   "kind": "idiom",
-  "rank": 215,
+  "rank": 206,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1722,7 +1650,7 @@
  {
   "unit_id": "id:zu_fuss",
   "kind": "idiom",
-  "rank": 216,
+  "rank": 207,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1730,7 +1658,7 @@
  {
   "unit_id": "id:zu_hause",
   "kind": "idiom",
-  "rank": 217,
+  "rank": 208,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1738,7 +1666,7 @@
  {
   "unit_id": "id:zum_glueck",
   "kind": "idiom",
-  "rank": 218,
+  "rank": 209,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1746,7 +1674,7 @@
  {
   "unit_id": "id:zum_schluss",
   "kind": "idiom",
-  "rank": 219,
+  "rank": 210,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1754,7 +1682,7 @@
  {
   "unit_id": "id:zum_teil",
   "kind": "idiom",
-  "rank": 220,
+  "rank": 211,
   "sentence_count": 0,
   "case": null,
   "trivial": false
@@ -1762,7 +1690,7 @@
  {
   "unit_id": "id:ueberhaupt_nicht",
   "kind": "idiom",
-  "rank": 221,
+  "rank": 212,
   "sentence_count": 0,
   "case": null,
   "trivial": false

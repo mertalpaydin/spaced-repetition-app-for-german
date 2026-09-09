@@ -7,9 +7,14 @@ from dataclasses import dataclass, field
 from src.phrases.curated import CuratedLists
 from src.phrases.mining.collocations import detect_adj_noun, detect_noun_verb
 from src.phrases.mining.curated_match import detect_connectors, detect_idioms
-from src.phrases.mining.verbs import detect_reflexive, detect_separable, detect_verb_prep
+from src.phrases.mining.verbs import (
+    detect_reflexive,
+    detect_separable,
+    detect_verb_prep,
+    verb_prep_candidates,
+)
 from src.phrases.occurrences import Occurrence
-from src.phrases.parse import ParsedSentence, verb_lemma_key
+from src.phrases.parse import ParsedSentence, has_konjunktiv_i, verb_lemma_key
 
 
 @dataclass
@@ -81,14 +86,19 @@ def detect_all(
     line_id: str,
     dictionary: frozenset[str] | None,
 ) -> list[Occurrence]:
-    verb_preps = detect_verb_prep(sentence, source=source, line_id=line_id)
-    found = list(verb_preps)
-    found += detect_reflexive(sentence, verb_preps, source=source, line_id=line_id)
+    candidates = verb_prep_candidates(sentence, source=source, line_id=line_id)
+    found = [occ for occ in candidates if occ.evidence.get("reflexive") != "true"]
+    found += detect_reflexive(sentence, candidates, source=source, line_id=line_id)
     found += detect_separable(sentence, source=source, line_id=line_id, dictionary=dictionary)
     found += detect_noun_verb(sentence, source=source, line_id=line_id)
     found += detect_adj_noun(sentence, source=source, line_id=line_id)
     found += detect_connectors(sentence, curated.connectors, source=source, line_id=line_id)
     found += detect_idioms(sentence, curated.idioms, source=source, line_id=line_id)
+    if has_konjunktiv_i(sentence):
+        found = [
+            occ.model_copy(update={"evidence": {**occ.evidence, "k1_sentence": "true"}})
+            for occ in found
+        ]
     return found
 
 

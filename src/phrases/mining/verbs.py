@@ -133,6 +133,23 @@ TEMPORAL_NOUNS: frozenset[str] = frozenset(
         "grad",
         "million",
         "milliarde",
+        "ort",
+        "stelle",
+        "unfallort",
+        "unfallstelle",
+        "tatort",
+        "einsatzort",
+        "stadt",
+        "haus",
+        "hause",
+        "straße",
+        "platz",
+        "rand",
+        "seite",
+        "boden",
+        "wand",
+        "tisch",
+        "bett",
     }
 )
 
@@ -148,6 +165,13 @@ def _is_time_or_measure_frame(sentence: ParsedSentence, prep: ParsedToken) -> bo
         if child.pos == "PROPN":
             return True
     return False
+
+
+def _has_reflexive_dependent(sentence: ParsedSentence, verb: ParsedToken) -> bool:
+    return any(
+        c.pos == "PRON" and c.lower in REFLEXIVE_FORMS and c.morph.get("Reflex") == "Yes"
+        for c in sentence.children(verb.i)
+    )
 
 
 def _finite_ancestor(sentence: ParsedSentence, token: ParsedToken) -> ParsedToken:
@@ -175,6 +199,19 @@ def _verb_tokens(sentence: ParsedSentence, verb: ParsedToken) -> list[ParsedToke
 
 
 def detect_verb_prep(sentence: ParsedSentence, *, source: str, line_id: str) -> list[Occurrence]:
+    """Verb + preposition on verbs that are not used reflexively here; the
+    reflexive detector owns those ("sich setzen auf" is not "setzen auf")."""
+    return [
+        occ
+        for occ in verb_prep_candidates(sentence, source=source, line_id=line_id)
+        if occ.evidence.get("reflexive") != "true"
+    ]
+
+
+def verb_prep_candidates(
+    sentence: ParsedSentence, *, source: str, line_id: str
+) -> list[Occurrence]:
+    """Every verb + preposition pair, reflexive verbs included and flagged."""
     found: list[Occurrence] = []
     for prep in sentence.tokens:
         if prep.pos != "ADP" or prep.dep not in {"op", "mo"} or not is_word(prep):
@@ -191,6 +228,7 @@ def detect_verb_prep(sentence: ParsedSentence, *, source: str, line_id: str) -> 
         verb = lexical_verb(sentence, prep.i)
         if verb is None or verb.pos != "VERB":
             continue
+        reflexive = _has_reflexive_dependent(sentence, verb)
         vkey = verb_lemma_key(sentence, verb)
         if not vkey:
             continue
@@ -204,8 +242,15 @@ def detect_verb_prep(sentence: ParsedSentence, *, source: str, line_id: str) -> 
                 corpus_source=source,
                 line_id=line_id,
                 form_key=form_key(verb),
-                case=prep_case(sentence, prep),
-                evidence={"dep": prep.dep, "verb_i": str(verb.i), "prep_i": str(prep.i)},
+                # "als" is a comparative particle: the noun after it agrees
+                # with its referent and carries no governed case.
+                case=None if base == "als" else prep_case(sentence, prep),
+                evidence={
+                    "dep": prep.dep,
+                    "verb_i": str(verb.i),
+                    "prep_i": str(prep.i),
+                    "reflexive": "true" if reflexive else "false",
+                },
             )
         )
     return found
@@ -282,6 +327,9 @@ def _fused_separable_key(verb: ParsedToken, dictionary: frozenset[str] | None) -
     lemma = verb.lemma.lower()
     if verb.morph.get("VerbForm") not in {"Inf", "Part"} and verb.dep not in {"oc", "re", "cj"}:
         return None
+    # A participle used predicatively ("das ist ausgezeichnet") is an adjective.
+    if verb.dep == "pd":
+        return None
     if lemma.startswith(paradigms._INSEPARABLE_PREFIXES):  # noqa: SLF001
         return None
     for prefix in sorted(SEPARABLE_PREFIXES, key=len, reverse=True):
@@ -289,6 +337,12 @@ def _fused_separable_key(verb: ParsedToken, dictionary: frozenset[str] | None) -
             remainder = lemma[len(prefix) :]
             if dictionary is not None and normalise(remainder) not in dictionary:
                 continue
+            # "hinzukommen" in "um dort hinzukommen" is the zu-infinitive of
+            # "hinkommen"; only a separated occurrence can vouch for the
+            # longer verb, so the fused form abstains when both verbs exist.
+            if remainder.startswith("zu") and dictionary is not None:
+                if normalise(prefix + remainder[2:]) in dictionary:
+                    return None
             return lemma
     return None
 

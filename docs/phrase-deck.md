@@ -28,7 +28,9 @@ silently.
 | `verb_prep_seed.yaml` | verb + preposition (and reflexive) units with case, CEFR, gloss | unit whatever the counts say; seed case wins, disagreement reported |
 | `collocation_seed.yaml` | noun-verb collocations with display form, CEFR, gloss | unit whatever the association says |
 | `trivial_stoplist.yaml` | lemma keys flagged trivial | skipped by the scheduler by default |
-| `exclude.yaml` | lemma keys dropped outright | the curation round; grows after each build from `report.json` |
+| `exclude.yaml` | lemma keys dropped outright, each with its reason | the curation round; grows from `report.json` and from reviews |
+| `excluded_cards.yaml` | card ids a review rejected | never selected again |
+| `unit_overrides.yaml` | reviewer corrections: case, citation form, CEFR | applied after the unit decision |
 
 ## Stages
 
@@ -62,11 +64,14 @@ stops two builds from overlapping.
   Ranks by distinct sentence count. Flags trivial units. Writes
   `report.json`: top 200 per kind, rejections by reason, seed disagreements,
   zero-hit curated entries.
-- **cards** keeps sentences with an Azure or Gemini gloss, one occurrence of
-  the unit per sentence, that pass `carrier_validation`; covers distinct
-  surface forms first, then fills to 6 per unit (2 for trivial ones). Writes
-  `wanted_carriers.txt`: the shortest un-glossed sentences of under-filled
-  units, for the monthly Azure job.
+- **cards** picks from the whole corpus: one occurrence of the unit per
+  sentence, no Konjunktiv I, no answer token repeated outside the gaps, no
+  stray quotation mark, passes `carrier_validation`, not on the excluded
+  list; covers distinct surface forms first, a glossed sentence winning a
+  tie, then fills to 6 per unit (2 for trivial ones). A card without an
+  Azure or Gemini gloss is exported with `gloss_en: null` and is not shown
+  until glossed. Writes `wanted_carriers.txt`: every chosen sentence still
+  without a gloss, for the monthly Azure job.
 - **export** joins accepted contexts, sets `card_count`, and writes
   `manifest.json`, `units.json` and `shards/band_NNN.json` (200 units each,
   ranked). `deck_version` is a content hash.
@@ -87,11 +92,20 @@ owner approves each run in chat on top of the flag.
 
 ## Growing the deck
 
-Only 59k of the 259k stored glosses may reach a learner. The monthly Azure
-job (`docs/monthly-translation-job.md`) reads `build/wanted_carriers.txt` as
+Cards are picked first and glossed afterwards. The monthly Azure job
+(`docs/monthly-translation-job.md`) reads `build/wanted_carriers.txt` as
 pass 0, so each month's 2,000,000 characters go to the sentences the deck
-wants first. After it runs: `--stage cards` then `--stage export`, commit
+wants first; the whole wanted list is about 1.3M characters. After it runs: `--stage cards` then `--stage export`, commit
 `data/deck/`.
+
+## Review
+
+Zero-defect policy: every card is read before a learner sees it. The record
+of each round is in `docs/audits/phase-1-review/`. A round reads the deck as
+plain-text batches (600 cards or 700 units per agent), writes findings as
+JSON lines, and those become curated-list entries with reasons; systematic
+causes become code rules with tests. A round after a rebuild reads only the
+card ids not in the previous round's `reviewed-card-ids-*.txt`.
 
 ## Tuning
 

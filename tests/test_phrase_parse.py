@@ -86,3 +86,10 @@ def test_form_key_distinguishes_finite_and_nonfinite_forms() -> None:
     )
     assert parse.form_key(finite) == "Fin|Pres|3|Sing"
     assert parse.form_key(participle, suffix="fused") == "Part|fused"
+
+
+def test_repair_verb_lemma_rejects_a_garbled_infinitive() -> None:
+    """The tagger produces "benimmsen" for "benimmst"; the dictionary says no."""
+    assert parse.repair_verb_lemma("benimmsen") == ""
+    assert parse.repair_verb_lemma("erinnerstn") == ""
+    assert parse.repair_verb_lemma("warten") == "warten"

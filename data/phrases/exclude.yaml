@@ -47,3 +47,862 @@
 - französische sprechen
 - englische sprechen
 - deutsche sprechen
+# From the phase 1 review, 2026-09-08:
+- best geben
+- hand legen
+- unterschied wissen
+- französische lernen
+- hängen an
+- klopfen an
+- schaffen ohne
+- sich scheiden
+- anfühlen
+- ausruhen
+- einmischen
+- alt mann
+- jung mann
+- schwer verletzung
+- leicht verletzung
+- ukrainisch präsident
+- sozial medium
+- vereinigt staat
+- europäisch union
+- weiß haus
+- deutsch bahn
+- rot kreuz
+- olympisch spiel
+# Phase 1 review, round 1 (2026-09-08/09): units the reviewers rejected.
+- "abend anrufen"  # BAD_UNIT: 'Abend' is a temporal adverbial ('heute Abend'), never the object of 'anrufen'; not a collocation.
+- "abend ausgehen"  # BAD_UNIT: "Abend" is a temporal adverbial (heute/gestern Abend), never the object of ausgehen; a noise pair.
+- "abfinden"  # DUPLICATE: Duplicates rv:sich_abfinden, which is the usable form.
+- "abgeraten"  # BAD_UNIT: Unit is a past participle, not an infinitive, and it conflates two different verbs (abraten and ab..
+- "abgewöhnen"  # DUPLICATE: Duplicates rv:sich_abgewoehnen, which is the usable form.
+- "abmühen"  # DUPLICATE: Only exists reflexively; duplicates rv:sich_abmuehen.
+- "abreise verschieben"  # NOT_A_PHRASE: Free object-verb combination.
+- "abweichen"  # DUPLICATE: Duplicates vp:abweichen_von, which carries the governed preposition.
+- "abzubringen von"  # BAD_UNIT: Citation form is a zu-infinitive; the unit should be 'abbringen von'.
+- "adresse wüssen"  # BAD_UNIT: wüssen is not a German infinitive; the verb is wissen.
+- "afrikanisch elefant"  # NOT_A_PHRASE: Species name, not a teachable collocation.
+- "aktuell umfrage"  # BAD_UNIT: Citation form carries an oblique inflection; it should be 'aktuelle Umfrage'.
+- "aktuell untersuchung"  # NOT_A_PHRASE: Free news combination, and near-identical to an:aktuell_umfrage.
+- "allgemein zeitung"  # BAD_UNIT: This is a newspaper's proper name, not a useful A1-B2 adjective-noun phrase.
+- "alt burg"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "alt freund"  # NOT_A_PHRASE: Free combination, and the accusative-inflected form is not a citation form.
+- "alt schloss"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "alt stuhl"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "amerikanisch botschaft"  # NOT_A_PHRASE: Free nationality-adjective combination.
+- "amerikanisch film"  # BAD_UNIT: Ungrammatical citation form; it should be 'amerikanischer Film'.
+- "amerikanisch firma"  # NOT_A_PHRASE: Free nationality-plus-noun combination.
+- "amerikanisch flagge"  # NOT_A_PHRASE: Free nationality-adjective combination.
+- "amerikanisch student"  # NOT_A_PHRASE: Free nationality plus noun combination.
+- "amerikanisch truppe"  # NOT_A_PHRASE: News-only nationality plus noun.
+- "amerikanisch volk"  # BAD_UNIT: Ungrammatical citation form; neuter requires 'amerikanisches Volk'.
+- "amtierend bürgermeister"  # NOT_A_PHRASE: Local-news boilerplate, a free combination.
+- "anboten"  # BAD_UNIT: 'anboten' is a past-tense form, not a citation form; the verb is 'anbieten'.
+- "anfengen"  # BAD_UNIT: 'anfengen' is not a German verb; the lemma is 'anfangen'.
+- "anfichen"  # BAD_UNIT: Lemma is a malformed citation form; the verb is anfechten.
+- "anfingen"  # BAD_UNIT: Citation form is a finite past plural; the unit is 'anfangen'.
+- "anfingn"  # BAD_UNIT: Lemma is a malformed citation form; the verb is anfangen.
+- "anfreunden"  # DUPLICATE: Only used reflexively; duplicates rv:sich_anfreunden.
+- "angelangen an"  # BAD_UNIT: 'angelangen' is not a German verb; the lemma is 'anlangen' / 'angelangt sein'.
+- "angelngehen"  # BAD_UNIT: No such verb; the construction is written 'angeln gehen' as two words.
+- "angriff verurteilen"  # NOT_A_PHRASE: Free news combination.
+- "ankamen an"  # BAD_UNIT: Citation form is the finite past "ankamen" rather than the infinitive "ankommen an".
+- "anknüpfen mit"  # BAD_UNIT: Not a real unit: anknüpfen governs 'an +Akk' and 'mit' is a free instrumental adjunct.
+- "ankommsen"  # BAD_UNIT: 'ankommsen' is not a German verb; the verb is 'ankommen'.
+- "anschaun"  # BAD_UNIT: Corrupted citation form; should be "anschauen".
+- "anschausen"  # BAD_UNIT: 'anschausen' is not a German verb; every sentence uses 'anschauen'.
+- "anschauten"  # BAD_UNIT: Lemma is an inflected/malformed citation form; the verb is anschauen.
+- "anstarrn"  # BAD_UNIT: "anstarrn" is a misspelling of the infinitive "anstarren".
+- "antreffen vor"  # BAD_UNIT: 'vor Ort' is a fixed adverbial, not a prepositional complement of antreffen.
+- "antworen auf"  # BAD_UNIT: The unit display misspells the verb: 'antworen' should be 'antworten'.
+- "anweisen auf"  # BAD_UNIT: Every card instantiates "angewiesen sein auf" (to depend on), not the verb "anweisen" (to instruct),
+- "anwussten"  # BAD_UNIT: Not a verb: every card is 'von Anfang an', where 'an' is part of the prepositional frame, not a pref
+- "anzufangen mit"  # BAD_UNIT: Citation form is a zu-infinitive; the lemma is 'anfangen mit'.
+- "apfel gegessen"  # BAD_UNIT: Citation form uses a past participle; the collocation should read 'Apfel essen'.
+- "apfel schneiden"  # NOT_A_PHRASE: Free object-verb combination.
+- "apfel schälen"  # NOT_A_PHRASE: Free verb-object combination.
+- "apfelkuche backen"  # BAD_UNIT: 'Apfelkuche' is not a German word; the noun is 'Apfelkuchen'.
+- "arabisch halbinsel"  # NOT_A_PHRASE: Geographical proper name.
+- "arabisch land"  # NOT_A_PHRASE: Free nationality-adjective combination.
+- "arabisch staat"  # NOT_A_PHRASE: News topic co-occurrence.
+- "arbeit beenden"  # NOT_A_PHRASE: Free object+verb combination.
+- "arbeit erledigen"  # NOT_A_PHRASE: Free object+verb combination.
+- "arme helfen"  # BAD_UNIT: Citation form is ungrammatical: it should be 'den Armen helfen' with a capitalised nominalised adjec
+- "armmachen"  # BAD_UNIT: 'arm machen' is adjective plus verb and is written as two words; it is not a separable verb.
+- "artikel übersetzen"  # NOT_A_PHRASE: Free verb-object combination.
+- "assoziieren mit"  # BAD_UNIT: "bringstn" is not a German word; the unit is "jemanden zu etwas bringen".
+- "auf jeden fall"  # BAD_UNIT: The unit display spells the noun lowercase; the correct citation form is 'auf jeden Fall'.
+- "aufgefunden bei"  # BAD_UNIT: 'auffinden' does not govern 'bei'; the bei-phrases are circumstantial adjuncts, and the citation for
+- "aufhebelen"  # BAD_UNIT: 'aufhebelen' is not a German verb; the verb is 'aufhebeln'.
+- "aufheiteren"  # BAD_UNIT: Wrong citation form; the verb is 'aufheitern', not 'aufheiteren'.
+- "aufhelln"  # BAD_UNIT: 'aufhelln' is a misspelling of 'aufhellen'.
+- "aufmerksamkeit ziehen"  # BAD_UNIT: Unit is incomplete; the real collocation is 'die Aufmerksamkeit auf sich ziehen'.
+- "aufmunteren"  # BAD_UNIT: Lemma is malformed; the verb is aufmuntern.
+- "aufsehen"  # NOT_A_PHRASE: Back-formed from the noun in Aufsehen erregen; the verb is marginal.
+- "aufstehen um"  # BAD_UNIT: 'um' here is the temporal clock-time preposition, not a verb complement of aufstehen; this is not a 
+- "aufstehsen"  # BAD_UNIT: Citation form is garbled; the verb is "aufstehen".
+- "aufwarten"  # DUPLICATE: Bare form of vp:aufwarten_mit, which carries the governed preposition.
+- "aufwerfen bei"  # BAD_UNIT: 'bei' is a circumstantial adjunct here, not a preposition governed by aufwerfen.
+- "aufzupassen auf"  # BAD_UNIT: Unit is displayed as a zu-infinitive; the lemma should be "aufpassen auf +Akk".
+- "aus diesem grund"  # BAD_UNIT: Citation form lowercases the noun; should read "aus diesem Grund".
+- "ausbrein"  # BAD_UNIT: Corrupted citation form; should be "sich ausbreiten".
+- "ausdenken"  # DUPLICATE: Only used reflexively; duplicates rv:sich_ausdenken.
+- "ausgestiegen aus"  # BAD_UNIT: Participle citation form; the lemma is 'aussteigen aus'.
+- "ausgingen mit"  # BAD_UNIT: Citation form is a finite past-subjunctive plural; the unit is 'ausgehen mit'.
+- "ausgleichen durch"  # NOT_A_PHRASE: Free instrumental 'durch', not a governed preposition.
+- "auskennen"  # DUPLICATE: Only occurs reflexively; duplicates rv:sich_auskennen.
+- "auskennsen"  # BAD_UNIT: Lemma is malformed; the verb is sich auskennen.
+- "auslachn"  # BAD_UNIT: Lemma is misspelled; the verb is auslachen.
+- "ausrutschen"  # DUPLICATE: Subsumed by vp:ausrutschen_auf.
+- "ausrücken zu"  # NOT_A_PHRASE: Emergency-services news jargon ('zu einem Einsatz ausrücken').
+- "ausschalen"  # BAD_UNIT: The sentences all use 'ausschalten'; 'ausschalen' is a different, technical verb.
+- "aussicht genießen"  # NOT_A_PHRASE: Free object-verb combination.
+- "aussiehen"  # BAD_UNIT: "aussiehen" is a misspelling of the verb "aussehen".
+- "aussteigen an"  # NOT_A_PHRASE: Free locative ('an der Haltestelle'), not a governed preposition.
+- "auswählen"  # BAD_UNIT: Unit shows no case and conflates intransitive 'hängen an +Dat' with transitive 'hängen an +Akk' acro
+- "auszukommen mit"  # BAD_UNIT: Citation form is a zu-infinitive; the unit should read "auskommen mit".
+- "auto kaufen"  # NOT_A_PHRASE: Free object+verb combination.
+- "autoschlüssel verlieren"  # NOT_A_PHRASE: Free object-verb combination.
+- "baby aufwecken"  # NOT_A_PHRASE: Free verb-object combination.
+- "baby nennen"  # NOT_A_PHRASE: Free verb-object combination.
+- "baen um"  # BAD_UNIT: 'baen' is not a German verb; the unit is 'bitten um'.
+- "bayerisch landeshauptstadt"  # NOT_A_PHRASE: News periphrasis for Munich, not a phrase worth teaching.
+- "bayerisch ministerpräsident"  # BAD_UNIT: Weak adjective ending without an article; the citation form needs 'der bayerische Ministerpräsident'
+- "behalten für"  # NOT_A_PHRASE: 'behalten' governs no 'für'; free combination.
+- "bein rasieren"  # NOT_A_PHRASE: Free verb-object combination.
+- "beitragen"  # DUPLICATE: Teaches the same item as vp:beitragen_zu; beitragen is not used without zu.
+- "bereitstellen"  # DUPLICATE: Bare form of vp:bereitstellen_fuer.
+- "berg bestiegen"  # BAD_UNIT: Citation form uses a past participle; should be 'Berg besteigen'.
+- "bergaufgehen"  # BAD_UNIT: Normally written as two words, 'bergauf gehen'; the one-word citation form misleads.
+- "berliner feuerwehr"  # NOT_A_PHRASE: Proper name of an institution, not an adjective+noun collocation.
+- "berliner polizei"  # NOT_A_PHRASE: City-name attribute from news reports, not a collocation.
+- "berühmt dichter"  # NOT_A_PHRASE: Free combination; duplicates the pattern of an:beruehmt_kuenstler and an:beruehmt_schauspieler.
+- "berühmt künstler"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "berühmt schauspieler"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "bescheid weißen"  # BAD_UNIT: Lemma is malformed; the collocation is Bescheid wissen.
+- "bescheid wussen"  # BAD_UNIT: Lemma is malformed; the collocation is Bescheid wissen, and it duplicates the previous unit.
+- "beschießen mit"  # NOT_A_PHRASE: Free instrumental 'mit', not a governed preposition.
+- "beschädigen bei"  # NOT_A_PHRASE: News co-occurrence with 'bei einem Unfall'; not government.
+- "beschädigen durch"  # NOT_A_PHRASE: 'durch' here is the passive agent phrase, not a governed preposition.
+- "beschädigt fahrzeug"  # BAD_UNIT: Ungrammatical citation form; neuter requires 'beschädigtes Fahrzeug'.
+- "besprühen mit"  # NOT_A_PHRASE: Free instrumental 'mit'.
+- "besseres verdienen"  # NOT_A_PHRASE: Parser artefact from 'etwas Besseres verdienen'; not a noun-verb unit.
+- "bestehen feiern"  # BAD_UNIT: Noun in the unit label is lowercased; should be 'Bestehen feiern' (das Bestehen).
+- "bestichen durch"  # BAD_UNIT: 'bestichen' is not a verb; the lemma is 'bestechen durch'.
+- "betroffen region"  # BAD_UNIT: Citation form carries an oblique inflection; it should be 'betroffene Region'.
+- "betroffen wohnung"  # BAD_UNIT: Citation form carries an oblique inflection; it should be 'betroffene Wohnung'.
+- "betroffener unterstützen"  # BAD_UNIT: Lemma is lowercased and mis-inflected; the noun is Betroffene.
+- "betrunken fahrer"  # DUPLICATE: Same unit as an:betrunken_autofahrer.
+- "bevölkerung bitten"  # NOT_A_PHRASE: News-report combination, not a collocation.
+- "bier trinken"  # NOT_A_PHRASE: Free object+verb combination.
+- "bild anschauen"  # NOT_A_PHRASE: Free object-verb combination; also mislabelled B2.
+- "bissch geduld"  # NOT_A_PHRASE: Quantifier plus noun parser artefact (the lemma is even truncated to bissch), not an adjective+n
+- "bissch glück"  # NOT_A_PHRASE: Quantifier plus noun, not an adjective-noun collocation.
+- "bissch salz"  # BAD_UNIT: "ein bisschen" is a quantifier, not an adjective-noun pair, and both cards actually show "ein bissch
+- "bissch schlafen"  # BAD_UNIT: Garbled noise pair: "bisschen" is truncated and is not a noun object of schlafen.
+- "bissch tee"  # NOT_A_PHRASE: Same quantifier artefact as bisschen Geduld.
+- "bittesen um"  # BAD_UNIT: 'bittesen' is not a word; the lemma is 'bitten um'.
+- "blau hemd"  # NOT_A_PHRASE: Free colour-plus-garment combination.
+- "blau mantel"  # NOT_A_PHRASE: Free colour-plus-garment combination.
+- "bleistift benutzen"  # NOT_A_PHRASE: Free object-verb combination.
+- "blockieren durch"  # NOT_A_PHRASE: Passive-agent 'durch' harvested as a governed preposition.
+- "blume schicken"  # NOT_A_PHRASE: Free combination, and the singular citation is unnatural.
+- "boden berühren"  # NOT_A_PHRASE: Free object-verb combination.
+- "brandenburger tor"  # BAD_UNIT: The unit is a proper landmark name rather than a learnable adjective-noun collocation.
+- "brief beantworten"  # NOT_A_PHRASE: Free object+verb combination.
+- "brief schicken"  # NOT_A_PHRASE: Free object+verb combination.
+- "brief schreiben"  # NOT_A_PHRASE: Free object+verb combination.
+- "briefmark kleben"  # BAD_UNIT: The unit display says "Briefmark", which is not a word; the cards themselves correctly use "Briefmar
+- "bringstn zu"  # NOT_A_PHRASE: 'bringstn' is not a word; a tokenisation artefact.
+- "britisch premier"  # NOT_A_PHRASE: News-only jargon referring to a specific officeholder.
+- "britisch regierung"  # NOT_A_PHRASE: Free nationality-adjective combination that only co-occurs by news topic.
+- "broschüre schicken"  # NOT_A_PHRASE: Free object-verb combination.
+- "brot gegessen"  # BAD_UNIT: Citation form uses a past participle; should be 'Brot essen'.
+- "brot kaufen"  # NOT_A_PHRASE: Free object-verb combination.
+- "brücke überqueren"  # NOT_A_PHRASE: Free object-verb combination.
+- "buch kaufen"  # NOT_A_PHRASE: Free object+verb combination.
+- "buch lesen"  # NOT_A_PHRASE: Free object+verb combination with no collocational content.
+- "buch schreiben"  # NOT_A_PHRASE: Free object+verb combination.
+- "chef anrufen"  # NOT_A_PHRASE: Free verb-object combination.
+- "chinesisch hersteller"  # NOT_A_PHRASE: News-only nationality plus noun, cited in the genitive.
+- "chinesisch unternehmen"  # NOT_A_PHRASE: Free nationality-adjective combination.
+- "computer bedienen"  # NOT_A_PHRASE: Free object-verb combination.
+- "computer kaufen"  # NOT_A_PHRASE: Free object-verb combination.
+- "computer reparieren"  # NOT_A_PHRASE: Free verb-object combination.
+- "dachen an"  # BAD_UNIT: "dachen" is not a German word; the unit is "denken an".
+- "darausmachen"  # BAD_UNIT: Not a verb: 'daraus' is a pronominal adverb in 'das Beste daraus machen', not a separable prefix.
+- "datum liefern"  # BAD_UNIT: The cards use Daten (data), not the singular Datum (date); the lemma misleads about meaning.
+- "datum sammeln"  # BAD_UNIT: The cards use Daten (data), not the singular Datum (date); the lemma misleads about meaning.
+- "davonkommen"  # DUPLICATE: Subsumed by vp:davonkommen_mit.
+- "davonrannen"  # BAD_UNIT: Citation form is a finite past plural; the unit is 'davonrennen'.
+- "definieren durch"  # NOT_A_PHRASE: Free instrumental 'durch'; the verb governs 'als' or 'ueber'.
+- "demokratisch republik"  # BAD_UNIT: The unit is a fragment of proper names (Demokratische Republik Kongo, DDR) rather than a generally u
+- "deutsch akzent"  # NOT_A_PHRASE: Free combination; duplicates the pattern of an:franzoesisch_akzent.
+- "deutsch außenminister"  # NOT_A_PHRASE: News-only political title, and ungrammatical without its article.
+- "deutsch bank"  # BAD_UNIT: A company name, not a useful adjective-noun collocation for a learner.
+- "deutsch bundestag"  # BAD_UNIT: Proper institution name given in an inflected citation form; nominative is "der Deutsche Bundestag".
+- "deutsch börse"  # BAD_UNIT: 'Deutsche Börse' is a company name, not a generalisable adjective-noun phrase for a learner.
+- "deutsch fußball"  # NOT_A_PHRASE: Free topical combination.
+- "deutsch gesellschaft"  # NOT_A_PHRASE: Ambiguous between a free combination and a truncated organisation name.
+- "deutsch industrie"  # NOT_A_PHRASE: Free topical combination.
+- "deutsch institut"  # BAD_UNIT: Fragment of the proper name "Deutsches Institut für Wirtschaftsforschung", not a general adjective-n
+- "deutsch mannschaft"  # NOT_A_PHRASE: Free topical combination.
+- "deutsch nationalspieler"  # NOT_A_PHRASE: Sports-news combination, not a lexical unit.
+- "deutsch post"  # BAD_UNIT: This is a company name rather than a general adjective-noun phrase for a learner.
+- "deutsch rekordmeister"  # BAD_UNIT: Football-press jargon for Bayern Munich, not general A1-B2 vocabulary.
+- "deutsch wetterdienst"  # BAD_UNIT: A proper institution name in an ungrammatical citation form, not a useful A1-B2 adjective-noun phras
+- "ding erledigen"  # NOT_A_PHRASE: Free combination; the singular citation is unnatural.
+- "dumm sache"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "dummes sagen"  # NOT_A_PHRASE: Fragment of 'etwas Dummes sagen'; not a unit.
+- "dunkel nacht"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "dunkelheit fürchten"  # NOT_A_PHRASE: Free object-verb combination.
+- "durchfahren unter"  # NOT_A_PHRASE: Free locative adjunct parsed as a governed preposition.
+- "durchstarten mit"  # BAD_UNIT: 'mit' is a free comitative adjunct; durchstarten governs no preposition.
+- "duschen vor"  # BAD_UNIT: "duschen" governs no preposition; "vor dem Frühstück" is a temporal adverbial, so the whole unit is 
+- "echt diamant"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "ehemalig nationalspieler"  # NOT_A_PHRASE: Sports-news boilerplate; ehemalig combines freely with any role noun.
+- "eilen nach"  # NOT_A_PHRASE: Free directional preposition, not a governed one.
+- "eimer füllen"  # NOT_A_PHRASE: Free object-verb combination.
+- "einbilden"  # DUPLICATE: Only used reflexively; duplicates rv:sich_einbilden.
+- "einfinden"  # DUPLICATE: Only exists reflexively; duplicates rv:sich_einfinden.
+- "eingeschlafen bei"  # BAD_UNIT: Citation form is a participle; the unit should be "einschlafen bei +Dat".
+- "einhandeln"  # DUPLICATE: In its usual sense only reflexive; duplicates rv:sich_einhandeln.
+- "einlegen gegen"  # DUPLICATE: Only occurs as 'Einspruch einlegen gegen', already covered by nv:einspruch_einlegen.
+- "einliefern"  # DUPLICATE: Subsumed by vp:einliefern_in.
+- "einluden"  # BAD_UNIT: Citation form is a past-tense plural, not the infinitive "einladen".
+- "einluden zu"  # BAD_UNIT: Citation form is a past-tense plural; the unit should read "einladen zu +Dat".
+- "einprägen"  # DUPLICATE: Same verb as rv:sich_einpraegen.
+- "einreihen"  # DUPLICATE: Same verb as rv:sich_einreihen, which is the form actually used.
+- "einschleieen"  # BAD_UNIT: Corrupted citation form; the sentences show "einschlafen".
+- "einschlieefen"  # BAD_UNIT: "einschlieefen" is corrupted text for "einschlafen" and is not a German word.
+- "einschlufen"  # BAD_UNIT: Unit label is a typo for 'einschlafen'; the learner is shown a non-existent verb.
+- "einstehen"  # DUPLICATE: Bare form of vp:einstehen_fuer, which carries the governed preposition.
+- "eintragen"  # DUPLICATE: Subsumed by vp:eintragen_in.
+- "einweisen"  # DUPLICATE: Bare form of vp:einweisen_in.
+- "einzubrechen in"  # BAD_UNIT: Citation form is a zu-infinitive; the lemma is 'einbrechen in'.
+- "eltern gehorchen"  # NOT_A_PHRASE: gehorchen takes any dative object; free combination.
+- "eltern vorstellen"  # NOT_A_PHRASE: Free object-verb combination.
+- "entgegennehmen unter"  # BAD_UNIT: Police-blotter jargon: 'unter <Telefonnummer>' is an adjunct, not a verb complement of entgegennehme
+- "erachen als"  # BAD_UNIT: Unit is misspelled; the verb is "erachten".
+- "erinnerstn an"  # BAD_UNIT: "erinnerstn" is not a German word; the unit citation form is corrupted and should be "erinnern an +A
+- "erkältung eingefangen"  # BAD_UNIT: Unit shows a past participle instead of the infinitive 'sich eine Erkältung einfangen'.
+- "erkältung zugezogen"  # BAD_UNIT: Lemma is a participle; the citation form is sich eine Erkaeltung zuziehen.
+- "erlangen durch"  # NOT_A_PHRASE: Free instrumental 'durch', not a governed preposition.
+- "erleiden bei"  # NOT_A_PHRASE: News-report co-occurrence ('bei einem Unfall erleiden'), not government.
+- "erliegen an"  # BAD_UNIT: 'erliegen' takes a dative object (den Verletzungen erliegen); 'an der Unfallstelle' is a locative ad
+- "ernannen zu"  # BAD_UNIT: 'ernannen' is not a verb; the lemma is 'ernennen zu'.
+- "ertrunken ohne"  # BAD_UNIT: 'ohne' is a free adjunct, not a complement of 'ertrinken'; this is a noise pair.
+- "erwerben durch"  # NOT_A_PHRASE: Free instrumental 'durch', not a governed preposition.
+- "es geht um"  # DUPLICATE: Same unit as vp:gehen_um, whose gloss already cites es geht um.
+- "es handelt sich um"  # DUPLICATE: Same unit as rv:sich_handeln_um, whose gloss already cites es handelt sich um.
+- "es lohnt sich"  # DUPLICATE: Same unit as rv:sich_lohnen.
+- "essen kochen"  # BAD_UNIT: The noun is lowercased, so the unit reads as verb plus verb instead of "Essen kochen".
+- "essen probieren"  # BAD_UNIT: The noun is lowercased in the lemma; it should be Essen probieren.
+- "essen zubereiten"  # BAD_UNIT: Noun in the unit label is lowercased; should be 'Essen zubereiten' (das Essen).
+- "eur garten"  # BAD_UNIT: Possessive determiner plus noun, not an adjective-noun collocation.
+- "eur hilfe"  # NOT_A_PHRASE: Possessive plus noun, not an adjective-noun collocation.
+- "eur pflicht"  # NOT_A_PHRASE: Possessive determiner plus noun, not an adjective-noun collocation.
+- "eur schuh"  # BAD_UNIT: Possessive determiner plus noun, not an adjective-noun collocation.
+- "europäisch gerichtshof"  # NOT_A_PHRASE: Proper name of an institution, cited in an oblique form.
+- "europäisch regierungschef"  # NOT_A_PHRASE: News topic co-occurrence.
+- "fahnden mit"  # BAD_UNIT: The verb's unit is "fahnden nach +Dat"; "mit einem Foto" is an instrumental adjunct.
+- "fahren beibringen"  # BAD_UNIT: Not a noun-verb collocation; the noun is the nominalised "das Fahren".
+- "fahrrad reparieren"  # NOT_A_PHRASE: Free verb-object combination.
+- "farbe fällen"  # NOT_A_PHRASE: Meaningless pairing; fällen collocates with Entscheidung/Urteil.
+- "fenster aufmachen"  # NOT_A_PHRASE: Free verb-object combination.
+- "fenster öffnen"  # NOT_A_PHRASE: Free object+verb combination.
+- "fernseher stellen"  # BAD_UNIT: "Fernseher stellen" alone is not a collocation; every card needs leiser/lauter to make sense.
+- "fertigmachen"  # DUPLICATE: Overlaps rv:sich_fertigmachen; keep one of the two.
+- "feststecken"  # DUPLICATE: Subsumed by vp:feststecken_in.
+- "feststellen bei"  # NOT_A_PHRASE: Free adverbial 'bei', not a governed preposition.
+- "feuer scheuen"  # NOT_A_PHRASE: Fragment of the proverb gebranntes Kind scheut das Feuer, not a usable unit.
+- "film ansehen"  # NOT_A_PHRASE: Free object+verb combination, and overlaps nv:film_sehen.
+- "film sehen"  # NOT_A_PHRASE: Free object+verb combination.
+- "finanzieren durch"  # NOT_A_PHRASE: Free instrumental 'durch'.
+- "finanzieren über"  # NOT_A_PHRASE: Free adjunct, not a governed preposition.
+- "finger reichen"  # NOT_A_PHRASE: Truncated remnant of jemandem den kleinen Finger reichen; as shown it teaches nothing.
+- "firma verlassen"  # NOT_A_PHRASE: Free object-verb combination.
+- "fisch gefangen"  # BAD_UNIT: Citation form uses the past participle; should be 'Fisch fangen'.
+- "fisch gegessen"  # BAD_UNIT: Citation form uses a past participle; should be 'Fisch essen'.
+- "flasche füllen"  # NOT_A_PHRASE: Free object+verb combination with no idiomatic or collocational binding.
+- "flasche mitbringen"  # NOT_A_PHRASE: Free combination; mitbringen takes any object.
+- "fleisch gegessen"  # BAD_UNIT: Citation form uses the past participle instead of "Fleisch essen".
+- "fliege fangen"  # NOT_A_PHRASE: Free combination, topic co-occurrence only.
+- "fliege schlagen"  # BAD_UNIT: Only exists inside the idiom "zwei Fliegen mit einer Klappe schlagen"; alone it misleads.
+- "fliege töten"  # NOT_A_PHRASE: Free combination, same corpus source as Fliege fangen.
+- "fliessen in"  # BAD_UNIT: Unit is written in Swiss spelling and carries no case; should be "fließen in +Akk".
+- "foto anschauen"  # NOT_A_PHRASE: Free verb-object combination.
+- "franken kosten"  # NOT_A_PHRASE: Currency plus kosten is a free numeric frame, not a phrase.
+- "frankfurter flughafen"  # NOT_A_PHRASE: Place name from news text.
+- "frankfurter hauptbahnhof"  # NOT_A_PHRASE: Place name, not a teachable adjective+noun pair.
+- "frankfurter zeitung"  # BAD_UNIT: The unit is a fragment of the newspaper name Frankfurter Allgemeine Zeitung, so every card brackets 
+- "französisch akzent"  # NOT_A_PHRASE: Free nationality-plus-noun combination.
+- "französisch film"  # NOT_A_PHRASE: Free nationality-adjective combination.
+- "französisch literatur"  # NOT_A_PHRASE: Free nationality-plus-noun combination.
+- "französisch revolution"  # NOT_A_PHRASE: A historical proper name rather than a collocation.
+- "französisch studieren"  # NOT_A_PHRASE: Free combination; any subject name substitutes.
+- "französische beherrschen"  # BAD_UNIT: Ungrammatical citation form; should be Französisch beherrschen.
+- "französische beibringen"  # BAD_UNIT: Ungrammatical citation form; the phrase is "Französisch beibringen" and the gaps show "Französisch".
+- "französische studieren"  # BAD_UNIT: Ungrammatical citation form; the unit should read 'Französisch studieren'.
+- "frau belästigen"  # NOT_A_PHRASE: Free combination from news text, not a lexical unit.
+- "frei lauf"  # NOT_A_PHRASE: Fragment of freien Lauf lassen.
+- "frei wähler"  # BAD_UNIT: This is the proper name of a German political party, not a useful adjective-noun collocation.
+- "freundschaft verbinden"  # NOT_A_PHRASE: Parser artefact of eine Freundschaft verbindet X und Y, where Freundschaft is the subject.
+- "freundschaftlich rat"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "frisch brot"  # NOT_A_PHRASE: Free adjective-noun combination; one of four identical 'frisch' entries.
+- "frisch fisch"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "frisch gemüse"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "frisch obst"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "früh jahrhundert"  # NOT_A_PHRASE: Parser artefact; German says 'im fruehen 20. Jahrhundert', not this bare pair.
+- "frühstücken um"  # BAD_UNIT: Noise pair: "um sieben" is a temporal adjunct, not a verb-preposition unit.
+- "fuchs fangen"  # NOT_A_PHRASE: Free verb-object combination.
+- "fünfter klasse"  # NOT_A_PHRASE: Free ordinal-plus-noun combination.
+- "gebissen von"  # BAD_UNIT: 'von' here is the passive agent, not a preposition governed by 'beissen'.
+- "gebraucht lkw"  # NOT_A_PHRASE: Free adjective-noun combination in an oblique form.
+- "gebäude zerstören"  # NOT_A_PHRASE: Free news combination.
+- "gefangener foltern"  # BAD_UNIT: Ungrammatical, lowercased citation form and gratuitously violent content across all six cards.
+- "gefährlich eingriff"  # BAD_UNIT: Legal-police jargon collocation, not useful at A1-B2.
+- "gefährlich körperverletzung"  # BAD_UNIT: Legal police-report jargon in an oblique genitive form, not a useful A1-B2 phrase.
+- "gefährlich ort"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "gegenübersehen"  # DUPLICATE: Only exists reflexively; duplicates rv:sich_gegenuebersehen.
+- "gegenübersitzen an"  # BAD_UNIT: The verb governs a dative object (jemandem gegenübersitzen); "am Tisch" is a place adjunct, not its 
+- "gehauen über"  # BAD_UNIT: Participle citation of the idiom; the lemma is 'jemanden übers Ohr hauen'.
+- "geheimnis verran"  # BAD_UNIT: 'verran' is not a German word; the verb is 'verraten'.
+- "geisel freilassen"  # NOT_A_PHRASE: Free news combination.
+- "geldstrafe bezahlen"  # DUPLICATE: Duplicates nv:geldstrafe_zahlen with a synonymous verb.
+- "gemacht fehler"  # NOT_A_PHRASE: Participle artefact of einen Fehler machen, not an adjective+noun collocation.
+- "gepäck abstellen"  # NOT_A_PHRASE: Free object-verb combination.
+- "gerissen aus"  # BAD_UNIT: Citation form is a past participle; the unit should be "reissen aus +Dat".
+- "geräusch gehören"  # NOT_A_PHRASE: Mis-lemmatised gehört (from hören); no such collocation.
+- "geräusch hören"  # NOT_A_PHRASE: Free object-verb combination.
+- "geschenk annehmen"  # NOT_A_PHRASE: Free object+verb combination.
+- "geschenk schicken"  # NOT_A_PHRASE: Free object-verb combination.
+- "geschichte erzählen"  # NOT_A_PHRASE: Free object+verb combination, fully compositional.
+- "geschrieben brief"  # NOT_A_PHRASE: Participle plus noun parser artefact, not a collocation.
+- "gespenst sehen"  # NOT_A_PHRASE: Fragment of the simile als hätte er ein Gespenst gesehen.
+- "gestellt frage"  # NOT_A_PHRASE: Free participle-noun combination in an oblique form.
+- "gesund körper"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "glatze bekommen"  # NOT_A_PHRASE: Free combination; German normally says 'eine Glatze bekommen' descriptively.
+- "glück fassen"  # NOT_A_PHRASE: Not German; the collocations are Mut fassen or Glück haben.
+- "glücklich familie"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "goldmedaille gewinnen"  # DUPLICATE: Duplicates nv:medaille_gewinnen with a more specific noun.
+- "gras wachsen"  # NOT_A_PHRASE: Subject-verb pair, only idiomatic in 'das Gras wachsen hören'.
+- "grasen auf"  # NOT_A_PHRASE: Free locative preposition, not a governed one.
+- "gross teil"  # BAD_UNIT: Unit display uses the Swiss spelling 'grosser'; every card uses 'großer'.
+- "groß spinne"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "großmutter besuchen"  # NOT_A_PHRASE: Free verb-object combination.
+- "grün dach"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "gut aussprache"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "gut freundinn"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "gut tänzer"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "gute wünschen"  # BAD_UNIT: Citation form is broken; the real phrase is "alles Gute wünschen".
+- "haar schneiden"  # NOT_A_PHRASE: Free combination and wrong number; the real chunk is sich die Haare schneiden lassen.
+- "haderen mit"  # BAD_UNIT: 'haderen' is not a verb; the lemma is 'hadern mit'.
+- "halln durch"  # BAD_UNIT: 'halln' is not a verb; the lemma is 'hallen durch'.
+- "hamburger hafen"  # NOT_A_PHRASE: A proper place name, not a collocation.
+- "hamburger hauptbahnhof"  # BAD_UNIT: Proper place name, not a general German phrase, and every card is crime-news copy.
+- "hand waschen"  # NOT_A_PHRASE: Free combination and wrong number; the chunk is sich die Hände waschen.
+- "handschuhe anziehen"  # NOT_A_PHRASE: Free object-verb combination.
+- "handtuch holen"  # NOT_A_PHRASE: Free combination; contrast the real idiom das Handtuch werfen.
+- "haus bauen"  # NOT_A_PHRASE: Free object+verb combination.
+- "haus verlassen"  # NOT_A_PHRASE: Free object+verb combination.
+- "heilig abend"  # BAD_UNIT: Citation form is ungrammatical; the phrase is "Heiliger Abend".
+- "heilig reich"  # BAD_UNIT: Truncated proper name of a historical entity ('Heiliges Römisches Reich'), not a useful A1-B2 phrase
+- "heilig schrift"  # NOT_A_PHRASE: Proper name for the Bible.
+- "heilig stuhl"  # BAD_UNIT: 'Heiliger Stuhl' is the proper name of the Holy See, institutional jargon rather than a learner phra
+- "heiß sommer"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "hemd ausziehen"  # NOT_A_PHRASE: Free combination of a garment plus ausziehen.
+- "herbeigezogen an"  # BAD_UNIT: Participle citation form; the real idiom is "an den Haaren herbeigezogen sein".
+- "hereinfallen"  # DUPLICATE: Duplicates vp:hereinfallen_auf, which carries the governed preposition.
+- "hereinkommsen"  # BAD_UNIT: Lemma is malformed; the verb is hereinkommen.
+- "hergehen in"  # BAD_UNIT: The idiom is 'es geht hoch her'; 'in' is a free locative adjunct, not part of the verb's frame.
+- "herr vorstellen"  # BAD_UNIT: "Herr vorstellen" is a title plus verb, not a real collocation worth learning.
+- "herumliegen auf"  # NOT_A_PHRASE: Free locative adjunct, not a governed preposition.
+- "hervorkommen unter"  # NOT_A_PHRASE: Free locative adjunct.
+- "hervorrufen durch"  # NOT_A_PHRASE: Passive-agent 'durch' harvested as a governed preposition.
+- "hilfe brauchsen"  # BAD_UNIT: "brauchsen" is not a German verb; the unit should read "Hilfe brauchen".
+- "hinauslaufen"  # DUPLICATE: Duplicates vp:hinauslaufen_auf, which carries the governed preposition.
+- "hinfolgen"  # BAD_UNIT: Not a verb: 'hin' belongs to 'ueberall hin' (ueberallhin), not to folgen as a prefix.
+- "hingen an"  # BAD_UNIT: Citation form is past tense; the unit should read "hängen an +Dat".
+- "hinsetzen"  # DUPLICATE: Almost exclusively reflexive; duplicates rv:sich_hinsetzen.
+- "hinterer teil"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "hinterherrannen"  # BAD_UNIT: Citation form is a past-tense plural; the verb is hinterherrennen.
+- "hinweisen"  # DUPLICATE: Teaches the same item as vp:hinweisen_auf; hinweisen is not used without auf.
+- "horrorfilm anschauen"  # NOT_A_PHRASE: Free combination; anschauen takes any film genre.
+- "hose bügeln"  # NOT_A_PHRASE: Free object+verb combination.
+- "hotel empfehlen"  # NOT_A_PHRASE: Free object-verb combination.
+- "hsen aus"  # BAD_UNIT: Unit string is corrupted; the sentences actually show "gehen aus +Dat".
+- "hsen zu"  # BAD_UNIT: "hsen" is corrupted; the unit is "gehen zu +Dat".
+- "hsen über"  # BAD_UNIT: 'hsen' is junk; the sentence's verb is 'gehen über die Straße'.
+- "hund fressen"  # BAD_UNIT: 'Hund fressen' is not a real collocation; every card is 'dem Hund zu fressen geben', where Hund is a
+- "hund füttern"  # NOT_A_PHRASE: Free object+verb combination.
+- "illegal migration"  # NOT_A_PHRASE: News-register topical pairing, and the cefr=A1 label is badly off for it.
+- "im gegensatz zu"  # BAD_UNIT: Citation form is miscapitalised; the noun must be "Gegensatz".
+- "im gegenteil"  # BAD_UNIT: Citation form is miscapitalised; the noun must be "im Gegenteil".
+- "in diesem fall"  # BAD_UNIT: Citation form is miscapitalised; the noun must be "Fall".
+- "in schwierigkeit geraten"  # BAD_UNIT: The idiom exists only in the plural, 'in Schwierigkeiten geraten'; the singular citation form is wro
+- "infrage stellen"  # BAD_UNIT: Citation should be lowercase "infrage stellen" (or "in Frage stellen").
+- "international komitee"  # NOT_A_PHRASE: Fragment of an organisation name, in the genitive.
+- "islamisch republik"  # NOT_A_PHRASE: Part of a country name, news-only.
+- "islamisch staat"  # BAD_UNIT: A terrorist organisation's proper name is news jargon, not a useful A1-B2 adjective-noun collocation
+- "israelisch angriff"  # BAD_UNIT: News-jargon collocation given in an inflected dative-plural citation form; not a useful A1-B2 phrase
+- "israelisch geisel"  # NOT_A_PHRASE: News-only combination, not a lexical unit.
+- "israelisch medium"  # NOT_A_PHRASE: News sourcing boilerplate, not a collocation.
+- "israelisch militär"  # BAD_UNIT: News-wire jargon and an article-dependent citation form, not a generally useful A1-B2 collocation.
+- "israelisch ministerpräsident"  # NOT_A_PHRASE: News-only nationality plus office, a free combination.
+- "israelisch regierung"  # NOT_A_PHRASE: Free nationality-adjective combination from news topic co-occurrence.
+- "israelisch soldat"  # NOT_A_PHRASE: Free nationality-adjective combination from news topic co-occurrence.
+- "italienisch sprechen"  # NOT_A_PHRASE: Free combination; any language name substitutes.
+- "japanisch firma"  # NOT_A_PHRASE: Free nationality-adjective combination.
+- "japanisch küche"  # NOT_A_PHRASE: Free nationality-plus-noun; duplicates the pattern of an:italienisch_kueche.
+- "japanisch restaurant"  # NOT_A_PHRASE: Free nationality-adjective combination.
+- "japanisch student"  # NOT_A_PHRASE: Free nationality-adjective combination.
+- "job erledigen"  # NOT_A_PHRASE: Free object-verb combination.
+- "jung frau"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "jung mensch"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "jäten in"  # BAD_UNIT: 'im Garten' is a plain locative adjunct; 'jaeten' governs no preposition.
+- "kaffee trinken"  # NOT_A_PHRASE: Free object+verb combination.
+- "kaffee trinksen"  # BAD_UNIT: trinksen is not a German verb; the verb is trinken.
+- "kalt krieg"  # BAD_UNIT: Citation form is a genitive; the unit should read "Kalter Krieg".
+- "kamera kaufen"  # NOT_A_PHRASE: Free object-verb combination with nothing idiomatic to learn.
+- "kamera mitbringen"  # NOT_A_PHRASE: Free combination; nothing is learned beyond the two words.
+- "kamera reparieren"  # NOT_A_PHRASE: Free object-verb combination.
+- "karte zeichnen"  # NOT_A_PHRASE: Free verb-object combination.
+- "kartoffel schälen"  # NOT_A_PHRASE: Free verb-object combination.
+- "katze jagen"  # NOT_A_PHRASE: Free object-verb combination.
+- "katze streicheln"  # NOT_A_PHRASE: Free object-verb combination.
+- "kehren vor"  # NOT_A_PHRASE: Fragment of the proverb 'vor der eigenen Tuer kehren'; meaningless bare.
+- "kekse backen"  # NOT_A_PHRASE: Free combination; backen takes any baked-good object.
+- "klassisch literatur"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "kleid kaufen"  # NOT_A_PHRASE: Free object-verb combination.
+- "kleid nähen"  # NOT_A_PHRASE: Free object-verb combination.
+- "kleid tragen"  # NOT_A_PHRASE: Free object+verb combination.
+- "klein junge"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "klein kaninchen"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "klein mädchen"  # NOT_A_PHRASE: Free combination with a stranded weak ending.
+- "klein schwester"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "klein würfel"  # NOT_A_PHRASE: Recipe-text free combination.
+- "klein änderung"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "klettern über"  # NOT_A_PHRASE: Free spatial preposition, not a governed one.
+- "klopften an"  # BAD_CITATION: Preterite plural form; duplicates vp:klopfen_an.
+- "klopften auf"  # BAD_UNIT: Citation form is a finite past-plural 'klopften' instead of the infinitive 'klopfen auf +Akk'.
+- "koffer stellen"  # NOT_A_PHRASE: Corpus artefact from a directional sentence, not a collocation.
+- "kollege treffen"  # NOT_A_PHRASE: Free verb-object combination, and the bare weak noun form is odd.
+- "kommission vorschlagen"  # BAD_UNIT: 'Kommission' is the dative recipient, not the object of 'vorschlagen'; the pair misrepresents the co
+- "kommsen nach"  # BAD_UNIT: "kommsen" is not a German verb; the citation form is corrupt and "nach Hause" is a fixed adverbial, 
+- "konnen ohne"  # BAD_UNIT: "können ohne" is not a verb-preposition unit, and the citation form is misspelled without the umlaut
+- "kopf rasieren"  # NOT_A_PHRASE: Free verb-object combination.
+- "kopf stecken"  # NOT_A_PHRASE: Fragment of den Kopf in den Sand stecken; teaches nothing on its own.
+- "krabbeln über"  # NOT_A_PHRASE: Free directional adjunct.
+- "krachen gegen"  # NOT_A_PHRASE: Free spatial preposition, not a governed one.
+- "krankenhaus zuführen"  # BAD_UNIT: 'einem Krankenhaus zuführen' is German police-report jargon, not a useful A1-B2 collocation.
+- "krankenwag rufen"  # BAD_UNIT: "Krankenwag" is not a German word; the noun is "Krankenwagen".
+- "kuchen gegessen"  # BAD_UNIT: Citation form uses a past participle; the unit should read 'Kuchen essen'.
+- "kuchen probieren"  # NOT_A_PHRASE: Free verb-object combination.
+- "kölner dom"  # NOT_A_PHRASE: A proper name, not an adjective-noun collocation.
+- "kölner hauptbahnhof"  # NOT_A_PHRASE: Place name, same artefact as Frankfurter Hauptbahnhof.
+- "künftig bundesregierung"  # NOT_A_PHRASE: News topic co-occurrence.
+- "lang arbeitszeit"  # NOT_A_PHRASE: Free adjective-noun combination, not a collocation worth teaching.
+- "lang bank"  # NOT_A_PHRASE: Fragment of auf die lange Bank schieben; meaningless alone.
+- "lang bart"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "lang haar"  # NOT_A_PHRASE: Free adjective-noun combination; usual form is lange Haare.
+- "lang stau"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "lang urlaub"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "laut geräusch"  # NOT_A_PHRASE: Free adjective-noun combination in an oblique form.
+- "lautsprechen"  # BAD_UNIT: 'lautsprechen' is not a separable verb; 'laut sprechen' is an adverb plus a verb.
+- "leer kopf"  # NOT_A_PHRASE: Free combination; not an established German collocation.
+- "letzten sommer"  # NOT_A_PHRASE: An adverbial time expression in the accusative, not an adjective-noun collocation.
+- "letzten winter"  # NOT_A_PHRASE: Time adverbial 'letzten Winter' miscapitalised and parsed as adjective-noun.
+- "lied gehören"  # BAD_UNIT: The verb in every card is 'hören' (participle 'gehört'), not 'gehören'; the unit lemma is wrong.
+- "lied kennen"  # NOT_A_PHRASE: Free object-verb combination.
+- "lied singen"  # NOT_A_PHRASE: Free object+verb combination.
+- "literarisch werk"  # NOT_A_PHRASE: Free adjective-noun combination in an oblique form.
+- "loch graben"  # NOT_A_PHRASE: Free object-verb combination.
+- "loch vertiefen"  # NOT_A_PHRASE: Free combination with no collocational status.
+- "lust ausgehen"  # BAD_UNIT: Not a collocation: 'Lust' is governed by 'haben', and 'ausgehen' is only the infinitive complement.
+- "lust fernzusehen"  # BAD_UNIT: Citation form is ungrammatical; the real phrase is "keine Lust haben, fernzusehen".
+- "lust mitnehmen"  # BAD_UNIT: Noise pair: "Lust" belongs to "keine Lust haben", not to "mitnehmen".
+- "mantel hängen"  # NOT_A_PHRASE: Free combination truncated from a directional phrase.
+- "maus jagen"  # NOT_A_PHRASE: Free verb-object combination.
+- "meile laufen"  # NOT_A_PHRASE: Translationese from English mile idioms; not a German unit.
+- "menge erfordern"  # BAD_UNIT: Noise pair: "eine Menge" is a quantifier over the real object (Wasser, Geld), not the verb's object.
+- "menge erledigen"  # BAD_UNIT: Noise pair: 'Menge' is a quantifier in 'eine Menge zu erledigen haben', not an object of 'erledigen'
+- "menge ersparen"  # BAD_UNIT: "Menge" is a quantifier before the real object, not a collocational object of ersparen.
+- "menge sparen"  # NOT_A_PHRASE: Fragment of the quantifier 'eine Menge', not a collocation.
+- "milch trinken"  # NOT_A_PHRASE: Free object-verb combination.
+- "miteinandersprechen"  # BAD_UNIT: Not a separable verb; 'miteinander sprechen' is written as two words.
+- "mitgehen mit"  # NOT_A_PHRASE: Prefix and preposition are redundant; a free combination.
+- "mitspielen bei"  # NOT_A_PHRASE: Free locative adjunct, not a governed preposition.
+- "mitwirken"  # BAD_UNIT: Unit is shown as a finite past-tense form; the lemma should be "klopfen an +Akk".
+- "modern technologie"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "morgen aufstehen"  # BAD_UNIT: Noise pair: 'jeden Morgen' is a temporal adverbial, not an object of the intransitive 'aufstehen'.
+- "morgen frühstücken"  # BAD_UNIT: "Morgen" is a temporal adverbial here, never an object of frühstücken.
+- "motiviert kriminalität"  # BAD_UNIT: "motivierte Kriminalitaet" is not a standalone phrase; it only occurs modified as "politisch motivie
+- "mut bewundern"  # NOT_A_PHRASE: Free object-verb combination.
+- "mutmaßlich opfer"  # NOT_A_PHRASE: Police-report free combination.
+- "mädchen adoptieren"  # NOT_A_PHRASE: Free combination from a corpus sentence.
+- "mädchen küssen"  # NOT_A_PHRASE: Free verb-object combination.
+- "möglich zeuge"  # NOT_A_PHRASE: Police-appeal free combination.
+- "münchner oktoberfest"  # BAD_UNIT: Proper name of an event rather than a learnable adjective-noun phrase.
+- "münze aufheben"  # NOT_A_PHRASE: Free combination of any small object plus aufheben.
+- "nachdachen"  # BAD_UNIT: Wrong citation form; the verb is 'nachdenken'.
+- "nachdachen über"  # BAD_UNIT: 'nachdachen' is not a verb; the lemma is 'nachdenken über'.
+- "nachmittag verbrachn"  # BAD_UNIT: Unit display contains a typo, "verbrachn", and uses a finite past form as citation.
+- "nachname aussprechen"  # NOT_A_PHRASE: Free object-verb combination.
+- "nachricht hören"  # NOT_A_PHRASE: Free combination; the collocation would be Nachrichten hören.
+- "nacht schlafen"  # NOT_A_PHRASE: Adverbial time expression mis-parsed as an object collocation.
+- "nacht träumen"  # BAD_UNIT: Noise pair: 'Nacht' is a temporal adjunct (jede/letzte Nacht), not a complement of 'träumen'.
+- "nacht weinen"  # BAD_UNIT: Noise pair: "Nacht" is an accusative of duration, not an object of weinen, so this is not a collocat
+- "nagel treffen"  # NOT_A_PHRASE: Truncated idiom; only the full form is meaningful.
+- "nah osten"  # BAD_UNIT: Citation form is an oblique case; the phrase should be displayed as 'Naher Osten'.
+- "nahegelegen krankenhaus"  # NOT_A_PHRASE: News-report free combination, not a lexical collocation.
+- "name kennen"  # NOT_A_PHRASE: Free combination; also needs an article to be usable.
+- "name schreiben"  # NOT_A_PHRASE: Free combination and an uninflected citation form.
+- "natur beherrschen"  # NOT_A_PHRASE: One-off corpus combination, not an established collocation.
+- "neinsagen"  # BAD_UNIT: Post-1996 orthography writes "Nein sagen" separately; it is not a separable verb.
+- "neu assistent"  # NOT_A_PHRASE: Free combination; neu modifies any noun.
+- "neu batterie"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "neu eigentümer"  # NOT_A_PHRASE: Free combination in an oblique form.
+- "neu modell"  # BAD_UNIT: Citation form is ungrammatical; it should read "neues Modell".
+- "neu perspektive"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "neu testament"  # NOT_A_PHRASE: Proper name, and ungrammatical without its article.
+- "neue ausprobieren"  # BAD_UNIT: Citation form is ungrammatical; the phrase is "etwas Neues ausprobieren".
+- "neue entdecken"  # BAD_UNIT: Unit should be "Neues entdecken"; the lowercase adjective is not a usable phrase.
+- "nägel schneiden"  # NOT_A_PHRASE: Free combination, transparent from its parts.
+- "oma besuchen"  # NOT_A_PHRASE: Free combination; besuchen takes any person.
+- "onkel besuchen"  # NOT_A_PHRASE: Free object-verb combination.
+- "paar kaufen"  # NOT_A_PHRASE: Artefact of the quantifier 'ein paar ... kaufen'.
+- "palästinensisch gefangener"  # NOT_A_PHRASE: News-only topical pairing, not a lexical unit.
+- "parlamentarisch geschäftsführer"  # BAD_UNIT: German parliamentary job-title jargon, not a generally useful A1-B2 phrase.
+- "partie drehen"  # NOT_A_PHRASE: Parser artefact; not a German collocation.
+- "patient untersuchen"  # NOT_A_PHRASE: Free combination, and the bare nominative is a parser artefact.
+- "pferd stehlen"  # NOT_A_PHRASE: Free combination; the German idiom is Pferde stehlen koennen, which this is not.
+- "pfund kosten"  # NOT_A_PHRASE: Currency plus kosten, same artefact as Franken kosten.
+- "pizza backen"  # NOT_A_PHRASE: Free combination, fully compositional.
+- "pizza bestellen"  # NOT_A_PHRASE: Free verb-object combination.
+- "plus entsprechen"  # NOT_A_PHRASE: Parser artefact of statistical news text (ein Plus von X Prozent, was ... entspricht).
+- "politisch diskussion"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "politisch hintergrund"  # NOT_A_PHRASE: Free news combination in an oblique form.
+- "politisch motiv"  # NOT_A_PHRASE: Free news combination.
+- "polizei rufen"  # NOT_A_PHRASE: Free combination, topical co-occurrence in news text.
+- "positiv effekt"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "postkarte schicken"  # NOT_A_PHRASE: Free object-verb combination.
+- "preis gewinnen"  # NOT_A_PHRASE: Free object+verb combination.
+- "prinzessin retten"  # NOT_A_PHRASE: Fairy-tale sentence artefact, not a lexical unit.
+- "punken mit"  # BAD_UNIT: "punken" is not a German verb; every sentence uses "punkten", so the citation form taught is wrong.
+- "radio einschalten"  # NOT_A_PHRASE: Free object-verb combination.
+- "radio reparieren"  # NOT_A_PHRASE: Free combination; reparieren takes any broken object.
+- "rannen aus"  # BAD_UNIT: "rannen" is not an infinitive; the unit should be "rennen aus" and the display teaches a nonexistent
+- "rannen nach"  # BAD_UNIT: Citation form is the past-tense plural 'rannen' and rennen nach is not a real verb-preposition pair.
+- "rannen um"  # BAD_UNIT: Citation form is past tense; the unit should read "rennen um +Akk".
+- "rasen durch"  # NOT_A_PHRASE: Free directional 'durch'.
+- "rasen mit"  # NOT_A_PHRASE: Free instrumental preposition, not a governed one.
+- "rat folgen"  # DUPLICATE: Same unit as nv:rat_befolgen; also needs a dative object to be grammatical.
+- "raum betreten"  # DUPLICATE: Same unit as nv:zimmer_betreten with a synonym noun.
+- "raum verlassen"  # DUPLICATE: Same unit as nv:zimmer_verlassen with a synonym noun.
+- "raushängen zu"  # BAD_UNIT: Not a productive verb+preposition unit; it exists only in the fixed idiom "jemandem zum Hals raushän
+- "rechner reparieren"  # NOT_A_PHRASE: Free combination, transparent from its parts.
+- "rechter augenblick"  # DUPLICATE: Same unit as an:richtig_augenblick with a synonymous adjective.
+- "rechter bein"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "regel erklären"  # NOT_A_PHRASE: Free object-verb combination.
+- "regenschirm mitbringen"  # NOT_A_PHRASE: Free combination from a Tatoeba sentence.
+- "regenschirm mitnehmen"  # DUPLICATE: Same unit as nv:schirm_mitnehmen.
+- "regenschirme vergessen"  # NOT_A_PHRASE: Free combination, and the plural is a corpus artefact.
+- "reich familie"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "rennen gewinnen"  # BAD_UNIT: Noun in the unit display is lowercase; should be 'Rennen gewinnen'.
+- "rest vorstellen"  # BAD_UNIT: Noise pair: "Rest" is the dative goal of vorstellen, not a collocating object.
+- "restaurant eröffnen"  # NOT_A_PHRASE: Free object-verb combination.
+- "rollen über"  # NOT_A_PHRASE: Free spatial preposition, not a governed one.
+- "roman lesen"  # NOT_A_PHRASE: Free object+verb combination.
+- "rose pflanzen"  # NOT_A_PHRASE: Free combination of any plant plus pflanzen.
+- "rot dach"  # NOT_A_PHRASE: Free colour-plus-noun combination in an oblique form.
+- "rot licht"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "rot meer"  # NOT_A_PHRASE: Proper name of a sea, cited in an oblique form.
+- "rot pullover"  # NOT_A_PHRASE: Free colour-plus-garment combination.
+- "russisch gas"  # NOT_A_PHRASE: News topic co-occurrence.
+- "russisch luftangriff"  # NOT_A_PHRASE: War-reporting topic co-occurrence.
+- "russisch soldat"  # NOT_A_PHRASE: Topic co-occurrence from war reporting, not a phrase.
+- "russisch streitkraft"  # NOT_A_PHRASE: News-only combination, not a lexical unit.
+- "russisch verteidigungsministerium"  # NOT_A_PHRASE: News-only institution name, and ungrammatical without its article.
+- "russisch wirtschaft"  # NOT_A_PHRASE: News topic co-occurrence.
+- "russisch öl"  # NOT_A_PHRASE: News-only combination, not a lexical unit.
+- "russland vorwerfen"  # BAD_UNIT: Country name plus verb is news jargon, not a learnable collocation (the pattern is jemandem etwas vo
+- "rücken massieren"  # NOT_A_PHRASE: Free body-part plus verb combination.
+- "salz reichen"  # NOT_A_PHRASE: Free combination from table-request sentences.
+- "salzburger liga"  # BAD_UNIT: A regional football league proper name, not a useful phrase for an A1-B2 learner.
+- "sandwich gegessen"  # BAD_UNIT: Citation form uses the past participle instead of "Sandwich essen".
+- "satz korrigieren"  # NOT_A_PHRASE: Free verb-object combination with no idiomatic content.
+- "satz schreiben"  # NOT_A_PHRASE: Free object+verb combination.
+- "satz übersetzen"  # NOT_A_PHRASE: Free object+verb combination.
+- "schachtel rauchen"  # NOT_A_PHRASE: Quantity phrase artefact (eine Schachtel am Tag rauchen), not a collocation.
+- "schaf scheren"  # NOT_A_PHRASE: Free verb-object combination.
+- "scharf messer"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "schirm liegenlassen"  # DUPLICATE: Same unit as nv:regenschirm_liegenlassen with the clipped noun.
+- "schirm vergessen"  # DUPLICATE: Duplicates nv:regenschirm_vergessen.
+- "schlaf brauchen"  # NOT_A_PHRASE: Free verb-object combination.
+- "schleudern durch"  # NOT_A_PHRASE: Free spatial preposition, not a governed one.
+- "schluß ziehen"  # BAD_UNIT: Unit display uses the pre-1996 spelling "Schluß"; should be "Schlüsse ziehen".
+- "schlüssel hinlegen"  # NOT_A_PHRASE: Free object-verb combination.
+- "schmutzig geschirr"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "schnell fahren"  # NOT_A_PHRASE: Parser artefact: genitive of a nominalised verb from 'wegen zu schnellen Fahrens'.
+- "schnell handeln"  # NOT_A_PHRASE: Nominalised verb with a weak ending and no article; a parser artefact.
+- "schnitzen mit"  # NOT_A_PHRASE: Free instrumental 'mit'.
+- "schrauben nach"  # BAD_UNIT: The real collocation is "nach oben/unten schrauben"; bare "schrauben nach" is not a phrase.
+- "schrecklich fehler"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "schrecklich tat"  # NOT_A_PHRASE: Free news combination.
+- "schrei hören"  # NOT_A_PHRASE: Free verb-object combination.
+- "schritt begründen"  # NOT_A_PHRASE: Free news combination.
+- "schritt weitergehen"  # NOT_A_PHRASE: Adverbial accusative artefact ('einen Schritt weitergehen'), not a noun-verb unit.
+- "schuh ausgezogen"  # BAD_UNIT: The unit is displayed as a past participle; the citation form must be the infinitive 'Schuh ausziehe
+- "schulter massieren"  # NOT_A_PHRASE: Free object-verb combination.
+- "schwarz anzug"  # NOT_A_PHRASE: Free colour-plus-garment combination.
+- "schweigen brechen"  # BAD_UNIT: Citation form is wrong: the noun is "Schweigen", so the unit should read "Schweigen brechen".
+- "schweizer franken"  # NOT_A_PHRASE: Currency name, not an adjective-noun collocation.
+- "schwerverletzen"  # BAD_UNIT: There is no verb 'schwerverletzen'; 'schwer verletzen' is adverb plus verb written separately, so th
+- "schwester vorstellen"  # NOT_A_PHRASE: Free object-verb combination.
+- "schwester ärgern"  # NOT_A_PHRASE: Free combination from a corpus sentence.
+- "schwimmen beibringen"  # BAD_UNIT: Citation form should be the nominalised 'Schwimmen beibringen' to match the capitalised gap in every
+- "schwommen in"  # BAD_UNIT: Citation form is the past stem "schwommen" rather than "schwimmen in".
+- "schädigen durch"  # NOT_A_PHRASE: Passive-agent 'durch' harvested as a governed preposition.
+- "schön frau"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "schön lächeln"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "schön paar"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "schön park"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "schön puppe"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "schön rose"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "schön schmetterling"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "schön sonnenuntergang"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "schütten aus"  # BAD_UNIT: Only instantiated by the fixed simile "wie aus Eimern/Kübeln"; not a verb-preposition unit.
+- "selten erde"  # NOT_A_PHRASE: Technical news term (rare earths), not learner vocabulary.
+- "sexuell missbrauch"  # BAD_UNIT: Every card concerns child sexual abuse; unsuitable subject matter for a learning deck.
+- "sich amüsiern"  # BAD_UNIT: Unit is misspelled; the verb is "sich amüsieren".
+- "sich anflehen"  # BAD_UNIT: anflehen is not reflexive; the bracketed "dich" is a plain accusative object.
+- "sich angefreunden"  # BAD_UNIT: The citation form is wrong; the verb is "sich anfreunden", and "angefreunden" does not exist.
+- "sich anschlössen"  # BAD_UNIT: Citation form is a subjunctive plural; the unit is 'sich anschliessen'.
+- "sich anzufreunden"  # BAD_UNIT: Citation form is a zu-infinitive; the unit is 'sich anfreunden'.
+- "sich aufgeschrieben"  # BAD_UNIT: Unit is displayed as a past participle instead of the lemma "sich etwas aufschreiben".
+- "sich aufhelln"  # BAD_UNIT: 'aufhelln' is a misspelling of 'aufhellen'.
+- "sich aufzuregen"  # BAD_UNIT: Citation form carries the zu-infinitive; the unit should be "sich aufregen".
+- "sich ausbrein"  # BAD_UNIT: Malformed citation form; the verb is "sich ausbreiten".
+- "sich ausgedachen"  # BAD_UNIT: "ausgedachen" is not a German verb; the unit is "sich etwas ausdenken".
+- "sich auskennsen"  # BAD_UNIT: Garbled lemma; the verb is 'sich auskennen'.
+- "sich auszudenken"  # BAD_UNIT: Citation form is a zu-infinitive; the unit is 'sich ausdenken'.
+- "sich auszuruhen"  # BAD_UNIT: The unit is displayed as a zu-infinitive; the citation form should be "sich ausruhen".
+- "sich beeiln"  # BAD_UNIT: The unit display misspells the infinitive: it should be 'sich beeilen +Akk'.
+- "sich beeilstn"  # BAD_UNIT: Citation form is garbled; the verb is "sich beeilen".
+- "sich befindesen"  # BAD_UNIT: Garbled lemma; the verb is 'sich befinden'.
+- "sich befänden in"  # BAD_UNIT: Citation form is Konjunktiv II "befänden"; should be "sich befinden in".
+- "sich benimmsen"  # BAD_UNIT: "benimmsen" is not a German verb; the lemma is "sich benehmen".
+- "sich benommen"  # BAD_UNIT: The unit is displayed as a participle; the infinitive "sich benehmen" is the correct citation form.
+- "sich besseren"  # BAD_UNIT: "besseren" is not a verb; the unit is "sich bessern".
+- "sich bestechen"  # BAD_UNIT: "bestechen" is not a reflexive verb; the real phrase is "sich bestechen lassen".
+- "sich beworben"  # BAD_UNIT: Participle citation form; the lemma is 'sich bewerben um'.
+- "sich bücken"  # BAD_UNIT: The unit carries a stray "+Akk" although sich bücken governs no preposition.
+- "sich eingebrannen"  # BAD_UNIT: Garbled lemma; the verb is 'sich einbrennen'.
+- "sich eingefangen"  # BAD_UNIT: Citation form is a past participle; the unit should be "sich etwas einfangen".
+- "sich eingefunden"  # BAD_UNIT: Citation form is a participle; the unit is 'sich einfinden'.
+- "sich eingepragen"  # BAD_CITATION: Misspelt participle of 'sich einprägen', already present as rv:sich_einpraegen.
+- "sich einladen zu"  # BAD_UNIT: The real unit is transitive "jemanden einladen zu +Dat"; "sich einladen" is a marginal self-invitati
+- "sich entschlossen"  # BAD_UNIT: The unit is shown as a past participle instead of the infinitive "sich entschließen".
+- "sich erinnerstn"  # BAD_UNIT: Corrupted citation form; should be "sich erinnern an +Akk".
+- "sich erkäln"  # BAD_UNIT: Corrupted citation form; should be "sich erkaelten", and it takes no accusative complement.
+- "sich fühlsen"  # BAD_UNIT: "fühlsen" is not a German word; the verb is "sich fühlen".
+- "sich füllten mit"  # BAD_UNIT: Finite past-tense citation form; the lemma is 'sich füllen mit'.
+- "sich geliehen"  # BAD_UNIT: Citation form is a past participle; the unit should be 'sich etwas leihen'.
+- "sich geschnitten"  # BAD_UNIT: Citation form is a past participle; the unit should be "sich schneiden".
+- "sich gewöhnten an"  # BAD_UNIT: Citation form is the finite past "gewöhnten"; should be "sich gewöhnen an".
+- "sich herumkommandieren"  # BAD_UNIT: herumkommandieren is transitive, not a reflexive verb; the pronoun is a plain object throughout.
+- "sich hinzusetzen"  # BAD_UNIT: Citation form is a zu-infinitive; the unit is 'sich hinsetzen'.
+- "sich interessieern für"  # BAD_UNIT: Garbled lemma; the verb is 'sich interessieren für'.
+- "sich interessierstn"  # BAD_UNIT: Garbled lemma built from a finite form; duplicate of 'sich interessieren für'.
+- "sich küssn"  # BAD_UNIT: Corrupted citation form; should be "sich kuessen".
+- "sich langweiln"  # BAD_UNIT: Garbled lemma; the verb is 'sich langweilen'.
+- "sich lernn"  # BAD_UNIT: Not a German phrase; the sentence actually contains "sich kennenlernen".
+- "sich liegen in"  # BAD_UNIT: "sich liegen in" is not a free unit; it exists only in idioms like "sich in den Haaren liegen".
+- "sich liehn"  # BAD_UNIT: "liehn" is not a citation form; the unit is "sich etwas leihen".
+- "sich lässen"  # BAD_UNIT: 'sich lässen' is not a verb; the lemma is 'lassen', and 'sich lassen + Infinitiv' is a modal-passive
+- "sich näheren"  # BAD_UNIT: Unit label is misspelled; the verb is "sich nähern".
+- "sich räkelen"  # BAD_UNIT: Garbled lemma; the verb is 'sich räkeln'.
+- "sich schauen in"  # NOT_A_PHRASE: 'schauen' is not a reflexive verb; parser artefact.
+- "sich schießen in"  # NOT_A_PHRASE: Free combination with a dative reflexive, not a lexical reflexive verb.
+- "sich schwerverletzen"  # BAD_UNIT: "schwerverletzen" is not a German verb; it is written "sich schwer verletzen".
+- "sich schämtn"  # BAD_UNIT: "schämtn" is a typo; the verb is "sich schämen".
+- "sich sellen"  # BAD_UNIT: 'sellen' is not a word; the verb in these sentences is 'sich gesellen'.
+- "sich stauten"  # BAD_UNIT: Citation form is a past-tense plural; the verb is "sich stauen".
+- "sich trauten"  # BAD_UNIT: Citation form is a past-tense plural; the unit should be "sich trauen".
+- "sich umgehören"  # BAD_UNIT: The verb is 'sich umhoeren'; 'umgehoeren' is a bad lemma back-formed from the participle.
+- "sich umzusehen"  # BAD_UNIT: Unit is shown as a zu-infinitive; the lemma is "sich umsehen".
+- "sich unterhielen"  # BAD_UNIT: Unit display is an ungrammatical citation form; it should be 'sich unterhalten'.
+- "sich unterkriegen"  # BAD_UNIT: Only occurs as "sich nicht unterkriegen lassen"; the bare unit with +Akk misdescribes it.
+- "sich verbeugen"  # BAD_UNIT: Bare '+Akk' with no preposition is misleading; the verb governs 'vor +Dat' in these sentences.
+- "sich verhieln"  # BAD_UNIT: Unit label is a non-word; the verb is "sich verhalten".
+- "sich verliebten"  # BAD_UNIT: Citation form is a finite past tense; should be 'sich verlieben (in +Akk)'.
+- "sich verlässen auf"  # BAD_UNIT: Citation form is misspelled; the verb is "sich verlassen auf".
+- "sich verschaffn"  # BAD_UNIT: Corrupted citation form; should be "sich verschaffen".
+- "sich verspän"  # BAD_UNIT: 'verspaen' is a truncated lemma; the verb is 'sich verspaeten'.
+- "sich vertan"  # BAD_UNIT: Participle citation form; the lemma is 'sich vertun'.
+- "sich verteiln"  # BAD_UNIT: Malformed citation form; the verb is "sich verteilen".
+- "sich zugetragen"  # BAD_UNIT: The unit display is a past participle; the citation form must be "sich zutragen".
+- "sich zugezogen"  # BAD_UNIT: Unit display is a participle, not a citation form; it should be 'sich zuziehen +Dat' and duplicates 
+- "sich zurückmelden mit"  # NOT_A_PHRASE: 'mit' is a free adjunct, not governed by the verb.
+- "sich zuzubinden"  # BAD_UNIT: Citation form is a zu-infinitive; the lemma is 'sich zubinden'.
+- "sitzplatz überlassen"  # DUPLICATE: Same unit as nv:sitz_ueberlassen with a synonymous noun.
+- "sohn hinterlassen"  # BAD_UNIT: "Sohn" is the dative recipient, not the object of hinterlassen, so the unit misrepresents the patter
+- "sohn überlassen"  # NOT_A_PHRASE: Free combination harvested from one context.
+- "sonnenaufgang sehen"  # NOT_A_PHRASE: Free object-verb combination.
+- "sprächen mit"  # BAD_UNIT: Citation form is a subjunctive plural; the unit is 'sprechen mit'.
+- "spät jahrhundert"  # BAD_UNIT: "spaetes Jahrhundert" is not a real collocation; it only appears with an intervening ordinal.
+- "starrn in"  # BAD_UNIT: 'starrn' is a misspelling of the lemma 'starren'.
+- "statistisch bundesamt"  # BAD_UNIT: The unit display is an institution name in an ungrammatical citation form (should be "Statistisches 
+- "steigend kosten"  # NOT_A_PHRASE: Free participle-noun combination in an oblique form.
+- "stift leihen"  # NOT_A_PHRASE: Free verb-object combination.
+- "stoßen bei"  # BAD_UNIT: The governed preposition is "auf"; "bei" is a circumstantial adjunct, so the pair is noise.
+- "strahln vor"  # BAD_UNIT: 'strahln' is not a verb; the lemma is 'strahlen vor'.
+- "straße überqueren"  # NOT_A_PHRASE: Free object+verb combination.
+- "stuhl reparieren"  # NOT_A_PHRASE: Free combination, third reparieren artefact in this file.
+- "suppe kochen"  # NOT_A_PHRASE: Free verb-object combination.
+- "suppe umrühren"  # NOT_A_PHRASE: Free combination, fully compositional cooking language.
+- "südlich teil"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "süßigkeit essen"  # NOT_A_PHRASE: Free verb-object combination, and the singular is unidiomatic.
+- "tante besuchen"  # NOT_A_PHRASE: Free combination, same pattern as Oma besuchen.
+- "tasche stehlen"  # NOT_A_PHRASE: Free combination of any object plus stehlen.
+- "tasse trinken"  # NOT_A_PHRASE: Fragment of 'eine Tasse Kaffee trinken'; free combination.
+- "taß fallen"  # BAD_UNIT: Unit is misspelled ("Taß" for Tasse) and the real phrase is "eine Tasse fallen lassen".
+- "tee trinken"  # NOT_A_PHRASE: Free object+verb combination.
+- "teilnehmen"  # DUPLICATE: Teaches the same item as vp:teilnehmen_an, which carries the governed preposition.
+- "telefon benutzen"  # NOT_A_PHRASE: Free object-verb combination.
+- "telefoniern mit"  # BAD_UNIT: The unit display misspells the infinitive: it should be 'telefonieren mit +Dat'.
+- "telefonnummer kennen"  # NOT_A_PHRASE: Free verb-object combination.
+- "teuer restaurant"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "text lesen"  # NOT_A_PHRASE: Free object-verb combination.
+- "thema berichten"  # BAD_UNIT: Not a real collocation (German is 'ueber ein Thema berichten'), and every card is broadcast boilerpl
+- "tief loch"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "tisch verwenden"  # NOT_A_PHRASE: Free object-verb combination.
+- "tochter heiraten"  # NOT_A_PHRASE: Free verb-object combination.
+- "tod vergleichen"  # NOT_A_PHRASE: Parser artefact; not a German collocation.
+- "toilette benutzen"  # NOT_A_PHRASE: Free object-verb combination.
+- "tom beschützen"  # BAD_UNIT: Unit pairs a proper name with the verb; not a learnable collocation.
+- "tom retten"  # BAD_UNIT: 'Tom retten' is a name plus verb, not a German collocation worth teaching.
+- "tom vertrauen"  # BAD_UNIT: Unit is built on a proper name rather than a learnable collocation.
+- "ton formen"  # NOT_A_PHRASE: Free object-verb combination, and 'Ton' is ambiguous without context.
+- "tragisch unfall"  # NOT_A_PHRASE: Free news combination.
+- "traurig lied"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "treppe benutzen"  # NOT_A_PHRASE: Free object-verb combination.
+- "tür schließen"  # NOT_A_PHRASE: Free object+verb combination.
+- "tür öffnen"  # NOT_A_PHRASE: Free object+verb combination.
+- "türe schließen"  # BAD_UNIT: "Türe" is a southern/dated variant; a learner should be taught "Tür schließen".
+- "türe öffnen"  # BAD_UNIT: "Türe" is a regional/dated variant; the standard learner form is "Tür öffnen".
+- "ukrainisch angabe"  # NOT_A_PHRASE: War-reporting boilerplate (nach ukrainischen Angaben), topic co-occurrence only.
+- "ukrainisch geheimdienst"  # NOT_A_PHRASE: News-only combination, cited in the genitive.
+- "ukrainisch hauptstadt"  # NOT_A_PHRASE: War-reporting topic co-occurrence.
+- "ukrainisch stellung"  # NOT_A_PHRASE: News-only military jargon.
+- "ukrainisch truppe"  # NOT_A_PHRASE: News-only combination, not a lexical unit.
+- "ukrainisch volk"  # NOT_A_PHRASE: News-only nationality plus noun; also an unusable weak-inflection form.
+- "umringen von"  # BAD_UNIT: 'von' is the passive agent of 'umringt werden', not a governed preposition.
+- "umrühren mit"  # NOT_A_PHRASE: Free instrumental preposition, not a governed one.
+- "umschauen"  # DUPLICATE: The verb exists only reflexively; duplicates rv:sich_umschauen.
+- "umsehen"  # DUPLICATE: The verb exists only reflexively; duplicates rv:sich_umsehen.
+- "umzugehen mit"  # BAD_UNIT: Citation form is a zu-infinitive; the unit is 'umgehen mit'.
+- "unangenehm aufgabe"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "unfallursache untersuchen"  # NOT_A_PHRASE: News-report boilerplate, a free combination.
+- "universität besuchen"  # NOT_A_PHRASE: Free verb-object combination.
+- "unterer bereich"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "unterschied kennen"  # NOT_A_PHRASE: Free combination, and not an established collocation.
+- "vater ähneln"  # NOT_A_PHRASE: ähneln takes any dative object; nothing fixed here.
+- "verdient geld"  # NOT_A_PHRASE: Parser artefact from 'hart verdientes Geld'; not a unit on its own.
+- "verdächtig person"  # NOT_A_PHRASE: Free police-report combination.
+- "verdächtige festnehmen"  # BAD_UNIT: Citation form lowercases the German noun; it should read 'Verdächtige festnehmen'.
+- "verdächtiges bemerken"  # NOT_A_PHRASE: Artefact of 'etwas Verdaechtiges bemerken'; not a noun-verb unit.
+- "vereint nation"  # BAD_UNIT: This is a proper name (the United Nations), not a general adjective-noun collocation to drill.
+- "verhindern durch"  # BAD_UNIT: "durch" is a free instrumental adjunct, not a preposition governed by verhindern.
+- "verletzt person"  # NOT_A_PHRASE: Free news combination in an oblique form.
+- "verletzter versorgen"  # BAD_UNIT: Ungrammatical citation form: the nominalised adjective is "Verletzte", capitalised.
+- "verletzung zugezogen"  # BAD_UNIT: Citation form uses a participle; the phrase is reflexive "sich eine Verletzung zuziehen".
+- "verloren schlüssel"  # NOT_A_PHRASE: Free participle-noun combination.
+- "verpacken als"  # NOT_A_PHRASE: Free combination; 'als' is not governed by this verb.
+- "verriegeln von"  # BAD_UNIT: 'von innen' is an adverbial of direction, not a preposition governed by 'verriegeln'.
+- "verschlossen von"  # BAD_UNIT: Not a verb+preposition unit; "von außen/innen" is a free adverbial and the citation form is a partic
+- "verstorben papst"  # NOT_A_PHRASE: News-only combination tied to one event.
+- "versucht mord"  # BAD_UNIT: Legal court-report jargon in an oblique genitive form, not a useful A1-B2 phrase.
+- "vertrauen verdienen"  # BAD_UNIT: The noun is miscapitalised in the citation form; it must be 'Vertrauen verdienen'.
+- "verursachen durch"  # NOT_A_PHRASE: Passive agent phrase ('verursacht durch'), not verb government.
+- "verwanden mit"  # BAD_UNIT: The unit display is not a German word; it should be 'verwandt sein mit +Dat'.
+- "vierter platz"  # NOT_A_PHRASE: Free ordinal-plus-noun combination.
+- "vierter stock"  # NOT_A_PHRASE: Free ordinal-plus-noun combination.
+- "vogel beobachten"  # NOT_A_PHRASE: Free combination; beobachten takes any object.
+- "vogel fangen"  # NOT_A_PHRASE: Free combination of an animal plus fangen.
+- "vorbeigehen"  # DUPLICATE: Subsumed by vp:vorbeigehen_an, which carries the case information.
+- "vorfall beobachten"  # NOT_A_PHRASE: Free news combination.
+- "vorgehen kritisieren"  # BAD_UNIT: Citation form lowercases the noun; it should read 'Vorgehen kritisieren'.
+- "wagen reparieren"  # NOT_A_PHRASE: Free verb-object combination.
+- "wahr gefühl"  # NOT_A_PHRASE: Free combination in an oblique form.
+- "wahrgehen"  # BAD_UNIT: Not a verb: 'nicht wahr?' is a question tag, unrelated to gehen.
+- "wahrkannstn"  # BAD_UNIT: Not a verb: garbled lemma over the 'nicht wahr?' question tag.
+- "wahrweißen"  # BAD_UNIT: Not a verb: garbled lemma over the 'nicht wahr?' question tag.
+- "waschmaschine benutzen"  # NOT_A_PHRASE: Free verb-object combination.
+- "wasser kochen"  # NOT_A_PHRASE: Free verb-object combination.
+- "wasser trinken"  # NOT_A_PHRASE: Free object+verb combination.
+- "wecken um"  # BAD_UNIT: The "um" is a clock-time adverbial (um sechs), not a verb complement; wecken governs no "um".
+- "wegrannen"  # BAD_UNIT: The infinitive is "wegrennen"; "wegrannen" is not a German word and teaches a wrong citation form.
+- "wegzudenken aus"  # BAD_UNIT: Citation form is a zu-infinitive from the idiom "nicht wegzudenken sein", not a usable dictionary un
+- "wehen bis"  # BAD_UNIT: 'bis' marks a range between compass points, not a complement of wehen.
+- "wehen durch"  # NOT_A_PHRASE: Free directional adjunct.
+- "wein trinken"  # NOT_A_PHRASE: Free object-verb combination.
+- "weite suchen"  # BAD_UNIT: The idiom is "das Weite suchen" with a capitalised nominalised adjective; "weite suchen" is not a va
+- "weitergeleiten an"  # BAD_UNIT: 'weitergeleiten' is not an infinitive; the correct unit 'weiterleiten an' already exists separately.
+- "weiterwohnen"  # BAD_UNIT: Not a verb here: every card is 'zwei Haeuser/Strassen weiter', where weiter is a spatial adverb, not
+- "weiterzugeben an"  # BAD_UNIT: Citation form is a zu-infinitive; the lemma is 'weitergeben an'.
+- "weiß gebäude"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "weiß hemd"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "weiß kaninchen"  # NOT_A_PHRASE: Free colour-plus-animal combination.
+- "weiß katze"  # NOT_A_PHRASE: Free descriptive adjective-noun combination.
+- "wert ergeben"  # NOT_A_PHRASE: Not a German collocation; statistical co-occurrence only.
+- "wichtig sieg"  # NOT_A_PHRASE: Free sports-report combination.
+- "wichtige sagen"  # BAD_UNIT: Citation form does not match the pattern used in every card, which is 'etwas Wichtiges sagen'.
+- "wissen vermitteln"  # BAD_UNIT: Citation form lowercases the noun; it should read 'Wissen vermitteln'.
+- "wort buchstabieren"  # NOT_A_PHRASE: Free verb-object combination.
+- "wörterbuch benutzen"  # NOT_A_PHRASE: Free object-verb combination.
+- "wörterbuch empfehlen"  # NOT_A_PHRASE: Free object-verb combination.
+- "wörterbuch leihen"  # NOT_A_PHRASE: Free combination, transparent from its parts.
+- "yen kosten"  # BAD_UNIT: A currency name plus kosten is a noise pair, not a German phrase an A1-B2 learner needs.
+- "yen leihen"  # NOT_A_PHRASE: Currency artefact of translated Tatoeba sentences, not a German collocation.
+- "yen schulden"  # NOT_A_PHRASE: Currency artefact of translated Tatoeba sentences.
+- "zeitung lesen"  # NOT_A_PHRASE: Free object+verb combination.
+- "zentral platz"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "zeuge suchen"  # NOT_A_PHRASE: News-only co-occurrence (Polizei sucht Zeugen), not a teachable unit.
+- "zigarre rauchen"  # NOT_A_PHRASE: Free object-verb combination.
+- "zimmer aufzuräumen"  # BAD_UNIT: Citation form carries the zu-infinitive; the unit should read 'Zimmer aufräumen'.
+- "zugekommen auf"  # BAD_UNIT: Participle citation form; the lemma is 'zukommen auf'.
+- "zugrundegehen"  # BAD_UNIT: Obsolete pre-1996 one-word spelling; current form is "zugrunde gehen".
+- "zuhause suchen"  # NOT_A_PHRASE: Free object-verb combination.
+- "zulaufen"  # DUPLICATE: Bare form of vp:zulaufen_auf.
+- "zum beispiel"  # BAD_UNIT: Unit display lowercases the noun; must be zum Beispiel.
+- "zum lachen bringen"  # BAD_UNIT: The nominalised infinitive must be capitalised: 'zum Lachen bringen'.
+- "zum stehen kommen"  # BAD_UNIT: Citation form is miswritten; the nominalised infinitive must be capitalised: 'zum Stehen kommen'.
+- "zum weine bringen"  # BAD_UNIT: Displayed form is wrong and mismatches the gap; the phrase is "zum Weinen bringen".
+- "zunge verbrennen"  # NOT_A_PHRASE: Free combination; the idiom would be sich die Zunge verbrennen.
+- "zurechtkommen"  # DUPLICATE: Subsumed by vp:zurechtkommen_mit.
+- "zurechtkommen ohne"  # NOT_A_PHRASE: The governed preposition is 'mit'; 'ohne' is a free adjunct.
+- "zurückblicken"  # DUPLICATE: Subsumed by vp:zurueckblicken_auf.
+- "zurückgekommen aus"  # BAD_UNIT: Participle citation form; the unit should read "zurückkommen aus +Dat".
+- "zurückgelassen auf"  # BAD_UNIT: Participle citation form; the lemma is 'zurücklassen auf'.
+- "zurückgreifen"  # DUPLICATE: Subsumed by vp:zurueckgreifen_auf.
+- "zurückkämpfen"  # DUPLICATE: Only exists reflexively; duplicates rv:sich_zurueckkaempfen.
+- "zurücklehnen"  # DUPLICATE: Duplicates rv:sich_zuruecklehnen, which is the usable form.
+- "zurückmussen"  # BAD_UNIT: Lemma is malformed; the citation form is zurueckmuessen.
+- "zurückweisen als"  # BAD_UNIT: "als" is not a case-governing preposition, so the "+Akk" label on this unit is misleading.
+- "zusammenleben"  # DUPLICATE: Subsumed by vp:zusammenleben_mit.
+- "zusammenmachen"  # BAD_UNIT: 'zusammen machen' here is the adverb 'together/in total' plus 'machen', not a separable verb.
+- "zusammenschließen"  # DUPLICATE: Duplicates rv:sich_zusammenschliessen, which is the usable form.
+- "zusammenstießen"  # BAD_UNIT: Lemma is a past-tense form; the verb is zusammenstossen.
+- "zusammenverbringen"  # BAD_UNIT: Not a separable verb: 'zusammen' is an adverb modifying 'Zeit verbringen'.
+- "zustandekommen"  # BAD_UNIT: Current spelling is the two-word 'zustande kommen'; the citation form is pre-1996.
+- "zusteuern"  # DUPLICATE: Duplicates vp:zusteuern_auf, which carries the governed preposition.
+- "zwilling unterscheiden"  # NOT_A_PHRASE: Free combination harvested from one context.
+- "zählen bis"  # NOT_A_PHRASE: Free combination ('bis zehn zählen'), no government to learn.
+- "äpfel verkaufen"  # NOT_A_PHRASE: Free combination; verkaufen takes any goods.
+- "überblicken von"  # NOT_A_PHRASE: Free source adjunct, not a governed preposition.
+- "übernachteen in"  # BAD_UNIT: Unit is misspelled; the verb is "übernachten".
+- "überzogen mit"  # BAD_UNIT: Citation form is a past participle; the unit should be "überziehen mit +Dat".
+- "übrigwünschen"  # BAD_UNIT: No such verb; the idiom is zu wünschen übrig lassen, so the unit and its gaps are invented.

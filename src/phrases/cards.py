@@ -12,6 +12,7 @@ auf``, ``warte … auf``, ``gewartet auf``), then fill to the cap by length.
 """
 
 import hashlib
+import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
@@ -64,6 +65,30 @@ def usable_gloss(text: str, gloss: Gloss | None) -> Gloss | None:
     if not gloss_is_sane(text, gloss.english):
         return None
     return gloss
+
+
+_QUOTE_CHARS = '"\u201e\u201c\u201d\u00ab\u00bb'
+_WORD = re.compile(r"[\w\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00df]+")
+
+
+def unsuitable_reason(occ: Occurrence) -> str | None:
+    """Sentence-level reasons a correct occurrence still makes a bad card.
+
+    Found by the phase 1 review: reported-speech Konjunktiv I in the
+    sentence (the learner types the indicative and is marked wrong), an
+    answer token repeated elsewhere in the sentence (the gap is given away),
+    and a stray quotation mark from the source.
+    """
+    if occ.evidence.get("k1_sentence") == "true" or "K1" in occ.form_key:
+        return "konjunktiv_i"
+    if sum(occ.text.count(ch) for ch in _QUOTE_CHARS) % 2 == 1:
+        return "unbalanced_quotes"
+    words = _WORD.findall(occ.text.lower())
+    gap_words = [w.lower() for w in occ.surfaces]
+    for word in set(gap_words):
+        if len(word) > 2 and words.count(word) > gap_words.count(word):
+            return "answer_leak"
+    return None
 
 
 def _score(occ: Occurrence, *, taken_forms: set[str], glossed: bool) -> float:
@@ -152,6 +177,10 @@ def select_cards(
                 continue
             if card_id_for(unit.unit_id, text) in excluded_card_ids:
                 stats["excluded_by_review"] += 1
+                continue
+            reason = unsuitable_reason(group[0])
+            if reason is not None:
+                stats[reason] += 1
                 continue
             candidates.append((group[0], usable_gloss(text, glosses.get(text))))
 

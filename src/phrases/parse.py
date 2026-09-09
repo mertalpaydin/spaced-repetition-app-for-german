@@ -177,7 +177,9 @@ def repair_verb_lemma(lemma: str) -> str:
             candidate = lemma[: -len(wrong)] + right
             if normalise(candidate) in words:
                 return candidate
-    return lemma
+    # "benimmsen", "erinnerstn", "küssn": the tagger glued an ending onto an
+    # inflected form. Not a word, so not a unit (review finding, 2026-09-08).
+    return ""
 
 
 def separable_particle(sentence: ParsedSentence, verb: ParsedToken) -> ParsedToken | None:
@@ -212,6 +214,18 @@ def form_key(verb: ParsedToken, *, suffix: str = "") -> str:
     vf = m.get("VerbForm", "Fin")
     if vf == "Fin":
         key = "|".join(["Fin", m.get("Tense", "?"), m.get("Person", "?"), m.get("Number", "?")])
+        if is_konjunktiv_i(verb):
+            key += "|K1"
     else:
         key = vf
     return f"{key}|{suffix}" if suffix else key
+
+
+def is_konjunktiv_i(token: ParsedToken) -> bool:
+    """Reported-speech Konjunktiv I ("er gebe", "es handle sich"): correct
+    German that a learner typing the indicative would be marked wrong on."""
+    return token.morph.get("Mood") == "Sub" and token.morph.get("Tense") == "Pres"
+
+
+def has_konjunktiv_i(sentence: ParsedSentence) -> bool:
+    return any(t.pos in {"VERB", "AUX"} and is_konjunktiv_i(t) for t in sentence.tokens)

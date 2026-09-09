@@ -59,6 +59,11 @@ class Thresholds:
     colloc_cap_per_verb: int = 8
     colloc_cap_per_noun: int = 4
     adj_cap_per_noun: int = 4
+    #: Free adjective-noun combinations ("alter Mann") pass the collocation
+    #: bar on Tatoeba's repetitive sentences; the review flagged them as not
+    #: worth a card, so adjective-noun pairs need stronger evidence.
+    adj_min_count: int = 8
+    adj_min_lift: float = 8.0
     case_majority: float = 0.75
     trivial_rank_max: int = 300
 
@@ -207,6 +212,7 @@ class UnitBuilder:
         self.idioms = {i.key: i for i in curated.idioms}
         self.stoplist = set(curated.trivial_stoplist)
         self.excluded = set(curated.exclude)
+        self.overrides = {o.key: o for o in curated.overrides}
         self.report: dict[str, Any] = {
             "rejected": Counter(),
             "seed_disagreements": [],
@@ -342,7 +348,9 @@ class UnitBuilder:
                 source="mined+curated" if s.count else "curated",
                 score=g2,
             )
-        if s.count < self.t.colloc_min_count:
+        min_count = self.t.adj_min_count if s.kind == "adj_noun" else self.t.colloc_min_count
+        min_lift = self.t.adj_min_lift if s.kind == "adj_noun" else self.t.colloc_min_lift
+        if s.count < min_count:
             return _Decision(False, "count")
         # A mined collocation is taught only when its noun is on the Goethe
         # A1-B1 lists or in the B2 frequency band. This is what keeps the news
@@ -355,7 +363,7 @@ class UnitBuilder:
             return _Decision(False, "noun_not_in_wordlist")
         if g2 < self.t.colloc_min_g2:
             return _Decision(False, "g2")
-        if lift_value < self.t.colloc_min_lift:
+        if lift_value < min_lift:
             return _Decision(False, "lift")
         return _Decision(True, cefr=self._cefr_for(head), score=g2)
 
@@ -502,16 +510,18 @@ class UnitBuilder:
                 continue
             seen_ids.add(unit_id)
             trivial, reason = self._trivial(s, d)
+            override = self.overrides.get(s.key)
             units.append(
                 PhraseUnit(
                     unit_id=unit_id,
                     kind=s.kind,  # type: ignore[arg-type]
                     lemma_key=s.key,
                     parts=list(s.best_parts),
-                    display_de=self._display(s, d),
-                    case=d.case,
-                    cefr=d.cefr,  # type: ignore[arg-type]
-                    gloss_en=d.gloss_en,
+                    display_de=(override.display if override and override.display else None)
+                    or self._display(s, d),
+                    case=(override.case if override and override.case else d.case),
+                    cefr=(override.cefr if override and override.cefr else d.cefr),  # type: ignore[arg-type]
+                    gloss_en=(override.gloss_en if override and override.gloss_en else d.gloss_en),
                     sentence_count=s.count,
                     count_by_source=dict(s.count_by_source),
                     rank=rank,

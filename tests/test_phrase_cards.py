@@ -147,3 +147,16 @@ def test_a_card_excluded_by_review_is_never_selected_again() -> None:
     )
     assert selection.cards == []
     assert selection.stats["excluded_by_review"] == 1
+
+
+def test_unsuitable_sentences_are_skipped_with_a_reason() -> None:
+    from src.phrases.cards import unsuitable_reason
+
+    leak = _occ("Er wartet auf den Bus, wartet und wartet.", "wartet", "auf")
+    assert unsuitable_reason(leak) == "answer_leak"
+    quote = _occ('Er wartet auf den "Bus.', "wartet", "auf")
+    assert unsuitable_reason(quote) == "unbalanced_quotes"
+    k1 = _occ("Er warte auf den Bus.", "warte", "auf", form_key="Fin|Pres|3|Sing|K1")
+    assert unsuitable_reason(k1) == "konjunktiv_i"
+    fine = _occ("Er wartet auf den Bus.", "wartet", "auf")
+    assert unsuitable_reason(fine) is None
