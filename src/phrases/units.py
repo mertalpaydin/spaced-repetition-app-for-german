@@ -26,6 +26,9 @@ from src.phrases.occurrences import Occurrence
 
 DEFAULT_VOCAB_PATH = Path("data/fixtures/corpus/vocab_levels.json")
 
+#: The corpora whose register is everyday speech rather than news or web prose.
+EVERYDAY_SOURCES: frozenset[str] = frozenset({"tatoeba", "opensubtitles_2018"})
+
 _KIND_ORDER: dict[str, int] = {
     "verb_prep": 0,
     "reflexive_verb": 1,
@@ -66,6 +69,12 @@ class Thresholds:
     adj_min_lift: float = 8.0
     case_majority: float = 0.75
     trivial_rank_max: int = 300
+    #: A mined collocation must also occur in everyday registers (Tatoeba,
+    #: subtitles) this often. The web and news corpora carry boilerplate pairs
+    #: ("personenbezogene Daten", "erneuerbare Energie") that are real
+    #: collocations and useless to a learner; everyday evidence is what
+    #: separates "gute Idee" from them.
+    colloc_min_everyday: int = 3
 
 
 @dataclass
@@ -361,6 +370,9 @@ class UnitBuilder:
         noun = parts[-2].lower() if s.kind == "noun_verb" else parts[1].lower()
         if self._cefr_for(noun) is None:
             return _Decision(False, "noun_not_in_wordlist")
+        everyday = sum(s.count_by_source.get(src, 0) for src in EVERYDAY_SOURCES)
+        if self.counts.sentences_by_source and everyday < self.t.colloc_min_everyday:
+            return _Decision(False, "no_everyday_evidence")
         if g2 < self.t.colloc_min_g2:
             return _Decision(False, "g2")
         if lift_value < min_lift:

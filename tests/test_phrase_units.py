@@ -210,3 +210,20 @@ def test_rank_uses_mean_per_source_relative_frequency() -> None:
     units = _builder(counts).build(everyday + news)
     assert [(u.rank, u.lemma_key) for u in units] == [(1, "warten auf"), (2, "denken an")]
     assert units[0].per_million == 10_000.0  # 20 of 1,000, averaged with 0 of 9,000
+
+
+def test_a_collocation_seen_only_in_news_and_web_is_not_a_unit() -> None:
+    counts = _counts(treffen=30, trinken=80)
+    counts.sentences_by_source = Counter({"tatoeba": 1_000, "leipzig_web_2021": 9_000})
+    counts.nouns["datum"] = 60
+    counts.adjectives["personenbezogen"] = 40
+    web_only = [
+        o.model_copy(update={"corpus_source": "leipzig_web_2021"})
+        for o in _occ("adj_noun", "personenbezogen datum", ["personenbezogen", "Datum"], 12)
+    ]
+    everyday = _occ("adj_noun", "stark kaffee", ["stark", "Kaffee"], 9)
+    builder = _builder(counts)
+    builder.vocabulary.vocab["datum"] = "A1"
+    keys = [u.lemma_key for u in builder.build(web_only + everyday)]
+    assert keys == ["stark kaffee"]
+    assert builder.report["rejected"]["adj_noun:no_everyday_evidence"] == 1
