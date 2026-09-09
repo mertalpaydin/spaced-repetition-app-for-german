@@ -157,3 +157,4 @@ data/review_log.jsonl
 # Grammar-trainer leftovers on the owner's disk; deleted by hand, never committed.
 data/corpus_candidate_pool.json
 data/*_pool.json
+data/review_log.jsonl

@@ -101,12 +101,34 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   and converged: the last rebuild produced nothing unread. 26 causes
   became rules; the audit README has each step's cross-vendor diff.
 
+- **Phase 2, the laptop client, 2026-09-09.** `src/engine/review_log.py`
+  (append-only JSONL at `data/review_log.jsonl`, gitignored; `derive_state`
+  replays it through FSRS deterministically), `grading.py` (per-gap grading
+  with the scoped typo grader; exact or transliteration is good, a scoped
+  typo is hard, anything else is again; a sentence-initial gap accepts the
+  lower-case form), `session.py` (due units by retrievability, then new
+  units in rank order up to `new_per_day`, then learn-ahead; only cards with
+  a machine gloss are shown, and a sentence-initial connector card only with
+  its context sentence), `stats.py`, and `src/cli/train.py` with triage,
+  practice and stats modes. `uv run python -m src.cli.train practice`.
+- **Deck jobs through the Gemini agent, 2026-09-09.** `scripts/agy_jobs.py`
+  generates connector context sentences (21 of 22 accepted) and English
+  glosses for the picked sentences through `agy`, checked deterministically
+  before they are stored; glosses land in the translation store with
+  `source: "gemini"`.
+- **Prepositional adjective-noun units.** An adjective-noun pair governed by
+  one preposition in at least 80% of its sentences is a three-token unit
+  with three gaps (`auf freiem Fuß`); 44 such units.
+
 ## What is not built
 
 - **Gloss checks for the 38,000 unglossed cards**, once the Azure job
   supplies translations.
-- **Phase 2 and 3.** `web/` is the grammar trainer's PWA, untouched; it falls
-  back to six seed items because `web/data/` was deleted.
+- **Phase 3.** `web/` is the grammar trainer's PWA, untouched; it falls back
+  to six seed items because `web/data/` was deleted. The review-log format
+  it must read is the one in `src/contracts.py` (`ReviewEntry`, `MarkEntry`).
+- **Log merging across devices** exists as a function
+  (`review_log.merge_entries`) but has no command yet.
 
 ---
 

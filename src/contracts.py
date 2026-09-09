@@ -280,3 +280,52 @@ class DeckShard(BaseModel):
     band: int = Field(ge=0)
     units: list[PhraseUnit]
     cards: list[PhraseCard]
+
+
+# ==============================================================================
+# Phase 2: the review log (the single source of truth for progress, rule 1)
+# ==============================================================================
+
+#: The three ratings the grader can produce. There is no "easy": the learner
+#: never self-rates, the grade decides.
+ReviewRating = Literal["again", "hard", "good"]
+#: What happened to the typed answers, for the stats and for replay.
+ReviewOutcome = Literal["exact", "translit", "typo", "case", "wrong", "revealed"]
+
+
+class ReviewEntry(BaseModel):
+    """One graded card. ``ts`` is UTC; ``seq`` is the log's own counter, so two
+    logs (laptop, phone) can be merged on ``(unit_id, ts)`` and replayed in
+    order. ``deck_version`` records which deck the card came from."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: Literal["review"] = "review"
+    seq: int = Field(ge=1)
+    ts: datetime
+    unit_id: str
+    card_id: str
+    rating: ReviewRating
+    outcome: ReviewOutcome
+    answers: list[str]
+    expected: list[str]
+    elapsed_ms: int = Field(ge=0)
+    deck_version: str
+
+
+class MarkEntry(BaseModel):
+    """The learner marked a unit known (``known=True``, skipped by the
+    scheduler) or unmarked it. ``source`` says where: the one-time triage, or
+    the "Kannte ich schon" button in practice."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: Literal["mark"] = "mark"
+    seq: int = Field(ge=1)
+    ts: datetime
+    unit_id: str
+    known: bool
+    source: Literal["triage", "practice"]
+
+
+LogEntry = ReviewEntry | MarkEntry

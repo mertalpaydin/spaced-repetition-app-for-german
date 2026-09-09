@@ -43,18 +43,16 @@ the next band of what survives. Open:
   holds every card sentence without a machine gloss (about 2.9M characters
   on the wide corpus). The monthly job reads it as pass 0; October's
   allowance is the first that can be spent on it.
-- **Contexts via `gemini-executor`.** No context sentence has been generated
-  yet; sentence-initial connector cards show a single sentence. Generate the
-  preceding sentence with the executor skill (no key, no spend); the
-  deterministic acceptance checks in `src/phrases/contexts.py` still apply.
+- **Contexts for the remaining sentence-initial connector cards.** 21 of 30
+  have one; the other nine wait for a gloss, then
+  `uv run python scripts/agy_jobs.py contexts` again.
 - **Unit-level glosses** for mined units: none yet; a later opt-in batch.
 - **Adjective-noun citation forms without a nominative or a governing
   preposition** still show the commonest oblique form; a gender lookup
   would fix the rest.
-- **Gaps for prepositional displays.** `auf freiem Fuß`, `ein Auge werfen
-  auf` blank only the unit's own tokens; both reviewers flag the
-  unbracketed preposition. Decide whether the miner should record the
-  preposition token so it can be gapped too.
+- **Noun-verb displays with a complement** (`ein Auge werfen auf`) still
+  blank only noun and verb; the adjective-noun case is solved, this one
+  would need the same treatment in the collocation miner.
 
 ## Before phase 2 (owner's instruction, 2026-09-09)
 
@@ -64,10 +62,14 @@ the next band of what survives. Open:
   once the stepped review is done.
 - Check the top pairs against DWDS Wortprofil where its terms allow.
 
-## Phase 2: FSRS and the laptop client
+## Phase 2: FSRS and the laptop client (built 2026-09-09)
 
-- `src/engine/review_log.py` (JSONL log, replay), `session.py`, `grading.py`
-  (`grade_gaps`, rating map), `src/cli/train.py` (triage, practice, stats).
+- **Use it for a week** before phase 3: triage the first bands, practise
+  daily, watch `stats`. Report what feels wrong in the scheduler or grader.
+- A `merge` command for two review logs (`review_log.merge_entries` exists).
+- Reviewed card sentences with a Gemini-agent gloss have not had the gloss
+  itself reviewed; the next review step (cards new to the reviewers) covers
+  them.
 
 ## Phase 3: the PWA
 
