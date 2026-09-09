@@ -108,12 +108,23 @@ wants first; the whole wanted list is about 1.3M characters. After it runs: `--s
 
 ## Review
 
-Zero-defect policy: every card is read before a learner sees it. The record
-of each round is in `docs/audits/phase-1-review/`. A round reads the deck as
-plain-text batches (600 cards or 700 units per agent), writes findings as
-JSON lines, and those become curated-list entries with reasons; systematic
-causes become code rules with tests. A round after a rebuild reads only the
-card ids not in the previous round's `reviewed-card-ids-*.txt`.
+Zero-defect policy: every card is read before a learner sees it, by two
+reviewers from different vendors. The record of each round is in
+`docs/audits/phase-1-review/`. `scripts/review_deck.py` drives it:
+
+```
+uv run python scripts/review_deck.py batches <dir>              # cards and units not yet reviewed
+uv run python scripts/review_deck.py gemini <dir>               # Gemini via the agy CLI, one process per batch
+uv run python scripts/review_deck.py apply <dir>/findings --round <label>
+```
+
+The Claude pass is run from the agent session, one agent per batch file,
+writing the same findings shape into `<dir>/findings/`. `apply` turns the
+findings into curated-list entries with the reviewer's reason on every line
+and records the round's findings and reviewed ids under `docs/audits/`.
+Systematic causes become code rules with tests. After a rebuild, `batches`
+writes only what no round has read yet; the loop ends when a rebuild adds
+nothing new.
 
 ## Tuning
 
