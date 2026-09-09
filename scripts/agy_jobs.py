@@ -24,6 +24,7 @@ import json
 import subprocess
 import sys
 import tempfile
+import time
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -246,6 +247,27 @@ def job_contexts(args: argparse.Namespace) -> int:
 
 # -- glosses -------------------------------------------------------------------
 
+
+def write_store_with_retry(
+    path: Path,
+    store: dict[str, TranslationRecord],
+    *,
+    attempts: int = 12,
+    sleep: Callable[[float], None] = time.sleep,
+) -> None:
+    """``os.replace`` fails on Windows while another process has the store
+    open for reading (a deck build in progress). Wait and try again rather
+    than lose a batch."""
+    for attempt in range(attempts):
+        try:
+            _write_store_atomic(path, store)
+            return
+        except PermissionError:
+            if attempt == attempts - 1:
+                raise
+            sleep(5.0)
+
+
 GLOSS_PROMPT = (
     "Use exactly two tools: read the file {inp}, then write the file {out}. Do not run shell "
     "commands and do not read any other file. {inp} holds one JSON object per line: id, de (a "
@@ -324,7 +346,7 @@ def job_glosses(args: argparse.Namespace) -> int:
             )
             added += 1
         if added:
-            _write_store_atomic(args.store, store)
+            write_store_with_retry(args.store, store)
         batches_done += 1
         print(
             f"glosses: batch {batches_done} ({len(batch)} sentences) agent {result.status}: "

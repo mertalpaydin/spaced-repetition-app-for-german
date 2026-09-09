@@ -64,3 +64,17 @@ def test_run_agent_survives_a_non_json_reply() -> None:
         Path("."), "p", model="m", timeout="1m", runner=lambda *a, **k: Result()
     )
     assert result.status == "NO_JSON"
+
+
+def test_store_write_retries_while_the_file_is_locked(monkeypatch, tmp_path: Path) -> None:
+    calls = {"n": 0}
+
+    def flaky(path: Path, store: dict) -> None:  # type: ignore[type-arg]
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise PermissionError("locked")
+
+    monkeypatch.setattr(agy_jobs, "_write_store_atomic", flaky)
+    slept: list[float] = []
+    agy_jobs.write_store_with_retry(tmp_path / "s.jsonl", {}, sleep=slept.append)
+    assert calls["n"] == 3 and slept == [5.0, 5.0]
