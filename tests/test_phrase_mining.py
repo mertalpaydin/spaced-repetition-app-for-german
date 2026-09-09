@@ -183,3 +183,14 @@ def test_a_capitalised_adjective_is_part_of_a_name_not_a_collocation() -> None:
 def test_konjunktiv_i_marks_every_occurrence_in_the_sentence() -> None:
     found = _detect("Er sagte, es gebe keinen Grund, auf ihn zu warten.")
     assert found and all(o.evidence.get("k1_sentence") == "true" for o in found)
+
+
+@requires_model
+def test_round_two_rules() -> None:
+    """Causes found by review round 2, each now a rule."""
+    assert not [o for o in _detect("Es gibt eine Möglichkeit.") if o.kind == "noun_verb"]
+    assert not [o for o in _detect("Wir gehen ab und zu ins Kino.") if o.kind == "separable_verb"]
+    assert not [o for o in _detect("Sie sehen sich gegenseitig an.") if o.kind == "reflexive_verb"]
+    assert not [o for o in _detect("Er tat so, als ob er schliefe.") if o.unit_key == "ob"]
+    assert not [o for o in _detect("Er geht um eins nach Hause.") if o.kind == "verb_prep"]
+    assert not [o for o in _detect("Er hat sich auf den Stuhl gesetzt.") if o.kind == "verb_prep"]

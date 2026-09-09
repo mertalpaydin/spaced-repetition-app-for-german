@@ -1,0 +1,464 @@
+{"card_id": "8f3e7340ed88", "unit": "ob", "category": "WRONG_UNIT", "severity": "low", "note": "The bracketed \"ob\" belongs to the fixed conjunction \"als ob\", not to the standalone connector \"ob\" (whether).", "action": "drop_card"}
+{"card_id": "b12403c96f4e", "unit": "weil", "category": "BAD_SENTENCE", "severity": "low", "note": "A bare subordinate clause, not a self-contained sentence.", "action": "drop_card"}
+{"card_id": "58a80cfba7ae", "unit": "jedoch", "category": "BAD_GLOSS", "severity": "low", "note": "The German says a price increase is hidden behind it, not that something is due to a price increase.", "action": "note"}
+{"card_id": "18d290e2cf80", "unit": "gehen um +Akk", "category": "WRONG_UNIT", "severity": "high", "note": "\"um eins\" is the temporal \"at one o'clock\", not the verb complement of \"es geht um\".", "action": "drop_card"}
+{"card_id": "4bbfb1e9f95d", "unit": "aufnehmen", "category": "BAD_SENTENCE", "severity": "low", "note": "Swiss guillemets and a headless stock-analyst jargon sentence whose subject \"Die\" has no referent.", "action": "drop_card"}
+{"card_id": "0f2ddb330b1b", "unit": "gehören zu +Dat", "category": "BAD_SENTENCE", "severity": "low", "note": "Obsolete pre-1996 spelling \"daß\"/\"muß\".", "action": "drop_card"}
+{"card_id": "66a4280dc74b", "unit": "sich setzen +Akk", "category": "WRONG_UNIT", "severity": "high", "note": "This is the dative idiom \"sich etwas in den Kopf setzen\", not accusative-reflexive \"sich setzen\".", "action": "drop_card"}
+{"card_id": "8d2b66fc76a1", "unit": "sich Sorgen machen", "category": "WRONG_UNIT", "severity": "high", "note": "\"Er macht ihr Sorgen\" is the non-reflexive construction (he worries her), not \"sich Sorgen machen\".", "action": "drop_card"}
+{"card_id": "1e8f54017853", "unit": "setzen auf +Akk", "category": "WRONG_UNIT", "severity": "low", "note": "This is reflexive \"sich setzen auf\" (sit down on), a different unit from transitive/figurative \"setzen auf\".", "action": "drop_card"}
+{"card_id": "62792bf5c92e", "unit": "sich ansehen +Dat", "category": "WRONG_UNIT", "severity": "high", "note": "\"sich\" here is the reciprocal accusative (they looked at each other), not the dative reflexive of the unit.", "action": "drop_card"}
+{"card_id": "d48f8990324c", "unit": "rechnen mit +Dat", "category": "BAD_GLOSS", "severity": "low", "note": "\"mit spitzem Bleistift rechnen\" means to budget very tightly, not \"reckon with a sharp pencil\".", "action": "note"}
+{"card_id": "2448c4e8c830", "unit": "darum", "category": "WRONG_UNIT", "severity": "low", "note": "\"darum\" is the pronominal adverb governed by \"bitten um\", not the causal connector.", "action": "drop_card"}
+{"card_id": "6e190429875a", "unit": "darum", "category": "BAD_GLOSS", "severity": "low", "note": "\"einen Hals haben\" means to be furious; the gloss translates it literally as having a neck.", "action": "note"}
+{"card_id": "81aaf855c851", "unit": "darum", "category": "WRONG_UNIT", "severity": "low", "note": "\"darum\" is the pronominal adverb governed by \"sich kümmern um\", not the causal connector.", "action": "drop_card"}
+{"card_id": "aa9a5e0d6032", "unit": "darum", "category": "WRONG_UNIT", "severity": "low", "note": "\"darum\" is the pronominal adverb of \"es geht um\", not the causal connector.", "action": "drop_card"}
+{"card_id": "79c678fc2643", "unit": "hingehen", "category": "WRONG_UNIT", "severity": "high", "note": "\"hin\" belongs to the adverbial \"hin und her\", not to a separable verb \"hingehen\".", "action": "drop_card"}
+{"card_id": "a34303613c89", "unit": "hingehen", "category": "WRONG_UNIT", "severity": "high", "note": "\"hin\" belongs to the adverbial \"hin und her\", not to a separable verb \"hingehen\".", "action": "drop_card"}
+{"card_id": "3062a82f9be2", "unit": "sich anschauen +Dat", "category": "WRONG_UNIT", "severity": "high", "note": "\"mich\" is a plain accusative object of \"anschauen\", not a dative reflexive.", "action": "drop_card"}
+{"card_id": "7996482f6899", "unit": "sich anschauen +Dat", "category": "WRONG_UNIT", "severity": "high", "note": "Reciprocal accusative \"sich ... gegenseitig\", not the dative reflexive of the unit.", "action": "drop_card"}
+{"card_id": "9bafda7d7a7e", "unit": "auszeichnen", "category": "WRONG_UNIT", "severity": "high", "note": "\"ausgezeichnet\" is the adverb \"excellently\" here, not a form of the verb auszeichnen.", "action": "drop_card"}
+{"card_id": "d6fc0a3129ca", "unit": "sich richten", "category": "WRONG_GAPS", "severity": "low", "note": "Only \"sich\" is bracketed; the verb \"richten\" is left in the sentence.", "action": "note"}
+{"card_id": "18e65b2453aa", "unit": "anstehen", "category": "BAD_SENTENCE", "severity": "low", "note": "Fragment (\"Etwa davon, wie viele ...\"), not a self-contained sentence.", "action": "drop_card"}
+{"card_id": "93ceb539db35", "unit": "sich helfen +Dat", "category": "WRONG_UNIT", "severity": "high", "note": "\"mir\" is a plain dative object (he helped me), not a reflexive.", "action": "drop_card"}
+{"card_id": "a42820624e1e", "unit": "sich helfen +Dat", "category": "WRONG_UNIT", "severity": "high", "note": "\"sich\" belongs to \"sich anbieten\", not to \"helfen\".", "action": "drop_card"}
+{"card_id": "6305ca08bb1d", "unit": "absehen", "category": "WRONG_UNIT", "severity": "low", "note": "\"abgesehen von\" is a fixed preposition here, not the separable verb absehen.", "action": "drop_card"}
+{"card_id": "63d6b63daeb3", "unit": "absehen", "category": "WRONG_UNIT", "severity": "low", "note": "\"abgesehen davon\" is a fixed adverbial, not the separable verb absehen.", "action": "drop_card"}
+{"card_id": "a8ad6259ac91", "unit": "angehören", "category": "WRONG_UNIT", "severity": "high", "note": "\"angehört\" here is the participle of \"anhören\" (to hear out), not of \"angehören\".", "action": "drop_card"}
+{"card_id": "0262ea8c2e31", "unit": "Möglichkeit geben", "category": "WRONG_UNIT", "severity": "low", "note": "This is existential \"es gibt\", not the collocation \"jemandem eine Möglichkeit geben\".", "action": "drop_card"}
+{"card_id": "5e455d88d033", "unit": "Möglichkeit geben", "category": "WRONG_UNIT", "severity": "low", "note": "Existential \"es gibt\", not \"jemandem eine Möglichkeit geben\".", "action": "drop_card"}
+{"card_id": "850333eec23c", "unit": "Möglichkeit geben", "category": "WRONG_UNIT", "severity": "low", "note": "Existential \"es gibt\", not \"jemandem eine Möglichkeit geben\".", "action": "drop_card"}
+{"card_id": "b29bb0e9e6ae", "unit": "Möglichkeit geben", "category": "WRONG_UNIT", "severity": "low", "note": "Existential \"es gibt\", not \"jemandem eine Möglichkeit geben\".", "action": "drop_card"}
+{"card_id": "eb22b4325042", "unit": "Möglichkeit geben", "category": "WRONG_UNIT", "severity": "low", "note": "Existential \"es gibt\", not \"jemandem eine Möglichkeit geben\".", "action": "drop_card"}
+{"card_id": "38365155a68e", "unit": "Hinweis geben", "category": "WRONG_UNIT", "severity": "low", "note": "Existential \"es gibt Hinweise\", not the collocation \"einen Hinweis geben\".", "action": "drop_card"}
+{"card_id": "4f1b8a03c1a1", "unit": "Hinweis geben", "category": "WRONG_UNIT", "severity": "low", "note": "Existential \"es gibt Hinweise\", not \"einen Hinweis geben\".", "action": "drop_card"}
+{"card_id": "7749d361fb17", "unit": "Hinweis geben", "category": "WRONG_UNIT", "severity": "low", "note": "Existential \"es gibt einen Hinweis\", not \"einen Hinweis geben\".", "action": "drop_card"}
+{"card_id": "bfda53bfb1ad", "unit": "Hinweis geben", "category": "WRONG_UNIT", "severity": "low", "note": "Existential \"es gab Hinweise\", not \"einen Hinweis geben\".", "action": "drop_card"}
+{"card_id": "37e67e7bdd0f", "unit": "aufbringen", "category": "WRONG_UNIT", "severity": "low", "note": "\"aufgebracht\" is the lexicalised adjective (upset), not the verb aufbringen in use.", "action": "drop_card"}
+{"card_id": "717d01dc19d2", "unit": "aufbringen", "category": "WRONG_UNIT", "severity": "low", "note": "\"aufgebracht\" is the adjective (upset), not the verb aufbringen in use.", "action": "drop_card"}
+{"card_id": "89880ceb8d99", "unit": "aufbringen", "category": "WRONG_UNIT", "severity": "low", "note": "\"aufgebracht\" is the adjective (upset), not the verb aufbringen in use.", "action": "drop_card"}
+{"card_id": "1d5af1dfc312", "unit": "ausgleichen", "category": "WRONG_UNIT", "severity": "low", "note": "\"ausgeglichen\" is an adverb (in a balanced way) modifying \"ernährt\", not the verb ausgleichen.", "action": "drop_card"}
+{"card_id": "53a0263d560c", "unit": "abkommen", "category": "WRONG_UNIT", "severity": "high", "note": "\"ab\" belongs to the adverbial \"ab und zu\"; the verb is \"kommen ... besuchen\", not abkommen.", "action": "drop_card"}
+{"card_id": "a991753ea3ad", "unit": "abkommen", "category": "WRONG_UNIT", "severity": "high", "note": "\"ab\" belongs to \"ab und zu\", not to a separable verb abkommen.", "action": "drop_card"}
+{"card_id": "3b7b47f0b974", "unit": "abgehen", "category": "WRONG_UNIT", "severity": "high", "note": "\"ab\" belongs to \"ab und zu\", not to the separable verb abgehen.", "action": "drop_card"}
+{"card_id": "ba1111e454ba", "unit": "abgehen", "category": "WRONG_UNIT", "severity": "high", "note": "\"ab\" belongs to \"ab und zu\", not to the separable verb abgehen.", "action": "drop_card"}
+{"card_id": "c3d9b35b2801", "unit": "aufbauen", "category": "BAD_SENTENCE", "severity": "low", "note": "Missing the obligatory comma before the subordinate clause \"bevor es dunkel wurde\".", "action": "note"}
+{"card_id": "4d6c351066b1", "unit": "zurückbleiben", "category": "BAD_SENTENCE", "severity": "low", "note": "Uses \"geistig zurückgeblieben\" as a joke; offensive and unusable.", "action": "drop_card"}
+{"card_id": "665434ab11a7", "unit": "aufrufen zu +Dat", "category": "BAD_SENTENCE", "severity": "low", "note": "Garbled coordination: \"zu landesweiten und zur Großdemonstration\" is missing its first noun.", "action": "drop_card"}
+{"card_id": "948d57facf16", "unit": "sich rasieren +Akk", "category": "WRONG_UNIT", "severity": "low", "note": "With a direct object (\"die Beine\") the reflexive is dative, contradicting the +Akk display.", "action": "drop_card"}
+{"card_id": "1880a2ef5cd2", "unit": "voraussetzen", "category": "BAD_SENTENCE", "severity": "low", "note": "Verbless fragment (\"Aber bitte sachlich, was voraussetzt, ...\").", "action": "drop_card"}
+{"card_id": "9ab6dc07899e", "unit": "ausrufen", "category": "WRONG_UNIT", "severity": "high", "note": "The verb is \"anrufen\"; \"aus\" belongs to the phrase \"von einem Telefon aus\".", "action": "drop_card"}
+{"card_id": "f8946291abe9", "unit": "ausrufen", "category": "WRONG_UNIT", "severity": "high", "note": "The verb is \"anrufen\"; \"aus\" belongs to \"von Toms Mobiltelefon aus\".", "action": "drop_card"}
+{"card_id": "5578647a0ca0", "unit": "anbringen", "category": "BAD_SENTENCE", "severity": "high", "note": "Scrape fragment beginning \"Box und kann ...\"; no subject, not a sentence.", "action": "drop_card"}
+{"card_id": "345e1263ff72", "unit": "sich etablieren", "category": "BAD_SENTENCE", "severity": "low", "note": "\"etablierte sich zu einem der ... Autoren\" is wrong government; German requires \"als\".", "action": "drop_card"}
+{"card_id": "025e9312000a", "unit": "ablösen", "category": "BAD_SENTENCE", "severity": "low", "note": "Standard German is \"ein Schuss löste sich\"; \"löste sich ab\" is non-idiomatic here.", "action": "drop_card"}
+{"card_id": "8abd90bf6c2a", "unit": "vorschreiben", "category": "BAD_SENTENCE", "severity": "low", "note": "Truncated quotation with an ellipsis in the middle, not a self-contained sentence.", "action": "drop_card"}
+{"card_id": "08b0ee3253ad", "unit": "bestehen auf +Dat", "category": "BAD_SENTENCE", "severity": "high", "note": "The sentence uses the accusative (\"auf die Bestrafung\") while the unit displays +Dat, teaching the wrong case.", "action": "drop_card"}
+{"card_id": "6ca84a17916d", "unit": "auffahren", "category": "BAD_SENTENCE", "severity": "high", "note": "Garbled source: \"Neben beispielsweise und Dortmund\" is missing the city after \"beispielsweise\".", "action": "drop_card"}
+{"card_id": "9c024af64bf1", "unit": "auffahren", "category": "WRONG_UNIT", "severity": "high", "note": "The bracketed tokens are the verb aufführen (to perform), not auffahren.", "action": "drop_card"}
+{"card_id": "908c6f682d99", "unit": "zugehen auf +Akk", "category": "WRONG_UNIT", "severity": "high", "note": "Impersonal \"es geht zu\" plus a locative dative \"auf dem Reichstag\", not the verb complement zugehen auf +Akk.", "action": "drop_card"}
+{"card_id": "f3dd96d0f852", "unit": "Einblick geben", "category": "WRONG_UNIT", "severity": "low", "note": "This is the existential \"es gibt Einblicke in\", not somebody giving insight.", "action": "drop_card"}
+{"card_id": "870fba8ae338", "unit": "zuführen", "category": "BAD_SENTENCE", "severity": "high", "note": "Truncated source: \"wurde an den übergeben\" has no object after \"an den\".", "action": "drop_card"}
+{"card_id": "cc62420d8c27", "unit": "austeilen", "category": "BAD_SENTENCE", "severity": "high", "note": "Ungrammatical: must be \"den Schuelern\" (dative plural), not \"den Schüler\".", "action": "drop_card"}
+{"card_id": "9979c5f19fa5", "unit": "unbekannter Ursache", "category": "BAD_SENTENCE", "severity": "high", "note": "Garbled source: \"in der Wohnung in der gegen 10 Uhr\" is missing the street name.", "action": "drop_card"}
+{"card_id": "b1d0c3bf7f22", "unit": "Fahrt aufnehmen", "category": "BAD_SENTENCE", "severity": "high", "note": "Truncated photo caption ending in \"(3.v.\" with a nonsensical gloss.", "action": "drop_card"}
+{"card_id": "a37bf55bae58", "unit": "Flasche trinken", "category": "BAD_SENTENCE", "severity": "low", "note": "Swiss spelling \"regelmässig\" and an opaque parenthetical \"(zu zweit)\".", "action": "drop_card"}
+{"card_id": "561303a81bb6", "unit": "ansagen", "category": "BAD_SENTENCE", "severity": "low", "note": "Broken dash/comma construction that does not parse as a sentence.", "action": "drop_card"}
+{"card_id": "973f99d39704", "unit": "aufdecken", "category": "BAD_SENTENCE", "severity": "low", "note": "\"und euch näherzubringen\" has no object, so the sentence is not self-contained.", "action": "drop_card"}
+{"card_id": "57a2ca73620a", "unit": "nachlegen", "category": "BAD_SENTENCE", "severity": "low", "note": "\"schaltete sich US-Präsident ein\" is missing the article or the name.", "action": "drop_card"}
+{"card_id": "dc4362430855", "unit": "öffentlichen Raum", "category": "BAD_SENTENCE", "severity": "low", "note": "Agreement error: singular \"die Frist\" followed by \"in denen\".", "action": "drop_card"}
+{"card_id": "38a65a956e42", "unit": "russische Armee", "category": "BAD_SENTENCE", "severity": "low", "note": "\"Letzten Tag\" is not idiomatic German as a bare time adverbial.", "action": "drop_card"}
+{"card_id": "9cdbdbf0c2cb", "unit": "auslegen", "category": "BAD_GLOSS", "severity": "low", "note": "Gloss drops \"Bockmist\" and ends as \"the biggest ever\", which is not a translation.", "action": "note"}
+{"card_id": "14f9ff96f72e", "unit": "offenen Tür", "category": "BAD_UNIT", "severity": "low", "note": "Citation form is a dative singular fragment while the idiom is \"offene Türen einrennen\".", "action": "note"}
+{"card_id": "f1f632b8f171", "unit": "neue Papst", "category": "BAD_UNIT", "severity": "low", "note": "Weak-declension fragment; the citation form should be \"neuer Papst\".", "action": "note"}
+{"card_id": "649999bdf87a", "unit": "russische Präsident", "category": "BAD_UNIT", "severity": "low", "note": "Weak-declension fragment; the citation form should be \"russischer Präsident\".", "action": "note"}
+{"card_id": "1152f9b7f436", "unit": "aneignen", "category": "BAD_UNIT", "severity": "low", "note": "aneignen exists only as the reflexive sich aneignen, which is already a separate unit on the same sentence.", "action": "drop_unit"}
+{"card_id": "8be78806b492", "unit": "sich wärmen +Akk", "category": "WRONG_CASE", "severity": "low", "note": "Here \"sich\" is dative (sich die Hände wärmen), not the accusative the unit displays.", "action": "drop_card"}
+{"card_id": "fa7baefdca50", "unit": "eilen zu +Dat", "category": "WRONG_UNIT", "severity": "high", "note": "\"von Rekord zu Rekord\" is a fixed idiom, not the verb complement \"zu jemandem eilen\".", "action": "drop_card"}
+{"card_id": "e58b70d7c293", "unit": "amerikanische Präsident", "category": "BAD_UNIT", "severity": "low", "note": "Citation form is ungrammatical: weak adjective ending without an article.", "action": "note"}
+{"card_id": "44fb05d3506e", "unit": "ausfahren", "category": "WRONG_UNIT", "severity": "high", "note": "The sentence uses ausführen (\"Handlungen führen wir aus\"), not ausfahren.", "action": "drop_card"}
+{"card_id": "f8496bda5f66", "unit": "ausfahren", "category": "WRONG_UNIT", "severity": "high", "note": "\"Ich führe sie zum Essen aus\" is ausführen, not ausfahren.", "action": "drop_card"}
+{"card_id": "c836500f62fe", "unit": "ausrüsten", "category": "BAD_SENTENCE", "severity": "low", "note": "\"den Regierungssitz für Weihnachten ausgerüstet\" is not natural German (geschmückt/hergerichtet).", "action": "drop_card"}
+{"card_id": "cc3f2b93baf1", "unit": "auslegen auf +Akk", "category": "WRONG_UNIT", "severity": "high", "note": "\"auf großen Handtüchern\" is a dative locative adjunct, not an accusative verb complement.", "action": "drop_card"}
+{"card_id": "3a98888fd431", "unit": "variieren nach +Dat", "category": "BAD_UNIT", "severity": "high", "note": "All instances are the fixed preposition \"je nach\"; variieren does not govern nach.", "action": "drop_unit"}
+{"card_id": "226b23c967db", "unit": "wahrhaben", "category": "WRONG_UNIT", "severity": "high", "note": "This is the tag question \"nicht wahr?\", not the verb wahrhaben.", "action": "drop_card"}
+{"card_id": "36b7727a4f30", "unit": "wahrhaben", "category": "WRONG_UNIT", "severity": "high", "note": "This is the tag question \"nicht wahr?\", not the verb wahrhaben.", "action": "drop_card"}
+{"card_id": "5560617afd4e", "unit": "wahrhaben", "category": "WRONG_UNIT", "severity": "high", "note": "This is the tag question \"nicht wahr?\", not the verb wahrhaben.", "action": "drop_card"}
+{"card_id": "ae4761813113", "unit": "wahrhaben", "category": "WRONG_UNIT", "severity": "high", "note": "This is the tag question \"nicht wahr?\", not the verb wahrhaben.", "action": "drop_card"}
+{"card_id": "c81c430ad1d3", "unit": "wahrhaben", "category": "WRONG_UNIT", "severity": "high", "note": "This is the tag question \"nicht wahr?\", not the verb wahrhaben.", "action": "drop_card"}
+{"card_id": "d146c25eafaa", "unit": "wahrhaben", "category": "WRONG_UNIT", "severity": "high", "note": "This is the tag question \"nicht wahr?\", not the verb wahrhaben.", "action": "drop_card"}
+{"card_id": "13ba7cb86203", "unit": "abhören", "category": "WRONG_UNIT", "severity": "high", "note": "The verb is hören and the brackets split the adverbial \"ab und zu\".", "action": "drop_card"}
+{"card_id": "31305cbb11b7", "unit": "einwechseln", "category": "BAD_SENTENCE", "severity": "high", "note": "Broken sentence: \"gegen\" has no object (\"Jong Oranje gegen war er\").", "action": "drop_card"}
+{"card_id": "700c7478bc39", "unit": "dastehen ohne +Akk", "category": "BAD_SENTENCE", "severity": "low", "note": "Fragment with no main clause.", "action": "drop_card"}
+{"card_id": "0560071d9d60", "unit": "sich bewerben um +Akk", "category": "BAD_SENTENCE", "severity": "low", "note": "Typo \"Arbeitplatz\" for \"Arbeitsplatz\".", "action": "drop_card"}
+{"card_id": "7941ad7e1a25", "unit": "anbringen an +Dat", "category": "BAD_SENTENCE", "severity": "high", "note": "\"Beim Tisg\" is OCR junk and the sentence trails into a dash fragment.", "action": "drop_card"}
+{"card_id": "08166667499d", "unit": "Buch durchgelesen", "category": "BAD_UNIT", "severity": "low", "note": "Citation form uses a participle; the unit should be \"Buch durchlesen\".", "action": "note"}
+{"card_id": "3e07446ba408", "unit": "Hund spazieren", "category": "BAD_UNIT", "severity": "low", "note": "Not a real phrase; the verb is \"spazieren führen\", so the citation form is broken.", "action": "note"}
+{"card_id": "fcdb72472a8f", "unit": "ausweichen auf +Akk", "category": "WRONG_UNIT", "severity": "high", "note": "\"auf dem Radweg\" is a dative location, not the accusative complement of ausweichen.", "action": "drop_card"}
+{"card_id": "8bd4c8f027b1", "unit": "zurückverfolgen", "category": "BAD_SENTENCE", "severity": "high", "note": "Ungrammatical: zurückverfolgen takes the accusative, not \"seiner Familie\".", "action": "drop_card"}
+{"card_id": "73e92e831d87", "unit": "Feuer legen", "category": "BAD_SENTENCE", "severity": "low", "note": "Swiss spelling \"mutmasslich\" instead of \"mutmaßlich\".", "action": "drop_card"}
+{"card_id": "767fd1a81600", "unit": "Antrag ablehnen", "category": "BAD_SENTENCE", "severity": "low", "note": "Typo \"Studentendarlehnen\" for \"Studentendarlehen\".", "action": "drop_card"}
+{"card_id": "f24c81385354", "unit": "Bild hängen", "category": "WRONG_UNIT", "severity": "low", "note": "Here haengen is intransitive and Bild is the subject, not the verb's object.", "action": "drop_card"}
+{"card_id": "cd97ff0b4566", "unit": "daliegen", "category": "WRONG_UNIT", "severity": "high", "note": "The bracketed da is the correlative adverb of da, wo and not the separable prefix of daliegen.", "action": "drop_card"}
+{"card_id": "740f182a2ecc", "unit": "Nutzen bringen", "category": "BAD_SENTENCE", "severity": "low", "note": "Archaic proverb equating a daughter with a dung heap; demeaning and opaque for a learner.", "action": "drop_card"}
+{"card_id": "b91131fe43d0", "unit": "Tasche öffnen", "category": "BAD_SENTENCE", "severity": "low", "note": "Bitte sind Sie so gut is ungrammatical; the imperative requires seien Sie.", "action": "drop_card"}
+{"card_id": "2c87649afa4c", "unit": "einen Seite", "category": "BAD_UNIT", "severity": "high", "note": "einen Seite is an ungrammatical citation form cut out of auf der einen Seite.", "action": "drop_unit"}
+{"card_id": "e56b3cb87e10", "unit": "einen Seite", "category": "BAD_SENTENCE", "severity": "low", "note": "Verbless fragment lifted from a list, not a self-contained sentence.", "action": "drop_card"}
+{"card_id": "a6b3beb96a3c", "unit": "nach offiziellen Angaben", "category": "WRONG_UNIT", "severity": "low", "note": "The sentence uses laut, so the unit's nach is absent and the gaps do not instantiate the displayed phrase.", "action": "drop_card"}
+{"card_id": "8dbd53b4ebe9", "unit": "hinlaufen", "category": "WRONG_UNIT", "severity": "low", "note": "The bracketed hin belongs to the idiom hin und her laufen, not to the verb hinlaufen.", "action": "drop_card"}
+{"card_id": "12030d89aa88", "unit": "Fenster zerbrochen", "category": "BAD_UNIT", "severity": "low", "note": "Citation form is a past participle; the collocation is Fenster zerbrechen.", "action": "note"}
+{"card_id": "3856fcad0ae1", "unit": "Hund beißen", "category": "BAD_SENTENCE", "severity": "low", "note": "Garbled proverb (Den Letzten beissen die Hunde), leaving Hunde ambiguous between subject and object.", "action": "drop_card"}
+{"card_id": "a1a00513481b", "unit": "Reise antreten", "category": "BAD_SENTENCE", "severity": "low", "note": "Wenn du früh ins Bett gehen wirst is unnatural German; a wenn-clause takes the present.", "action": "drop_card"}
+{"card_id": "11321ce69687", "unit": "Schuß hören", "category": "BAD_UNIT", "severity": "low", "note": "Unit display uses the pre-1996 spelling Schuß; the sentences already use Schuss.", "action": "note"}
+{"card_id": "9deb0aa1d9b8", "unit": "dringen durch +Akk", "category": "WRONG_UNIT", "severity": "high", "note": "The verb is eindringen in (drangen ... ein); durch is a free adjunct and the prefix ein is left unbracketed.", "action": "drop_card"}
+{"card_id": "15be0ebaea73", "unit": "Satz adoptieren", "category": "BAD_UNIT", "severity": "low", "note": "Tatoeba site jargon, not a useful A1-B2 collocation.", "action": "drop_unit"}
+{"card_id": "832845fd725c", "unit": "sich einreihen in +Akk", "category": "BAD_SENTENCE", "severity": "high", "note": "Two sentences run together with no punctuation after in der Kritik.", "action": "drop_card"}
+{"card_id": "0825ff4e7e3f", "unit": "Gläser trinken", "category": "BAD_UNIT", "severity": "low", "note": "Gläser is a measure word here (Gläser Wein/Bier), not a real verb-noun collocation.", "action": "note"}
+{"card_id": "42c2dd9ecd66", "unit": "Kopf zerbrochen", "category": "BAD_UNIT", "severity": "low", "note": "Citation form is a participle; the idiom is sich den Kopf zerbrechen.", "action": "note"}
+{"unit_id": "nv:brief_bekommen", "unit": "Brief bekommen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with a fully generic verb; no collocational content to learn.", "action": "drop_unit"}
+{"unit_id": "nv:brief_lesen", "unit": "Brief lesen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination, compositional.", "action": "drop_unit"}
+{"unit_id": "nv:auto_verkaufen", "unit": "Auto verkaufen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination, compositional.", "action": "drop_unit"}
+{"unit_id": "nv:lied_schreiben", "unit": "Lied schreiben", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination, compositional.", "action": "drop_unit"}
+{"unit_id": "nv:fahrrad_kaufen", "unit": "Fahrrad kaufen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with kaufen; any noun fits.", "action": "drop_unit"}
+{"unit_id": "nv:woerterbuch_kaufen", "unit": "Wörterbuch kaufen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with kaufen.", "action": "drop_unit"}
+{"unit_id": "nv:blume_kaufen", "unit": "Blume kaufen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with kaufen.", "action": "drop_unit"}
+{"unit_id": "nv:brief_senden", "unit": "Brief senden", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination and a near-synonym of Brief schicken.", "action": "drop_unit"}
+{"unit_id": "nv:geschenk_kaufen", "unit": "Geschenk kaufen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with kaufen.", "action": "drop_unit"}
+{"unit_id": "nv:schachtel_oeffnen", "unit": "Schachtel öffnen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination, compositional.", "action": "drop_unit"}
+{"unit_id": "nv:schluessel_verlieren", "unit": "Schlüssel verlieren", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination, compositional.", "action": "drop_unit"}
+{"unit_id": "nv:schuh_kaufen", "unit": "Schuh kaufen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination, and the singular Schuh is odd for shoe buying.", "action": "drop_unit"}
+{"unit_id": "an:blau_kleid", "unit": "blaues Kleid", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free colour+noun combination, not a collocation.", "action": "drop_unit"}
+{"unit_id": "an:rot_zahl", "unit": "roten Zahlen", "category": "WRONG_CEFR", "severity": "low", "note": "Idiomatic business phrase (rote Zahlen schreiben), not A1 vocabulary.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:auftragen", "unit": "auftragen", "category": "WRONG_CEFR", "severity": "low", "note": "Polysemous and non-transparent verb, far above A1.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:nachfragen", "unit": "nachfragen", "category": "WRONG_CEFR", "severity": "low", "note": "Not an A1 item; typically taught around B1.", "action": "fix_cefr:B1"}
+{"unit_id": "sv:zurueckfallen", "unit": "zurückfallen", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract, mostly figurative verb; not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:adresse_kennen", "unit": "Adresse kennen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination, compositional.", "action": "drop_unit"}
+{"unit_id": "nv:in_aussicht_stellen", "unit": "in Aussicht stellen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal Funktionsverbgefuege, nowhere near A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:koffer_tragen", "unit": "Koffer tragen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination, compositional.", "action": "drop_unit"}
+{"unit_id": "nv:krawatte_tragen", "unit": "Krawatte tragen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free clothing+tragen combination; the pattern, not this pair, is teachable.", "action": "drop_unit"}
+{"unit_id": "nv:kuchen_essen", "unit": "Kuchen essen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with essen.", "action": "drop_unit"}
+{"unit_id": "nv:plan_zustimmen", "unit": "Plan zustimmen", "category": "BAD_CITATION", "severity": "high", "note": "zustimmen governs the dative; the bare form hides the case the learner needs.", "action": "fix_display:einem Plan zustimmen"}
+{"unit_id": "nv:unter_beweis_stellen", "unit": "unter Beweis stellen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal fixed expression, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:wort_bedeuten", "unit": "Wort bedeuten", "category": "NOT_A_PHRASE", "severity": "high", "note": "Parser artefact from 'Was bedeutet dieses Wort'; subject plus verb, not a collocation.", "action": "drop_unit"}
+{"unit_id": "nv:zaun_streichen", "unit": "Zaun streichen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination, compositional.", "action": "drop_unit"}
+{"unit_id": "an:interessant_buch", "unit": "interessantes Buch", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free adjective+noun combination.", "action": "drop_unit"}
+{"unit_id": "an:medizinisch_versorgung", "unit": "medizinische Versorgung", "category": "WRONG_CEFR", "severity": "low", "note": "Institutional register, not A1 vocabulary.", "action": "fix_cefr:B1"}
+{"unit_id": "an:russisch_angriff", "unit": "russische Angriffe", "category": "NOT_A_PHRASE", "severity": "high", "note": "News-cycle topical pair, not a lexical collocation.", "action": "drop_unit"}
+{"unit_id": "an:voll_gang", "unit": "vollem Gange", "category": "BAD_CITATION", "severity": "high", "note": "Only occurs inside the fixed phrase; the bare oblique fragment is ungrammatical alone.", "action": "fix_display:in vollem Gange"}
+{"unit_id": "vp:erfolgen_durch", "unit": "erfolgen durch +Akk", "category": "WRONG_CEFR", "severity": "low", "note": "erfolgen is formal administrative register, not A2.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:stillstehen", "unit": "stillstehen", "category": "WRONG_CEFR", "severity": "low", "note": "Not A1; abstract and low-frequency for beginners.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:vortragen", "unit": "vortragen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal verb, well above A2.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:weiterkommen", "unit": "weiterkommen", "category": "WRONG_CEFR", "severity": "low", "note": "Mostly figurative use; not A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:artikel_schreiben", "unit": "Artikel schreiben", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination.", "action": "drop_unit"}
+{"unit_id": "nv:beachtung_schenken", "unit": "Beachtung schenken", "category": "WRONG_CEFR", "severity": "low", "note": "Formal Funktionsverbgefuege with dative object, not A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:freundschaft_schliessen", "unit": "Freundschaft schließen", "category": "WRONG_CEFR", "severity": "low", "note": "Idiomatic light-verb collocation, not A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:job_finden", "unit": "Job finden", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination.", "action": "drop_unit"}
+{"unit_id": "nv:licht_ausschalten", "unit": "Licht ausschalten", "category": "WRONG_CEFR", "severity": "low", "note": "Everyday A1/A2 action wrongly labelled B2.", "action": "fix_cefr:A2"}
+{"unit_id": "nv:mensch_beurteilen", "unit": "Mensch beurteilen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination extracted in the wrong number; not a collocation.", "action": "drop_unit"}
+{"unit_id": "nv:pflicht_erfuellen", "unit": "Pflicht erfüllen", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract formal collocation, not A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:sprache_beherrschen", "unit": "Sprache beherrschen", "category": "WRONG_CEFR", "severity": "low", "note": "beherrschen is a B2-level verb; the collocation is not A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:witz_verstehen", "unit": "Witz verstehen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination.", "action": "drop_unit"}
+{"unit_id": "nv:zeitschrift_lesen", "unit": "Zeitschrift lesen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with lesen.", "action": "drop_unit"}
+{"unit_id": "an:kalt_wetter", "unit": "kalte Wetter", "category": "BAD_CITATION", "severity": "high", "note": "Ungrammatical: Wetter is neuter, so the strong form is kaltes Wetter.", "action": "fix_display:kaltes Wetter"}
+{"unit_id": "an:nett_kerl", "unit": "netter Kerl", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free adjective+noun combination.", "action": "drop_unit"}
+{"unit_id": "an:offen_tuer", "unit": "offenen Tür", "category": "BAD_CITATION", "severity": "high", "note": "Bare oblique fragment of 'Tag der offenen Tür'; not a usable citation form.", "action": "fix_display:offene Tür"}
+{"unit_id": "an:ungeklaert_ursache", "unit": "ungeklärter Ursache", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of the fixed news phrase; needs the preposition to be grammatical.", "action": "fix_display:aus ungeklärter Ursache"}
+{"unit_id": "vp:grenzen_an", "unit": "grenzen an", "category": "WRONG_CASE", "severity": "high", "note": "an is two-way and grenzen fixes the accusative; the case is missing.", "action": "fix_case:Akk"}
+{"unit_id": "rv:sich_vergnuegen", "unit": "sich vergnügen +Akk", "category": "WRONG_CASE", "severity": "high", "note": "sich vergnügen takes no accusative object; the case tag is spurious.", "action": "fix_display:sich vergnügen"}
+{"unit_id": "sv:aneignen", "unit": "aneignen", "category": "DUPLICATE", "severity": "high", "note": "Duplicates rv:sich_aneignen, and the verb exists only reflexively.", "action": "drop_unit"}
+{"unit_id": "nv:brille_aufsetzen", "unit": "Brille aufsetzen", "category": "WRONG_CEFR", "severity": "low", "note": "Everyday A2 action wrongly labelled B2.", "action": "fix_cefr:A2"}
+{"unit_id": "nv:ermittlung_uebernehmen", "unit": "Ermittlung übernehmen", "category": "WRONG_CEFR", "severity": "low", "note": "Police-report register, not A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:haus_streichen", "unit": "Haus streichen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination.", "action": "drop_unit"}
+{"unit_id": "nv:schuh_putzen", "unit": "Schuh putzen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination and wrong number; the phrase is Schuhe putzen.", "action": "drop_unit"}
+{"unit_id": "nv:schuld_bezahlen", "unit": "Schuld bezahlen", "category": "BAD_CITATION", "severity": "high", "note": "Singular Schuld means guilt; paying refers to Schulden.", "action": "fix_display:Schulden bezahlen"}
+{"unit_id": "nv:zimmer_putzen", "unit": "Zimmer putzen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination.", "action": "drop_unit"}
+{"unit_id": "an:franzoesisch_praesident", "unit": "französische Präsident", "category": "BAD_CITATION", "severity": "high", "note": "Weak adjective ending with no article is ungrammatical as a citation form.", "action": "fix_display:der französische Präsident"}
+{"unit_id": "an:frueh_morgenstunde", "unit": "frühen Morgenstunden", "category": "WRONG_CEFR", "severity": "low", "note": "Formal news phrase (in den frühen Morgenstunden), not A1.", "action": "fix_cefr:B1"}
+{"unit_id": "an:gut_verfassung", "unit": "guter Verfassung", "category": "BAD_CITATION", "severity": "high", "note": "Bare oblique fragment of the fixed prepositional phrase.", "action": "fix_display:in guter Verfassung"}
+{"unit_id": "an:heiss_wasser", "unit": "heißem Wasser", "category": "BAD_CITATION", "severity": "low", "note": "Dative fragment of 'mit heißem Wasser'; cite the base form.", "action": "fix_display:heißes Wasser"}
+{"unit_id": "an:hoch_alter", "unit": "hohen Alter", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of 'im hohen Alter'; ungrammatical standing alone.", "action": "fix_display:im hohen Alter"}
+{"unit_id": "an:hoch_kosten", "unit": "hohen Kosten", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract cost vocabulary, not A1.", "action": "fix_cefr:B1"}
+{"unit_id": "an:israelisch_armee", "unit": "israelische Armee", "category": "NOT_A_PHRASE", "severity": "high", "note": "News-cycle topical pair, not a teachable collocation.", "action": "drop_unit"}
+{"unit_id": "an:neu_papst", "unit": "neue Papst", "category": "NOT_A_PHRASE", "severity": "high", "note": "News-only pair and ungrammatical bare weak form.", "action": "drop_unit"}
+{"unit_id": "an:russisch_truppe", "unit": "russischen Truppen", "category": "NOT_A_PHRASE", "severity": "high", "note": "News-cycle topical pair, not a lexical collocation.", "action": "drop_unit"}
+{"unit_id": "rv:sich_unterziehen", "unit": "sich unterziehen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal verb with a dative object; nowhere near A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:antrag_stellen", "unit": "Antrag stellen", "category": "WRONG_CEFR", "severity": "low", "note": "Administrative Funktionsverbgefuege, not A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:arm_legen", "unit": "Arm legen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Parser artefact from 'jemanden in den Arm nehmen / den Arm um jemanden legen'.", "action": "drop_unit"}
+{"unit_id": "nv:artikel_lesen", "unit": "Artikel lesen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with lesen.", "action": "drop_unit"}
+{"unit_id": "nv:leiche_finden", "unit": "Leiche finden", "category": "NOT_A_PHRASE", "severity": "low", "note": "News-report free combination, not a collocation.", "action": "drop_unit"}
+{"unit_id": "nv:stimme_abgeben", "unit": "Stimme abgeben", "category": "WRONG_CEFR", "severity": "low", "note": "Civic register collocation, not A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:unter_druck_geraten", "unit": "unter Druck geraten", "category": "WRONG_CEFR", "severity": "low", "note": "Figurative fixed phrase with geraten, not A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:wunsch_erfuellen", "unit": "Wunsch erfüllen", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract light-verb collocation, not A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:zeuge_bitten", "unit": "Zeuge bitten", "category": "NOT_A_PHRASE", "severity": "high", "note": "Parser artefact from police appeals ('Zeugen werden gebeten, sich zu melden').", "action": "drop_unit"}
+{"unit_id": "an:lieb_gott", "unit": "liebe Gott", "category": "BAD_CITATION", "severity": "high", "note": "Weak ending without article; the phrase is 'der liebe Gott'.", "action": "fix_display:der liebe Gott"}
+{"unit_id": "an:nett_mensch", "unit": "netter Mensch", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free adjective+noun combination.", "action": "drop_unit"}
+{"unit_id": "an:neu_album", "unit": "neues Album", "category": "NOT_A_PHRASE", "severity": "low", "note": "Entertainment-news topical pair, free combination.", "action": "drop_unit"}
+{"unit_id": "an:rechter_seite", "unit": "rechten Seite", "category": "BAD_CITATION", "severity": "high", "note": "Bare oblique fragment; the usable phrase is 'auf der rechten Seite'.", "action": "fix_display:auf der rechten Seite"}
+{"unit_id": "an:russisch_armee", "unit": "russische Armee", "category": "NOT_A_PHRASE", "severity": "high", "note": "News-cycle topical pair, not a collocation.", "action": "drop_unit"}
+{"unit_id": "an:schwarz_schaf", "unit": "schwarze Schaf", "category": "BAD_CITATION", "severity": "high", "note": "Idiom cited without its article; should be 'das schwarze Schaf'.", "action": "fix_display:das schwarze Schaf"}
+{"unit_id": "an:voll_mund", "unit": "vollem Mund", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of the fixed phrase 'mit vollem Mund'.", "action": "fix_display:mit vollem Mund"}
+{"unit_id": "vp:deuten_auf", "unit": "deuten auf +Akk", "category": "WRONG_CEFR", "severity": "low", "note": "Figurative evidential use; far above A1.", "action": "fix_cefr:B2"}
+{"unit_id": "rv:sich_waermen", "unit": "sich wärmen +Akk", "category": "WRONG_CASE", "severity": "high", "note": "No accusative complement is governed here; the case tag is spurious.", "action": "fix_display:sich wärmen"}
+{"unit_id": "sv:abstammen", "unit": "abstammen", "category": "DUPLICATE", "severity": "low", "note": "Duplicates vp:abstammen_von; the verb is only used with von.", "action": "drop_unit"}
+{"unit_id": "sv:abwechseln", "unit": "abwechseln", "category": "DUPLICATE", "severity": "low", "note": "Duplicates rv:sich_abwechseln, which is the normal usage.", "action": "drop_unit"}
+{"unit_id": "sv:gegenuebersitzen", "unit": "gegenübersitzen", "category": "WRONG_CEFR", "severity": "low", "note": "Rare compound with a dative object; not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:nachlegen", "unit": "nachlegen", "category": "WRONG_CEFR", "severity": "low", "note": "Non-transparent, mostly figurative; not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:zusammenlaufen", "unit": "zusammenlaufen", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract convergence sense; not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:fernsehen_gucken", "unit": "Fernsehen gucken", "category": "DUPLICATE", "severity": "low", "note": "Duplicates nv:fernsehen_schauen with a colloquial verb variant.", "action": "drop_unit"}
+{"unit_id": "nv:name_rufen", "unit": "Name rufen", "category": "BAD_CITATION", "severity": "high", "note": "The real phrase is 'jemanden beim Namen rufen'; the bare pair is a parser artefact.", "action": "fix_display:beim Namen rufen"}
+{"unit_id": "nv:flasche_kaufen", "unit": "Flasche kaufen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with kaufen.", "action": "drop_unit"}
+{"unit_id": "nv:mann_festnehmen", "unit": "Mann festnehmen", "category": "NOT_A_PHRASE", "severity": "low", "note": "News-report free combination, not a collocation.", "action": "drop_unit"}
+{"unit_id": "nv:zum_opfer_fallen", "unit": "zum Opfer fallen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal fixed phrase with a dative complement, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "an:gross_stil", "unit": "großen Stil", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of 'in großem Stil', and the ending shown does not match that phrase.", "action": "fix_display:in großem Stil"}
+{"unit_id": "an:heiter_himmel", "unit": "heiterem Himmel", "category": "BAD_CITATION", "severity": "high", "note": "Only occurs in the idiom 'aus heiterem Himmel'.", "action": "fix_display:aus heiterem Himmel"}
+{"unit_id": "an:unbekannt_ursache", "unit": "unbekannter Ursache", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of 'aus unbekannter Ursache'.", "action": "fix_display:aus unbekannter Ursache"}
+{"unit_id": "an:unmittelbar_naehe", "unit": "unmittelbarer Nähe", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of 'in unmittelbarer Nähe'.", "action": "fix_display:in unmittelbarer Nähe"}
+{"unit_id": "vp:erfolgen_ueber", "unit": "erfolgen über +Akk", "category": "WRONG_CEFR", "severity": "low", "note": "erfolgen is formal administrative register, not A2.", "action": "fix_cefr:B2"}
+{"unit_id": "rv:sich_kaemmen", "unit": "sich kämmen", "category": "WRONG_CEFR", "severity": "low", "note": "Basic daily-routine reflexive taught at A2, not B2.", "action": "fix_cefr:A2"}
+{"unit_id": "rv:sich_regen", "unit": "sich regen", "category": "WRONG_CEFR", "severity": "low", "note": "Literary and rare; certainly not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "rv:sich_wischen", "unit": "sich wischen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Not a lexical reflexive; only occurs with a dative reflexive and an object (sich den Mund wischen).", "action": "drop_unit"}
+{"unit_id": "sv:zuspitzen", "unit": "zuspitzen", "category": "DUPLICATE", "severity": "low", "note": "Duplicates rv:sich_zuspitzen, which is the normal usage.", "action": "drop_unit"}
+{"unit_id": "sv:weiterfahren", "unit": "weiterfahren", "category": "WRONG_CEFR", "severity": "low", "note": "Transparent A2 travel verb, not B2.", "action": "fix_cefr:A2"}
+{"unit_id": "nv:fisch_essen", "unit": "Fisch essen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with essen.", "action": "drop_unit"}
+{"unit_id": "nv:ins_visier_nehmen", "unit": "ins Visier nehmen", "category": "WRONG_CEFR", "severity": "low", "note": "Figurative idiom of news register, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:klappe_halten", "unit": "Klappe halten", "category": "WRONG_CEFR", "severity": "low", "note": "Colloquial idiom, not A1 material.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:obst_essen", "unit": "Obst essen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with essen.", "action": "drop_unit"}
+{"unit_id": "nv:unter_kontrolle_bringen", "unit": "unter Kontrolle bringen", "category": "WRONG_CEFR", "severity": "low", "note": "Fixed formal phrase, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:witze_erzaehlen", "unit": "Witze erzählen", "category": "DUPLICATE", "severity": "high", "note": "Plural duplicate of nv:witz_erzaehlen.", "action": "drop_unit"}
+{"unit_id": "an:fest_bestandteil", "unit": "fester Bestandteil", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract formal collocation, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "an:gesundheitlich_grund", "unit": "gesundheitlichen Gründen", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of the fixed phrase 'aus gesundheitlichen Gründen'.", "action": "fix_display:aus gesundheitlichen Gründen"}
+{"unit_id": "an:gewiss_weise", "unit": "gewisser Weise", "category": "BAD_CITATION", "severity": "high", "note": "Only occurs in 'in gewisser Weise'.", "action": "fix_display:in gewisser Weise"}
+{"unit_id": "an:russisch_praesident", "unit": "russische Präsident", "category": "BAD_CITATION", "severity": "high", "note": "Weak ending without article; news topical besides.", "action": "fix_display:der russische Präsident"}
+{"unit_id": "an:schoen_kleid", "unit": "schönes Kleid", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free adjective+noun combination.", "action": "drop_unit"}
+{"unit_id": "an:zunehmend_alter", "unit": "zunehmendem Alter", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of 'mit zunehmendem Alter'.", "action": "fix_display:mit zunehmendem Alter"}
+{"unit_id": "vp:herankommen_an", "unit": "herankommen an +Akk", "category": "WRONG_CEFR", "severity": "low", "note": "Non-transparent prefixed verb, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "vp:hinausgehen_ueber", "unit": "hinausgehen über +Akk", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract figurative use, not A2.", "action": "fix_cefr:B2"}
+{"unit_id": "vp:klagen_gegen", "unit": "klagen gegen +Akk", "category": "WRONG_CEFR", "severity": "low", "note": "Legal register, not A2.", "action": "fix_cefr:B2"}
+{"unit_id": "vp:ringen_um", "unit": "ringen um +Akk", "category": "WRONG_CEFR", "severity": "low", "note": "Figurative and formal, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "vp:verloben_mit", "unit": "verloben mit +Dat", "category": "BAD_CITATION", "severity": "high", "note": "The verb is reflexive; also duplicates rv:sich_verloben.", "action": "fix_display:sich verloben mit +Dat"}
+{"unit_id": "sv:nachfolgen", "unit": "nachfolgen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal verb with a dative object, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:zurueckgewinnen", "unit": "zurückgewinnen", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract and formal, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:zurueckstellen", "unit": "zurückstellen", "category": "WRONG_CEFR", "severity": "low", "note": "Non-transparent figurative sense, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:zusammenfallen", "unit": "zusammenfallen", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract coincidence sense, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:ausser_kontrolle_geraten", "unit": "außer Kontrolle geraten", "category": "WRONG_CEFR", "severity": "low", "note": "Fixed phrase with geraten, not A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:beispiel_folgen", "unit": "Beispiel folgen", "category": "BAD_CITATION", "severity": "high", "note": "folgen governs the dative; the bare pair hides the case.", "action": "fix_display:einem Beispiel folgen"}
+{"unit_id": "nv:computer_benutzen", "unit": "Computer benutzen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination.", "action": "drop_unit"}
+{"unit_id": "nv:gefahr_laufen", "unit": "Gefahr laufen", "category": "WRONG_CEFR", "severity": "low", "note": "Idiomatic construction taking a zu-clause, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:haar_waschen", "unit": "Haar waschen", "category": "BAD_CITATION", "severity": "high", "note": "Wrong number; the phrase is 'sich die Haare waschen'.", "action": "fix_display:Haare waschen"}
+{"unit_id": "nv:hund_bellen", "unit": "Hund bellen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Subject plus verb parser artefact, not an object collocation.", "action": "drop_unit"}
+{"unit_id": "nv:in_brand_setzen", "unit": "in Brand setzen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal Funktionsverbgefuege, not A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:in_gang_setzen", "unit": "in Gang setzen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal Funktionsverbgefuege, not A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:kopf_zerbrechen", "unit": "Kopf zerbrechen", "category": "BAD_CITATION", "severity": "high", "note": "The idiom requires the dative reflexive: sich den Kopf zerbrechen.", "action": "fix_display:sich den Kopf zerbrechen"}
+{"unit_id": "nv:kritik_ueben", "unit": "Kritik üben", "category": "WRONG_CEFR", "severity": "low", "note": "Formal Funktionsverbgefuege of news register, not A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:stellung_nehmen", "unit": "Stellung nehmen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal Funktionsverbgefuege, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:verletzung_erliegen", "unit": "Verletzung erliegen", "category": "BAD_CITATION", "severity": "high", "note": "erliegen takes the dative and the phrase is plural in use.", "action": "fix_display:den Verletzungen erliegen"}
+{"unit_id": "nv:wirkung_zeigen", "unit": "Wirkung zeigen", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract figurative collocation, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "an:aktuell_stand", "unit": "aktuellem Stand", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of 'nach aktuellem Stand'.", "action": "fix_display:nach aktuellem Stand"}
+{"unit_id": "an:amerikanisch_praesident", "unit": "amerikanische Präsident", "category": "BAD_CITATION", "severity": "high", "note": "Weak ending without article is ungrammatical as a citation form.", "action": "fix_display:der amerikanische Präsident"}
+{"unit_id": "an:dick_buch", "unit": "dickes Buch", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free adjective+noun combination.", "action": "drop_unit"}
+{"unit_id": "an:einfach_englisch", "unit": "einfachem Englisch", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of 'in einfachem Englisch'.", "action": "fix_display:in einfachem Englisch"}
+{"unit_id": "an:gruen_licht", "unit": "grünes Licht", "category": "WRONG_CEFR", "severity": "low", "note": "Taught as the idiom 'grünes Licht geben', not as A1 vocabulary.", "action": "fix_cefr:B2"}
+{"unit_id": "an:heiss_brei", "unit": "heißen Brei", "category": "BAD_CITATION", "severity": "high", "note": "Only occurs in 'um den heißen Brei herumreden'.", "action": "fix_display:um den heißen Brei herumreden"}
+{"unit_id": "an:hoch_niveau", "unit": "hohem Niveau", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of 'auf hohem Niveau'.", "action": "fix_display:auf hohem Niveau"}
+{"unit_id": "an:koerperlich_verfassung", "unit": "körperlicher Verfassung", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of 'in körperlicher Verfassung'.", "action": "fix_display:in körperlicher Verfassung"}
+{"unit_id": "an:russisch_angriffskrieg", "unit": "russische Angriffskrieg", "category": "NOT_A_PHRASE", "severity": "high", "note": "News-only jargon and an ungrammatical bare weak form.", "action": "drop_unit"}
+{"unit_id": "vp:beraten_ueber", "unit": "beraten über +Akk", "category": "WRONG_CEFR", "severity": "low", "note": "Formal deliberation sense, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "rv:sich_einfangen", "unit": "sich einfangen +Dat", "category": "WRONG_CASE", "severity": "high", "note": "Here sich is dative and the object is accusative; the tag inverts the pattern.", "action": "fix_display:sich einfangen"}
+{"unit_id": "nv:fotoapparat_kaufen", "unit": "Fotoapparat kaufen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination with a dated noun.", "action": "drop_unit"}
+{"unit_id": "nv:herz_gewinnen", "unit": "Herz gewinnen", "category": "WRONG_CEFR", "severity": "low", "note": "Figurative idiom, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:konsequenz_ziehen", "unit": "Konsequenz ziehen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal Funktionsverbgefuege (Konsequenzen ziehen), not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:mutter_aehneln", "unit": "Mutter ähneln", "category": "BAD_CITATION", "severity": "high", "note": "ähneln governs the dative; the bare pair hides the case.", "action": "fix_display:der Mutter ähneln"}
+{"unit_id": "nv:seele_verkaufen", "unit": "Seele verkaufen", "category": "WRONG_CEFR", "severity": "low", "note": "Figurative idiom, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:sohn_nennen", "unit": "Sohn nennen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Parser artefact from naming constructions; not a collocation.", "action": "drop_unit"}
+{"unit_id": "nv:suppe_essen", "unit": "Suppe essen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with essen.", "action": "drop_unit"}
+{"unit_id": "nv:verletzung_zuziehen", "unit": "Verletzung zuziehen", "category": "BAD_CITATION", "severity": "high", "note": "Requires the dative reflexive: sich eine Verletzung zuziehen.", "action": "fix_display:sich eine Verletzung zuziehen"}
+{"unit_id": "nv:vermoegen_kosten", "unit": "Vermögen kosten", "category": "WRONG_CEFR", "severity": "low", "note": "Idiom 'ein Vermögen kosten', not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "an:arm_leute", "unit": "armer Leute", "category": "BAD_CITATION", "severity": "high", "note": "Genitive fragment; the citation form should be nominative plural.", "action": "fix_display:arme Leute"}
+{"unit_id": "an:hoch_geschwindigkeit", "unit": "hoher Geschwindigkeit", "category": "BAD_CITATION", "severity": "low", "note": "Fragment of 'mit hoher Geschwindigkeit'.", "action": "fix_display:mit hoher Geschwindigkeit"}
+{"unit_id": "an:hoch_mass", "unit": "hohem Maße", "category": "BAD_CITATION", "severity": "high", "note": "Only occurs in 'in hohem Maße'.", "action": "fix_display:in hohem Maße"}
+{"unit_id": "an:leicht_schulter", "unit": "leichte Schulter", "category": "BAD_CITATION", "severity": "high", "note": "Only occurs in the idiom 'auf die leichte Schulter nehmen'.", "action": "fix_display:auf die leichte Schulter nehmen"}
+{"unit_id": "an:nett_maedchen", "unit": "nettes Mädchen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free adjective+noun combination.", "action": "drop_unit"}
+{"unit_id": "an:weiss_kleid", "unit": "weißes Kleid", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free colour+noun combination.", "action": "drop_unit"}
+{"unit_id": "an:ueberhoeht_geschwindigkeit", "unit": "überhöhter Geschwindigkeit", "category": "BAD_CITATION", "severity": "high", "note": "Fragment of 'mit überhöhter Geschwindigkeit'.", "action": "fix_display:mit überhöhter Geschwindigkeit"}
+{"unit_id": "vp:tappen_in", "unit": "tappen in", "category": "WRONG_CASE", "severity": "high", "note": "in is two-way and tappen fixes the accusative (in eine Falle tappen); the case is missing.", "action": "fix_case:Akk"}
+{"unit_id": "vp:verglichen_mit", "unit": "verglichen mit +Dat", "category": "BAD_CITATION", "severity": "high", "note": "Cited as a past participle rather than an infinitive verb+preposition unit.", "action": "fix_display:vergleichen mit +Dat"}
+{"unit_id": "rv:sich_anstecken", "unit": "sich anstecken +Akk", "category": "WRONG_CASE", "severity": "high", "note": "No accusative complement is governed; the case tag is spurious.", "action": "fix_display:sich anstecken"}
+{"unit_id": "sv:zusammentragen", "unit": "zusammentragen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal collecting sense, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:brot_essen", "unit": "Brot essen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination with essen.", "action": "drop_unit"}
+{"unit_id": "sv:anschreiben", "unit": "anschreiben", "category": "WRONG_CEFR", "severity": "low", "note": "Formal correspondence sense, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:buch_zurueckbringen", "unit": "Buch zurückbringen", "category": "WRONG_CEFR", "severity": "low", "note": "Transparent everyday action wrongly labelled B2.", "action": "fix_cefr:A2"}
+{"unit_id": "nv:in_ordnung_bringen", "unit": "in Ordnung bringen", "category": "WRONG_CEFR", "severity": "low", "note": "Fixed phrase, not A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:polizei_melden", "unit": "Polizei melden", "category": "BAD_CITATION", "severity": "high", "note": "melden takes a dative here; the bare pair hides both case and the usual reflexive.", "action": "fix_display:der Polizei melden"}
+{"unit_id": "vp:schweben_ueber", "unit": "schweben über", "category": "WRONG_CASE", "severity": "high", "note": "über is two-way and the stative schweben fixes the dative; the case is missing.", "action": "fix_case:Dat"}
+{"unit_id": "an:arm_maedchen", "unit": "arme Mädchen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free adjective+noun combination.", "action": "drop_unit"}
+{"unit_id": "nv:adresse_schreiben", "unit": "Adresse schreiben", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination.", "action": "drop_unit"}
+{"unit_id": "nv:buch_durchgelesen", "unit": "Buch durchgelesen", "category": "BAD_CITATION", "severity": "high", "note": "Past participle used as the citation form instead of the infinitive.", "action": "fix_display:Buch durchlesen"}
+{"unit_id": "nv:feuer_legen", "unit": "Feuer legen", "category": "WRONG_CEFR", "severity": "low", "note": "Arson collocation of news register, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:hund_spazieren", "unit": "Hund spazieren", "category": "BAD_CITATION", "severity": "high", "note": "Truncated parser output; the phrase is 'mit dem Hund spazieren gehen'.", "action": "fix_display:mit dem Hund spazieren gehen"}
+{"unit_id": "an:deutsch_meister", "unit": "deutsche Meister", "category": "BAD_CITATION", "severity": "high", "note": "Weak ending without article; sports-news topical besides.", "action": "drop_unit"}
+{"unit_id": "an:vernuenftig_mensch", "unit": "vernünftiger Mensch", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free adjective+noun combination.", "action": "drop_unit"}
+{"unit_id": "nv:bild_haengen", "unit": "Bild hängen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Subject plus intransitive verb parser artefact.", "action": "drop_unit"}
+{"unit_id": "vp:zusammenlaufen_in", "unit": "zusammenlaufen in +Dat", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract convergence sense, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:haar_buersten", "unit": "Haar bürsten", "category": "BAD_CITATION", "severity": "high", "note": "Wrong number; the phrase is 'sich die Haare bürsten'.", "action": "fix_display:Haare bürsten"}
+{"unit_id": "nv:nutzen_bringen", "unit": "Nutzen bringen", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract Funktionsverbgefuege, not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:tasche_oeffnen", "unit": "Tasche öffnen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination.", "action": "drop_unit"}
+{"unit_id": "an:aufrichtig_mensch", "unit": "aufrichtiger Mensch", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free adjective+noun combination.", "action": "drop_unit"}
+{"unit_id": "an:ein_seite", "unit": "einen Seite", "category": "BAD_CITATION", "severity": "high", "note": "Ungrammatical; the phrase is 'auf der einen Seite'.", "action": "fix_display:auf der einen Seite"}
+{"unit_id": "an:japanisch_regierung", "unit": "japanische Regierung", "category": "NOT_A_PHRASE", "severity": "low", "note": "News topical pair, free combination of nationality and institution.", "action": "drop_unit"}
+{"unit_id": "an:verheiratet_mann", "unit": "verheirateter Mann", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free adjective+noun combination.", "action": "drop_unit"}
+{"unit_id": "an:wunderschoen_frau", "unit": "wunderschöne Frau", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free adjective+noun combination.", "action": "drop_unit"}
+{"unit_id": "an:ehrlich_mensch", "unit": "ehrlicher Mensch", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free adjective+noun combination.", "action": "drop_unit"}
+{"unit_id": "nv:bedingung_stellen", "unit": "Bedingung stellen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal Funktionsverbgefuege (Bedingungen stellen), not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:brot_verdienen", "unit": "Brot verdienen", "category": "WRONG_CEFR", "severity": "low", "note": "Idiom 'sein Brot verdienen', not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:fenster_zerbrochen", "unit": "Fenster zerbrochen", "category": "DUPLICATE", "severity": "high", "note": "Participle duplicate of nv:fenster_zerbrechen.", "action": "drop_unit"}
+{"unit_id": "nv:hund_beissen", "unit": "Hund beißen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Subject plus verb parser artefact, not an object collocation.", "action": "drop_unit"}
+{"unit_id": "nv:koffer_oeffnen", "unit": "Koffer öffnen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object+verb combination.", "action": "drop_unit"}
+{"unit_id": "nv:nutzen_ziehen", "unit": "Nutzen ziehen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal Funktionsverbgefuege (Nutzen aus etwas ziehen), not A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:radio_stellen", "unit": "Radio stellen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Parser artefact; no such collocation without a complement (lauter/leiser stellen).", "action": "drop_unit"}
+{"unit_id": "nv:rechner_benutzen", "unit": "Rechner benutzen", "category": "DUPLICATE", "severity": "low", "note": "Synonym duplicate of nv:computer_benutzen, and a free combination besides.", "action": "drop_unit"}
+{"unit_id": "nv:schuss_hoeren", "unit": "Schuß hören", "category": "BAD_CITATION", "severity": "high", "note": "Pre-1996 spelling; current orthography is Schuss.", "action": "fix_display:Schuss hören"}
+{"unit_id": "sv:einhergehen", "unit": "einhergehen", "category": "DUPLICATE", "severity": "low", "note": "Duplicates vp:einhergehen_mit; the verb is only used with mit.", "action": "drop_unit"}
+{"unit_id": "sv:klarkommen", "unit": "klarkommen", "category": "DUPLICATE", "severity": "low", "note": "Duplicates vp:klarkommen_mit, which carries the usable pattern.", "action": "drop_unit"}
+{"unit_id": "sv:einfliessen", "unit": "einfließen", "category": "DUPLICATE", "severity": "low", "note": "Duplicates vp:einfliessen_in.", "action": "drop_unit"}
+{"unit_id": "sv:zusammennehmen", "unit": "zusammennehmen", "category": "WRONG_CEFR", "severity": "low", "note": "Mainly reflexive 'sich zusammennehmen', clearly not A1 vocabulary.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:abendessen_vorbereiten", "unit": "Abendessen vorbereiten", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free object-verb combination with no fixed collocational status.", "action": "drop_unit"}
+{"unit_id": "nv:ansprache_halten", "unit": "Ansprache halten", "category": "WRONG_CEFR", "severity": "low", "note": "Formal collocation labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:anweisung_folgen", "unit": "Anweisung folgen", "category": "WRONG_CEFR", "severity": "low", "note": "Dative-governed collocation with abstract noun, not A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:apfelbaum_pflanzen", "unit": "Apfelbaum pflanzen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination, words co-occur only by topic.", "action": "drop_unit"}
+{"unit_id": "nv:atombombe_bauen", "unit": "Atombombe bauen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Topical news combination, not a lexical unit.", "action": "drop_unit"}
+{"unit_id": "nv:bedeutung_unterstreichen", "unit": "Bedeutung unterstreichen", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract formal collocation labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:berg_versetzen", "unit": "Berg versetzen", "category": "BAD_CITATION", "severity": "high", "note": "The idiom exists only in the plural, 'Berge versetzen'.", "action": "fix_display:Berge versetzen"}
+{"unit_id": "nv:betrag_zahlen", "unit": "Betrag zahlen", "category": "WRONG_CEFR", "severity": "low", "note": "'Betrag' is B1 vocabulary, not A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:beziehung_unterhalten", "unit": "Beziehung unterhalten", "category": "WRONG_CEFR", "severity": "low", "note": "Formal Funktionsverb use of 'unterhalten', far above A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:decke_streichen", "unit": "Decke streichen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination and ambiguous noun (ceiling vs blanket).", "action": "drop_unit"}
+{"unit_id": "nv:dose_oeffnen", "unit": "Dose öffnen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Fully compositional free combination.", "action": "drop_unit"}
+{"unit_id": "nv:eindruck_vermitteln", "unit": "Eindruck vermitteln", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract collocation labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:einheit_bilden", "unit": "Einheit bilden", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract Funktionsverbgefuege labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:eisen_schmieden", "unit": "Eisen schmieden", "category": "NOT_A_PHRASE", "severity": "low", "note": "Fragment of the proverb 'das Eisen schmieden, solange es heiss ist'.", "action": "drop_unit"}
+{"unit_id": "nv:eltern_verdanken", "unit": "Eltern verdanken", "category": "NOT_A_PHRASE", "severity": "high", "note": "Parser artefact; 'verdanken' governs a dative object, this is not a collocation.", "action": "drop_unit"}
+{"unit_id": "nv:fan_begeistern", "unit": "Fan begeistern", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination, and the noun would be plural in use.", "action": "drop_unit"}
+{"unit_id": "nv:feigling_nennen", "unit": "Feigling nennen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Parser artefact of 'jemanden einen Feigling nennen', not a unit.", "action": "drop_unit"}
+{"unit_id": "nv:frieden_schliessen", "unit": "Frieden schließen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal collocation labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:fruehstueck_vorbereiten", "unit": "Frühstück vorbereiten", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination; 'Fruehstueck machen' is the collocation.", "action": "drop_unit"}
+{"unit_id": "nv:geburtstagsgeschenk_schicken", "unit": "Geburtstagsgeschenk schicken", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination of a compound noun with a general verb.", "action": "drop_unit"}
+{"unit_id": "nv:gegenstand_werfen", "unit": "Gegenstand werfen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination, no collocational bond.", "action": "drop_unit"}
+{"unit_id": "nv:gesetz_verabschieden", "unit": "Gesetz verabschieden", "category": "WRONG_CEFR", "severity": "low", "note": "Political-register collocation labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:handel_treiben", "unit": "Handel treiben", "category": "WRONG_CEFR", "severity": "low", "note": "Formal collocation labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:hase_fangen", "unit": "Hase fangen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination, topical co-occurrence only.", "action": "drop_unit"}
+{"unit_id": "nv:hausaufgabe_fertigstellen", "unit": "Hausaufgabe fertigstellen", "category": "BAD_CITATION", "severity": "low", "note": "Only used in the plural, 'Hausaufgaben'.", "action": "fix_display:Hausaufgaben fertigstellen"}
+{"unit_id": "nv:helm_aufsetzen", "unit": "Helm aufsetzen", "category": "WRONG_CEFR", "severity": "low", "note": "Concrete everyday collocation labelled B2.", "action": "fix_cefr:A2"}
+{"unit_id": "nv:hemd_buegeln", "unit": "Hemd bügeln", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:hemd_wechseln", "unit": "Hemd wechseln", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:herr_dienen", "unit": "Herr dienen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Parser artefact of a biblical phrase, not a teachable unit.", "action": "drop_unit"}
+{"unit_id": "nv:hochzeitstag_vergessen", "unit": "Hochzeitstag vergessen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination, topical only.", "action": "drop_unit"}
+{"unit_id": "nv:hund_hereinlassen", "unit": "Hund hereinlassen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:huette_bauen", "unit": "Hütte bauen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:ins_visier_geraten", "unit": "ins Visier geraten", "category": "WRONG_CEFR", "severity": "low", "note": "Idiomatic news-register phrase labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:kamera_mitnehmen", "unit": "Kamera mitnehmen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:kampf_ansagen", "unit": "Kampf ansagen", "category": "WRONG_CEFR", "severity": "low", "note": "Idiomatic 'den Kampf ansagen' labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:kirsche_essen", "unit": "Kirsche essen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:kissen_werfen", "unit": "Kissen werfen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:klang_hoeren", "unit": "Klang hören", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination of a sound noun with 'hoeren'.", "action": "drop_unit"}
+{"unit_id": "nv:kochen_beibringen", "unit": "kochen beibringen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Parser artefact: an infinitive object, not a noun-verb collocation.", "action": "drop_unit"}
+{"unit_id": "nv:kofferraum_oeffnen", "unit": "Kofferraum öffnen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:kommentar_abgeben", "unit": "Kommentar abgeben", "category": "WRONG_CEFR", "severity": "low", "note": "Funktionsverbgefuege labelled A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:kondom_benutzen", "unit": "Kondom benutzen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:konsequenz_fordern", "unit": "Konsequenz fordern", "category": "BAD_CITATION", "severity": "low", "note": "The collocation is plural, 'Konsequenzen fordern'.", "action": "fix_display:Konsequenzen fordern"}
+{"unit_id": "nv:krach_aushalten", "unit": "Krach aushalten", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:kuchen_schneiden", "unit": "Kuchen schneiden", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:kuchen_teilen", "unit": "Kuchen teilen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:kunst_beherrschen", "unit": "Kunst beherrschen", "category": "WRONG_CEFR", "severity": "low", "note": "Idiomatic 'die Kunst beherrschen' labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:kunst_studieren", "unit": "Kunst studieren", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination, any subject can fill the slot.", "action": "drop_unit"}
+{"unit_id": "nv:lehrer_zuhoeren", "unit": "Lehrer zuhören", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free dative-object combination, not a collocation.", "action": "drop_unit"}
+{"unit_id": "nv:maschine_erfinden", "unit": "Maschine erfinden", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:mass_trinken", "unit": "Maß trinken", "category": "NOT_A_PHRASE", "severity": "low", "note": "Regional measure noun in a free combination.", "action": "drop_unit"}
+{"unit_id": "nv:mensch_verachten", "unit": "Mensch verachten", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination, likely split from 'menschenverachtend'.", "action": "drop_unit"}
+{"unit_id": "nv:moeglichkeit_eroeffnen", "unit": "Möglichkeit eröffnen", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract formal collocation labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:musik_moegen", "unit": "Musik mögen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:oscar_gewinnen", "unit": "Oscar gewinnen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Proper name plus generic verb, news-only.", "action": "drop_unit"}
+{"unit_id": "nv:perle_werfen", "unit": "Perle werfen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Fragment of 'Perlen vor die Saeue werfen', meaningless alone.", "action": "drop_unit"}
+{"unit_id": "nv:portemonnaie_vergessen", "unit": "Portemonnaie vergessen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:pulver_erfinden", "unit": "Pulver erfinden", "category": "NOT_A_PHRASE", "severity": "high", "note": "Fragment of 'das Pulver nicht erfunden haben'; not a unit as displayed.", "action": "drop_unit"}
+{"unit_id": "nv:rahmenbedingung_schaffen", "unit": "Rahmenbedingung schaffen", "category": "WRONG_CEFR", "severity": "low", "note": "Administrative-register collocation (normally plural) labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:recht_schweigen", "unit": "Recht schweigen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Parser artefact of 'das Recht zu schweigen'.", "action": "drop_unit"}
+{"unit_id": "nv:respekt_verdienen", "unit": "Respekt verdienen", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract collocation labelled A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:roman_uebersetzen", "unit": "Roman übersetzen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:sand_streuen", "unit": "Sand streuen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination; the idiom is 'Sand in die Augen streuen'.", "action": "drop_unit"}
+{"unit_id": "nv:satz_adoptieren", "unit": "Satz adoptieren", "category": "NOT_A_PHRASE", "severity": "high", "note": "Tatoeba corpus jargon ('adopt a sentence'), not German usage.", "action": "drop_unit"}
+{"unit_id": "nv:schrei_gehoeren", "unit": "Schrei gehören", "category": "BAD_CITATION", "severity": "high", "note": "Lemmatiser error: 'gehoert' from 'hoeren' misread as 'gehoeren'.", "action": "drop_unit"}
+{"unit_id": "nv:schuld_begleichen", "unit": "Schuld begleichen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal financial collocation labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:schweiss_wischen", "unit": "Schweiß wischen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Fragment of 'sich den Schweiss von der Stirn wischen'.", "action": "drop_unit"}
+{"unit_id": "nv:socke_ausziehen", "unit": "Socke ausziehen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination, and the noun is used in the plural.", "action": "drop_unit"}
+{"unit_id": "nv:stein_legen", "unit": "Stein legen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination; the collocation is 'den Grundstein legen'.", "action": "drop_unit"}
+{"unit_id": "nv:stelle_streichen", "unit": "Stelle streichen", "category": "WRONG_CEFR", "severity": "low", "note": "Business-news collocation labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:steuer_bezahlen", "unit": "Steuer bezahlen", "category": "BAD_CITATION", "severity": "low", "note": "The collocation is plural, 'Steuern zahlen'.", "action": "fix_display:Steuern zahlen"}
+{"unit_id": "nv:streichholz_anzuenden", "unit": "Streichholz anzünden", "category": "WRONG_CEFR", "severity": "low", "note": "Concrete everyday combination labelled B2.", "action": "fix_cefr:A2"}
+{"unit_id": "nv:teil_ausgeben", "unit": "Teil ausgeben", "category": "NOT_A_PHRASE", "severity": "low", "note": "Parser artefact of 'einen Teil (des Geldes) ausgeben'.", "action": "drop_unit"}
+{"unit_id": "nv:tochter_verheiraten", "unit": "Tochter verheiraten", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free, archaic combination.", "action": "drop_unit"}
+{"unit_id": "nv:wal_sehen", "unit": "Wal sehen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination, topical co-occurrence only.", "action": "drop_unit"}
+{"unit_id": "nv:weihnachten_wuenschen", "unit": "Weihnachten wünschen", "category": "BAD_CITATION", "severity": "high", "note": "Only occurs as 'frohe Weihnachten wuenschen'; bare form is ungrammatical.", "action": "fix_display:frohe Weihnachten wünschen"}
+{"unit_id": "nv:witze_kennen", "unit": "Witze kennen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:woerterbuch_verwenden", "unit": "Wörterbuch verwenden", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination with a general verb.", "action": "drop_unit"}
+{"unit_id": "nv:yen_bezahlen", "unit": "Yen bezahlen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Currency noun plus generic verb, a corpus artefact rather than a phrase.", "action": "drop_unit"}
+{"unit_id": "nv:yen_zahlen", "unit": "Yen zahlen", "category": "DUPLICATE", "severity": "high", "note": "Same unit as nv:yen_bezahlen with a synonym verb.", "action": "drop_unit"}
+{"unit_id": "nv:zum_weinen_bringen", "unit": "zum Weinen bringen", "category": "WRONG_CEFR", "severity": "low", "note": "Nominalised causative construction labelled A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:zur_last_fallen", "unit": "zur Last fallen", "category": "WRONG_CEFR", "severity": "low", "note": "Idiomatic Funktionsverbgefuege labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "vp:abfuellen_in", "unit": "abfüllen in", "category": "WRONG_CASE", "severity": "high", "note": "Directional 'in' with 'abfuellen' takes accusative; case is missing.", "action": "fix_case:Akk"}
+{"unit_id": "vp:bessern_durch", "unit": "bessern durch +Akk", "category": "NOT_A_PHRASE", "severity": "low", "note": "'durch' here is a free causal adjunct, not a governed preposition.", "action": "drop_unit"}
+{"unit_id": "vp:davonkommen_ohne", "unit": "davonkommen ohne +Akk", "category": "NOT_A_PHRASE", "severity": "low", "note": "'ohne' is a free adjunct, not governed by the verb.", "action": "drop_unit"}
+{"unit_id": "vp:ergehen_ueber", "unit": "ergehen über +Akk", "category": "NOT_A_PHRASE", "severity": "low", "note": "Artefact of 'etwas ueber sich ergehen lassen'; not a verb-preposition unit.", "action": "drop_unit"}
+{"unit_id": "vp:funkeln_an", "unit": "funkeln an +Dat", "category": "NOT_A_PHRASE", "severity": "low", "note": "Locative adjunct, not a governed preposition.", "action": "drop_unit"}
+{"unit_id": "vp:kreisen_ueber", "unit": "kreisen über", "category": "WRONG_CASE", "severity": "high", "note": "Locative 'ueber' with 'kreisen' takes dative; case is missing.", "action": "fix_case:Dat"}
+{"unit_id": "vp:muenzen_auf", "unit": "münzen auf +Akk", "category": "WRONG_CEFR", "severity": "low", "note": "Idiomatic 'gemuenzt auf' labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "vp:schmieren_um", "unit": "schmieren um +Akk", "category": "NOT_A_PHRASE", "severity": "low", "note": "Fragment of 'jemandem Honig um den Mund schmieren'.", "action": "drop_unit"}
+{"unit_id": "vp:widerlegen_durch", "unit": "widerlegen durch +Akk", "category": "NOT_A_PHRASE", "severity": "low", "note": "'durch' is an instrumental adjunct, not governed by 'widerlegen'.", "action": "drop_unit"}
+{"unit_id": "vp:zurueckfallen_hinter", "unit": "zurückfallen hinter +Akk", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract figurative use labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "vp:zurueckliegen_hinter", "unit": "zurückliegen hinter +Dat", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract figurative use labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "vp:zuschlagen_hinter", "unit": "zuschlagen hinter +Dat", "category": "NOT_A_PHRASE", "severity": "high", "note": "Parser artefact of 'die Tuer faellt hinter ihm zu'; not a governed preposition.", "action": "drop_unit"}
+{"unit_id": "vp:zustandekommen_durch", "unit": "zustandekommen durch +Akk", "category": "BAD_CITATION", "severity": "low", "note": "Standard spelling is separated: 'zustande kommen'.", "action": "fix_display:zustande kommen durch +Akk"}
+{"unit_id": "vp:ueberziehen_mit", "unit": "überziehen mit +Dat", "category": "WRONG_CEFR", "severity": "low", "note": "Inseparable, fairly formal verb labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "rv:sich_abheben_von", "unit": "sich abheben von +Dat", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract 'stand out from' sense labelled A2.", "action": "fix_cefr:B1"}
+{"unit_id": "rv:sich_einschliessen_in", "unit": "sich einschließen in", "category": "WRONG_CASE", "severity": "high", "note": "'in' is missing its case; the directional accusative is standard here.", "action": "fix_case:Akk"}
+{"unit_id": "rv:sich_lachen_in", "unit": "sich lachen in +Akk", "category": "NOT_A_PHRASE", "severity": "high", "note": "Not a German reflexive verb; a parser artefact.", "action": "drop_unit"}
+{"unit_id": "rv:sich_scheren_um", "unit": "sich scheren um +Akk", "category": "WRONG_CEFR", "severity": "low", "note": "Colloquial-idiomatic and rare, labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "rv:sich_schmuecken_mit", "unit": "sich schmücken mit +Dat", "category": "WRONG_CEFR", "severity": "low", "note": "Literary register labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:auflehnen", "unit": "auflehnen", "category": "DUPLICATE", "severity": "high", "note": "Same verb as rv:sich_auflehnen, which is the only grammatical citation form.", "action": "drop_unit"}
+{"unit_id": "sv:zusammenbrauen", "unit": "zusammenbrauen", "category": "DUPLICATE", "severity": "high", "note": "Duplicates rv:sich_zusammenbrauen, the usual form.", "action": "drop_unit"}
+{"unit_id": "sv:danebengehen", "unit": "danebengehen", "category": "WRONG_CEFR", "severity": "low", "note": "Colloquial figurative verb labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:durchlassen", "unit": "durchlassen", "category": "WRONG_CEFR", "severity": "low", "note": "Not A1 vocabulary.", "action": "fix_cefr:B1"}
+{"unit_id": "sv:durchstarten", "unit": "durchstarten", "category": "WRONG_CEFR", "severity": "low", "note": "Figurative/technical verb labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:fernliegen", "unit": "fernliegen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal, low-frequency verb labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:unterkommen", "unit": "unterkommen", "category": "WRONG_CEFR", "severity": "low", "note": "Not A1 vocabulary.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:zuruecktreiben", "unit": "zurücktreiben", "category": "WRONG_CEFR", "severity": "low", "note": "Rare verb labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "sv:zusammentreffen", "unit": "zusammentreffen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal verb labelled A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:abschluss_bilden", "unit": "Abschluss bilden", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract Funktionsverbgefuege labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:adresse_aufschreiben", "unit": "Adresse aufschreiben", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:angelegenheit_besprechen", "unit": "Angelegenheit besprechen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal abstract noun labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:angelegenheit_untersuchen", "unit": "Angelegenheit untersuchen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal abstract noun labelled A2.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:anteil_verkaufen", "unit": "Anteil verkaufen", "category": "WRONG_CEFR", "severity": "low", "note": "Business-register collocation labelled A1.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:arroganz_ertragen", "unit": "Arroganz ertragen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination, any unpleasant quality fits the slot.", "action": "drop_unit"}
+{"unit_id": "nv:ausnahme_bilden", "unit": "Ausnahme bilden", "category": "WRONG_CEFR", "severity": "low", "note": "Abstract Funktionsverbgefuege labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:beachtung_verdienen", "unit": "Beachtung verdienen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal collocation labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:beifall_klatschen", "unit": "Beifall klatschen", "category": "WRONG_CEFR", "severity": "low", "note": "'Beifall' is not A1 vocabulary.", "action": "fix_cefr:B1"}
+{"unit_id": "nv:bein_bewegen", "unit": "Bein bewegen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:beispiel_hinzufuegen", "unit": "Beispiel hinzufügen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination with a general verb.", "action": "drop_unit"}
+{"unit_id": "nv:beziehung_pflegen", "unit": "Beziehung pflegen", "category": "WRONG_CEFR", "severity": "low", "note": "Figurative use of 'pflegen' labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:bibel_lesen", "unit": "Bibel lesen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination, topical co-occurrence only.", "action": "drop_unit"}
+{"unit_id": "nv:blumenstrauss_schenken", "unit": "Blumenstrauß schenken", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:bonbon_anbieten", "unit": "Bonbon anbieten", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:brille_putzen", "unit": "Brille putzen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:bundestag_angehoeren", "unit": "Bundestag angehören", "category": "NOT_A_PHRASE", "severity": "low", "note": "Institution name in a news-only combination.", "action": "drop_unit"}
+{"unit_id": "nv:dokument_uebersetzen", "unit": "Dokument übersetzen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:drohne_abschiessen", "unit": "Drohne abschießen", "category": "NOT_A_PHRASE", "severity": "low", "note": "News-only topical combination.", "action": "drop_unit"}
+{"unit_id": "nv:ei_braten", "unit": "Ei braten", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:franzoesisch_beibringen", "unit": "Französisch beibringen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination, any language fills the slot.", "action": "drop_unit"}
+{"unit_id": "nv:glaeser_trinken", "unit": "Gläser trinken", "category": "BAD_CITATION", "severity": "high", "note": "Ungrammatical as a citation form; 'ein Glas trinken' is the phrase.", "action": "fix_display:ein Glas trinken"}
+{"unit_id": "nv:knall_hoeren", "unit": "Knall hören", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:kopf_zerbrochen", "unit": "Kopf zerbrochen", "category": "BAD_CITATION", "severity": "high", "note": "Participle form instead of an infinitive; the idiom is 'sich den Kopf zerbrechen'.", "action": "fix_display:sich den Kopf zerbrechen"}
+{"unit_id": "nv:korrektur_lesen", "unit": "Korrektur lesen", "category": "WRONG_CEFR", "severity": "low", "note": "Specialist collocation (proofread) labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:luegner_nennen", "unit": "Lügner nennen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Parser artefact of 'jemanden einen Luegner nennen'.", "action": "drop_unit"}
+{"unit_id": "nv:mantel_aufhaengen", "unit": "Mantel aufhängen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:schlussfolgerung_ziehen", "unit": "Schlussfolgerung ziehen", "category": "WRONG_CEFR", "severity": "low", "note": "Formal Funktionsverbgefuege labelled A1.", "action": "fix_cefr:B2"}
+{"unit_id": "nv:schreibtisch_benutzen", "unit": "Schreibtisch benutzen", "category": "NOT_A_PHRASE", "severity": "high", "note": "Free combination with a general verb.", "action": "drop_unit"}
+{"unit_id": "nv:schrift_lesen", "unit": "Schrift lesen", "category": "NOT_A_PHRASE", "severity": "low", "note": "Free combination.", "action": "drop_unit"}
+{"unit_id": "nv:unterschied_merken", "unit": "Unterschied merken", "category": "BAD_CITATION", "severity": "high", "note": "Not idiomatic; German uses 'einen Unterschied bemerken/feststellen' (see nv:unterschied_bemerken).", "action": "drop_unit"}

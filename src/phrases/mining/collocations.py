@@ -169,6 +169,11 @@ def detect_noun_verb(sentence: ParsedSentence, *, source: str, line_id: str) -> 
         verb = _governing_verb(sentence, noun)
         if verb is None:
             continue
+        # "es gibt eine Möglichkeit" is existential, not "eine Möglichkeit geben".
+        if verb.lemma.lower() == "geben" and any(
+            c.lower == "es" and c.dep in {"sb", "ep"} for c in sentence.children(verb.i)
+        ):
+            continue
         vkey = _verb_key(sentence, verb)
         if not vkey:
             continue

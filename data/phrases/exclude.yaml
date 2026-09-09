@@ -906,3 +906,178 @@
 - "übernachteen in"  # BAD_UNIT: Unit is misspelled; the verb is "übernachten".
 - "überzogen mit"  # BAD_UNIT: Citation form is a past participle; the unit should be "überziehen mit +Dat".
 - "übrigwünschen"  # BAD_UNIT: No such verb; the idiom is zu wünschen übrig lassen, so the unit and its gaps are invented.
+# Phase 1 review, round 1 (2026-09-08/09): units the reviewers rejected.
+- "abendessen vorbereiten"  # NOT_A_PHRASE: Free object-verb combination with no fixed collocational status.
+- "abstammen"  # DUPLICATE: Duplicates vp:abstammen_von; the verb is only used with von.
+- "abwechseln"  # DUPLICATE: Duplicates rv:sich_abwechseln, which is the normal usage.
+- "adresse aufschreiben"  # NOT_A_PHRASE: Free combination.
+- "adresse kennen"  # NOT_A_PHRASE: Free object+verb combination, compositional.
+- "adresse schreiben"  # NOT_A_PHRASE: Free object+verb combination.
+- "amerikanisch präsident"  # BAD_UNIT: Citation form is ungrammatical: weak adjective ending without an article.
+- "aneignen"  # BAD_UNIT: aneignen exists only as the reflexive sich aneignen, which is already a separate unit on the same se
+- "apfelbaum pflanzen"  # NOT_A_PHRASE: Free combination, words co-occur only by topic.
+- "arm legen"  # NOT_A_PHRASE: Parser artefact from 'jemanden in den Arm nehmen / den Arm um jemanden legen'.
+- "arm mädchen"  # NOT_A_PHRASE: Free adjective+noun combination.
+- "arroganz ertragen"  # NOT_A_PHRASE: Free combination, any unpleasant quality fits the slot.
+- "artikel lesen"  # NOT_A_PHRASE: Free object+verb combination with lesen.
+- "artikel schreiben"  # NOT_A_PHRASE: Free object+verb combination.
+- "atombombe bauen"  # NOT_A_PHRASE: Topical news combination, not a lexical unit.
+- "auflehnen"  # DUPLICATE: Same verb as rv:sich_auflehnen, which is the only grammatical citation form.
+- "aufrichtig mensch"  # NOT_A_PHRASE: Free adjective+noun combination.
+- "auto verkaufen"  # NOT_A_PHRASE: Free object+verb combination, compositional.
+- "bein bewegen"  # NOT_A_PHRASE: Free combination.
+- "beispiel hinzufügen"  # NOT_A_PHRASE: Free combination with a general verb.
+- "bessern durch"  # NOT_A_PHRASE: 'durch' here is a free causal adjunct, not a governed preposition.
+- "bibel lesen"  # NOT_A_PHRASE: Free combination, topical co-occurrence only.
+- "bild hängen"  # NOT_A_PHRASE: Subject plus intransitive verb parser artefact.
+- "blau kleid"  # NOT_A_PHRASE: Free colour+noun combination, not a collocation.
+- "blume kaufen"  # NOT_A_PHRASE: Free object+verb combination with kaufen.
+- "blumenstrauß schenken"  # NOT_A_PHRASE: Free combination.
+- "bonbon anbieten"  # NOT_A_PHRASE: Free combination.
+- "brief bekommen"  # NOT_A_PHRASE: Free object+verb combination with a fully generic verb; no collocational content to learn.
+- "brief lesen"  # NOT_A_PHRASE: Free object+verb combination, compositional.
+- "brief senden"  # NOT_A_PHRASE: Free object+verb combination and a near-synonym of Brief schicken.
+- "brille putzen"  # NOT_A_PHRASE: Free combination.
+- "brot essen"  # NOT_A_PHRASE: Free object+verb combination with essen.
+- "buch durchgelesen"  # BAD_UNIT: Citation form uses a participle; the unit should be "Buch durchlesen".
+- "bundestag angehören"  # NOT_A_PHRASE: Institution name in a news-only combination.
+- "computer benutzen"  # NOT_A_PHRASE: Free object+verb combination.
+- "davonkommen ohne"  # NOT_A_PHRASE: 'ohne' is a free adjunct, not governed by the verb.
+- "decke streichen"  # NOT_A_PHRASE: Free combination and ambiguous noun (ceiling vs blanket).
+- "deutsch meister"  # BAD_CITATION: Weak ending without article; sports-news topical besides.
+- "dick buch"  # NOT_A_PHRASE: Free adjective+noun combination.
+- "dokument übersetzen"  # NOT_A_PHRASE: Free combination.
+- "dose öffnen"  # NOT_A_PHRASE: Fully compositional free combination.
+- "drohne abschießen"  # NOT_A_PHRASE: News-only topical combination.
+- "ehrlich mensch"  # NOT_A_PHRASE: Free adjective+noun combination.
+- "ei braten"  # NOT_A_PHRASE: Free combination.
+- "ein seite"  # BAD_UNIT: einen Seite is an ungrammatical citation form cut out of auf der einen Seite.
+- "einfließen"  # DUPLICATE: Duplicates vp:einfliessen_in.
+- "einhergehen"  # DUPLICATE: Duplicates vp:einhergehen_mit; the verb is only used with mit.
+- "eisen schmieden"  # NOT_A_PHRASE: Fragment of the proverb 'das Eisen schmieden, solange es heiss ist'.
+- "eltern verdanken"  # NOT_A_PHRASE: Parser artefact; 'verdanken' governs a dative object, this is not a collocation.
+- "ergehen über"  # NOT_A_PHRASE: Artefact of 'etwas ueber sich ergehen lassen'; not a verb-preposition unit.
+- "fahrrad kaufen"  # NOT_A_PHRASE: Free object+verb combination with kaufen; any noun fits.
+- "fan begeistern"  # NOT_A_PHRASE: Free combination, and the noun would be plural in use.
+- "feigling nennen"  # NOT_A_PHRASE: Parser artefact of 'jemanden einen Feigling nennen', not a unit.
+- "fenster zerbrochen"  # BAD_UNIT: Citation form is a past participle; the collocation is Fenster zerbrechen.
+- "fernsehen gucken"  # DUPLICATE: Duplicates nv:fernsehen_schauen with a colloquial verb variant.
+- "fisch essen"  # NOT_A_PHRASE: Free object+verb combination with essen.
+- "flasche kaufen"  # NOT_A_PHRASE: Free object+verb combination with kaufen.
+- "fotoapparat kaufen"  # NOT_A_PHRASE: Free combination with a dated noun.
+- "französisch beibringen"  # NOT_A_PHRASE: Free combination, any language fills the slot.
+- "frühstück vorbereiten"  # NOT_A_PHRASE: Free combination; 'Fruehstueck machen' is the collocation.
+- "funkeln an"  # NOT_A_PHRASE: Locative adjunct, not a governed preposition.
+- "geburtstagsgeschenk schicken"  # NOT_A_PHRASE: Free combination of a compound noun with a general verb.
+- "gegenstand werfen"  # NOT_A_PHRASE: Free combination, no collocational bond.
+- "geschenk kaufen"  # NOT_A_PHRASE: Free object+verb combination with kaufen.
+- "gläser trinken"  # BAD_UNIT: Gläser is a measure word here (Gläser Wein/Bier), not a real verb-noun collocation.
+- "hase fangen"  # NOT_A_PHRASE: Free combination, topical co-occurrence only.
+- "haus streichen"  # NOT_A_PHRASE: Free object+verb combination.
+- "hemd bügeln"  # NOT_A_PHRASE: Free combination.
+- "hemd wechseln"  # NOT_A_PHRASE: Free combination.
+- "herr dienen"  # NOT_A_PHRASE: Parser artefact of a biblical phrase, not a teachable unit.
+- "hochzeitstag vergessen"  # NOT_A_PHRASE: Free combination, topical only.
+- "hund beißen"  # NOT_A_PHRASE: Subject plus verb parser artefact, not an object collocation.
+- "hund bellen"  # NOT_A_PHRASE: Subject plus verb parser artefact, not an object collocation.
+- "hund hereinlassen"  # NOT_A_PHRASE: Free combination.
+- "hund spazieren"  # BAD_UNIT: Not a real phrase; the verb is "spazieren führen", so the citation form is broken.
+- "hütte bauen"  # NOT_A_PHRASE: Free combination.
+- "interessant buch"  # NOT_A_PHRASE: Free adjective+noun combination.
+- "israelisch armee"  # NOT_A_PHRASE: News-cycle topical pair, not a teachable collocation.
+- "japanisch regierung"  # NOT_A_PHRASE: News topical pair, free combination of nationality and institution.
+- "job finden"  # NOT_A_PHRASE: Free object+verb combination.
+- "kamera mitnehmen"  # NOT_A_PHRASE: Free combination.
+- "kirsche essen"  # NOT_A_PHRASE: Free combination.
+- "kissen werfen"  # NOT_A_PHRASE: Free combination.
+- "klang hören"  # NOT_A_PHRASE: Free combination of a sound noun with 'hoeren'.
+- "klarkommen"  # DUPLICATE: Duplicates vp:klarkommen_mit, which carries the usable pattern.
+- "knall hören"  # NOT_A_PHRASE: Free combination.
+- "kochen beibringen"  # NOT_A_PHRASE: Parser artefact: an infinitive object, not a noun-verb collocation.
+- "koffer tragen"  # NOT_A_PHRASE: Free object+verb combination, compositional.
+- "koffer öffnen"  # NOT_A_PHRASE: Free object+verb combination.
+- "kofferraum öffnen"  # NOT_A_PHRASE: Free combination.
+- "kondom benutzen"  # NOT_A_PHRASE: Free combination.
+- "kopf zerbrochen"  # BAD_UNIT: Citation form is a participle; the idiom is sich den Kopf zerbrechen.
+- "krach aushalten"  # NOT_A_PHRASE: Free combination.
+- "krawatte tragen"  # NOT_A_PHRASE: Free clothing+tragen combination; the pattern, not this pair, is teachable.
+- "kuchen essen"  # NOT_A_PHRASE: Free object+verb combination with essen.
+- "kuchen schneiden"  # NOT_A_PHRASE: Free combination.
+- "kuchen teilen"  # NOT_A_PHRASE: Free combination.
+- "kunst studieren"  # NOT_A_PHRASE: Free combination, any subject can fill the slot.
+- "lehrer zuhören"  # NOT_A_PHRASE: Free dative-object combination, not a collocation.
+- "leiche finden"  # NOT_A_PHRASE: News-report free combination, not a collocation.
+- "lied schreiben"  # NOT_A_PHRASE: Free object+verb combination, compositional.
+- "lügner nennen"  # NOT_A_PHRASE: Parser artefact of 'jemanden einen Luegner nennen'.
+- "mann festnehmen"  # NOT_A_PHRASE: News-report free combination, not a collocation.
+- "mantel aufhängen"  # NOT_A_PHRASE: Free combination.
+- "maschine erfinden"  # NOT_A_PHRASE: Free combination.
+- "maß trinken"  # NOT_A_PHRASE: Regional measure noun in a free combination.
+- "mensch beurteilen"  # NOT_A_PHRASE: Free combination extracted in the wrong number; not a collocation.
+- "mensch verachten"  # NOT_A_PHRASE: Free combination, likely split from 'menschenverachtend'.
+- "musik mögen"  # NOT_A_PHRASE: Free combination.
+- "nett kerl"  # NOT_A_PHRASE: Free adjective+noun combination.
+- "nett mensch"  # NOT_A_PHRASE: Free adjective+noun combination.
+- "nett mädchen"  # NOT_A_PHRASE: Free adjective+noun combination.
+- "neu album"  # NOT_A_PHRASE: Entertainment-news topical pair, free combination.
+- "neu papst"  # BAD_UNIT: Weak-declension fragment; the citation form should be "neuer Papst".
+- "obst essen"  # NOT_A_PHRASE: Free object+verb combination with essen.
+- "offen tür"  # BAD_UNIT: Citation form is a dative singular fragment while the idiom is "offene Türen einrennen".
+- "oscar gewinnen"  # NOT_A_PHRASE: Proper name plus generic verb, news-only.
+- "perle werfen"  # NOT_A_PHRASE: Fragment of 'Perlen vor die Saeue werfen', meaningless alone.
+- "portemonnaie vergessen"  # NOT_A_PHRASE: Free combination.
+- "pulver erfinden"  # NOT_A_PHRASE: Fragment of 'das Pulver nicht erfunden haben'; not a unit as displayed.
+- "radio stellen"  # NOT_A_PHRASE: Parser artefact; no such collocation without a complement (lauter/leiser stellen).
+- "rechner benutzen"  # DUPLICATE: Synonym duplicate of nv:computer_benutzen, and a free combination besides.
+- "recht schweigen"  # NOT_A_PHRASE: Parser artefact of 'das Recht zu schweigen'.
+- "roman übersetzen"  # NOT_A_PHRASE: Free combination.
+- "russisch angriff"  # NOT_A_PHRASE: News-cycle topical pair, not a lexical collocation.
+- "russisch angriffskrieg"  # NOT_A_PHRASE: News-only jargon and an ungrammatical bare weak form.
+- "russisch armee"  # NOT_A_PHRASE: News-cycle topical pair, not a collocation.
+- "russisch präsident"  # BAD_UNIT: Weak-declension fragment; the citation form should be "russischer Präsident".
+- "russisch truppe"  # NOT_A_PHRASE: News-cycle topical pair, not a lexical collocation.
+- "sand streuen"  # NOT_A_PHRASE: Free combination; the idiom is 'Sand in die Augen streuen'.
+- "satz adoptieren"  # BAD_UNIT: Tatoeba site jargon, not a useful A1-B2 collocation.
+- "schachtel öffnen"  # NOT_A_PHRASE: Free object+verb combination, compositional.
+- "schlüssel verlieren"  # NOT_A_PHRASE: Free object+verb combination, compositional.
+- "schmieren um"  # NOT_A_PHRASE: Fragment of 'jemandem Honig um den Mund schmieren'.
+- "schrei gehören"  # BAD_CITATION: Lemmatiser error: 'gehoert' from 'hoeren' misread as 'gehoeren'.
+- "schreibtisch benutzen"  # NOT_A_PHRASE: Free combination with a general verb.
+- "schrift lesen"  # NOT_A_PHRASE: Free combination.
+- "schuh kaufen"  # NOT_A_PHRASE: Free combination, and the singular Schuh is odd for shoe buying.
+- "schuh putzen"  # NOT_A_PHRASE: Free combination and wrong number; the phrase is Schuhe putzen.
+- "schuß hören"  # BAD_UNIT: Unit display uses the pre-1996 spelling Schuß; the sentences already use Schuss.
+- "schweiß wischen"  # NOT_A_PHRASE: Fragment of 'sich den Schweiss von der Stirn wischen'.
+- "schön kleid"  # NOT_A_PHRASE: Free adjective+noun combination.
+- "sich lachen in"  # NOT_A_PHRASE: Not a German reflexive verb; a parser artefact.
+- "sich wischen"  # NOT_A_PHRASE: Not a lexical reflexive; only occurs with a dative reflexive and an object (sich den Mund wische
+- "socke ausziehen"  # NOT_A_PHRASE: Free combination, and the noun is used in the plural.
+- "sohn nennen"  # NOT_A_PHRASE: Parser artefact from naming constructions; not a collocation.
+- "stein legen"  # NOT_A_PHRASE: Free combination; the collocation is 'den Grundstein legen'.
+- "suppe essen"  # NOT_A_PHRASE: Free object+verb combination with essen.
+- "tasche öffnen"  # NOT_A_PHRASE: Free object+verb combination.
+- "teil ausgeben"  # NOT_A_PHRASE: Parser artefact of 'einen Teil (des Geldes) ausgeben'.
+- "tochter verheiraten"  # NOT_A_PHRASE: Free, archaic combination.
+- "unterschied merken"  # BAD_CITATION: Not idiomatic; German uses 'einen Unterschied bemerken/feststellen' (see nv:unterschied_bemerken
+- "variieren nach"  # BAD_UNIT: All instances are the fixed preposition "je nach"; variieren does not govern nach.
+- "verheiratet mann"  # NOT_A_PHRASE: Free adjective+noun combination.
+- "vernünftig mensch"  # NOT_A_PHRASE: Free adjective+noun combination.
+- "wal sehen"  # NOT_A_PHRASE: Free combination, topical co-occurrence only.
+- "weiß kleid"  # NOT_A_PHRASE: Free colour+noun combination.
+- "widerlegen durch"  # NOT_A_PHRASE: 'durch' is an instrumental adjunct, not governed by 'widerlegen'.
+- "witz verstehen"  # NOT_A_PHRASE: Free object+verb combination.
+- "witze erzählen"  # DUPLICATE: Plural duplicate of nv:witz_erzaehlen.
+- "witze kennen"  # NOT_A_PHRASE: Free combination.
+- "wort bedeuten"  # NOT_A_PHRASE: Parser artefact from 'Was bedeutet dieses Wort'; subject plus verb, not a collocation.
+- "wunderschön frau"  # NOT_A_PHRASE: Free adjective+noun combination.
+- "wörterbuch kaufen"  # NOT_A_PHRASE: Free object+verb combination with kaufen.
+- "wörterbuch verwenden"  # NOT_A_PHRASE: Free combination with a general verb.
+- "yen bezahlen"  # NOT_A_PHRASE: Currency noun plus generic verb, a corpus artefact rather than a phrase.
+- "yen zahlen"  # DUPLICATE: Same unit as nv:yen_bezahlen with a synonym verb.
+- "zaun streichen"  # NOT_A_PHRASE: Free object+verb combination, compositional.
+- "zeitschrift lesen"  # NOT_A_PHRASE: Free object+verb combination with lesen.
+- "zeuge bitten"  # NOT_A_PHRASE: Parser artefact from police appeals ('Zeugen werden gebeten, sich zu melden').
+- "zimmer putzen"  # NOT_A_PHRASE: Free object+verb combination.
+- "zusammenbrauen"  # DUPLICATE: Duplicates rv:sich_zusammenbrauen, the usual form.
+- "zuschlagen hinter"  # NOT_A_PHRASE: Parser artefact of 'die Tuer faellt hinter ihm zu'; not a governed preposition.
+- "zuspitzen"  # DUPLICATE: Duplicates rv:sich_zuspitzen, which is the normal usage.

@@ -182,8 +182,36 @@ def repair_verb_lemma(lemma: str) -> str:
     return ""
 
 
+#: Particles the tagger attaches as ``svp`` that are not verb prefixes in
+#: any card worth having: the correlative "da" ("da, wo ..."), and prefixes
+#: that sit inside a fixed adverbial ("ab und zu", "hin und her", "von ... aus").
+_NEVER_A_PREFIX: frozenset[str] = frozenset({"da"})
+
+
 def separable_particle(sentence: ParsedSentence, verb: ParsedToken) -> ParsedToken | None:
-    return sentence.child_with_dep(verb.i, "svp")
+    """The verb's separated prefix, or ``None`` when there is none or the
+    attachment is not trustworthy (two candidates, a coordinated adverbial,
+    a postposition)."""
+    particles = [c for c in sentence.children(verb.i) if c.dep == "svp"]
+    if len(particles) != 1:
+        return None
+    particle = particles[0]
+    if particle.lower in _NEVER_A_PREFIX:
+        return None
+    before = sentence.tokens[particle.i - 1] if particle.i > 0 else None
+    after = sentence.tokens[particle.i + 1] if particle.i + 1 < len(sentence.tokens) else None
+    if (before is not None and before.lower == "und") or (
+        after is not None and after.lower == "und"
+    ):
+        return None
+    if after is not None and after.pos == "PUNCT" and after.text == "," and particle.lower == "da":
+        return None
+    # "von einem Telefon aus": the particle closes a "von" phrase.
+    if particle.lower == "aus" and any(
+        t.lower == "von" and t.pos == "ADP" and t.i < particle.i for t in sentence.tokens
+    ):
+        return None
+    return particle
 
 
 def verb_lemma_key(sentence: ParsedSentence, verb: ParsedToken) -> str:

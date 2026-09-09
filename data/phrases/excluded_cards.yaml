@@ -1086,3 +1086,102 @@
 - fecd826f2dad  # WRONG_UNIT: This is reflexive "sich setzen auf" (to sit down), not "setzen auf" (to rely on).
 - ff25181c9c30  # BAD_SENTENCE: Headline style with a missing article ('Frau im Rollstuhl verschanzt sich ...').
 - ffdd5b61a0f9  # BAD_SENTENCE: Ungrammatical 'am in Gruenheide' with a missing noun after 'am'.
+# Phase 1 review, round 1 (2026-09-08/09).
+- 025e9312000a  # BAD_SENTENCE: Standard German is "ein Schuss löste sich"; "löste sich ab" is non-idiomatic here.
+- 0262ea8c2e31  # WRONG_UNIT: This is existential "es gibt", not the collocation "jemandem eine Möglichkeit geben".
+- 0560071d9d60  # BAD_SENTENCE: Typo "Arbeitplatz" for "Arbeitsplatz".
+- 08b0ee3253ad  # BAD_SENTENCE: The sentence uses the accusative ("auf die Bestrafung") while the unit displays +Dat, teaching t
+- 0f2ddb330b1b  # BAD_SENTENCE: Obsolete pre-1996 spelling "daß"/"muß".
+- 13ba7cb86203  # WRONG_UNIT: The verb is hören and the brackets split the adverbial "ab und zu".
+- 1880a2ef5cd2  # BAD_SENTENCE: Verbless fragment ("Aber bitte sachlich, was voraussetzt, ...").
+- 18d290e2cf80  # WRONG_UNIT: "um eins" is the temporal "at one o'clock", not the verb complement of "es geht um".
+- 18e65b2453aa  # BAD_SENTENCE: Fragment ("Etwa davon, wie viele ..."), not a self-contained sentence.
+- 1d5af1dfc312  # WRONG_UNIT: "ausgeglichen" is an adverb (in a balanced way) modifying "ernährt", not the verb ausgleichen.
+- 1e8f54017853  # WRONG_UNIT: This is reflexive "sich setzen auf" (sit down on), a different unit from transitive/figurative "se
+- 226b23c967db  # WRONG_UNIT: This is the tag question "nicht wahr?", not the verb wahrhaben.
+- 2448c4e8c830  # WRONG_UNIT: "darum" is the pronominal adverb governed by "bitten um", not the causal connector.
+- 3062a82f9be2  # WRONG_UNIT: "mich" is a plain accusative object of "anschauen", not a dative reflexive.
+- 31305cbb11b7  # BAD_SENTENCE: Broken sentence: "gegen" has no object ("Jong Oranje gegen war er").
+- 345e1263ff72  # BAD_SENTENCE: "etablierte sich zu einem der ... Autoren" is wrong government; German requires "als".
+- 36b7727a4f30  # WRONG_UNIT: This is the tag question "nicht wahr?", not the verb wahrhaben.
+- 37e67e7bdd0f  # WRONG_UNIT: "aufgebracht" is the lexicalised adjective (upset), not the verb aufbringen in use.
+- 38365155a68e  # WRONG_UNIT: Existential "es gibt Hinweise", not the collocation "einen Hinweis geben".
+- 3b7b47f0b974  # WRONG_UNIT: "ab" belongs to "ab und zu", not to the separable verb abgehen.
+- 44fb05d3506e  # WRONG_UNIT: The sentence uses ausführen ("Handlungen führen wir aus"), not ausfahren.
+- 4bbfb1e9f95d  # BAD_SENTENCE: Swiss guillemets and a headless stock-analyst jargon sentence whose subject "Die" has no referen
+- 4d6c351066b1  # BAD_SENTENCE: Uses "geistig zurückgeblieben" as a joke; offensive and unusable.
+- 4f1b8a03c1a1  # WRONG_UNIT: Existential "es gibt Hinweise", not "einen Hinweis geben".
+- 53a0263d560c  # WRONG_UNIT: "ab" belongs to the adverbial "ab und zu"; the verb is "kommen ... besuchen", not abkommen.
+- 5560617afd4e  # WRONG_UNIT: This is the tag question "nicht wahr?", not the verb wahrhaben.
+- 5578647a0ca0  # BAD_SENTENCE: Scrape fragment beginning "Box und kann ..."; no subject, not a sentence.
+- 561303a81bb6  # BAD_SENTENCE: Broken dash/comma construction that does not parse as a sentence.
+- 57a2ca73620a  # BAD_SENTENCE: "schaltete sich US-Präsident ein" is missing the article or the name.
+- 58a80cfba7ae  # BAD_GLOSS: The German says a price increase is hidden behind it, not that something is due to a price increase
+- 5e455d88d033  # WRONG_UNIT: Existential "es gibt", not "jemandem eine Möglichkeit geben".
+- 62792bf5c92e  # WRONG_UNIT: "sich" here is the reciprocal accusative (they looked at each other), not the dative reflexive of 
+- 6305ca08bb1d  # WRONG_UNIT: "abgesehen von" is a fixed preposition here, not the separable verb absehen.
+- 63d6b63daeb3  # WRONG_UNIT: "abgesehen davon" is a fixed adverbial, not the separable verb absehen.
+- 665434ab11a7  # BAD_SENTENCE: Garbled coordination: "zu landesweiten und zur Großdemonstration" is missing its first noun.
+- 66a4280dc74b  # WRONG_UNIT: This is the dative idiom "sich etwas in den Kopf setzen", not accusative-reflexive "sich setzen".
+- 6ca84a17916d  # BAD_SENTENCE: Garbled source: "Neben beispielsweise und Dortmund" is missing the city after "beispielsweise".
+- 6e190429875a  # BAD_GLOSS: "einen Hals haben" means to be furious; the gloss translates it literally as having a neck.
+- 700c7478bc39  # BAD_SENTENCE: Fragment with no main clause.
+- 717d01dc19d2  # WRONG_UNIT: "aufgebracht" is the adjective (upset), not the verb aufbringen in use.
+- 73e92e831d87  # BAD_SENTENCE: Swiss spelling "mutmasslich" instead of "mutmaßlich".
+- 740f182a2ecc  # BAD_SENTENCE: Archaic proverb equating a daughter with a dung heap; demeaning and opaque for a learner.
+- 767fd1a81600  # BAD_SENTENCE: Typo "Studentendarlehnen" for "Studentendarlehen".
+- 7749d361fb17  # WRONG_UNIT: Existential "es gibt einen Hinweis", not "einen Hinweis geben".
+- 7941ad7e1a25  # BAD_SENTENCE: "Beim Tisg" is OCR junk and the sentence trails into a dash fragment.
+- 7996482f6899  # WRONG_UNIT: Reciprocal accusative "sich ... gegenseitig", not the dative reflexive of the unit.
+- 79c678fc2643  # WRONG_UNIT: "hin" belongs to the adverbial "hin und her", not to a separable verb "hingehen".
+- 81aaf855c851  # WRONG_UNIT: "darum" is the pronominal adverb governed by "sich kümmern um", not the causal connector.
+- 832845fd725c  # BAD_SENTENCE: Two sentences run together with no punctuation after in der Kritik.
+- 850333eec23c  # WRONG_UNIT: Existential "es gibt", not "jemandem eine Möglichkeit geben".
+- 870fba8ae338  # BAD_SENTENCE: Truncated source: "wurde an den übergeben" has no object after "an den".
+- 89880ceb8d99  # WRONG_UNIT: "aufgebracht" is the adjective (upset), not the verb aufbringen in use.
+- 8abd90bf6c2a  # BAD_SENTENCE: Truncated quotation with an ellipsis in the middle, not a self-contained sentence.
+- 8bd4c8f027b1  # BAD_SENTENCE: Ungrammatical: zurückverfolgen takes the accusative, not "seiner Familie".
+- 8be78806b492  # WRONG_CASE: Here "sich" is dative (sich die Hände wärmen), not the accusative the unit displays.
+- 8d2b66fc76a1  # WRONG_UNIT: "Er macht ihr Sorgen" is the non-reflexive construction (he worries her), not "sich Sorgen machen"
+- 8dbd53b4ebe9  # WRONG_UNIT: The bracketed hin belongs to the idiom hin und her laufen, not to the verb hinlaufen.
+- 8f3e7340ed88  # WRONG_UNIT: The bracketed "ob" belongs to the fixed conjunction "als ob", not to the standalone connector "ob"
+- 908c6f682d99  # WRONG_UNIT: Impersonal "es geht zu" plus a locative dative "auf dem Reichstag", not the verb complement zugehe
+- 93ceb539db35  # WRONG_UNIT: "mir" is a plain dative object (he helped me), not a reflexive.
+- 948d57facf16  # WRONG_UNIT: With a direct object ("die Beine") the reflexive is dative, contradicting the +Akk display.
+- 973f99d39704  # BAD_SENTENCE: "und euch näherzubringen" has no object, so the sentence is not self-contained.
+- 9979c5f19fa5  # BAD_SENTENCE: Garbled source: "in der Wohnung in der gegen 10 Uhr" is missing the street name.
+- 9ab6dc07899e  # WRONG_UNIT: The verb is "anrufen"; "aus" belongs to the phrase "von einem Telefon aus".
+- 9bafda7d7a7e  # WRONG_UNIT: "ausgezeichnet" is the adverb "excellently" here, not a form of the verb auszeichnen.
+- 9c024af64bf1  # WRONG_UNIT: The bracketed tokens are the verb aufführen (to perform), not auffahren.
+- 9cdbdbf0c2cb  # BAD_GLOSS: Gloss drops "Bockmist" and ends as "the biggest ever", which is not a translation.
+- 9deb0aa1d9b8  # WRONG_UNIT: The verb is eindringen in (drangen ... ein); durch is a free adjunct and the prefix ein is left un
+- a1a00513481b  # BAD_SENTENCE: Wenn du früh ins Bett gehen wirst is unnatural German; a wenn-clause takes the present.
+- a34303613c89  # WRONG_UNIT: "hin" belongs to the adverbial "hin und her", not to a separable verb "hingehen".
+- a37bf55bae58  # BAD_SENTENCE: Swiss spelling "regelmässig" and an opaque parenthetical "(zu zweit)".
+- a42820624e1e  # WRONG_UNIT: "sich" belongs to "sich anbieten", not to "helfen".
+- a6b3beb96a3c  # WRONG_UNIT: The sentence uses laut, so the unit's nach is absent and the gaps do not instantiate the displayed
+- a8ad6259ac91  # WRONG_UNIT: "angehört" here is the participle of "anhören" (to hear out), not of "angehören".
+- a991753ea3ad  # WRONG_UNIT: "ab" belongs to "ab und zu", not to a separable verb abkommen.
+- aa9a5e0d6032  # WRONG_UNIT: "darum" is the pronominal adverb of "es geht um", not the causal connector.
+- ae4761813113  # WRONG_UNIT: This is the tag question "nicht wahr?", not the verb wahrhaben.
+- b12403c96f4e  # BAD_SENTENCE: A bare subordinate clause, not a self-contained sentence.
+- b1d0c3bf7f22  # BAD_SENTENCE: Truncated photo caption ending in "(3.v." with a nonsensical gloss.
+- b29bb0e9e6ae  # WRONG_UNIT: Existential "es gibt", not "jemandem eine Möglichkeit geben".
+- ba1111e454ba  # WRONG_UNIT: "ab" belongs to "ab und zu", not to the separable verb abgehen.
+- bfda53bfb1ad  # WRONG_UNIT: Existential "es gab Hinweise", not "einen Hinweis geben".
+- c3d9b35b2801  # BAD_SENTENCE: Missing the obligatory comma before the subordinate clause "bevor es dunkel wurde".
+- c81c430ad1d3  # WRONG_UNIT: This is the tag question "nicht wahr?", not the verb wahrhaben.
+- c836500f62fe  # BAD_SENTENCE: "den Regierungssitz für Weihnachten ausgerüstet" is not natural German (geschmückt/hergerichtet)
+- cc3f2b93baf1  # WRONG_UNIT: "auf großen Handtüchern" is a dative locative adjunct, not an accusative verb complement.
+- cc62420d8c27  # BAD_SENTENCE: Ungrammatical: must be "den Schuelern" (dative plural), not "den Schüler".
+- cd97ff0b4566  # WRONG_UNIT: The bracketed da is the correlative adverb of da, wo and not the separable prefix of daliegen.
+- d146c25eafaa  # WRONG_UNIT: This is the tag question "nicht wahr?", not the verb wahrhaben.
+- d48f8990324c  # BAD_GLOSS: "mit spitzem Bleistift rechnen" means to budget very tightly, not "reckon with a sharp pencil".
+- d6fc0a3129ca  # WRONG_GAPS: Only "sich" is bracketed; the verb "richten" is left in the sentence.
+- dc4362430855  # BAD_SENTENCE: Agreement error: singular "die Frist" followed by "in denen".
+- eb22b4325042  # WRONG_UNIT: Existential "es gibt", not "jemandem eine Möglichkeit geben".
+- f3dd96d0f852  # WRONG_UNIT: This is the existential "es gibt Einblicke in", not somebody giving insight.
+- f8496bda5f66  # WRONG_UNIT: "Ich führe sie zum Essen aus" is ausführen, not ausfahren.
+- f8946291abe9  # WRONG_UNIT: The verb is "anrufen"; "aus" belongs to "von Toms Mobiltelefon aus".
+- fa7baefdca50  # WRONG_UNIT: "von Rekord zu Rekord" is a fixed idiom, not the verb complement "zu jemandem eilen".
+- fcdb72472a8f  # WRONG_UNIT: "auf dem Radweg" is a dative location, not the accusative complement of ausweichen.

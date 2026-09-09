@@ -61,6 +61,34 @@ def _match_part(
     return None
 
 
+def _multiword_forms(specs: list[ConnectorSpec]) -> list[list[str]]:
+    forms: list[list[str]] = []
+    for spec in specs:
+        parts = [spec.part()] if spec.kind == "connector" else [spec.first, spec.second]
+        for part in parts:
+            if part is None:
+                continue
+            forms.extend(f.lower().split() for f in part.forms if " " in f)
+    return forms
+
+
+def _inside_longer_form(
+    sentence: ParsedSentence, window: list[ParsedToken], forms: list[list[str]]
+) -> bool:
+    """ "ob" inside "als ob": a single-word match that is part of a longer
+    connector form in this sentence belongs to that longer form."""
+    if len(window) != 1:
+        return False
+    i = window[0].i
+    lower = [t.lower for t in sentence.tokens]
+    for form in forms:
+        n = len(form)
+        for start in range(max(0, i - n + 1), min(i, len(lower) - n) + 1):
+            if lower[start : start + n] == form:
+                return True
+    return False
+
+
 def detect_connectors(
     sentence: ParsedSentence,
     specs: list[ConnectorSpec],
@@ -69,10 +97,11 @@ def detect_connectors(
     line_id: str,
 ) -> list[Occurrence]:
     found: list[Occurrence] = []
+    longer = _multiword_forms(specs)
     for spec in specs:
         if spec.kind == "connector":
             window = _match_part(sentence, spec.part(), start=0)
-            if window is None:
+            if window is None or _inside_longer_form(sentence, window, longer):
                 continue
             initial = is_sentence_initial(sentence, window[0].i)
             found.append(

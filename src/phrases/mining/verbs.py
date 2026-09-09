@@ -154,11 +154,35 @@ TEMPORAL_NOUNS: frozenset[str] = frozenset(
 )
 
 
+_NUMBER_WORDS: frozenset[str] = frozenset(
+    {
+        "eins",
+        "zwei",
+        "drei",
+        "vier",
+        "fünf",
+        "sechs",
+        "sieben",
+        "acht",
+        "neun",
+        "zehn",
+        "elf",
+        "zwölf",
+        "halb",
+        "viertel",
+        "mitternacht",
+        "mittag",
+    }
+)
+
+
 def _is_time_or_measure_frame(sentence: ParsedSentence, prep: ParsedToken) -> bool:
     for child in sentence.children(prep.i):
         if child.dep != "nk":
             continue
-        if any(ch.isdigit() for ch in child.text):
+        if any(ch.isdigit() for ch in child.text) or child.pos == "NUM":
+            return True
+        if child.lower in _NUMBER_WORDS:
             return True
         if child.lemma.lower() in TEMPORAL_NOUNS or child.lower in TEMPORAL_NOUNS:
             return True
@@ -168,10 +192,27 @@ def _is_time_or_measure_frame(sentence: ParsedSentence, prep: ParsedToken) -> bo
 
 
 def _has_reflexive_dependent(sentence: ParsedSentence, verb: ParsedToken) -> bool:
+    """A reflexive pronoun on the verb or on the auxiliary above it
+    ("hat sich ... gesetzt" attaches "sich" to "hat")."""
+    heads = [verb]
+    current = verb
+    for _ in range(3):
+        head = sentence.tokens[current.head]
+        if head.i == current.i:
+            break
+        heads.append(head)
+        current = head
     return any(
         c.pos == "PRON" and c.lower in REFLEXIVE_FORMS and c.morph.get("Reflex") == "Yes"
-        for c in sentence.children(verb.i)
+        for h in heads
+        for c in sentence.children(h.i)
     )
+
+
+def _is_reciprocal(sentence: ParsedSentence) -> bool:
+    """ "sich gegenseitig", "einander": the pronoun is reciprocal, so the
+    sentence teaches neither the reflexive verb nor its case."""
+    return any(t.lower in {"gegenseitig", "einander"} for t in sentence.tokens)
 
 
 def _finite_ancestor(sentence: ParsedSentence, token: ParsedToken) -> ParsedToken:
@@ -277,7 +318,9 @@ def detect_reflexive(
         verb = lexical_verb(sentence, pron.i)
         if verb is None or verb.pos != "VERB":
             continue
-        if pron.lower != "sich" and pron.morph.get("Reflex") != "Yes":
+        if _is_reciprocal(sentence):
+            continue
+        if pron.lower != "sich":
             required = _PRONOUN_AGREEMENT[pron.lower]
             subject = _subject_of(sentence, verb)
             if subject is None:
@@ -327,8 +370,9 @@ def _fused_separable_key(verb: ParsedToken, dictionary: frozenset[str] | None) -
     lemma = verb.lemma.lower()
     if verb.morph.get("VerbForm") not in {"Inf", "Part"} and verb.dep not in {"oc", "re", "cj"}:
         return None
-    # A participle used predicatively ("das ist ausgezeichnet") is an adjective.
-    if verb.dep == "pd":
+    # A participle used predicatively ("das ist ausgezeichnet") or adverbially
+    # ("ausgezeichnet gespielt", "aufgebracht reagieren") is an adjective.
+    if verb.dep in {"pd", "mo"}:
         return None
     if lemma.startswith(paradigms._INSEPARABLE_PREFIXES):  # noqa: SLF001
         return None
