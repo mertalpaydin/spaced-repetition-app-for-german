@@ -450,6 +450,9 @@ def test_mined_unit_cefr_is_the_hardest_part_and_unknown_words_are_b2() -> None:
         ("warten", "warten", "Fin|Pres|3|Plur", "warten"),
         ("geschrien", "geschrien um", "Part", "schreien"),
         ("hafen", "haften im", "Fin|Pres|3|Plur", "haften"),
+        ("zusammenkommen", "kommen zusammen", "Fin|Pres|3|Plur", "zusammenkommen"),
+        ("zulegen", "legen sich zu", "Fin|Pres|3|Plur", "zulegen"),
+        ("bleiben", "bleiben offen", "Fin|Pres|3|Plur", "bleiben"),
     ],
 )
 def test_inflected_forms_left_as_lemma_are_cited_as_infinitives(
@@ -457,7 +460,9 @@ def test_inflected_forms_left_as_lemma_are_cited_as_infinitives(
 ) -> None:
     from src.phrases.units import canonical_verb
 
-    words = frozenset({"füllen", "warten", "waren", "kommen", "erhalten", "haften", "hafen"})
+    words = frozenset(
+        {"füllen", "warten", "waren", "kommen", "erhalten", "haften", "hafen", "zusammen", "offen"}
+    )
     infinitives = {"warten": "A1", "kommen": "A1", "erhalten": "B1", "geschrien": "B1"}
     assert canonical_verb(verb, surface.split(), form_key, words, infinitives) == expected
 

@@ -410,11 +410,15 @@ def canonical_verb(
     ):
         for s in surfaces:
             low = s.lower()
+            # Only the verb's own surface, one letter off ("haften" for
+            # "hafen"): a particle or preposition surface ("zusammen", "zu",
+            # "offen") is not the verb (step 4 finding).
             if (
                 low != verb.lower()
-                and low.endswith("n")
+                and low.endswith("en")
                 and len(low) > 3
-                and (low.startswith(verb[:2]) or verb.startswith(low[:2]))
+                and abs(len(low) - len(verb)) <= 1
+                and low[:3] == verb[:3]
                 and low not in {"sein", "haben", "werden"}
                 and dictionary is not None
                 and normalise(low) in dictionary

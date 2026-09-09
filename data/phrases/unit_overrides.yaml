@@ -59,6 +59,7 @@
 - {key: "aufdringen", display: "aufdrängen"}
 - {key: "aufenthalt gestalten", cefr: "B2"}
 - {key: "aufessen", cefr: "A2"}
+- {key: "aufliegen auf", case: "Dat"}
 - {key: "auflockeren", display: "auflockern"}
 - {key: "aufrechthalten", display: "aufrechterhalten"}
 - {key: "aufrufen zu", cefr: "B2"}
@@ -70,6 +71,7 @@
 - {key: "aufwecken", cefr: "A2"}
 - {key: "auge verschließen", display: "die Augen verschließen vor +Dat"}
 - {key: "auge werfen", display: "ein Auge werfen auf +Akk"}
+- {key: "auge zudrücken", display: "ein Auge zudrücken"}
 - {key: "augenblick dauern", display: "einen Augenblick dauern"}
 - {key: "ausarten zu", display: "ausarten in +Akk"}
 - {key: "ausbeißen", display: "sich die Zähne ausbeißen an +Dat"}
@@ -202,6 +204,7 @@
 - {key: "echt leder", display: "echtes Leder"}
 - {key: "ehrenamtlich engagement", display: "ehrenamtliches Engagement"}
 - {key: "ehrlich haut", cefr: "B2"}
+- {key: "ei liegen", display: "Eier legen"}
 - {key: "eid geschworen", display: "einen Eid schwören"}
 - {key: "eigen nennen", display: "sein Eigen nennen"}
 - {key: "eigentlich problem", display: "das eigentliche Problem"}
@@ -247,6 +250,7 @@
 - {key: "erhöht blutdruck", display: "erhöhter Blutdruck"}
 - {key: "erklärt ziel", display: "das erklärte Ziel"}
 - {key: "erklärung abgeben", cefr: "B2"}
+- {key: "erkältung einfangen", display: "sich eine Erkältung einfangen"}
 - {key: "erkältung holen", display: "sich eine Erkältung holen"}
 - {key: "erkältung zuziehen", display: "sich eine Erkältung zuziehen"}
 - {key: "ermittlung aufnehmen", display: "Ermittlungen aufnehmen"}
@@ -418,6 +422,7 @@
 - {key: "hals riskieren", display: "seinen Hals riskieren"}
 - {key: "handel treiben", cefr: "B2"}
 - {key: "handlungsbedarf sehen", cefr: "B2"}
+- {key: "handschelle anliegen", display: "Handschellen anlegen"}
 - {key: "handwerk legen", display: "jemandem das Handwerk legen"}
 - {key: "hart bandage", display: "mit harten Bandagen kämpfen"}
 - {key: "hart tour", cefr: "B2"}
@@ -1092,6 +1097,7 @@
 - {key: "welle schlagen", cefr: "B2"}
 - {key: "wende schaffen", cefr: "B2"}
 - {key: "wert legen", display: "Wert legen auf +Akk"}
+- {key: "wert liegen", display: "Wert legen auf +Akk"}
 - {key: "westlich welt", display: "westliche Welt"}
 - {key: "westlich zivilisation", display: "die westliche Zivilisation"}
 - {key: "wiedergeboren als", display: "wiedergeboren werden als"}

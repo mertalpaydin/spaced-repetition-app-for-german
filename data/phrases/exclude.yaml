@@ -2028,3 +2028,95 @@
 - "wasser gießen"  # NOT_A_PHRASE: Free combination; the collocation learners need is 'Blumen gießen'.
 - "wegweisen"  # BAD_UNIT: Swiss/Austrian police-law term for expulsion, not standard usable German.
 - "weiß haut"  # NOT_A_PHRASE: Free colour-plus-noun combination.
+# Review round step4: units the reviewer rejected.
+- "abliegen"  # BAD_UNIT: 'abliegen' ist kein uebliches bzw. nuetzliches Verb fuer A1-B2-Lernende; hier liegt 'weit ab von' vo
+- "abliegen an"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "abliegen auf"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "abliegen bei"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "abliegen für"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "abliegen in"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "abliegen mit"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "anliegen als"  # NOT_A_PHRASE: Free syntactic combination misclassified as a verb preposition.
+- "anliegen bei"  # BAD_UNIT: 'bei +Dat' ist eine freie lokale/personale Angabe und keine feste Rektion von 'anliegen'.
+- "anliegen für"  # BAD_UNIT: 'fuer +Akk' ist eine freie Angabe des Nutzniessers, keine feste Praepositionalergaenzung von 'anlieg
+- "anliegen in"  # BAD_UNIT: anliegen has no prepositional complement 'in'; the PP is a plain adverbial of mode.
+- "arsch abwischen"  # BAD_UNIT: Vulgare Phrase, nicht fuer A1-B2 Lernmaterial geeignet.
+- "auffinden an"  # NOT_A_PHRASE: Free locative combination with passive auffinden.
+- "auffinden auf"  # NOT_A_PHRASE: Free locative combination with auffinden.
+- "auffinden bei"  # BAD_UNIT: 'bei' ist hier eine rein freie temporale/situative Ergaenzung und bildet keine feste Verb-Praepositi
+- "auffinden mit"  # NOT_A_PHRASE: Free instrumental combination with auffinden.
+- "auffinden nach"  # BAD_UNIT: 'nach +Dat' ist eine freie temporale Angabe und keine feste Verb-Praeposition-Kombination mit 'auffi
+- "auffinden vor"  # NOT_A_PHRASE: Free temporal/spatial combination with auffinden.
+- "aufliegen bei"  # BAD_UNIT: 'bei' ist eine lokale Angabe; die Praeposition fuer oesterr. 'aufliegen' (zur Einsicht) waere typisc
+- "einliegen"  # NOT_A_PHRASE: Archaic bureaucratic term or parser artefact not suitable for A1-B2.
+- "einliegen auf"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "einliegen bei"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb combination.
+- "einliegen gegen"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb combination.
+- "einliegen in"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "einliegen nach"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "einschlafen bei"  # NOT_A_PHRASE: Free circumstantial combination with temporal bei rather than a fixed verbal valence.
+- "eltern anlügen"  # BAD_UNIT: Freie Kombination aus Akkusativobjekt und transitivem Verb, keine feste Kollokation.
+- "englisch verstehen"  # BAD_UNIT: Keine feste oder idiomatische Kollokation/Phrase fuer A1-B2.
+- "festliegen für"  # NOT_A_PHRASE: Free prepositional combination with festliegen.
+- "festliegen in"  # NOT_A_PHRASE: Free combination of verb with locative preposition.
+- "festliegen mit"  # NOT_A_PHRASE: Free circumstantial combination with festliegen.
+- "festliegen nach"  # NOT_A_PHRASE: Free temporal combination with festliegen.
+- "grenze verschieben"  # NOT_A_PHRASE: Compositional and largely news usage, not a teachable collocation.
+- "handy aufladen"  # NOT_A_PHRASE: Fully compositional object-verb combination.
+- "handy klauen"  # BAD_UNIT: Freie Objekt-Verb-Verbindung ohne idiomatischen Charakter.
+- "hinfallen bei"  # BAD_UNIT: 'bei +Dat' ist eine freie temporale/situative Angabe und keine feste Verb-Praeposition-Kombination.
+- "hinken bei"  # BAD_UNIT: 'bei' ist eine freie Angabe bzw. das Verb heisst 'hinterherhinken', keine feste Einheit 'hinken bei'
+- "hinliegen"  # BAD_UNIT: Ein trennbares Verb 'hinliegen' existiert in dieser Bedeutung nicht; es handelt sich um 'liegen zu .
+- "laden aufmachen"  # BAD_UNIT: Freie Kombination aus Noun und Verb, keine spezifisch zu lernende feste Einheit.
+- "leute bestehlen"  # BAD_UNIT: Freie Objekt-Verb-Kombination, keine lexikalisierte Phrase.
+- "losliegen"  # NOT_A_PHRASE: Non-existent verb resulting from a parsing error.
+- "maul aufreißen"  # DUPLICATE: Same idiom as nv:mund_aufreissen with a variant noun.
+- "mutter anlügen"  # BAD_UNIT: Freie Kombination aus Akkusativobjekt und transitivem Verb, keine feste Kollokation.
+- "offen als"  # NOT_A_PHRASE: Misclassified adjective with comparative/predicative particle.
+- "offen bei"  # NOT_A_PHRASE: Misclassified adjective with a free prepositional phrase.
+- "offen durch"  # NOT_A_PHRASE: Misclassified adjective with a free prepositional phrase.
+- "offen für"  # NOT_A_PHRASE: Misclassified adjective with preposition rather than a verb_prep unit.
+- "offen in"  # NOT_A_PHRASE: Misclassified adjective with a free prepositional phrase.
+- "offen mit"  # NOT_A_PHRASE: Misclassified adjective with a free prepositional phrase.
+- "offen nach"  # NOT_A_PHRASE: Misclassified adjective with a free prepositional phrase.
+- "scheck unterschreiben"  # NOT_A_PHRASE: Fully compositional object-verb combination.
+- "sich abliegen"  # NOT_A_PHRASE: Parser artefact for sich ablegen.
+- "sich anliegen mit"  # NOT_A_PHRASE: Parser artefact for sich anlegen mit.
+- "sich festliegen"  # NOT_A_PHRASE: Parser artefact from festliegen or sich festlegen.
+- "sich hinliegen"  # NOT_A_PHRASE: Non-standard/regional variant for sich hinlegen.
+- "sich offen"  # NOT_A_PHRASE: Fragment / parser artefact misclassified as reflexive verb.
+- "sich umliegen"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "sich zuliegen"  # NOT_A_PHRASE: Non-existent verb resulting from a parsing error.
+- "sich zusammen"  # NOT_A_PHRASE: Incomplete fragment resulting from a parser error.
+- "sich überliegen"  # NOT_A_PHRASE: Non-existent verb resulting from a parsing error or typo for sich überlegen.
+- "teller abwaschen"  # NOT_A_PHRASE: Free combination of direct object and verb.
+- "umliegen"  # BAD_UNIT: umliegen is not a verb; 'um 1910' is the preposition um with a date.
+- "umliegen auf"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb combination.
+- "vorfallen in"  # NOT_A_PHRASE: Free locative combination with vorfallen.
+- "vorfallen zwischen"  # NOT_A_PHRASE: Free prepositional combination rather than a fixed phrase.
+- "wahrheit herausfinden"  # NOT_A_PHRASE: Compositional object-verb combination, not a fixed collocation.
+- "willkommen in"  # NOT_A_PHRASE: Misclassified adjective/interjection rather than a verb preposition combination.
+- "würstchen braten"  # NOT_A_PHRASE: Free combination of direct object and verb.
+- "zuliegen"  # BAD_UNIT: 'zuliegen' existiert nicht als Verb; gemeint ist 'zulegen'.
+- "zuliegen an"  # BAD_UNIT: Das Verb 'zuliegen' existiert nicht; die Konstruktion ist 'liegen an ...'.
+- "zuliegen auf"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "zuliegen bei"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "zuliegen in"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "zuliegen nach"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "zuliegen um"  # BAD_UNIT: Das Verb existiert nicht, gemeint ist 'zulegen um'.
+- "zuliegen unter"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "zusammen als"  # NOT_A_PHRASE: Free combination misclassified as a verb preposition unit.
+- "zusammen an"  # NOT_A_PHRASE: Free combination misclassified as a verb preposition unit.
+- "zusammen auf"  # NOT_A_PHRASE: Free combination misclassified as a verb preposition unit.
+- "zusammen aus"  # NOT_A_PHRASE: Free combination misclassified as a verb preposition unit.
+- "zusammen bei"  # NOT_A_PHRASE: Free combination misclassified as a verb preposition unit.
+- "zusammen für"  # NOT_A_PHRASE: Free combination misclassified as a verb preposition unit.
+- "zusammen in"  # NOT_A_PHRASE: Free combination misclassified as a verb preposition unit.
+- "zusammen mit"  # NOT_A_PHRASE: Parser artefact classifying an adverbial/prepositional phrase as a verb preposition combination.
+- "zusammen nach"  # NOT_A_PHRASE: Free combination misclassified as a verb preposition unit.
+- "zusammen unter"  # NOT_A_PHRASE: Free combination misclassified as a verb preposition unit.
+- "zusammen über"  # NOT_A_PHRASE: Free combination misclassified as a verb preposition unit.
+- "überliegen bei"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "überliegen in"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "überliegen mit"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
+- "überliegen vor"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.

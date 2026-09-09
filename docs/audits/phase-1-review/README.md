@@ -260,9 +260,30 @@ substantive (`geschrien um`: Claude's `schreien nach +Dat` over Gemini's
 
 Curated lists: 88 units, 70 cards, 17 overrides.
 
+## Step 4 (9 September 2026)
+
+Deck `af0d15dbf7e7` after step 3: 167 new cards and 109 new units. Both
+vendors read all of it and agreed almost entirely (88 of the 89 Gemini
+unit findings were also Claude's).
+
+| | Claude | Gemini | Both flagged | Claude only | Gemini only |
+|---|---:|---:|---:|---:|---:|
+| Card findings (167 cards) | 29 | 46 | 27 | 2 | 19 |
+| Unit findings (109 units) | 95 | 89 | 88 | 7 | 1 |
+
+95 of the 109 new units were artefacts of the step 3 rule that lets a
+present-plural surface win over the tagger's lemma: it matched particle
+and preposition surfaces too, so `kommen ... zusammen` became the verb
+`zusammen` (`zusammen mit`, `sich zusammen`) and `legen ... zu` became
+`zuliegen`. The rule now accepts only a surface one letter off the lemma
+(`haften` for `hafen`). Reviewer exclusions for the artefact keys were
+applied as well; they are harmless once the keys no longer exist.
+
+Curated lists: 91 units, 32 cards, 6 overrides.
+
 ## What is still open
 
-- Steps 1 to 3 have read every glossed card and every unit of the
+- Steps 1 to 4 have read every glossed card and every unit of the
   wide-corpus deck once, by both vendors. Cards and units new in the next
   rebuild (replacements for dropped ones) are the next step's batches.
 - Adjective-noun and collocation displays that carry a governing

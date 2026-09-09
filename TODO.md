@@ -33,7 +33,7 @@ first, by Claude Opus and Gemini Flash (`docs/audits/phase-1-review/`,
 "Step 1"): read a band, turn the systematic causes into rules, rebuild, read
 the next band of what survives. Open:
 
-- **Step 4 onward.** Steps 1 to 3 covered every glossed card and every
+- **Step 5 onward.** Steps 1 to 4 covered every glossed card and every
   unit once; each next step reads only what the rebuild replaced, until a
   step finds no new systematic cause and few findings.
   After each rebuild: `uv run python scripts/review_deck.py batches <dir>`

@@ -1856,3 +1856,14 @@
 - edda06f67295  # BAD_SENTENCE: Missing noun after 'kostenfreien' makes the sentence ungrammatical.
 - f2de21d33fe1  # BAD_SENTENCE: Mixed address: 'Wenn Sie möchten, bringe ich euch ...'.
 - f9161002dac4  # BAD_SENTENCE: Missing compound noun constituent before '-Teilnahme'.
+# Review round step4.
+- 2b1c6db38409  # BAD_SENTENCE: Der Satz bricht mit einer unvollstaendigen URL 'https://www.' ab.
+- 2cab4c48b768  # WRONG_GAPS: Das Reflexivpronomen 'uns' gehoert zu 'sich auseinandersetzen' und fehlt in den Luecken.
+- 8d22a560712a  # BAD_SENTENCE: Verwendet die veraltete Rechtschreibung 'riß' statt 'riss'.
+- 99645a2d50a5  # WRONG_UNIT: Hier liegt die Konstruktion 'es gibt ... dazu' vor, nicht das trennbare Verb 'dazugeben'.
+- 9fd68ddd1591  # WRONG_GAPS: The reflexive pronoun of the displayed unit is not bracketed, unlike the reflexive_verb cards.
+- a49cf6c444ff  # WRONG_UNIT: Hier liegt die Konstruktion 'es gibt ... dazu' vor, nicht das trennbare Verb 'dazugeben'.
+- a678236b2d74  # BAD_SENTENCE: Grammatikfehler im Satz: 'Auf das Boxspring liegt' erfordert Dativ ('Auf dem Boxspring').
+- b5eca9ad7188  # BAD_SENTENCE: Der Satz ist ein unvollstaendiger Nebensatz bzw. Satzfragment.
+- b6e8e2382632  # WRONG_GAPS: The reflexive pronoun of the displayed unit is not bracketed, unlike the reflexive_verb cards.
+- ba601f2eb1f6  # WRONG_UNIT: Here aufliegen means 'be available for inspection' and the auf-PP is a location, not the unit's co
