@@ -1111,3 +1111,74 @@
 - "orang essen"  # BAD_UNIT: 'Orang' is not a German noun; the lemma is 'Orange'. All three cards of this unit bracket 'Orange', 
 # Phase 1 review, round 5 (2026-09-09): units the reviewers rejected.
 # Phase 1 review, round 6 (2026-09-09): units the reviewers rejected.
+# Review round step1: units the reviewer rejected.
+- "abdecken durch"  # NOT_A_PHRASE: Passive-agent durch adjunct, not a governed preposition.
+- "ablösen durch"  # NOT_A_PHRASE: Passive-agent durch adjunct, not a governed preposition.
+- "absichern durch"  # NOT_A_PHRASE: Passive-agent durch adjunct, not a governed preposition.
+- "achten bei"  # NOT_A_PHRASE: The governing preposition for achten is auf (+Akk); bei is a circumstantial adjunct.
+- "afrikanisch land"  # NOT_A_PHRASE: Topic co-occurrence, not a multiword unit.
+- "beachten bei"  # NOT_A_PHRASE: beachten is plain transitive; bei is a free adjunct, not a governed preposition.
+- "bereitstehen zu"  # NOT_A_PHRASE: bereitstehen takes für (+Akk), not zu.
+- "bericht lesen"  # NOT_A_PHRASE: Bericht lesen is a free verb-object combination.
+- "bissch spaß"  # NOT_A_PHRASE: bisschen is a quantifier, not an adjective, and the lemma bissch is a broken artefact.
+- "brennend auto"  # NOT_A_PHRASE: Free combination of participle adjective and noun.
+- "dabeihelfen"  # NOT_A_PHRASE: dabeihelfen is not written as a single separable verb; it is dabei helfen.
+- "dabeiunterstützen"  # NOT_A_PHRASE: Parser artefact; "dabei unterstützen" is not a compound separable verb.
+- "detail erfahren"  # NOT_A_PHRASE: Free combination, and the singular Detail is wrong for the usage.
+- "dunkel haar"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "ehemalig präsident"  # NOT_A_PHRASE: News-only free combination.
+- "einbüßen auf"  # NOT_A_PHRASE: einbüßen governs no preposition auf; parser artefact.
+- "einschränken durch"  # NOT_A_PHRASE: Passive-agent durch adjunct, not a governed preposition.
+- "entlassen nach"  # NOT_A_PHRASE: nach is a directional or temporal adjunct, not a fixed verb-preposition combination.
+- "entlasten durch"  # NOT_A_PHRASE: Passive-agent durch adjunct, not a governed preposition.
+- "erneuerbar energie"  # BAD_UNIT: Unit display uses an inflected form; the citation form should be 'erneuerbare Energien'.
+- "erschweren durch"  # NOT_A_PHRASE: Passive-agent durch adjunct, not a governed preposition.
+- "erstatten gegen"  # NOT_A_PHRASE: Parser artefact from "Anzeige erstatten gegen", not an independent unit.
+- "erzeugen durch"  # NOT_A_PHRASE: Passive-agent durch adjunct, not a governed preposition.
+- "foto schicken"  # NOT_A_PHRASE: Free verb-object combination.
+- "französisch regierung"  # NOT_A_PHRASE: News-only free combination naming an institution.
+- "freude wünschen"  # NOT_A_PHRASE: Not idiomatic German; the fixed wishes are viel Spaß and viel Erfolg wünschen.
+- "geld kosten"  # NOT_A_PHRASE: Free verb-object combination with no idiomatic content.
+- "gewährleisten durch"  # NOT_A_PHRASE: Passive-agent durch adjunct, not a governed preposition.
+- "haften bei"  # NOT_A_PHRASE: Free conditional adjunct; the governed form haften für is already present as vp:haften_fuer.
+- "haus durchsuchen"  # NOT_A_PHRASE: News-report co-occurrence, not a collocation.
+- "information finden"  # BAD_UNIT: Information finden is an arbitrary compositional verb-object combination rather than a fixed phrase 
+- "job suchen"  # NOT_A_PHRASE: Free verb-object combination.
+- "jubeln nach"  # NOT_A_PHRASE: jubeln nach is sports news phrasing with a temporal adjunct rather than a verb-preposition unit.
+- "jury überzeugen"  # NOT_A_PHRASE: Topic co-occurrence from talent-show reporting, not a collocation.
+- "klettern um"  # NOT_A_PHRASE: klettern um is financial market jargon for percentage gains rather than a fixed verb-preposition
+- "kompensieren durch"  # NOT_A_PHRASE: Passive-agent durch adjunct, not a governed preposition.
+- "krank kind"  # NOT_A_PHRASE: Free combination of adjective and noun, not a fixed multiword unit.
+- "krank mensch"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "krieg gewinnen"  # NOT_A_PHRASE: Krieg gewinnen is a free verb-object combination.
+- "leiche entdecken"  # NOT_A_PHRASE: News-report co-occurrence, not a collocation.
+- "mark kosten"  # NOT_A_PHRASE: Mark kosten is an outdated historical fragment and free combination.
+- "medizinisch fakultät"  # NOT_A_PHRASE: Medizinische Fakultät is an institutional proper name rather than a general vocabulary unit.
+- "moment erleben"  # NOT_A_PHRASE: Free verb-object combination.
+- "nachgeben um"  # NOT_A_PHRASE: nachgeben um is financial news jargon for measure differences rather than a fixed verb-prepositi
+- "nachweisen durch"  # NOT_A_PHRASE: Instrumental durch adjunct, not a governed preposition; overlaps the bare verb sv:nachweisen.
+- "nett leute"  # NOT_A_PHRASE: Free combination of adjective and noun, not a fixed multiword unit.
+- "neue lernen"  # NOT_A_PHRASE: Parser artefact and free combination.
+- "rankommen"  # DUPLICATE: Same lemma and sense as vp:rankommen_an, which additionally carries the governed preposition.
+- "regeln durch"  # NOT_A_PHRASE: Passive-agent durch adjunct, not a governed preposition.
+- "rot farbe"  # NOT_A_PHRASE: Free combination of color adjective and noun.
+- "schwanger frau"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "schwarz hose"  # NOT_A_PHRASE: Free combination of adjective and noun, not a fixed multiword unit.
+- "schwer kopfverletzung"  # NOT_A_PHRASE: News-report free combination.
+- "sich schleichen"  # NOT_A_PHRASE: "schleichen" is not a reflexive verb in standard German.
+- "sonnig wetter"  # NOT_A_PHRASE: Free adjective-noun combination.
+- "stützen durch"  # NOT_A_PHRASE: Passive-agent durch adjunct, not a governed preposition.
+- "tausend mensch"  # NOT_A_PHRASE: Free quantifier-noun combination, not a lexicalized phrase.
+- "text schreiben"  # NOT_A_PHRASE: Text schreiben is a free verb-object combination rather than a fixed collocation.
+- "tot mann"  # NOT_A_PHRASE: Free adjective-noun combination from news text.
+- "tot tier"  # NOT_A_PHRASE: tote Tiere is a free combination rather than a multiword unit worth teaching.
+- "umgestürzt baum"  # NOT_A_PHRASE: umgestürzte Bäume is a free news description rather than a multiword unit worth teaching.
+- "umstellen"  # DUPLICATE: Same lemma and sense as vp:umstellen_auf, which additionally carries the governed preposition.
+- "unschuldig mensch"  # NOT_A_PHRASE: Free combination of adjective and noun, not a lexicalized phrase.
+- "unterfinden"  # NOT_A_PHRASE: unterfinden is not a valid German word.
+- "verlaufen ohne"  # NOT_A_PHRASE: ohne is a free adjunct here; verlaufen governs no preposition.
+- "verletzt frau"  # NOT_A_PHRASE: verletzte Frau is a free noun-adjective combination.
+- "verletzt mann"  # NOT_A_PHRASE: Free adjective-noun combination from accident reporting.
+- "vorbleiben"  # NOT_A_PHRASE: vorbleiben is not a valid German word.
+- "wort benutzen"  # NOT_A_PHRASE: Wort benutzen is a free verb-object combination.
+- "ziel angreifen"  # NOT_A_PHRASE: Ziel angreifen is a free verb-object combination.

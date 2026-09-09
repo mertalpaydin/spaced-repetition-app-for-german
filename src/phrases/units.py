@@ -16,9 +16,10 @@ from pathlib import Path
 from typing import Any
 
 from src.contracts import UNIT_ID_PREFIX, Case, PhraseUnit
-from src.lexicon.lemmatizer import normalise
+from src.lexicon.lemmatizer import SEPARABLE_PREFIXES, normalise
 from src.lexicon.vocabulary import VocabularyStore
 from src.phrases import paradigms, verb_government
+from src.phrases.carrier_validation import _load_dictionary
 from src.phrases.curated import CuratedLists
 from src.phrases.mining import LemmaCounts
 from src.phrases.mining.common import CONTRACTED_PREPS
@@ -29,6 +30,36 @@ DEFAULT_VOCAB_PATH = Path("data/fixtures/corpus/vocab_levels.json")
 #: The corpora whose register is everyday speech rather than news or web prose.
 EVERYDAY_SOURCES: frozenset[str] = frozenset({"tatoeba", "opensubtitles_2018"})
 
+_CEFR_RANK: dict[str, int] = {"A1": 1, "A2": 2, "B1": 3, "B2": 4}
+#: Parts that carry no vocabulary of their own: the reflexive pronoun and
+#: the prepositions of verb-preposition units and Funktionsverbgefuege.
+_FUNCTION_PARTS: frozenset[str] = frozenset(
+    {
+        "sich",
+        "an",
+        "auf",
+        "aus",
+        "bei",
+        "durch",
+        "für",
+        "gegen",
+        "in",
+        "mit",
+        "nach",
+        "über",
+        "um",
+        "unter",
+        "von",
+        "vor",
+        "zu",
+        "zur",
+        "zum",
+        "im",
+        "am",
+        "ins",
+        "als",
+    }
+)
 _KIND_ORDER: dict[str, int] = {
     "verb_prep": 0,
     "reflexive_verb": 1,
@@ -87,6 +118,14 @@ class UnitStats:
     case_tally: Counter[str] = field(default_factory=Counter)
     pron_case_tally: Counter[str] = field(default_factory=Counter)
     surface_tally: Counter[str] = field(default_factory=Counter)
+    #: Noun-verb units only: the noun as written. The citation form uses
+    #: the commonest one, so "Angaben machen" is not cited as "Angabe machen"
+    #: and "Vertrauen gewinnen" keeps its capital.
+    noun_surfaces: Counter[str] = field(default_factory=Counter)
+    #: Adjective-noun units only: nominative surfaces with the article that
+    #: precedes them, so the citation form reads "ein guter Zweck", not the
+    #: oblique "guten Zweck" the corpus shows most often.
+    nominative_surfaces: Counter[str] = field(default_factory=Counter)
     form_keys: Counter[str] = field(default_factory=Counter)
     discontinuous: int = 0
     fused: int = 0
@@ -141,9 +180,271 @@ def lift(pair: int, a: int, b: int, n: int) -> float:
     return (pair / n) / ((a / n) * (b / n))
 
 
-def aggregate(occurrences: Iterable[Occurrence]) -> dict[tuple[str, str], UnitStats]:
+#: Prepositions that never mark a verb's complement: "ohne" anywhere, and
+#: "durch" on a participle, where it is the passive agent ("wird durch ...
+#: geregelt"). Review step 1 flagged eight such "V durch" units in the top 700.
+_ADJUNCT_PREPS: frozenset[str] = frozenset({"ohne"})
+_PASSIVE_AGENT_PREPS: frozenset[str] = frozenset({"durch"})
+
+_VERB_INDEX: dict[str, int] = {
+    "verb_prep": 0,
+    "reflexive_verb": 1,
+    "separable_verb": 0,
+    "noun_verb": -1,
+}
+
+
+#: Strong participles the tagger leaves as their own lemma, beyond the
+#: paradigm table. Keyed without "ge" so prefixed forms resolve through one
+#: lookup: "eingefangen" -> "fangen" -> "einfangen", "unterzogen" ->
+#: "ziehen" -> "unterziehen", "entschlossen" -> "schließen".
+_STRONG_STEMS: dict[str, str] = {
+    "bissen": "beißen",
+    "blasen": "blasen",
+    "bogen": "biegen",
+    "boten": "bieten",
+    "bunden": "binden",
+    "drungen": "dringen",
+    "fangen": "fangen",
+    "flossen": "fließen",
+    "froren": "frieren",
+    "gangen": "gehen",
+    "glichen": "gleichen",
+    "glitten": "gleiten",
+    "gossen": "gießen",
+    "graben": "graben",
+    "griffen": "greifen",
+    "hoben": "heben",
+    "klungen": "klingen",
+    "kniffen": "kneifen",
+    "krochen": "kriechen",
+    "liehen": "leihen",
+    "litten": "leiden",
+    "logen": "lügen",
+    "messen": "messen",
+    "mieden": "meiden",
+    "pfiffen": "pfeifen",
+    "raten": "raten",
+    "rieben": "reiben",
+    "rissen": "reißen",
+    "ritten": "reiten",
+    "rochen": "riechen",
+    "rungen": "ringen",
+    "sandt": "senden",
+    "schieden": "scheiden",
+    "schlichen": "schleichen",
+    "schliffen": "schleifen",
+    "schmissen": "schmeißen",
+    "schnitten": "schneiden",
+    "schoben": "schieben",
+    "schossen": "schießen",
+    "schritten": "schreiten",
+    "schrien": "schreien",
+    "schwiegen": "schweigen",
+    "schwollen": "schwellen",
+    "schworen": "schwören",
+    "schwunden": "schwinden",
+    "sotten": "sieden",
+    "spien": "speien",
+    "stochen": "stechen",
+    "stohlen": "stehlen",
+    "stritten": "streiten",
+    "strichen": "streichen",
+    "sunken": "sinken",
+    "trieben": "treiben",
+    "troffen": "treffen",
+    "trogen": "trügen",
+    "wandt": "wenden",
+    "wichen": "weichen",
+    "wiesen": "weisen",
+    "wogen": "wiegen",
+    "wunden": "winden",
+    "zogen": "ziehen",
+    "zwungen": "zwingen",
+}
+_STRONG_STEMS.update(
+    {
+        (k[2:] if k.startswith("ge") else k): v
+        for k, v in paradigms.PARTICIPLE_II_TO_INFINITIVE.items()
+        if k.startswith("ge") and k.endswith("n")
+    }
+)
+_ALL_PREFIXES: tuple[str, ...] = tuple(
+    sorted(
+        set(SEPARABLE_PREFIXES)
+        | set(paradigms._INSEPARABLE_PREFIXES)
+        | {"über", "unter", "um", "durch", "wider", "hinter", "wieder"},
+        key=len,
+        reverse=True,
+    )
+)
+
+
+#: Verbs whose infinitive begins with "ge": the one shape the participle
+#: tables would otherwise misread ("geraten" is not the participle of "raten").
+_GE_INFINITIVES: frozenset[str] = frozenset(
+    {
+        "geraten",
+        "gefallen",
+        "gehören",
+        "gelingen",
+        "genießen",
+        "geschehen",
+        "gestehen",
+        "gewinnen",
+        "gebären",
+        "gedeihen",
+        "gelangen",
+        "gewähren",
+        "gewöhnen",
+        "gebrauchen",
+        "gefrieren",
+        "genügen",
+        "gestalten",
+        "gelten",
+        "gehen",
+        "geben",
+        "gedenken",
+        "gefährden",
+        "gehorchen",
+    }
+)
+
+
+def _infinitive_of_participle(part: str, dictionary: frozenset[str] | None) -> str | None:
+    """The infinitive behind a Partizip II string, or ``None``. Strong forms
+    resolve through ``_STRONG_STEMS`` under any prefix; weak forms
+    ("angepasst", "angefordert") drop "ge" and swap "-t" for "-en"/"-n",
+    gated on the dictionary."""
+    if part in paradigms.PARTICIPLE_II_TO_INFINITIVE:
+        return paradigms.PARTICIPLE_II_TO_INFINITIVE[part]
+    prefix = ""
+    rest = part
+    while True:
+        if rest in _STRONG_STEMS:
+            return prefix + _STRONG_STEMS[rest]
+        hit = next(
+            (p for p in _ALL_PREFIXES if rest.startswith(p) and len(rest) > len(p) + 2), None
+        )
+        if hit is None:
+            break
+        if hit == "ge":
+            rest = rest[2:]
+            continue
+        prefix += hit
+        rest = rest[len(hit) :]
+    if part.endswith("t"):
+        core = part[len(prefix) :] if prefix and part.startswith(prefix) else part
+        core = core[2:] if core.startswith("ge") else core
+        stem = core[:-1]
+        candidate = prefix + stem + ("n" if stem.endswith(("er", "el")) else "en")
+        if dictionary is None or normalise(candidate) in dictionary:
+            return candidate
+    return None
+
+
+def canonical_verb(
+    verb: str, surfaces: list[str], form_key: str, dictionary: frozenset[str] | None
+) -> str | None:
+    """The infinitive a mined verb part stands for, or ``None`` when the part
+    is not one the deck can cite.
+
+    Two tagger slips reach here. A participle left as its own lemma
+    (form ``Part`` and the surface equals the part) is fine when the string
+    is also the infinitive ("erhalten", "bekommen"); otherwise ("gelitten",
+    "angepasst") it maps through the participle tables or is dropped. A
+    zu-infinitive left as lemma ("sich einzubringen") loses its ``zu``.
+    """
+    lowered = {s.lower() for s in surfaces}
+    if form_key.startswith("Part") and verb.lower() in lowered and verb not in _GE_INFINITIVES:
+        looks_like_infinitive = verb.endswith("n") and _infinitive_of_participle(
+            verb, dictionary
+        ) in {None, verb}
+        if not looks_like_infinitive:
+            mapped = _infinitive_of_participle(verb, dictionary)
+            if mapped is None:
+                return None
+            verb = mapped
+    if form_key.startswith("Inf"):
+        for prefix in sorted(SEPARABLE_PREFIXES, key=len, reverse=True):
+            if verb.startswith(prefix + "zu"):
+                rest = verb[len(prefix) + 2 :]
+                if rest and (dictionary is None or normalise(prefix + rest) in dictionary):
+                    verb = prefix + rest
+                break
+    return verb
+
+
+#: Mirrors ``parse.separable_particle``'s adverb and prepositional-phrase
+#: rules on an already-parsed occurrence, so a fix there takes effect on
+#: the stored parse without re-parsing five million sentences.
+_ADVERB_PARTICLES: frozenset[str] = frozenset({"wieder", "weiter", "zurück"})
+_PRONOMINAL_ADVERB_PREFIXES: tuple[str, ...] = ("da", "dar", "wo", "wor", "hier")
+_PP_OBJECT_NEXT = re.compile(r"\s*(?::|„|“|http|\"\w|[A-ZÄÖÜ]\w|\d)")
+
+
+def _junk_particle(occ: Occurrence, dictionary: frozenset[str] | None) -> bool:
+    if occ.kind != "separable_verb" or not occ.form_key.endswith("discontinuous"):
+        return False
+    if len(occ.surfaces) != 2 or len(occ.spans) != 2:
+        return False
+    particle = occ.surfaces[-1].lower()
+    fused_is_word = dictionary is None or normalise(occ.unit_key) in dictionary
+    if particle.startswith(_PRONOMINAL_ADVERB_PREFIXES) and particle != "dazu":
+        if not fused_is_word:
+            return True
+    if particle in _ADVERB_PARTICLES and not fused_is_word:
+        return True
+    tail = occ.text[occ.spans[-1][1] :]
+    return _PP_OBJECT_NEXT.match(tail) is not None
+
+
+def canonical_occurrence(occ: Occurrence, dictionary: frozenset[str] | None) -> Occurrence | None:
+    """Rewrite an occurrence's key to its citation form, or drop it."""
+    index = _VERB_INDEX.get(occ.kind)
+    if index is None:
+        return occ
+    if _junk_particle(occ, dictionary):
+        return None
+    parts = list(occ.parts)
+    if occ.kind in {"verb_prep", "reflexive_verb"} and len(parts) >= 2:
+        prep = parts[-1].lower()
+        if prep in _ADJUNCT_PREPS:
+            return None
+        if prep in _PASSIVE_AGENT_PREPS and occ.form_key.startswith("Part"):
+            return None
+    verb = canonical_verb(parts[index], occ.surfaces, occ.form_key, dictionary)
+    if verb is None:
+        return None
+    if verb == parts[index]:
+        return occ
+    parts[index] = verb
+    key = " ".join(p.lower() for p in parts)
+    return occ.model_copy(update={"parts": parts, "unit_key": key})
+
+
+_ARTICLES: frozenset[str] = frozenset(
+    {"der", "die", "das", "ein", "eine", "kein", "keine", "dieser", "diese", "dieses"}
+)
+
+
+def _nominative_phrase(occ: Occurrence) -> str:
+    phrase = " ".join(occ.surfaces)
+    before = occ.text[: occ.spans[0][0]].split()
+    if before and before[-1].lower() in _ARTICLES:
+        return f"{before[-1].lower()} {phrase}"
+    return phrase
+
+
+def aggregate(
+    occurrences: Iterable[Occurrence], dictionary: frozenset[str] | None = None
+) -> dict[tuple[str, str], UnitStats]:
     stats: dict[tuple[str, str], UnitStats] = {}
-    for occ in occurrences:
+    for raw in occurrences:
+        canonical = canonical_occurrence(raw, dictionary)
+        if canonical is None:
+            continue
+        occ = canonical
         entry = stats.get((occ.kind, occ.unit_key))
         if entry is None:
             entry = UnitStats(kind=occ.kind, key=occ.unit_key)
@@ -154,6 +455,14 @@ def aggregate(occurrences: Iterable[Occurrence]) -> dict[tuple[str, str], UnitSt
         entry.count_by_source[occ.corpus_source] += 1
         entry.parts[tuple(occ.parts)] += 1
         entry.surface_tally[" ".join(occ.surfaces)] += 1
+        if occ.kind == "adj_noun" and occ.form_key.startswith("Nom|"):
+            entry.nominative_surfaces[_nominative_phrase(occ)] += 1
+        if occ.kind == "noun_verb" and len(occ.parts) == 2:
+            stem = normalise(occ.parts[0])[:4]
+            for surface in occ.surfaces:
+                if normalise(surface).startswith(stem):
+                    entry.noun_surfaces[surface] += 1
+                    break
         entry.form_keys[occ.form_key] += 1
         if occ.case is not None:
             entry.case_tally[occ.case] += 1
@@ -206,6 +515,7 @@ class UnitBuilder:
         thresholds: Thresholds | None = None,
         vocabulary: VocabularyStore | None = None,
         frequency_ranks: dict[str, int] | None = None,
+        dictionary: frozenset[str] | None = None,
     ) -> None:
         self.counts = counts
         self.curated = curated
@@ -221,6 +531,7 @@ class UnitBuilder:
         self.idioms = {i.key: i for i in curated.idioms}
         self.stoplist = set(curated.trivial_stoplist)
         self.excluded = set(curated.exclude)
+        self.dictionary = dictionary if dictionary is not None else _load_dictionary()
         self.overrides = {o.key: o for o in curated.overrides}
         self.report: dict[str, Any] = {
             "rejected": Counter(),
@@ -233,6 +544,31 @@ class UnitBuilder:
 
     def _cefr_for(self, lemma: str) -> str | None:
         return self.vocabulary.get_level(lemma)
+
+    def _unit_cefr(self, s: UnitStats, d: _Decision) -> str | None:
+        """A mined unit is as hard as its hardest content word, and a word
+        the Goethe lists do not know is B2: "nachweisen" is not A1 because
+        "weisen" is. Review step 1 flagged 41 such labels in the top 700.
+        (A register signal from the everyday corpora was tried and dropped:
+        with four news and web sources it moved "stattfinden" to B2.)"""
+        if d.source != "mined" or s.kind in {"connector", "two_part_connector", "idiom"}:
+            return d.cefr
+        verb_index = _VERB_INDEX.get(s.kind)
+        verb_part = s.best_parts[verb_index] if verb_index is not None else None
+        levels: list[str | None] = []
+        for part in s.best_parts:
+            if part.lower() in _FUNCTION_PARTS:
+                continue
+            if part == verb_part:
+                # Direct hit only: ``get_level`` would strip the separable prefix
+                # and score "nachweisen" as "weisen", A1.
+                levels.append(self.vocabulary.vocab.get(normalise(part)))
+            else:
+                levels.append(self._cefr_for(part))
+        level = max((lv for lv in levels if lv), key=_CEFR_RANK.__getitem__, default=None)
+        if any(lv is None for lv in levels):
+            level = "B2"
+        return level
 
     def _decide_verb_prep(self, s: UnitStats, stats: dict[tuple[str, str], UnitStats]) -> _Decision:
         verb, prep = s.best_parts[0], s.best_parts[-1]
@@ -316,6 +652,11 @@ class UnitBuilder:
                     and other.count / s.count >= self.t.reflexive_prep_share
                 ):
                     return _Decision(False, "taken_by_prep_unit")
+        # "sich einmischen +Akk" misreads: the accusative is the pronoun's own
+        # case, not an object the verb governs. Only a dative pronoun
+        # ("sich etwas vorstellen": mir, dir) is worth showing.
+        if case == "Akk":
+            case = None
         verb_count = self.counts.verbs.get(verb, 0)
         share = s.count / verb_count if verb_count else 0.0
         if verb in _REFLEXIVE_HAND_LISTS and s.count >= 1:
@@ -415,8 +756,12 @@ class UnitBuilder:
         if s.kind in {"verb_prep", "reflexive_verb", "separable_verb"}:
             return " ".join(parts)
         if s.kind == "noun_verb":
+            if s.noun_surfaces and len(parts) == 2:
+                return f"{s.noun_surfaces.most_common(1)[0][0]} {parts[1]}"
             return " ".join(parts)
         if s.kind == "adj_noun":
+            if s.nominative_surfaces:
+                return s.nominative_surfaces.most_common(1)[0][0]
             return s.surface_tally.most_common(1)[0][0] if s.surface_tally else " ".join(parts)
         return s.key
 
@@ -486,7 +831,7 @@ class UnitBuilder:
                 self.report["zero_hit_curated"].append(colloc.key)
 
     def build(self, occurrences: Iterable[Occurrence]) -> list[PhraseUnit]:
-        stats = aggregate(occurrences)
+        stats = aggregate(occurrences, self.dictionary)
         self._ensure_curated_present(stats)
         accepted: dict[tuple[str, str], tuple[UnitStats, _Decision]] = {}
         for ident, s in stats.items():
@@ -537,7 +882,7 @@ class UnitBuilder:
                     display_de=(override.display if override and override.display else None)
                     or self._display(s, d),
                     case=(override.case if override and override.case else d.case),
-                    cefr=(override.cefr if override and override.cefr else d.cefr),  # type: ignore[arg-type]
+                    cefr=(override.cefr if override and override.cefr else self._unit_cefr(s, d)),  # type: ignore[arg-type]
                     gloss_en=(override.gloss_en if override and override.gloss_en else d.gloss_en),
                     sentence_count=s.count,
                     count_by_source=dict(s.count_by_source),

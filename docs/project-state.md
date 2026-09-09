@@ -85,16 +85,25 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   what to read after a build. The one model stage (context sentences for
   sentence-initial connectors) is opt-in and has not been run.
 
-- **Four review rounds, 2026-09-08/09.** Every unit and every card of the
-  deck was read by Claude Opus agents under the owner's zero-defect policy
-  (`docs/audits/phase-1-review/`). Round 1 flagged 5.7% of cards; round 2
-  found a second layer of causes; rounds 3 and 4 found no new cause. All
-  systematic causes are rules with tests; the rest are curated-list entries
-  with reasons.
+- **Eight review rounds on the first deck, 2026-09-08/09.** Every unit and
+  every card was read by Claude Opus agents under the owner's zero-defect
+  policy (`docs/audits/phase-1-review/`). All systematic causes are rules
+  with tests; the rest are curated-list entries with reasons.
+- **The wide corpus, 2026-09-09.** Six sources (Tatoeba, three Leipzig 1M
+  packages, the full 2025 news file, an OpenSubtitles sample), ranked by the
+  mean per-source sentences per million so no register dominates. Parsing
+  takes about six hours; `--stage mine` onward reruns from the stored parse.
+- **The stepped review, from 2026-09-09.** The wide-corpus deck is read from
+  the top of the ranking down, by Claude Opus and Gemini Flash (the
+  `gemini-executor` skill), with a rebuild after each step so the rules of
+  one step remove the same defects from the unread part. Step 1 (top 2,400
+  cards, 700 units) is applied; its cross-vendor diff is in the audit
+  README.
 
 ## What is not built
 
-- **A cross-vendor second review.** One reviewer has read everything once.
+- **Steps 2 onward of the stepped review**: the wide-corpus deck below the
+  first 700 units has not been read by either vendor yet.
 - **Phase 2 and 3.** `web/` is the grammar trainer's PWA, untouched; it falls
   back to six seed items because `web/data/` was deleted.
 

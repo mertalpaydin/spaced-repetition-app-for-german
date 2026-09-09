@@ -227,3 +227,211 @@ def test_a_collocation_seen_only_in_news_and_web_is_not_a_unit() -> None:
     keys = [u.lemma_key for u in builder.build(web_only + everyday)]
     assert keys == ["stark kaffee"]
     assert builder.report["rejected"]["adj_noun:no_everyday_evidence"] == 1
+
+
+def _dict() -> frozenset[str]:
+    return frozenset({"leiden", "regeln", "ersetzen", "einbringen", "angabe", "machen"})
+
+
+def test_participle_left_as_lemma_is_cited_as_its_infinitive() -> None:
+    counts = _counts(leiden=100, gelitten=100)
+    counts.prepositions["unter"] = 50
+    builder = _builder(counts)
+    builder.dictionary = _dict()
+    occs = [
+        o.model_copy(update={"surfaces": ["gelitten", "unter"], "form_key": "Part"})
+        for o in _occ("verb_prep", "gelitten unter", ["gelitten", "unter"], 30)
+    ]
+    keys = [u.lemma_key for u in builder.build(occs)]
+    assert keys == ["leiden unter"]
+
+
+def test_participle_without_a_known_infinitive_is_dropped() -> None:
+    builder = _builder(_counts(gewurmt=100))
+    builder.dictionary = None
+    occs = [
+        o.model_copy(update={"surfaces": ["gewurmt", "an"], "form_key": "Part"})
+        for o in _occ("verb_prep", "gewurmt an", ["gewurmt", "an"], 30)
+    ]
+    assert builder.build(occs) == []
+
+
+def test_passive_agent_durch_is_not_a_complement_but_finite_durch_is() -> None:
+    counts = _counts(regeln=100, ersetzen=100)
+    counts.prepositions["durch"] = 50
+    builder = _builder(counts)
+    builder.dictionary = _dict()
+    passive = [
+        o.model_copy(update={"surfaces": ["durch", "geregelt"], "form_key": "Part"})
+        for o in _occ("verb_prep", "regeln durch", ["regeln", "durch"], 30)
+    ]
+    finite = [
+        o.model_copy(update={"form_key": "Fin|Pres|3|Sing"})
+        for o in _occ("verb_prep", "ersetzen durch", ["ersetzen", "durch"], 30)
+    ]
+    assert [u.lemma_key for u in builder.build(passive + finite)] == ["ersetzen durch"]
+
+
+def test_zu_infinitive_left_as_lemma_loses_its_zu() -> None:
+    builder = _builder(_counts(einbringen=100, einzubringen=100))
+    builder.dictionary = _dict()
+    occs = [
+        o.model_copy(update={"surfaces": ["sich", "einzubringen"], "form_key": "Inf"})
+        for o in _occ("reflexive_verb", "sich einzubringen", ["sich", "einzubringen"], 30)
+    ]
+    assert [u.lemma_key for u in builder.build(occs)] == ["sich einbringen"]
+
+
+def test_noun_verb_display_uses_the_commonest_noun_surface() -> None:
+    counts = _counts(machen=50)
+    counts.nouns["angabe"] = 40
+    builder = UnitBuilder(
+        counts,
+        CuratedLists(),
+        Thresholds(),
+        vocabulary=VocabularyStore({"angabe": "B1", "machen": "A1"}, frequency_ranks={}),
+        frequency_ranks={},
+        dictionary=_dict(),
+    )
+    occs = [
+        o.model_copy(update={"surfaces": ["Angaben", "macht"]})
+        for o in _occ("noun_verb", "angabe machen", ["Angabe", "machen"], 30)
+    ]
+    units = builder.build(occs)
+    assert [u.display_de for u in units] == ["Angaben machen"]
+
+
+def _sep(text: str, verb: str, particle: str, key: str) -> Occurrence:
+    v, p = text.index(verb), text.index(particle)
+    return Occurrence(
+        kind="separable_verb",
+        unit_key=key,
+        parts=[key],
+        token_indices=[1, 3],
+        spans=[(v, v + len(verb)), (p, p + len(particle))],
+        surfaces=[verb, particle],
+        corpus_source="tatoeba",
+        line_id=text,
+        text=text,
+        form_key="Fin|Pres|3|Sing|discontinuous",
+    )
+
+
+@pytest.mark.parametrize(
+    ("text", "verb", "particle", "key", "kept"),
+    [
+        ("Das Training hilft dabei.", "hilft", "dabei", "dabeihelfen", False),
+        ("Dann gehe ich halt wieder.", "gehe", "wieder", "wiedergehen", False),
+        ("Wir machen morgen weiter.", "machen", "weiter", "weitermachen", True),
+        (
+            "Das Factsheet finden Sie unter: https://act.de.",
+            "finden",
+            "unter",
+            "unterfinden",
+            False,
+        ),
+        ('Mehr finden Sie unter "Meine Bücher".', "finden", "unter", "unterfinden", False),
+        ("Er steht jeden Tag früh auf.", "steht", "auf", "aufstehen", True),
+        ("Er ruft mich an, wenn er da ist.", "ruft", "an", "anrufen", True),
+    ],
+)
+def test_parser_invented_particles_are_dropped_post_hoc(
+    text: str, verb: str, particle: str, key: str, kept: bool
+) -> None:
+    from src.phrases.units import canonical_occurrence
+
+    words = frozenset({"weitermachen", "aufstehen", "anrufen", "helfen", "gehen", "finden"})
+    assert (canonical_occurrence(_sep(text, verb, particle, key), words) is not None) is kept
+
+
+def test_plain_reflexive_verb_shows_no_accusative_case() -> None:
+    builder = _builder(_counts(einmischen=40))
+    occs = _occ(
+        "reflexive_verb",
+        "sich einmischen",
+        ["sich", "einmischen"],
+        20,
+        evidence={"pron_case": "Akk"},
+    )
+    units = builder.build(occs)
+    assert [u.case for u in units] == [None]
+
+
+def test_dative_reflexive_pronoun_is_kept() -> None:
+    builder = _builder(_counts(vorstellen=40))
+    occs = _occ(
+        "reflexive_verb",
+        "sich vorstellen",
+        ["sich", "vorstellen"],
+        20,
+        evidence={"pron_case": "Dat"},
+    )
+    assert [u.case for u in builder.build(occs)] == ["Dat"]
+
+
+def test_adj_noun_display_prefers_the_nominative_with_its_article() -> None:
+    counts = _counts(dienen=50)
+    counts.adjectives["gut"] = 60
+    counts.nouns["zweck"] = 40
+    builder = UnitBuilder(
+        counts,
+        CuratedLists(),
+        Thresholds(),
+        vocabulary=VocabularyStore({"gut": "A1", "zweck": "B1"}, frequency_ranks={}),
+        frequency_ranks={},
+        dictionary=frozenset(),
+    )
+    oblique = [
+        o.model_copy(
+            update={
+                "surfaces": ["guten", "Zweck"],
+                "form_key": "Acc|Sing",
+                "text": "Es dient einem guten Zweck.",
+                "spans": [(15, 20), (21, 26)],
+            }
+        )
+        for o in _occ("adj_noun", "gut zweck", ["gut", "Zweck"], 12)
+    ]
+    nominative = [
+        o.model_copy(
+            update={
+                "surfaces": ["guter", "Zweck"],
+                "form_key": "Nom|Sing",
+                "text": "Das ist ein guter Zweck.",
+                "spans": [(12, 17), (18, 23)],
+                "line_id": f"n{o.line_id}",
+            }
+        )
+        for o in _occ("adj_noun", "gut zweck", ["gut", "Zweck"], 3)
+    ]
+    units = builder.build(oblique + nominative)
+    assert [u.display_de for u in units] == ["ein guter Zweck"]
+    assert units[0].cefr == "B1"
+
+
+def test_mined_unit_cefr_is_the_hardest_part_and_unknown_words_are_b2() -> None:
+    counts = _counts(nehmen=200)
+    counts.nouns["kenntnis"] = 40
+    builder = UnitBuilder(
+        counts,
+        CuratedLists(),
+        Thresholds(),
+        vocabulary=VocabularyStore({"nehmen": "A1", "kenntnis": "B2"}, frequency_ranks={}),
+        frequency_ranks={},
+        dictionary=frozenset(),
+    )
+    occs = _occ("noun_verb", "kenntnis nehmen", ["Kenntnis", "nehmen"], 30)
+    assert [u.cefr for u in builder.build(occs)] == ["B2"]
+    counts2 = _counts(weisen=200)
+    b2 = UnitBuilder(
+        counts2,
+        CuratedLists(),
+        Thresholds(),
+        vocabulary=VocabularyStore({"weisen": "A1"}, frequency_ranks={}),
+        frequency_ranks={},
+        dictionary=frozenset(),
+    )
+    sep = _occ(
+        "separable_verb", "nachweisen", ["nachweisen"], 30, form_key="Fin|Pres|3|Sing|discontinuous"
+    )
+    assert [u.cefr for u in b2.build(sep)] == ["B2"]

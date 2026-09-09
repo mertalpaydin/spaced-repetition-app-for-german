@@ -25,6 +25,28 @@ GLOSS_LENGTH_RATIO: tuple[float, float] = (0.4, 2.5)
 #: Score penalty for a sentence with no gloss yet: a glossed sentence of the
 #: same form wins, an un-glossed short one still beats a glossed long one.
 UNGLOSSED_PENALTY: float = 30.0
+#: Score penalty by corpus. Tatoeba sentences are written for learners and
+#: reviewed by people; news prose is clean; the web, the 2011 mixed corpus
+#: (OCR artefacts, old spelling) and subtitle cues (fragments, dialogue
+#: ellipsis) are last resorts. Review step 1, 2026-09-09: 1 finding in 4
+#: Tatoeba cards against 60 in 859 subtitle cards.
+SOURCE_PENALTY: dict[str, float] = {
+    "tatoeba": 0.0,
+    "leipzig_news_2025": 15.0,
+    "leipzig_news_2024": 15.0,
+    "leipzig_web_2021": 25.0,
+    "leipzig_mixed_2011": 35.0,
+    "opensubtitles_2018": 40.0,
+}
+#: Tokens of the pre-1996 orthography and OCR damage that the validator lets
+#: through; a sentence carrying one never becomes a card.
+_OLD_SPELLING = re.compile(
+    r"\b(daß|muß|mußte|mußten|müßte|müßten|läßt|ließ|paßt|paßte|ißt|faßt|faßte|haßt"
+    r"|schluß|fluß|bißchen|gewußt|wußte|wußten|küßt|küßte|mißt|blaß|naß|kraß|Schluß|Fluß"
+    r"|Bißchen|Genuß|Anschluß|Einfluß|Prozeß|Kongreß|Kompromiß|Streß|Schloß)\b"
+)
+_MOJIBAKE = re.compile("Ã.|â€|Â|�")
+_BROKEN_HYPHEN = re.compile(r"[a-zäöüß]-[a-zäöüß]")
 
 
 @dataclass(frozen=True)
@@ -94,6 +116,16 @@ _QUOTE_CHARS = '"\u201e\u201c\u201d\u00ab\u00bb'
 _WORD = re.compile(r"[\w\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00df]+")
 
 
+def _reflexive_next_to_verb(occ: Occurrence) -> bool:
+    """``Es stellt sich heraus``: the sentence shows the reflexive verb, which
+    is its own unit, not the plain separable one the card would teach.
+    Only third-person "sich" is unambiguous; "mich"/"uns" are also plain
+    objects ("Er ruft uns an")."""
+    verb_end = occ.spans[0][1]
+    following = _WORD.findall(occ.text[verb_end:])[:2]
+    return "sich" in (w.lower() for w in following)
+
+
 def unsuitable_reason(occ: Occurrence) -> str | None:
     """Sentence-level reasons a correct occurrence still makes a bad card.
 
@@ -106,6 +138,17 @@ def unsuitable_reason(occ: Occurrence) -> str | None:
         return "konjunktiv_i"
     if sum(occ.text.count(ch) for ch in _QUOTE_CHARS) % 2 == 1:
         return "unbalanced_quotes"
+    text = occ.text
+    if text.endswith(("...", "…")) or text.lstrip().startswith(("-", "–", "—")):
+        return "dialogue_fragment"
+    if _MOJIBAKE.search(text):
+        return "mojibake"
+    if _OLD_SPELLING.search(text):
+        return "old_spelling"
+    if _BROKEN_HYPHEN.search(text) and "e-mail" not in text.lower():
+        return "broken_hyphen"
+    if occ.kind == "separable_verb" and _reflexive_next_to_verb(occ):
+        return "reflexive_reading"
     first = _WORD.findall(occ.text.lower())[:1]
     if first and first[0] in _SUBORDINATORS and "," not in occ.text:
         return "subordinate_fragment"
@@ -130,6 +173,7 @@ def _score(occ: Occurrence, *, taken_forms: set[str], glossed: bool) -> float:
         score += 25.0
     if not glossed:
         score += UNGLOSSED_PENALTY
+    score += SOURCE_PENALTY.get(occ.corpus_source, 30.0)
     return score
 
 

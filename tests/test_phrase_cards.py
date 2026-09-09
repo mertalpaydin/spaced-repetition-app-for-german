@@ -164,3 +164,57 @@ def test_unsuitable_sentences_are_skipped_with_a_reason() -> None:
     assert unsuitable_reason(clause) is None
     fine = _occ("Er wartet auf den Bus.", "wartet", "auf")
     assert unsuitable_reason(fine) is None
+
+
+def test_old_spelling_ocr_damage_and_dialogue_fragments_are_unsuitable() -> None:
+    from src.phrases.cards import unsuitable_reason
+
+    assert (
+        unsuitable_reason(_occ("Er wartet auf den Bus, daß er kommt.", "wartet", "auf"))
+        == "old_spelling"
+    )
+    assert (
+        unsuitable_reason(_occ("Er wartet auf die Infor-mationen.", "wartet", "auf"))
+        == "broken_hyphen"
+    )
+    assert (
+        unsuitable_reason(_occ("Er wartet auf den Bus...", "wartet", "auf")) == "dialogue_fragment"
+    )
+    assert (
+        unsuitable_reason(_occ("- Er wartet auf den Bus.", "wartet", "auf")) == "dialogue_fragment"
+    )
+    assert unsuitable_reason(_occ("Er wartet auf die AktivitÃ¤ten.", "wartet", "auf")) == "mojibake"
+    assert unsuitable_reason(_occ("Er wartet auf die E-Mail.", "wartet", "auf")) is None
+
+
+def test_a_tatoeba_sentence_beats_a_subtitle_cue_of_the_same_form() -> None:
+    a = _occ("Er wartet auf den Bus.", "wartet", "auf")
+    b = _occ("Er wartet auf dich.", "wartet", "auf").model_copy(
+        update={"corpus_source": "opensubtitles_2018"}
+    )
+    selection = select_cards([UNIT], {UNIT.unit_id: [b, a]}, {}, validate=lambda _: True, k=1)
+    assert selection.cards[0].sentence_de == a.text
+
+
+def test_separable_card_with_a_reflexive_reading_is_unsuitable() -> None:
+    from src.phrases.cards import unsuitable_reason
+
+    def sep(text: str, verb: str, particle: str) -> Occurrence:
+        v, p = text.index(verb), text.index(particle)
+        return Occurrence(
+            kind="separable_verb",
+            unit_key="herausstellen",
+            parts=["herausstellen"],
+            token_indices=[1, 4],
+            spans=[(v, v + len(verb)), (p, p + len(particle))],
+            surfaces=[verb, particle],
+            corpus_source="tatoeba",
+            line_id=text,
+            text=text,
+            form_key="Fin|Pres|3|Sing|discontinuous",
+        )
+
+    assert unsuitable_reason(sep("Es stellt sich heraus, dass er lügt.", "stellt", "heraus")) == (
+        "reflexive_reading"
+    )
+    assert unsuitable_reason(sep("Sie stellt die Vase heraus.", "stellt", "heraus")) is None

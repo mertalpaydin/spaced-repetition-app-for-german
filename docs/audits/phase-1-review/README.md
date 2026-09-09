@@ -94,9 +94,87 @@ whatever the parser's label, and a subordinate-clause fragment the validator
 accepts), both rules now. Each rebuild replaces dropped cards with new ones,
 so the rounds shrink until the replacements are clean.
 
+## Step 1 of the stepped review on the wide corpus (9 September 2026)
+
+The corpus was widened to six sources (Tatoeba, three Leipzig 1M packages,
+the full 2025 news file, an OpenSubtitles sample), which rebuilt the deck as
+`c925dce41c96`: 9,192 units and 50,111 cards. Reading all of it again would
+have spent reviewer time on cards that a rule fix would remove anyway, so
+the owner asked for a stepped review: read the top of the ranking, fix the
+systematic causes, rebuild, then read the next band of what remains.
+
+Step 1 read the first 2,400 cards and the first 700 units by rank, and for
+the first time by two vendors: Claude Opus agents (four 600-card batches, one
+700-unit batch) and Gemini Flash through the `gemini-executor` skill (twelve
+200-card batches, two 350-unit batches). `findings-round-step1.jsonl` holds
+both sets, each row tagged with its `reviewer`.
+
+| | Claude | Gemini | Both flagged | Claude only | Gemini only |
+|---|---:|---:|---:|---:|---:|
+| Card findings (2,400 cards) | 194 | 191 | 145 | 49 | 46 |
+| Unit findings (700 units) | 138 | 185 | 59 | 79 | 126 |
+
+On the 145 cards both flagged, the category agreed 135 times. Gemini's
+extra unit findings were mostly citation forms (oblique-case adjective
+displays such as `guten Zweck`, `+Akk` shown on plain reflexive verbs) and
+CEFR labels; Claude's were mostly free news combinations (`verletzt Mann`,
+`Leiche entdecken`) and passive-agent `durch` units.
+
+Disagreements were surfaced, not reconciled (CLAUDE.md section 10):
+
+- Six Gemini findings said a collocation card's gaps miss the complement
+  (`Wert legen auf`: the gaps blank `Wert` and `legen`, not `auf`; `einen
+  Fehler machen`: not `einen`). The gaps blank the unit's own tokens by
+  design and the display carries the complement; these were not applied.
+  They are in `disagreements-round-step1.jsonl`.
+- Eleven overrides where both reviewers corrected the same unit differently.
+  Ten are the same correction in a different shape (`der falsche Weg` against
+  `falscher Weg`); Claude's form was kept. One is a real difference:
+  `sich wirken auf`, where Gemini's `sich auswirken auf +Akk` is right and
+  was taken.
+- 23 units both reviewers dropped, 39 only Claude dropped, 7 only Gemini
+  dropped. All were dropped; the reviewer is named in the reason.
+
+Systematic causes found in step 1, now rules with tests:
+
+- A passive agent is not a complement: `durch` on a participle (`wird
+  durch ... geregelt`) yields no verb-preposition unit; `ohne` never does.
+- A participle the tagger left as its own lemma (`gelitten unter`,
+  `abgezogen von`, `sich eingeschlichen`) is cited by its infinitive through
+  the paradigm tables, with separable and inseparable prefixes resolved
+  (`unterzogen` to `unterziehen`); one that cannot be resolved yields no
+  unit. A zu-infinitive left as lemma (`sich einzubringen`) loses its `zu`.
+- A separable "verb" the parser invented from an adverb (`dabeihelfen`,
+  `wiedergehen`, `weiterheißen`) or from a preposition heading a phrase
+  (`finden Sie unter http://...`) is not a unit. Applied both in the parse
+  layer and on the stored parse, so no re-parse was needed.
+- A noun-verb collocation is cited with the noun as the corpus writes it:
+  `Angaben machen`, `Vokabeln lernen`, `Vertrauen gewinnen` (capital kept).
+- An adjective-noun collocation is cited in the nominative with its article
+  (`ein guter Zweck`), not in the commonest oblique form.
+- A plain reflexive verb shows no `+Akk`: the accusative is the pronoun's
+  own case, not an object. A dative pronoun (`sich etwas vorstellen`) stays.
+- A mined unit's CEFR is that of its hardest content word, and B2 when the
+  word lists do not know one (`nachweisen` is no longer A1 because `weisen`
+  is). A register clause (B2 when the everyday corpora rarely show the unit)
+  was tried and dropped: on this corpus mix it moved `stattfinden` to B2.
+  Formal Funktionsverbgefuege such as `zur Kenntnis nehmen` keep the
+  reviewers' B2 as overrides.
+- A separable-verb card whose sentence shows `sich` right after the verb
+  (`es stellt sich heraus`) is the reflexive unit's, not this one's.
+- Cards from the older or noisier sources are picked last (Tatoeba first,
+  then news, web, mixed, subtitles), and sentences with pre-1996 spelling,
+  mojibake, broken hyphenation or a dialogue-fragment shape never become
+  cards.
+
+Everything else went into the curated lists with the reviewer's reason:
+70 units into `exclude.yaml`, 225 cards into `excluded_cards.yaml`, 157
+corrections into `unit_overrides.yaml`.
+
 ## What is still open
 
-- Every unit and every card of the current deck has been read once, by one
-  reviewer. A second reviewer, from another vendor, has not read any of it.
-- Reviewer CEFR corrections were applied as given; the reviewers noted that
-  the automatic level defaults low for formal B2 phrases.
+- Step 1 covered the top 2,400 cards and 700 units of the wide-corpus deck.
+  The rest of that deck is read step by step, by both vendors, after each
+  rebuild removes what the rules of the previous step already catch.
+- The CEFR default now follows the hardest word and the register; the
+  reviewers' remaining per-unit CEFR corrections stay as overrides.

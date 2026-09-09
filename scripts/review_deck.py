@@ -32,8 +32,10 @@ PHRASES_DIR = Path("data/phrases")
 AGY = Path.home() / "AppData" / "Local" / "agy" / "bin" / "agy.exe"
 
 CARD_PROMPT = (
-    "You are reviewing German phrase-learning exercises for a zero-defect policy. Read the "
-    "file {batch} in this workspace (tab-separated, one card per line: card_id, kind, unit "
+    "You are reviewing German phrase-learning exercises for a zero-defect policy. Use exactly "
+    "two tools: read the file {batch}, then write the file {out}. Do not run shell commands, do "
+    "not list directories, do not read any other file. The file {batch} is tab-separated, one "
+    "card per line: card_id, kind, unit "
     "display with optional case, German sentence with the unit's tokens in [brackets] = the "
     "gaps the learner must type, English gloss or '(no gloss yet)'). A learner sees the "
     "sentence with the bracketed tokens blanked plus the English gloss, types the missing "
@@ -61,7 +63,9 @@ CARD_PROMPT = (
 
 UNIT_PROMPT = (
     "You are reviewing the phrase inventory of a German phrase-learning deck (A1-B2 "
-    "learners) for a zero-defect policy. Read {batch} in this workspace (tab-separated, one "
+    "learners) for a zero-defect policy. Use exactly two tools: read the file {batch}, then "
+    "write the file {out}. Do not run shell commands, do not list directories, do not read any "
+    "other file. Read {batch} in this workspace (tab-separated, one "
     "unit per line: unit_id, kind, rank=, n=corpus sentence count, display form with "
     "optional +case, cefr=, trivial=, gloss=). Kinds: verb_prep, reflexive_verb, "
     "separable_verb, noun_verb (noun + verb collocation or a Funktionsverbgefuege), "

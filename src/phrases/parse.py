@@ -187,6 +187,21 @@ def repair_verb_lemma(lemma: str) -> str:
 #: that sit inside a fixed adverbial ("ab und zu", "hin und her", "von ... aus").
 _NEVER_A_PREFIX: frozenset[str] = frozenset({"da"})
 
+#: Adverbs the tagger attaches as ``svp`` whose fusion with the verb is a
+#: word only sometimes ("weitermachen" yes, "weiterheissen" no): gated on
+#: the dictionary. Pronominal adverbs ("dabei", "davon") never fuse.
+_ADVERB_PARTICLES: frozenset[str] = frozenset({"wieder", "weiter", "zurück"})
+_PRONOMINAL_ADVERB_PREFIXES: tuple[str, ...] = ("da", "dar", "wo", "wor", "hier")
+#: A token right after a real particle is punctuation, a conjunction or a
+#: clause. A nominal there means the "particle" heads a prepositional
+#: phrase ("finden Sie unter http://...", "unter 'Meine Bücher'").
+_PP_OBJECT_POS: frozenset[str] = frozenset({"NOUN", "PROPN", "DET", "NUM", "X"})
+
+
+def _fuses_with(particle: str, verb_lemma: str) -> bool:
+    words = _dictionary()
+    return words is None or normalise(particle + verb_lemma) in words
+
 
 def separable_particle(sentence: ParsedSentence, verb: ParsedToken) -> ParsedToken | None:
     """The verb's separated prefix, or ``None`` when there is none or the
@@ -198,6 +213,12 @@ def separable_particle(sentence: ParsedSentence, verb: ParsedToken) -> ParsedTok
     particle = particles[0]
     if particle.lower in _NEVER_A_PREFIX:
         return None
+    lower = particle.lower
+    if lower.startswith(_PRONOMINAL_ADVERB_PREFIXES) and lower not in {"dazu"}:
+        if not _fuses_with(lower, verb.lemma.lower()):
+            return None
+    if lower in _ADVERB_PARTICLES and not _fuses_with(lower, verb.lemma.lower()):
+        return None
     before = sentence.tokens[particle.i - 1] if particle.i > 0 else None
     after = sentence.tokens[particle.i + 1] if particle.i + 1 < len(sentence.tokens) else None
     if (before is not None and before.lower == "und") or (
@@ -205,6 +226,10 @@ def separable_particle(sentence: ParsedSentence, verb: ParsedToken) -> ParsedTok
     ):
         return None
     if after is not None and after.pos == "PUNCT" and after.text == "," and particle.lower == "da":
+        return None
+    if after is not None and (
+        after.pos in _PP_OBJECT_POS or after.text in {":", '"', "„", "'", "http"}
+    ):
         return None
     # "von einem Telefon aus": the particle closes a "von" phrase.
     if particle.lower == "aus" and any(

@@ -25,46 +25,40 @@ Nothing open. Left deliberately for later phases:
   dependencies (`en-core-web-sm`, `pypdf`, `rich`, `typer`) are still
   installed locally. Harmless; a later `uv sync` with the IDE closed cleans it.
 
-## Phase 1: exercise generation (built; every card reviewed once)
+## Phase 1: exercise generation (built; stepped review in progress)
 
-The pipeline runs end to end over the whole corpus (`docs/phrase-deck.md`).
-Four review rounds read every unit and every card
-(`docs/audits/phase-1-review/`); their findings are applied. Open:
+The pipeline runs end to end over six corpora (`docs/phrase-deck.md`). The
+deck built from the wide corpus is reviewed step by step, top of the ranking
+first, by Claude Opus and Gemini Flash (`docs/audits/phase-1-review/`,
+"Step 1"): read a band, turn the systematic causes into rules, rebuild, read
+the next band of what survives. Open:
 
+- **Step 2 onward.** Step 1 covered the top 2,400 cards and 700 units.
+  After each rebuild: `uv run python scripts/review_deck.py batches <dir>`
+  (skips reviewed ids), Claude agents in waves of at most 8, Gemini via
+  `review_deck.py gemini <dir> --model gemini-3.8-flash-low --workers 4`
+  with 200-card batches, merge with the `reviewer` tag, apply, rebuild.
+  Stop when a step finds no new systematic cause and few findings.
 - **The owner's kill decision** on the reviewed deck.
 - **Gloss the picked sentences.** `data/phrases/build/wanted_carriers.txt`
-  holds every card sentence without a machine gloss (about 0.9M characters).
-  The monthly job reads it as pass 0; October's allowance is the first that
-  can be spent on it.
-- **Contexts.** No context sentence has been generated yet; sentence-initial
-  connector cards show a single sentence until the owner approves one run of
-  `--stage contexts --generate-contexts --approved-by-owner` (free lane).
+  holds every card sentence without a machine gloss (about 2.9M characters
+  on the wide corpus). The monthly job reads it as pass 0; October's
+  allowance is the first that can be spent on it.
+- **Contexts via `gemini-executor`.** No context sentence has been generated
+  yet; sentence-initial connector cards show a single sentence. Generate the
+  preceding sentence with the executor skill (no key, no spend); the
+  deterministic acceptance checks in `src/phrases/contexts.py` still apply.
 - **Unit-level glosses** for mined units: none yet; a later opt-in batch.
-- **A second reviewer.** One Claude reviewer read everything once; a
-  cross-vendor pass has not happened.
-- The 1M-line `leipzig_news_2025.txt` is not read; the 205k-line sample is.
+- **Adjective-noun citation forms without a nominative occurrence** still
+  show the commonest oblique form; a gender lookup would fix the rest.
 
 ## Before phase 2 (owner's instruction, 2026-09-09)
 
-- **Widen the corpus for the frequency ranking.** Add the full 1M-line
-  `leipzig_news_2025.txt`, the Leipzig `deu_mixed` and `deu_web` 1M
-  packages, and a sample of the OpenSubtitles German side (OPUS v2024), with
-  per-source normalisation so no register dominates. Cards keep coming from
-  Tatoeba and Leipzig; subtitle lines only where the validator passes them.
-  Check the top pairs against DWDS Wortprofil where its terms allow.
-- **Second reviewer from another vendor.** Run the card and unit review
-  batches through the `gemini-executor` skill (Gemini via `agy`) and diff
-  against the Claude findings; disagreements are surfaced, never
-  auto-resolved (CLAUDE.md section 10).
-- **Connector context sentences via `gemini-executor`.** Generate the
-  preceding sentence for sentence-initial connector cards with the
-  executor skill instead of the Gemini API stage, so the run needs no key
-  and no spend; the deterministic acceptance checks in
-  `src/phrases/contexts.py` still apply to every reply.
 - **Connectors in the ranking.** They are ranked already (matched inside
-  every sentence, initial or medial: `und` 1, `jedoch` 12, `trotzdem` 86).
-  What the corpus cannot supply is the preceding sentence, which is the item
-  above. Re-check the ranks after the corpus widens.
+  every sentence, initial or medial). What the corpus cannot supply is the
+  preceding sentence, which is the contexts item above. Re-check the ranks
+  once the stepped review is done.
+- Check the top pairs against DWDS Wortprofil where its terms allow.
 
 ## Phase 2: FSRS and the laptop client
 

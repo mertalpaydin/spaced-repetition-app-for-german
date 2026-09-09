@@ -1,0 +1,6 @@
+{"card_id": "d8e29c8a72df", "unit": "einen Fehler machen", "category": "WRONG_GAPS", "severity": "high", "note": "The unit token 'einen' is missing from the bracketed gaps.", "action": "drop_card", "reviewer": "gemini"}
+{"card_id": "118cbbdc53de", "unit": "Wert legen auf +Akk", "category": "WRONG_GAPS", "severity": "high", "note": "Die Präposition 'auf' gehört zur Einheit, fehlt aber in den Lücken.", "action": "drop_card", "reviewer": "gemini"}
+{"card_id": "4a0baaa0d6c2", "unit": "Wert legen auf +Akk", "category": "WRONG_GAPS", "severity": "high", "note": "Die Präposition 'auf' gehört zur Einheit, fehlt aber in den Lücken.", "action": "drop_card", "reviewer": "gemini"}
+{"card_id": "56129308f107", "unit": "Wert legen auf +Akk", "category": "WRONG_GAPS", "severity": "high", "note": "Die Präposition der Einheit fehlt in den Lücken.", "action": "drop_card", "reviewer": "gemini"}
+{"card_id": "8b0810fcc7cc", "unit": "Wert legen auf +Akk", "category": "WRONG_GAPS", "severity": "high", "note": "Die Präposition der Einheit fehlt in den Lücken.", "action": "drop_card", "reviewer": "gemini"}
+{"card_id": "fab4e51c472d", "unit": "Wert legen auf +Akk", "category": "WRONG_GAPS", "severity": "high", "note": "Die Präposition 'auf' gehört zur Einheit, fehlt aber in den Lücken.", "action": "drop_card", "reviewer": "gemini"}

@@ -93,3 +93,23 @@ def test_repair_verb_lemma_rejects_a_garbled_infinitive() -> None:
     assert parse.repair_verb_lemma("benimmsen") == ""
     assert parse.repair_verb_lemma("erinnerstn") == ""
     assert parse.repair_verb_lemma("warten") == "warten"
+
+
+@requires_model
+@pytest.mark.parametrize(
+    ("text", "verb_text", "expected"),
+    [
+        ("Das Training hilft dabei.", "hilft", "helfen"),
+        ("Es gibt eine ganze Reihe davon.", "gibt", "geben"),
+        ("Dann gehe ich halt wieder.", "gehe", "gehen"),
+        ("Das Factsheet finden Sie unter: https://act.de.", "finden", "finden"),
+        ("Wir machen morgen weiter.", "machen", "weitermachen"),
+    ],
+)
+def test_separable_particle_rejects_adverbs_and_pp_heads(
+    text: str, verb_text: str, expected: str
+) -> None:
+    sentence = parse.parse_one(text)
+    assert sentence is not None
+    verb = next(t for t in sentence.tokens if t.text == verb_text)
+    assert parse.verb_lemma_key(sentence, verb) == expected
