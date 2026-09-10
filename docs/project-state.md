@@ -130,8 +130,7 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
 
 ## What is not built
 
-- **Gloss checks for the 38,000 unglossed cards**, once the Azure job
-  supplies translations.
+- **The review of the 38,000 agent glosses** (first item in TODO).
 - **Phase 3b, the offline PWA.** `web/` now only talks to the local server;
   the GitHub Pages build needs the scheduler and grader in JavaScript
   (ts-fsrs, same parameters), IndexedDB for the log, a service worker for

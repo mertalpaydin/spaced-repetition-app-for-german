@@ -10,16 +10,13 @@ only when the previous one is shown to work, and the owner confirms each step.
 
 ## First thing next session
 
-- **Review the agent glosses.** About 25,000 cards got a Gemini-agent
-  English gloss on 2026-09-09 that no reviewer has read. Run
+- **Review the agent glosses.** About 38,000 cards got a Gemini-agent
+  English gloss on 2026-09-09/10 that no reviewer has read. Run
   `review_deck.py batches <dir> --everything`, keep only the cards whose
   gloss is new since round step5 (compare against
   `docs/audits/phase-1-review/reviewed-card-ids-round-step5.txt` plus a
   "had no gloss then" filter), both vendors, BAD_GLOSS is the category to
   watch; then apply and rebuild.
-- **Finish the gloss job** if the Windows update cut it short:
-  `uv run python -u scripts/agy_jobs.py glosses --max-batches 400`; it skips
-  what is stored. Then `--stage cards`, `--stage export`, commit.
 
 ## Phase 0: prune (done 2026-09-08 on `feat/phrase-deck`)
 
