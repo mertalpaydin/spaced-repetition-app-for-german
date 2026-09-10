@@ -331,6 +331,15 @@ rounds had passed; the gloss pass was a second reading of every card by a
 fresh reviewer and caught what the first missed. All dropped. 73 Gemini
 findings on unbracketed complements were set aside as before.
 
+The 834 replacement cards and 44 new units of the rebuild were read by
+Claude (Gemini's quota was spent): 126 card and 15 unit findings. Two
+causes became rules: the tagger confuses near-homograph stems, so
+`legt ... an` had been lemmatised as `anliegen` and `fuhr ... vor` as
+`vorführen` (a confusion table over liegen/legen, fahren/führen,
+sitzen/setzen now relemmatises from the surface); and existential
+`es gibt ... raus` and the tag question `nicht wahr?` no longer yield a
+separable verb.
+
 ## What is still open
 
 - 15,882 of the agent-glossed cards have Claude's verdict on the gloss

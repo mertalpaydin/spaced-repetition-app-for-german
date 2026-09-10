@@ -682,3 +682,36 @@ def test_bare_pair_wins_below_the_share_and_keeps_the_prepositional_sentences() 
     units = builder.build(occs)
     assert [u.lemma_key for u in units] == ["gut idee"]
     assert units[0].sentence_count == 10
+
+
+@pytest.mark.parametrize(
+    ("verb", "surfaces", "expected"),
+    [
+        ("anliegen", ["legt", "an"], "anlegen"),
+        ("festliegen", ["legte", "fest"], "festlegen"),
+        ("vorführen", ["fuhr", "vor"], "vorfahren"),
+        ("durchfahren", ["führt", "durch"], "durchführen"),
+        ("anliegen", ["liegt", "an"], "anliegen"),
+        ("legen", ["lag"], "liegen"),
+        ("liegen", ["liegen"], "liegen"),
+    ],
+)
+def test_homograph_stems_are_relemmatised(verb: str, surfaces: list[str], expected: str) -> None:
+    from src.phrases.units import canonical_verb
+
+    assert canonical_verb(verb, surfaces, "Fin|Pres|3|Sing", None, {}) == expected
+
+
+def test_existential_gibt_and_tag_question_are_not_particles() -> None:
+    from src.phrases.units import canonical_occurrence
+
+    assert (
+        canonical_occurrence(_sep("Es gibt das Buch raus.", "gibt", "raus", "rausgeben"), None)
+        is None
+    )
+    assert (
+        canonical_occurrence(_sep("Du kommst, nicht wahr?", "kommst", "wahr", "wahrkommen"), None)
+        is None
+    )
+    kept = _sep("Sie gibt das Buch raus.", "gibt", "raus", "rausgeben")
+    assert canonical_occurrence(kept, None) is not None

@@ -29,6 +29,7 @@
 - {key: "amerikanisch bürgerkrieg", display: "der amerikanische Bürgerkrieg"}
 - {key: "amerikanisch traum", display: "der amerikanische Traum"}
 - {key: "amtierend präsident", display: "der amtierende Präsident"}
+- {key: "an seiden faden", cefr: "B2"}
 - {key: "anbinden an", case: "Akk"}
 - {key: "andocken an", case: "Akk"}
 - {key: "anerkennen als", cefr: "B2"}
@@ -57,6 +58,7 @@
 - {key: "arm leute", display: "arme Leute"}
 - {key: "arm verhältnis", display: "aus armen Verhältnissen"}
 - {key: "arsch aufgerissen", display: "sich den Arsch aufreißen"}
+- {key: "auf frei fuß", cefr: "B2"}
 - {key: "aufdringen", display: "aufdrängen"}
 - {key: "aufenthalt gestalten", cefr: "B2"}
 - {key: "aufessen", cefr: "A2"}
@@ -330,6 +332,7 @@
 - {key: "fährt aufnehmen", display: "die Fährte aufnehmen"}
 - {key: "fünfter etage", display: "die fünfte Etage"}
 - {key: "fünfter rad", display: "das fünfte Rad am Wagen"}
+- {key: "für bar münze", cefr: "B2"}
 - {key: "ganze betrachten", display: "das Ganze betrachten"}
 - {key: "gebaut umwelt", cefr: "B2"}
 - {key: "gebrauch machen", cefr: "B2"}
@@ -491,7 +494,9 @@
 - {key: "in erinnerung bleiben", cefr: "B1"}
 - {key: "in erwägung ziehen", cefr: "B2"}
 - {key: "in gang setzen", cefr: "B2"}
+- {key: "in international gewässer", cefr: "B2"}
 - {key: "in kauf nehmen", cefr: "B2"}
+- {key: "in keinst weise", display: "in keiner Weise"}
 - {key: "in kenntnis setzen", cefr: "B2"}
 - {key: "in mitleidenschaft ziehen", cefr: "B2"}
 - {key: "in ordnung bringen", cefr: "B1"}
@@ -500,6 +505,8 @@
 - {key: "in sicherheit bringen", cefr: "B2"}
 - {key: "in verbindung bringen", cefr: "B2"}
 - {key: "in verlegenheit bringen", cefr: "B2"}
+- {key: "in voll zug", cefr: "B2"}
+- {key: "in weit ferne", cefr: "B2"}
 - {key: "infrage kommen", cefr: "B2", display: "infrage kommen"}
 - {key: "infragestellen", display: "infrage stellen"}
 - {key: "innerer angelegenheit", display: "innere Angelegenheiten"}
@@ -617,6 +624,7 @@
 - {key: "militärisch konflikt", display: "militärischer Konflikt"}
 - {key: "misslich lage", display: "missliche Lage"}
 - {key: "missverstehen als", case: "Akk"}
+- {key: "mit hart bandage", cefr: "B2"}
 - {key: "mitmachen bei", cefr: "B1"}
 - {key: "mitrissen", display: "mitreißen"}
 - {key: "mittlerer alter", cefr: "B1"}
@@ -630,6 +638,7 @@
 - {key: "möglichmachen", display: "möglich machen"}
 - {key: "mühe geben", display: "sich Mühe geben"}
 - {key: "münzen auf", cefr: "B2"}
+- {key: "nach best wissen", cefr: "B2"}
 - {key: "nachbesseren", display: "nachbessern"}
 - {key: "nachfolgen", cefr: "B2"}
 - {key: "nachfolgend generation", display: "nachfolgende Generationen"}
@@ -1064,6 +1073,7 @@
 - {key: "voll wucht", display: "mit voller Wucht"}
 - {key: "voll zug", cefr: "B2"}
 - {key: "voneinanderunterscheiden", display: "sich voneinander unterscheiden"}
+- {key: "vor laufend kamera", cefr: "B2"}
 - {key: "vorbeigefahren an", display: "vorbeifahren an +Dat"}
 - {key: "vorbeischaun bei", display: "vorbeischauen bei +Dat"}
 - {key: "vorbeischaun", display: "vorbeischauen"}

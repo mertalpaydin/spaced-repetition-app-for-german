@@ -3530,3 +3530,120 @@
 - ff9091b1f01d  # BAD_SENTENCE: The sentence is an incomplete fragment lacking the noun after 'vollständige'.
 - ffe7f08a3bc4  # BAD_SENTENCE: 'ihr Haar tarierend' is not natural German and the gloss 'balancing their hair' is nonsense.
 - fffdbff1773b  # WRONG_UNIT: "nicht wahr?" is a tag question, not the separable verb "wahrmachen".
+# Review round gloss2.
+- 0047e9ed7dfa  # WRONG_UNIT: The sentence uses transitive 'einsingen' (record vocals), not the reflexive unit shown.
+- 02f7cca43a47  # WRONG_UNIT: Sentence instantiates 'anlegen', not 'anliegen'.
+- 03468b5b4c9f  # WRONG_UNIT: The gaps are the tag question 'nicht wahr', not 'wahrmachen'.
+- 039e479ebddf  # BAD_SENTENCE: Misspelling 'Missverstaendniss'.
+- 06bd1bd68ce3  # WRONG_UNIT: Sentence instantiates 'auflegen', not 'aufliegen'.
+- 06d038326c39  # WRONG_UNIT: Sentence instantiates 'durchfuehren', not 'durchfahren'.
+- 0ac53c0d5beb  # WRONG_UNIT: Sentence instantiates 'zuruecklegen', not 'zurueckliegen'.
+- 0c2b5715696c  # WRONG_UNIT: Transitive 'einen Song neu einsingen', not the reflexive 'sich einsingen' displayed.
+- 0c885f88a96b  # BAD_SENTENCE: 'übersäht' is a misspelling of 'übersät'.
+- 0ce6151fe7c4  # BAD_SENTENCE: The trailing '– auf einer Strecke.' is truncated and leaves the sentence incoherent.
+- 0d009474f814  # BAD_SENTENCE: Opens with 'Dessen', which needs a preceding sentence to be interpretable.
+- 109d951117e7  # BAD_SENTENCE: Subordinate-clause fragment with no main clause.
+- 15430642048c  # WRONG_UNIT: Sentence instantiates 'zufuehren', not 'zufahren'.
+- 168cb0b7cea7  # WRONG_UNIT: The gaps are the tag question 'nicht wahr', not the verb 'wahrhaben'.
+- 16be27797c5d  # BAD_SENTENCE: The second clause 'denn willigte schließlich ein' has no subject and is ungrammatical.
+- 191c01299557  # WRONG_UNIT: Sentence has 'von einem natuerlichen Tod ausgehen'; the unit does not occur.
+- 1a663c4fbd2c  # WRONG_UNIT: This is 'es gibt ... dazu' (existential plus adverb), not 'dazugeben'.
+- 1b46493dba46  # WRONG_UNIT: Sentence instantiates 'anlegen', not 'anliegen'.
+- 1cbf7056d322  # WRONG_UNIT: 'nach vorn' is a directional adverb, not a dative prepositional object of 'ausstrecken'.
+- 1ccf03552486  # WRONG_UNIT: Sentence instantiates 'zuruecklegen', not 'zurueckliegen'.
+- 1d7ed8e900a3  # WRONG_UNIT: Sentence instantiates 'zusammenlegen', not 'zusammenliegen'.
+- 20ae179ccf23  # WRONG_UNIT: The 'sich' belongs to 'sich fühlen'; the sentence is 'sich missverstanden fühlen', not a reflexive
+- 23a1a16f390b  # WRONG_UNIT: The sentence uses 'heranführen an', not 'heranfahren'.
+- 254d4c4d9e7e  # WRONG_UNIT: Sentence instantiates 'herumfuehren', not 'herumfahren'.
+- 275be31ebae5  # WRONG_UNIT: Sentence instantiates 'anlegen an', not 'anliegen an'.
+- 2ce95ef69c7e  # WRONG_UNIT: The sentence uses 'hinausführen' ('Führen Sie ... hinaus'), not 'hinausfahren'.
+- 314b111f24c3  # WRONG_UNIT: 'ab' is the preposition in 'ab/bis Dubai', not a separable prefix; the sentence is also garbled.
+- 3244bda048c3  # BAD_SENTENCE: Two nouns are missing ('in der ... bleibt', 'an der ... zunehmend'), leaving the sentence ungram
+- 3371dec6c68d  # BAD_SENTENCE: The relative pronoun is misspelled: 'dass es ... erleichtern soll' should be 'das'.
+- 344a21137cb1  # BAD_SENTENCE: Pre-1996 spelling 'schloss' written 'schloss' as 'schloß'.
+- 35e5fd2e4f11  # WRONG_UNIT: This is 'es gibt einen Weg da raus', not the verb 'rausgeben'.
+- 365b9781cbd6  # WRONG_UNIT: Sentence instantiates 'zuruecklegen', not 'zurueckliegen'.
+- 406625389619  # BAD_SENTENCE: 'nichts besseres' must be capitalised 'nichts Besseres'.
+- 456c67426003  # WRONG_UNIT: The sentence is 'warnen vor + Dat', not the separable verb 'vorwarnen'.
+- 46d3ae772eab  # WRONG_UNIT: Here 'dagegen' is the pronominal object of 'ankaempfen gegen', not a contrastive connector.
+- 47750e673094  # BAD_SENTENCE: The surname is missing after 'Viktor', so the sentence is incomplete.
+- 4902514384d5  # WRONG_UNIT: The gaps are the tag question 'nicht wahr', not the verb 'wahrhaben'.
+- 4c182b6a4c42  # WRONG_GAPS: The separable prefix 'ein' does not occur in the sentence at all, so the unit cannot be typed.
+- 4d4e3c548fbe  # BAD_SENTENCE: Unidiomatic 'eine grosse Vorsicht walten lassen'.
+- 51506aa439b2  # WRONG_UNIT: Sentence instantiates 'anlegen', not 'anliegen'.
+- 57d2393e0e6b  # WRONG_UNIT: 'keine genauen Daten' here means data, not dates.
+- 59fa7389e28e  # BAD_SENTENCE: A name is missing after 'sprechen wir mit', and 'mit' here is the preposition of 'sprechen mit'.
+- 5b73feba1140  # BAD_SENTENCE: Broken text: 'ohne schriftliche Genehmigung des ist' is missing a noun.
+- 5df4c95e3506  # WRONG_UNIT: The gaps are the tag question 'nicht wahr', not the verb 'wahrhaben'.
+- 61a9023eeb39  # WRONG_UNIT: Sentence instantiates 'festlegen', not 'festliegen'.
+- 65e2cc0a3233  # BAD_SENTENCE: The sentence refers approvingly to stimulating a 'Sklavenbestand', which is offensive material f
+- 67069898246b  # WRONG_UNIT: There is no 'um'-object; the 'um' in the sentence introduces an infinitive clause.
+- 67344e323429  # WRONG_UNIT: The gaps are the tag question 'nicht wahr', not 'wahrmachen'.
+- 68d7546457a9  # BAD_SENTENCE: Verbless caption fragment.
+- 6eeb63d9ee8c  # BAD_SENTENCE: Broken text: 'Auf postet sie ...' is missing the platform name.
+- 70cffaf4d218  # BAD_SENTENCE: The source after 'laut' is missing, leaving 'laut besonders durch' ungrammatical.
+- 756b11152e33  # WRONG_UNIT: Sentence instantiates 'ausfuehren', not 'ausfahren'.
+- 769454d5b0db  # WRONG_UNIT: Literal moving train; the idiom is not instantiated.
+- 78277887325c  # WRONG_UNIT: Sentence is plain 'jemanden einschuechtern'; there is no 'lassen'.
+- 7856127d4a71  # BAD_SENTENCE: Web-page heading fragment prefixed by a site label.
+- 785e154e2f26  # BAD_SENTENCE: Broken text: 'von zur Verfuegung gestellt' is missing the source name.
+- 7a013dd10341  # BAD_SENTENCE: Sentence is cut off at 'denn die K.-o.'
+- 7a8dcd9fea22  # WRONG_UNIT: Sentence instantiates 'zuruecklegen', not 'zurueckliegen'.
+- 7ccb81eea545  # BAD_SENTENCE: A noun is missing after 'Die', leaving 'Die und Erdrutsche' ungrammatical, and the gloss repeats
+- 7d809a6cfe99  # BAD_SENTENCE: The complement of 'reagiert ... mit' is missing before the dash.
+- 80a5146021c7  # WRONG_UNIT: This is 'es gibt sie wieder', not the verb 'wiedergeben'.
+- 823e4db067c1  # WRONG_UNIT: 'gehen wir zusammen' is the adverb 'zusammen', not the verb 'zusammengehen'.
+- 83a9ab813ea9  # WRONG_UNIT: Literal moving trains; the idiom is not instantiated.
+- 858d60c14dcc  # BAD_SENTENCE: Truncated junk: 'In Word koennen Sie via festlegen.'
+- 86f7a6105da2  # WRONG_UNIT: The gaps are the tag question 'nicht wahr', not the verb 'wahrhaben'.
+- 874a7288db1a  # BAD_SENTENCE: Subordinate-clause fragment, no main clause.
+- 8c8cf30a60b5  # WRONG_UNIT: Sentence instantiates 'festlegen', not 'festliegen'.
+- 918a67f2cf42  # WRONG_UNIT: Reflexive 'sich' is missing, so the unit is not correctly instantiated.
+- 93db22399751  # WRONG_UNIT: The gaps are the tag question 'nicht wahr', not the verb 'wahrhaben'.
+- 943e22fbedea  # BAD_SENTENCE: Subjectless headline-style clause, ungrammatical as a sentence.
+- 948f31de73f5  # WRONG_UNIT: Sentence instantiates 'auflegen', not 'aufliegen'.
+- 96a3438bf693  # WRONG_UNIT: 'drauf' is the pronominal adverb of 'Lust auf etwas haben', not the separable verb 'draufhaben'.
+- 97a39a953ee8  # BAD_SENTENCE: Missing name: 'Isack Hadjar (5.) und (6.)'.
+- 998fec15344f  # WRONG_UNIT: Literal moving train; the idiom is not instantiated.
+- 9dce2442726c  # BAD_SENTENCE: Sentence is cut off mid-clause at 'mit was Sie Ihren.'
+- a375ab2afc5f  # WRONG_UNIT: This is the prepositional verb 'denken an', not separable 'andenken'.
+- a3ec6caf026f  # WRONG_UNIT: The sentence uses 'gute Geister' literally about shop staff; the idiom is not instantiated.
+- a452fe2ea27b  # WRONG_UNIT: Sentence instantiates 'einladen zu' and opens with a stray bullet character.
+- a7706b0ba090  # BAD_SENTENCE: Ungrammatical: 'das Dinge'.
+- a829ecd7d1a8  # WRONG_UNIT: Sentence instantiates 'auflegen', not 'aufliegen'.
+- a869bb5a5e8b  # WRONG_UNIT: Sentence instantiates 'festlegen', not 'festliegen'.
+- a90ad35ac847  # WRONG_UNIT: Sentence instantiates 'auflegen', not 'aufliegen'.
+- a9806f3966ac  # BAD_SENTENCE: Carries a news dateline prefix 'Berlin -' and has no clear referent.
+- aca18d85c635  # BAD_SENTENCE: Wrong adjective ending: 'jagenden und treibende Personen'.
+- aca4ec18dc00  # WRONG_UNIT: This is 'gibt es einen Weg hier raus', not the verb 'rausgeben'.
+- ada7fe1d630b  # BAD_SENTENCE: "an's" is a nonstandard spelling of 'ans'.
+- ae52b81c053b  # WRONG_UNIT: Sentence instantiates 'einladen zu', not bare 'laden zu'.
+- aff84d056e96  # WRONG_UNIT: The mit-phrase modifies 'Gebaeude', so 'schmuecken mit' is not instantiated.
+- b1289f63d609  # BAD_SENTENCE: Nonsensical dubbing-style German ('sie nach Saks abservieren').
+- b3e0bd351e2e  # BAD_SENTENCE: Verb-first question punctuated as a statement.
+- b4c37fb97e3d  # WRONG_UNIT: Sentence instantiates 'festlegen', not 'festliegen'.
+- b4c6e8dc5b15  # BAD_SENTENCE: Subordinate-clause fragment, no main clause.
+- b5d24a73834d  # WRONG_UNIT: The bracketed 'an' belongs to 'ziehst ... an' (anziehen), not to 'denkst'.
+- b723db6b0025  # BAD_SENTENCE: Broken text: 'Die Hoehe des sogenannten soll ...' is missing a noun.
+- b7f9c7fa32f3  # WRONG_UNIT: Sentence instantiates 'zuruecklegen', not 'zurueckliegen'.
+- c1844d26910c  # WRONG_UNIT: Sentence instantiates 'vorfuehren', not 'vorfahren'.
+- c980d4cd864e  # BAD_SENTENCE: Missing the presenter's name: 'RTL-Moderatorin (60)'.
+- ca780a8cd007  # WRONG_UNIT: Sentence instantiates 'zuruecklegen', not 'zurueckliegen'.
+- cac5729ba6aa  # BAD_SENTENCE: Contains the slash alternative 'nahe/ferne', so the gap is not typable.
+- cc9af119a471  # WRONG_UNIT: Sentence instantiates 'anlegen an', not 'anliegen an'.
+- d3fde9420142  # WRONG_UNIT: This is 'es gibt ... dazu' (existential plus adverb), not 'dazugeben'.
+- d72c2b717fe0  # BAD_SENTENCE: Contains the misspelling 'defacto' for 'de facto'.
+- dac5e729554d  # WRONG_UNIT: Sentence instantiates 'auslegen', not 'ausliegen'.
+- dfe9c6ee98d8  # BAD_SENTENCE: Headline with a trailing source tag '- Yahoo!'.
+- e3227d2a1152  # WRONG_UNIT: The sentence instantiates 'jdm fällt etwas ein', not 'sich etwas einfallen lassen'.
+- e3b7ca54aaef  # BAD_SENTENCE: Headline style with articles dropped ('Gericht lud ... zu Versammlung').
+- e6d687749ccd  # BAD_SENTENCE: Truncated fragment ending in 'kein Interesse an.'
+- ebe70f69e02e  # WRONG_UNIT: This is 'es gibt keinen Weg hier raus', not the verb 'rausgeben'.
+- ecf536fcbb55  # BAD_SENTENCE: Misspelling 'dreitaetige' for 'dreitaegige'.
+- ee01128df15d  # WRONG_UNIT: The gaps are the tag question 'nicht wahr', not the verb 'wahrhaben'.
+- ef0b4bfb9aa8  # WRONG_UNIT: The sentence uses 'den Ton angeben', a different idiom, and the stray parentheses around the gap a
+- f73b24dbc0de  # BAD_SENTENCE: The leading 'Hotelbuchung - ' is a scraped heading, not part of the sentence.
+- fbeae30d895d  # BAD_SENTENCE: Web-page heading fragment prefixed by a site label.
+- fc5755c13f1b  # BAD_SENTENCE: Headline with the article dropped ('Show wird ... abgesetzt').
+- fe09f5e69e5f  # BAD_SENTENCE: The place name after 'bei' is missing ('bei vermisst').
+- fe2066888794  # WRONG_UNIT: Non-reflexive 'wir liefern ihnen einen Kampf' is an English calque, not the unit.

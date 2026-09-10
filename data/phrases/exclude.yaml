@@ -2230,3 +2230,17 @@
 - "zusammenreißen"  # BAD_UNIT: The verb is inherently reflexive (sich zusammenreißen) and should include the reflexive pronoun.
 - "zutun mit"  # BAD_UNIT: The phrase is 'mit etwas zu tun haben', written as two words; 'zutun' is a misspelling and the gaps 
 - "öl gießen"  # BAD_UNIT: Every sentence uses the idiom 'Öl ins Feuer gießen'; the display 'Öl gießen' alone is not a useful p
+# Review round gloss2: units the reviewer rejected.
+- "arsch retten"  # BAD_UNIT: Vulgar slang collocation, not appropriate deck material for an A1-B2 learner.
+- "geboren künstler"  # BAD_UNIT: 'geborener Künstler' here is only the participle pattern 'der 19xx in X geborene Künstler', not a us
+- "in einfach englisch"  # NOT_A_PHRASE: Free adjective-noun combination, nothing idiomatic to learn.
+- "in klein würfel"  # NOT_A_PHRASE: Truncated fragment of in kleine Würfel schneiden; as an adj_noun unit it is a free combination.
+- "in sechster stock"  # NOT_A_PHRASE: Parser artefact: any ordinal plus Stock, nothing fixed.
+- "in selber raum"  # NOT_A_PHRASE: Free combination of derselbe plus an arbitrary noun.
+- "irgendein ahnung"  # BAD_UNIT: 'Irgendeine Ahnung?' is a calque of 'Any idea?' and not an idiomatic German collocation.
+- "mit offen arme"  # DUPLICATE: Same phrase as an:mit_offen_arm, differing only in the lemma key.
+- "ranzukommen an"  # BAD_UNIT: The unit display has a duplicated case marker '+Akk +Akk'.
+- "reingefallen auf"  # BAD_UNIT: The unit display has a duplicated case marker '+Akk +Akk'.
+- "sich einreden"  # BAD_UNIT: The unit display is garbled with a duplicated case marker ('sich Dat ... +Dat').
+- "wein einschenken"  # BAD_UNIT: The real unit is the idiom 'reinen Wein einschenken'; the bare display misleads.
+- "überbleiben"  # BAD_UNIT: 'überbleiben' is regional/nonstandard; standard German is 'übrig bleiben'.

@@ -377,6 +377,35 @@ def _infinitive_of_participle(part: str, dictionary: frozenset[str] | None) -> s
     return None
 
 
+#: Verb pairs the tagger confuses because one's finite stem looks like the
+#: other's: "legt ... an" lemmatised as "anliegen", "fuhr ... vor" as
+#: "vorführen". Keyed by (lemma base, surface stem prefix) -> right base.
+_STEM_CONFUSIONS: dict[tuple[str, str], str] = {
+    ("liegen", "leg"): "legen",
+    ("legen", "lieg"): "liegen",
+    ("legen", "lag"): "liegen",
+    ("führen", "fahr"): "fahren",
+    ("führen", "fähr"): "fahren",
+    ("führen", "fuhr"): "fahren",
+    ("fahren", "führ"): "führen",
+    ("sitzen", "setz"): "setzen",
+    ("setzen", "sitz"): "sitzen",
+    ("setzen", "saß"): "sitzen",
+}
+
+
+def _fix_stem_confusion(verb: str, surfaces: list[str]) -> str:
+    for (base, stem), right in _STEM_CONFUSIONS.items():
+        if not verb.endswith(base):
+            continue
+        prefix = verb[: -len(base)]
+        for s in surfaces:
+            low = s.lower()
+            if low.startswith(prefix + stem) or (prefix and low.startswith(stem)):
+                return prefix + right
+    return verb
+
+
 def canonical_verb(
     verb: str,
     surfaces: list[str],
@@ -384,6 +413,7 @@ def canonical_verb(
     dictionary: frozenset[str] | None,
     infinitives: Mapping[str, object] | None = None,
 ) -> str | None:
+    verb = _fix_stem_confusion(verb, surfaces)
     """The infinitive a mined verb part stands for, or ``None`` when the part
     is not one the deck can cite.
 
@@ -472,6 +502,15 @@ def _junk_particle(occ: Occurrence, dictionary: frozenset[str] | None) -> bool:
     if len(occ.surfaces) != 2 or len(occ.spans) != 2:
         return False
     particle = occ.surfaces[-1].lower()
+    lowered_text = occ.text.lower()
+    # "es gibt ... raus" is existential "es gibt" with an adverb, and
+    # "..., nicht wahr?" is a tag question; neither is a separable verb.
+    if occ.surfaces[0].lower() in {"gibt", "gab", "gebe", "geben", "gäbe"} and (
+        "es gibt" in lowered_text or "gibt es" in lowered_text or "gab es" in lowered_text
+    ):
+        return True
+    if particle == "wahr" and "nicht wahr" in lowered_text:
+        return True
     fused_is_word = dictionary is None or normalise(occ.unit_key) in dictionary
     if (
         particle not in SEPARABLE_PREFIXES
