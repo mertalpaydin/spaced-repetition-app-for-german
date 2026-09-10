@@ -338,7 +338,10 @@ causes became rules: the tagger confuses near-homograph stems, so
 `vorführen` (a confusion table over liegen/legen, fahren/führen,
 sitzen/setzen now relemmatises from the surface); and existential
 `es gibt ... raus` and the tag question `nicht wahr?` no longer yield a
-separable verb.
+separable verb. A second pass over the rebuild found the homograph fix
+undone by the participle table (`gelegen` stripped to `legen`, which is
+`legen`'s own infinitive); that key is gone. The last 17 unread cards were
+read by hand, two dropped.
 
 ## What is still open
 

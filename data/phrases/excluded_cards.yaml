@@ -3683,3 +3683,6 @@
 - f144103065d6  # WRONG_UNIT: Geld am Kapitalmarkt anlegen is anlegen, not anliegen.
 - fb2790ecbb8e  # WRONG_UNIT: 'Legen ... fest' instantiates festlegen, not festliegen.
 - fcd36c380e82  # WRONG_UNIT: The sentence has 'die nahe Zukunft', not the fixed expression 'in naher Zukunft', and it opens wit
+# Review round gloss4.
+- 691213cab971  # WRONG_UNIT: 'wir gehen zusammen' is the adverb zusammen, not the separable verb.
+- bc7737b89292  # WRONG_UNIT: 'sich missverstanden fühlen' is a passive participle with fühlen, not sich missverstehen.

@@ -16,9 +16,8 @@ only when the previous one is shown to work, and the owner confirms each step.
   regenerate with `batches --gloss-source gemini --card-batch 200`), with
   a higher Gemini tier than flash-low, which found 10 bad glosses where
   Claude found 189. Then apply as round gloss2.
-- **Rebuild after the gloss review replaced cards**: the cards stage picks
-  replacements for the 1,000-odd dropped cards, and those replacements
-  need the usual review step (`batches` lists them).
+- **Gloss the 1,136 replacement sentences** (`agy_jobs.py glosses`, once
+  the agent quota is back), rebuild, review what `batches` lists.
 
 ## Phase 0: prune (done 2026-09-08 on `feat/phrase-deck`)
 

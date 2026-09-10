@@ -1,0 +1,2 @@
+{"card_id": "691213cab971", "unit": "zusammengehen", "category": "WRONG_UNIT", "severity": "high", "note": "'wir gehen zusammen' is the adverb zusammen, not the separable verb.", "action": "drop_card", "reviewer": "claude-hand"}
+{"card_id": "bc7737b89292", "unit": "sich missverstehen", "category": "WRONG_UNIT", "severity": "high", "note": "'sich missverstanden fühlen' is a passive participle with fühlen, not sich missverstehen.", "action": "drop_card", "reviewer": "claude-hand"}
