@@ -341,15 +341,18 @@ sitzen/setzen now relemmatises from the surface); and existential
 separable verb. A second pass over the rebuild found the homograph fix
 undone by the participle table (`gelegen` stripped to `legen`, which is
 `legen`'s own infinitive); that key is gone. The last 17 unread cards were
-read by hand, two dropped.
+read by hand, two dropped. Gemini's second run (medium effort, 63
+batches before the quota ended again) added 429 findings on cards Claude
+had passed; applied as round gloss2b.
 
 ## What is still open
 
-- 15,882 of the agent-glossed cards have Claude's verdict on the gloss
-  only; a Gemini pass over `gloss1/cards_121.txt` onward waits for its
-  quota. Gemini Flash at low effort found 10 bad glosses where Claude found
-  189 on the same cards, so a stronger Gemini tier is the better second
-  reader for glosses.
+- 3,200 agent-glossed cards (16 batches) have Claude's verdict on the
+  gloss only: Gemini's quota ran out twice. Its second run, at medium
+  effort, read 13,200 more cards and was a far better second reader (429
+  findings Claude had not made, mostly sentences and unit mismatches),
+  though still only 10 bad glosses against Claude's 189 on the first
+  23,000; on glosses the vendors do not corroborate each other.
 - Adjective-noun and collocation displays that carry a governing
   preposition (`auf freiem Fuß`) blank only the adjective and noun. Both
   reviewers keep flagging the unbracketed preposition; blanking it would

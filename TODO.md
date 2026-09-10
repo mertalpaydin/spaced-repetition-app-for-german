@@ -10,12 +10,9 @@ only when the previous one is shown to work, and the owner confirms each step.
 
 ## First thing next session
 
-- **Gemini's half of the gloss review.** Its quota ran out after 121 of
-  195 batches; rerun `review_deck.py gemini` over the batches from
-  `cards_121.txt` on (in the session scratchpad `gloss1/gemini`, or
-  regenerate with `batches --gloss-source gemini --card-batch 200`), with
-  a higher Gemini tier than flash-low, which found 10 bad glosses where
-  Claude found 189. Then apply as round gloss2.
+- **Gemini's last 16 gloss batches** (`gloss1/gemini/rest`, cards_174 and
+  180 to 194): rerun `review_deck.py gemini <dir> --model
+  gemini-3.8-flash-medium` when the quota is back, apply as gloss2c.
 - **Gloss the 1,136 replacement sentences** (`agy_jobs.py glosses`, once
   the agent quota is back), rebuild, review what `batches` lists.
 

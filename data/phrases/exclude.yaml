@@ -2246,3 +2246,35 @@
 - "überbleiben"  # BAD_UNIT: 'überbleiben' is regional/nonstandard; standard German is 'übrig bleiben'.
 # Review round gloss3: units the reviewer rejected.
 # Review round gloss4: units the reviewer rejected.
+# Review round gloss2b: units the reviewer rejected.
+- "beamen auf"  # BAD_UNIT: 'beamen auf +Akk' is sci-fi jargon and not a fixed, useful German phrase for an A1-B2 learner.
+- "best versuchen"  # BAD_UNIT: Unidiomatic Anglicism; genuine German phrase is 'sein Bestes geben' or 'sein Bestes tun'.
+- "beste versuchen"  # BAD_UNIT: Unidiomatic Denglish calque; standard German is 'sein Bestes geben'.
+- "betten auf"  # BAD_UNIT: 'betten auf +Akk' is an elevated literary expression, not a useful phrase for A1-B2 learners.
+- "brodeln hinter"  # BAD_UNIT: 'brodeln hinter +Dat' is not a valid prepositional verb; the German idiom is 'hinter den Kulissen br
+- "einfühlen"  # BAD_UNIT: The verb is inherently reflexive ('sich einfühlen') and does not exist as a plain separable verb.
+- "festbeißen"  # BAD_UNIT: The verb is inherently reflexive (sich festbeißen), making festbeißen an invalid unit lemma.
+- "französisch wein"  # BAD_UNIT: The unit is a compositional adjective-noun combination rather than a fixed phrase for A1-B2 learners
+- "geometrisch figur"  # BAD_UNIT: The unit display is in an inflected plural form rather than the standard base form.
+- "gesundheit erfreuen"  # BAD_UNIT: The unit is an advanced C1 genitive construction unsuitable for A1-B2 learners, with mismatched adje
+- "golden kugel"  # BAD_UNIT: "goldene Kugel" is an arbitrary fairytale prop and not a useful German phrase for an A1-B2 learner.
+- "grab schaufeln"  # BAD_UNIT: 'Grab schaufeln' is not a real German collocation; the correct idiom is 'Grab graben'.
+- "hochliegen"  # BAD_UNIT: The separable verb 'hochliegen' does not exist in German; 'hoch' is a predicative adjective with 'li
+- "kurz schwanz"  # BAD_UNIT: "der kurze Schwanz" is not a fixed phrase or useful collocation for an A1-B2 learner.
+- "linker herzkammer"  # BAD_UNIT: The unit 'linke Herzkammer' is specialized medical terminology, not useful for an A1-B2 learner.
+- "menschlich seele"  # BAD_UNIT: The unit is an advanced literary expression rather than an A1-B2 phrase, and is incorrectly pluraliz
+- "mutig tat"  # BAD_UNIT: The unit is displayed in an inflected form (mutigen Taten) instead of a base form.
+- "nachlesen unter"  # BAD_UNIT: 'nachlesen unter +Dat' is not a genuine prepositional verb or useful phrase for A1-B2 learners.
+- "regulieren durch"  # BAD_UNIT: 'regulieren durch +Akk' is not a valid German verb-preposition unit as 'durch' functions as an adver
+- "rein wein"  # BAD_UNIT: The unit is an incomplete accusative fragment of the idiom 'reinen Wein einschenken'.
+- "schnurrbart wachsen"  # BAD_UNIT: 'Schnurrbart wachsen' is not a valid German phrase without causative 'lassen'.
+- "schrillen bei"  # BAD_UNIT: 'schrillen bei +Dat' is not a real prepositional verb phrase; the fixed idiom is 'die Alarmglocken s
+- "sich begrenzen auf"  # BAD_UNIT: 'sich begrenzen auf' is not standard German; the correct phrase is 'sich beschränken auf'.
+- "sich hacken in"  # BAD_UNIT: 'sich hacken in' is not standard German (the correct verb is 'sich einhacken in').
+- "tot hund"  # BAD_UNIT: 'toter Hund' is an arbitrary adjective-noun pairing, not a useful phrase for learners.
+- "tuscheln hinter"  # BAD_UNIT: 'tuscheln hinter +Dat' is not a real German verb phrase.
+- "umhören"  # BAD_UNIT: The verb is inherently reflexive (sich umhören) and does not exist as an unreflexive separable verb.
+- "verdächtige befragen"  # BAD_UNIT: The unit display 'Verdächtigen befragen' is grammatically malformed and not a standard citation form
+- "weiden auf"  # BAD_UNIT: 'weiden auf +Dat' is not a real prepositional verb phrase as 'auf' is merely a locative adverbial.
+- "zerdrücken mit"  # BAD_UNIT: The unit 'zerdrücken mit +Dat' is not a fixed prepositional verb phrase but a free instrumental adve
+- "zusammenspannen"  # BAD_UNIT: The unit is a Swiss regionalism not suitable or useful for general A1-B2 learners.

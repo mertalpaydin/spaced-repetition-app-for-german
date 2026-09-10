@@ -710,7 +710,7 @@
 - {key: "psychisch störung", display: "psychische Störungen"}
 - {key: "radioaktiv material", cefr: "B2"}
 - {key: "rahmenbedingung schaffen", display: "Rahmenbedingungen schaffen"}
-- {key: "rangekommen an", display: "rankommen an +Akk"}
+- {key: "rangekommen an", case: "Akk", display: "rankommen an +Akk"}
 - {key: "rangieren auf", case: "Dat"}
 - {key: "ranzukommen an", case: "Akk", display: "rankommen an +Akk"}
 - {key: "rau see", display: "raue See"}
@@ -729,6 +729,7 @@
 - {key: "rechtlich grund", display: "rechtliche Gründe"}
 - {key: "rein formsache", cefr: "B2"}
 - {key: "rein wein", cefr: "B2"}
+- {key: "reinfallen auf", case: "Akk"}
 - {key: "reingefallen auf", case: "Akk", display: "reinfallen auf +Akk"}
 - {key: "rennen fahren", display: "Rennen fahren"}
 - {key: "respekt verdienen", cefr: "B1"}
@@ -855,7 +856,7 @@
 - {key: "sich ergeben", cefr: "B2"}
 - {key: "sich erlauben", cefr: "B1"}
 - {key: "sich erschließen", cefr: "B2"}
-- {key: "sich erträumen", case: "Akk"}
+- {key: "sich erträumen", case: "Dat"}
 - {key: "sich erweisen als", display: "sich erweisen als"}
 - {key: "sich freigenommen", display: "sich freinehmen"}
 - {key: "sich freinehmen", cefr: "B1"}
