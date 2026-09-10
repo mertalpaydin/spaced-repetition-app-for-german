@@ -309,7 +309,9 @@ def job_glosses(args: argparse.Namespace) -> int:
     todo: list[str] = []
     seen: set[str] = set()
     for _, _, text in wanted:
-        if text in store or text in seen:
+        # A Tatoeba gloss does not count (rule 9: it is never shown), so the
+        # sentence is glossed again and the agent's record replaces it.
+        if (text in store and store[text].source != "tatoeba") or text in seen:
             continue
         seen.add(text)
         todo.append(text)

@@ -1,5 +1,6 @@
 """The agent-driven deck jobs: parsing and acceptance, never the agent."""
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -78,3 +79,40 @@ def test_store_write_retries_while_the_file_is_locked(monkeypatch, tmp_path: Pat
     slept: list[float] = []
     agy_jobs.write_store_with_retry(tmp_path / "s.jsonl", {}, sleep=slept.append)
     assert calls["n"] == 3 and slept == [5.0, 5.0]
+
+
+def test_tatoeba_only_glosses_are_glossed_again(monkeypatch, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    from scripts.build_translations import TranslationRecord
+
+    wanted = tmp_path / "wanted.txt"
+    lines = ["tatoeba", "1", "Er wartet.", "|", "azure", "2", "Sie geht."]
+    wanted.write_text(chr(9).join(lines[:3]) + chr(10) + chr(9).join(lines[4:]) + chr(10), "utf-8")
+    now = datetime.now(UTC)
+    store = {
+        "Er wartet.": TranslationRecord(
+            german="Er wartet.", english="He waits.", source="tatoeba", written_at=now
+        ),
+        "Sie geht.": TranslationRecord(
+            german="Sie geht.", english="She goes.", source="azure", written_at=now
+        ),
+    }
+    monkeypatch.setattr(agy_jobs, "_load_store", lambda path: store)
+    seen: list[list[str]] = []
+
+    def fake_agent(workspace: Path, prompt: str, **kw: object) -> agy_jobs.AgentResult:
+        rows = agy_jobs.read_jsonl(workspace / "input.jsonl")
+        seen.append([str(r["de"]) for r in rows])
+        out = [{"id": r["id"], "en": "He is waiting."} for r in rows]
+        (workspace / "output.jsonl").write_text(
+            "".join(json.dumps(o) + chr(10) for o in out), encoding="utf-8"
+        )
+        return agy_jobs.AgentResult(status="SUCCESS")
+
+    monkeypatch.setattr(agy_jobs, "run_agent", fake_agent)
+    monkeypatch.setattr(agy_jobs, "write_store_with_retry", lambda path, store: None)
+    args = type("A", (), {})()
+    args.wanted, args.store, args.model, args.timeout = wanted, tmp_path / "s.jsonl", "m", "1m"
+    args.batch_size, args.max_batches, args.max_failures = 10, 5, 2
+    assert agy_jobs.job_glosses(args) == 0
+    assert seen == [["Er wartet."]]
+    assert store["Er wartet."].source == "gemini"
