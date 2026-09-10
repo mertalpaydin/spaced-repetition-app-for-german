@@ -278,6 +278,9 @@ _STRONG_STEMS.update(
         if k.startswith("ge") and k.endswith("n")
     }
 )
+# "gelegen" stripped of "ge" is "legen", which is the infinitive of another
+# verb; keeping it would turn every "anlegen" into "anliegen".
+_STRONG_STEMS.pop("legen", None)
 _ALL_PREFIXES: tuple[str, ...] = tuple(
     sorted(
         set(SEPARABLE_PREFIXES)

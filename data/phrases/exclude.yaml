@@ -2244,3 +2244,4 @@
 - "sich einreden"  # BAD_UNIT: The unit display is garbled with a duplicated case marker ('sich Dat ... +Dat').
 - "wein einschenken"  # BAD_UNIT: The real unit is the idiom 'reinen Wein einschenken'; the bare display misleads.
 - "überbleiben"  # BAD_UNIT: 'überbleiben' is regional/nonstandard; standard German is 'übrig bleiben'.
+# Review round gloss3: units the reviewer rejected.

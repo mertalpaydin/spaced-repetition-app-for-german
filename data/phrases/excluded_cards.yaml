@@ -3647,3 +3647,39 @@
 - fc5755c13f1b  # BAD_SENTENCE: Headline with the article dropped ('Show wird ... abgesetzt').
 - fe09f5e69e5f  # BAD_SENTENCE: The place name after 'bei' is missing ('bei vermisst').
 - fe2066888794  # WRONG_UNIT: Non-reflexive 'wir liefern ihnen einen Kampf' is an English calque, not the unit.
+# Review round gloss3.
+- 00436039561b  # WRONG_UNIT: auflegen (hang up), not aufliegen.
+- 00d0d47e9fe1  # WRONG_UNIT: The bracketed token is anlegen, not anliegen.
+- 18c7fb34121d  # WRONG_UNIT: The sentence instantiates 'sich missverstanden fühlen', not a reflexive verb sich missverstehen.
+- 20e62a0188ee  # WRONG_UNIT: sich festlegen is festlegen, not festliegen.
+- 3b9dcd5f6554  # WRONG_UNIT: The sentence uses den richtigen Ton anschlagen, a different verb from the displayed unit.
+- 3f201169c474  # WRONG_UNIT: sich festlegen is festlegen, not festliegen.
+- 41918495ed46  # WRONG_UNIT: sich festlegen is festlegen, not festliegen.
+- 45a2467cf9cf  # WRONG_UNIT: einen Weg zurücklegen is zurücklegen, not zurückliegen.
+- 4740d1a633de  # BAD_SENTENCE: 'Raithmeier gab mit dem ausgestreckten Mittelfinger raus' is garbled and has no coherent meaning
+- 51706313774a  # WRONG_UNIT: Passive 'wurden dem Test unterzogen' has no reflexive, unlike the displayed unit.
+- 5271a7af10d4  # BAD_SENTENCE: A web headline fragment with a leading 'Datenschutzerklärung –', not a self-contained sentence.
+- 56e474d2a8ed  # WRONG_UNIT: 'legen ... an' instantiates anlegen, not anliegen.
+- 5a583f9a59f6  # BAD_SENTENCE: 'Ähnlich einfach ist es' depends on a preceding comparison that is missing.
+- 6150d0c35df4  # WRONG_UNIT: auflegen (hang up), not aufliegen.
+- 625974cf0589  # BAD_SENTENCE: 'Diese' has no antecedent, so the sentence is not self-contained.
+- 6d430a66944c  # BAD_SENTENCE: Ellipsis mid-sentence ('Ich führe... das Gespräch weiter') is broken dialogue, not a clean sente
+- 714454e700ea  # WRONG_UNIT: The sentence lacks the reciprocal 'sich' the display promises.
+- 761cd1b8682a  # WRONG_UNIT: 'legen ... zurück' is zurücklegen, not zurückliegen.
+- 7851930965d2  # WRONG_UNIT: 'wir gehen zusammen' is the free adverb usage, not the separable verb zusammengehen.
+- 7a59b89593ca  # WRONG_UNIT: Musik auflegen is auflegen, not aufliegen.
+- 81b0ca9f7234  # WRONG_UNIT: Geld anlegen is anlegen, not anliegen.
+- 91536028268a  # WRONG_UNIT: The sentence is the correlative 'es ist so, dass', not the consecutive connector sodass, and the r
+- 94c4a185f637  # WRONG_UNIT: Strecken zurücklegen is zurücklegen, not zurückliegen.
+- 9cbc7557e153  # WRONG_UNIT: auslegen (interpret), not ausliegen.
+- a3b24285a387  # WRONG_UNIT: The sentence is 'nichts Besseres einfällt' without the causative 'lassen' of the displayed unit.
+- b3c3e8c0bc76  # WRONG_UNIT: Non-reflexive 'liefert einen Kampf', so it does not instantiate the displayed reciprocal unit.
+- b5247414834b  # WRONG_UNIT: Exemplare zurücklegen is zurücklegen, not zurückliegen.
+- bbe8a9d3ec52  # WRONG_UNIT: die Akte zurücklegen is zurücklegen, not zurückliegen.
+- c913fca6f462  # WRONG_UNIT: auflegen (hang up), not aufliegen.
+- cf1e51dc0d1b  # WRONG_UNIT: Strecken zurücklegen is zurücklegen, not zurückliegen.
+- e8ba93fab2e5  # WRONG_UNIT: 'legen ... fest' instantiates festlegen, not festliegen.
+- eeaca4df7013  # WRONG_UNIT: anlegen (to land a boat), not anliegen.
+- f144103065d6  # WRONG_UNIT: Geld am Kapitalmarkt anlegen is anlegen, not anliegen.
+- fb2790ecbb8e  # WRONG_UNIT: 'Legen ... fest' instantiates festlegen, not festliegen.
+- fcd36c380e82  # WRONG_UNIT: The sentence has 'die nahe Zukunft', not the fixed expression 'in naher Zukunft', and it opens wit

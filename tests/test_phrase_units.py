@@ -692,6 +692,8 @@ def test_bare_pair_wins_below_the_share_and_keeps_the_prepositional_sentences() 
         ("vorführen", ["fuhr", "vor"], "vorfahren"),
         ("durchfahren", ["führt", "durch"], "durchführen"),
         ("anliegen", ["liegt", "an"], "anliegen"),
+        ("anlegen", ["legen", "an"], "anlegen"),
+        ("anlegen", ["anlegen"], "anlegen"),
         ("legen", ["lag"], "liegen"),
         ("liegen", ["liegen"], "liegen"),
     ],
