@@ -124,16 +124,27 @@ def unit_line(unit: PhraseUnit) -> str:
 
 
 def write_batches(
-    out_dir: Path, *, deck_dir: Path, everything: bool, card_batch: int, unit_batch: int
+    out_dir: Path,
+    *,
+    deck_dir: Path,
+    everything: bool,
+    card_batch: int,
+    unit_batch: int,
+    gloss_source: str | None = None,
 ) -> dict[str, int]:
+    """``gloss_source`` selects the gloss review: every card whose gloss came
+    from that source, whatever the reviewed-id lists say (those record that
+    the sentence was read, not that its English was), and no units."""
     manifest, units, cards = load_deck(deck_dir)
     by_unit = {u.unit_id: u for u in units}
     reviewed_cards = set() if everything else _reviewed_ids("card")
     reviewed_units = set() if everything else _reviewed_ids("unit")
-    new_cards = sorted(
-        (c for c in cards if c.card_id not in reviewed_cards),
-        key=lambda c: (by_unit[c.unit_id].rank, c.card_id),
-    )
+    if gloss_source is not None:
+        chosen = (c for c in cards if c.gloss_source == gloss_source)
+        reviewed_units = {u.unit_id for u in units}
+    else:
+        chosen = (c for c in cards if c.card_id not in reviewed_cards)
+    new_cards = sorted(chosen, key=lambda c: (by_unit[c.unit_id].rank, c.card_id))
     new_units = [u for u in units if u.unit_id not in reviewed_units]
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "findings").mkdir(exist_ok=True)
@@ -364,6 +375,11 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("out_dir", type=Path)
     b.add_argument("--deck", type=Path, default=DEFAULT_DECK_DIR)
     b.add_argument("--everything", action="store_true", help="ignore the reviewed-id lists")
+    b.add_argument(
+        "--gloss-source",
+        default=None,
+        help="gloss review: every card glossed by this source (e.g. gemini), no units",
+    )
     b.add_argument("--card-batch", type=int, default=600)
     b.add_argument("--unit-batch", type=int, default=700)
     g = sub.add_parser("gemini")
@@ -381,6 +397,7 @@ def main(argv: list[str] | None = None) -> int:
             args.out_dir,
             deck_dir=args.deck,
             everything=args.everything,
+            gloss_source=args.gloss_source,
             card_batch=args.card_batch,
             unit_batch=args.unit_batch,
         )
