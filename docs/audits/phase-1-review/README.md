@@ -297,11 +297,47 @@ Totals over the five steps: 26 systematic causes turned into rules with
 tests; 1,005 units, 728 cards and 631 overrides added to the curated
 lists with the reviewer's reason.
 
+## The gloss review (10 September 2026)
+
+Deck `b24ff2edf669`: 38,882 cards whose English gloss came from the Gemini
+agent on 9 and 10 September and had never been read. The reviewed-id
+lists say a sentence was read, not that its English was, so this pass
+selected by gloss source (`review_deck.py batches --gloss-source gemini`)
+and asked for the gloss first, with the other categories still open.
+
+| | Claude (65 batches, all cards) | Gemini (121 of 195 batches, 23,000 cards) |
+|---|---:|---:|
+| Findings | 1,468 (3.8%) | 787 (3.4%) |
+| Bad gloss | 189 (0.5%) | 10 |
+| Bad sentence | 847 | 310 |
+| Wrong unit | 332 | 280 |
+
+On the 23,000 cards both read: 396 flagged by both (364 with the same
+category), 365 by Claude only, 391 by Gemini only. Gemini Flash ran out of
+quota after 121 batches; the remaining 15,882 cards have one reviewer's
+verdict on the gloss. Gemini also found almost no bad glosses where Claude
+found 189, so on this category the two vendors did not corroborate each
+other and Claude's findings stand alone.
+
+What the bad glosses were: idioms rendered literally (`den Rotstift
+ansetzen` as "the red pencil is applied"), a swapped subject and object,
+a reversed intent (`losgeworden` as "lost"), verbs left without the object
+English needs ("invites to a hike"), a stray opening quotation mark, and
+a few truncated sentences. 0.5% of the agent's glosses; the rest read as
+faithful English.
+
+The 847 bad sentences and 332 wrong units are sentences the earlier
+rounds had passed; the gloss pass was a second reading of every card by a
+fresh reviewer and caught what the first missed. All dropped. 73 Gemini
+findings on unbracketed complements were set aside as before.
+
 ## What is still open
 
-- The 38,000 cards without a gloss have been read for sentence quality
-  and unit fit but not against an English translation; the gloss check
-  happens when the Azure job supplies one.
+- 15,882 of the agent-glossed cards have Claude's verdict on the gloss
+  only; a Gemini pass over `gloss1/cards_121.txt` onward waits for its
+  quota. Gemini Flash at low effort found 10 bad glosses where Claude found
+  189 on the same cards, so a stronger Gemini tier is the better second
+  reader for glosses.
 - Adjective-noun and collocation displays that carry a governing
   preposition (`auf freiem Fuß`) blank only the adjective and noun. Both
   reviewers keep flagging the unbracketed preposition; blanking it would

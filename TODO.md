@@ -10,13 +10,15 @@ only when the previous one is shown to work, and the owner confirms each step.
 
 ## First thing next session
 
-- **Review the agent glosses.** About 38,000 cards got a Gemini-agent
-  English gloss on 2026-09-09/10 that no reviewer has read. Run
-  `review_deck.py batches <dir> --everything`, keep only the cards whose
-  gloss is new since round step5 (compare against
-  `docs/audits/phase-1-review/reviewed-card-ids-round-step5.txt` plus a
-  "had no gloss then" filter), both vendors, BAD_GLOSS is the category to
-  watch; then apply and rebuild.
+- **Gemini's half of the gloss review.** Its quota ran out after 121 of
+  195 batches; rerun `review_deck.py gemini` over the batches from
+  `cards_121.txt` on (in the session scratchpad `gloss1/gemini`, or
+  regenerate with `batches --gloss-source gemini --card-batch 200`), with
+  a higher Gemini tier than flash-low, which found 10 bad glosses where
+  Claude found 189. Then apply as round gloss2.
+- **Rebuild after the gloss review replaced cards**: the cards stage picks
+  replacements for the 1,000-odd dropped cards, and those replacements
+  need the usual review step (`batches` lists them).
 
 ## Phase 0: prune (done 2026-09-08 on `feat/phrase-deck`)
 

@@ -1868,3 +1868,1665 @@
 - b6e8e2382632  # WRONG_GAPS: The reflexive pronoun of the displayed unit is not bracketed, unlike the reflexive_verb cards.
 - ba601f2eb1f6  # WRONG_UNIT: Here aufliegen means 'be available for inspection' and the auf-PP is a location, not the unit's co
 # Review round step5.
+# Review round gloss1.
+- 0011edb2a01c  # WRONG_UNIT: The sentence uses 'vor ... stehen', not the separable verb vorstehen.
+- 006475cc15de  # BAD_SENTENCE: 'Desweiteren' is an obsolete/incorrect spelling of 'Des Weiteren'.
+- 006d50c14bc6  # WRONG_UNIT: Preposition 'in' is missing from the sentence; 'nahe Zukunft' is used as an accusative object.
+- 006d83ccd930  # BAD_SENTENCE: Misspelling 'Zungespitze' instead of 'Zungenspitze'.
+- 008f199971ae  # BAD_SENTENCE: "nieder zu knien" must be written "niederzuknien".
+- 00d238fcc72f  # WRONG_CASE: This sentence uses ueber dem Spiel (Dativ, static), which contradicts the displayed +Akk.
+- 00dfa548b69d  # BAD_SENTENCE: "nachdem was ich so gehört habe" is ungrammatical for "nach dem, was".
+- 00e54a5c4384  # BAD_SENTENCE: Duplicated word 'mit mit'.
+- 00f5c27c4310  # WRONG_GAPS: The sentence uses reflexive sich zusammensetzen but the reflexive pronoun sich is not bracketed.
+- 010c998142c3  # BAD_SENTENCE: 'Ist es möglich, dass wir uns eingebettet haben?' is not a natural German sentence.
+- 0127ebb3e12e  # WRONG_UNIT: Uses the reflexive construction 'sich festlegen' with 'sich' unbracketed and missing from the unit
+- 0167960969d6  # BAD_SENTENCE: Sentence is cut off mid-phrase ('mit der weltweiten.'), and the gloss reproduces the truncation.
+- 01a00c96ecaa  # WRONG_GAPS: vom Himmel is a core part of the idiom but is left outside the gaps on every card of this unit.
+- 0253210183dc  # BAD_SENTENCE: 'Kann man ja auch abgiessen.' is an elliptical forum fragment without a stated object.
+- 026f2ca9cdba  # WRONG_UNIT: The bracketed "beim Hochwasserschutz" is a topic adverbial; the unit's bei is the unbracketed "Bei
+- 02815eee2eaa  # BAD_SENTENCE: Typo with double 's' in 'dass' where the pronoun 'das' is required.
+- 028edea2be1a  # BAD_SENTENCE: Country name missing after 'in', leaving 'Partei in wirft der DPP' ungrammatical.
+- 02937004be66  # BAD_GLOSS: "little attractive peripheral districts" is not idiomatic English for "wenig attraktive Randbezirke
+- 02a8b9b9d16b  # BAD_SENTENCE: Grammatical error: 'In den ersten sieben Jahre' should be 'sieben Jahren'.
+- 02c24bcb81b3  # BAD_GLOSS: Gloss begins with a stray unmatched quotation mark.
+- 02dd1b518210  # BAD_SENTENCE: The idiom is misused and the sentence is incoherent.
+- 02f837f9d9ad  # BAD_SENTENCE: Nonsensical and unnatural German sentence: 'Meine Schwester kehrt mir den Schwanz zu.'
+- 030a5a3d364f  # BAD_SENTENCE: Ich mein plus ellipsis is clipped subtitle speech, not a well-formed written sentence.
+- 031d4ab0077c  # BAD_SENTENCE: Incomplete sentence fragment lacking a main verb.
+- 0330da409dbd  # BAD_SENTENCE: Typo in 'HTMl'.
+- 0335885a1ebd  # WRONG_UNIT: auf der Gegenseite is a dative locative phrase, not absacken auf plus accusative target.
+- 034ab556404f  # BAD_SENTENCE: Typo "ultimatv" for "ultimativ".
+- 034f087a3b05  # BAD_SENTENCE: "verbleiben bei predigten" is a scraped website artifact, not a real sentence, and the gloss rep
+- 036834d6cb43  # BAD_GLOSS: 'Now they are held out the prospect of staying' is not grammatical English.
+- 03aa43423471  # BAD_SENTENCE: Ich halt jetzt die Klappe uses the clipped spoken form instead of halte.
+- 03e9795a90ed  # BAD_GLOSS: 'really broke their teeth up front' is a calque that carries no meaning in English.
+- 03ea51555d28  # BAD_SENTENCE: 'nicht im Glückspiel' is misspelled and unidiomatic German.
+- 0409d7351618  # WRONG_UNIT: The sentence contains the verb vorlegen rather than vorliegen.
+- 0425d8b46ef5  # WRONG_UNIT: der Reihe nach is an adverbial phrase; the sentence uses berichten, not nachberichten.
+- 0449bae178f0  # BAD_SENTENCE: The sentence is a headline fragment lacking a determiner before the singular count noun 'Schausp
+- 044d5804a176  # WRONG_UNIT: "sich dagegen sträuben" uses dagegen as a pronominal adverb, not as the contrastive connector.
+- 04a0d4db1328  # BAD_SENTENCE: Typo 'anwantlichen' instead of 'anwaltlichen'.
+- 04d547d71808  # BAD_SENTENCE: Run-on scrape artifact: heading Praxissemester (5. Semester) is glued to the sentence.
+- 04eb3a8623af  # BAD_SENTENCE: "Wie fand deines damals raus?" is not self-contained and reads ungrammatically.
+- 04f5b865f12c  # BAD_SENTENCE: Contains the English word "survived" in place of a German verb.
+- 04fa35e8fa81  # BAD_SENTENCE: Sentence contains a fantasy name fragment 'f'Lir' without context.
+- 0527cb6684af  # WRONG_UNIT: 'als Kind' is an adverbial role phrase meaning 'as a child', not a complement of 'begreifen als'.
+- 052ba664917e  # BAD_SENTENCE: 'sich ein Lächeln abmühen' is not idiomatic; standard is 'sich ein Lächeln abringen'.
+- 055c458d31a0  # WRONG_UNIT: The clause is "in den Mund stecken" with an elliptical "nicht woanders hin"; the gaps do not form 
+- 055f28845598  # WRONG_GAPS: Sentence uses reflexive 'sich anhören' (sound) but 'sich' is not bracketed.
+- 057bda0746ab  # WRONG_UNIT: 'mit oder ohne Anspruch' is the preposition mit, not the separable prefix of mithaben.
+- 05af8be775fc  # WRONG_UNIT: The sentence uses transitive 'täuschen' with reflexive 'lassen', not the reflexive verb 'sich täus
+- 060d04647840  # WRONG_UNIT: "mit oder ohne Armlehnen" is the preposition mit, not the separable prefix of mitbieten.
+- 065a5e9bde46  # BAD_SENTENCE: Grammatically incorrect inflection: 'an offenen Fenster' instead of 'am offenen Fenster'.
+- 0677bb5fca6e  # BAD_GLOSS: "From the gray mouse became a colorful bird" is not grammatical English.
+- 06a9fac6b9d8  # BAD_SENTENCE: Contains headline junk with '- Yahoo!' appended.
+- 06b42b0dbf67  # WRONG_UNIT: No prepositional "an" here; the verb takes a bare dative object and the bracketed [an] is only the
+- 06bcedade189  # BAD_SENTENCE: "kein so überzeugendes Argument für das du es hältst" is ungrammatical German.
+- 06e342d61941  # WRONG_UNIT: The construction lassen sich verbergen uses sich lassen with a passive infinitive rather than the 
+- 06e9fd9783f3  # BAD_SENTENCE: Garbled subtitle text that is not grammatical German, and the gloss does not match it.
+- 0706bb2fc88b  # BAD_SENTENCE: Bare infinitive fragment with no main clause.
+- 0714504a8c04  # WRONG_UNIT: Here it is 'frei lassen' (leave clear), not the verb freilassen (to release).
+- 078479b1927a  # BAD_SENTENCE: Ungrammatical: verbieten needs dative, ist niemandem verboten.
+- 07b523930bc3  # BAD_SENTENCE: The subject is a stray initial "E", so the sentence is not self-contained.
+- 07d94dd334df  # BAD_SENTENCE: The sentence contains trailing web-scraping junk ('- Yahoo!').
+- 07ff7e8d4344  # BAD_SENTENCE: Incomplete sentence with a broken start: 'Bei soll er wieder...'.
+- 08071e953762  # BAD_SENTENCE: Typo in genitive article 'Der Hof der Kaisers' (should be 'des Kaisers').
+- 08618d9d9959  # WRONG_UNIT: Instantiates the reflexive verb 'sich zutragen' rather than non-reflexive 'zutragen', missing refl
+- 08a774666d2c  # WRONG_UNIT: The verb here is sich ausdehnen; the prefix 'aus' is left unbracketed outside the unit.
+- 08c9b626cc59  # WRONG_UNIT: The idiom 'sich die Zähne ausbeißen' is not present here; it is the literal breaking of a single t
+- 08daa1b31b09  # WRONG_UNIT: The prepositional construction 'auf ... zufahren' is not the unit 'zufahren'.
+- 08f8c2795989  # BAD_SENTENCE: The sentence is truncated with a missing value after 'bei' ('bei waschen').
+- 0920d28b0649  # BAD_SENTENCE: Sentence fragment with unmatched closing parenthesis.
+- 0923472315ba  # BAD_SENTENCE: 'Der Zeichenakt' is opaque jargon; the sentence is not self-contained for a learner.
+- 095da90a264b  # BAD_SENTENCE: Predicate noun lacks its article ('ist es normal und notwendiges Übel'), so the German is defect
+- 099cd7ed270c  # BAD_SENTENCE: Subjectless press caption with a trailing name, not a sentence.
+- 099de02c86c2  # BAD_GLOSS: "black numbers" is a literal non-idiom; the sense is "expect to be in the black / a profit".
+- 09adacdf1c56  # BAD_SENTENCE: Garbled character: NaturÉich instead of Natürlich.
+- 09ddfc597755  # BAD_SENTENCE: The sentence mixes formal 'Sie' and informal 'euch' in one address.
+- 09f06b7ac9d5  # WRONG_UNIT: The sentence uses warnen vor + Dat (warn against data assets), not the separable verb vorwarnen, a
+- 0a28c2eab068  # BAD_SENTENCE: With the Sie-imperative the possessive must be capitalised 'Ihre', not 'ihre'.
+- 0a3eb17a4c14  # BAD_SENTENCE: Stray empty parentheses after 'Superman' left by the source cleanup.
+- 0a4923c7064e  # BAD_SENTENCE: OCR damage: 'vor 1 4 Jahren', carried into the gloss.
+- 0a4b077b8a1c  # BAD_GLOSS: "durchaus zweifelhaft" means rather dubious, not "entirely dubious".
+- 0a8ee3437e74  # BAD_SENTENCE: Fragmentary, unnatural spoken-subtitle German with drug-scene content unsuitable as a learner ca
+- 0adefaefd710  # BAD_SENTENCE: 'Und fliegende Untertasse schaffte es auf die Liste?' lacks the required article and is not natu
+- 0ae1287e02b3  # BAD_SENTENCE: Grammar error with incorrect article gender: 'der Fahrzeug' instead of 'das Fahrzeug'.
+- 0b1a7f841da5  # WRONG_UNIT: The sentence has only "Töne spucken" without "große", so it does not instantiate the displayed uni
+- 0b42f892d11c  # WRONG_UNIT: 'das Feld frei lassen' (leave blank) is written separately and is not the verb freilassen.
+- 0b4d72a32e3c  # WRONG_UNIT: Here 'zusammen' means 'combined' in the comparison, not a separable prefix of 'holt', as the gloss
+- 0bb28bc941d2  # BAD_GLOSS: write along themselves is not English; the sense is may even contribute to the writing.
+- 0bc98cd5d5d5  # WRONG_UNIT: The reflexive pronoun 'dir/sich' is missing in this non-reflexive use.
+- 0c09f1e23bbf  # BAD_GLOSS: 'I'll wipe your face' misses that the German is a crude threat of violence.
+- 0c7b426a34b6  # BAD_SENTENCE: 'sich rühmen mit' is non-standard German, as the standard valency is genitive ('sich einer Sache
+- 0c86abfda419  # BAD_GLOSS: 'borders on Nintendo sounds' loses the 'narrowly misses' sense of vorbeischrammen.
+- 0c970a9dfd95  # WRONG_GAPS: Unit tokens ('um', 'den', 'herumreden') are missing from the brackets.
+- 0cb33ebd558a  # WRONG_UNIT: Sentence has 'wirres Zeug', so the card does not show the displayed collocation 'dummes Zeug'.
+- 0cc7a2df160b  # BAD_SENTENCE: Contains decapitalized nouns "fall" and "ermittlungen".
+- 0cf229e11ac6  # WRONG_UNIT: The bracketed token is festlegen, a different verb from the displayed unit festliegen.
+- 0cfed7bfce9e  # WRONG_UNIT: 'sagt weiter' here is gaming/card jargon for passing rather than the unit 'weitersagen' (to pass o
+- 0d15668d4098  # BAD_SENTENCE: Explicit sexual content unsuitable for a learner deck.
+- 0d22d74b88b6  # WRONG_UNIT: 'Vor uns' is a local adverbial, not the causal 'vor' of the unit.
+- 0d4c26074e8f  # WRONG_UNIT: The prepositional construction 'auf ... zufahren' is not the unit 'zufahren'.
+- 0d61d37ffcc7  # BAD_SENTENCE: Subjectless fragment with a broken compound 'Erwachsenen- Ärger'.
+- 0d7896c953ee  # WRONG_UNIT: Aus dem Bauch heraus is an idiom and arbeiten is not the separable verb herausarbeiten.
+- 0da14a252d5b  # BAD_SENTENCE: Subjectless colloquial fragment ("Kann 'nen Joint rauchen ...").
+- 0da4d669596d  # BAD_SENTENCE: Sentence is truncated ("Kampfflugzeugen an die zeigte sich"), and the gloss ends mid-phrase.
+- 0dbf54e5a076  # BAD_SENTENCE: "Egal, bringen sie sie zurück" is an imperative with lowercase sie, so it is ungrammatical.
+- 0e163403b796  # BAD_SENTENCE: Noun in the gap is lowercased ('glocke') instead of 'Glocke'.
+- 0e35e3a169c0  # BAD_SENTENCE: 'Messe-Karussel' is misspelled (Karussell).
+- 0e60d77d77e9  # WRONG_UNIT: "nehmen ... an" and "suchen nach" are two separate verbs, not the verb "ansuchen".
+- 0e708c35f2d3  # BAD_SENTENCE: Truncated sentence: "in einem gesunden -" is missing its noun, and the gloss reproduces the trun
+- 0e79453ad30b  # BAD_SENTENCE: Uses obsolete pre-reform spelling 'Paß' instead of 'Pass'.
+- 0e890514f19a  # WRONG_UNIT: "streben ... an" and "suchen" are two separate verbs, not the verb "ansuchen".
+- 0ea10a2ae2af  # BAD_SENTENCE: Ungrammatical 'durch ihr besondere Form' (should be 'ihre besondere Form').
+- 0ec9d562c246  # BAD_SENTENCE: Misspelling: ausklügelten should be ausgeklügelten.
+- 0ede34d96554  # WRONG_UNIT: Instantiates denken an with preposition an, not separable verb andenken.
+- 0ef445f4c4e3  # BAD_SENTENCE: "Die Weg" has the wrong gender; it must be "Der Weg".
+- 0f5a4f7c6cc7  # BAD_SENTENCE: Headline fragment with truncated word 'US-Jus.' and missing article before 'Einigung'.
+- 0f9e66d7c08c  # BAD_SENTENCE: Es sprudelt nur so gute Noten is ungrammatical since sprudeln takes no accusative object.
+- 0fb18863bdd5  # BAD_SENTENCE: Obsolete pre-reform spelling 'schloß' instead of 'schloss' in the gap.
+- 0fdb0ffdd0aa  # BAD_SENTENCE: Missing article before 'American-Football-Star'.
+- 0ffc75e95400  # BAD_GLOSS: "invites to a hike" is not English; needs an object such as "invites people to a hike".
+- 102a332ef78f  # BAD_SENTENCE: Incorrect comma splice before the prepositional phrase.
+- 1041f85ab3c6  # WRONG_GAPS: The unit tokens "auf", "die", and "geraten" are missing from the brackets.
+- 104384d26a87  # WRONG_UNIT: Here fest is a free adverb in the idiom fest im Sattel sitzen, not the prefix of festsitzen.
+- 1065c53cd3c5  # WRONG_UNIT: The prepositional construction 'auf ... zufahren' is not the unit 'zufahren'.
+- 10672214a80e  # WRONG_UNIT: Uses reciprocal/reflexive 'sich abstimmen' rather than plain 'abstimmen'.
+- 1077fa8efd30  # BAD_SENTENCE: Contains un-German spelling 'ueberall' instead of 'überall'.
+- 10964ebf0ded  # BAD_SENTENCE: Punctuation/syntax error: 'Stumpfen wir ab, gegen jede Barbarei.' is not a grammatical sentence.
+- 109dcd074102  # WRONG_UNIT: 'Sich in der Natur ergehen' uses the literal, dated sense of strolling, not the idiomatic phrase '
+- 10bbd995f543  # BAD_SENTENCE: Word order is wrong: 'benötigen beide Fohlen noch aber ein wenig Übung' should be 'aber noch'.
+- 10ca9bc693c9  # WRONG_CASE: Sentence uses dative ('über einem Stahlkern') indicating location rather than accusative.
+- 10ef3875065d  # WRONG_GAPS: The unit token 'lassen' ('lass') is not bracketed.
+- 10fb5528d651  # BAD_SENTENCE: Sentence has a broken grammatical structure ('Rangliste der aus den Top Ten').
+- 11525feca3bd  # BAD_SENTENCE: Missing dative article: "Fällt Teamspieler ... das Auge raus?" is ungrammatical.
+- 11617e6375b0  # WRONG_UNIT: The idiom is 'die Suppe auslöffeln' rather than plain 'auslöffeln'.
+- 116533067e25  # BAD_SENTENCE: Headline fragment ending with website junk '- Yahoo!'.
+- 1194968eea8b  # WRONG_UNIT: 'einen bösen Blick drauf haben' is not the 'draufhaben' (be skilled at) unit, and the gloss is inc
+- 11a48fb6c13d  # BAD_SENTENCE: Subordinate-clause fragment ("Da dies nicht ... entspricht."), not a standalone sentence.
+- 11bc3fc7637e  # WRONG_UNIT: Sentence uses 'helfen' with prepositional phrase 'fern ab von' rather than the separable verb 'abh
+- 11d2ca026c20  # BAD_SENTENCE: Subject lacks its article ("Ring kann ..." instead of "Der Ring").
+- 11d38bfcc4f7  # WRONG_GAPS: The unit token 'lassen' is missing from the brackets.
+- 11e83e5451f4  # WRONG_UNIT: The sentence contains the tag question 'nicht wahr?' with main verb 'haben', not the verb 'wahrhab
+- 12153dbe2091  # BAD_GLOSS: The English gloss 'suck out my leg' translates 'aussaugen' incorrectly in this context.
+- 1215bd6e78a8  # WRONG_UNIT: The verb used in the sentence is auflegen, not aufliegen.
+- 1230a045413e  # WRONG_UNIT: "Nach der ehemaligen Bruckmuehle" is a separate local adverbial; the verb here is abbiegen with "l
+- 12a1a947c0cf  # BAD_GLOSS: Translates the idiom literally as 'with hard bandages' instead of 'with no holds barred' or 'play h
+- 13096628fe53  # WRONG_GAPS: The unit is 'im Dunkeln tappen'; bracketed 'im' contracts 'in dem' and leaves out 'Dunkeln'.
+- 131a743074be  # BAD_SENTENCE: Einen Verlust auslegen is not German; the verb should be ausweisen, and the gloss is nonsense to
+- 132b03d9d83c  # BAD_GLOSS: 'tricking a scientific culture' is not idiomatic English for austricksen (outwit, outmaneuver).
+- 13462e00ec3f  # WRONG_UNIT: "nichts dagegen einzuwenden" is a pronominal adverb, not the contrastive connector.
+- 1356e869e95f  # BAD_SENTENCE: 'Eine professionelle Hilfe, die Geld kostet.' is a noun-phrase fragment, not a sentence.
+- 1369eac6649e  # BAD_GLOSS: 'I am breaking my teeth right now' is unintelligible English for 'I am struggling with it'.
+- 13d74277cede  # WRONG_UNIT: "näherte sich der Maus an" uses a bare dative, not "an + Akk".
+- 1438af7ae08b  # BAD_SENTENCE: Thomas Werks Werk zum Sehen an is garbled and the gloss guesses at it.
+- 1496cdb5a1f8  # BAD_SENTENCE: Grammatical error in adjective ending: 'alle juristische Möglichkeiten' instead of 'alle juristi
+- 14de9e7876a1  # BAD_SENTENCE: Incomplete sentence fragment with ungrammatical prepositional question construction ('Mit was...
+- 14f428bd1b14  # BAD_SENTENCE: Mojibake in the German: "dafŸr erwŠrmen".
+- 1504125f058f  # BAD_GLOSS: 'This Trump had held out in prospect to him' is garbled English word order.
+- 1537cc735999  # BAD_SENTENCE: Missing comma before the um-zu clause makes the sentence ungrammatical as written.
+- 154054d210d7  # BAD_SENTENCE: Should be 'im diplomatischen Dienst tätig'; the dative article is missing.
+- 154eed294a24  # BAD_SENTENCE: The sentence uses Swiss spelling 'Grossverteiler' with ss instead of ß.
+- 155558db1ca6  # BAD_SENTENCE: Grammatical error: "ein Zigarette" should be "eine Zigarette".
+- 15574afbe873  # BAD_SENTENCE: The sentence is incomplete, cutting off abruptly after 'mit dem'.
+- 15b80f327108  # BAD_SENTENCE: Subjectless fragment, not a self-contained sentence.
+- 16276c8537f8  # WRONG_UNIT: angesagt sein here is the idiom 'to be called for', not the verb ansagen.
+- 1661c907f821  # BAD_SENTENCE: Sentence has a grammatical typo in the gap: 'beschlossene Sachen' instead of 'beschlossene Sache
+- 16b43f5dc023  # BAD_SENTENCE: Unidiomatic and ungrammatical English calque 'Er ist eine harte Nuss zu knacken'.
+- 16e912e023b9  # WRONG_UNIT: 'uns' is an indirect object pronoun rather than the reflexive 'sich einen Kampf liefern'.
+- 1716170788ac  # BAD_SENTENCE: A headline and a sentence are run together with no punctuation.
+- 1749b411cecf  # BAD_SENTENCE: 'wie so' should be 'wieso' and clipped 'hab' makes it substandard written German.
+- 17510a90c0f3  # BAD_SENTENCE: Elliptical fragment 'Ständig, in freier Wildbahn, verstehst du?' is not self-contained.
+- 1753dc115d42  # BAD_GLOSS: 'Vor uns haben sie kapituliert' means they surrendered to us, not 'Before us they surrendered'.
+- 1761aa2437c3  # BAD_SENTENCE: Two spliced quoted fragments rather than one self-contained sentence.
+- 176522e87624  # BAD_SENTENCE: "schweißendes Haar" is not German (should be schweißnasses).
+- 179c1a4f9d8e  # WRONG_UNIT: Sentence uses 'sitzen um ... herum' with postposition 'herum', not the intransitive verb 'herumsit
+- 1855e31f7ea6  # BAD_GLOSS: "He met with open ears with that" is not English; the idiom means he found a receptive audience.
+- 18630ba30ad9  # BAD_GLOSS: "Now the red pencil is applied" is a literal rendering that hides the idiom "now cuts are being mad
+- 1868342401a1  # BAD_SENTENCE: Ungrammatical: dative requires 'auf hohem Niveau', and nominalised 'Jammern' should be capitalis
+- 188d34ffa4a1  # WRONG_GAPS: Unit tokens ('um', 'den', 'herumreden') are missing from the brackets.
+- 189b2e525a8a  # BAD_SENTENCE: The gap word is spelled "auslaendischen" in ASCII transliteration instead of correct German.
+- 18b051e1a994  # BAD_SENTENCE: Capitalised 'Sie' clashes with the verb form; 'blickt sie sich um' is meant.
+- 18c0044eff4e  # BAD_SENTENCE: Grammatically incorrect accusative form 'einen stechenden Schmerzen' instead of 'Schmerz'.
+- 18db771f533c  # BAD_SENTENCE: 'Ich suche nach, Peter Grant.' is not a self-contained natural German sentence.
+- 18e7baabb1e9  # BAD_SENTENCE: Incomplete sentence fragment lacking a subject.
+- 18f3e5667aaa  # BAD_SENTENCE: Contains obsolete spelling Bewußtsein in the gap.
+- 18f7756d0742  # BAD_SENTENCE: Dative should be 'mit einem weichen Herzen'.
+- 18fb46088295  # BAD_GLOSS: Idiomatic "das hat mir das Genick gebrochen" (was my undoing) is rendered literally as "That broke 
+- 1927c5fb02dc  # BAD_GLOSS: 'There was no clinical study, wasn't there?' is not correct English ('was there?').
+- 192d9e66373f  # WRONG_UNIT: The sentence uses anlegen (Sicherheitsgurt anlegen), not anliegen.
+- 196a8c5636c2  # WRONG_UNIT: "einen Erben" is der Erbe (heir), not das Erbe (legacy) of the displayed unit.
+- 19d011704ef4  # WRONG_UNIT: Here 'um sich' is a prepositional phrase with non-reflexive use of 'scharen' ('Gefolgsleute um sic
+- 19e95e27079f  # WRONG_UNIT: Uses reflexive 'sich anschließen' but unit is plain 'anschließen'.
+- 19f4384741b4  # BAD_GLOSS: Here 'freistellen' means place on leave or release, not 'exempt'.
+- 1a2439ef5e2d  # BAD_SENTENCE: "Euro sichert die Position ab" is article-less financial headline style, not a natural sentence.
+- 1a34a78145d3  # WRONG_UNIT: The sentence has adverbial "geradeaus steuern"; "aus" is not the separable prefix of aussteuern.
+- 1a60191345d7  # BAD_SENTENCE: The sentence is an incomplete fragment lacking a main clause/subject.
+- 1a64417a30b4  # BAD_GLOSS: German thousands separator kept in English: '9.000 operations' reads as nine.
+- 1aa3eb4bcf89  # BAD_SENTENCE: The sentence has broken punctuation with empty parentheses '()'.
+- 1ab4cee24e42  # BAD_SENTENCE: Nonsensical German sentence ('Sie, frischen Sie das Laub auf.').
+- 1b198b98f34b  # WRONG_UNIT: The construction is the prepositional circumposition 'um ... herum' with 'fahren', not the separab
+- 1b19b748b1ef  # BAD_SENTENCE: OCR error Weit for Welt, which the gloss silently corrects to wide world.
+- 1b2e16053834  # WRONG_UNIT: Here 'Einstellungen' means technical settings/configurations, not attitude/mindset.
+- 1b4a4a4c34f0  # BAD_GLOSS: Translates the idiom literally as 'with hard bandages' instead of 'with no holds barred' or 'play h
+- 1b559cecff04  # BAD_SENTENCE: Ungrammatical case government: trotzen requires dative.
+- 1b7524908791  # WRONG_UNIT: Sentence uses ausarten zu + Dativ, not the displayed ausarten in + Akkusativ.
+- 1b8f270c151f  # WRONG_UNIT: Uses 'einfallen' instead of the causative construction 'sich etwas einfallen lassen'.
+- 1bb24be584ba  # WRONG_UNIT: The sentence uses the reflexive idiom 'sich herausnehmen / sich rausnehmen', not plain 'rausnehmen
+- 1bb7e67e9110  # BAD_SENTENCE: Typo: "aus der Falsche" should be "aus der Flasche".
+- 1bbd7a5ddfd3  # WRONG_UNIT: The sentence uses 'zusammenlegen', not 'zusammenliegen'.
+- 1bdc311d26b4  # BAD_SENTENCE: 'Fieberglasstab' is a misspelling of 'Fiberglasstab'.
+- 1be06b4c136f  # BAD_GLOSS: 'schon einmal' means 'once before/already', not 'for once'.
+- 1bfc4e9d8149  # BAD_SENTENCE: Sentence has broken syntax or missing word before '-Stadträtin'.
+- 1c1fd68de800  # BAD_SENTENCE: Ungrammatical: 'die ... verursachten Schaden' should be plural 'Schäden'.
+- 1c49092ba522  # BAD_GLOSS: "Riss am Schädel" glossed as "fracture"; Riss is a crack/tear.
+- 1c7090ba2018  # BAD_SENTENCE: 'In Mensa' is missing the article ('In der Mensa').
+- 1c788ab13f9b  # BAD_SENTENCE: Contains obsolete pre-reform spelling 'Schlußstrich' inside the gap.
+- 1c98fb229c50  # WRONG_GAPS: Splitting across coordination 'geistige und körperliche Entwicklung' brackets disconnected tokens.
+- 1ce1cea92a78  # WRONG_UNIT: "sich dagegen aussprechen" uses dagegen as a pronominal adverb, not as the connector.
+- 1d3902881511  # BAD_SENTENCE: 'um den Vorwand betteln' is nonsensical and not natural German.
+- 1d4ca3646186  # BAD_SENTENCE: Bescheid is misspelled lowercase, so the required gap answer is misspelled.
+- 1d575f5a41df  # WRONG_UNIT: The bracketed token is a predicate adjective meaning overworked/exhausted, not the verb abarbeiten
+- 1d6fa0cc539e  # BAD_SENTENCE: Ungrammatical: 'im öffentlichen Verkehrsmitteln' mixes singular article with plural noun.
+- 1d933be71799  # BAD_SENTENCE: 'Seit dem' is misspelled for 'Seitdem'.
+- 1da0a88401eb  # WRONG_UNIT: "hat" and "weg" are in different clauses ("du rennst weg"), so they do not form weghaben.
+- 1e3454b322eb  # WRONG_UNIT: The sentence has gesundheitliche Gruende as an object, not the fixed phrase aus gesundheitlichen G
+- 1e705d863f1c  # WRONG_UNIT: The sentence instantiates the verb 'zurücklegen', not 'zurückliegen'.
+- 1e746dc48d02  # BAD_SENTENCE: Sentence contains a racial slur and is unsuitable for a learner deck.
+- 1eabdeff04fe  # BAD_SENTENCE: "ihn einsitzen lassen" is not idiomatic German; einsitzen is intransitive and not used causative
+- 1f47bb53328c  # WRONG_UNIT: "nicht wahr?" is a tag question, not the separable verb "wahrmachen".
+- 1f54e8da961f  # BAD_GLOSS: Perfect 'habe ... zusammengebissen' rendered as present 'I grit my teeth'.
+- 1f632bd74ae7  # WRONG_UNIT: Sentence uses plural 'Einstellungen' meaning settings/preferences rather than the attitude sense o
+- 1f6f4455e4b1  # BAD_GLOSS: He sends his bear figurine after is not grammatical English; after needs an object.
+- 1f9383f44ffb  # WRONG_UNIT: The verb used here is 'ausführen' (to take out), not 'ausfahren'.
+- 1fa77797d8c9  # WRONG_UNIT: "im Wind wiegen" is literal physical swaying, not the idiomatic/figurative "sich wiegen in +Dat".
+- 1fc054b4eb1b  # BAD_SENTENCE: Grammatical error: 'nach' requires dative plural 'Nachzüglern' or dative singular 'dem Nachzügle
+- 1fc9e9723c26  # BAD_SENTENCE: 'ein gutes Gespür auf der Seite' is not idiomatic or self-contained German.
+- 1fdf07f8f5f5  # WRONG_UNIT: "abgesehen von" here is the fixed preposition "apart from", not the verb absehen von (refrain).
+- 1fefc0f1387b  # BAD_SENTENCE: Headline style with a bare "Kind" and no article; not a natural full sentence.
+- 2051736c1753  # BAD_SENTENCE: The sentence is an incomplete fragment lacking a subject.
+- 208c93a9cec8  # BAD_SENTENCE: Ungrammatical dubbing line whose second clause does not connect to the first.
+- 20999e6a7c28  # BAD_SENTENCE: 'Dieser wird sicher schon hundertmal angestimmt' is tense-broken and not self-contained.
+- 20b775625cbc  # BAD_SENTENCE: 'Mund auf und ich lege sie weg.' is elliptical dialogue that makes no sense standalone.
+- 21428c3c1f8a  # WRONG_GAPS: The unit token 'lassen' is missing from the brackets.
+- 2150b814c4af  # WRONG_UNIT: geborene here is the participle of the birthplace phrase in San Francisco geboren, not the colloca
+- 215c9266fdda  # BAD_SENTENCE: The direct question ends with a period instead of a question mark.
+- 2191b6e275e0  # BAD_SENTENCE: Grammatically incorrect prepositional phrase 'erreichten sie in einen dichten Wald'.
+- 219c97615811  # BAD_SENTENCE: Dative object with anspucken plus the obscure dialect noun Schick makes the sentence unnatural.
+- 21c280df5850  # WRONG_UNIT: "führe" here is Konjunktiv II of fahren (wegfahren), as the gloss "drive away" confirms, not wegfü
+- 21d2f15b8b91  # BAD_SENTENCE: 'beim von grünen Bohnen' is broken German with a missing noun, and the gloss papers over it.
+- 2214acb995ac  # BAD_SENTENCE: "HDD-Sheriff Welche Vorteile verschafft der HDD-Sheriff?" is a heading glued to a question, not 
+- 221fe6c73366  # BAD_SENTENCE: "und einer zugleich hohen Innenfestigkeit" is in the wrong case after durch.
+- 2223ca19d0c3  # WRONG_UNIT: Uses 'jemanden am Arm rütteln' where 'an' indicates the body part grabbed rather than 'an etwas rü
+- 222f69e525f6  # BAD_SENTENCE: Headline-style subordinate clause with no main clause.
+- 2231df912ca7  # BAD_SENTENCE: Grammatically incorrect and unnatural sentence.
+- 223b50db4eab  # BAD_GLOSS: 'I cut this through' is not idiomatic English for 'ich schneide das durch'.
+- 225bcdb5b88f  # BAD_SENTENCE: The sentence is an incomplete fragment ending abruptly with the preposition 'aus'.
+- 228db1f74963  # WRONG_UNIT: 'der Reihe nach' is an adverbial idiom; the tokens do not form nachlesen.
+- 229ebb5b6c2e  # BAD_SENTENCE: Elliptical advertising fragment; 'kombinieren' lacks its object.
+- 234041b59760  # WRONG_UNIT: The sentence uses 'vereinte Kräfte' without 'mit', failing to instantiate the displayed unit.
+- 2357093aed81  # BAD_SENTENCE: Sentence lacks a determiner for 'Tier' ('Tier befand sich in misslicher Lage').
+- 23699ada8d6d  # BAD_SENTENCE: 'auf einem Tieflader verladen' uses the dative where directional accusative 'auf einen Tieflader
+- 238aa11b2778  # BAD_SENTENCE: 'unsere Deich' is ungrammatical (unseren Deich / unsere Deiche).
+- 23afbabe99c4  # BAD_GLOSS: "durchaus" rendered as "entirely"; it means "quite/decidedly" here.
+- 23bd89e85eff  # WRONG_UNIT: Instantiates the reflexive verb 'sich zutragen' rather than non-reflexive 'zutragen', missing refl
+- 23d440ff15da  # BAD_SENTENCE: The sentence contains a duplicated an (arbeiteten gerade an an dem Computer-Problem).
+- 23e41be170ac  # BAD_SENTENCE: Elliptical stock-ticker jargon ("rücken GAM um 2,2% vor") with a plural verb on a company name.
+- 2404e1456ea7  # WRONG_UNIT: The bracketed tokens are 'fuehren ... hinaus' (hinausfuehren), not hinausfahren.
+- 2441ffef3a29  # BAD_SENTENCE: Noun 'aufenthalt' is misspelled with a lowercase initial letter.
+- 245c33f1e7cf  # BAD_SENTENCE: "Die war (fast) angelaufen wie immer" is an elliptical fragment that needs prior context.
+- 24615abf941a  # BAD_SENTENCE: "meine Drink" should be "meinen Drink".
+- 249e7fe1408d  # BAD_SENTENCE: The sentence contains a duplicated word, 'gern gern'.
+- 24ae6344e1a4  # BAD_SENTENCE: Contains web boilerplate "(hier mehr dazu lesen)" inside the sentence.
+- 24ebf09affb1  # WRONG_UNIT: The sentence is about jumping out of a train, entirely lacking the unit's verb and phrase structur
+- 24f8febceea1  # BAD_SENTENCE: "Noch grübelt Trainer aber nicht" lacks an article or name after Trainer.
+- 2512460eb590  # BAD_SENTENCE: After 'saemtliche' the adjective needs the weak ending: 'internationalen'.
+- 252db174c647  # WRONG_UNIT: "nicht wahr?" is a tag question, not the separable verb "wahrmachen".
+- 252f2b633c0e  # WRONG_UNIT: The verb used in the sentence is auflegen, not aufliegen.
+- 255552803de9  # BAD_SENTENCE: '250.000 solarthermische Kollektorfläche' is missing its unit and is ungrammatical.
+- 258e8d1d4ad5  # BAD_GLOSS: Herausgeben auf einen Dollar means make change from a dollar, not give change for a dollar.
+- 25afae4d9c39  # WRONG_UNIT: 'drangen ... auf' is geological aufdringen (to intrude), a different verb from aufdrängen.
+- 25ff9f3fb00f  # BAD_SENTENCE: 'Navigtionsschaltflaechen' is a misspelling of 'Navigationsschaltflaechen'.
+- 2611232ac605  # BAD_SENTENCE: 'Eine KFZ-Handbuch' has the wrong article gender; it should be 'Ein'.
+- 261ac80780cd  # BAD_SENTENCE: Agreement error: 'da sie ... nicht angelegt hatte' should be 'hatten' with the plural subject.
+- 2643dda57205  # WRONG_UNIT: hinein belongs to the phrase bis tief nach Russland hinein, not to the verb drängen.
+- 264cc9e880eb  # WRONG_UNIT: Chancen und Risiken werden abgewogen is abwaegen (weigh up), not abwiegen (weigh out).
+- 2662f999b522  # BAD_SENTENCE: "Nur der Tod schlaegt nirgends zweimal zu" is a garbled proverb and reads as nonsense.
+- 26666fc6cdfb  # BAD_SENTENCE: Singular 'im internationalen Gewaesser' is unidiomatic; the phrase is used in the plural.
+- 2710d6bced05  # BAD_SENTENCE: Typo 'Vibratonen' for 'Vibrationen'.
+- 2711eba6a6b1  # BAD_GLOSS: 'It is real, genuine tool' is ungrammatical English and misses that 'richtig' here means genuine, n
+- 275e66db3c38  # WRONG_UNIT: The bracketed verb is zugekommen; the unit instantiated is auf jemanden zukommen, not kommen auf.
+- 27ab922eda22  # WRONG_UNIT: "drum herum" is part of the circumposition/prepositional phrase "drum herum laufen", not the separ
+- 27cd22e587ba  # BAD_SENTENCE: Garbled archaic proverb ('Müßigkeit' for 'Mäßigkeit', 'Ruh') with unnatural comma.
+- 27d9a2fbae85  # BAD_SENTENCE: Corrupted token 'das Was r' instead of 'das Wasser'.
+- 27f359ec0f4c  # BAD_SENTENCE: "Oder aber, er schlägt ein." is not self-contained and its meaning is unrecoverable, as the glos
+- 27f69e8b7059  # BAD_SENTENCE: Swiss spelling 'Ausserdem' with 'ss' instead of standard German 'Außerdem'.
+- 284b6f77c663  # BAD_SENTENCE: "zu einer tödlichen Dosis ausgesetzt" is wrong; aussetzen takes a bare dative.
+- 289480ba1806  # BAD_SENTENCE: Speib-Geraeusch is obscure Austrian dialect and opaque to an A1-B2 learner.
+- 28a15a38abf9  # BAD_SENTENCE: Typo 'Weche' for 'Welche'.
+- 28bb6fcbfac9  # BAD_SENTENCE: OCR corruption "lhren" instead of "Ihren".
+- 28bd0e38148d  # WRONG_UNIT: Here "herum" belongs to "verkehrt herum", not to a separable verb herummachen.
+- 28c84f1f6142  # WRONG_UNIT: Instantiates transitive 'einsingen' (record vocals), not reflexive 'sich einsingen' (warm up voice
+- 28e1b80aee02  # BAD_SENTENCE: Duplicated preposition 'im in freier Wildbahn' makes the sentence ungrammatical.
+- 290b14adc694  # WRONG_UNIT: 'eine Frau mit 'ner Glatze' is the preposition mit, not mithaben.
+- 292408cc02ce  # BAD_SENTENCE: Elliptical, ungrammatical listing rather than a proper sentence.
+- 293bc116c065  # BAD_SENTENCE: Entlaesst is pre-1996 spelling; current orthography is entlaesst with ss.
+- 297416f0a671  # BAD_SENTENCE: Historischen is wrongly capitalised in 'Anlaesslich des Historischen Augenblicks'.
+- 2985872dbc38  # BAD_SENTENCE: 'in Operationsflugbahn' lacks the required article.
+- 29bcfc03a2c0  # BAD_SENTENCE: The noun is written lowercase as 'augenblick', which is also the answer the learner must type.
+- 2a4cddc8a9af  # BAD_SENTENCE: Missing the obligatory reflexive: it should be 'mache ich mich mal an den Papierkram ran'.
+- 2aaa79060e23  # BAD_SENTENCE: Polite imperative written with lowercase "sie" instead of "Sie".
+- 2ab25c848ab5  # BAD_SENTENCE: "Ich ersuche um meine Scherbe!" is semantically incoherent out of context.
+- 2abd011bc0bd  # BAD_SENTENCE: Elliptical sentence fragment lacking a main clause.
+- 2b11bbe5ad45  # BAD_SENTENCE: 'Carbon-Bauteilen liegen uns nicht fern' has a dative plural as subject and is ungrammatical.
+- 2bcfa6d5a972  # WRONG_UNIT: The sentence uses transitive 'täuschen' in a 'sich lassen' construction, not the reflexive verb 's
+- 2c00eadb7951  # BAD_SENTENCE: The noun Verhandlung is incorrectly written in lowercase as verhandlung.
+- 2c2eac196d37  # WRONG_UNIT: The sentence contains the tag question 'nicht wahr?' with main verb 'haben', not the verb 'wahrhab
+- 2c346a2e980d  # WRONG_UNIT: The sentence uses "gelangen" instead of the unit's verb "geraten", and unit tokens are unbracketed
+- 2c3f305d62f4  # BAD_SENTENCE: 'Der späte Abend sieht ihn auf der Straße' is an unnatural, unidiomatic phrasing in German.
+- 2c49102548b8  # BAD_SENTENCE: Article-less news headline with a trailing '- Yahoo!' source tag, not a natural sentence.
+- 2c5d497c524b  # WRONG_UNIT: The sentence contains the tag question 'nicht wahr?' with main verb 'haben', not the verb 'wahrhab
+- 2c80ec2ead7e  # BAD_SENTENCE: "Hätte zu dir gepasst, Großer" is a subjectless ellipsis needing prior context.
+- 2d2f34fdf4c5  # WRONG_UNIT: geborene modifies the birthplace phrase in Zell Pfarre, not the born-artist collocation.
+- 2d73e5fe37ef  # BAD_SENTENCE: Ungrammatical, verb missing ("... Willkommen ... die aufstrebenden Richter"), and the gloss is e
+- 2d95e726f444  # WRONG_UNIT: Here 'Wurf' refers literally to an animal litter rather than the idiom 'großer Wurf' (great succes
+- 2db0aae01789  # BAD_SENTENCE: Stray leading "Uhr" from a timestamp makes the sentence and its gloss ungrammatical.
+- 2ddb4160caa9  # WRONG_UNIT: The bracketed tokens belong to "Torchancen zulassen", not to zuspielen.
+- 2e04e77d2f44  # WRONG_UNIT: The verb here is 'abdecken' split with parenthetical 'dazu zählen', not the separable verb 'abzähl
+- 2eb96a7a850d  # BAD_SENTENCE: Faengst du mit Dreck zu werfen an has broken word order; it should be Faengst du an, mit Dreck z
+- 2ec67f8347bb  # BAD_SENTENCE: The sentence contains garbled grammar: 'Es bräuchte in den ganz großen Wurf'.
+- 2ee27c279298  # BAD_GLOSS: Gloss says 'is continued', which translates fortgesetzt, not vorgesetzt.
+- 2f0b39e84440  # BAD_GLOSS: Gloss drops the 'nach' sense (post-processed/retouched), so the gap is unhinted.
+- 2f2795e0f0d0  # BAD_SENTENCE: Not a sentence but a dangling relative clause with no antecedent.
+- 2f2aa6edddfc  # WRONG_UNIT: 'anders herum' is an adverbial direction phrase modifying 'fahren', not the separable verb 'herumf
+- 2f2aca66d9cc  # BAD_SENTENCE: Mixes "Sie" with "man" in the same sentence, which is ungrammatical style.
+- 2f525f657039  # WRONG_UNIT: aufgeweckt is the adjective meaning bright, not a form of the verb aufwecken.
+- 2f77227699cc  # BAD_SENTENCE: Elliptical verse line ('Der See kann sich, der Landvogt nicht erbarmen') is not a natural self-c
+- 2f7f029fe6b9  # WRONG_UNIT: The verb here is aufpumpen, not aufbieten.
+- 2f910e9745e7  # WRONG_UNIT: The sentence has only "kostet 'ne Stange"; "Geld" is absent, so the unit is not instantiated.
+- 2fb3e9e2cf41  # BAD_GLOSS: Gloss attaches "from Quebec" to the official rather than to the travelling, hiding the gap's meanin
+- 2fddcbad271e  # BAD_GLOSS: German present 'blitzen ab' is glossed as past 'were rebuffed'.
+- 3035084b0dcb  # BAD_GLOSS: Gloss switches to plural 'them' and ends in the dangling 'but it is not'.
+- 30561798eb08  # BAD_GLOSS: 'iron-willedly' is not idiomatic English for 'eisern'.
+- 30c290994630  # WRONG_UNIT: Sentence uses 'einer wissenschaftlichen Grundlage' instead of 'jeder Grundlage'.
+- 30cefd35a2b1  # WRONG_GAPS: The brackets split Blick and werfen with drauf in between, while drauf is not part of the collocat
+- 30f7051f61c0  # BAD_GLOSS: 'gleich zwei' means 'no fewer than two', not 'two ... right away'.
+- 30f8110ade00  # BAD_GLOSS: 'suffered shipwreck' is a literal rendering of the idiom 'Schiffbruch erleiden' (came to grief).
+- 31133e84168f  # WRONG_GAPS: The bracketed In is the fronted adverbial In Fernsehserien, not the unit's complement in den Leben
+- 316da2fa8c70  # BAD_GLOSS: 'Mit dir werde ich Schlitten fahren!' is the idiom 'I'll give you hell', not literal sledding.
+- 317771c627fd  # BAD_GLOSS: Capitalised Sie is formal you, but the gloss renders it as They.
+- 317e22fb6d99  # WRONG_UNIT: Bracketed preposition is zur (zu + Dat), which does not instantiate ausarten in + Akk.
+- 31b2b7df9efa  # WRONG_UNIT: "näherte sich dem Leipziger Tor an" uses a bare dative, not "an + Akk".
+- 31b6893fbb4b  # BAD_SENTENCE: The sentence is an incomplete clause fragment missing a subject and auxiliary or main clause.
+- 31ca414004e6  # BAD_SENTENCE: Relative-clause fragment with no main clause and no antecedent.
+- 31ceb41d9c90  # BAD_SENTENCE: The sentence has an erroneous apostrophe and is an incomplete fragment.
+- 31d0af0d0cd3  # BAD_SENTENCE: "die Konklave" is the wrong gender (das Konklave) and the sentence is opaque out of context.
+- 31ff5889cf3f  # BAD_SENTENCE: Begins with the fragment 'Zog nach L.A.' and is not a self-contained sentence.
+- 325cbd5a0830  # BAD_SENTENCE: Incorrect apostrophe in 'auf's'.
+- 32cc7a256549  # WRONG_UNIT: Uses reflexive 'sich anschließen' but unit is plain 'anschließen'.
+- 32deab27a8af  # BAD_SENTENCE: Typo in sentence with capital B used instead of Eszett (erschieBen).
+- 32f253017183  # BAD_GLOSS: The German means letting staff go home early; 'dismiss the employees earlier into the evening' is n
+- 332cdce7bae7  # BAD_GLOSS: "what you are telling" is incomplete English; should be "what you are saying/telling me".
+- 33467fe7aff9  # BAD_SENTENCE: Ungrammatical: 'Wie konnte ich nur auf deinen Scheiß reingefallen?' needs the infinitive 'reinfa
+- 3354c52d3144  # BAD_SENTENCE: Missing indefinite article before countable singular noun phrase 'umfangreiches Programm'.
+- 335cf064632d  # BAD_SENTENCE: Contains a typo in 'Anstengungen' (should be 'Anstrengungen').
+- 33cc1c781841  # BAD_GLOSS: "developed a little piece further" is not English; the adverbial means "a little further".
+- 33ef460d6b6a  # BAD_SENTENCE: OCR corruption: 'lhre' instead of 'Ihre'.
+- 33fca6c42cf8  # BAD_SENTENCE: 'Ich sage zupacken, essen, löschen.' is an elliptical fragment, not a self-contained sentence.
+- 34145ca3e079  # WRONG_UNIT: 'vor dem Fenster' is local, not the causal 'vor' of the unit.
+- 34180dc7495f  # BAD_SENTENCE: Verbless fragment, no finite verb.
+- 342cea31328c  # BAD_SENTENCE: Ungrammatical: 'Also sind meinen beiden Genossen ... weg'.
+- 342e813d39df  # BAD_SENTENCE: 'Der Norman geholfen hat, die Liste zu erstellen?' is ungrammatical; the gloss silently repairs 
+- 34582cb7b186  # BAD_SENTENCE: Website navigation heading rather than a natural full sentence.
+- 345bc3afd360  # BAD_SENTENCE: Incomplete passive: 'ist ... gefasst' should be 'ist ... gefasst worden' or 'wurde gefasst'.
+- 3488faf08298  # BAD_SENTENCE: "Atomenergie soll friedlichen Absichten von Nutzen sein" is stilted and barely grammatical.
+- 34d761ed4c9d  # WRONG_UNIT: The sentence instantiates the verb 'zurücklegen', not 'zurückliegen'.
+- 34edfaec00df  # WRONG_GAPS: Unit tokens ('um', 'den', 'herumreden') are missing from the brackets.
+- 3529e4b05c57  # BAD_GLOSS: Capitalised "Sie" is formal "you", but the gloss renders it as "they".
+- 3543e64cce2d  # BAD_SENTENCE: Uncapitalized noun 'anwalt'.
+- 3545564acccd  # WRONG_UNIT: "nahe liegen" is used literally/spatially here rather than figuratively as the lexical verb "nahel
+- 354a93895168  # BAD_SENTENCE: Elliptical fragment missing a grammatical subject.
+- 35515785f14b  # WRONG_GAPS: The unit prefix 'aus' is missing from the sentence and brackets.
+- 3567e1bd84d2  # BAD_SENTENCE: Garbled subtitle line: wollten in eine neue Welt, eine Kolonie gründen, von Alliierten lernen ha
+- 359a42b5f904  # BAD_SENTENCE: Leading corpus artifact (Dongluo) is not part of a sentence.
+- 35a3858c436b  # WRONG_UNIT: Uses the idiom 'auf jdn. einstürzen' (to rush/crowd in on someone) rather than the standard intran
+- 35cad26d416f  # BAD_GLOSS: "he is still reading in" is not idiomatic English and gives the learner no usable cue.
+- 35f145a4dbf3  # WRONG_UNIT: über Funk means via radio, not the topic of the chatting, as the gloss itself shows.
+- 361eaaaf0c30  # WRONG_GAPS: The bracketed [Böses] is not part of the unit; the actual instance "das Böse" is left unbracketed.
+- 362bf099374e  # WRONG_UNIT: This is handeln with the circumposition aus ... heraus, not the verb heraushandeln.
+- 366ca5f73666  # BAD_SENTENCE: Obsolete pre-reform spelling 'streßfreier' in the sentence.
+- 368bf3b0b253  # WRONG_UNIT: sagen and durch come from different clauses; durch belongs to durchpeitschen.
+- 36ad29aa7b66  # BAD_SENTENCE: Typo in noun 'volk' which must be capitalized as 'Volk'.
+- 37330ecfe22c  # BAD_SENTENCE: Contains an offensive racial slur.
+- 3738e25c69df  # BAD_SENTENCE: 'folgen Flüsse' needs dative 'Flüssen'.
+- 373e0a5ea647  # BAD_SENTENCE: Sentence is missing question mark or proper structure.
+- 3771a9541bd6  # BAD_SENTENCE: Website navigation heading rather than a natural full sentence.
+- 37c5f9f5a92d  # WRONG_UNIT: The verb is 'auslegen' (to interpret), not 'ausliegen'.
+- 37cc247c6d49  # BAD_SENTENCE: Elliptical and ungrammatical ("oder sichere Zone" lacks the negated article).
+- 37e5b50a8219  # WRONG_UNIT: The sentence contains the verb vorlegen rather than vorliegen.
+- 381b7c6de464  # BAD_SENTENCE: Sentence contains speaker tag '(Morgan)'.
+- 38f4c34ff184  # BAD_SENTENCE: 'Wochenende Der Kaffee läuft durch.' is a headline fragment glued to the sentence, and the gloss
+- 3931bb428b9f  # WRONG_UNIT: The adverb 'hier' is separate, making 'hierher bringen' rather than just separable 'herbringen'.
+- 3998bc577e56  # BAD_SENTENCE: 'War so eine lange Schlange.' is an incomplete sentence fragment lacking a subject.
+- 39ad4ac321b7  # WRONG_UNIT: The sentence uses intransitive sich zuziehen (to cloud over), which takes no case complement.
+- 3a2d7281977b  # WRONG_GAPS: The bracketed In belongs to the temporal phrase In der Zukunft while the unit's own in Hoffnung is
+- 3a324f0096a4  # BAD_SENTENCE: The sentence is an incomplete fragment lacking a grammatical subject.
+- 3a57e502d48a  # WRONG_UNIT: The sentence has "nicht bestandene Pruefungen" (failed exams), so the gaps sit inside a negated ph
+- 3aa972ca0cc9  # BAD_SENTENCE: The noun zwiebeln is written lowercase.
+- 3b05949c27d4  # WRONG_UNIT: The sentence uses "wieder sehen" (can see again), not the unit "wiedersehen" (to meet/see again).
+- 3b4085d5023f  # BAD_SENTENCE: "Furcht richtet alles anders an, als es gekocht ist" is garbled and meaningless.
+- 3b412ae599f7  # BAD_SENTENCE: Sentence ends with a stray empty pair of parentheses that also appears in the gloss.
+- 3b50ebcec14b  # BAD_SENTENCE: 'Nein, ich sollte noch nie wegsehen.' is not idiomatic German and its meaning is unclear.
+- 3c2394bb1cb1  # BAD_SENTENCE: Subjectless fragment 'Hat ihren ersten Roman veroeffentlicht.'
+- 3c4d0aac4c7a  # BAD_SENTENCE: Headline style with articles omitted ('Stiftung lobte neuen Jugendpreis aus').
+- 3c71df03fac7  # WRONG_GAPS: The reflexive pronoun 'sich' is missing from the gaps for reflexive use of ausweisen.
+- 3ca31848ffa8  # BAD_SENTENCE: The noun "vogel" is not capitalised.
+- 3ccff0c1082d  # BAD_SENTENCE: Headline style with the article missing before 'Regierung'.
+- 3cd01e661d39  # BAD_SENTENCE: Unnatural phrasing without an object ('baue gerade riesig aus').
+- 3cffc656aaba  # WRONG_UNIT: 'Genaue Daten' here means 'exact data', not the plural of Datum in the sense of date.
+- 3d02bc8b8302  # WRONG_UNIT: The idiom is 'zum Hals heraushängen / raushängen', not simply 'raushängen'.
+- 3d0899923c4d  # BAD_SENTENCE: Sports headline without an article (bei Wigan-Auswaertssieg), not a natural sentence.
+- 3d25204419f5  # WRONG_UNIT: The literal breaking of an incisor ('einen seiner Schneidezähne ausgebissen') is used rather than 
+- 3d2c0f50138d  # BAD_GLOSS: "dance around in front of the ring's nose" is nonsensical English.
+- 3d3cf408708f  # BAD_SENTENCE: The sentence is missing the noun/object (e.g. Ergebnisse) after Ihre.
+- 3d44a6d89eab  # WRONG_UNIT: The verb is vorbeischrammen an (am Podium vorbei), whose prefix vorbei is left outside the gaps.
+- 3d48699f4a8a  # BAD_SENTENCE: Missing space produces the non-word "mirjemand".
+- 3d4906a2ca65  # WRONG_UNIT: The prepositional construction 'auf ... zufliegen' is not the unit 'zufliegen'.
+- 3d56dbc04437  # BAD_GLOSS: struck again drops the biting sense of zugebissen and misleads about the gap.
+- 3e0835adb749  # BAD_SENTENCE: Broken Jar-Jar-style German ('Michse sehr geehrt, übernehmen diese superheftig schwere Bürde') w
+- 3e0b6e6eb14d  # BAD_GLOSS: 'spans the arc' is a literalism; the idiom means extends the range or scope.
+- 3e0f0c135110  # BAD_SENTENCE: Contains a stray empty "()" left in from the source, echoed in the gloss.
+- 3e3472a564a2  # BAD_GLOSS: Figurative 'absägen' means oust or get rid of, not 'cut off'.
+- 3e5a60a27568  # BAD_SENTENCE: Truncated sentence beginning 'Im weist ...' is ungrammatical.
+- 3e80b959371d  # BAD_SENTENCE: Sentence contains a duplicated word typo ('ein eine').
+- 3e89f19d173f  # WRONG_GAPS: The reflexive pronoun 'sich' from the unit is not bracketed in the sentence.
+- 3ea0084842b0  # BAD_SENTENCE: OCR corruption: spanischem OeI instead of spanischem Oel.
+- 3ea6a193c5a1  # BAD_SENTENCE: Caption fragment with stray double ellipsis, not a clean sentence.
+- 3ec3483515e6  # WRONG_UNIT: The gaps span two different verbs: Bleibt ruhig and fahrt fort (fortfahren), not fortbleiben.
+- 3eded42fd049  # BAD_SENTENCE: Sentence has disturbing Nazi/ideological resonance ('den deutschen Menschen auszeichnen') and la
+- 3eeffae1d2de  # WRONG_UNIT: The idiom is 'außen vor lassen', not the separable verb 'vorlassen'.
+- 3f10725641bd  # BAD_GLOSS: German is transitive (clamp the other shavings fast); gloss "cling to them" reverses the relation.
+- 3f4cba3a9394  # BAD_GLOSS: 'They had better kept their mouths shut' is ungrammatical English.
+- 404c876ea90a  # BAD_SENTENCE: "Sie haben eine Du siehst toll aus." is two spliced fragments; the gloss is nonsense too.
+- 407a2212bb2a  # WRONG_UNIT: The sentence has 'die Augen zuhalten', not 'die Ohren zuhalten'.
+- 40c991268531  # WRONG_GAPS: The unit specifies the singular 'ein guter Einfall', but the bracketed gap is the plural form 'gut
+- 40ee082c5ba7  # BAD_SENTENCE: Grammatical error in 'Ein heiße Spur' (should be 'Eine heiße Spur').
+- 410856f03001  # WRONG_GAPS: The reflexive pronoun mir is part of the unit sich Gedanken machen but is not bracketed.
+- 4112a727ca59  # BAD_SENTENCE: The sentence is an incomplete subordinate clause fragment lacking a main clause.
+- 411b453b0617  # BAD_GLOSS: cut their teeth on means gain first experience; the German idiom means to try in vain against somet
+- 411f21c3db55  # BAD_SENTENCE: Misspelling 'uber' for 'über'.
+- 412bbbc752c8  # BAD_SENTENCE: "Verstärkung wurde zudem aus angefordert." is truncated after "aus", and the gloss is truncated 
+- 4131487729b8  # BAD_SENTENCE: Haß und Lügen werden ihm nachgegossen is not idiomatic German and uses pre-reform spelling.
+- 41346af263cf  # WRONG_UNIT: The bracketed tokens are 'fuehren ... hinaus' (hinausfuehren), not hinausfahren.
+- 413e770a2fc3  # BAD_SENTENCE: Incomplete sentence fragment lacking a subject.
+- 413ed2998895  # BAD_SENTENCE: OCR artifact "lhr" instead of "Ihr".
+- 415d649e3c2c  # BAD_SENTENCE: Sentence lacks necessary context for the pronoun 'Sie'.
+- 4171cc95439d  # WRONG_UNIT: The sentence instantiates hinzubekommen (bekommen ... hinzu), not hinbekommen.
+- 418542fefe19  # BAD_SENTENCE: 'die menschliche Rasse besiegeln' is not natural German and the gloss copies the nonsense.
+- 4187ad3201af  # BAD_SENTENCE: Noun miscapitalised: teils starke boeen should be Boeen.
+- 419a4e7c5f52  # BAD_SENTENCE: Comma splice from spoken source; the gloss reproduces the incoherence.
+- 41c04d308134  # WRONG_GAPS: The separable prefix 'auseinander' is missing brackets in the sentence.
+- 41dbf10f9d9a  # WRONG_UNIT: The sentence uses "sein", completely lacking the unit's verb "treffen".
+- 41ff6da7e8ba  # WRONG_UNIT: Uses the substantivized infinitive 'wissenschaftliches Arbeiten' instead of the noun 'Arbeit(en)'.
+- 423670e3dbf2  # WRONG_UNIT: "nach" belongs to "der Reihe nach"; "klingt" is plain klingen.
+- 427762b89445  # BAD_SENTENCE: 'aus der Decke herabfallen' is wrong German; it must be 'von der Decke'.
+- 42a42bbeffeb  # BAD_SENTENCE: Gender mismatch: "Sie ist ein begeisterter Kämpfer" should be "eine begeisterte Kämpferin".
+- 4332e2825b03  # BAD_SENTENCE: The sentence is truncated and ungrammatical ('für zukünftige bemannte').
+- 4340f5a4acba  # WRONG_UNIT: sorgfaeltig abgewogen is abwaegen (deliberate), not abwiegen, as the gloss itself shows.
+- 435857b132a9  # BAD_SENTENCE: Typo 'sicherern' for 'sicheren'.
+- 4366c0503a06  # BAD_GLOSS: "Every death he includes" is unnatural English and leaves the sentence opaque.
+- 436ed830467f  # BAD_SENTENCE: Bescheid is misspelled lowercase, so the required gap answer is misspelled.
+- 4395e3bf89ca  # BAD_SENTENCE: Stray list marker "C)" and misspelled name "John Wanye".
+- 43e2180298ab  # WRONG_UNIT: Meanings differ: 'hinfliegen' means to fall down here, not to fly to a place.
+- 43e99a61b4d8  # WRONG_UNIT: Uses reflexive 'sich anschließen' but unit is plain 'anschließen'.
+- 445f0cefd139  # BAD_SENTENCE: Headline fragment with missing article (von Union) and a trailing - Yahoo!.
+- 446a54b49dd3  # BAD_GLOSS: 'this years of experience' is not grammatical English.
+- 447c03750620  # BAD_SENTENCE: Vulgar, incoherent example unsuitable for a learner card.
+- 44933031bbd7  # BAD_SENTENCE: Corrupt word 'abschließénden' with a stray accent.
+- 44b39712b6e6  # WRONG_UNIT: voraus here is part of the adverbial im Voraus, not the separable prefix of vorausplanen.
+- 44d78da7488c  # WRONG_UNIT: "Es geht um uns" is "es geht um" and "herum" comes from "drum herum".
+- 454b532901cc  # BAD_SENTENCE: 'Die Bestie, zwingt ihr den Willen auf.' has a stray comma and no coherent structure.
+- 454d25581253  # BAD_SENTENCE: Missing "zu": should be "als sich im Reden zu mäßigen".
+- 45ee11b7bf1c  # WRONG_UNIT: The verb used is transitive 'beilegen', not intransitive 'beiliegen'.
+- 45f143b2c0ce  # WRONG_UNIT: The idiom is 'zum Hals heraushängen / raushängen', not simply 'raushängen'.
+- 4614d51ed6b1  # WRONG_UNIT: Sentence uses the idiom 'Zug um Zug' rather than the prepositional complement 'um +Akk'.
+- 464b6b613eba  # WRONG_UNIT: The verb is vorbeischrammen an, whose prefix vorbei is left outside the gaps.
+- 46b93415ae98  # BAD_SENTENCE: "seinen ganzen Sünden" is the wrong case; should be "seine ganzen Sünden".
+- 46f39ee7ccc4  # WRONG_UNIT: The verb in the sentence is 'herumführen' (Führen ... herum), not 'herumfahren'.
+- 4715bf7679e2  # BAD_SENTENCE: Headline style with the article dropped ("Fußballerin nimmt ..."), not a natural full sentence.
+- 4725009a4c77  # BAD_SENTENCE: Ungrammatical dative structure ('gar nichts den Rücken').
+- 473bc891cb8c  # WRONG_GAPS: The unit tokens "auf", "die", and "gerat" are missing from the brackets.
+- 477dec8c1a51  # BAD_SENTENCE: 'In Mareike Fallwickls (2022) etwa' is a truncated citation with the book title missing, so the 
+- 47a11a7f6e6b  # WRONG_GAPS: The reflexive pronoun 'sich' is missing from the bracketed gaps.
+- 47ab23b7e463  # WRONG_UNIT: The verb here is ableiten (leiten ... ab), not leiten, and the prefix ab is outside the gaps.
+- 47f47246f14a  # WRONG_UNIT: The prepositional construction 'auf ... zufahren' is not the unit 'zufahren'.
+- 48b0f250b9f5  # WRONG_UNIT: The bracketed tokens are the fixed phrase 'von Anfang an', not the separable verb anlernen.
+- 48d87d71122b  # WRONG_GAPS: The unit includes 'sich' and 'den', but only 'Kopf' and 'zerbrechen' are bracketed.
+- 48dc206c9c51  # BAD_GLOSS: "make the world a little piece better" is not English; should be "a little bit better".
+- 48f9edc45796  # BAD_SENTENCE: Grammatically incorrect dative ending 'freien' instead of 'freiem'.
+- 493740236f9d  # BAD_SENTENCE: Capitalization error with formal address pronoun 'sie' instead of 'Sie'.
+- 4965e76d7b4f  # BAD_SENTENCE: OCR corruption 'Lhr' and 'Briefe herumrennen' is not natural German.
+- 498eee2ee0a7  # BAD_GLOSS: 'zusammennehmen' means gather up, not fold; folding laundry is 'zusammenlegen'.
+- 499c03bd655b  # BAD_SENTENCE: OCR artifact 'lhr' (lowercase L) instead of 'Ihr', plus an ellipsis fragment.
+- 49bcc5988628  # WRONG_UNIT: Here the verb means literally to look past someone, not the taught sense of dropping by.
+- 4a1452944ad9  # BAD_SENTENCE: The word gewisslich is archaic and unnatural in modern German.
+- 4a1863da3593  # BAD_SENTENCE: Headline-style fragment lacking determiners ('Investoren schalteten Anzeige in FAZ').
+- 4a7d7c67924b  # BAD_SENTENCE: Typo in sentence: 'zudem' instead of 'zu dem'.
+- 4ab0baec2b18  # WRONG_GAPS: The unit tokens "trifft" and "den" are missing from the brackets.
+- 4b018046c6a5  # BAD_SENTENCE: Ungallical/incomplete sentence ('Das scheint eine sehr offene Frage.').
+- 4b037f90b63d  # BAD_SENTENCE: 'Cassette wird nicht mehr ausgeworfen' lacks the article; it is a device error message, not a se
+- 4b0842f941ee  # WRONG_UNIT: The verb 'sterben' is missing entirely from the sentence and brackets.
+- 4b4fdc843433  # WRONG_UNIT: The sentence has 'den Mund zuhalten', not 'die Ohren zuhalten'.
+- 4b61a4ccb979  # WRONG_UNIT: 'Sagen Sie mir die Wahrheit, na los' contains the interjection 'na los', not the verb 'sich lossag
+- 4b9fa7590971  # BAD_SENTENCE: Sie-form possessive is written lowercase "ihre"; the gloss's "your" only fits the capitalized "I
+- 4badb0a9d92b  # BAD_SENTENCE: Unnatural/erroneous literal translation of English idiom 'break a leg' (in German: 'Hals- und Be
+- 4bd812449f9c  # WRONG_UNIT: Uses the lexicalized participial adjective phrase 'von sich eingenommen sein' rather than the verb
+- 4c1f5be73afc  # BAD_SENTENCE: 'da Tim eifersüchtig werden würde' should be 'dass'.
+- 4c2dd4b119d1  # WRONG_UNIT: The prepositional construction 'auf ... zufliegen' is not the unit 'zufliegen'.
+- 4c5ddfcc0ec0  # BAD_SENTENCE: Ungrammatical government: berauben takes an accusative person and genitive thing, not anderen Ma
+- 4d4a203a3f5e  # BAD_SENTENCE: Verbless fragment, not a self-contained sentence.
+- 4d4cd0fec55f  # BAD_SENTENCE: Newspaper headline fragment rather than a natural full sentence.
+- 4d67a45de027  # WRONG_GAPS: The reflexive pronoun 'uns' is omitted from the bracketed gaps.
+- 4d9c6471baf1  # WRONG_UNIT: The idiom is 'zum Hals heraushängen / raushängen', not simply 'raushängen'.
+- 4dd231a49411  # BAD_SENTENCE: Subjectless fragment, not a self-contained sentence.
+- 4e4ea5498051  # WRONG_GAPS: Missing the coordinated verb prefix 'an-' from brackets or displays coordinating structure.
+- 4e65de27cb05  # BAD_SENTENCE: Crude, context-dependent line, poor carrier sentence.
+- 4e708f539bb9  # BAD_SENTENCE: Bare relative clause fragment, not a self-contained sentence.
+- 4e888f4f8df1  # BAD_SENTENCE: Unnatural/ungrammatical transitive usage of anspannen ('spannt es mich an').
+- 4e8a7f4f7b52  # WRONG_GAPS: The unit token 'lassen' is missing from the brackets.
+- 4ed46eaac084  # WRONG_UNIT: wirken and zusammen are separate words here, not the separable verb zusammenwirken.
+- 4edc10c44efe  # BAD_SENTENCE: alle übersetzten Text is ungrammatical, the plural Texte is required in the gap.
+- 4f102a7c9811  # BAD_SENTENCE: Grammatical error in German sentence: 'den toten Typ' instead of dative 'dem toten Typen'.
+- 4fb60ee0dfbe  # BAD_SENTENCE: The sentence is incomplete with missing date/words: 'empfängt am wieder Gäste'.
+- 4fcd77081dd4  # BAD_SENTENCE: 'Dachte, sie wollen ihn aufmischen' is elliptical spoken German with the subject dropped.
+- 4fcdf30d844a  # BAD_SENTENCE: Noun 'weltordnung' is lowercase and 'Laß' uses obsolete pre-reform spelling.
+- 4fedd7c3589e  # WRONG_GAPS: Brackets capture a hyphen fragment '[-Video]' rather than a standalone noun.
+- 500cc5f2f51a  # WRONG_UNIT: The verb is 'es gibt' with adverb 'dazu', not the separable verb 'dazugeben'.
+- 5048756ce6db  # BAD_SENTENCE: Headline-ese missing the article: should be "Die Bundesliga spitzt sich weiter zu".
+- 50763946bca0  # BAD_SENTENCE: Zum jetzigen Zeitpunkt unterstuetzt das GeoMIS is a truncated fragment with no object, and the g
+- 507735e7d634  # BAD_SENTENCE: Subjunctive conditional clause without a main clause; not self-contained.
+- 508452c14dbd  # WRONG_UNIT: The sentence uses zugreifen auf +Akk (to access data/RAM), not plain intransitive zugreifen.
+- 50aa6bef1b77  # BAD_SENTENCE: Ungrammatical case coordination: aufgrund der Fragen und Ihren Antworten instead of Ihrer Antwor
+- 50ad831c9836  # BAD_GLOSS: "Pull your thing through" is a literal non-idiom; it should be "do your thing / see it through".
+- 50e97e58b3e2  # BAD_SENTENCE: Headline fragment with a trailing '- Yahoo!' and a missing article before 'neues Album'.
+- 510753fd032e  # BAD_SENTENCE: Capitalization error in 'Auf jeden fall' (should be 'Auf jeden Fall').
+- 514ec165a5d1  # BAD_SENTENCE: "auf jedenfall" is misspelled for "auf jeden Fall".
+- 51c9c1cf3f8e  # BAD_SENTENCE: "Dem Heimkehrer" is the wrong case for the object of empfangen.
+- 51f0ae9253eb  # WRONG_UNIT: 'zusammen' here is the adverb with 'lesen und schreiben', not the separable prefix of zusammenschr
+- 52338ff29cf9  # BAD_SENTENCE: Headline style with a missing article ("auf LCD-Markt"), and the sense is "carry through to", no
+- 5261464a564d  # BAD_SENTENCE: Ungrammatical 'vom meinem Körper' (should be 'von meinem Körper').
+- 52754a5e8a85  # BAD_SENTENCE: Wrong adjective ending: 'mit frischen Blut' should be 'mit frischem Blut'.
+- 52b772915e29  # WRONG_UNIT: "die ganze Nacht hindurchgehen" uses temporal hindurch, not the verb hindurchgehen.
+- 52e01320f910  # BAD_SENTENCE: "zu Kontributionen hinzugezogen" is unidiomatic German.
+- 53058840676c  # BAD_SENTENCE: The sentence is an incomplete clause fragment lacking a subject and introductory conjunction.
+- 5344d31971c0  # WRONG_UNIT: The verb's complement here is "mit groesserer Nachhaltigkeit"; the durch-phrase is a separate caus
+- 53a62a06b798  # WRONG_GAPS: The unit token 'lassen' ('lässt') is not bracketed.
+- 53b6818bb6c3  # BAD_SENTENCE: The sentence contains web scraping headline junk '- Yahoo!'.
+- 5404091840a1  # BAD_SENTENCE: Subordinate dass-fragment, not a self-contained sentence.
+- 540d7f142425  # WRONG_CASE: 'über den schneebedeckten Berggipfeln' is dative, contradicting the displayed +Akk.
+- 5416982a0308  # BAD_SENTENCE: Garbled sentence, a question form punctuated as a statement.
+- 54393bbf0b4a  # BAD_SENTENCE: Missing comma before the inflected infinitive clause.
+- 543ce370b0f0  # BAD_SENTENCE: 'die Muskel' is the wrong form; it should be 'die Muskeln'.
+- 547e3a6581b0  # BAD_SENTENCE: The sentence has no subject for gestaltet, and the gloss invents an it.
+- 54b16212409d  # WRONG_UNIT: The sentence has no zu-complement at all, so it does not instantiate the prepositional unit.
+- 54c97422d563  # BAD_SENTENCE: Incomplete subordinate clause fragment starting with 'Und dazu noch... wird'.
+- 54cc5143b0c8  # BAD_SENTENCE: Not a full sentence and the relative clause has verb-second word order.
+- 54e89a1a305f  # WRONG_GAPS: The unit specifies the singular 'ein guter Einfall', but the bracketed gap is the plural form 'gut
+- 54ef36e944fd  # BAD_SENTENCE: Sentence ends on a truncated club name 'Rohrbach/St.'.
+- 550bed7c796e  # BAD_SENTENCE: Word order error: 'nichts Maria zu sagen' should be 'Maria nichts zu sagen'.
+- 5531c67275c8  # BAD_SENTENCE: Wrong adjective ending: 'vom jeweiligem Basismodell' should be 'vom jeweiligen Basismodell'.
+- 555593d6c379  # BAD_SENTENCE: Contains a typo or ASCII substitution 'Gehoer' instead of 'Gehör'.
+- 55cef4f2187e  # WRONG_UNIT: The gloss shows this is 'geradeaus fahren' mis-split into a fake ausfahren.
+- 55d57bd3c061  # WRONG_UNIT: 'Sich' is an accusative reflexive pronoun dependent on 'dem Gedächtnis einprägen', not the unit 's
+- 5629c33bc4bb  # BAD_SENTENCE: Subordinate-clause fragment ('Wovon ...'), not a standalone sentence.
+- 563268c8aa18  # WRONG_UNIT: 'vor Vater' means in front of father, not the causal 'vor' of the unit.
+- 56627f7f9660  # BAD_SENTENCE: Uses the ASCII transliteration 'Koerper' instead of 'Koerper' with umlaut.
+- 570fe666b0c2  # BAD_SENTENCE: Sentence is an incomplete relative clause fragment without a main clause, and incorrectly uses '
+- 57130ed601cb  # BAD_SENTENCE: The sentence is an incomplete fragment cutting off after the article 'ein'.
+- 5787141a3b7a  # BAD_SENTENCE: Lowercase noun 'analytikerin' instead of capitalized 'Analytikerin'.
+- 57b01329ab5c  # BAD_GLOSS: German is elliptical ('keinen mehr ohne') and the gloss invents 'without it'.
+- 57c48a98b5d6  # BAD_GLOSS: 'They struck our exact political nerve' misplaces 'exakt'; it should modify the striking.
+- 57f59e597251  # BAD_SENTENCE: Subject is misdeclined: 'wurden verdeckten Ermittler angesetzt' should be 'verdeckte Ermittler',
+- 5808fbc66986  # WRONG_UNIT: The sentence uses wegen gesundheitlicher Gruende, a different preposition and case from the displa
+- 588f8ae76ba6  # BAD_GLOSS: The gloss starts with a stray opening quotation mark.
+- 58902dd9102c  # WRONG_UNIT: sich festlegen, not festliegen.
+- 5922de07eade  # BAD_SENTENCE: 'Seine Fäuste sind angesehen als tödliche Waffe' is unnatural German; it needs 'gelten als'.
+- 5924da26c0d8  # BAD_GLOSS: The idiomatic rendering bone to pick gives the learner no cue for the gaps Huhn and rupfen.
+- 595f93e6c994  # WRONG_GAPS: The reflexive pronoun 'sich' from the unit is not bracketed in the sentence.
+- 59af6c1c2a8b  # BAD_GLOSS: "have to answer" reads as "reply"; sich verantworten means answer for it / stand trial.
+- 59c1a92b0351  # BAD_SENTENCE: The sentence is incomplete, cutting off abruptly after 'mit dem'.
+- 59ca9404d972  # WRONG_UNIT: Sentence has 'Kenntnis ueber deine schlechte Verfassung', not the unit 'in schlechter Verfassung s
+- 5a00ae15bff6  # WRONG_GAPS: Unit is 'sodass' but spaced 'so dass' is split across two brackets.
+- 5a227bae1a88  # BAD_SENTENCE: The sentence is unnatural or nonsensical.
+- 5a5d6e3fd36f  # BAD_SENTENCE: 'obwalten' cannot take a personal subject like 'die Linken', making the sentence ungrammatical.
+- 5a5f9aae19c0  # BAD_SENTENCE: English genitive apostrophe 'Valerie's Rock' is misspelled German ('Valeries Rock').
+- 5a7022386c77  # BAD_SENTENCE: Truncated source: "den Osten s" is a corrupted place name, and the gloss repeats it as "the east
+- 5a9566a3fb0c  # BAD_GLOSS: Capitalised 'Sie' is formal 'you', but the gloss says 'her'.
+- 5aa1f46233b0  # BAD_SENTENCE: 'Das, was im Sport funktioniert ist, nicht auszugrenzen' is ungrammatical and the gloss is nonse
+- 5ada7e5936da  # BAD_SENTENCE: Typo Mann for the pronoun man.
+- 5aed0792da20  # BAD_SENTENCE: Two headline fragments run together without a break: 'ImpfpassWie'.
+- 5b024a4d61ed  # BAD_SENTENCE: A car carried beyond the roadside is not a self-contained, natural sentence without context.
+- 5b09aab790d1  # BAD_SENTENCE: Headline style with articles dropped ("DAX stoesst wieder in Gewinnzone vor").
+- 5b0c701ccac5  # WRONG_UNIT: The sentence uses anlegen (Handschellen anlegen), not anliegen.
+- 5b44eb8915ad  # WRONG_UNIT: "lag sehr nahe" is the spatial/adverbial collocation, not the figurative verb "naheliegen".
+- 5b4ce1e19178  # BAD_SENTENCE: Sentence contains an empty quoted object: 'Ein "" wurde daraufhin ausgerufen'.
+- 5b778f641fe0  # BAD_SENTENCE: Noun 'kehle' is incorrectly written in lowercase.
+- 5b7d7939e66b  # WRONG_GAPS: The reflexive pronoun 'sich' is missing from the bracketed gaps.
+- 5be2168cc04e  # BAD_SENTENCE: Contains an apparent OCR or spelling corruption ('Fiese' instead of 'Fliese' or 'Diese').
+- 5be834e62de0  # BAD_SENTENCE: The sentence is an unnatural calque translation of 'fired up and ready to go'.
+- 5bf3e7c75717  # WRONG_UNIT: The sentence uses heranführen, not heranfahren.
+- 5c21c8b5d70d  # WRONG_UNIT: The verb in the sentence is rausfuehren ("Fuehren Sie sie raus"), not rausfahren.
+- 5c34284b4089  # BAD_SENTENCE: "kann man leichter den feinen Herren zu spielen" is ungrammatical.
+- 5c8d2be4f606  # BAD_SENTENCE: Contains a grammatical case error 'bei strömenden Regen' instead of 'bei strömendem Regen'.
+- 5c8f8cbfc350  # BAD_SENTENCE: Subtitle stage direction in parentheses plus a second sentence, not one clean carrier.
+- 5ca76c50da91  # WRONG_UNIT: Instantiates transitive 'einsingen' (record vocals), not reflexive 'sich einsingen' (warm up voice
+- 5cbfd36529ff  # BAD_SENTENCE: Typo "ungezwunge" for "ungezwungene".
+- 5d376f0433d7  # BAD_GLOSS: 'Two ice hockey sticks are reached out for the puck' is not grammatical English.
+- 5d47a1306f17  # BAD_SENTENCE: Truncated sentence ending abruptly with 'mit dem'.
+- 5d9c8ceebc90  # BAD_GLOSS: cut their teeth on reverses the meaning of sich die Zaehne ausbeissen (to fail repeatedly against).
+- 5da1882a09b5  # WRONG_UNIT: The sentence uses 'heiße Luft' in a literal physical sense rather than the idiomatic unit meaning 
+- 5dc32d84cd6f  # WRONG_UNIT: The sentence has the nominalised "das grausame Morden", not the noun Mord.
+- 5de29614d298  # BAD_SENTENCE: Contains a severe typo 'sägen' (sawing) instead of 'sahen' (saw).
+- 5de5f8ba4f19  # WRONG_UNIT: In 'wie es sich anhört', 'sich' is accusative ('sound like'), not the displayed unit 'sich anhören
+- 5e18e192e8e7  # BAD_SENTENCE: Contains Swiss quotation marks '«' and '»'.
+- 5e28b92bcb7a  # BAD_GLOSS: "the absolute hammer" is not English idiom and misses the sense of the German expression.
+- 5e4a62f558b3  # WRONG_GAPS: Unit is 'sodass' but spaced 'so dass' is split across two brackets.
+- 5e664d230682  # WRONG_UNIT: This is handeln with aus der Not heraus, not the verb heraushandeln.
+- 5e8884d99b86  # BAD_SENTENCE: The sentence is a news headline snippet containing trailing source junk '- Yahoo!'.
+- 5ecfa54ca4d9  # BAD_SENTENCE: Sentence fragment consisting only of a relative clause.
+- 5ed6fae53783  # WRONG_UNIT: The sentence uses 'zurück' as a directional adverb with reflexive 'sich setzen', not the separable
+- 5f1c90b0b570  # BAD_SENTENCE: Obsolete spelling Muß instead of Muss.
+- 5f4ab4301aab  # BAD_SENTENCE: "Für welchen Weg er wirbt." is a subordinate clause, not a sentence.
+- 5fb2b8862c85  # BAD_SENTENCE: Extraneous ungrammatical comma after 'Die nächsten Stunden,'.
+- 5fde7ed26625  # BAD_SENTENCE: Ungrammatical sentence with conflicting pronouns/syntax ('Das kriegst du noch was mit').
+- 60014fb4bba4  # WRONG_UNIT: Literal 'eine Bombe platzen hoeren' without 'lassen' does not instantiate the idiom.
+- 6041d93299db  # WRONG_GAPS: The reflexive pronoun 'sich' is missing from the gaps for reflexive use of auszahlen.
+- 605038667246  # BAD_GLOSS: 'is not touched' misses the sense of ankratzen (to dent or tarnish someone's reputation).
+- 605b6a315d03  # WRONG_UNIT: The sentence contains the tag question 'nicht wahr?' with main verb 'haben', not the verb 'wahrhab
+- 6087b1d8abe7  # BAD_SENTENCE: Ungrammatical sentence with missing subject and typo 'Daüber'.
+- 60a9b56e2ebf  # WRONG_GAPS: The reflexive pronoun 'mich' is missing from the gaps for reflexive use of ausweisen.
+- 60b968a8868a  # BAD_SENTENCE: Truncated sentence: aus einem unterirdischen is missing its noun.
+- 60be5e02d082  # WRONG_UNIT: The verb is anzapfen (zapft ... an), not zapfen, and the prefix an is not bracketed.
+- 60f705868a8e  # BAD_SENTENCE: Corrupted or missing words: 'in oder Beratungen' is ungrammatical and incomplete.
+- 61138c7c19f3  # BAD_SENTENCE: Missing article before 'Hurrikan'.
+- 611c504b02aa  # BAD_SENTENCE: Subjectless fragment, not a self-contained sentence.
+- 611c68f65426  # BAD_GLOSS: English gloss uses 'her' instead of 'your'.
+- 611e54c5c1e9  # BAD_SENTENCE: 'Eine Unterhose, weiß, blaues Band.' is a verbless list entry, not a self-contained sentence.
+- 616cafc6f4a6  # BAD_SENTENCE: Typo "Leserinnern" for "Leserinnen".
+- 6175c2d557f1  # BAD_SENTENCE: 'Sie sind bei uns aufgetaucht und frohe Weihnachten' is incoherent as a standalone sentence.
+- 6182a0cfffb8  # WRONG_GAPS: The reflexive pronoun sich is part of the unit sich Gedanken machen but is not bracketed.
+- 61847049280e  # WRONG_UNIT: The sentence uses 'zusammenlegen', not 'zusammenliegen'.
+- 618613fd7749  # BAD_SENTENCE: Pre-reform spelling "eingepaßt" in the gap would teach an outdated form.
+- 61880a367296  # BAD_GLOSS: "sued against the Lidl advertisement" is not English; sue takes a direct object.
+- 61888654206a  # BAD_SENTENCE: Typo in 'an Board' which should be 'an Bord'.
+- 61a407e3e391  # WRONG_GAPS: The reflexive pronoun 'sich' is missing from the bracketed gaps.
+- 61cee87523a0  # BAD_GLOSS: "Many a man beware of the sword" is ungrammatical English.
+- 61eddd50b129  # BAD_SENTENCE: Sentence fragment with no main clause and a broken gloss to match.
+- 61f73f929e39  # BAD_SENTENCE: Tense clash between past passive and present perfect.
+- 6201dc17065d  # BAD_GLOSS: 'zu kleinen Dörfern zusammen' means grouped into small villages, not standing together in villages.
+- 622ea9be07b6  # BAD_SENTENCE: Garbled subtitle text ('Suche Satelliten all diese UN-Sitzungen und sie schüttelt ...') is not a
+- 626a9f4a5510  # BAD_SENTENCE: Ungrammatical German sentence structure ("gibt es viele ... wieder im TV zu sein").
+- 6272dacab545  # BAD_SENTENCE: Missing comma before the infinitive clause 'diese über die tatsächliche Stückzahl abzurechnen'.
+- 62a615b40749  # BAD_SENTENCE: 'und schneiden sie diese' has a lowercase 'sie' where the imperative 'Sie' is required.
+- 62bde054d6ca  # BAD_SENTENCE: 'Wohnungen sind oft kaum bekommen' is missing 'zu' and is ungrammatical.
+- 62d4bca2fe83  # WRONG_GAPS: The unit specifies 'im fünften Stock' but 'in den' is used and not bracketed.
+- 62da62133038  # BAD_SENTENCE: Garbled proverb fragment with a leading comma; the English gloss is correspondingly nonsensical.
+- 630d12c5439d  # WRONG_UNIT: "Erben" here means heirs, not the legacy noun of the displayed unit.
+- 633bd42e66a2  # BAD_SENTENCE: "in Richtung den Hang hinab" is ungrammatical German.
+- 63cd2a813441  # BAD_SENTENCE: Typo 'Fiese' instead of 'Fliese'.
+- 641cdec29b0d  # WRONG_UNIT: festlegen (to stipulate), not festliegen.
+- 648323c4d6c9  # WRONG_GAPS: The reflexive pronoun 'sich' is missing from the bracketed gaps.
+- 64c0596a2ee4  # BAD_GLOSS: "Pull your thing through" is literal nonsense; it means "do your own thing / see it through".
+- 64ca0e0e38fc  # WRONG_UNIT: "zusammen" is the adverb "together" here, not the separable prefix of zusammenfahren.
+- 64ebd11f3fc7  # WRONG_UNIT: The unit is plural 'geschlossene Türen' but the sentence uses singular 'geschlossene Tür'.
+- 653b533e0181  # WRONG_UNIT: The sentence uses the preposition zu (bringen zu), not the separable verb zubringen.
+- 653c062cf2df  # WRONG_UNIT: Sentence uses 'Hand anlegen an +Akk' / 'anlegen', not the verb 'anliegen'.
+- 6576b9db8a8a  # BAD_SENTENCE: 'die bewaffneten Raubüberfall Akten' is ungrammatical; it needs a compound such as Raubüberfall-
+- 65d043eebeaf  # BAD_GLOSS: "sued against the ban" is not English; should be "filed suit against the ban".
+- 65d07bb7fd3b  # WRONG_CASE: 'klemmt unter dem Sitz' is dative (static), not the +Akk shown.
+- 65ea424ab54e  # BAD_GLOSS: "A damnum had not been withheld" leaves the obscure technical term untranslated.
+- 66095fd74b4e  # BAD_GLOSS: The quoted phrase is left untranslated in German inside the English gloss.
+- 660e922bd8be  # WRONG_UNIT: 'tippen auf' here is physical tapping/touching rather than guessing/speculating.
+- 6612117d58d8  # BAD_SENTENCE: Stray 'beim' makes the clause ungrammatical: 'dass es beim hinter den Kulissen brodelt'.
+- 663eb5570f7b  # WRONG_UNIT: The bracketed 'ab' belongs to abholen ('hole Sie ab'), not to abkommen.
+- 664209edf189  # WRONG_UNIT: The idiom requires the definite article 'die Stirn bieten', not possessive pronoun 'seine Stirn'.
+- 66b09e5e9796  # BAD_SENTENCE: Sentence is an incomplete fragment ending abruptly in 'dass ich würde.'
+- 66b5f364a232  # BAD_GLOSS: "grüner Star" is glaucoma, not "green cataract"; the literal rendering is wrong English.
+- 66cfd70b58ac  # BAD_GLOSS: "Because that invites to the Doppelkopf tournament" is not English and the referent is missing.
+- 66d02347fd25  # BAD_SENTENCE: 'was warmes Essen' contains a grammar/capitalization error (either 'was Warmes essen' or 'ein wa
+- 671bb200fe59  # BAD_GLOSS: Idiom klaren Wein einschenken (tell someone the plain truth) glossed literally as pouring wine.
+- 6739a18ea9ce  # BAD_SENTENCE: Contains obsolete spelling 'Paßwort' in the gap.
+- 673c707922ca  # BAD_SENTENCE: Pre-1996 spelling 'zusammengefaßt' instead of 'zusammengefasst'.
+- 678e4de6a65f  # WRONG_UNIT: The sentence uses the verb 'denken an' (+Akk), not the separable verb 'andenken'.
+- 67a15aa26aeb  # WRONG_UNIT: The reflexive 'sich ausschlafen' is a different lexical construction from the intransitive/transit
+- 67a4de1cf035  # BAD_SENTENCE: Grammatically incorrect gender and article agreement: 'eine lange blonde Haare' instead of 'lang
+- 67a9a40227eb  # BAD_SENTENCE: Ungrammatical: "mithilfe von selbst erstellen Klonen" should be "erstellten", and the subject la
+- 67de14ee7463  # BAD_SENTENCE: Headline fragment with no subject; the gloss is likewise not a full English sentence.
+- 67e4d3fdfd77  # BAD_SENTENCE: The verb 'faulenzen' is wrongly capitalised as 'Faulenzen'.
+- 67fabff0fa47  # BAD_SENTENCE: Grammatical error with 'verschiedene Bereichen' instead of 'verschiedenen Bereichen'.
+- 68002b92db1a  # BAD_SENTENCE: Truncated quotation: 'mit dem Quadrat' is missing 'der Lichtgeschwindigkeit', leaving it meaning
+- 68381431c799  # WRONG_UNIT: 'aus Ärger' is causal here, not the spatial 'emerge from' sense of the unit.
+- 6847d93abe05  # BAD_SENTENCE: Grammatical error with pronoun number mismatch: singular 'ein Nest' with plural 'durch neue erse
+- 686f042c1ae7  # BAD_GLOSS: "completely see that" mistranslates einsehen; it should be "fully accept/acknowledge that".
+- 6893d7acea8a  # BAD_SENTENCE: Contains the placeholder 'A' as object, so the sentence is not self-contained.
+- 68b1a1d37150  # BAD_SENTENCE: Sentence has a missing place name after preposition 'In'.
+- 68b546d4e064  # WRONG_UNIT: The sentence instantiates 'heranführen' ('führen ... heran'), not 'heranfahren'.
+- 68ee1839e848  # BAD_SENTENCE: Uses Swiss/obsolete spelling 'regelmässiger' instead of standard German 'regelmäßiger'.
+- 68f7bf0e557d  # WRONG_UNIT: Bracketed preposition is zu, not in, so the card teaches a different pattern than the display.
+- 6907965c79ad  # BAD_GLOSS: 'spans the arc all the way to Venezuela' is not idiomatic English.
+- 690a662bb409  # BAD_GLOSS: "making a surprisingly steep career" is not English; the idiom is a meteoric rise.
+- 692451cbde5f  # BAD_GLOSS: The English keeps the German decimal point, so 16.500 Euro reads as sixteen and a half euros.
+- 693023911ef3  # BAD_SENTENCE: Subordinate-clause fragment ("Da niemand ... will."), not a self-contained sentence.
+- 6957ca3b9db5  # BAD_SENTENCE: Typo: "Schomsteinseite" should be "Schornsteinseite".
+- 69774aac2393  # BAD_SENTENCE: Headline style with the article omitted before 'Stuttgarter Autobauer'.
+- 6983f47f7741  # BAD_SENTENCE: Unnatural word order; German would be "Ich wanderte einige Zeit herum".
+- 698c704fce4a  # BAD_SENTENCE: Headline without an article (KI-Revolution tritt ... los), not a natural sentence.
+- 6997e333222d  # BAD_SENTENCE: Garbled text ("das Nicht stören-Schild vor 1 02").
+- 6a093538fb7a  # WRONG_UNIT: Here "her" belongs to "von der Reichenaustraße her", not to the verb herzeigen.
+- 6a7fc1ecca3d  # BAD_SENTENCE: Grammar error: Diese Optimismus instead of Dieser Optimismus.
+- 6a877be0014e  # WRONG_UNIT: The bracketed 'zu' is the preposition in 'zu dir', not the separable prefix of 'zuschicken'.
+- 6a8b91dcd79e  # BAD_SENTENCE: Line-break artifact "je- manden".
+- 6ac5c8b58249  # WRONG_UNIT: 'abgeklärt' is used as a predicate adjective with 'sich geben', not the verb 'abklären'.
+- 6acc70fb8135  # BAD_SENTENCE: Contains a spelling error: 'Kanibale' should be spelled 'Kannibale'.
+- 6ae45cc21b4a  # BAD_SENTENCE: Capitalization error in German: noun 'Einzug' is lowercase 'einzug'.
+- 6b0892dd9db8  # BAD_SENTENCE: Verb-first fragment with no subject, not a self-contained sentence.
+- 6b0a2fbdccd1  # BAD_SENTENCE: Incomplete sentence with empty quotation marks 'Bei „“ will er'.
+- 6b12d4a26c6f  # WRONG_UNIT: 'den Sommer über bleiben' uses the postposition 'über' with 'bleiben', not the separable verb 'übe
+- 6b184c27ce7e  # BAD_SENTENCE: Typo with lowercase noun: Die behörden.
+- 6b29ed4dd0b8  # BAD_GLOSS: 'Joined by the waxing moon' inverts the subject; the German says the waxing moon joins in as well.
+- 6b38f4a6b83f  # BAD_SENTENCE: Pre-1996 spelling 'hinterläßt' instead of 'hinterlässt'.
+- 6b60e409968f  # BAD_GLOSS: Gloss says 'was continued', which translates fortgesetzt, not vorgesetzt.
+- 6b93863c08f1  # BAD_SENTENCE: Datei- zugang is broken by a stray line-break hyphen and space.
+- 6bb958c02648  # BAD_SENTENCE: Grammatically incorrect verb inflection: 'würde Sie' with formal Sie instead of 'würden Sie'.
+- 6bde0c6178a3  # BAD_SENTENCE: Participial fragment with no main clause, not a self-contained sentence.
+- 6be0fdd29ecf  # BAD_SENTENCE: "Er wartete einer alten Dame auf" uses archaic aufwarten and reads as a mistake to a learner.
+- 6c420e2722b2  # BAD_SENTENCE: "dass wir noch zu spät sind" is illogical; presumably "noch nicht zu spät".
+- 6c44eb5e8d8b  # BAD_SENTENCE: Place name is missing: "im Körschtal zwischen und Deizisau".
+- 6c6c202bb711  # WRONG_UNIT: 'den ganzen Abend über bleiben' uses the postposition 'über', not the separable verb 'überbleiben'
+- 6caddd37c4cf  # WRONG_UNIT: 'weg' belongs to the fixed idiom 'frei von der Leber weg', not to a verb wegreden.
+- 6cb8aa95f98f  # BAD_SENTENCE: Missing article before subject Trainer.
+- 6cfcd65369ca  # BAD_SENTENCE: 'Eher werden Sie sich halbieren als die Arbeitslosigkeit' is an odd, context-dependent sentence.
+- 6d02e5a63d71  # BAD_SENTENCE: Headline-style fragment with no main clause.
+- 6d2fe3200c4f  # BAD_SENTENCE: Unnatural negation, German requires keinen Polizisten beschimpfen.
+- 6d3af174c3a0  # BAD_SENTENCE: 'Du hast die Story und mir dabei einen Dämpfer versetzt' is broken German, and the gloss reprodu
+- 6d7256c47a50  # WRONG_UNIT: Instantiates the reflexive verb 'sich zutragen' rather than non-reflexive 'zutragen', missing refl
+- 6d9096882091  # BAD_SENTENCE: Stock-ticker jargon with plural verb on a singular company name ('Helvetia rücken').
+- 6da27b25db30  # WRONG_UNIT: The sentence has 'nicht tödliche Waffen' (non-lethal weapons), so the bracketed adjective does not
+- 6dab8710f5d9  # WRONG_UNIT: Here "schaffte es auf Platz zwei" means made it to number two, not create a masterpiece.
+- 6dbf63131030  # BAD_SENTENCE: Conditional-clause fragment with no main clause.
+- 6dc8b80a5e96  # BAD_SENTENCE: "eine Pfeil" is the wrong gender; must be "einen Pfeil".
+- 6e3d5e0b1d39  # BAD_SENTENCE: Ungrammatical German phrasing ('als er' instead of 'als Mann' or 'wie er').
+- 6e41c7bef733  # WRONG_UNIT: The verb is vorbeischrammen an, whose prefix vorbei is left outside the gaps.
+- 6e4bff699933  # BAD_SENTENCE: Truncated: Doppelklick auf lacks its object, and the gloss reproduces the break.
+- 6e96b8661996  # BAD_SENTENCE: Typo in the sentence: 'Anwenungsentwicklung' should be 'Anwendungsentwicklung'.
+- 6eea37f06e92  # BAD_SENTENCE: Ungrammatical: "nach rechts von Ihnen, einem grünen Rubbellos-Buch".
+- 6efe244c46c2  # WRONG_UNIT: The sentence instantiates hinzubekommen (bekommt ... hinzu), not hinbekommen.
+- 6f29a085e134  # BAD_SENTENCE: Truncated token 'beim -Gipfel' leaves the summit name missing.
+- 6f45082ee5ef  # BAD_SENTENCE: 'Ihr Fotos' should be 'Ihre Fotos'.
+- 6f5944e12bf0  # BAD_GLOSS: "plays foul with me" misses that übel mitspielen means to treat someone badly.
+- 6fc2434f1b3b  # WRONG_GAPS: The unit tokens "treffen" and "den" are missing from the brackets.
+- 6fe129470b55  # WRONG_UNIT: The unit here is directional 'zuhalten auf' (heading towards) rather than 'zuhalten' (holding shut
+- 700551e44bff  # WRONG_UNIT: Zuflucht is used as a concrete place with a definite article ('die Zuflucht') rather than the idio
+- 70909acb758e  # WRONG_UNIT: The adverb 'hier' is separate, making 'hierher bringen' rather than just separable 'herbringen'.
+- 70c99596bc2b  # WRONG_UNIT: The sentence uses the separable verb 'sich krankmelden' rather than 'sich melden'.
+- 70ca126413c4  # BAD_SENTENCE: 'Hart Schneuzen' is ungrammatical and misspelled; it should be 'Hartes Schnäuzen'.
+- 70e4bff4a55b  # WRONG_UNIT: The sentence uses 'es gibt wieder' (exist again), not the verb 'wiedergeben' (to reproduce/recount
+- 70efa9de813a  # BAD_SENTENCE: Contains offensive profanity ('Wichser').
+- 70f2f323ed88  # BAD_GLOSS: "sets up in the middle" does not render auflegen and leaves the sense unclear.
+- 7126b954cdb5  # BAD_GLOSS: The gloss 'let it burn through himself with his car' is incoherent and does not render the sentence
+- 71ec1d76bd42  # BAD_GLOSS: 'Das kommt schon eher hin' means 'that's more like it', not 'that comes closer'.
+- 71f4f2f78ace  # BAD_SENTENCE: Grammatical error in German sentence: 'An allen Beteilligten' has an ungrammatical preposition a
+- 72002100b097  # BAD_SENTENCE: Headline fragment with a missing article: "bis in Stratosphäre".
+- 72a48ad76d32  # BAD_SENTENCE: The subordinate dass-clause is missing its finite verb: 'eine Differenz von 1,10 Euro'.
+- 72a7825f77da  # WRONG_UNIT: The verb used reflexively ('sich annähern') does not match the non-reflexive unit 'annähern'.
+- 72a7bf648462  # BAD_SENTENCE: Stray dash in "mach uns - fromm" breaks the sentence.
+- 72c72f29ba81  # BAD_SENTENCE: "Docht" as a bare fronted noun without article is unnatural German.
+- 72cdcd5dbeac  # BAD_SENTENCE: Line-break artifact "ange- nehme".
+- 731c5f47e7ba  # BAD_SENTENCE: A person 'Geld abbuchen' is unidiomatic and the dangling 'zwar' leaves the sentence hanging.
+- 734f3b812f76  # BAD_GLOSS: "It can be attached yourself" is not grammatical English.
+- 736bf90ae649  # BAD_SENTENCE: Technical image caption with a parenthetical, not a natural self-contained sentence.
+- 737c22f4dcf5  # BAD_GLOSS: 'sort it out' reads as 'resolve' in English; aussortieren means weed out or discard.
+- 7395eb203a6f  # WRONG_UNIT: Gesundheitliche Gruende is the subject here, not the prepositional phrase shown.
+- 7397af5c476f  # BAD_SENTENCE: Ungrammatical dative missing article: 'an bereits erfolgten Arbeiten' should be 'an die bereits 
+- 73c138a16781  # WRONG_UNIT: The sentence uses the verb 'denken an' (+Akk), not the separable verb 'andenken'.
+- 73ebe1af2a5f  # WRONG_GAPS: The unit display includes the verb 'ziehen', but only 'voreilige' and 'Schlüsse' are bracketed.
+- 7425000b2205  # BAD_GLOSS: Proper noun left in German spelling: 'Kaschmir' should be 'Kashmir'.
+- 744a42bc7c23  # BAD_SENTENCE: Grammatically incorrect duplicate pronoun 'Hat mich niemand mich'.
+- 7453674f4ae1  # WRONG_UNIT: Gaps span "kommen ... rein" and "ballern rum"; rumkommen is not instantiated.
+- 746f9ad056e4  # WRONG_UNIT: The sentence uses 'einfliessen'; the bracketed 'gefühlt' is an adverb, not part of any unit.
+- 747d512a520a  # WRONG_GAPS: Separable prefix "aus" is present in the sentence but not bracketed.
+- 7491890fbcb8  # BAD_SENTENCE: "10.000 Meter, wir fallen noch ab." is an elliptic fragment, not self-contained.
+- 749e7542fc10  # BAD_SENTENCE: Obscene fragment with sexual slurs, unusable as a learner sentence.
+- 74cb2e10105e  # BAD_SENTENCE: Subjectless fragment, not a self-contained sentence.
+- 74d2a1f7cfba  # BAD_SENTENCE: Missing noun after article/demonstrative: 'dem [zu]'.
+- 7552ea837c93  # BAD_SENTENCE: 'Berlin langt zufolge mit 10,60 Euro' has a dangling 'zufolge' with no referent.
+- 757ea854c686  # BAD_SENTENCE: Contains hyphenation artifact 'Prin- zip'.
+- 7595670042ad  # BAD_SENTENCE: Unnatural and uncomma'd: "eine freundliche gelassene Unterstuetzung in einer Beschaeftigung".
+- 75a89a28143b  # WRONG_UNIT: The sentence uses zugreifen auf +Akk (to access a printer), not plain intransitive zugreifen.
+- 75b2173e1126  # BAD_SENTENCE: "Ein schwarzer Mercedes, faehrt gerade raus." has a stray comma and reads as a fragment.
+- 75e19e8827e8  # BAD_SENTENCE: Relative pronoun misspelled: dass er nicht begangen hatte should be das.
+- 75fa38ddbf72  # WRONG_UNIT: Metropolitan Oper is the opera house (a location), not the object of singen.
+- 75ff7353942a  # WRONG_UNIT: The sentence instantiates the verb 'zurücklegen', not 'zurückliegen'.
+- 76082ba3f796  # BAD_SENTENCE: 'Fließjacke' is a misspelling of 'Fleecejacke'.
+- 760d4203fc68  # BAD_SENTENCE: Unnatural word order sprach vor bei, plus Vereinigten for Vereinten Nationen.
+- 762763ce331e  # WRONG_UNIT: The "an" here belongs to the adverbial "von jetzt an", not to anbleiben.
+- 763ec5508696  # BAD_SENTENCE: "Die einen sagen: Bier brauen." is a headline fragment, not a self-contained sentence.
+- 764d89bb9bd8  # WRONG_UNIT: The verb 'sterben' is missing entirely from the sentence and brackets.
+- 76b2dc177314  # BAD_GLOSS: 'Traces Mautner also left at SV Gmünd' copies German word order and is not English.
+- 76cec7c9dd11  # BAD_SENTENCE: The sentence is truncated: ist ein deshalb eine wichtige Voraussetzung is missing its noun.
+- 76ec7d5024d9  # WRONG_UNIT: The verb here is reflexive 'sich drauflegen', not the transitive/intransitive 'drauflegen'.
+- 76f23e51c1cc  # BAD_SENTENCE: 'Es ist fantastisch blauer Himmel' is not natural German, and the gloss copies the awkwardness.
+- 76f7a5a8682f  # BAD_SENTENCE: A stray heading is glued to the sentence: 'Bauchgürtel Der Bauchgürtel erfordert ...'.
+- 770f8bfda67b  # BAD_SENTENCE: Freunde und Bekannten has the wrong plural ending, it should be Bekannte.
+- 77181fd8903c  # BAD_SENTENCE: Standard German separates the prefix here: 'Das erkennen wir als wahre Liebe an'.
+- 7734c328d435  # WRONG_CASE: Sentence uses dative ('an den Füßen') indicating location rather than accusative.
+- 773ed14588f1  # BAD_SENTENCE: Verb is misspelled as two words ("entgegen bringen"), so the gaps teach wrong orthography.
+- 775dff9ae082  # WRONG_UNIT: 'Auf diese Weise' is an adverbial, not the prepositional object of 'optimieren auf'.
+- 777b81ba75b2  # BAD_SENTENCE: "Sodenn" is not a German word (sodann).
+- 77844943ed77  # WRONG_UNIT: The sentence uses anlegen (Sicherheitsgurt anlegen), not anliegen.
+- 7797fc1f67af  # BAD_SENTENCE: "mit beträchtlichen in der Kreide" is missing its noun and the sentence does not parse.
+- 780953312971  # BAD_GLOSS: "eine Kerze aufstellen" is to set up a candle, not to light one.
+- 78397581fd79  # WRONG_UNIT: The adverb 'hier' is separate, making 'hierher bringen' rather than just separable 'herbringen'.
+- 78af44764615  # BAD_SENTENCE: Grammar error: 'Einige diese Kids' should be 'Einige dieser Kids'.
+- 78b64d53d822  # BAD_SENTENCE: 'wie ein weißer Daumen' is an unnatural literal translation of the English idiom 'like a sore th
+- 78bc32de0c42  # BAD_SENTENCE: 'Ihn' is wrongly capitalised mid-sentence.
+- 78d610290f0b  # BAD_SENTENCE: Grammatical error in 'ob alle Gebäuden' instead of 'ob alle Gebäude'.
+- 78ff6386048f  # BAD_SENTENCE: Grammatically incorrect dative form 'mit einem netten Typ' instead of 'Typen'.
+- 790f43b755d0  # WRONG_UNIT: Sentence uses 'sitzen um ... herum' with postposition 'herum', not the intransitive verb 'herumsit
+- 7912266e2697  # BAD_SENTENCE: The sentence is ungrammatical because the modal verb 'müssen' requires an infinitive instead of 
+- 79f8eadc72e8  # WRONG_UNIT: 'heraus' here completes the frame 'aus dem Arm heraus', it is not the prefix of herauswerfen.
+- 7a03c613d1a2  # BAD_SENTENCE: Contains a grammatical gender error 'ein Frist' instead of 'eine Frist' and incorrect comma spli
+- 7a7655a351c8  # BAD_GLOSS: "herds us in" misrenders eintreiben and contradicts the other cards' sense.
+- 7aab04035e58  # WRONG_UNIT: "Legen Sie die Menue-Struktur fest" is festlegen, not festliegen.
+- 7ab3444f0447  # BAD_SENTENCE: Ungrammatical: 'waren germanischen Stämme' should be 'germanische Stämme'.
+- 7ac5b68a4b3a  # WRONG_UNIT: The sentence is 'etwas vorhaben' with the adverb 'bestimmt'; it does not instantiate vorbestimmen.
+- 7afc7097384c  # BAD_SENTENCE: Ungrammatical: missing article and dislocated phrase ('Es ist absolut ernsthafte Bedrohung, in F
+- 7b100ba94ab0  # BAD_SENTENCE: Polite imperative written with lowercase "sie" instead of "Sie".
+- 7b39d080eb8a  # BAD_SENTENCE: 'Bei den Beziehungen kommt der in jede staatliche Einrichtung' is elliptical spoken fragment, no
+- 7b3dd59bcf03  # BAD_SENTENCE: "auch genannt Wasserohr" is unnatural and the appositive is nonsense.
+- 7b5b68477396  # WRONG_UNIT: The verb here is anrufen ('rief ... an'), not rufen, so the bracketed tokens do not instantiate Bu
+- 7b6a35eb5de6  # BAD_SENTENCE: Headline style without article ('treten Reise an') is ungrammatical as a normal sentence.
+- 7b6be30d353d  # BAD_SENTENCE: Eine ganze Kleinstaat has the wrong gender and ending; it must be Ein ganzer Kleinstaat.
+- 7b82320d87e0  # BAD_SENTENCE: Contains typos and non-standard characters ('hall'n', 'StechpaImzweigen' with capital I).
+- 7bbb9d077eb8  # BAD_SENTENCE: Sentence contains broken word wrap 'Be- wohnerin'.
+- 7bd159a65cb6  # WRONG_UNIT: Uses 'seinem Ärger Luft verschaffen' rather than the reflexive 'sich Luft verschaffen'.
+- 7bf4ac966a32  # WRONG_GAPS: The unit tokens "trifft" and "Den" are missing from the brackets.
+- 7c15344c59af  # BAD_SENTENCE: Verb-final headline fragment ('Warum er diese Entscheidung noch nie bereut hat.'), not a standal
+- 7c29405fc4ac  # WRONG_UNIT: The sentence uses "suchen nach", lacking the unit's verb "treffen".
+- 7c83c157153b  # BAD_SENTENCE: 2.000 Mestizin uses a wrong (feminine singular) form where Mestizen is required.
+- 7c8b9e4a26de  # BAD_SENTENCE: Uses Swiss spelling 'begrüssen' with double s instead of ß.
+- 7cb64e524e8b  # BAD_SENTENCE: Obsolete spelling 'frißt' instead of modern 'frisst'.
+- 7cc9de5d10b6  # BAD_SENTENCE: Missing preposition: "lebten bescheidenen Verhältnissen" should be "lebten in bescheidenen Verhä
+- 7cd34371e6eb  # WRONG_UNIT: The sentence uses the active 'die Welt dem Untergang weihen', not the stative unit 'dem Untergang 
+- 7ce3bd7950fa  # WRONG_UNIT: The sentence instantiates the verb 'zurücklegen', not 'zurückliegen'.
+- 7d2135517744  # WRONG_UNIT: davon is a pronominal adverb meaning of them, not the prefix of davontragen.
+- 7d3c8b7d780f  # BAD_SENTENCE: The sentence is incomplete, cutting off abruptly after 'auf'.
+- 7d4861d476ae  # BAD_SENTENCE: The sentence is garbled and semantically impossible (30 hours every day), and the trailing 'zu' 
+- 7d4bf8eab0d0  # WRONG_GAPS: Gap split across conjunction: 'das [zentrale] und periphere [Nervensystem]'.
+- 7d63dde3bb1f  # WRONG_UNIT: The verb is transitive 'auslegen', not 'ausliegen'.
+- 7d6a0c4fd62f  # BAD_SENTENCE: 'Mein Herz fühlt mich euch Frauen mit' is ungrammatical; it should be 'fühlt mit euch Frauen mit
+- 7d6bee1d9239  # WRONG_UNIT: "Ich treffe Blair auf 'ner Party" is treffen plus the preposition auf, not the separable verb auft
+- 7d6daf7d2643  # BAD_SENTENCE: Sie-form possessive written lowercase "ihre" instead of "Ihre", contradicting the gloss's "your"
+- 7d91a381c54c  # BAD_SENTENCE: Case error: "einer meiner letzten lebenden Verwandten kennenlernen" needs accusative "einen".
+- 7e25bc2e8fdd  # BAD_SENTENCE: Bare infinitive fragment, not a complete sentence.
+- 7e2df414bdb2  # BAD_SENTENCE: Typo with capital letter I instead of lowercase l in Öl ('ÖI').
+- 7e52e7120047  # BAD_SENTENCE: OCR error: 'lhre' (lowercase L) instead of 'Ihre'.
+- 7e6256d25784  # BAD_SENTENCE: Sentence starts with the English word "No" instead of "Nein".
+- 7e67948b622a  # WRONG_UNIT: Sentence uses literal directional looking over rather than the figurative prepositional verb hinwe
+- 7e78ebd140d9  # WRONG_GAPS: The reflexive pronoun sich is part of the unit sich Gedanken machen but is not bracketed.
+- 7e7dd201bcd3  # BAD_SENTENCE: 'Weisst du, dem nicht nachhaengen.' is a fragment, not a self-contained sentence.
+- 7e8bd0505efb  # BAD_GLOSS: lighting a candle mistranslates aufstellen (setting up) and misleads about the gap.
+- 7eb2bc666fe3  # BAD_SENTENCE: The sentence makes no sense with 'vorleben'; likely a corruption or mix-up with 'vorkommen'.
+- 7ec2e8b3e9f0  # BAD_SENTENCE: Contains broken text with an orphaned hyphen: '-Stadträtin'.
+- 7ec42bbfe5f0  # BAD_GLOSS: "Please accept my condolences" replaces the German structure and hides that the learner must produc
+- 7eecbbaeca2d  # BAD_GLOSS: "talks lonely to the lens" is not English; einsam is adverbial here.
+- 7f0982fa856b  # BAD_SENTENCE: OCR typo "lhren" for "Ihren".
+- 7f26400b3e75  # BAD_SENTENCE: The sentence is an incomplete fragment without a main clause.
+- 7f5d8f05f29c  # BAD_GLOSS: 'easy prey' misses the idiom's sense of a godsend or field day.
+- 7f7633684e5d  # WRONG_GAPS: Gapped words do not form the unit because 'und regionale' intervenes outside the brackets.
+- 7f77085e52ed  # BAD_SENTENCE: Subjectless colloquial fragment, missing Das war.
+- 7f8f8a0b88e0  # BAD_SENTENCE: Player name missing after 'von', leaving both sentence and gloss broken.
+- 7f9ee51ed850  # BAD_SENTENCE: Headline style ("Bund darf..." without article) plus a stray space before the period.
+- 7fb27f63ae85  # WRONG_UNIT: The sentence is sich ein Bild machen von etwas, with davon a pronominal adverb, not sich davonmach
+- 7fff189dfed4  # BAD_SENTENCE: "Die strukturelle Integrität des Rings hängt." is truncated and meaningless, as is the gloss.
+- 800938e9fbca  # WRONG_UNIT: The sentence uses heranführen, not heranfahren.
+- 801b68e04ebb  # BAD_SENTENCE: 'wellen' is written lowercase; the noun must be 'Wellen'.
+- 802362c803d3  # BAD_SENTENCE: Noun miscapitalised: die konzerne should be die Konzerne.
+- 807341b4e225  # BAD_SENTENCE: Relative clause has no subject ("in dem gemeinsam ... wirbelt").
+- 80b129bcaedd  # BAD_SENTENCE: Spelling error: 'Mann' used instead of impersonal pronoun 'Man'.
+- 80c3d0dec887  # WRONG_UNIT: Uses the reflexive construction 'sich festlegen' with 'sich' unbracketed and missing from the unit
+- 80e68a6be14e  # BAD_SENTENCE: OCR corruption "Nechstes Mal" with an accented e instead of "Naechstes".
+- 80e894fa480c  # BAD_SENTENCE: Headline fragment "Wie kurz kurze Hosen sein duerfen?" is not a well-formed question, and the gl
+- 8121e8f4630a  # BAD_SENTENCE: The sentence is an incomplete fragment lacking its subject noun.
+- 8123c792040e  # BAD_SENTENCE: Headline fragment with trailing website attribution '- Yahoo!'.
+- 813ac20ed241  # BAD_SENTENCE: 'Ja, bin ich der festen Ueberzeugung.' is an elliptical spoken fragment missing the subject.
+- 816b801b6afc  # BAD_SENTENCE: OCR typo: lhre instead of Ihre.
+- 8172e6367552  # BAD_SENTENCE: Erroneous comma between subject and verb.
+- 81f56539c67d  # WRONG_GAPS: The unit tokens "auf", "die", and "geraten" are missing from the brackets.
+- 820d5b40f721  # BAD_SENTENCE: 'Aroganz' is a misspelling of 'Arroganz'.
+- 826d54e45817  # WRONG_UNIT: The prepositional construction 'auf ... zufliegen' is not the unit 'zufliegen'.
+- 82e07abdb140  # BAD_SENTENCE: dem Zag is a typo for dem Zug, and the gloss copies the nonsense word.
+- 8322fdce3095  # BAD_SENTENCE: The sentence is a line from the Nazi Horst-Wessel-Lied, unsuitable as learner material.
+- 8326257742a2  # WRONG_GAPS: The unit token 'lassen' is missing from the brackets.
+- 837005c7ba19  # BAD_GLOSS: Literal "Tom has two left hands" does not render the German idiom for being clumsy.
+- 837b7b63dce4  # WRONG_GAPS: Unit is 'sodass' but spaced 'so dass' is split across two brackets.
+- 83bddf1db192  # BAD_SENTENCE: Ungrammatical case/ending: 'in berufliche Tätigkeiten' should be 'in beruflichen Tätigkeiten'.
+- 83d38f6045e0  # BAD_SENTENCE: Two texts run together without a space: "Mietstress in ItalienEr wollte ...".
+- 83dfbed7790d  # BAD_SENTENCE: Colloquial contraction ''ne' in standard learning materials.
+- 8446ca765b4d  # WRONG_UNIT: "um ... herum" is the circumposition governing "den Park", not the separable verb "herumlaufen".
+- 844da85e2f32  # WRONG_UNIT: The sentence instantiates hinzubekommen (bekam ... hinzu), not hinbekommen.
+- 845e4e16493b  # BAD_GLOSS: German thousands separator kept in English, so '4.000 euros' reads as four.
+- 845ea268681d  # BAD_GLOSS: Gloss begins with a stray unmatched quotation mark.
+- 84635529012f  # BAD_GLOSS: The gloss finalize does not render zuschneiden and misleads about the gapped tokens.
+- 8466ea00da4b  # BAD_SENTENCE: Grammatical error: 'In gewisser Maßen' should be 'In gewissem Maße' or 'gewissermaßen'.
+- 8471fac931d8  # WRONG_UNIT: Here 'ausziehen' takes an accusative object ('die Schuhe') and a dative benefactive/reflexive pron
+- 847e13d32d8b  # WRONG_GAPS: The unit token 'lassen' is missing from the brackets.
+- 84c654ac93fa  # BAD_SENTENCE: 'beides Mal' is ungrammatical; should be 'beide Male'.
+- 84fcd0bff5e6  # BAD_GLOSS: 'sort that out' reads as 'resolve' rather than 'weed that out'.
+- 85243b1bbdaf  # WRONG_UNIT: The bracketed "an" belongs to "Probleme ansprechen", not to anbleiben.
+- 858b80ce2685  # BAD_GLOSS: Subject and object are swapped: "Letztere" is the subject making "das Bündnis" available.
+- 85a9397c98e7  # BAD_SENTENCE: Uses obsolete pre-1996 spelling 'Muß' inside the gap.
+- 85d268738781  # BAD_GLOSS: German thousands separator kept in English: "8.876 shares" reads as a decimal.
+- 862f3a721270  # BAD_SENTENCE: The finite verb is missing: 'Sie wahrscheinlich eine gebrochene Rippe' lacks 'haben'.
+- 86379b2d60a0  # BAD_SENTENCE: Typo 'Geichzeitig' instead of 'Gleichzeitig'.
+- 868038479422  # BAD_SENTENCE: Sentence is truncated ('vom Bundestag ins auf'), and the gloss ends mid-phrase too.
+- 869033dff647  # WRONG_UNIT: Here "ein blaues Auge" means a black eye, a different sense from the unit "blaue Augen".
+- 86f667c20047  # BAD_SENTENCE: The sentence contains an obscure abbreviation 'MA' and awkward phrasing.
+- 86fbcc89cd17  # BAD_SENTENCE: 'Jetzt ist sie freie Wahl.' is not grammatical natural German.
+- 8733e6bb3a1c  # BAD_SENTENCE: The sentence is ungrammatical and incomplete without a predicate or complement.
+- 87b265c4e8c4  # WRONG_UNIT: The bracketed 'ein' is the indefinite article of 'ein/eine Sozialassistent', not the prefix of 'ei
+- 87b97a01ea13  # BAD_SENTENCE: The gap noun is written lowercase (kehle), so the expected answer is misspelled.
+- 87f05cb3dec3  # BAD_SENTENCE: Clause fragment lifted mid-sentence ('Alexander Zalatschenko, gekippt hatte, ...'), not a usable
+- 882766c732aa  # WRONG_UNIT: The verb used reflexively ('sich annähern') does not match the non-reflexive unit 'annähern'.
+- 8835ba79359e  # BAD_SENTENCE: 'Er zieht ihn direkt in uns rein' is not meaningful German without heavy context.
+- 8866586fcb08  # WRONG_UNIT: geborene belongs to in London geboren, not to the born-artist collocation.
+- 8866f0599195  # WRONG_UNIT: This is the preposition construction arbeiten an etwas, not the separable verb anarbeiten.
+- 889282c0bcf3  # WRONG_GAPS: The unit includes 'sich' and 'den', but only 'Kopf' and 'zerbrechen' are bracketed.
+- 88a652cc7d71  # BAD_SENTENCE: Spelling error with 'ue' substitution instead of umlaut in 'Gattertuer'.
+- 88b4d83c4a18  # BAD_SENTENCE: Typo makes the sentence ungrammatical: 'wer in getötet hat' should be 'ihn'.
+- 890abacec488  # BAD_SENTENCE: Newspaper headline with the article dropped and a dash fragment, not a self-contained sentence.
+- 891c8f125c38  # BAD_GLOSS: Translates the idiom literally as 'with hard bandages' instead of 'with no holds barred' or 'play h
+- 892112ccf906  # WRONG_UNIT: The verb used in the sentence is auflegen, not aufliegen.
+- 894abc5d2756  # BAD_SENTENCE: Garbled apposition, the subject list is incoherent.
+- 895861a5c120  # BAD_GLOSS: Literal We pour pure wine misses the idiom reinen Wein einschenken glossed idiomatically on the sib
+- 8974acf59a14  # WRONG_UNIT: Tokens belong to sagen and aufhoeren, not the verb aufsagen.
+- 898a448c2560  # BAD_SENTENCE: Contains a duplicated word typo ('bei der der Met').
+- 899ec9ec5f73  # BAD_SENTENCE: Ungrammatical participle: der wieder genese Kapitaen should be genesene.
+- 89d00b7a5815  # WRONG_UNIT: "nach Herzenslust" is a fixed adverbial, not the prepositional object of stöbern.
+- 89f3c06c192c  # WRONG_UNIT: The unit is reflexive sich niederlegen, but sich is not included in the unit display or bracketed 
+- 8a0493f7437a  # BAD_SENTENCE: Verbless fragment, not a standalone sentence.
+- 8a1800813999  # BAD_SENTENCE: The sentence is nonsensical and unnatural ('Wind wird gleich aus mir wehen!').
+- 8a1fad51ddfd  # BAD_SENTENCE: News headline with a trailing " - Yahoo!" and no article, not a natural sentence.
+- 8a21482daf88  # BAD_SENTENCE: "Jetzt ... vorher noch" is self-contradictory and the sentence reads as garbled news copy.
+- 8a73c8120e0d  # WRONG_GAPS: The unit includes 'sich' and 'den', but only 'Kopf' and 'zerbrechen' are bracketed.
+- 8a9b51b88d79  # BAD_SENTENCE: A question written with a full stop instead of a question mark.
+- 8ac860b5465e  # BAD_SENTENCE: Carrier is a screenplay line with an all-caps speaker name (GERHARD), not natural written German
+- 8af25be5eb8f  # WRONG_UNIT: The bracketed preposition is nach (nach oben abprallen); von does not appear in the sentence.
+- 8b0893a3d098  # BAD_GLOSS: Taking a position publicly, she felt to be a civic duty is not grammatical English.
+- 8b488f22262a  # BAD_SENTENCE: Contains Swiss spelling with 'ss' instead of 'ß' in 'Gemässigten'.
+- 8b66e08795e6  # BAD_SENTENCE: Ungrammatical and incoherent ('eigene genetischen Erinnerungen über ihre').
+- 8b6c688e3f47  # WRONG_UNIT: 'anstiften' means to incite someone or instigate a crime, not used transitively with thoughts ('Ge
+- 8badff3cccb4  # WRONG_UNIT: The sentence contains "sich die Frage stellen" plus an unrelated "raus", not the unit sich rausste
+- 8c069d7600a1  # WRONG_UNIT: The sich belongs to the passive lassen construction, not to the lexical reflexive sich einklinken.
+- 8c0f174b76fd  # WRONG_UNIT: The sentence uses 'anspielen gegen' (play against), not the separable verb 'anspielen auf' (to all
+- 8c18d814787e  # BAD_SENTENCE: Typo in sentence: 'Übungsezenario' instead of 'Übungsszenario'.
+- 8c1e3e754c9d  # BAD_SENTENCE: Line-break artifact "Früh- stück".
+- 8c4365c595cf  # BAD_SENTENCE: Getroffen will sie sich damit abfinden is a headline fragment whose opening participle is unatta
+- 8c74ad2f7996  # BAD_SENTENCE: Elliptical fragment with no subject ('Haben uns ausgemalt, wie es wäre.').
+- 8c77c0667fd9  # BAD_SENTENCE: UI-caption fragment ('Tab schaltet auf Brettuebersicht um'), not a self-contained natural senten
+- 8c812b988df1  # WRONG_UNIT: The verb used reflexively here is 'sich einfügen' (fit in), not plain 'einfügen'.
+- 8c8c175f8adc  # WRONG_UNIT: Here 'zu Fuss' is the fixed manner adverbial, not the goal preposition of pilgern zu.
+- 8c9f33dbdac8  # BAD_SENTENCE: Ungrammatical: 'von seinem starren Blick ihm streifen' has a stray dative and the wrong verb.
+- 8ca7da022747  # BAD_SENTENCE: "moslimische" is not a German word.
+- 8cb20abeee91  # BAD_SENTENCE: Fragmentary subtitle line, not a grammatical self-contained sentence.
+- 8cdb440e1a3e  # BAD_SENTENCE: Die haben uns nicht vorzuschreiben blends haben zu with brauchen/haben zu in an unnatural colloq
+- 8cf22d14821e  # WRONG_UNIT: Arbeiten Sie an Scarecrows Bericht uses arbeiten an, not the separable verb anarbeiten.
+- 8d2f71950e34  # BAD_SENTENCE: Imperative needs capitalised 'Sie'; as written the clause reads as a statement about 'sie'.
+- 8d784bb5ddc3  # WRONG_UNIT: 'das ganze Jahr über bleiben' uses the postposition 'über', not the separable verb 'überbleiben'.
+- 8dcf3ee276b9  # WRONG_UNIT: The idiom is 'zum Halse heraushängen / raushängen', not simply 'raushängen'.
+- 8e0a3eeed711  # WRONG_GAPS: Unit is 'sodass' but spaced 'so dass' is split across two brackets.
+- 8e1521a22039  # WRONG_UNIT: Intransitive use of abnutzen without an object does not fit standard usage.
+- 8ea58d5895bd  # BAD_SENTENCE: The sentence is truncated with an unfinished prepositional phrase ('von der').
+- 8ea988644adf  # BAD_SENTENCE: Offensive and vulgar sentence unsuitable for language learning.
+- 8eaa47d1abf6  # WRONG_UNIT: The sentence uses the verb 'denken an' (+Akk), not the separable verb 'andenken'.
+- 8ee04a079eeb  # BAD_SENTENCE: strahlenste is a malformed superlative, it should be strahlendste.
+- 8ee52b261749  # BAD_SENTENCE: "Oder aber, er schlägt ein." is a sentence fragment that only works after a preceding clause.
+- 8f07b196e706  # BAD_GLOSS: "We warmly congratulate on this success" is ungrammatical English, congratulate needs an object.
+- 8f5314a36edb  # WRONG_UNIT: The sentence instantiates the idiom 'wie die Katze um den heißen Brei schleichen', not 'um den hei
+- 8f614c1bd242  # WRONG_UNIT: The sentence has the motorsport black/white flag (schwarz/weiße Flagge), not the surrender white f
+- 8f690b677e4e  # BAD_SENTENCE: Ungrammatical spoken German ("da braucht das Wasser nicht einmal kochen, dass es übergeht").
+- 902f9e6b7790  # BAD_SENTENCE: 'Moos wächst die Rinde zu' is ungrammatical and the gloss silently repairs it.
+- 9037c6d78e3f  # BAD_SENTENCE: Garbled clipping: "NRW betreut, nach der Baubesprechung in dieser Woche mit." is not a natural s
+- 903c705ee7d9  # BAD_SENTENCE: "Strache, ordnete er sich ..." is ungrammatical and not self-contained.
+- 906d1bebd3dd  # BAD_SENTENCE: Leading asterisk makes the sentence look like an unedited raw bullet point or fragment.
+- 90909cd69b90  # WRONG_UNIT: The sentence has ein hohes Mass an, not the displayed prepositional phrase in hohem Masse.
+- 909b1387a849  # BAD_SENTENCE: Subjectless dialogue fragment, not a self-contained sentence.
+- 90ae2cb151ad  # BAD_SENTENCE: Wrong plural form in the subject: 'Eineiige Zwillingen' should be 'Eineiige Zwillinge'.
+- 90b5da563cf1  # WRONG_UNIT: 'den Romulanern' is a plain indirect object, not reflexive 'sich'.
+- 9110b70becaa  # WRONG_UNIT: The bracketed 'aus' belongs to 'trickste ... aus' (austricksen), not to 'schaffte es'.
+- 9111f0352be1  # BAD_SENTENCE: Verb misspelled: "muss den König toten" should be "töten".
+- 91315dc16a52  # BAD_SENTENCE: Subjectless fragment '[Schmeißt] hier den ganzen [Laden].' is not a self-contained sentence.
+- 91520d1c0e1c  # BAD_SENTENCE: Typo 'ranntein' for 'rannte in'.
+- 915b6f732898  # WRONG_UNIT: Different verb meaning: 'aushängen' here means unhooking/detaching, not posting/displaying publicl
+- 91730ad68f73  # BAD_SENTENCE: "auf die ausgesetzt" is missing its object noun and reads as a truncated colloquial fragment.
+- 917d134ef796  # BAD_SENTENCE: "Hat das ganze Dach meiner Pension weggerissen." lacks a subject and is a fragment.
+- 91a0792f2523  # BAD_GLOSS: "nämlich" is rendered as "namely", which is not English here, and the referent of "Sie" is unrecove
+- 91ab653a5d9e  # WRONG_UNIT: Instantiates passive 'eingesungen werden' (record vocals), not reflexive 'sich einsingen' (warm up
+- 91c9cdd3b253  # BAD_SENTENCE: "Und wenn wollen sie dich damit einwickeln." is ungrammatical German.
+- 9221c9718862  # WRONG_GAPS: The reflexive/dative pronoun 'mir' is omitted from the bracketed gaps.
+- 9228e769ab8b  # BAD_GLOSS: 'schlug an' here means it worked or took effect, not 'caught on'.
+- 922c7515d265  # BAD_SENTENCE: Typo: Ich habe versuch should be Ich habe versucht.
+- 9243e7ee1a35  # WRONG_UNIT: The construction is 'spazieren gehen durch', with 'spazieren' as an infinitive governed by 'geht'.
+- 92d1891994f5  # WRONG_GAPS: The unit tokens "auf", "den", and "aufspringen" are missing from the brackets.
+- 92fdfd76825b  # WRONG_GAPS: The unit token 'lassen' ('lassen') is not bracketed.
+- 93169cfd9c12  # WRONG_UNIT: Uses reciprocal/reflexive 'sich austauschen' rather than transitive 'austauschen'.
+- 9322df0e80d4  # WRONG_GAPS: The reflexive pronoun 'sich' from the unit is not bracketed in the sentence.
+- 9393bea70d00  # WRONG_UNIT: Literal use of seeing a physical light rather than the idiom 'das Licht der Welt erblicken'.
+- 93e648874bd1  # BAD_SENTENCE: Missing "hinaus": "weit ueber das Rhein-Main-Gebiet hinaus" is required.
+- 940685a3f092  # BAD_SENTENCE: Rhetorical question punctuated with a full stop instead of a question mark.
+- 940926e1b837  # BAD_GLOSS: "kurz angebunden sein" means to be curt or brusque, not "short of time", and the sentence also lack
+- 9410df7ebad5  # WRONG_UNIT: 'mit 'ner Feder' is the instrumental preposition, not the prefix of mitsitzen.
+- 948a3b697c02  # BAD_SENTENCE: Subjectless fragment that depends on a preceding sentence.
+- 94d08839f603  # BAD_SENTENCE: 'in die Weit' is a misspelling of 'in die Weite'.
+- 950222b2d221  # WRONG_UNIT: 'andersherum kommen' / 'herum' is part of the directional adverb 'andersherum', not the verb 'heru
+- 951a58a1756a  # BAD_SENTENCE: Uses obsolete pre-1996 spelling 'Muß' in the sentence and an exclamation mark on a question.
+- 9531e7eda6f7  # BAD_SENTENCE: Not a sentence: an ungrammatical, lowercase social-media fragment.
+- 95399c54dbf5  # BAD_SENTENCE: The sentence is an incomplete fragment ending abruptly with 'wie z.B.'.
+- 958db8df3de1  # BAD_SENTENCE: Sentence contains a racial slur, unusable on a learner card.
+- 958f4934a10c  # BAD_SENTENCE: 'freisetzen' is unnatural for releasing a person from prison and Oberste Gerichtshof is improper
+- 95921dc81f42  # BAD_SENTENCE: Name missing before '(36)', leaving 'der ehemalige Ehemann von (36)' ungrammatical.
+- 96daf84b7e69  # WRONG_GAPS: The reflexive pronoun 'sich' from the unit is not bracketed in the sentence.
+- 97762e832744  # BAD_GLOSS: "Fate spared him" reads as verschonen, not aussparen (leave out).
+- 9851db5afeba  # BAD_SENTENCE: Word order is unnatural; normal German is 'Wir steigen ins Basislager ab'.
+- 98badc075a39  # BAD_SENTENCE: 'Ihre Fuß' is ungrammatical, and the sense is literal removal, not the idiom 'etwas raushaben'.
+- 99182ca3323f  # WRONG_UNIT: Uses reflexive 'sich anschließen' but unit is plain 'anschließen'.
+- 992f89fb2d5c  # BAD_SENTENCE: 'Aber sie heißt' is ungrammatical and nonsensical in this context.
+- 99326d683bd3  # WRONG_UNIT: Here 'wahre Größe' means literal physical size, not the collocation 'true greatness' the unit teac
+- 994b7769658f  # BAD_SENTENCE: "Zunäscht" is a typo for "Zunächst".
+- 99567fefe9fd  # BAD_SENTENCE: "Unter Demokraten rechnet man nicht an" is incomplete German and the gloss does not follow from 
+- 998e7d4e6361  # WRONG_GAPS: The unit display includes the verb 'ziehen', but only 'voreiligen' and 'Schlüsse' are bracketed.
+- 998f610c8e47  # BAD_SENTENCE: "Wegen dieses Anzeige" is ungrammatical; it must be "dieser Anzeige".
+- 9991ee95b362  # WRONG_GAPS: The unit prefix 'aus' is missing from the sentence and brackets.
+- 99c074edca1f  # WRONG_UNIT: "Fahren wir zusammen?" means travel together, not flinch.
+- 99c93c37e550  # BAD_SENTENCE: Bare infinitival fragment, not a sentence.
+- 99ce70adf8a3  # WRONG_UNIT: The sentence uses the temporal prepositional phrase 'ab sofort' and the simplex verb 'bezahlen', n
+- 9a37bef749e4  # WRONG_UNIT: "weg" belongs to "lässt ... weg" (weglassen), not to "hat".
+- 9a612ee7e157  # WRONG_UNIT: The sentence uses anlegen (Geld anlegen), not anliegen.
+- 9aa78e6f4da5  # BAD_SENTENCE: 'Ich habe eine unterschiedliche Meinung' is unidiomatic German; a singular holder needs 'eine an
+- 9aafacaabe3d  # BAD_GLOSS: 'entschuldigen Sie ... den gestrigen Abend' means 'excuse/forgive yesterday evening', not 'apologiz
+- 9ab31f0aee30  # BAD_SENTENCE: Contains a blatant typo in the first word ('Geichzeitig' instead of 'Gleichzeitig').
+- 9adaf2a392d4  # BAD_SENTENCE: Ungrammatical without article: 'gab dazu Kommentar ab' should be 'gab dazu einen Kommentar ab'.
+- 9aea4087674e  # BAD_SENTENCE: "Der Markenwert von hat ..." is missing the brand name; the gloss copies the hole.
+- 9b0cebb64d62  # WRONG_UNIT: 'aufgeheizt' is used as a predicate adjective, not as a finite or non-finite verb form of 'aufheiz
+- 9b256148035e  # WRONG_GAPS: The unit tokens "auf", "den", and "aufspringen" are missing from the brackets.
+- 9b2d202540ab  # BAD_SENTENCE: Pre-1996 spelling 'floß' and an obscure name make this a poor model sentence.
+- 9b47849b42fd  # BAD_SENTENCE: "Es kommt in dabei raus" is garbled.
+- 9b64eefa3b0c  # BAD_SENTENCE: Subject "Or" is a corrupted fragment, not a German word or usable name.
+- 9b74fbb2a46c  # WRONG_UNIT: 'vereint Kraft, Ordnung und Ballzirkulation' is a list of qualities, not the collocation Kräfte ve
+- 9bd94f95b367  # BAD_SENTENCE: Genitive error: meines Herzen should be meines Herzens.
+- 9c02fb9a290d  # BAD_SENTENCE: Subordinate-clause fragment beginning with "Ausgerechnet, weil ...", no main clause.
+- 9c1a7cc52573  # BAD_SENTENCE: The sentence is a question or request but incorrectly ends with a period instead of a question m
+- 9c228c3d573e  # BAD_GLOSS: "Green cataract" is a mistranslation of grüner Star (glaucoma).
+- 9c2e0eab4157  # WRONG_UNIT: The verb here is reflexive 'sich anvertrauen' rather than non-reflexive 'anvertrauen'.
+- 9c6ad4a6fd06  # BAD_SENTENCE: Contains an uncapitalized German noun 'freundin' instead of 'Freundin'.
+- 9c937906f9cf  # BAD_SENTENCE: Contains obsolete spelling 'Schlußstrich' inside the gap and missing comma.
+- 9ce9cd1f6502  # WRONG_UNIT: Auf der Dienststelle is a dative location; the actual target is in den Innenhof.
+- 9cf766681b3f  # BAD_SENTENCE: "Der Temperatursensors misst" has a stray genitive -s on the subject.
+- 9cfd41a8ae37  # BAD_GLOSS: The second half of the gloss is untranslated German instead of English.
+- 9d7beeb84a5d  # BAD_SENTENCE: The idiom is 'über sich hinauswachsen'; 'herausgewachsen' is wrong here.
+- 9d8218941d06  # BAD_SENTENCE: 'stimmte ein Lächeln ein' and 'stocherte in ihren Tassen' are garbled, unnatural German.
+- 9da3513a6d25  # BAD_GLOSS: "At least we'll get Cancer together" reads as contracting cancer and does not convey zusammenkriege
+- 9da69de46d6c  # WRONG_UNIT: The verb here is 'nachstellen' (mit Dativ: reichen älteren Frauen nachstellen), not 'nachreichen'.
+- 9db46863c225  # BAD_SENTENCE: Corrupted text: haEbe instead of halbe.
+- 9dd07b1f026c  # BAD_SENTENCE: Subject-verb agreement error: 'Infineon' is singular but takes plural verb 'gewinnen'.
+- 9df1247f0d93  # WRONG_UNIT: The bracketed verb is zugekommen, so the sentence instantiates zukommen auf, not kommen auf.
+- 9e09ade1060f  # WRONG_GAPS: The bracketed Im is the locative Im menschlichen Körper, not the unit preposition in Nitrit.
+- 9e5afed20fdf  # BAD_SENTENCE: vorsprechen cannot take an ob-clause; the sentence is ungrammatical.
+- 9e7fc3305b8d  # BAD_SENTENCE: The sentence is defective with a dangling preposition 'Bei' lacking its complement.
+- 9e8f4ccb94f4  # WRONG_UNIT: Sentence uses 'sitzen um ... herum' with postposition 'herum', not the intransitive verb 'herumsit
+- 9e9dd51bff6b  # WRONG_GAPS: The bracketed "In" comes from the adverbial "In der Konsequenz"; the unit's preposition is the lat
+- 9fb80fa575df  # BAD_SENTENCE: Uses obsolete pre-1996 spelling 'Muß' inside the gap.
+- a04f08ce5842  # WRONG_UNIT: "Gibt es" is not the separable verb "rausgeben"; "raus" belongs to "einen anderen Weg raus".
+- a0628373766d  # WRONG_UNIT: The verb is transitive festhalten with a local prepositional phrase am Ärmel, not festhalten an +D
+- a06d9718ec8b  # WRONG_UNIT: The bracketed "nach" is temporal ("after the book purchase") and is not the object preposition of 
+- a110e2bf9267  # WRONG_UNIT: 'zusammen' is an adverb of manner with 'gehen', not the separable verb 'zusammengehen'.
+- a1347b802daf  # WRONG_UNIT: The sentence uses the idiom 'den Löffel abgeben', which does not instantiate the verb abgeben.
+- a15d9b390e7a  # BAD_GLOSS: 'One chooses a right tool' is unidiomatic English for 'ein richtiges Werkzeug'.
+- a1875b15db50  # WRONG_UNIT: The sentence uses 'nachdenken', not 'nachsagen'.
+- a192e9716c26  # BAD_SENTENCE: Typo "Mormittag" for "Vormittag".
+- a1c0fee95e30  # BAD_SENTENCE: Gap word is shouted as 'GESETZ', so the expected typing is wrong-cased.
+- a1cb73579f4e  # WRONG_UNIT: The sentence contains the tag question 'nicht wahr?' with main verb 'haben', not the verb 'wahrhab
+- a1d16ac48bf3  # WRONG_UNIT: The idiom is 'zum Hals heraushängen / raushängen', not simply 'raushängen'.
+- a1df1d8ce8d7  # BAD_SENTENCE: Sentence ends with website artifact ' - Yahoo!'.
+- a1f28846c464  # BAD_SENTENCE: "Was jetzt stattdessen geplant ist?" is a verb-final journalese fragment, not a grammatical stan
+- a259f40aa063  # BAD_SENTENCE: Incomplete sentence fragment lacking a subject noun after the article 'Die'.
+- a27c475954ff  # BAD_SENTENCE: Word salad ('Sie wollen irgendwo, dass nicht anziehen amerikanischen Touristen'), and the gloss 
+- a2d56c2ea5b0  # WRONG_GAPS: The reflexive/dative pronoun 'uns' is omitted from the bracketed gaps.
+- a2dafad730f8  # BAD_SENTENCE: "Einer Seidenstrumpf" is ungrammatical; it must be "Ein Seidenstrumpf".
+- a3bc68f542c6  # WRONG_UNIT: The verb used reflexively ('sich annähern') does not match the non-reflexive unit 'annähern'.
+- a3bf684b2739  # BAD_SENTENCE: Verbless fragment, no finite verb.
+- a420ded0d2a6  # WRONG_UNIT: 'Ich dachte, du wolltest wieder weg' is denken plus predicative weg, not the verb wegdenken.
+- a425558cfe3b  # BAD_SENTENCE: Subtitle artifact: the leading filler "Uhm," makes this an unnatural carrier sentence.
+- a4262a259c42  # WRONG_UNIT: 'die genauen Daten' here means 'the exact data', not dates.
+- a4691eab70a4  # BAD_SENTENCE: The sentence is a subordinate clause fragment without a main clause.
+- a478f184eb1e  # BAD_SENTENCE: Wrong dative plural: "den Braunschweiger" should be "den Braunschweigern".
+- a48676f61cdc  # WRONG_UNIT: 'viel Substanz enthalten' is the mass-noun sense (substance/content), not the plural collocation t
+- a4b70de00844  # BAD_SENTENCE: 'von unschätzbarem kulturellen Wert' has a wrong adjective ending and 'wurden' should be 'waren'
+- a4c3370d2656  # BAD_SENTENCE: The sentence lacks an overt subject pronoun ('wir') needed for the verb form 'liefern'.
+- a4fba0ca6d78  # WRONG_UNIT: The sentence does not contain the reflexive pronoun required by the unit.
+- a52a33a4197a  # BAD_SENTENCE: Sentence is ungrammatical due to missing preposition or subject structure ('Beginn der nächsten 
+- a5496d489802  # BAD_SENTENCE: The sentence is a news headline snippet containing trailing source junk '- Yahoo!'.
+- a5c109ff6107  # BAD_SENTENCE: Incoherent ("die Bestückung sollte nicht zum Turnunterricht ausufern").
+- a5e753bb44c9  # BAD_SENTENCE: 'Es leitete die anderen her.' is context-free and semantically empty.
+- a610867fcd16  # BAD_SENTENCE: Spelling 'Forststrasse' uses Swiss 'ss' instead of standard German 'ß'.
+- a6525f3fd0fa  # WRONG_UNIT: The sentence uses the verb 'denken an' (+Akk), not the separable verb 'andenken'.
+- a65fb6b7ad61  # BAD_SENTENCE: OCR artifact "lhre" instead of "Ihre".
+- a6a886d446b7  # WRONG_UNIT: 'nach' is used here modally/adverbially ('nach Kriterien') rather than as the verb complement of '
+- a710ff857aa9  # WRONG_UNIT: 'Mir' is bracketed as the reflexive pronoun, but it belongs to 'klar werden', while 'missverstehen
+- a712cabb09fc  # WRONG_UNIT: "Abgesehen von" here is the fixed preposition "apart from", not the verb absehen von (refrain).
+- a74315b63994  # BAD_GLOSS: Gloss begins with a stray unmatched double quote.
+- a765d0ec6254  # WRONG_UNIT: Davon abgesehen is a fixed participle idiom rather than the finite/infinitive verb unit absehen.
+- a7a2e7ca5d6f  # BAD_SENTENCE: "Dieser kalter Entzug" is wrongly inflected and the wrong form sits in the gap the learner must 
+- a80297ebf3cb  # BAD_SENTENCE: Maßnahmen werden durchgeführt, nicht durchgenommen; the sentence is wrong German and the gloss s
+- a831cd1caf61  # BAD_SENTENCE: Gender agreement error in 'eine Geständnis' instead of 'ein Geständnis'.
+- a8592e7608cb  # BAD_SENTENCE: 'lautet auf' requires the accusative: 'auf bewaffneten Raubüberfall', not 'auf bewaffneter Raubü
+- a85afb9070bb  # BAD_GLOSS: "suing against the wind farm" is not English; sue takes a direct object.
+- a89619267890  # WRONG_UNIT: The bracketed hat and offen belong to different clauses (hat eine hohe Aufloesung / laesst keine W
+- a8d4d4ca069e  # BAD_GLOSS: 'She is also giving the SPD a count' is not idiomatic English and misses the sense of publicly crit
+- a8dc2fd6b7c7  # BAD_GLOSS: 'abkassieren' means to collect/cash in, not 'robbed'.
+- a8eefe53afbf  # BAD_SENTENCE: "Stadt schlägt eine Lösung vor" is a headline missing the article "Die".
+- a8f5c14d4ae5  # BAD_SENTENCE: 'Die Bestie, zwingt ihr den Willen auf.' is garbled and lacks a coherent subject.
+- a900ea0af747  # WRONG_UNIT: 'spreche kein Franzoesisch mehr mit dir' is the preposition mit, not the separable verb mitspreche
+- a905ce6182ad  # BAD_GLOSS: Leaves Genitalverstümmelung untranslated, so the gloss is not fully English.
+- a95502e03671  # WRONG_UNIT: gegeneinander abgewogen is abwaegen, not abwiegen.
+- a986dd4dd634  # BAD_SENTENCE: Nominalised marschierens is written lowercase; should be Marschierens.
+- a9dc20a1fc60  # BAD_GLOSS: 'Das ist doch alles kalter Kaffee' is the idiom for old news, but the gloss renders it literally as
+- a9f25c98c3a4  # BAD_SENTENCE: Missing article: 'wird die Arbeitslosigkeit Rekordhoehe erreichen' needs 'eine Rekordhoehe'.
+- aa0e059493dc  # WRONG_UNIT: 'raus' is part of the quoted game title 'Elfer raus!', not a prefix of 'hat'.
+- aa51698dc413  # WRONG_UNIT: The phrase mit sanfter Stimme is a modal phrase of manner, not the prepositional complement of spr
+- aafb8ade7503  # WRONG_UNIT: The bracketed 'ein' is the article before 'Privatdetektiv', not the separable prefix.
+- ab21d4532d02  # WRONG_GAPS: The unit tokens "trifft" and "den" are missing from the brackets.
+- ab3daeebf71a  # BAD_SENTENCE: 'freisetzen' is unnatural for releasing people emotionally.
+- ab5ea76af80c  # BAD_SENTENCE: 'sicherten Spuren und sprachen mit' is incomplete and does not support the gloss 'had a say'.
+- abb4f2eb2a03  # WRONG_GAPS: The reflexive pronoun 'sich' from the unit is not bracketed in the sentence.
+- abb6717a6c91  # BAD_SENTENCE: Typo in sentence: 'Rechtwesen' instead of 'Rechtswesen'.
+- abf01ad2edb5  # BAD_GLOSS: "he still falls on deaf ears" uses the wrong subject; the German means he still meets with deaf ear
+- ac8182615ba3  # BAD_SENTENCE: Typo "Diie" for "Die".
+- acad691965f3  # BAD_SENTENCE: Wrong adjective ending: 'Mit leeren Magen' should be 'Mit leerem Magen'.
+- ace08a280e54  # BAD_SENTENCE: The sentence is an incomplete sentence fragment cutting off after 'zum 33.'.
+- ad27d2b15a68  # BAD_SENTENCE: Spurious comma and wrong article "'nen Weilchen" for neuter Weilchen.
+- ad7f82bd1788  # BAD_GLOSS: "schwarz waehlen" means voting conservative; "to vote black" is meaningless in English.
+- ad89f43f3298  # BAD_SENTENCE: Erroneous apostrophe in German possessive 'Raúl's'.
+- adb6036d90b9  # BAD_SENTENCE: Incomplete sentence ending with dangling preposition 'gemäß'.
+- adbe5a0b4e75  # BAD_SENTENCE: The sentence is a declarative statement incorrectly punctuated with a question mark.
+- ade89e0af00a  # BAD_SENTENCE: 'lassen sie uns' should be capitalised 'Sie' for the polite form.
+- ae0f08313ea7  # WRONG_UNIT: Here 'sich' is a dative benefactive with the object 'den Serviettenzipfel', not the reflexive verb
+- ae18f531364a  # BAD_SENTENCE: "Allerdings machte er auch klar." is truncated; klarmachen needs an object or clause.
+- ae2f87149b54  # BAD_SENTENCE: Mixed imperatives: du-form 'Ruf' coordinated with Sie-form 'vereinbaren Sie'.
+- ae30647ccdcc  # BAD_SENTENCE: Misplaced comma: should be 'schafft es so, mathematische Formeln als geometrische Formen wahrzun
+- ae517d41bb31  # WRONG_UNIT: The verb used is reflexive 'sich anschicken', but the unit is non-reflexive 'anschicken' and 'sich
+- aeafd88c86b3  # BAD_SENTENCE: A question punctuated with a period, rendered as an English fragment.
+- aebc0dd1b574  # WRONG_UNIT: 'tragen ... bis in den September hinein' is fruit-bearing plus the 'bis ... hinein' frame, not hin
+- aece32edf99a  # WRONG_UNIT: Bracketed preposition is zur, not in, so the displayed unit is not instantiated.
+- aef813b95621  # BAD_SENTENCE: Ungrammatical article-adjective agreement: 'ein entsprechende Erlaubnis' should be 'eine entspre
+- af56e7e5b4f7  # BAD_SENTENCE: Uses Swiss spelling 'zweitgrösste' with 'ss' instead of standard German 'ß'.
+- af8dfdee67ea  # BAD_SENTENCE: Tense mismatch between temporal adverb 'Erst kürzlich' and present tense 'bringt'.
+- afbef1b032de  # BAD_GLOSS: 'natürliche Erscheinung' means natural phenomenon, not 'natural appearance'.
+- b00da3ea7aec  # BAD_SENTENCE: Sentence is an incomplete relative clause fragment without a main clause.
+- b0a95716b276  # BAD_SENTENCE: The sentence is an incomplete subordinate clause fragment.
+- b0cebb1fbfdc  # BAD_SENTENCE: The sentence merges an unpunctuated form heading with the clause.
+- b124a62b87d5  # BAD_SENTENCE: Sentence has internet artifact junk '- Yahoo!' appended at the end.
+- b15bd4eea94b  # BAD_SENTENCE: Headline style with all articles omitted, not a natural full sentence.
+- b16d4bcba473  # WRONG_UNIT: The verb is transitive festhalten with a local prepositional phrase am Ärmel, not festhalten an +D
+- b21d290874d3  # BAD_SENTENCE: Stray 'im' makes 'die Perseiden im optimal zu beobachten' ungrammatical.
+- b24887c5ab1f  # WRONG_UNIT: The bracketed 'In' belongs to the adverbial 'In weiterer Folge'; the sentence uses 'vom Boot abdri
+- b2573a65c400  # BAD_SENTENCE: Subjectless fragment, and the gloss copies the missing subject.
+- b25ffc3ae246  # BAD_SENTENCE: "Ressentiments ziehen einfach in den sozialen Netzwerken" is unnatural and unclear German.
+- b2a5c137c648  # BAD_SENTENCE: Archaic correlative saying whose German and English are both opaque to a learner.
+- b2b58f633019  # BAD_GLOSS: "scraped past the podium" reads as reaching it; the German means they narrowly missed it.
+- b2d851d0092d  # WRONG_UNIT: Instantiates transitive 'einsingen' (record vocals), not reflexive 'sich einsingen' (warm up voice
+- b322ef23d6bb  # BAD_SENTENCE: Transitive usage 'wir gehen sie hoch' is unnatural and missing necessary context.
+- b36dc56a210c  # BAD_SENTENCE: Gartenmitbenutzung is written with an uncapitalized noun in lowercase.
+- b377c294dd6a  # BAD_SENTENCE: Sentence is a truncated fragment with a stray ellipsis, not self-contained.
+- b380f4af3883  # BAD_SENTENCE: Subordinate clause with no main clause, not a self-contained sentence.
+- b38c74bc82df  # WRONG_UNIT: Uses literal directional 'über etw. hinwegsehen' (look over/past) instead of the figurative 'hinwe
+- b38d9dc1fbf4  # BAD_SENTENCE: Archaic poetic line with uninflected mein maennlich Herz, not natural modern German.
+- b3ca9033687c  # BAD_SENTENCE: Contains a typo: 'Tischtenmnis-Saison'.
+- b3d93840809d  # WRONG_UNIT: 'Auf Wunsch' is an adverbial, not the prepositional object of 'optimieren auf'.
+- b3ed2d2db362  # BAD_SENTENCE: The plural relative pronoun 'die' does not agree with singular 'würde'.
+- b3fac4b9e4a0  # BAD_SENTENCE: Contains ungrammatical extra word 'im' before 'vor'.
+- b4072ef9a608  # BAD_SENTENCE: Corrupted text with missing account name ('-Account').
+- b4274e172b5f  # WRONG_UNIT: The phrase is "einen Bogen um jdn machen"; herum is not the verb prefix here.
+- b452b22fd663  # BAD_SENTENCE: Missing space: Oderjemand instead of Oder jemand.
+- b46ef874bca6  # BAD_SENTENCE: Stray heading "Naturwissenschaften" glued to the front of the sentence.
+- b48bdfc2efd0  # WRONG_UNIT: Uses reflexive 'sich einbringen' rather than transitive 'einbringen'.
+- b513ec0b6b1d  # BAD_SENTENCE: Ungrammatical: 'hat das Abkommen nicht unterzeichnen' needs the participle 'unterzeichnet'.
+- b580b4311fda  # WRONG_UNIT: The unit 'mitlesen' is intransitive; here it is used transitively with an accusative object ('Dich
+- b585438ff308  # WRONG_UNIT: "Es gibt" is not the separable verb "rausgeben"; "da raus" modifies "Weg".
+- b5db21fc0b9f  # BAD_SENTENCE: "Sondern" cannot open a standalone sentence; it needs the preceding negated clause.
+- b64b091d1ae1  # BAD_GLOSS: The English gloss leaves the German word 'Ich' untranslated instead of 'I'.
+- b67c2cf05918  # BAD_SENTENCE: Spelling error: 'runter-Taste' instead of 'Runter-Taste' (capitalized noun in compound).
+- b6bce4b70527  # BAD_SENTENCE: Fragment with no main verb and a missing relative-clause comma.
+- b6cbbcba1a92  # BAD_SENTENCE: Ungrammatical: 'anstatt sie überzeugen' is missing 'zu'.
+- b6ecff14a566  # BAD_SENTENCE: The sentence carries a stray footnote marker in brackets that collides with the gap markup.
+- b70242fe88f4  # BAD_SENTENCE: The sentence contains unexplained abbreviations and obsolete orthography 'Abschluß' in the gap.
+- b714fadc6d77  # BAD_SENTENCE: Garbled subtitle text ("in etwa der der Größe") and incoherent syntax.
+- b7373aa2f405  # BAD_SENTENCE: Erroneous comma between the fronted prepositional phrase and the finite verb.
+- b74955a0c828  # WRONG_UNIT: The sentence uses simple 'sich in etwas brennen', not the separable einbrennen.
+- b74b895d811a  # BAD_SENTENCE: Should be 'sich gut zuzureden'; the infinitive is malformed.
+- b75c46963935  # BAD_SENTENCE: Headlinese sentence fragment missing an article for 'Ladendieb'.
+- b76f8ddf8102  # WRONG_UNIT: Economic/statistical decline is 'einsinken' used incorrectly instead of 'einbrechen' or 'sinken'.
+- b781a6c1990e  # BAD_SENTENCE: Uses accusative 'auf die Posten' instead of dative 'auf den Posten'.
+- b795048c6adf  # WRONG_GAPS: The unit token 'lassen' ('lasse') is not bracketed.
+- b7a659b98156  # BAD_SENTENCE: Noun phrase with relative clause, no main clause.
+- b8353fd7749b  # BAD_SENTENCE: "Psychologische" wrongly capitalised and the relative clause lacks its comma.
+- b856018ee365  # BAD_SENTENCE: The sentence has ungrammatical word order and structure ('Dönerbuden warfen sie die Scheiben ein
+- b93d7cb9ef40  # BAD_SENTENCE: Typo 'wir dir' for 'wie dir', plus crude register.
+- b959d61da9f5  # WRONG_UNIT: "nicht wahr?" is a tag question, not the separable verb "wahrmachen".
+- b98b71d8a114  # WRONG_GAPS: The unit token 'lassen' ('lässt') is not bracketed.
+- b9a1353257cf  # BAD_SENTENCE: The sentence is an incomplete subordinate clause fragment.
+- b9a54571958e  # BAD_SENTENCE: Typo 'Dafr' for 'Dafür'.
+- baf02a29c152  # WRONG_GAPS: The unit prefix 'aus' is missing from the sentence and brackets.
+- bb0c310d95c4  # BAD_SENTENCE: Ungrammatical construction: requires 'sieht sich mit schweren Vorwürfen konfrontiert' rather tha
+- bb422a94fe5e  # BAD_GLOSS: "was drifted away" is ungrammatical English for "wurde abgetrieben" (drifted off course).
+- bb4654f2d6c8  # WRONG_GAPS: Sentence uses reflexive 'sich (Dat) anhören' but 'mir' is not bracketed.
+- bb4b5528af7a  # WRONG_UNIT: 'abgestanden' is used as the adjective 'stale', not as a form of the verb 'abstehen' (stick out).
+- bb5821a691c6  # BAD_SENTENCE: Corrupted text: "Fürstenfeldbruck - In biegt das Volksfest ..." has a stray "In", and the gloss 
+- bb862ebbe4f0  # BAD_GLOSS: German thousands separator kept: 'around 1.200 jobs' reads as 1.2 in English.
+- bb8a4b9a5b84  # BAD_SENTENCE: Garbled proverb: it should be 'zum Fenster hinaus', and 'zum Tempel hinaus' is nonsense.
+- bb9192706bb3  # WRONG_GAPS: The reflexive pronoun 'sich' is missing from the bracketed gaps.
+- bbb330652cdb  # BAD_GLOSS: "black numbers should also be written" is not English for "schwarze Zahlen schreiben" (turn a profi
+- bbc55d19d0d0  # WRONG_UNIT: The bracketed 'zum' belongs to 'zum Ziel haben'; lotsen takes 'nach Deutschland' here.
+- bbeb2becee3d  # BAD_GLOSS: "You pretend your idyllic world" is not grammatical English for vorspielen.
+- bc6a073643ce  # BAD_SENTENCE: 'Ich reibe mir über die Nase' is ungrammatical; it needs 'reibe mir die Nase' or 'fahre mir über
+- bc76515aa37e  # BAD_SENTENCE: The sentence has a typo or ungrammatical phrasing with 'stehen davon'.
+- bcb3dad509e1  # BAD_SENTENCE: Verb of motion is missing: 'Sie können nicht an Land [gehen]'.
+- bcd881914f4a  # BAD_SENTENCE: Misplaced comma makes it ungrammatical: 'schafft es so mathematische Formeln, als geometrische F
+- bce5a9d5a44c  # WRONG_UNIT: The preposition 'mit' is an instrumental adjunct, not a prepositional complement of vermischen.
+- bce716247ceb  # WRONG_UNIT: Instantiates transitive figurative 'einsingen' (usher in with singing), not reflexive 'sich einsin
+- bcf3c83726a2  # BAD_SENTENCE: "Wir stellen zusammen einen auf!" has a dangling "einen" with no antecedent.
+- bd265742cc20  # WRONG_UNIT: 'Durch das System' functions as a modal/instrumental adjunct, not the prepositional complement of 
+- bd4b5f9fec0c  # BAD_SENTENCE: Noun written lowercase: 'gürtel' should be 'Gürtel'.
+- bd5364717ec2  # BAD_SENTENCE: Leading transcript artifact '(Funk )' makes the sentence not self-contained.
+- bd7054768f34  # BAD_SENTENCE: The sentence lacks punctuation separating the subordinate clause wieso and uses an obscure acron
+- bd8bdf534dd0  # WRONG_GAPS: 'herum' is part of the pronominal adverb 'darum' and was incorrectly split and bracketed.
+- bda1033e200a  # WRONG_CASE: 'Unter seinem Arm klemmen' is dative, not the +Akk shown.
+- be034d9614d3  # BAD_SENTENCE: Comma misplaced: 'erlaubte, uns die Ernte einzubringen' should be 'erlaubte uns, die Ernte einzu
+- be1fc08e7c77  # BAD_GLOSS: 'He only got hit by it' reverses subject and object of 'Er hat ihn nur abgekriegt'.
+- be290ae4708a  # BAD_SENTENCE: Contains obsolete pre-1996 spelling 'schloß'.
+- be509de01e15  # WRONG_GAPS: The unit includes 'sich' and 'den', but only 'Kopf' and 'zerbrechen' are bracketed.
+- be835db3d991  # BAD_SENTENCE: Case error after durch: dem leichten Schaft should be den leichten Schaft.
+- beadf4eb2d89  # WRONG_UNIT: Here 'Gestalt annehmen' means literally taking someone's shape/form rather than the idiomatic mean
+- bef149530cbe  # WRONG_UNIT: Bracketed preposition is zu, not in, so the displayed unit is not instantiated.
+- bf326dd34c0e  # WRONG_UNIT: Uses the reflexive construction 'sich festlegen' with 'mich' unbracketed and missing from the unit
+- bf7374fc7ab9  # BAD_SENTENCE: 'nahm Schadstoffmessungen durch' is wrong German for 'führte durch'.
+- bf7b302cf246  # BAD_SENTENCE: Unnatural/unidiomatic German phrasing ('nahmen ihre Bärte runter').
+- bf7d966a7db6  # BAD_SENTENCE: "aus dieses Aquarium" is the wrong case; must be "aus diesem Aquarium".
+- bf903801fcb8  # BAD_SENTENCE: Lowercase "sie"/"ihre" for polite "Sie"/"Ihre", and the gloss "make yourselves comfortable" miss
+- bf9b229f7d9b  # WRONG_UNIT: Here 'abgegriffen' is an adjective meaning worn/dog-eared, not an instance of the verb 'abgreifen'
+- c0530a6888ab  # BAD_GLOSS: 'spans the arc into the present' is a literalism for 'extends into the present'.
+- c0536359c480  # WRONG_UNIT: The sentence uses auf jemanden einsprechen rather than einsprechen (record audio).
+- c086af37c466  # BAD_SENTENCE: 'Es hindert mich an meinem Weg' is unidiomatic German.
+- c092575e4e21  # BAD_SENTENCE: The dass-clause is meaningless German and serie is lowercase.
+- c0a7a5c96bfd  # BAD_SENTENCE: Sentence is cut off after "auf" (a website reference is missing) and the gloss ends with a dangl
+- c0b8c34ce585  # BAD_SENTENCE: Relative pronoun misspelled: dass er nicht begangen hatte should be das.
+- c0de173ebc3f  # WRONG_UNIT: The verb used is führen ('Führen ... entlang'), not (entlang)fahren.
+- c0e0c2ffd6ca  # BAD_SENTENCE: 'den Tod seinen Vater zu rächen' is ungrammatical; requires 'seines Vaters'.
+- c13724b1a42d  # BAD_GLOSS: Translates the idiom literally as 'with hard bandages' instead of 'with no holds barred' or 'play h
+- c17bd1785216  # BAD_GLOSS: German says he went over to the phone; the gloss "he answered it" changes the meaning of the gapped
+- c1bf4548a59c  # BAD_GLOSS: 'roughly like temperament love' drops the elided verb and is not grammatical English.
+- c1bf6b178040  # BAD_GLOSS: 'whistle off his career' is not idiomatic English for calling time on a career.
+- c1c36e01b66b  # WRONG_UNIT: The bracketed [im] is the dative locative "im Nordosten", not the unit's directional "in +Akk" com
+- c1c65c928c5f  # BAD_GLOSS: Literal "I have two left hands" does not render the German idiom for being clumsy.
+- c1c762147a70  # BAD_SENTENCE: Number disagreement: "Der einzige Grund ... sind" should be "ist".
+- c1edff6cbe16  # WRONG_UNIT: The idiom is 'seine Suppe auslöffeln' rather than plain 'auslöffeln'.
+- c200260989db  # BAD_SENTENCE: Subjectless fragment, missing "Es".
+- c20a27ba1af1  # BAD_SENTENCE: Sentence is semantically incoherent out of context.
+- c249f064abce  # WRONG_UNIT: Sentence uses 'sitzen um ... herum' with postposition 'herum', not the intransitive verb 'herumsit
+- c28cafc8ea15  # BAD_SENTENCE: Contains obsolete spelling 'riß' instead of 'riss'.
+- c307f3d1dfb0  # WRONG_UNIT: The sentence uses 'vorführen' (demonstrate), not 'vorfahren'.
+- c314b33a1c01  # WRONG_UNIT: The bracketed tokens are 'von Geburt an', not the separable verb anlernen.
+- c329bb01b132  # BAD_SENTENCE: "Zwar ..." clause without its "aber" counterpart; not self-contained, and the gloss is an incomp
+- c34574ae19ff  # BAD_GLOSS: "We are namely pondering about life" mistranslates "nämlich" and is not idiomatic English.
+- c3593e8177b5  # BAD_SENTENCE: Grammatical but describes photographing a naked three-year-old; unusable as a learner card.
+- c369c6934ac2  # WRONG_UNIT: The idiom is 'sich die Hörner abstoßen', not plain 'abstoßen'.
+- c3855e7c35d0  # WRONG_UNIT: 'um ... herum' is a circumposition with 'stehen', not the separable verb 'herumstehen'.
+- c399e318efc3  # WRONG_UNIT: 'zusammen' modifies 'uns alle' and is not part of the verb.
+- c3ddf55a43b4  # BAD_SENTENCE: The sentence contains a dangling preposition 'bei :' with a missing noun phrase.
+- c3f95f8484cc  # WRONG_UNIT: The phrase is "ein Rad abhaben" (have a screw loose), not the verb "abhaben" (to get a share of).
+- c403c724c922  # BAD_GLOSS: 'Why doesn't he sort out?' is not grammatical English.
+- c4217721f93d  # BAD_SENTENCE: Missing comma before subordinate clause 'bevor es dunkel wurde'.
+- c42ae14dbf53  # BAD_GLOSS: Gloss begins with a stray double quotation mark.
+- c44672cbe6ab  # WRONG_UNIT: 'den Sabbat über bleiben' uses the postposition 'über', not the separable verb 'überbleiben'.
+- c4b125c73e2f  # BAD_SENTENCE: 'Des Jahres Pforte schließt er zu' is poetic archaic word order, not natural German.
+- c4e91b1e4f81  # WRONG_UNIT: The sentence is about jumping out of a moving train, entirely lacking the unit's verb phrase.
+- c5212fb495f4  # BAD_GLOSS: 'folds the laundry' misrenders 'zusammennehmen' (gather up).
+- c61df540cffc  # WRONG_UNIT: The verb construction is 'sich versetzt fühlen in' rather than the reflexive verb 'sich versetzen 
+- c6220c1f89b0  # BAD_SENTENCE: OCR error 'Lhr' for 'Ihr' at the start of the sentence.
+- c62c5a3beaa7  # BAD_SENTENCE: "Indem man tut, lernt man!" is unnatural German; "tun" needs an object here.
+- c652fa1c20fa  # BAD_SENTENCE: The sentence has an unmatched opening quotation mark.
+- c657e7976563  # BAD_SENTENCE: 'Das Kämpfen gräbt ihr Gesicht um' is not natural German and the gloss silently reinterprets it 
+- c66969c8e0b2  # WRONG_CASE: 'Unter seinem Arm hat er ... geklemmt' uses the dative, not the +Akk shown.
+- c67e71701801  # BAD_SENTENCE: "telefonierte mit einer falschen Nummer" is unnatural German for dialling a wrong number.
+- c6b7b0a1d821  # WRONG_UNIT: The noun 'Räume' here is a concrete plural noun ('rooms'), not the abstract object in the idiom 'R
+- c7069327116a  # BAD_SENTENCE: Not self-contained: 'Diese' refers to something outside the sentence.
+- c76ab4b68592  # BAD_SENTENCE: 'mit einem Spinnenden' is not German for 'a lunatic'; the sentence is garbled.
+- c7940381f9ce  # BAD_SENTENCE: OCR error 'Lhr' instead of 'Ihr'.
+- c7c313305d27  # BAD_GLOSS: The SWR sends a cameraman after is not grammatical English.
+- c7d618bf91dd  # BAD_SENTENCE: Pre-reform spelling "eingepaßt" in the gap would teach an outdated form.
+- c7e9e1c29038  # BAD_SENTENCE: Subjectless fragment and "Detectiv" is misspelled.
+- c7eceff75002  # WRONG_GAPS: The unit display includes the verb 'ziehen', but only 'voreiligen' and 'Schlüsse' are bracketed.
+- c7f1fba65009  # WRONG_UNIT: Preposition takes dative ('über dem Meer') functioning as a locative adverbial rather than the acc
+- c7f914181a9f  # BAD_SENTENCE: Weak noun not declined: should be "zum Hofnarren".
+- c80a4d981269  # BAD_GLOSS: Idiom reinen Wein einschenken glossed literally as "We pour pure wine".
+- c812180a98bb  # BAD_SENTENCE: The purpose clause needs damit, not dass, after sich anstrengen.
+- c833a56a72f6  # BAD_SENTENCE: Subordinate-clause fragment beginning 'Oder ob man sie...', not self-contained.
+- c83d12bed20f  # WRONG_UNIT: "näherte er sich der Handschrift an" uses a bare dative, not "an + Akk".
+- c875a3f40110  # WRONG_UNIT: Verbindung here means chemical compound ('die sichere Verbindung Metadioxin'), a different sense f
+- c8811a204609  # BAD_SENTENCE: "mochte klären" is ungrammatical; the sentence needs "möchte" or "wollte".
+- c886163657fa  # BAD_SENTENCE: Help-page heading ("Sendungen - wie ..."), not a self-contained sentence.
+- c8d349ca0e79  # BAD_SENTENCE: Unnatural phrasing to unpack a person.
+- c9220b41c6d6  # WRONG_UNIT: The complement here is an Schönheit, while in nichts is an adverbial expressing in no way.
+- c9469b5a2454  # BAD_SENTENCE: Noun "böen" is written lowercase.
+- c96b9faa6e62  # BAD_SENTENCE: kolonie is written lowercase; German nouns are capitalised.
+- c98c1ce7eb8f  # WRONG_GAPS: The reflexive pronoun sich is part of the reflexive usage sich absichern but is unbracketed.
+- c99b07e603ea  # BAD_SENTENCE: The noun is written lowercase as "hilfe", so the gapped answer is misspelled.
+- c9de28316568  # BAD_SENTENCE: Noun phrase with a relative clause, no main clause.
+- ca64454a08f1  # BAD_SENTENCE: Two headlines run together, with a capital Ist mid-string and no punctuation between them.
+- ca9f04c3be07  # WRONG_GAPS: The reflexive pronoun dir is part of the unit sich Gedanken machen but is not bracketed.
+- cab948a82160  # WRONG_UNIT: sich festlegen, not festliegen.
+- cafd0f688f89  # BAD_SENTENCE: The sentence is an incomplete fragment with an unclosed parenthesis: '(Danke dafür!'.
+- cb18247982b4  # BAD_SENTENCE: "der Bericht der Verbands" is a wrong genitive; it should be "des Verbandes".
+- cb1aa03a7eed  # WRONG_GAPS: The reflexive pronoun 'sich' is missing from the gaps for reflexive use of auszahlen.
+- cb3a6fac6a2d  # WRONG_UNIT: Sentence uses 'anlegen' (dock), not 'anliegen'.
+- cb4558801d40  # BAD_SENTENCE: "Mantel kann ich ... eingraben" lacks an article and is unintelligible out of context.
+- cb9284199281  # BAD_SENTENCE: Garbled dubbing line with broken word order and stray als Haustier.
+- cb95690efebe  # BAD_GLOSS: "Otherwise, did he tell you nothing?" is not idiomatic and misses the sense "apart from that he tol
+- cbd7650ea5a6  # WRONG_UNIT: The prepositional construction 'auf ... zufahren' is not the unit 'zufahren'.
+- cc466d83822a  # WRONG_UNIT: Sentence has 'unzusammenhaengendes Zeug', not the displayed 'dummes Zeug'.
+- cd1991dbd18a  # WRONG_UNIT: im Wasser is a dative locative, not the accusative goal the unit requires.
+- cd27b4edd0bf  # BAD_GLOSS: 'wave off at my euphoria' is not idiomatic English for the German.
+- cd2f4ace7fc2  # BAD_SENTENCE: A dangling appositive fragment, not a self-contained sentence.
+- cd449ef50306  # WRONG_UNIT: 'nützen' here is intransitive meaning 'to be of use/avail', not transitive 'Technologie nutzen'.
+- cd6910bf07f6  # BAD_SENTENCE: Sentence is incomplete and missing the verb 'ist' at the end.
+- cd6cb40fa65e  # BAD_SENTENCE: Obsolete pre-reform spelling 'riß' in a gap token instead of modern 'riss'.
+- cdd45d12c63b  # WRONG_UNIT: The verb used reflexively ('sich annähern') does not match the non-reflexive unit 'annähern'.
+- ce0c0a243b62  # WRONG_UNIT: The sentence instantiates the idiom 'kurz angebunden sein' with an adverbial 'am Telefon', not the
+- ce0fe80a94e2  # WRONG_UNIT: Here 'zurückziehen' means to move back, not reflexive withdraw or pull back.
+- ce55c557f8b1  # WRONG_UNIT: Uses reflexive 'sich vorsehen' (to beware) rather than transitive 'vorsehen'.
+- ced286ee48ac  # BAD_GLOSS: "losgeworden" means got rid of, but the gloss says "lost", which reverses the intent.
+- cef1bd626d0e  # BAD_SENTENCE: 'den er nicht begann' uses beginnen where begehen is required ('begangen hat').
+- cf2c67b80e0a  # WRONG_UNIT: The sentence uses the phrase 'von Anfang an stimmen' (von Anfang an + stimmen), not the separable 
+- cf50aafcae08  # BAD_SENTENCE: Headline fragment with two clauses run together, not a self-contained sentence.
+- cf50fa4a2925  # BAD_GLOSS: "sued against an opponent" is not English; sue takes a direct object.
+- cf63880b28e2  # BAD_SENTENCE: The sentence is an incomplete fragment lacking a main clause predicate.
+- cf667b6a61f4  # WRONG_UNIT: Sentence uses preposition 'hinter' rather than 'um'.
+- cfba88c31849  # WRONG_UNIT: "um" here is the time preposition ("um 0.20 Uhr"), not the separable prefix of umfahren.
+- cfc410ebfc0f  # WRONG_UNIT: The prepositional construction 'auf ... zufahren' is not the unit 'zufahren'.
+- d02f5487ae84  # WRONG_UNIT: Sentence has plain 'den Nerv rauben' without 'letzten', so it does not instantiate the displayed u
+- d03cd0d5f679  # WRONG_UNIT: Sentence uses literal mustard added to sausages, not the idiom 'seinen Senf dazugeben'.
+- d03f1ad0e094  # BAD_GLOSS: Literal rendering misses the idiom 'got up on the wrong side of the bed'.
+- d085d6c4c7d9  # BAD_GLOSS: 'Then pull that over' misses the sense; 'überziehen' here means to put a garment on.
+- d0a5b00f270a  # BAD_SENTENCE: Sentence contains a racial slur and violent content, unusable on a learner card.
+- d143f8008b8a  # BAD_SENTENCE: 'An die eigene Nase packen Finger weg?' is not a German sentence and the gloss is equally incohe
+- d14908e78c87  # WRONG_UNIT: 'die Kraft, Eleganz und Technik vereint' is not the collocation Kräfte vereinen.
+- d183a51f765d  # WRONG_UNIT: The verb is vorbeischrammen an (am Titel vorbei), whose prefix vorbei is left outside the gaps.
+- d18b7c223b4f  # BAD_SENTENCE: Typo 'Mülltone' instead of 'Mülltonne'.
+- d1967dab34b4  # BAD_SENTENCE: OCR typo "lhrer" for "ihrer".
+- d19a9c2a2945  # BAD_SENTENCE: zur Quaida is a mangled al-Qaida and is carried into the gloss.
+- d1a805fb15f0  # BAD_SENTENCE: OCR typo 'FBl' for 'FBI', repeated in the gloss.
+- d1b400bb4f39  # BAD_GLOSS: "that with social contacts is not so easy" is word-for-word German, not English.
+- d1d5a714ccdf  # WRONG_GAPS: The unit display includes the verb 'ziehen', but only 'voreiligen' and 'Schlüsse' are bracketed.
+- d23e733e24b9  # BAD_SENTENCE: The sentence contains a line-break hyphenation typo ('Lö- sungen').
+- d29c774f9c4e  # BAD_SENTENCE: 'macht sich aufmerksam zurecht' is meaningless German, and the gloss is equally meaningless.
+- d2c44e02b330  # WRONG_UNIT: The verb is transitive festhalten with a local prepositional phrase am Arm, not festhalten an +Dat
+- d2d17af4928d  # BAD_SENTENCE: Contains typos: lowercase 'sie' for polite form and 'mit' instead of 'mir'.
+- d2dd898161fc  # BAD_SENTENCE: 'Diese traf am Vormittag zusammen' with a singular subject is not idiomatic and the gloss is opa
+- d2e23db077e5  # BAD_SENTENCE: Typo "mir ihr" for "mit ihr".
+- d2e5bb94b0fa  # BAD_GLOSS: 'to the Annahaupt to Dueren' is not comprehensible English for the pilgrimage to the Anna relic in 
+- d3231d279328  # BAD_SENTENCE: The sentence is an ungrammatical fragment starting with 'Mit seiner Befürchtung...' lacking a co
+- d32ff7c90a24  # BAD_SENTENCE: The sentence contains an accidental duplicate word 'Sport Sport'.
+- d3c63bb1bff2  # WRONG_GAPS: The unit tokens "auf", "die", and "gerat" are missing from the brackets.
+- d406fabf6dfb  # WRONG_GAPS: Unit tokens ('um', 'den', 'herumreden') are missing from the brackets.
+- d41ab8f2297e  # WRONG_UNIT: The sentence uses 'nachdenken', not 'nachsagen'.
+- d43eb3803a4d  # BAD_SENTENCE: "Ich kam hier hinaus für einen Job." is unnatural dubbing German with wrong directional adverb.
+- d4471a587fd0  # BAD_SENTENCE: "irgendso ein Code" needs accusative "einen Code" and is malformed.
+- d48c9400b76d  # BAD_SENTENCE: Mixes singular imperative Komm with plural macht euch.
+- d4c2ebeaa7ac  # WRONG_UNIT: The bracketed preposition is nach (nach unten abprallen), not von.
+- d4f34aa9e0af  # BAD_GLOSS: living a lie loses vorleben, which means modelling the lie for others.
+- d522d3bbba66  # WRONG_UNIT: 'zusammen' is an adverb of manner meaning 'together', not the separable verb 'zusammengehen'.
+- d561fbbf3647  # BAD_SENTENCE: Mangled quotation and parentheses leave weg stranded inside a bracket.
+- d5745cc96f41  # BAD_SENTENCE: Headline-style with no articles, not a natural full sentence.
+- d5eba4991a21  # BAD_SENTENCE: 'ins linke Ecke' is ungrammatical; it must be 'in die linke Ecke' or 'ins linke Eck'.
+- d5f96f660e5d  # BAD_SENTENCE: Leading fragment 'Für 2.' makes the item not self-contained.
+- d61068372528  # WRONG_UNIT: The bracketed preposition is nach (nach unten abprallte), not von.
+- d632de686816  # BAD_GLOSS: "namely" is a false friend for nämlich here; the sense is "in fact/after all".
+- d647985b1642  # BAD_SENTENCE: "Er klopft bei Wirkung der Technik ab." is ungrammatical and has no clear meaning.
+- d664f32e463d  # BAD_SENTENCE: 'eine bittere Pille zu schlucken' is an English calque, not natural German.
+- d6751e73d214  # BAD_SENTENCE: Typo in sentence with missing space between 'Jubel' and 'groß' ('Jubelgroß').
+- d6883d44a468  # WRONG_UNIT: Here "herum" belongs to "anders herum", not to a separable verb herummachen.
+- d691f229956a  # BAD_SENTENCE: OCR artifact 'GeIdgeber' instead of 'Geldgeber'.
+- d6f92ad19ec8  # BAD_SENTENCE: 'zur Ihrem Zimmer' is ungrammatical; it must be 'zu Ihrem Zimmer'.
+- d71d0f0b2d8f  # BAD_SENTENCE: "Sie sind besser überzeugend" is a literal calque of "You'd better be convincing" and is not Ger
+- d71d68450570  # BAD_SENTENCE: 'Das klang nach Zweckoptimismus an' is not idiomatic; anklingen does not take 'nach'.
+- d7273f5b00d5  # WRONG_UNIT: The idiom is 'zum Hals heraushängen / raushängen', not simply 'raushängen'.
+- d7334e2c5926  # BAD_SENTENCE: Not self-contained; "sie" has no antecedent in the sentence.
+- d738c01b201e  # BAD_SENTENCE: Sentence fragment missing a subject.
+- d760249a566a  # BAD_GLOSS: The gloss drops "Hohen" and renders "den Hohen Rat" merely as "the council".
+- d78798914d6b  # BAD_SENTENCE: "Ausser man wirft einen Blick nach hinten" is a subordinate fragment.
+- d78a8ff87249  # BAD_SENTENCE: The sentence contains trailing web scraping junk ('- Yahoo!').
+- d7e5a9c92f9f  # WRONG_UNIT: The verb used reflexively ('sich annähern') does not match the non-reflexive unit 'annähern'.
+- d7ecf82b6f40  # BAD_SENTENCE: Semantically incoherent (a name "killed in the crossfire" of faculty rivalry).
+- d890b1b09cf6  # BAD_GLOSS: Gloss adds quotation marks that are not in the German sentence.
+- d8afae8605e0  # BAD_SENTENCE: Pre-reform spelling Schuss written Schuß, so the learner would have to type an obsolete form.
+- d8bce72b2d34  # BAD_SENTENCE: Missing comma before the infinitive clause introduced by 'damit angefangen'.
+- d8f312eb09ba  # WRONG_GAPS: The reflexive pronoun uns is part of the unit sich Gedanken machen but is not bracketed.
+- d9391388d304  # WRONG_GAPS: Unit tokens ('um', 'den', 'herumreden') are missing from the brackets.
+- d95a8d4e8cba  # WRONG_UNIT: Gap falls inside the proper name "Partei des Volkes", not the collocation.
+- d960ef54ba46  # WRONG_UNIT: The bracketed 'bleiben' belongs to 'bleiben sitzen'; 'zu' sits in an elliptical second clause.
+- d977b03f207f  # WRONG_GAPS: The reflexive pronoun 'sich' is missing from the bracketed gaps.
+- d97953b6f5d2  # BAD_SENTENCE: 'lief ins Zimmer fort' is contradictory; fortlaufen means to run away, not into a room.
+- da3694d4ad5c  # BAD_SENTENCE: Missing article in 'Auch Bundes-FDP begrüßte die Entscheidung'.
+- da3f54da99d0  # BAD_SENTENCE: "Das treibt die Kurs hoch" mismatches article and noun; should be "die Kurse" or "den Kurs".
+- da67e67775f9  # BAD_SENTENCE: Grammatical error: 'lauft' with subject 'es' should be 'läuft'.
+- da7c27893a07  # BAD_SENTENCE: 'Gesellschaft pflegen' is unidiomatic; German would say 'Umgang pflegen'.
+- da91ccd3f455  # BAD_GLOSS: "How do I properly invite to a works council meeting?" lacks the object required in English.
+- db46e2e70a2c  # WRONG_GAPS: The unit display includes the verb 'ziehen', but only 'voreilige' and 'Schlüsse' are bracketed.
+- db5c9164f17d  # WRONG_GAPS: The unit token 'lassen' ('Lassen') is not bracketed.
+- db70ecb19bec  # BAD_SENTENCE: Typo 'Schler' instead of 'Schüler'.
+- db99eece7fec  # BAD_SENTENCE: "dass Sie ein Testament aufzusetzen" is ungrammatical; the gap form is wrong.
+- db9f2bf12f09  # WRONG_UNIT: "Ich habe ein blaues Auge" means a black eye, not the blue-eyes unit.
+- dbafdc6924ed  # BAD_SENTENCE: "Das bringt mich zurück" is an English calque; German does not use zurückbringen for nostalgia.
+- dc46b0642ca3  # BAD_GLOSS: "The SZ invited to a debate" is not English without an object.
+- dc48e5d08a9a  # BAD_SENTENCE: Caption run together with the sentence: "GeneratorBei zügiger Beschleunigung".
+- dc4d9f43c175  # WRONG_UNIT: The sentence has 'die Augen zuhalten', not 'die Ohren zuhalten'.
+- dcbcb522db14  # BAD_SENTENCE: Sentence fragment ending abruptly with an incomplete legal citation Art. and bad grammar.
+- dcdf49656859  # WRONG_CASE: The prepositional phrase uses dative ('auf einer sehr dünnen Schicht') instead of accusative as de
+- dcf4ecbea724  # BAD_SENTENCE: Quoted phrase is truncated ('menschengemachter ' with the noun missing), and the gloss copies th
+- dd702887173d  # BAD_SENTENCE: The category header 'Finanzen' is prepended to the sentence without punctuation.
+- dd7cac79eaf8  # WRONG_GAPS: Separable prefix "aus" is present in the sentence but not bracketed.
+- dd86214ce7b2  # BAD_SENTENCE: Bare infinitive purpose clause, not a self-contained sentence.
+- ddfd1a0e6d9b  # WRONG_GAPS: Im is a temporal phrase, not the unit's preposition; the verb zieht is unbracketed and the real co
+- de06c2c31b0b  # WRONG_UNIT: The verb is 'es gibt' with adverb 'dazu', not the separable verb 'dazugeben'.
+- de2740aef563  # BAD_SENTENCE: "vom einheimischen Religionen" is ungrammatical; it must be "von den einheimischen Religionen".
+- de292084e446  # BAD_SENTENCE: The card uses Swiss spelling 'gebüsst' with ss instead of ß.
+- de7d99bb5852  # WRONG_GAPS: The token 'dazu' belongs to the unit but is not bracketed.
+- de8b1e8bb4d2  # BAD_SENTENCE: Uses obsolete pre-1996 spelling 'Läßt' and lacks sentence context.
+- deb9d09ce73d  # WRONG_UNIT: The bracketed verb is zugekommen, so the sentence instantiates zukommen auf, not kommen auf.
+- debacb4a1b9d  # BAD_SENTENCE: Typo 'Spitzebpersonal' instead of 'Spitzenpersonal'.
+- defd149837d6  # BAD_SENTENCE: Capitalization error with polite pronoun 'sie' instead of 'Sie' in an imperative sentence.
+- df0c2c16740a  # BAD_SENTENCE: OCR typo 'lhre' instead of 'Ihre'.
+- df12a0f3e5d6  # BAD_SENTENCE: Subordinate-clause fragment with no main clause, not self-contained.
+- df48ea4efa64  # BAD_SENTENCE: Grammatically incorrect verb form 'eingetragen' instead of infinitive 'eintragen' after modal 'k
+- df75938bfb49  # BAD_SENTENCE: Missing definite article: 'durch rauchenden Trümmer' is ungrammatical (should be 'durch die rauc
+- df76a87b82b3  # BAD_SENTENCE: "zum Tauen zu Bringen" has a wrongly capitalised verb.
+- dfbc6de11212  # BAD_SENTENCE: Contains an obvious typo 'dsieben' instead of 'sieben'.
+- dfff0fac3244  # BAD_SENTENCE: "Das erfaehrt man neu ueber ihn" is unidiomatic German and the gloss is correspondingly stilted.
+- e02c2d03f3a3  # BAD_SENTENCE: Sentence carries a stray bullet marker from the source layout.
+- e03e3b95ded8  # BAD_SENTENCE: "Eine Möglichkeit schaut zum Fenster rein" is not natural German.
+- e060f2bb96e3  # WRONG_UNIT: The sentence uses the preposition 'vor' ('vor / hinter der Kamera'), not the separable verb vorste
+- e0888001fd13  # WRONG_UNIT: The bracketed tokens instantiate bezahlen and aussuchen rather than ausbezahlen.
+- e0bd240e552f  # BAD_SENTENCE: Concessive-clause fragment ("Auch wenn ..."), not a standalone sentence.
+- e0f6777cb344  # WRONG_UNIT: 'Gas tritt aus' is an intransitive directional/locative motion, not the institutional membership s
+- e11f170b60ef  # BAD_SENTENCE: 'Die Argumenten' is an ungrammatical plural; should be 'Die Argumente'.
+- e120a3fa5d93  # BAD_SENTENCE: Archaic literary inversion ('Nicht die Kinder bloß speist man ... ab') is not natural modern Ger
+- e13710a1c5ad  # BAD_GLOSS: "continued the board of directors" is unidiomatic; he continued to lead/chair it.
+- e14de4ad7c62  # WRONG_UNIT: Here 'abwandern' is the transitive 'hike the length of', not the migrate-away sense taught.
+- e1538b5bf5cd  # WRONG_UNIT: The verb used in the sentence is auflegen, not aufliegen.
+- e15cbaf43254  # BAD_SENTENCE: Simple past with 'noch nie' is unnatural; the perfect is required.
+- e15f4dd8a74c  # BAD_SENTENCE: "Damon ist heute volle Kraft im Heldenmodus" is unnatural translationese German.
+- e165e383d593  # BAD_SENTENCE: Subjectless fragment, not a self-contained sentence.
+- e1718ce53885  # BAD_SENTENCE: Headline style lacking articles: 'Verwaltungsbericht stimmt auf Bürgerversammlung ein.'
+- e17b57dab469  # BAD_SENTENCE: Sentence ends mid-citation with an unclosed parenthesis "(Khan Junis, 11.10.".
+- e17c5b47a3b9  # WRONG_UNIT: The bracketed 'an' belongs to 'brüllte ... an' (anbrüllen), not to 'rannte'.
+- e18764c46b49  # BAD_SENTENCE: 'das Totenholzreichtum' has wrong gender and a malformed compound.
+- e1b965a10a10  # BAD_SENTENCE: 'Er steht keinen harten Kampf aus!' is unnatural German.
+- e1bd351d8c2f  # WRONG_UNIT: The verb here is 'vorenthalten' (to withhold), not 'enthalten' (to contain).
+- e1fd89a6a799  # BAD_SENTENCE: "Alle militaerische Unterstuetzung" is ungrammatical and the quoted fragment makes the sentence 
+- e2046f8667e3  # BAD_SENTENCE: 'Eine Stadt dehnt sich darauf.' is not idiomatic or self-contained German.
+- e20c41ae13a4  # WRONG_CASE: This carrier uses the dative ("über dem Problem"), contradicting the displayed +Akk.
+- e2388901d1bf  # BAD_SENTENCE: "bei tiefen Schnee" should be "bei tiefem Schnee", and "soide" is a typo.
+- e27304464238  # BAD_SENTENCE: Elliptical slogan whose 'nicht an, sondern durch Prävention' does not parse coherently, and the 
+- e28c92449775  # WRONG_UNIT: The bracketed 'auf' belongs to 'pass auf' (aufpassen), not to 'auffahren'.
+- e2a98a06a49d  # BAD_SENTENCE: "Sie sollen ... betrieben zu haben" mixes two constructions and is ungrammatical.
+- e2cb6c35a811  # BAD_SENTENCE: Grammatical error: 'hindern anderen' uses dative plural instead of accusative plural 'andere'.
+- e2d5c3137e0c  # BAD_SENTENCE: "als Staatenloser" should be accusative "als Staatenlosen".
+- e2fc24f476f4  # WRONG_UNIT: Literal usage with a specific modified flag ('die schwarze Flagge zeigen') rather than the idiom '
+- e377366162b3  # WRONG_UNIT: 'zu' is a preposition governing 'ihnen' (Abstand zu jemandem halten), not the prefix of 'zuhalten'
+- e398438a806a  # BAD_SENTENCE: The sentence contains an erroneous hyphen and space split in 'Schwer- punkt'.
+- e39ad9c212ac  # BAD_SENTENCE: Spelling typo in 'Mäjestätsbeleidigung' (correct: Majestätsbeleidigung).
+- e3a40d7de05a  # WRONG_GAPS: The reflexive pronoun 'sich' is missing from the gaps for reflexive use of auszahlen.
+- e4023261e3a5  # WRONG_UNIT: "hinterher" belongs to the elliptical second clause "die Halterin hinterher", not to the bracketed
+- e469cc114400  # BAD_SENTENCE: 'Bitte unterbreiten Sie mir ein Angebot für Personen' is unnatural due to missing context or a m
+- e4900c8e2eda  # BAD_GLOSS: 'The Freedomites' is an invented rendering of 'Die Freiheitlichen' (Freedom Party members).
+- e4c79adbbcfc  # BAD_SENTENCE: 'Dann begehen Sie ein jüdisches Verbrechen' is not a sensible or acceptable learner sentence.
+- e4d5221d4dbd  # WRONG_GAPS: Unit specifies 'einen Fehler machen' but sentence uses plural 'Fehler'.
+- e4e457258879  # BAD_SENTENCE: Bare infinitive phrase, not a finite standalone sentence.
+- e4fde47d4bd6  # WRONG_UNIT: The idiom is 'außen vor lassen', not the separable verb 'vorlassen'.
+- e51676357956  # WRONG_UNIT: Uses non-reflexive 'jemandem Luft verschaffen' ('verschafft dem VfL Luft') rather than 'sich Luft 
+- e5269c2e995b  # BAD_SENTENCE: "Ich bin auf voller Kraft" is not idiomatic German.
+- e563927aa4ed  # BAD_SENTENCE: Subject 'Small' is an unnatural snippet out of context.
+- e573cbdd632e  # WRONG_UNIT: "Es gibt" is not the separable verb "rausgeben"; "hier raus" modifies "Weg".
+- e5ba3019f9d7  # WRONG_CASE: "den Himmel" is accusative, contradicting the unit specification +Dat.
+- e5df7c87eb28  # BAD_SENTENCE: The sentence contains web scraping headline junk '- Yahoo!'.
+- e626f263f473  # WRONG_UNIT: The preposition 'nach' is a temporal preposition ('nach jedem Spaziergang') and not the prepositio
+- e6301716dbda  # WRONG_UNIT: "Gibt es" is not the separable verb "rausgeben"; "hier raus" modifies "Weg".
+- e63318cd0a7a  # WRONG_UNIT: The sentence is Anerkennung finden plus the circumposition über ... hinaus, not hinausfinden.
+- e635138003b7  # BAD_SENTENCE: Explicit sexual content unsuitable for a learner deck.
+- e636524d40d7  # WRONG_UNIT: The idiom is 'außen vor lassen', not the separable verb 'vorlassen'.
+- e68231939368  # WRONG_UNIT: Elliptical headline style: die Playoffs damit weg has no verb, so wegstehen is not instantiated.
+- e6c9d5a01e51  # BAD_GLOSS: "slipped past me" reverses the sense of ein Fehler ist mir unterlaufen (I made a mistake).
+- e6e31a2acc4f  # BAD_GLOSS: "I congratulate on your engagement" is ungrammatical English, congratulate needs an object.
+- e6ee07117ef8  # BAD_SENTENCE: "auf die diese Runden" is ungrammatical (stray article).
+- e7266e34ade7  # BAD_GLOSS: "Wobei" asks in what situation, not "when", so the gloss misstates the question.
+- e75a559ae6fd  # BAD_GLOSS: The idiom 'ueber den Tellerrand hinausblicken' (think beyond one's own horizon) is rendered literal
+- e75c1dca48b2  # WRONG_UNIT: Verb is 'einheben' meaning lift/install in construction, not the financial/administrative sense 'l
+- e7727eaf5de1  # BAD_GLOSS: "I was called after him" reads as "named after him" instead of "my name was called after his".
+- e7b46191399f  # BAD_SENTENCE: Misspelled verb form "massen" for "maßen".
+- e7e59f97c8a1  # BAD_SENTENCE: Semantically incoherent ("Entwicklung aus übereinandergesetzten Truhen klingt nach").
+- e807a3f61d71  # BAD_SENTENCE: Headline-style fragment with a dash, no finite verb or subject.
+- e82852969eac  # BAD_SENTENCE: 'Sie ... notieren sich viel?' is an ellipsis-broken dialogue fragment.
+- e851f514ba41  # BAD_SENTENCE: Obsolete spelling 'kennen gelernt' instead of modern 'kennengelernt'.
+- e85eb52e0dd2  # BAD_SENTENCE: Sentence is fragmented context with unconventional punctuation.
+- e8743442b76e  # BAD_SENTENCE: "Bei brennenden Kerzen, das ist wirklich sicher." is not a well-formed self-contained German sen
+- e87a9853dd8a  # WRONG_GAPS: Separable prefix "aus" is present in the sentence but not bracketed.
+- e8977ed788f9  # BAD_SENTENCE: "Isa quetscht sich an ihr Ende" is not meaningful German.
+- e8bc7b9885bf  # WRONG_UNIT: The sentence uses brennen with the temporal prepositional phrase 'von Beginn an', not the separabl
+- e8ec9fd9b23a  # BAD_SENTENCE: Misspelling Fingerabrücke for Fingerabdrücke.
+- e8f2d84e7784  # BAD_SENTENCE: "aber in ausgewachsen" is a jokey colloquialism, not usable model German.
+- e90cedcaaeb0  # WRONG_UNIT: The sentence contains the tag question 'nicht wahr?' with main verb 'haben', not the verb 'wahrhab
+- e930174dc890  # BAD_SENTENCE: Quoted fragment 'Zu spaet, "wenn sich der tote Arthur dehnt".' is not a self-contained sentence.
+- e95cbcc5cde9  # BAD_SENTENCE: ein echt heikle Angelegenheit has the wrong article and adjective ending in the gap itself.
+- e998e2020553  # BAD_SENTENCE: Sentence truncated after 'Im', and the gloss repeats the gap ('In the you can...').
+- e9dce630f688  # BAD_SENTENCE: Grammatical error in the subject: 'Meine Füßen' instead of 'Meine Füße'.
+- e9fd89a76b91  # WRONG_GAPS: The unit specifies 'im fünften Stock' but 'bis zum' is used and not bracketed.
+- ea21f16b950c  # BAD_SENTENCE: Einschränkungen followed by an infinitive clause is ungrammatical German.
+- ea34ebd26723  # WRONG_UNIT: The bracketed 'ein' is the article of 'ein/eine Heilerziehungspfleger', not the prefix of 'einmach
+- ea47495b084b  # BAD_SENTENCE: Truncated corpus junk: 'Auf richterliche Anordnung hin wird jobs.' is not a sentence and the glo
+- eb04e7b1b64d  # BAD_SENTENCE: This is a photo caption ending in "(Themenfoto)", not a self-contained sentence.
+- eb4bb96560d3  # BAD_SENTENCE: Corrupted text: stray hyphen in 'alle -Konzerte'.
+- eb6de808bcfe  # BAD_SENTENCE: Noun capitalization error: 'konzerne' instead of 'Konzerne'.
+- eb81ec538e3b  # WRONG_UNIT: 'dachte ... weg' here is two unrelated words, not the separable verb wegdenken.
+- eb84b2bc6cc5  # BAD_SENTENCE: 'hals' is incorrectly written in lowercase.
+- eb955c967fdc  # BAD_SENTENCE: Headlinese sentence fragment missing an article for 'Betrieb'.
+- ebc3160066d2  # BAD_SENTENCE: "Erst, wenn wir zugegriffen haben" is a dependent clause, not a standalone sentence.
+- ebc81f45564c  # BAD_GLOSS: 'We gather the guy' is not idiomatic English and does not convey the German.
+- ebf77068c0ef  # BAD_GLOSS: "steht im Raum" is rendered literally as "is in the room" instead of "has been raised".
+- ebfd60afae55  # WRONG_UNIT: "nicht wahr?" is a tag question, not the separable verb "wahrmachen".
+- ec0888e748fd  # BAD_SENTENCE: Contains an ungrammatical grocer's apostrophe ('Wasser's').
+- ec08aba41f7a  # BAD_SENTENCE: The causal preposition is missing: it needs 'Wegen Gefährdung ... und technischer Mängel'.
+- ec2604c0be1e  # BAD_SENTENCE: The German sentence is garbled and ungrammatical.
+- ec28bd3e95ae  # BAD_SENTENCE: The gap contains the obsolete pre-reform spelling mißbraucht instead of missbraucht.
+- ec6ee2dafbb6  # WRONG_UNIT: Sentence uses 'rasche Besserung' instead of 'gute Besserung'.
+- ec7338fcdf05  # WRONG_UNIT: "Drang danach" is a pronominal adverb complement, not the temporal connector being taught.
+- ecd98443ef60  # BAD_SENTENCE: Line-break artifact 'Hafen- befestigung' left in the sentence.
+- ecdd968ee8dd  # BAD_SENTENCE: Subordinate-clause fragment beginning "Und dass ...", not a self-contained sentence.
+- ecff64e24563  # WRONG_UNIT: Here "herum" belongs to the circumposition "um den See herum", not to separable herumwandern.
+- ed1c044f04b8  # WRONG_UNIT: Uses non-reflexive 'den Dänen... Luft verschaffen' rather than 'sich Luft verschaffen'.
+- ed2ed83446ff  # BAD_SENTENCE: The sentence contains a racial slur and must not be shown to a learner.
+- ed4def4ff055  # BAD_SENTENCE: Bare infinitive fragment ("Glauben, dass ..."), no finite main clause.
+- ed8a1723362b  # BAD_GLOSS: "in the town hall hall" duplicates the word; should be "in the town hall".
+- ed998603e439  # WRONG_UNIT: The sentence uses 'wegen' instead of the unit's preposition 'mit'.
+- edb3fd5d22a0  # BAD_SENTENCE: OCR corruption: 'lhre Frau' instead of 'Ihre Frau'.
+- edcd7c00dde2  # BAD_GLOSS: Translates the idiom literally as 'with hard bandages' instead of 'with no holds barred' or 'play h
+- ee0d1fb239d6  # WRONG_GAPS: The token 'dazu' belongs to the unit but is not bracketed.
+- ee146b99365d  # WRONG_UNIT: "Dagegen haben wir nichts einzuwenden" is the pronominal adverb, not the contrastive connector.
+- ee2a373069f1  # WRONG_GAPS: The unit display includes the verb 'ziehen', but only 'voreiligen' and 'Schlüsse' are bracketed.
+- ee6bae2efc51  # BAD_SENTENCE: Sentence ends with broken syntax and dangling word 'den.'.
+- eeb3e5816084  # WRONG_GAPS: Unit is 'sodass' but spaced 'so dass' is split across two brackets.
+- ef59c5053ca6  # BAD_SENTENCE: Apposition in the wrong case, it should be dem westlichen Vorort.
+- ef95bc258774  # BAD_GLOSS: 'Das wird sich bitter rächen' means it will backfire badly, not 'take a bitter revenge'.
+- efa0c0824973  # WRONG_UNIT: The sentence has the comparative plural juengere Generationen, not the displayed positive-degree u
+- efa3bdf31fc3  # WRONG_GAPS: The unit token 'lassen' is missing from the brackets.
+- f0297259133a  # BAD_SENTENCE: hereinbrechen takes ueber, not auf; "brachen auf SGI herein" is unidiomatic.
+- f02e36475d2a  # WRONG_UNIT: The idiom 'am Hungertuch nagen' is a fixed idiom, not an instantiation of 'nagen an +Dat'.
+- f098c8c73765  # BAD_SENTENCE: Website navigation heading rather than a natural full sentence.
+- f0a7a727c68c  # WRONG_UNIT: Uses the slang 'anschaffen' (to work as a prostitute), not the unit's 'acquire' sense.
+- f0ed481b3b6d  # BAD_SENTENCE: "das Dinge" is ungrammatical and the gap would teach a wrong form.
+- f1083bf86bf6  # BAD_SENTENCE: Ungrammatical sentence structure mixing subject and imperative/V2 construction ('Regelmäßige Sau
+- f15c988d6460  # BAD_SENTENCE: Grammatical error in inflection: 'von gegenseitigen großen Respekt' should be 'von gegenseitigem
+- f17686770c2d  # BAD_SENTENCE: Headline fragment with a run-together word ("JahrenJungwirth"), not a self-contained sentence.
+- f1a5a79b3f1f  # BAD_SENTENCE: The sentence is an elliptical headline fragment lacking an article before the singular countable
+- f1cf3be945cc  # WRONG_UNIT: Instantiates 'einen Blick zurück' with directional adverb rather than verb zurückwerfen.
+- f20aefc0785b  # BAD_SENTENCE: The sentence is a fragment lacking a main clause.
+- f256fa924d15  # BAD_SENTENCE: The gap contains obsolete pre-reform spelling 'schloß' instead of 'schloss'.
+- f261781fbb3f  # BAD_GLOSS: "How do you find out a spam call?" is not idiomatic English and obscures the sentence.
+- f27d901145ca  # WRONG_UNIT: 'dachte ... weg' here is two unrelated words, not the separable verb wegdenken.
+- f2c39599e365  # BAD_SENTENCE: Grammatical error with dative masculine/neuter adjective ending: 'mit zunehmenden Alter' instead
+- f2d99695de6f  # WRONG_UNIT: Direct directional complement 'an den Baum' (screw onto) with accusative, not figurative or mainte
+- f2ea4e3fa6da  # BAD_SENTENCE: 'Wer hat die limitierte Auflage von what the fuck?' is garbled and mixes in untranslated English
+- f2f5ffd5ad2f  # BAD_SENTENCE: Grammatical error in German sentence using accusative 'einen Schulwechsel' instead of dative 'ei
+- f32981bbbbe8  # BAD_SENTENCE: Sentence is an informal fragment missing a subject pronoun ('Ich dachte').
+- f3393bad2b58  # BAD_SENTENCE: Bare infinitive fragment with no finite clause.
+- f351c2b90ee0  # BAD_SENTENCE: Unnatural German construction with an accusative object ('ein dickes Fragezeichen mitdenken').
+- f35475acd926  # WRONG_UNIT: The sentence uses auflegen auf + Akk (einen Lattenrost), not aufliegen auf + Dat.
+- f3789612083a  # WRONG_UNIT: 'eine kleine Gitarre spielen' is a plain object, not the article-less collocation 'Gitarre spielen
+- f380428664bb  # WRONG_UNIT: The sentence is about being hit by a train, lacking the unit's verb phrase.
+- f387ac6111d5  # WRONG_GAPS: Unit specifies 'eine Entscheidung treffen' but sentence has plural 'die Entscheidungen'.
+- f398c79f3d42  # WRONG_GAPS: The unit includes 'sich' and 'den', but only 'Kopf' and 'zerbrechen' are bracketed.
+- f415c0f70272  # WRONG_UNIT: 'lässt sich erkaufen' is a passive-like reflexivity construction rather than the reflexive verb wi
+- f439c391d6c7  # WRONG_UNIT: The sentence uses durchfuehren (Profilbildung durchfuehren), not durchfahren.
+- f486c6bf8c09  # WRONG_UNIT: "Hut ab" is an independent interjection, not the separable verb "abhaben".
+- f4883ed72410  # BAD_SENTENCE: Spelling error: 'Das ganze' should be capitalized ('Das Ganze').
+- f49b4ecdced4  # BAD_GLOSS: 'The Hamburger' reads as the food in English; it means the Hamburg player.
+- f4e7f34d5d42  # BAD_SENTENCE: Spelled 'Kriegsfuehrung', so the required gap text does not match the unit display.
+- f5399c54dbf5  # BAD_SENTENCE: Sentence is truncated after 'wie z.B.' and the gloss reproduces the truncation.
+- f570f7307834  # WRONG_UNIT: Uses reflexive 'sich (Dat.) zulegen' (to acquire) rather than plain 'zulegen'.
+- f5b26062de13  # WRONG_UNIT: The verb is 'es gibt' with adverb 'dazu', not the separable verb 'dazugeben'.
+- f5dafc63f942  # BAD_SENTENCE: Incomplete sentence fragment lacking subject and finite verb.
+- f5e4904036bc  # BAD_SENTENCE: Sentence is unnatural German ('nicht gute Noten' instead of 'keine guten Noten').
+- f5e4b2fa8c56  # BAD_SENTENCE: 'die Bedürfnisse des Kindes einschneiden' is not idiomatic German.
+- f5f15f0dfd39  # WRONG_UNIT: The sentence has ein hohes Mass an Geschicklichkeit, not in hohem Masse.
+- f627d170519e  # BAD_SENTENCE: 'auswerfen' is not used for throwing a person out (that is rauswerfen), so the sentence is unnat
+- f67ea7f26efb  # BAD_SENTENCE: 'wickeln Sie ums Handgelenk' is missing its object (sie), unlike the gloss.
+- f6acd0ae5731  # BAD_SENTENCE: Relative-clause fragment, not a self-contained sentence.
+- f6b9fd258b9d  # WRONG_GAPS: The reflexive pronoun 'sich' from the unit is not bracketed in the sentence.
+- f6e7c05472e2  # WRONG_UNIT: The reflexive 'sich ausschlafen' is a different lexical construction from the intransitive/transit
+- f6ef332ce186  # WRONG_UNIT: geborenen here means born in 1969, not the born-artist collocation.
+- f6fedd20a0ff  # BAD_SENTENCE: OCR damage: 'lhr' for 'Ihr' plus a stray space before the exclamation mark; a clean duplicate ex
+- f70203a6ef82  # BAD_SENTENCE: Stray hyphen in "-Forschende" is an OCR artefact.
+- f71da5f1ff36  # BAD_GLOSS: "for the 2. time" is not English; should be "for the second time".
+- f7596240c073  # BAD_SENTENCE: Typo with lowercase 'l' instead of uppercase 'I' in 'lhren Bericht'.
+- f7ece67c1bfb  # WRONG_UNIT: The verb is 'hinterherfahren' with prepositional object, not 'herfahren'.
+- f80fe47c61cd  # BAD_GLOSS: vorsprechen here means to call in at the district office, not 'speaks at' it.
+- f81cf7546801  # BAD_SENTENCE: Mixes formal 'Sie' with 'euch' in one clause; the gloss reads it as 'them'.
+- f831d94d11bf  # BAD_GLOSS: Translates the idiom literally as 'with hard bandages' instead of 'with no holds barred' or 'play h
+- f854c3060e25  # WRONG_UNIT: The prepositional construction 'auf ... zufliegen' is not the unit 'zufliegen'.
+- f8a57309c1de  # WRONG_UNIT: The verb is 'es gibt' with adverb 'dazu', not the separable verb 'dazugeben'.
+- f8f683af21f6  # WRONG_UNIT: 'im Unterricht' is a locative dative adjunct, not the directional 'in +Akk' of the unit.
+- f96f5ee27221  # WRONG_UNIT: 'dachte ... weg' here is two unrelated words, not the separable verb wegdenken.
+- f986f84bb40d  # BAD_SENTENCE: The sentence lacks punctuation or a conjunction between the two coordinate verb phrases 'kosten'
+- f9f49b49925f  # BAD_SENTENCE: Noun missing after 'durch die', so the sentence is incomplete.
+- fa117ade7428  # BAD_SENTENCE: bei den Senat is wrong case, it must be beim Senat.
+- fa1c80d4fb92  # WRONG_GAPS: The reflexive pronoun 'sich' is missing from the gaps for reflexive use of ausweisen.
+- fa9481a6824a  # BAD_SENTENCE: Imperative requires capitalised 'Sie'; as written the sentence is ungrammatical.
+- fa9a7c2cb08e  # WRONG_UNIT: The gaps combine "die Bibel lesen" with the "an" of anwenden, not anlesen.
+- fb2703c2a89d  # BAD_SENTENCE: Corpus fragment 'Bei gutem Benehmen, 7. Ich prüfe es.' is not a self-contained sentence.
+- fb28a0b88646  # WRONG_UNIT: The verb here is 'jemandem nachsehen' (gaze after someone), not 'nachsehen' (check/look up).
+- fb44097139a4  # WRONG_UNIT: 'von hier an' supplies the 'an'; the verb is schaffen, not anschaffen.
+- fb4d9bd62304  # WRONG_UNIT: Uses Verantwortung as genitive/dative complement of noun, not direct object of übertragen.
+- fb585bad4c62  # WRONG_GAPS: The unit includes 'sich' and 'den', but only 'Kopf' and 'zerbrechen' are bracketed.
+- fb84d16aa28e  # BAD_GLOSS: 'To me falls therefore 640 euros' is ungrammatical English.
+- fbae3fba5881  # BAD_GLOSS: 'keine Bäume ausreißen' means 'cannot work miracles'; the literal 'uproot trees' misleads.
+- fbe0380add71  # WRONG_GAPS: The bracketed 'an' belongs to 'kleide mich an', not to 'trinke', so the gaps do not form antrinken
+- fbf83b8f64ac  # BAD_SENTENCE: Incomplete sentence fragment lacking a subject or preposition ('Juli erbitterte Kämpfe um Witebs
+- fbffea77a24e  # BAD_SENTENCE: Sentence is truncated after 'in der eisigen Kälte der', and the gloss reproduces the break.
+- fc05b538083f  # BAD_SENTENCE: The subject is a truncated proper name "die HTL Wr.", so the sentence is cut off.
+- fc9eafb03119  # BAD_SENTENCE: Noun capitalization errors in 'teufel' and 'stelle'.
+- fcc8d7d541a5  # BAD_SENTENCE: Nominalized 'nein' should be capitalized as 'Nein'.
+- fce98781b146  # BAD_GLOSS: German thousands separator kept in English, so '48.000 inhabitants' reads as 48.
+- fd7b49406712  # WRONG_UNIT: "gehörte zu den guten Geistern" is a different, literal use, not the idiom being taught.
+- fd855eac9527  # WRONG_UNIT: The bracketed an belongs to fertigt ... an (anfertigen) in a different clause than the bracketed a
+- fdae1c5a9253  # BAD_SENTENCE: OCR corruption 'FeuerwehrIeute' instead of 'Feuerwehrleute'.
+- fdff8673a938  # WRONG_UNIT: The sentence uses Hand anlegen, not anliegen.
+- fe139bdf26e1  # BAD_SENTENCE: Ungrammatical word order after 'weil' and unneeded comma before 'als'.
+- fe4ee4f63ae5  # BAD_SENTENCE: The parenthesised '(darauf)' makes this an editorial fragment rather than a natural sentence.
+- fe630c0e4f6f  # BAD_SENTENCE: Gap word uses pre-1996 spelling 'Mißverständnisse', which the learner would have to type.
+- fedf3ed3407f  # BAD_SENTENCE: Sentence contains the raw HTML entity "Fl&uumlssigkeit" instead of "Flüssigkeit".
+- fef0c9925859  # BAD_SENTENCE: Truncated fragment, not a sentence; the gloss is a fragment too.
+- ff3349620e72  # WRONG_UNIT: The sentence instantiates the verb 'zurücklegen', not 'zurückliegen'.
+- ff6443b2803c  # BAD_SENTENCE: "Fleiß hat immer etwas übrig" is not a natural German sentence.
+- ff76af9bff15  # BAD_SENTENCE: "warten" should be "waten"; the gloss says "wade", so the German is corrupt.
+- ff9091b1f01d  # BAD_SENTENCE: The sentence is an incomplete fragment lacking the noun after 'vollständige'.
+- ffe7f08a3bc4  # BAD_SENTENCE: 'ihr Haar tarierend' is not natural German and the gloss 'balancing their hair' is nonsense.
+- fffdbff1773b  # WRONG_UNIT: "nicht wahr?" is a tag question, not the separable verb "wahrmachen".

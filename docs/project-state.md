@@ -130,7 +130,8 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
 
 ## What is not built
 
-- **The review of the 38,000 agent glosses** (first item in TODO).
+- **Gemini's second reading of 15,882 agent glosses** (Claude has read all
+  38,882; Gemini's quota ended at 23,000). First item in TODO.
 - **Phase 3b, the offline PWA.** `web/` now only talks to the local server;
   the GitHub Pages build needs the scheduler and grader in JavaScript
   (ts-fsrs, same parameters), IndexedDB for the log, a service worker for

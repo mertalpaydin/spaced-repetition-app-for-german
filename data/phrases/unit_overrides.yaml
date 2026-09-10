@@ -29,7 +29,7 @@
 - {key: "amerikanisch bürgerkrieg", display: "der amerikanische Bürgerkrieg"}
 - {key: "amerikanisch traum", display: "der amerikanische Traum"}
 - {key: "amtierend präsident", display: "der amtierende Präsident"}
-- {key: "anbinden an", case: "Dat"}
+- {key: "anbinden an", case: "Akk"}
 - {key: "andocken an", case: "Akk"}
 - {key: "anerkennen als", cefr: "B2"}
 - {key: "anerkennen", cefr: "B2"}
@@ -38,6 +38,7 @@
 - {key: "angelegenheit untersuchen", cefr: "B2"}
 - {key: "angenehm duft", display: "angenehmer Duft"}
 - {key: "angst hatten", display: "Angst haben"}
+- {key: "anknüpfen an", case: "Dat"}
 - {key: "anlogen", display: "anlügen"}
 - {key: "anmaßen", display: "sich anmaßen"}
 - {key: "annäheren", display: "annähern"}
@@ -50,7 +51,7 @@
 - {key: "anstoß geben", cefr: "B2"}
 - {key: "anteil verkaufen", cefr: "B1"}
 - {key: "antrag stellen", cefr: "B1"}
-- {key: "antworteten auf", display: "antworten auf +Akk"}
+- {key: "antworteten auf", case: "Akk", display: "antworten auf +Akk"}
 - {key: "anweisung folgen", cefr: "B1"}
 - {key: "anzeigen", cefr: "B1"}
 - {key: "arm leute", display: "arme Leute"}
@@ -528,7 +529,7 @@
 - {key: "kind stillen", cefr: "B1"}
 - {key: "klagen gegen", cefr: "B2"}
 - {key: "klappe halten", cefr: "B1"}
-- {key: "klargekommen mit", display: "klarkommen mit +Dat"}
+- {key: "klargekommen mit", case: "Dat", display: "klarkommen mit +Dat"}
 - {key: "kleben an", case: "Dat"}
 - {key: "kleben auf", case: "Dat"}
 - {key: "klein kätzche", display: "ein kleines Kätzchen"}
@@ -702,12 +703,12 @@
 - {key: "rahmenbedingung schaffen", display: "Rahmenbedingungen schaffen"}
 - {key: "rangekommen an", display: "rankommen an +Akk"}
 - {key: "rangieren auf", case: "Dat"}
-- {key: "ranzukommen an", display: "rankommen an +Akk"}
+- {key: "ranzukommen an", case: "Akk", display: "rankommen an +Akk"}
 - {key: "rau see", display: "raue See"}
 - {key: "rauchen abgewöhnen", display: "sich das Rauchen abgewöhnen"}
 - {key: "rauchen aufgeben", display: "das Rauchen aufgeben"}
 - {key: "raum betraten", display: "Raum betreten"}
-- {key: "rauszukommen aus", display: "rauskommen aus +Dat"}
+- {key: "rauszukommen aus", case: "Dat", display: "rauskommen aus +Dat"}
 - {key: "rechenschaft ablegen", cefr: "B2"}
 - {key: "rechnen mit", cefr: "B1"}
 - {key: "rechnung tragen", cefr: "B2"}
@@ -719,7 +720,7 @@
 - {key: "rechtlich grund", display: "rechtliche Gründe"}
 - {key: "rein formsache", cefr: "B2"}
 - {key: "rein wein", cefr: "B2"}
-- {key: "reingefallen auf", display: "reinfallen auf +Akk"}
+- {key: "reingefallen auf", case: "Akk", display: "reinfallen auf +Akk"}
 - {key: "rennen fahren", display: "Rennen fahren"}
 - {key: "respekt verdienen", cefr: "B1"}
 - {key: "respekt zollen", cefr: "B2"}
@@ -801,7 +802,7 @@
 - {key: "sich abgeben mit", cefr: "B2"}
 - {key: "sich abheben von", cefr: "B1"}
 - {key: "sich absetzen", cefr: "B2"}
-- {key: "sich aneignen", case: "Akk"}
+- {key: "sich aneignen", case: "Dat"}
 - {key: "sich anfreunden mit", cefr: "A2"}
 - {key: "sich angucken", case: "Akk"}
 - {key: "sich anmassen", display: "sich anmaßen"}
@@ -815,6 +816,7 @@
 - {key: "sich ausbeißen", display: "sich die Zähne ausbeißen"}
 - {key: "sich ausbissen", display: "sich die Zähne ausbeißen an +Dat"}
 - {key: "sich ausgaben als", display: "sich ausgeben als"}
+- {key: "sich ausrechnen", case: "Dat"}
 - {key: "sich aussprechen", cefr: "B2"}
 - {key: "sich austragen aus", cefr: "B1"}
 - {key: "sich bahnen", cefr: "B2"}
@@ -824,7 +826,7 @@
 - {key: "sich bewähren", cefr: "B2"}
 - {key: "sich bissen auf", display: "sich beißen auf +Akk"}
 - {key: "sich breiten", display: "sich ausbreiten"}
-- {key: "sich brennen in", display: "sich einbrennen in +Akk"}
+- {key: "sich brennen in", case: "Akk", display: "sich einbrennen in +Akk"}
 - {key: "sich brüsten", cefr: "B2"}
 - {key: "sich decken mit", cefr: "B2"}
 - {key: "sich drangewöhnen", display: "sich gewöhnen an +Akk"}
@@ -910,6 +912,8 @@
 - {key: "sich zunutzemachen", display: "sich etwas zunutze machen"}
 - {key: "sich zurückmelden", display: "sich zurückmelden"}
 - {key: "sich zusammenfinden", cefr: "B2"}
+- {key: "sich zutrauen", case: "Akk"}
+- {key: "sich zuziehen", case: "Akk"}
 - {key: "sich zuzulegen", display: "sich zulegen"}
 - {key: "sich zählen zu", cefr: "B2"}
 - {key: "sich äusseren", display: "sich äußern zu +Dat"}
@@ -963,7 +967,7 @@
 - {key: "stufen als", display: "einstufen als"}
 - {key: "ständig beobachtung", display: "unter ständiger Beobachtung"}
 - {key: "südlich richtung", display: "in südlicher Richtung"}
-- {key: "tappen in", case: "Dat"}
+- {key: "tappen in", case: "Akk"}
 - {key: "tasche durchsuchten", display: "Taschen durchsuchen"}
 - {key: "tat gestehen", cefr: "B2"}
 - {key: "tatort untersuchen", cefr: "B2"}
@@ -1042,6 +1046,7 @@
 - {key: "verpflichtung erfüllen", cefr: "B1"}
 - {key: "verschon mit", display: "verschonen mit +Dat"}
 - {key: "versetzen in", case: "Akk"}
+- {key: "versinken in", case: "Dat"}
 - {key: "verstorben präsident", display: "der verstorbene Präsident"}
 - {key: "verstorben vater", display: "verstorbener Vater"}
 - {key: "vertrauen aufbauen", display: "Vertrauen aufbauen"}
@@ -1122,7 +1127,7 @@
 - {key: "zu bruch gehen", cefr: "B2"}
 - {key: "zubewegen", display: "sich zubewegen auf +Akk"}
 - {key: "zuflucht finden", cefr: "B2"}
-- {key: "zugegen bei", display: "zugegen sein bei +Dat"}
+- {key: "zugegen bei", case: "Dat", display: "zugegen sein bei +Dat"}
 - {key: "zugehen auf", case: "Akk"}
 - {key: "zugrundeliegen", cefr: "B2"}
 - {key: "zum opfer fallen", cefr: "B2"}
@@ -1151,7 +1156,7 @@
 - {key: "zusammenfallen", cefr: "B2"}
 - {key: "zusammenfassten", display: "zusammenfassen"}
 - {key: "zusammenfinden", cefr: "B2"}
-- {key: "zusammengestoßen mit", display: "zusammenstoßen mit +Dat"}
+- {key: "zusammengestoßen mit", case: "Dat", display: "zusammenstoßen mit +Dat"}
 - {key: "zusammenhingen", display: "zusammenhängen"}
 - {key: "zusammenlaufen in", cefr: "B2"}
 - {key: "zusammenlaufen", cefr: "B2"}

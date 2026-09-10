@@ -2121,3 +2121,112 @@
 - "überliegen mit"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
 - "überliegen vor"  # NOT_A_PHRASE: Parser artefact involving a non-existent verb.
 # Review round step5: units the reviewer rejected.
+# Review round gloss1: units the reviewer rejected.
+- "abbiegen nach"  # BAD_UNIT: The unit 'abbiegen nach +Dat' is invalid because 'nach' governs directional adverbs ('links'/'rechts
+- "abstreuen"  # BAD_UNIT: abstreuen is fire-brigade jargon for spreading binding agent, not useful vocabulary at A1-B2.
+- "alt knabe"  # BAD_UNIT: Outdated, rare idiom unsuitable for A1-B2 learners.
+- "alt knacker"  # BAD_UNIT: Informal vulgar insult provided in plural without article, unsuitable for A1-B2.
+- "alt tradition"  # BAD_UNIT: alte Traditionen is not a fixed or useful lexical collocation for learners.
+- "anloben"  # BAD_UNIT: The verb behind 'angelobt' is Austrian 'angeloben'; 'anloben' is not a German word.
+- "aufgeilen"  # BAD_UNIT: Crude sexual slang, not a useful phrase for an A1-B2 learner.
+- "aufschließen gegenüber"  # BAD_UNIT: The real phrase is "aufgeschlossen sein gegenüber +Dat"; the verb aufschließen is never used this wa
+- "auseinandersetzen"  # BAD_UNIT: The real unit is reflexive 'sich auseinandersetzen mit +Dat'; the display omits the obligatory refle
+- "ausrutschen auf"  # BAD_UNIT: 'ausrutschen auf' takes an ordinary locative adverbial rather than an idiomatic prepositional comple
+- "austoben"  # BAD_UNIT: Every card uses the reflexive "sich austoben", so the citation form shown should include "sich".
+- "bart wachsen"  # BAD_UNIT: The real collocation is "sich einen Bart wachsen lassen"; "Bart wachsen" alone is not a German phras
+- "berücksichtigen bei"  # BAD_UNIT: The combination 'berücksichtigen bei' is not a fixed prepositional verb phrase but a standard free a
+- "besonderer fähigkeit"  # BAD_UNIT: Unit is inflected with dative plural ending '-en' instead of the lemma form 'besondere Fähigkeiten'.
+- "deutsch lernen"  # BAD_UNIT: Trivial combination of direct object and verb, not an idiomatic phrase.
+- "direkt sonnenlicht"  # BAD_UNIT: The displayed citation form is an oblique case form; it should read 'direktes Sonnenlicht'.
+- "drache steigen"  # BAD_UNIT: The real phrase is 'einen Drachen steigen lassen'; 'Drachen steigen' alone is not the collocation.
+- "durchzudringen zu"  # BAD_UNIT: The unit display carries a duplicated case marker '+Dat +Dat'.
+- "ei abschneiden"  # BAD_UNIT: Crude, fully compositional threat from film dubbing, not a phrase worth teaching.
+- "einbeten"  # BAD_UNIT: einbeten is not a German verb; every card for it actually uses einbetten.
+- "einbrechen um"  # BAD_UNIT: Preposition 'um' here is a generic difference/percentage indicator, not a fixed verbal complement of
+- "eingewöhnen"  # WRONG_UNIT: The unit is displayed as non-reflexive 'eingewöhnen' but used reflexively as 'sich eingewöhnen' wi
+- "einmessen"  # BAD_UNIT: einmessen is surveying and audio-engineering jargon, not useful vocabulary for an A1-B2 learner.
+- "einstechen mit"  # BAD_UNIT: The verb's real prepositional unit is 'auf jemanden einstechen'; 'mit' is only a generic instrumenta
+- "englischsprachig buch"  # BAD_UNIT: The unit lemma has an inflected adjective form ('englischsprachigen Bücher') instead of base form.
+- "entspringen aus"  # BAD_UNIT: In standard German 'entspringen' governs a plain dative (or Dativobjekt), not prepositional 'aus +Da
+- "erfolgen über"  # BAD_UNIT: 'erfolgen über' is not a fixed lexical verb-preposition idiom for A1-B2 learners.
+- "erhaben über"  # BAD_UNIT: The unit display contains duplicate case specifiers '+Akk +Akk'.
+- "erlernen durch"  # BAD_UNIT: 'durch +Akk' is a generic modal/instrumental adjunct, not a fixed verb-preposition collocation.
+- "ertappen auf"  # BAD_UNIT: 'Auf frischer Tat ertappen' is a fixed idiom with accusative object, not a general prepositional ver
+- "erwecken zu"  # BAD_UNIT: The phrase is an idiom 'zum Leben erwecken', not a productive verb frame 'erwecken zu +Dat'.
+- "ewig liebe"  # BAD_UNIT: Generic compositional adjective-noun combination not forming a distinct lexicalized idiom.
+- "fahrend auto"  # BAD_UNIT: Not an idiom or fixed lexical collocation worth learning as a set unit.
+- "falsch bus"  # BAD_UNIT: The unit is given in the accusative case ('falschen Bus') rather than citation form or noun phrase w
+- "freundin küssen"  # BAD_UNIT: Plain verb plus object, not a collocation worth teaching as a phrase unit.
+- "frühstück schmecken"  # BAD_UNIT: Not a collocation on its own; the real phrase is "sich etwas schmecken lassen".
+- "für bar münze"  # WRONG_GAPS: The phrase is an idiom with 'nehmen' ('etwas für bare Münze nehmen'), but 'nehmen' is not brackete
+- "gebraten taube"  # BAD_UNIT: The idiom is 'jemandem fliegen gebratene Tauben in den Mund', making 'die gebratenen Tauben' an awkw
+- "geehrt dame"  # BAD_UNIT: 'geehrte Damen' is not an independent collocated unit, only part of the fixed salutation 'Sehr geehr
+- "gegenübersetzen"  # BAD_UNIT: gegenübersetzen is not a standard German verb; the sentence uses the idiom etwas entgegensetzen/gege
+- "gehangen an"  # BAD_UNIT: Unit display repeats the case marker ("+Dat +Dat").
+- "gewiß alter"  # BAD_UNIT: The unit lemma is inflected in the dative ('gewissen Alter') rather than citation form 'ein gewisses
+- "gut appetit"  # BAD_UNIT: The base lemma citation form should be nominative guter Appetit.
+- "gut tennisspieler"  # BAD_UNIT: Unit includes an unnecessary indefinite article.
+- "herausstellen"  # BAD_UNIT: Duplicates the reflexive unit "sich herausstellen"; every carrier here is reflexive, so the bare cit
+- "herumgeben"  # BAD_UNIT: herumgeben is not a real verb here; all its cards are es gibt plus the circumposition um ... herum.
+- "herumtragen mit"  # BAD_UNIT: Unit display has duplicated case '+Dat +Dat' and plain 'etwas mit sich herumtragen' is not inherentl
+- "hinausgeben"  # BAD_UNIT: hinausgeben is not a real German verb; every card is es gibt ... einen Weg hinaus.
+- "hoch gras"  # BAD_UNIT: Unit with fixed preposition and case 'im hohen Gras' is an arbitrary prepositional phrase rather tha
+- "in keinst weise"  # BAD_UNIT: 'in keinster Weise' is a nonstandard superlative of 'kein'; the standard form to teach is 'in keiner
+- "initiative ergreifen"  # BAD_UNIT: Noun-verb collocation is universally 'die Initiative ergreifen' with definite article.
+- "interessant artikel"  # BAD_UNIT: Free, non-idiomatic adjective-noun combination of no lexicalized value.
+- "irgendein art"  # BAD_UNIT: 'irgendeine Art' is a determiner plus noun, not an adjective-noun collocation worth teaching as a un
+- "kalt winter"  # BAD_UNIT: 'kalte Winter' is a free compositional combination rather than a fixed phrase for learners.
+- "klein luder"  # BAD_UNIT: Dated, sexualised insult; not a useful collocation for a learner.
+- "klein scheißer"  # BAD_UNIT: Vulgar/colloquial insult of dubious value for general A1-B2 language learners.
+- "klein schlampe"  # BAD_UNIT: A vulgar insult, not a useful phrase for an A1-B2 learner.
+- "körperlich verfassung"  # BAD_UNIT: Unit display includes the preposition 'in' and adjective 'guter' which are not bracketed in the sent
+- "lösung finden"  # BAD_UNIT: The unit lacks an article whereas German noun-verb collocations normally require eine Lösung finden.
+- "mitmeinen"  # BAD_UNIT: mitmeinen is a rare, mostly journalistic verb and none of its three cards is a clean instance.
+- "nachalarmieren"  # BAD_UNIT: Emergency-services jargon with no value for an A1-B2 learner.
+- "natürlich umwelt"  # BAD_UNIT: Unit display is an inflected fragment; the citation form should be 'die natuerliche Umwelt'.
+- "parathalten für"  # BAD_UNIT: Standard German writes this as two words, "parat halten", not "parathalten".
+- "posttraumatisch belastungsstörung"  # BAD_UNIT: Overly specific clinical psychiatric diagnosis unsuitable as a core vocabulary phrase for A1-B2 lear
+- "produkt verkaufen"  # BAD_UNIT: Produkte verkaufen is a completely compositional and generic combination.
+- "pudern mit"  # BAD_UNIT: Austrian vulgar slang for having sex, not a useful A1-B2 phrase, and the only carrier is dialectal.
+- "rechter fuß"  # BAD_UNIT: The collocation rechter Fuss is trivial compositional vocabulary, not a useful multi-word unit for l
+- "rechter seite"  # BAD_UNIT: The unit is an arbitrary prepositional phrase with inconsistent gap coverage across cards.
+- "revidieren nach"  # BAD_UNIT: There is no verb-preposition unit 'revidieren nach'; the real collocation is the directional 'nach o
+- "riten durch"  # BAD_UNIT: Unit display carries a duplicated case marker (+Akk +Akk); should be "reiten durch +Akk".
+- "roh fisch"  # BAD_UNIT: The unit exhibits an ungrammatical citation form instead of roher Fisch or rohe Fische.
+- "rot blitz"  # BAD_UNIT: 'Der rote Blitz' is a superhero nickname from dubbed subtitles, not a useful A1-B2 collocation.
+- "rot hut"  # BAD_UNIT: The phrase 'der rote Hut' is a trivial compositional adjective-noun combination with no idiomatic st
+- "räumen aus"  # BAD_UNIT: 'aus' is a directional spatial preposition here rather than a fixed prepositional verb complement.
+- "schmissen aus"  # BAD_UNIT: Display has a duplicated case marker and non-standard spelling (schmeißen).
+- "schwanz abschneiden"  # BAD_UNIT: A literal, crude verb-object pair from subtitles, not a useful phrase unit for an A1-B2 learner.
+- "seltsam ding"  # BAD_UNIT: 'seltsame Dinge' is a free compositional combination rather than a fixed phrase for learners.
+- "sich erweichen"  # BAD_UNIT: The real phrase is "sich erweichen lassen"; bare "sich erweichen" is not used.
+- "sich hinreißen"  # BAD_UNIT: The reflexive verb is 'sich hinreißen lassen' (or 'sich zu etwas hinreißen lassen'), not standalone 
+- "sich konfrontieren mit"  # WRONG_UNIT: The unit specifies transitive 'jemanden konfrontieren mit', but the sentence uses 'sich konfrontie
+- "sich putzen"  # BAD_UNIT: 'sich putzen +Dat' is not a useful standalone phrase; it duplicates 'sich die Zähne putzen'.
+- "sich raufen"  # BAD_UNIT: 'sich raufen' alone means to brawl; every card here teaches 'sich die Haare raufen', so the display 
+- "sich wiederberuhigen"  # BAD_UNIT: There is no verb 'sich wiederberuhigen'; it is 'sich wieder beruhigen', two words with a free adverb
+- "sprache sprechen"  # BAD_UNIT: The phrase Sprache sprechen is a generic verb-object pairing rather than a fixed lexical collocation
+- "sprachen von"  # BAD_UNIT: Unit display repeats the case marker ("+Dat +Dat"), which the learner sees after grading.
+- "springen über"  # BAD_UNIT: 'springen über' is a purely compositional spatial prepositional phrase rather than an idiomatic unit
+- "stark akzent"  # BAD_UNIT: The unit lemma is given in plural ('starke Akzente') instead of the standard singular phrase 'starke
+- "stehn auf"  # BAD_UNIT: Unit display repeats the case marker ("+Akk +Akk").
+- "stiessen auf"  # BAD_UNIT: Unit display is a Swiss past-tense form, not the lemma stoßen auf.
+- "taub ohr"  # BAD_UNIT: The unit is an incomplete idiom fragment missing its governing verb (auf taube Ohren stoßen).
+- "triumphieren bei"  # BAD_UNIT: 'bei +Dat' is a standard situational/temporal adjunct rather than an inherent prepositional compleme
+- "tropisch regenwald"  # BAD_UNIT: Unit includes definite article and plural form unnecessarily.
+- "tödlich virus"  # BAD_UNIT: The display uses the colloquial masculine while five of six sentences use the standard neuter "ein t
+- "verletzung erliegen"  # WRONG_UNIT: The unit specifies accusative den but erliegen governs the dative.
+- "verschlossen tür"  # BAD_UNIT: The unit is listed as plural 'verschlossene Türen' but is just a literal adjective-noun phrase used 
+- "verschon mit"  # BAD_UNIT: Unit display carries a duplicated case marker (+Dat +Dat); should be "verschonen mit +Dat".
+- "vitamin enthalten"  # BAD_UNIT: Freely combined transitive verb and noun, not an idiomatic multi-word expression or collocation for 
+- "vorauswerfen"  # BAD_UNIT: Vorauswerfen exists only as part of the fixed idiom seine Schatten vorauswerfen, not as an independe
+- "vorbeischaun bei"  # BAD_UNIT: Unit display repeats the case marker ("+Dat +Dat").
+- "wahrheit sagen"  # WRONG_UNIT: The idiomatic phrase is 'die Wahrheit sagen' missing the article in the unit display.
+- "warm luft"  # BAD_UNIT: Not an idiom or fixed collocation, just a literal adjective-noun pairing.
+- "zugehören"  # BAD_UNIT: "zugehören" is an uncommon, marginal variant of "dazugehören" / "gehören zu" for A1-B2 learners.
+- "zuhaben"  # BAD_UNIT: zuhaben is a marginal colloquialism and most of its cards are mis-parsed.
+- "zuneigen"  # BAD_UNIT: Zuneigen is archaic/poetic and not a standard or useful phrase for A1-B2 learners.
+- "zusammendenken"  # BAD_UNIT: zusammendenken is a rare abstract verb of little use to an A1-B2 learner, and four of its five cards
+- "zusammenreißen"  # BAD_UNIT: The verb is inherently reflexive (sich zusammenreißen) and should include the reflexive pronoun.
+- "zutun mit"  # BAD_UNIT: The phrase is 'mit etwas zu tun haben', written as two words; 'zutun' is a misspelling and the gaps 
+- "öl gießen"  # BAD_UNIT: Every sentence uses the idiom 'Öl ins Feuer gießen'; the display 'Öl gießen' alone is not a useful p
