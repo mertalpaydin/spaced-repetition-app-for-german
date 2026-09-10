@@ -2278,3 +2278,6 @@
 - "weiden auf"  # BAD_UNIT: 'weiden auf +Dat' is not a real prepositional verb phrase as 'auf' is merely a locative adverbial.
 - "zerdrücken mit"  # BAD_UNIT: The unit 'zerdrücken mit +Dat' is not a fixed prepositional verb phrase but a free instrumental adve
 - "zusammenspannen"  # BAD_UNIT: The unit is a Swiss regionalism not suitable or useful for general A1-B2 learners.
+# Review round gloss5: units the reviewer rejected.
+- "glas zerbrechen"  # BAD_UNIT: Plain verb plus object, not a fixed collocation worth teaching as a unit.
+- "herrufen"  # BAD_UNIT: 'herrufen' is rare and dated; learners need 'herbeirufen' or 'kommen lassen'.

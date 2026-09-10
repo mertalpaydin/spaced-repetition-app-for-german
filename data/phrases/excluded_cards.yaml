@@ -4052,3 +4052,21 @@
 - fe0acaa5b61c  # WRONG_UNIT: The sentence uses 'sich tätowieren lassen' where 'sich' is an object of 'lassen', not a reflexive 
 - fef7d2a3f066  # WRONG_UNIT: The sentence instantiates the idiom 'sich die Haare raufen' rather than the reflexive verb 'sich r
 - ffe99634ddc1  # WRONG_UNIT: The sentence uses the superlative 'obersten' instead of the comparative form 'oberen' from the uni
+# Review round gloss5.
+- 0948e255f89d  # BAD_SENTENCE: Obsolete spelling 'Daß' and the line is a subordinate clause fragment, not a sentence.
+- 3a89c76a3c09  # BAD_SENTENCE: Corrupted figure '223.00 Euro' in an otherwise dense news sentence.
+- 3dee1c6bb197  # BAD_SENTENCE: Name missing after 'Nach den Drohungen von', leaving the sentence broken.
+- 4bc12b934873  # BAD_SENTENCE: Ungrammatical case ('in freie Wildbahn' should be dative) plus a mid-sentence capitalised 'In No
+- 56f4a200738d  # BAD_SENTENCE: Second clause is garbled: 'bereitete später zum Thema für die Bühne auf'.
+- 70f9fec437ab  # BAD_SENTENCE: No main clause; a noun phrase with a relative clause whose verb also disagrees ('welche ... hinw
+- 78048ba157fd  # BAD_SENTENCE: Sentence is truncated mid-phrase ('die notwendige Änderung einer.').
+- 7de041c12ac8  # BAD_SENTENCE: Subjectless fragment: 'Hat eine Ringerin mit ausländischem Akzent auch.'
+- 8d5657606c7f  # BAD_SENTENCE: Wrong gender: 'eine Kopfgeld' should be 'ein Kopfgeld'.
+- a87a5577e0da  # WRONG_UNIT: Sentence uses the non-reflexive passive 'wurden einer Prüfung unterzogen', not the reflexive unit 
+- b5215ad49c19  # BAD_SENTENCE: 'eine Erkältung aufschnappen' is an unnatural collocation (normally 'sich einfangen').
+- c16096f68d6c  # BAD_SENTENCE: OCR junk at the start: '1 0 Jahre lang'.
+- c78f2adea692  # BAD_SENTENCE: Classified-ad register with a missing article before 'Selbstständiger Bilanzbuchhalter'.
+- d08c070c5203  # BAD_SENTENCE: Grammar error: 'bringen Sie ein Ausweis' should be 'einen Ausweis'.
+- d445963787be  # BAD_SENTENCE: Two radio fragments; 'Feuer frei haben' is a separate military idiom and needs context.
+- e2bbee4750f1  # WRONG_UNIT: 'nach einer Suchanfrage' is temporal here, so the gaps do not instantiate 'durchforsten nach'.
+- ec899528919b  # BAD_SENTENCE: 'mit seinem Berg einen steilen Hang hinaufgefahren' is corrupted and nonsensical.
