@@ -124,6 +124,12 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one preposition in at least 80% of its sentences is a three-token unit
   with three gaps (`auf freiem Fuß`); 44 such units.
 
+- **Everyday corpora weigh tenfold in the ranking, 2026-09-11.** With
+  one vote per corpus the four news and web corpora put `jedoch` and
+  `zudem` (B1, B2) at ranks 9 and 13; with Tatoeba and subtitles weighted
+  ten they sit at 27 and 42 behind `anrufen`, `anfangen` and `zu Hause`.
+  Unit ids are unchanged, so the review lists and the learner's log still
+  apply; only the order of introduction moved.
 - **First learner feedback applied, 2026-09-11.** The day's limit is an
   exercise budget (`cards_per_day`, default 40), not a unit cap; one
   FSRS learning step (10 minutes) instead of two; a unit is never shown

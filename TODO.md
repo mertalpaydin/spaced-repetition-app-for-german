@@ -82,10 +82,6 @@ Phase 3a (done 2026-09-09): `uv run python -m src.cli.serve`, the page in
 
 - **Use 3a for a week on both devices** and keep the feedback coming; the
   first round (2026-09-11) is applied.
-- **Ranking weight for everyday corpora.** The top of the ranking is
-  news-flavoured (`jedoch`, `zudem` at ranks 9 and 13). Weighting Tatoeba
-  and subtitles threefold moves them to 12 and 15 and brings `nach Hause`,
-  `anrufen`, `zu Hause`, `anfangen` into the top 40. Owner's call.
 - **Phase 3b, offline PWA on GitHub Pages:** vendor ts-fsrs, port
   `grading.py` and `session.py` to `web/lib/` with a replay test against the
   Python engine on a fixture log, IndexedDB log, deck-versioned service

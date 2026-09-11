@@ -30,6 +30,9 @@ DEFAULT_VOCAB_PATH = Path("data/fixtures/corpus/vocab_levels.json")
 
 #: The corpora whose register is everyday speech rather than news or web prose.
 EVERYDAY_SOURCES: frozenset[str] = frozenset({"tatoeba", "opensubtitles_2018"})
+#: Ranking weight per corpus; everyday corpora count tenfold (owner's
+#: decision, 2026-09-11). Unlisted corpora weigh one.
+SOURCE_WEIGHTS: dict[str, float] = dict.fromkeys(EVERYDAY_SOURCES, 10.0)
 
 _CEFR_RANK: dict[str, int] = {"A1": 1, "A2": 2, "B1": 3, "B2": 4}
 #: Parts that carry no vocabulary of their own: the reflexive pronoun and
@@ -1221,15 +1224,24 @@ class UnitBuilder:
         return units
 
     def _per_million(self, s: UnitStats) -> float:
-        """Mean over the corpora of sentences-per-million in that corpus, so a
-        400k everyday corpus and a 1M news corpus each get one vote and no
-        register dominates the ranking."""
+        """Weighted mean over the corpora of sentences-per-million in that
+        corpus. Each corpus gets one vote, the everyday ones (Tatoeba,
+        subtitles) ten: with equal votes four news and web corpora put
+        "jedoch" and "zudem" at ranks 9 and 13, which the first learner
+        found too hard too early (they are B1/B2 on the Goethe lists); with
+        this weight they sit at 27 and 42 behind "anrufen" and "zu Hause"."""
         totals = self.counts.sentences_by_source
         if not totals:
             return float(s.count)
-        return sum(
-            1e6 * s.count_by_source.get(source, 0) / n for source, n in totals.items() if n
-        ) / len(totals)
+        weighted = 0.0
+        weight_sum = 0.0
+        for source, n in totals.items():
+            if not n:
+                continue
+            weight = SOURCE_WEIGHTS.get(source, 1.0)
+            weighted += weight * 1e6 * s.count_by_source.get(source, 0) / n
+            weight_sum += weight
+        return weighted / weight_sum if weight_sum else 0.0
 
     def _head_lemma(self, unit: PhraseUnit) -> str:
         if unit.kind in {"verb_prep", "separable_verb"}:

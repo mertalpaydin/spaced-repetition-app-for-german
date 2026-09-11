@@ -209,7 +209,8 @@ def test_rank_uses_mean_per_source_relative_frequency() -> None:
     ]
     units = _builder(counts).build(everyday + news)
     assert [(u.rank, u.lemma_key) for u in units] == [(1, "warten auf"), (2, "denken an")]
-    assert units[0].per_million == 10_000.0  # 20 of 1,000, averaged with 0 of 9,000
+    # 20 of 1,000 weighted ten, averaged with 0 of 9,000 weighted one
+    assert units[0].per_million == pytest.approx(20_000 * 10 / 11, abs=0.01)
 
 
 def test_a_collocation_seen_only_in_news_and_web_is_not_a_unit() -> None:

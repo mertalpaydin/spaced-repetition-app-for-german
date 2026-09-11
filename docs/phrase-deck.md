@@ -145,6 +145,10 @@ nothing new.
 
 ## Tuning
 
+Ranking: `per_million` is a weighted mean over the corpora of sentences
+per million, `SOURCE_WEIGHTS` in `src/phrases/units.py` (everyday corpora
+ten, the rest one). Raise the everyday weight to push news register down.
+
 Read `build/report.json` after every build. Noise goes into `exclude.yaml`;
 a missing unit goes into a seed list; a threshold change is a code change to
 `Thresholds` with the report numbers in the commit body. The golden test
