@@ -7,7 +7,7 @@ Stages, each idempotent over ``data/phrases/build/``:
     cards     pick glossed sentences per unit; list what to gloss next
     contexts  OPT-IN, the one model stage: a preceding sentence for
               sentence-initial connectors (free lane, needs approval)
-    export    write data/deck/ (manifest, units, shards) and the JSON schema
+    export    write web/data/deck/ (manifest, units, shards) and the JSON schema
     all       parse, mine, cards, export (never contexts)
 
 ``--check`` validates a committed deck without the corpus, for CI.

@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from src.atomic_write import write_text_atomic
 from src.contracts import DeckManifest, DeckShard, PhraseCard, PhraseUnit, ShardInfo, UnitsIndex
 
-DEFAULT_DECK_DIR = Path("data/deck")
+DEFAULT_DECK_DIR = Path("web/data/deck")
 DEFAULT_SCHEMA_PATH = Path("data/fixtures/schemas/phrase_deck.schema.json")
 
 

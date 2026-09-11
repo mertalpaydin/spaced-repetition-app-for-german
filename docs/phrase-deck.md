@@ -2,7 +2,7 @@
 
 The phase 1 runbook. `scripts/build_phrase_deck.py` is the only entry point;
 everything it writes is under `data/phrases/build/` (gitignored) until the
-export stage writes `data/deck/` (committed).
+export stage writes `web/data/deck/` (committed; GitHub Pages serves it).
 
 ## Inputs
 
@@ -46,9 +46,9 @@ Subtitle lines become cards only when the sentence validator passes them.
 uv run python scripts/build_phrase_deck.py --stage parse     # ~10 min: spaCy over both corpora
 uv run python scripts/build_phrase_deck.py --stage mine      # seconds: build/units.jsonl, build/report.json
 uv run python scripts/build_phrase_deck.py --stage cards     # minutes: build/cards.jsonl, wanted_carriers.txt
-uv run python scripts/build_phrase_deck.py --stage export    # seconds: data/deck/, the JSON schema fixture
+uv run python scripts/build_phrase_deck.py --stage export    # seconds: web/data/deck/, the JSON schema fixture
 uv run python scripts/build_phrase_deck.py --stage all       # the four above, never contexts
-uv run python scripts/build_phrase_deck.py --check           # validate data/deck/ (CI, no corpus needed)
+uv run python scripts/build_phrase_deck.py --check           # validate web/data/deck/ (CI, no corpus needed)
 ```
 
 Every stage is deterministic and idempotent over `build/`; re-run `mine`
@@ -113,7 +113,7 @@ Both treat the agent's output as untrusted: contexts go through the same
 deterministic checks as the API stage; glosses are checked for shape and
 stored in the translation store with `source: "gemini"`. The gloss job stops
 after two empty batches in a row, which is how a spent quota looks. Then
-`--stage cards`, `--stage export`, commit `data/deck/`.
+`--stage cards`, `--stage export`, commit `web/data/deck/`.
 
 ## Growing the deck
 
@@ -121,7 +121,7 @@ Cards are picked first and glossed afterwards. The monthly Azure job
 (`docs/monthly-translation-job.md`) reads `build/wanted_carriers.txt` as
 pass 0, so each month's 2,000,000 characters go to the sentences the deck
 wants first. After it runs: `--stage cards` then `--stage export`, commit
-`data/deck/`.
+`web/data/deck/`.
 
 ## Review
 
