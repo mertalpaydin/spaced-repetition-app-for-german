@@ -2281,3 +2281,6 @@
 # Review round gloss5: units the reviewer rejected.
 - "glas zerbrechen"  # BAD_UNIT: Plain verb plus object, not a fixed collocation worth teaching as a unit.
 - "herrufen"  # BAD_UNIT: 'herrufen' is rare and dated; learners need 'herbeirufen' or 'kommen lassen'.
+# Review round gloss2c: units the reviewer rejected.
+- "ausgestoßen bei"  # BAD_UNIT: 'ausstoßen bei' is not a fixed prepositional verb and '+Dat +Dat' is a corrupted case specification.
+- "gegenüberwohnen"  # BAD_UNIT: 'gegenüberwohnen' is not a recognized German verb because 'gegenüber' functions as an adverb.

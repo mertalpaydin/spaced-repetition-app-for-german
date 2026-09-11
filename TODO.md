@@ -10,8 +10,8 @@ only when the previous one is shown to work, and the owner confirms each step.
 
 ## First thing next session
 
-- **Gemini's last 16 gloss batches** (`gloss1/gemini/rest`, cards_174 and
-  180 to 194): rerun `review_deck.py gemini <dir> --model
+- **Gemini's last 12 gloss batches** (`gloss1/gemini/rest2`, cards_180,
+  183, 185 to 194; 2,400 cards): rerun `review_deck.py gemini <dir> --model
   gemini-3.8-flash-medium` when the quota is back, apply as gloss2c.
 - **Gloss the 1,136 replacement sentences** (`agy_jobs.py glosses`, once
   the agent quota is back), rebuild, review what `batches` lists.

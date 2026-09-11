@@ -4070,3 +4070,13 @@
 - d445963787be  # BAD_SENTENCE: Two radio fragments; 'Feuer frei haben' is a separate military idiom and needs context.
 - e2bbee4750f1  # WRONG_UNIT: 'nach einer Suchanfrage' is temporal here, so the gaps do not instantiate 'durchforsten nach'.
 - ec899528919b  # BAD_SENTENCE: 'mit seinem Berg einen steilen Hang hinaufgefahren' is corrupted and nonsensical.
+# Review round gloss2c.
+- 5a5951aedfab  # WRONG_UNIT: The word 'hinterher' is a postposition governing 'der Sonne', not a separable verb prefix.
+- 6e3bd51e7a86  # BAD_SENTENCE: Grammar error: missing 'zu' in infinitive construction 'gelegt worden zu sein'.
+- 740d644f237f  # BAD_SENTENCE: Contains Swiss spelling with 'Lebergefässe' instead of 'Lebergefäße'.
+- 79fad3229628  # BAD_SENTENCE: Sentence lacks required context and is unnatural without a destination or complement.
+- a45232d3c43f  # BAD_SENTENCE: Typo in the sentence with 'Hauststellen' instead of 'Hautstellen'.
+- b7fd8f455356  # WRONG_UNIT: 'hin' belongs to the fixed phrase 'vor sich hin' rather than the separable verb 'hinblicken'.
+- c7c8d5bb3cf2  # BAD_SENTENCE: Sentence fragment lacking a main clause predicate, with uncapitalized 'ihr schlafenden'.
+- f83238738812  # WRONG_UNIT: 'hin' belongs to the fixed phrase 'vor sich hin' rather than the separable verb 'hinblicken'.
+- f83e3cbc7e0c  # BAD_SENTENCE: Grammar error: uninflected participle 'beschlossen' instead of 'beschlossenen'.
