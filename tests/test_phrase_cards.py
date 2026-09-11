@@ -242,6 +242,10 @@ def test_complement_preposition_becomes_a_gap_when_unambiguous() -> None:
     )
     assert complement_preposition(unit) == "auf"
     assert complement_preposition(UNIT) is None  # verb_prep already gaps its preposition
+    idiom = UNIT.model_copy(
+        update={"kind": "idiom", "display_de": "ab und zu", "parts": ["ab und zu"]}
+    )
+    assert complement_preposition(idiom) is None  # its own last word, already a gap
 
     def occ(text: str, noun: str, verb: str) -> Occurrence:
         n, v = text.index(noun), text.index(verb)

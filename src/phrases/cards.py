@@ -170,7 +170,10 @@ def complement_preposition(unit: PhraseUnit) -> str | None:
     if m is None:
         return None
     prep = m.group(1).lower()
-    if prep not in _COMPLEMENT_PREPS or prep in {p.lower() for p in unit.parts}:
+    # An idiom's parts are one string ("ab und zu"); its own last word is
+    # not a complement.
+    own_words = {w.lower() for part in unit.parts for w in part.split()}
+    if prep not in _COMPLEMENT_PREPS or prep in own_words:
         return None
     return prep
 
