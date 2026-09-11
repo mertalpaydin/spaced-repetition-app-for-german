@@ -59,6 +59,8 @@ def test_fsrs_parity_vectors() -> None:
     engine = FSRSEngine(
         w=data.get("w"),
         request_retention=data.get("request_retention", 0.9),
+        # The vectors were produced with the library's own learning steps.
+        learning_steps=(timedelta(minutes=1), timedelta(minutes=10)),
         maximum_interval=data.get("maximum_interval", 36500),
     )
 

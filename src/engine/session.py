@@ -23,7 +23,13 @@ from src.phrases.export import DEFAULT_DECK_DIR, load_deck
 
 @dataclass(frozen=True)
 class Settings:
-    new_per_day: int = 10
+    """``cards_per_day`` is the day's exercise budget: due units always run,
+    new units are introduced until that many answers have been given today.
+    ``new_per_day`` is a hard cap on top of it, ``None`` for none. The first
+    learner found a cap of ten units repetitive (feedback, 2026-09-11)."""
+
+    cards_per_day: int = 40
+    new_per_day: int | None = None
     learn_ahead: timedelta = timedelta(minutes=20)
     retention: float = 0.9
 
@@ -68,6 +74,15 @@ def new_units_started_today(state: LearnerState, now: datetime) -> int:
     return sum(1 for ts in state.first_review.values() if ts.astimezone(UTC).date() == day)
 
 
+def reviews_today(state: LearnerState, now: datetime) -> int:
+    day = now.astimezone(UTC).date()
+    return sum(1 for ts in state.review_times if ts.astimezone(UTC).date() == day)
+
+
+def budget_left(state: LearnerState, settings: Settings, now: datetime) -> int:
+    return max(settings.cards_per_day - reviews_today(state, now), 0)
+
+
 def due_units(
     deck: Deck, state: LearnerState, engine: FSRSEngine, now: datetime, horizon: timedelta
 ) -> list[PhraseUnit]:
@@ -84,24 +99,75 @@ def due_units(
     return [unit for _, _, unit in due]
 
 
+def _not_last(units: list[PhraseUnit], last: str | None) -> list[PhraseUnit]:
+    """Never the unit just shown when anything else is available."""
+    others = [u for u in units if u.unit_id != last]
+    return others or units
+
+
 def next_unit(
     deck: Deck,
     state: LearnerState,
     engine: FSRSEngine,
     settings: Settings,
     now: datetime,
+    *,
+    over_limit: bool = False,
 ) -> PhraseUnit | None:
-    overdue = due_units(deck, state, engine, now, timedelta(0))
+    """Due units first, least retrievable first; then new units in rank order
+    while the day's budget lasts (or ``over_limit`` says go on); then the
+    learn-ahead window. The unit shown last is skipped when there is a
+    choice, so a session never shows one unit twice in a row."""
+    last = state.last_unit
+    overdue = _not_last(due_units(deck, state, engine, now, timedelta(0)), last)
     if overdue:
         return overdue[0]
-    if new_units_started_today(state, now) < settings.new_per_day:
+    within_budget = over_limit or budget_left(state, settings, now) > 0
+    under_cap = settings.new_per_day is None or (
+        new_units_started_today(state, now) < settings.new_per_day
+    )
+    if within_budget and (under_cap or over_limit):
         for unit in deck.units:
             if unit.unit_id in state.records:
                 continue
             if is_learnable(deck, unit, state):
                 return unit
-    ahead = due_units(deck, state, engine, now, settings.learn_ahead)
+    # Learn-ahead never re-shows the unit just answered: that is the
+    # back-to-back repeat the first learner complained about.
+    ahead = [
+        u for u in due_units(deck, state, engine, now, settings.learn_ahead) if u.unit_id != last
+    ]
     return ahead[0] if ahead else None
+
+
+def units_by_stage(
+    deck: Deck, state: LearnerState, now: datetime
+) -> dict[str, list[tuple[PhraseUnit, datetime | None]]]:
+    """Every unit the log knows, grouped: known, learning, young, mature; each
+    with its next due time (``None`` for known)."""
+    by_id = deck.by_id
+    groups: dict[str, list[tuple[PhraseUnit, datetime | None]]] = {
+        "known": [],
+        "learning": [],
+        "young": [],
+        "mature": [],
+    }
+    for unit_id in state.known:
+        if unit_id in by_id:
+            groups["known"].append((by_id[unit_id], None))
+    for unit_id, record in state.records.items():
+        unit = by_id.get(unit_id)
+        if unit is None or unit_id in state.known:
+            continue
+        if record.state != "review" or record.stability is None:
+            groups["learning"].append((unit, record.due))
+        elif record.stability < 21.0:
+            groups["young"].append((unit, record.due))
+        else:
+            groups["mature"].append((unit, record.due))
+    for items in groups.values():
+        items.sort(key=lambda pair: (pair[1] or now, pair[0].rank))
+    return groups
 
 
 def pick_card(

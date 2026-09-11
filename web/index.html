@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#1f5f8b">
   <title>Phrasen</title>
   <link rel="manifest" href="./manifest.json">
@@ -10,33 +11,52 @@
 </head>
 <body>
   <header>
-    <h1>Phrasen</h1>
+    <div class="brand">
+      <h1>Phrasen</h1>
+      <span id="today" class="today"></span>
+    </div>
     <nav>
       <button data-view="practice" class="active">Üben</button>
       <button data-view="triage">Sortieren</button>
+      <button data-view="units">Einheiten</button>
       <button data-view="stats">Statistik</button>
+      <button id="btn-theme" title="hell/dunkel">◐</button>
+      <button id="btn-quit" title="Server beenden">⏻</button>
     </nav>
   </header>
 
   <main>
     <section id="view-practice" class="view">
       <div id="practice-card" class="card" hidden>
-        <p id="context-de" class="context"></p>
-        <p id="sentence" class="sentence"></p>
-        <p id="context-en" class="context muted"></p>
-        <p id="gloss" class="gloss"></p>
+        <p id="context-de" class="line context"></p>
+        <p id="sentence" class="line sentence"></p>
+        <p id="context-en" class="line gloss"></p>
+        <p id="gloss" class="line gloss"></p>
         <div id="feedback" class="feedback" hidden></div>
         <div class="actions">
+          <button id="btn-prev" title="letzte Antwort">◀</button>
           <button id="btn-check" class="primary">Prüfen</button>
           <button id="btn-reveal">Zeigen</button>
           <button id="btn-known">Kannte ich schon</button>
-          <button id="btn-next" class="primary" hidden>Weiter</button>
+          <button id="btn-next" class="primary" hidden>Weiter ▶</button>
         </div>
         <div class="umlauts">
           <button data-ch="ä">ä</button><button data-ch="ö">ö</button><button data-ch="ü">ü</button><button data-ch="ß">ß</button>
         </div>
       </div>
-      <p id="practice-empty" class="empty" hidden>Nichts fällig und keine neuen Einheiten für heute.</p>
+      <div id="practice-limit" class="card" hidden>
+        <p>Tagesziel erreicht. Nichts ist mehr fällig; neue Einheiten kommen sonst morgen.</p>
+        <div class="actions">
+          <button id="btn-more" class="primary">Trotzdem weiter</button>
+          <button id="btn-prev-2">◀ letzte Antwort</button>
+        </div>
+      </div>
+      <p id="practice-empty" class="empty" hidden>Nichts fällig und keine neuen Einheiten.</p>
+      <div id="history" class="card" hidden>
+        <h3>Letzte Antworten</h3>
+        <ol id="history-list"></ol>
+        <div class="actions"><button id="btn-history-close" class="primary">Zurück zum Üben</button></div>
+      </div>
     </section>
 
     <section id="view-triage" class="view" hidden>
@@ -50,6 +70,10 @@
         </div>
       </div>
       <p id="triage-empty" class="empty" hidden>Nichts mehr zu sortieren.</p>
+    </section>
+
+    <section id="view-units" class="view" hidden>
+      <div id="units" class="card"></div>
     </section>
 
     <section id="view-stats" class="view" hidden>

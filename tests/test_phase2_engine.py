@@ -223,7 +223,7 @@ def test_showable_cards_need_a_gloss_and_prefer_context() -> None:
 def test_next_unit_prefers_due_then_new_in_rank_order_and_skips_trivial_and_known() -> None:
     deck = _deck()
     engine = FSRSEngine()
-    settings = Settings(new_per_day=10)
+    settings = Settings(cards_per_day=40)
     empty = derive_state([], engine)
     assert next_unit(deck, empty, engine, settings, T0).unit_id == "vp:warten_auf"
     entries = [
@@ -242,14 +242,43 @@ def test_next_unit_prefers_due_then_new_in_rank_order_and_skips_trivial_and_know
         MarkEntry(seq=2, ts=T0, unit_id="cn:trotzdem", known=True, source="triage"),
     ]
     state = derive_state(entries, engine)
-    # a minute later: trotzdem is known, und trivial, aufstehen unglossed; the
-    # reviewed unit is only reachable through the learn-ahead window
+    # a minute later: trotzdem is known, und trivial, aufstehen unglossed, and
+    # one "good" graduates the unit past its single learning step, so it is
+    # due tomorrow, not within the learn-ahead window
     soon = T0 + timedelta(minutes=1)
-    assert next_unit(deck, state, engine, settings, soon).unit_id == "vp:warten_auf"
-    strict = Settings(new_per_day=10, learn_ahead=timedelta(0))
-    assert next_unit(deck, state, engine, strict, soon) is None
+    assert state.records["vp:warten_auf"].state == "review"
+    assert next_unit(deck, state, engine, settings, soon) is None
     later = state.records["vp:warten_auf"].due + timedelta(minutes=1)
     assert next_unit(deck, state, engine, settings, later).unit_id == "vp:warten_auf"
+
+
+def test_budget_and_over_limit_and_no_back_to_back_unit() -> None:
+    deck = _deck()
+    engine = FSRSEngine()
+    tight = Settings(cards_per_day=1)
+    entries = [
+        ReviewEntry(
+            seq=1,
+            ts=T0,
+            unit_id="vp:warten_auf",
+            card_id="w10000000000",
+            rating="again",
+            outcome="wrong",
+            answers=["x", "auf"],
+            expected=["wartet", "auf"],
+            elapsed_ms=1,
+            deck_version="t",
+        ),
+    ]
+    state = derive_state(entries, engine)
+    # budget spent (1 of 1), warten is due in 10 min: a new unit is not offered
+    # within budget, offered over the limit; and warten is not repeated while
+    # another unit exists
+    soon = T0 + timedelta(minutes=1)
+    assert next_unit(deck, state, engine, tight, soon) is None
+    assert next_unit(deck, state, engine, tight, soon, over_limit=True).unit_id == "cn:trotzdem"
+    later = state.records["vp:warten_auf"].due + timedelta(minutes=1)
+    assert next_unit(deck, state, engine, tight, later).unit_id == "vp:warten_auf"
 
 
 def test_pick_card_rotates_and_never_repeats_the_last_one() -> None:
@@ -311,7 +340,7 @@ def test_practice_grades_and_logs_then_stats_reflect_it(tmp_path: Path) -> None:
     out.clear()
     assert client.stats() == 0
     joined = "".join(out)
-    assert "lernend 1" in joined and "gesamt 1" in joined and "Serie 1" in joined
+    assert "jung 1" in joined and "gesamt 1" in joined and "Serie 1" in joined
 
 
 def test_known_button_marks_the_unit_and_moves_on(tmp_path: Path) -> None:

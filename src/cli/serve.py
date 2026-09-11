@@ -17,17 +17,27 @@ import socket
 import sys
 import threading
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from src.contracts import PhraseCard, PhraseUnit
+from src.contracts import PhraseCard, PhraseUnit, ReviewEntry
 from src.engine.fsrs import FSRSEngine
 from src.engine.grading import grade_card, render_marked
 from src.engine.review_log import DEFAULT_LOG_PATH, ReviewLog, derive_state
-from src.engine.session import Deck, Settings, next_unit, pick_card, untriaged_units
+from src.engine.session import (
+    Deck,
+    Settings,
+    budget_left,
+    due_units,
+    next_unit,
+    pick_card,
+    reviews_today,
+    units_by_stage,
+    untriaged_units,
+)
 from src.engine.stats import compute_stats
 from src.phrases.export import DEFAULT_DECK_DIR
 
@@ -91,22 +101,80 @@ class Api:
             "glossed_cards": m.glossed_card_count,
         }
 
-    def next(self) -> dict[str, Any]:
+    def _today(self, state: Any, now: datetime) -> dict[str, Any]:
+        done = reviews_today(state, now)
+        due = len(due_units(self.deck, state, self.engine, now, timedelta(0)))
+        return {
+            "done": done,
+            "target": self.settings.cards_per_day,
+            "left": budget_left(state, self.settings, now),
+            "due": due,
+        }
+
+    def next(self, over_limit: bool = False) -> dict[str, Any]:
+        """The next card. When the day's budget is spent and nothing is due,
+        ``limit_reached`` is returned instead of a card; the page asks the
+        learner and calls again with ``over_limit``."""
         with self.lock:
             state = derive_state(self.log.entries, self.engine)
-            unit = next_unit(self.deck, state, self.engine, self.settings, self.now())
+            now = self.now()
+            today = self._today(state, now)
+            unit = next_unit(
+                self.deck, state, self.engine, self.settings, now, over_limit=over_limit
+            )
+            if unit is None and not over_limit and today["left"] == 0:
+                more = next_unit(self.deck, state, self.engine, self.settings, now, over_limit=True)
+                if more is not None:
+                    return {"done": False, "limit_reached": True, "today": today}
             if unit is None:
-                return {"done": True}
+                return {"done": True, "today": today}
             card = pick_card(self.deck, unit, state)
             if card is None:
-                return {"done": True}
+                return {"done": True, "today": today}
             is_new = unit.unit_id not in state.records
             return {
                 "done": False,
+                "limit_reached": False,
                 "unit": _unit_payload(unit),
                 "card": _card_payload(card),
                 "new": is_new,
+                "today": today,
             }
+
+    def units(self) -> dict[str, Any]:
+        """Every unit the log knows, by stage, with its next due time."""
+        with self.lock:
+            state = derive_state(self.log.entries, self.engine)
+            now = self.now()
+            groups = units_by_stage(self.deck, state, now)
+        return {
+            stage: [
+                {**_unit_payload(u), "due": due.isoformat() if due else None} for u, due in items
+            ]
+            for stage, items in groups.items()
+        }
+
+    def history(self, limit: int = 20) -> dict[str, Any]:
+        """The last answers, newest first, with the card as it was shown."""
+        with self.lock:
+            entries = [e for e in self.log.entries if isinstance(e, ReviewEntry)]
+        out = []
+        for e in reversed(entries[-max(1, min(limit, 100)) :]):
+            card = self._cards.get(e.card_id)
+            unit = self.deck.by_id.get(e.unit_id)
+            out.append(
+                {
+                    "ts": e.ts.isoformat(),
+                    "rating": e.rating,
+                    "outcome": e.outcome,
+                    "answers": e.answers,
+                    "expected": e.expected,
+                    "unit": _unit_payload(unit) if unit else {"display": e.unit_id},
+                    "marked": render_marked(card) if card else None,
+                    "gloss": card.gloss_en if card else None,
+                }
+            )
+        return {"items": out}
 
     def answer(self, body: dict[str, Any]) -> dict[str, Any]:
         card = self._cards.get(str(body.get("card_id", "")))
@@ -224,11 +292,15 @@ def make_handler(api: Api, web_dir: Path) -> type[BaseHTTPRequestHandler]:
             path, _, query = self.path.partition("?")
             try:
                 if path == "/api/next":
-                    self._json(HTTPStatus.OK, api.next())
+                    self._json(HTTPStatus.OK, api.next(over_limit="over=1" in query))
                 elif path == "/api/stats":
                     self._json(HTTPStatus.OK, api.stats())
                 elif path == "/api/deck":
                     self._json(HTTPStatus.OK, api.deck_info())
+                elif path == "/api/units":
+                    self._json(HTTPStatus.OK, api.units())
+                elif path == "/api/history":
+                    self._json(HTTPStatus.OK, api.history())
                 elif path == "/api/triage":
                     batch = 50
                     for part in query.split("&"):
@@ -249,6 +321,9 @@ def make_handler(api: Api, web_dir: Path) -> type[BaseHTTPRequestHandler]:
                     self._json(HTTPStatus.OK, api.answer(body))
                 elif self.path == "/api/mark":
                     self._json(HTTPStatus.OK, api.mark(body))
+                elif self.path == "/api/quit":
+                    self._json(HTTPStatus.OK, {"ok": True})
+                    threading.Thread(target=self.server.shutdown, daemon=True).start()
                 else:
                     self._json(HTTPStatus.NOT_FOUND, {"error": "no such endpoint"})
             except ApiError as exc:
@@ -274,10 +349,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--host", default="0.0.0.0", help="0.0.0.0 lets the phone on the LAN connect"
     )
-    parser.add_argument("--new-per-day", type=int, default=10)
+    parser.add_argument("--cards-per-day", type=int, default=40)
     args = parser.parse_args(argv)
     api = Api(
-        Deck.load(args.deck), ReviewLog(args.log), settings=Settings(new_per_day=args.new_per_day)
+        Deck.load(args.deck),
+        ReviewLog(args.log),
+        settings=Settings(cards_per_day=args.cards_per_day),
     )
     server = ThreadingHTTPServer((args.host, args.port), make_handler(api, WEB_DIR))
     print(

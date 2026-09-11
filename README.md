@@ -40,7 +40,7 @@ uv run python scripts/build_phrase_deck.py --stage all   # phase 1: build the de
 uv run python -m src.cli.train triage                     # phase 2: sort the first units, 1 = known, 2 = learn
 uv run python -m src.cli.train practice                   # phase 2: fill the gaps
 uv run python -m src.cli.train stats
-uv run python -m src.cli.serve                            # phase 3a: the page, laptop and phone on the same Wi-Fi
+uv run python -m src.cli.serve                            # the page, laptop and phone on the same Wi-Fi; ⏻ stops it
 ```
 
 Progress lives in `data/review_log.jsonl` (gitignored); `train merge

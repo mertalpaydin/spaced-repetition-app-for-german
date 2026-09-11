@@ -206,7 +206,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--log", type=Path, default=DEFAULT_LOG_PATH)
     parser.add_argument("--batch", type=int, default=50, help="triage: units per run")
     parser.add_argument("--limit", type=int, default=30, help="practice: cards per run")
-    parser.add_argument("--new-per-day", type=int, default=10)
+    parser.add_argument("--cards-per-day", type=int, default=40)
     return parser
 
 
@@ -230,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
         ReviewLog(args.log),
         read=_stdin_reader,
         write=_stdout_writer,
-        settings=Settings(new_per_day=args.new_per_day),
+        settings=Settings(cards_per_day=args.cards_per_day),
     )
     if args.mode == "triage":
         return client.triage(args.batch)

@@ -1,7 +1,7 @@
 """FSRS algorithm wrapper for memory state tracking and review interval scheduling."""
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fsrs import Card, Rating, Scheduler, State
 from pydantic import BaseModel, ConfigDict
@@ -50,22 +50,31 @@ class FSRSEngine:
         "relearning": State.Relearning,
     }
 
+    #: One learning step of ten minutes instead of the library's (1 min,
+    #: 10 min): with two steps a new unit came back twice within a session,
+    #: which the first learner found repetitive (feedback, 2026-09-11).
+    DEFAULT_LEARNING_STEPS: tuple[timedelta, ...] = (timedelta(minutes=10),)
+
     def __init__(
         self,
         w: Sequence[float] | None = None,
         request_retention: float = 0.9,
         maximum_interval: int = 36500,
+        learning_steps: Sequence[timedelta] | None = None,
     ) -> None:
+        steps = tuple(learning_steps) if learning_steps is not None else self.DEFAULT_LEARNING_STEPS
         if w is not None:
             self.scheduler = Scheduler(
                 parameters=tuple(w),
                 desired_retention=request_retention,
                 maximum_interval=maximum_interval,
+                learning_steps=steps,
             )
         else:
             self.scheduler = Scheduler(
                 desired_retention=request_retention,
                 maximum_interval=maximum_interval,
+                learning_steps=steps,
             )
 
     def record_to_fsrs_card(self, record: FSRSRecord) -> Card:

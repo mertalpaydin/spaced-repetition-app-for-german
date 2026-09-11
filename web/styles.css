@@ -4,44 +4,80 @@
   --ink: #1b1f24;
   --muted: #6b7280;
   --accent: #1f5f8b;
-  --ok: #157347;
-  --warn: #b7791f;
-  --bad: #b42318;
+  --accent-ink: #ffffff;
+  --ok-bg: #e9f7ef; --ok: #157347;
+  --warn-bg: #fdf3e1; --warn: #b7791f;
+  --bad-bg: #fbe9e7; --bad: #b42318;
   --gap: #eef4fa;
+  --border: #cbd5e1;
+  --shadow: rgba(0,0,0,0.08);
+}
+:root[data-theme="dark"] {
+  --bg: #121417;
+  --card: #1c2026;
+  --ink: #e6e8eb;
+  --muted: #9aa3ad;
+  --accent: #5aa2d6;
+  --accent-ink: #0f1419;
+  --ok-bg: #143d2a; --ok: #7fd3a1;
+  --warn-bg: #3e2f0f; --warn: #f0c060;
+  --bad-bg: #4a1d19; --bad: #f28b82;
+  --gap: #232a33;
+  --border: #3a434f;
+  --shadow: rgba(0,0,0,0.5);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121417; --card: #1c2026; --ink: #e6e8eb; --muted: #9aa3ad;
+    --accent: #5aa2d6; --accent-ink: #0f1419;
+    --ok-bg: #143d2a; --ok: #7fd3a1; --warn-bg: #3e2f0f; --warn: #f0c060;
+    --bad-bg: #4a1d19; --bad: #f28b82; --gap: #232a33; --border: #3a434f; --shadow: rgba(0,0,0,0.5);
+  }
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-header { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1rem; background: var(--accent); color: #fff; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.6rem 1rem; background: var(--accent); color: var(--accent-ink); flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 0.8rem; }
 header h1 { font-size: 1.1rem; margin: 0; }
-nav button { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.5); border-radius: 6px; padding: 0.35rem 0.7rem; margin-left: 0.3rem; font-size: 0.95rem; }
-nav button.active { background: #fff; color: var(--accent); }
+.today { font-size: 0.9rem; opacity: 0.9; }
+nav { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+nav button { background: transparent; color: var(--accent-ink); border: 1px solid var(--accent-ink); border-radius: 6px; padding: 0.35rem 0.7rem; font-size: 0.95rem; opacity: 0.85; }
+nav button.active { background: var(--accent-ink); color: var(--accent); opacity: 1; }
 main { max-width: 680px; margin: 0 auto; padding: 1rem; }
-.card { background: var(--card); border-radius: 12px; padding: 1.2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.card { background: var(--card); border-radius: 12px; padding: 1.2rem; box-shadow: 0 1px 3px var(--shadow); margin-bottom: 1rem; }
+.line { font-size: 1.25rem; line-height: 1.8; margin: 0.3rem 0; }
+.line.gloss { font-size: 1.05rem; color: var(--muted); font-style: italic; }
+.line.context { color: var(--ink); opacity: 0.85; }
 .sentence { font-size: 1.35rem; line-height: 1.8; margin: 0.4rem 0; }
-.context { margin: 0.2rem 0; }
 .muted { color: var(--muted); }
-.gloss { margin: 0.6rem 0 0; color: var(--muted); font-style: italic; }
 .hint, .empty { color: var(--muted); }
-input.gap { font: inherit; font-size: 1.2rem; width: 7.5em; max-width: 45vw; padding: 0.15rem 0.4rem; border: 2px solid var(--accent); border-radius: 6px; background: var(--gap); margin: 0 0.15em; }
-input.gap.ok { border-color: var(--ok); background: #e9f7ef; }
-input.gap.typo { border-color: var(--warn); background: #fdf3e1; }
-input.gap.bad { border-color: var(--bad); background: #fbe9e7; }
+input.gap { font: inherit; font-size: 1.2rem; width: 7.5em; max-width: 45vw; padding: 0.15rem 0.4rem; border: 2px solid var(--accent); border-radius: 6px; background: var(--gap); color: var(--ink); margin: 0 0.15em; }
+input.gap.ok { border-color: var(--ok); background: var(--ok-bg); }
+input.gap.typo { border-color: var(--warn); background: var(--warn-bg); }
+input.gap.bad { border-color: var(--bad); background: var(--bad-bg); }
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
-.actions button, .umlauts button { font: inherit; padding: 0.55rem 1rem; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; }
-.actions button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.actions button, .umlauts button { font: inherit; padding: 0.55rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--ink); }
+.actions button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .umlauts { margin-top: 0.6rem; display: flex; gap: 0.4rem; }
 .umlauts button { padding: 0.4rem 0.8rem; font-size: 1.1rem; }
 .feedback { margin-top: 1rem; padding: 0.8rem; border-radius: 8px; background: var(--gap); }
-.feedback.good { background: #e9f7ef; }
-.feedback.hard { background: #fdf3e1; }
-.feedback.again { background: #fbe9e7; }
+.feedback.good { background: var(--ok-bg); }
+.feedback.hard { background: var(--warn-bg); }
+.feedback.again { background: var(--bad-bg); }
 .feedback .unit { font-weight: 600; margin-top: 0.4rem; }
-.feedback mark { background: #ffe58f; padding: 0 0.15em; border-radius: 3px; }
+.feedback mark { background: var(--warn-bg); color: inherit; padding: 0 0.15em; border-radius: 3px; }
 table { border-collapse: collapse; width: 100%; }
-td { padding: 0.25rem 0.4rem; }
-td.num { text-align: right; font-variant-numeric: tabular-nums; }
+td { padding: 0.25rem 0.4rem; vertical-align: top; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+h3 { margin: 0.8rem 0 0.4rem; font-size: 1rem; }
+ol#history-list { padding-left: 1.2rem; }
+ol#history-list li { margin: 0.4rem 0; }
+.tag { display: inline-block; padding: 0 0.4em; border-radius: 4px; font-size: 0.85rem; margin-right: 0.3em; }
+.tag.good { background: var(--ok-bg); color: var(--ok); }
+.tag.hard { background: var(--warn-bg); color: var(--warn); }
+.tag.again { background: var(--bad-bg); color: var(--bad); }
 footer { text-align: center; padding: 1rem; font-size: 0.85rem; }
 @media (max-width: 480px) {
-  header { flex-direction: column; gap: 0.4rem; align-items: flex-start; }
   .sentence { font-size: 1.2rem; }
+  .line { font-size: 1.1rem; }
 }

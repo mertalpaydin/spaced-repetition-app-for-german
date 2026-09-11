@@ -134,6 +134,10 @@ class LearnerState:
     ratings: dict[str, list[str]] = field(default_factory=dict)
     #: When each unit was first reviewed, so "new today" can be counted.
     first_review: dict[str, datetime] = field(default_factory=dict)
+    #: Every review's time, for the day's exercise budget.
+    review_times: list[datetime] = field(default_factory=list)
+    #: The unit of the last review, so the scheduler does not repeat it.
+    last_unit: str | None = None
 
 
 def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerState:
@@ -153,4 +157,6 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
         state.last_card[entry.unit_id] = entry.card_id
         state.ratings.setdefault(entry.unit_id, []).append(entry.rating)
         state.first_review.setdefault(entry.unit_id, entry.ts)
+        state.review_times.append(entry.ts)
+        state.last_unit = entry.unit_id
     return state

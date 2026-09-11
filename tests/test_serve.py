@@ -37,7 +37,10 @@ def test_next_answer_and_mark_round_trip(tmp_path: Path) -> None:
         api.answer({"card_id": "nope", "typed": []})
     assert api.mark({"unit_id": "cn:trotzdem", "known": True, "source": "practice"}) == {"ok": True}
     stats = api.stats()
-    assert stats["known"] == 1 and stats["reviews_total"] == 1 and stats["learning"] == 1
+    assert stats["known"] == 1 and stats["reviews_total"] == 1 and stats["young"] == 1
+    assert nxt["today"] == {"done": 0, "target": 40, "left": 40, "due": 0}
+    assert api.units()["young"][0]["unit_id"] == "vp:warten_auf"
+    assert api.history()["items"][0]["rating"] == "good"
     tri = api.triage(10)
     # warten reviewed, trotzdem marked, und trivial; triage judges units, glossed or not
     assert [u["unit_id"] for u in tri["units"]] == ["sv:aufstehen"]

@@ -124,6 +124,17 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one preposition in at least 80% of its sentences is a three-token unit
   with three gaps (`auf freiem Fuß`); 44 such units.
 
+- **First learner feedback applied, 2026-09-11.** The day's limit is an
+  exercise budget (`cards_per_day`, default 40), not a unit cap; one
+  FSRS learning step (10 minutes) instead of two; a unit is never shown
+  twice in a row; "Tagesziel erreicht" offers to continue anyway. The
+  page has dark mode, a today counter in the header, a units-by-stage
+  view, a history view (the ◀ button), a stop button, one font for
+  context, sentence and gloss, and the unit's glosses listed after an
+  answer. Connector glosses list their common renderings ("zudem:
+  moreover / in addition / also"). Changing the learning steps changes
+  how an existing log replays; the log written before this date was 46
+  reviews and was left as is.
 - **Phase 3a, the browser page on a local server, 2026-09-09.**
   `uv run python -m src.cli.serve` serves `web/` and a JSON API over the
   phase 2 engine (standard library only); the page has practice (inline
