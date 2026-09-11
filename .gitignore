@@ -132,12 +132,17 @@ dist-web/
 .DS_Store
 Thumbs.db
 
-# AI / LLM instructions
-# CLAUDE.md is deliberately NOT ignored. It is the working contract every
-# agent reads first, so it has to be versioned with the code it describes.
-# While it was ignored, three separate agents made correct corrections to it
-# (the 7.50 ceiling, price-by-mode, the attempt-logging contract) that could
-# not be committed and had to be hand-carried to the owner as a loose file.
+# Owner's working files (2026-09-11): the repository is public and these are
+# not part of the product. They stay on the owner's machine, unversioned.
+# CLAUDE.md is the agent contract, TODO.md the open work, the .cmd files are
+# the Windows scheduled tasks (the monthly Azure gloss top-up still runs from
+# run-monthly-translation.cmd; do not delete it locally).
+CLAUDE.md
+TODO.md
+run-monthly-translation.cmd
+run-pilot-tick.cmd
+cycle43.bundle
+worker/
 # Un-ignored on the owner's instruction, 2026-08-27.
 
 # Planning documents are NOT ignored. The product plan and the five stage
