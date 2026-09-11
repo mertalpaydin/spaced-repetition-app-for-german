@@ -50,9 +50,11 @@ class FSRSEngine:
         "relearning": State.Relearning,
     }
 
-    #: One learning step of ten minutes instead of the library's (1 min,
-    #: 10 min): with two steps a new unit came back twice within a session,
-    #: which the first learner found repetitive (feedback, 2026-09-11).
+    #: Fuzzing is off: the log must replay to the same state on every device
+    #: (the PWA replays it in JavaScript). One learning step of ten minutes
+    #: instead of the library's (1 min, 10 min): with two steps a new unit came
+    #: back twice within a session, which the first learner found repetitive
+    #: (feedback, 2026-09-11).
     DEFAULT_LEARNING_STEPS: tuple[timedelta, ...] = (timedelta(minutes=10),)
 
     def __init__(
@@ -69,12 +71,14 @@ class FSRSEngine:
                 desired_retention=request_retention,
                 maximum_interval=maximum_interval,
                 learning_steps=steps,
+                enable_fuzzing=False,
             )
         else:
             self.scheduler = Scheduler(
                 desired_retention=request_retention,
                 maximum_interval=maximum_interval,
                 learning_steps=steps,
+                enable_fuzzing=False,
             )
 
     def record_to_fsrs_card(self, record: FSRSRecord) -> Card:

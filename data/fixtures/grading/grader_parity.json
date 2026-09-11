@@ -1,0 +1,322 @@
+[
+ {
+  "typed": "wartet",
+  "accepted": [
+   "wartet"
+  ],
+  "is_correct": true,
+  "is_exact": true,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "Wartet",
+  "accepted": [
+   "wartet"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": true
+ },
+ {
+  "typed": "wertet",
+  "accepted": [
+   "wartet"
+  ],
+  "is_correct": true,
+  "is_exact": false,
+  "is_scoped_typo": true,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "warte",
+  "accepted": [
+   "wartet"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "wartte",
+  "accepted": [
+   "wartet"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "hoert",
+  "accepted": [
+   "hört"
+  ],
+  "is_correct": true,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": true,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "gross",
+  "accepted": [
+   "groß"
+  ],
+  "is_correct": true,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": true,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "trotzdem",
+  "accepted": [
+   "Trotzdem",
+   "trotzdem"
+  ],
+  "is_correct": true,
+  "is_exact": true,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "dem",
+  "accepted": [
+   "den"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "einen",
+  "accepted": [
+   "einem"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "auf",
+  "accepted": [
+   "auf"
+  ],
+  "is_correct": true,
+  "is_exact": true,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "aus",
+  "accepted": [
+   "auf"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "an",
+  "accepted": [
+   "auf"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "Entfernung",
+  "accepted": [
+   "Entfernung"
+  ],
+  "is_correct": true,
+  "is_exact": true,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "entfernung",
+  "accepted": [
+   "Entfernung"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": true
+ },
+ {
+  "typed": "Entfernunk",
+  "accepted": [
+   "Entfernung"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "Entfernug",
+  "accepted": [
+   "Entfernung"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "Enfernung",
+  "accepted": [
+   "Entfernung"
+  ],
+  "is_correct": true,
+  "is_exact": false,
+  "is_scoped_typo": true,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "zu",
+  "accepted": [
+   "zu"
+  ],
+  "is_correct": true,
+  "is_exact": true,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "zur",
+  "accepted": [
+   "zu"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "sich",
+  "accepted": [
+   "sich"
+  ],
+  "is_correct": true,
+  "is_exact": true,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "sih",
+  "accepted": [
+   "sich"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "aufgestanden",
+  "accepted": [
+   "aufgestanden"
+  ],
+  "is_correct": true,
+  "is_exact": true,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "aufgestandne",
+  "accepted": [
+   "aufgestanden"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "aufgstanden",
+  "accepted": [
+   "aufgestanden"
+  ],
+  "is_correct": true,
+  "is_exact": false,
+  "is_scoped_typo": true,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "hätte",
+  "accepted": [
+   "hatte"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "Strasse",
+  "accepted": [
+   "Straße"
+  ],
+  "is_correct": true,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": true,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "",
+  "accepted": [
+   "auf"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "  wartet ",
+  "accepted": [
+   "wartet"
+  ],
+  "is_correct": true,
+  "is_exact": true,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ }
+]

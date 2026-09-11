@@ -40,11 +40,17 @@ uv run python scripts/build_phrase_deck.py --stage all   # phase 1: build the de
 uv run python -m src.cli.train triage                     # phase 2: sort the first units, 1 = known, 2 = learn
 uv run python -m src.cli.train practice                   # phase 2: fill the gaps
 uv run python -m src.cli.train stats
-uv run python -m src.cli.serve                            # the page, laptop and phone on the same Wi-Fi; ⏻ stops it
+uv run python -m src.cli.serve                            # phase 3a: the page on a local server, for development
 ```
 
-Progress lives in `data/review_log.jsonl` (gitignored); `train merge
-<other.jsonl>` folds in a second device's log.
+The product is the page in `web/`, deployed to GitHub Pages by
+`.github/workflows/deploy_pages.yml` on every push of `feat/phrase-deck`
+and `main`; open it on the laptop and the phone, no command needed. The
+review log lives in the browser (IndexedDB) and, once a GitHub token with
+the gist scope is entered under ⚙, in a private gist that every device
+syncs. The terminal client's log at `data/review_log.jsonl` (gitignored)
+can be pasted into the page once (⚙ → Log-Datei einlesen); `train merge
+<other.jsonl>` goes the other way.
 
 The corpora are staged by hand under `data/raw/_extract/`; see
 `docs/phrase-deck.md`. Cards come from the whole corpus, but only cards

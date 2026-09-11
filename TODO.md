@@ -77,16 +77,20 @@ the next band of what survives. Open:
 
 ## Phase 3: the web client
 
-Phase 3a (done 2026-09-09): `uv run python -m src.cli.serve`, the page in
-`web/` on the laptop and on the phone over the LAN, engine and log in Python.
+Phase 3a (2026-09-09) is the local server; phase 3b (2026-09-11) is the
+page on GitHub Pages with the engine, log and gist sync in the browser.
 
-- **Use 3a for a week on both devices** and keep the feedback coming; the
-  first round (2026-09-11) is applied.
-- **Phase 3b, offline PWA on GitHub Pages:** vendor ts-fsrs, port
-  `grading.py` and `session.py` to `web/lib/` with a replay test against the
-  Python engine on a fixture log, IndexedDB log, deck-versioned service
-  worker, export/import of the log for `train merge`. Only after 3a has
-  been used.
+- **Owner, once:** in the repository settings set Pages to deploy from
+  GitHub Actions, then push; create a fine-grained token with only the
+  gist permission and enter it under ⚙ on each device (the second device
+  also gets the gist id the first one created); paste
+  `data/review_log.jsonl` into the page once (⚙ → Log-Datei einlesen) so
+  the terminal-client history carries over.
+- **Use the page for a week on both devices** and keep the feedback coming.
+- Bump `APP_VERSION` in `web/sw.js` whenever a shell file changes, or an
+  installed page keeps the old one.
+- Later, if the 28 MB deck load at boot is felt: load shards by rank band
+  on demand instead of all at once.
 
 ## Any time
 

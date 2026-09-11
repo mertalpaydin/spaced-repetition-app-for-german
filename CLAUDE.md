@@ -57,7 +57,6 @@ The repo root is the working directory.
 ├── data/
 │   ├── phrases/                    # curated lists (connectors, idioms, seeds), contexts.jsonl
 │   │   └── build/                  # gitignored intermediates of the deck build
-│   ├── deck/                       # the exported deck (phase 1); web/data/deck/ from phase 3
 │   ├── fixtures/                   # golden sets; translations/ is an operational store
 │   └── raw/                        # staged corpora, gitignored
 ├── src/
@@ -67,7 +66,7 @@ The repo root is the working directory.
 │   ├── llm/                        # client wrapper, cache, cost log, translators, env
 │   └── engine/                     # FSRS wrapper, typo grader (phase 2: review log, session)
 ├── scripts/                        # operator entry points
-├── web/                            # PWA (phase 3)
+├── web/                            # the PWA; web/data/deck/ is the exported deck (committed)
 └── tests/                          # flat, one file per area
 ```
 
@@ -100,7 +99,7 @@ Conventional Commits, imperative mood, scope is the module or phase.
 - **No `wip`, `fixup`, `asdf`, or `.` on a pushed branch.**
 - **One logical change per commit.**
 - **Never commit secrets, `.env`, API keys, or raw API responses containing them.**
-- The exported deck (`data/deck/`, later `web/data/deck/`) and `data/phrases/contexts.jsonl` **are** committed: GitHub Pages serves the deck verbatim and CI cannot rebuild it without the gitignored corpus and translation store.
+- The exported deck (`web/data/deck/`) and `data/phrases/contexts.jsonl` **are** committed: GitHub Pages serves the deck verbatim and CI cannot rebuild it without the gitignored corpus and translation store.
 - A commit that changes behaviour changes tests in the same commit.
 
 ---

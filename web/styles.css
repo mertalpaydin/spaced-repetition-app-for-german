@@ -81,3 +81,12 @@ footer { text-align: center; padding: 1rem; font-size: 0.85rem; }
   .sentence { font-size: 1.2rem; }
   .line { font-size: 1.1rem; }
 }
+.sync { font-size: 0.85rem; }
+.sync.ok { color: var(--ok-bg); }
+.sync.bad { color: var(--bad-bg); }
+.settings label { display: block; margin: 0.5rem 0; }
+.settings input[type="text"], .settings input[type="password"], .settings input[type="number"] { font: inherit; width: 100%; max-width: 28rem; padding: 0.35rem 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--gap); color: var(--ink); }
+.settings input[type="number"] { width: 6rem; }
+.settings label.file { display: inline-block; padding: 0.55rem 1rem; border-radius: 8px; border: 1px solid var(--border); margin: 0; cursor: pointer; }
+.settings label.file input { display: none; }
+.settings textarea { width: 100%; font: 0.8rem monospace; margin-top: 0.6rem; background: var(--gap); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; }

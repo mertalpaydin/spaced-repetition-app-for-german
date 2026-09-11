@@ -1,19 +1,45 @@
-// Phrasen: the browser page for the local server (src/cli/serve.py).
-// Grading and scheduling live in Python; this file only draws and posts.
+// Phrasen: the page. Everything runs in the browser: the deck is fetched from
+// ./data/deck, grading and scheduling are web/lib (ports of src/engine), the
+// review log lives in IndexedDB and, when a token is set, in a private GitHub
+// Gist so every device replays the same log. No server, no build step.
+
+import { loadDeck } from "./lib/deck.js";
+import { createEngine } from "./lib/engine.js";
+import { gradeCard, renderMarked } from "./lib/grader.js";
+import { deriveState, makeMark, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
+import {
+  DEFAULT_SETTINGS, budgetLeft, computeStats, dueUnits, nextUnit, pickCard, reviewsToday, unitsByStage, untriagedUnits,
+} from "./lib/session.js";
+import { appendEntries, loadSettings, readLog, replaceLog, saveSettings } from "./lib/store.js";
+import { syncLog } from "./lib/sync.js";
 
 const $ = (id) => document.getElementById(id);
-
-async function api(path, body) {
-  const res = await fetch(path, body === undefined
-    ? { cache: "no-store" }
-    : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || res.statusText);
-  return data;
-}
+const now = () => new Date();
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// -- state --------------------------------------------------------------------
+
+const settings = { ...DEFAULT_SETTINGS, token: "", gistId: "", autoSync: true, ...loadSettings() };
+let deck = null;
+let engine = createEngine({ retention: settings.retention });
+let entries = [];
+let state = null;
+let overLimit = false;
+
+function refresh() { state = deriveState(entries, engine); }
+
+async function record(entry) {
+  entries.push(entry);
+  await appendEntries([entry]);
+  refresh();
+  if (settings.autoSync && settings.token) scheduleSync();
+}
+
+function unitPayload(unit) {
+  return { unit_id: unit.unit_id, kind: unit.kind, display: unit.display_de + (unit.case ? ` +${unit.case}` : ""), rank: unit.rank, cefr: unit.cefr, gloss: unit.gloss_en };
 }
 
 // -- theme --------------------------------------------------------------------
@@ -29,6 +55,42 @@ $("btn-theme").addEventListener("click", () => {
   applyTheme(dark ? "light" : "dark");
 });
 
+// -- sync ---------------------------------------------------------------------
+
+let syncTimer = null;
+let syncing = false;
+
+function setSyncStatus(text, cls = "") {
+  $("sync-status").textContent = text;
+  $("sync-status").className = `sync ${cls}`;
+  const el = $("settings-sync-status");
+  if (el) el.textContent = text;
+}
+
+function scheduleSync() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => sync().catch(() => {}), 1500);
+}
+
+async function sync() {
+  if (!settings.token) { setSyncStatus("lokal", "off"); return; }
+  if (syncing) { scheduleSync(); return; }
+  syncing = true;
+  setSyncStatus("sync…", "busy");
+  try {
+    const r = await syncLog(settings, entries);
+    if (settings.gistId) saveSettings(settings);
+    if (r.pulled > 0) { entries = r.merged; await replaceLog(entries); refresh(); }
+    setSyncStatus(`gesichert ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`, "ok");
+    return r;
+  } catch (err) {
+    setSyncStatus(navigator.onLine ? `nicht gesichert: ${err.message}` : "offline, später", "bad");
+    throw err;
+  } finally {
+    syncing = false;
+  }
+}
+
 // -- views --------------------------------------------------------------------
 
 function show(view) {
@@ -38,12 +100,14 @@ function show(view) {
   if (view === "triage") loadTriage();
   if (view === "units") loadUnits();
   if (view === "stats") loadStats();
+  if (view === "settings") loadSettingsView();
 }
 document.querySelectorAll("nav button[data-view]").forEach((b) => b.addEventListener("click", () => show(b.dataset.view)));
 
-function renderToday(t) {
-  if (!t) return;
-  $("today").textContent = `heute ${t.done}/${t.target} · fällig ${t.due}`;
+function renderToday() {
+  const t = now();
+  const due = dueUnits(deck, state, engine, t, 0).length;
+  $("today").textContent = `heute ${reviewsToday(state, t)}/${settings.cardsPerDay} · fällig ${due}`;
 }
 
 // -- practice -----------------------------------------------------------------
@@ -51,14 +115,13 @@ function renderToday(t) {
 let current = null;   // {unit, card}
 let startedAt = 0;
 let answered = false;
-let overLimit = false;
 
 function renderSentence(card) {
   const el = $("sentence");
   el.textContent = "";
   let last = 0;
   card.gaps.forEach((g, i) => {
-    el.append(card.sentence.slice(last, g.start));
+    el.append(card.sentence_de.slice(last, g.start));
     const input = document.createElement("input");
     input.className = "gap";
     input.dataset.index = String(i);
@@ -77,7 +140,7 @@ function renderSentence(card) {
     el.append(input);
     last = g.end;
   });
-  el.append(card.sentence.slice(last));
+  el.append(card.sentence_de.slice(last));
 }
 
 function showPanel(which) {
@@ -87,23 +150,27 @@ function showPanel(which) {
   $("history").hidden = which !== "history";
 }
 
-async function loadCard() {
+function loadCard() {
   answered = false;
   $("feedback").hidden = true;
   $("btn-next").hidden = true;
   ["btn-check", "btn-reveal", "btn-known"].forEach((id) => { $(id).hidden = false; });
-  const data = await api(`/api/next${overLimit ? "?over=1" : ""}`);
-  renderToday(data.today);
-  if (data.done) { showPanel("empty"); return; }
-  if (data.limit_reached) { showPanel("limit"); return; }
-  current = data;
+  renderToday();
+  const t = now();
+  let unit = nextUnit(deck, state, engine, settings, t, { overLimit });
+  if (unit === null && !overLimit && budgetLeft(state, settings, t) === 0) {
+    if (nextUnit(deck, state, engine, settings, t, { overLimit: true })) { showPanel("limit"); return; }
+  }
+  const card = unit ? pickCard(deck, unit, state) : null;
+  if (!unit || !card) { showPanel("empty"); return; }
+  current = { unit, card };
   showPanel("card");
-  $("context-de").textContent = data.card.context_de || "";
-  $("context-de").hidden = !data.card.context_de;
-  $("context-en").textContent = data.card.context_en || "";
-  $("context-en").hidden = !data.card.context_en;
-  $("gloss").textContent = data.card.gloss || "";
-  renderSentence(data.card);
+  $("context-de").textContent = card.context_de || "";
+  $("context-de").hidden = !card.context_de;
+  $("context-en").textContent = card.context_en || "";
+  $("context-en").hidden = !card.context_en;
+  $("gloss").textContent = card.gloss_en || "";
+  renderSentence(card);
   startedAt = performance.now();
   const first = $("sentence").querySelector("input");
   if (first) first.focus();
@@ -117,50 +184,59 @@ async function check(reveal = false) {
   if (!current || answered) return;
   answered = true;
   const typed = typedValues(reveal);
-  const result = await api("/api/answer", {
-    card_id: current.card.card_id, typed, elapsed_ms: Math.round(performance.now() - startedAt),
-  });
+  const { card, unit } = current;
+  const result = gradeCard(card, typed);
+  await record(makeReview(entries, {
+    unit_id: unit.unit_id, card_id: card.card_id, rating: result.rating, outcome: result.outcome,
+    answers: result.gaps.map((g) => g.typed), expected: result.gaps.map((g) => g.expected),
+    elapsed_ms: Math.max(0, Math.round(performance.now() - startedAt)), deck_version: deck.manifest.deck_version,
+  }, now()));
   const inputs = $("sentence").querySelectorAll("input.gap");
   result.gaps.forEach((g, i) => {
     const inp = inputs[i];
     inp.value = g.expected;
     inp.readOnly = true;
-    inp.classList.add(g.ok ? (g.outcome === "typo" ? "typo" : "ok") : "bad");
+    inp.classList.add(g.accepted ? (g.outcome === "typo" ? "typo" : "ok") : "bad");
   });
   const fb = $("feedback");
   fb.className = `feedback ${result.rating}`;
   const verdict = { good: "Richtig", hard: "Richtig, mit Tippfehler", again: "Falsch" }[result.rating];
-  const wrong = result.gaps.filter((g) => !g.ok || g.outcome === "typo")
+  const wrong = result.gaps.filter((g) => !g.accepted || g.outcome === "typo")
     .map((g) => `${g.typed || "(gezeigt)"} → ${g.expected}`).join(", ");
+  const u = unitPayload(unit);
   fb.innerHTML = `<div>${verdict}${wrong ? ": " + escapeHtml(wrong) : ""}</div>` +
-    `<div class="unit">${escapeHtml(result.unit.display)}` +
-    (result.unit.gloss ? ` <span class="muted">= ${escapeHtml(result.unit.gloss)}</span>` : "") + `</div>`;
+    `<div class="unit">${escapeHtml(u.display)}` +
+    (u.gloss ? ` <span class="muted">= ${escapeHtml(u.gloss)}</span>` : "") + `</div>`;
   fb.hidden = false;
   ["btn-check", "btn-reveal", "btn-known"].forEach((id) => { $(id).hidden = true; });
   $("btn-next").hidden = false;
   $("btn-next").focus();
-  api("/api/next").then((d) => renderToday(d.today)).catch(() => {});
+  renderToday();
 }
 
 async function markKnown() {
   if (!current) return;
-  await api("/api/mark", { unit_id: current.unit.unit_id, known: true, source: "practice" });
+  await record(makeMark(entries, current.unit.unit_id, true, "practice", now()));
   loadCard();
 }
 
 function nextCard() { loadCard(); }
 
-async function showHistory() {
-  const data = await api("/api/history");
+function showHistory() {
+  const reviews = entries.filter((e) => e.type === "review").slice(-20).reverse();
   const list = $("history-list");
-  list.innerHTML = data.items.map((h) =>
-    `<li><span class="tag ${h.rating}">${h.rating === "good" ? "richtig" : h.rating === "hard" ? "Tippfehler" : "falsch"}</span>` +
-    `${escapeHtml(h.marked || "")}` +
-    (h.gloss ? `<br><span class="muted">${escapeHtml(h.gloss)}</span>` : "") +
-    `<br><strong>${escapeHtml(h.unit.display)}</strong>` +
-    (h.unit.gloss ? ` <span class="muted">= ${escapeHtml(h.unit.gloss)}</span>` : "") +
-    (h.rating !== "good" ? `<br><span class="muted">getippt: ${escapeHtml(h.answers.map((a) => a || "(gezeigt)").join(", "))}</span>` : "") +
-    `</li>`).join("") || "<li>Noch keine Antworten.</li>";
+  list.innerHTML = reviews.map((e) => {
+    const card = deck.cardById[e.card_id];
+    const unit = deck.byId[e.unit_id];
+    const u = unit ? unitPayload(unit) : { display: e.unit_id, gloss: null };
+    return `<li><span class="tag ${e.rating}">${e.rating === "good" ? "richtig" : e.rating === "hard" ? "Tippfehler" : "falsch"}</span>` +
+      `${escapeHtml(card ? renderMarked(card) : "")}` +
+      (card && card.gloss_en ? `<br><span class="muted">${escapeHtml(card.gloss_en)}</span>` : "") +
+      `<br><strong>${escapeHtml(u.display)}</strong>` +
+      (u.gloss ? ` <span class="muted">= ${escapeHtml(u.gloss)}</span>` : "") +
+      (e.rating !== "good" ? `<br><span class="muted">getippt: ${escapeHtml(e.answers.map((a) => a || "(gezeigt)").join(", "))}</span>` : "") +
+      `</li>`;
+  }).join("") || "<li>Noch keine Antworten.</li>";
   showPanel("history");
 }
 
@@ -186,9 +262,8 @@ document.querySelectorAll(".umlauts button").forEach((b) => b.addEventListener("
 
 let triageQueue = [];
 
-async function loadTriage() {
-  const data = await api("/api/triage?batch=50");
-  triageQueue = data.units;
+function loadTriage() {
+  triageQueue = untriagedUnits(deck, state).slice(0, 50);
   showTriage();
 }
 
@@ -197,20 +272,21 @@ function showTriage() {
   $("triage-card").hidden = !unit;
   $("triage-empty").hidden = !!unit;
   if (!unit) return;
-  $("triage-rank").textContent = `Rang ${unit.rank} · ${unit.kind} · ${unit.cefr || "-"}`;
-  $("triage-display").textContent = unit.display + (unit.gloss ? `  (${unit.gloss})` : "");
+  const u = unitPayload(unit);
+  $("triage-rank").textContent = `Rang ${u.rank} · ${u.kind} · ${u.cefr || "-"}`;
+  $("triage-display").textContent = u.display + (u.gloss ? `  (${u.gloss})` : "");
 }
 
 async function triageAnswer(known) {
   const unit = triageQueue.shift();
   if (!unit) return;
-  await api("/api/mark", { unit_id: unit.unit_id, known, source: "triage" });
+  await record(makeMark(entries, unit.unit_id, known, "triage", now()));
   if (triageQueue.length === 0) loadTriage(); else showTriage();
 }
 $("btn-tri-known").addEventListener("click", () => triageAnswer(true));
 $("btn-tri-learn").addEventListener("click", () => triageAnswer(false));
 document.addEventListener("keydown", (ev) => {
-  if ($("view-triage").hidden) return;
+  if ($("view-triage").hidden || ev.target.tagName === "INPUT") return;
   if (ev.key === "1") triageAnswer(true);
   if (ev.key === "2") triageAnswer(false);
 });
@@ -219,20 +295,19 @@ document.addEventListener("keydown", (ev) => {
 
 function fmtDue(iso) {
   if (!iso) return "";
-  const d = new Date(iso);
-  const mins = Math.round((d - Date.now()) / 60000);
+  const mins = Math.round((new Date(iso) - Date.now()) / 60000);
   if (mins < 1) return "jetzt";
   if (mins < 60) return `in ${mins} min`;
   if (mins < 60 * 36) return `in ${Math.round(mins / 60)} h`;
   return `in ${Math.round(mins / 1440)} Tagen`;
 }
 
-async function loadUnits() {
-  const g = await api("/api/units");
+function loadUnits() {
+  const g = unitsByStage(deck, state, now().toISOString());
   const section = (title, items, withDue) =>
     `<h3>${title} (${items.length})</h3>` + (items.length
-      ? `<table>${items.map((u) => `<tr><td>${escapeHtml(u.display)}${u.gloss ? ` <span class="muted">${escapeHtml(u.gloss)}</span>` : ""}</td>` +
-        `<td class="num muted">${withDue ? fmtDue(u.due) : ""}</td></tr>`).join("")}</table>`
+      ? `<table>${items.map(([unit, due]) => { const u = unitPayload(unit); return `<tr><td>${escapeHtml(u.display)}${u.gloss ? ` <span class="muted">${escapeHtml(u.gloss)}</span>` : ""}</td>` +
+        `<td class="num muted">${withDue ? fmtDue(due) : ""}</td></tr>`; }).join("")}</table>`
       : `<p class="muted">–</p>`);
   $("units").innerHTML =
     section("Lernend", g.learning, true) + section("Jung", g.young, true) +
@@ -241,8 +316,8 @@ async function loadUnits() {
 
 // -- stats --------------------------------------------------------------------
 
-async function loadStats() {
-  const s = await api("/api/stats");
+function loadStats() {
+  const s = computeStats(deck, state, entries, engine, now());
   const rows = [
     ["bekannt", s.known], ["lernend", s.learning], ["jung", s.young], ["reif", s.mature],
     ["fällig jetzt", s.due_now], ["neu verfügbar", s.new_remaining],
@@ -255,17 +330,82 @@ async function loadStats() {
   $("stats").innerHTML = html;
 }
 
-// -- quit ---------------------------------------------------------------------
+// -- settings -----------------------------------------------------------------
 
-$("btn-quit").addEventListener("click", async () => {
-  if (!confirm("Server beenden? Alles ist bereits gespeichert.")) return;
-  try { await api("/api/quit", {}); } catch (e) { /* server is gone */ }
-  document.body.innerHTML = "<main><p>Server beendet. Fenster schließen.</p></main>";
+function loadSettingsView() {
+  $("set-token").value = settings.token || "";
+  $("set-gist").value = settings.gistId || "";
+  $("set-cards").value = settings.cardsPerDay;
+  $("set-new").value = settings.newPerDay === null ? "" : settings.newPerDay;
+  $("set-autosync").checked = !!settings.autoSync;
+  $("set-log-info").textContent = `${entries.length} Einträge im Log auf diesem Gerät.`;
+}
+
+$("btn-settings-save").addEventListener("click", () => {
+  settings.token = $("set-token").value.trim();
+  settings.gistId = $("set-gist").value.trim();
+  settings.cardsPerDay = Math.max(1, parseInt($("set-cards").value, 10) || DEFAULT_SETTINGS.cardsPerDay);
+  const n = $("set-new").value.trim();
+  settings.newPerDay = n === "" ? null : Math.max(0, parseInt(n, 10) || 0);
+  settings.autoSync = $("set-autosync").checked;
+  saveSettings(settings);
+  $("settings-sync-status").textContent = "gespeichert";
+  if (settings.token) sync().then(loadSettingsView).catch(() => {});
+  else setSyncStatus("lokal", "off");
+});
+
+$("btn-sync-now").addEventListener("click", () => sync().then(loadSettingsView).catch(() => {}));
+$("btn-sync").addEventListener("click", () => sync().catch(() => {}));
+
+$("btn-export").addEventListener("click", async () => {
+  const text = toJsonl(entries);
+  try {
+    await navigator.clipboard.writeText(text);
+    $("settings-sync-status").textContent = `${entries.length} Einträge in die Zwischenablage kopiert.`;
+  } catch (e) {
+    $("set-export").value = text;
+    $("set-export").hidden = false;
+  }
+});
+
+$("set-import").addEventListener("change", async (ev) => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const incoming = parseJsonl(await file.text());
+  const before = entries.length;
+  entries = mergeEntries(entries, incoming);
+  await replaceLog(entries);
+  refresh();
+  $("settings-sync-status").textContent = `${entries.length - before} neue Einträge aus ${file.name} übernommen.`;
+  loadSettingsView();
+  if (settings.autoSync && settings.token) scheduleSync();
+  ev.target.value = "";
 });
 
 // -- boot ---------------------------------------------------------------------
 
-api("/api/deck").then((d) => {
-  $("deck-info").textContent = `Deck ${d.deck_version} · ${d.units} Einheiten · ${d.glossed_cards} von ${d.cards} Karten mit Übersetzung`;
-}).catch(() => {});
-show("practice");
+async function boot() {
+  $("deck-info").textContent = "Deck wird geladen…";
+  try {
+    [deck, entries] = await Promise.all([loadDeck("./data/deck"), readLog()]);
+  } catch (err) {
+    $("deck-info").textContent = `Deck konnte nicht geladen werden: ${err.message}`;
+    return;
+  }
+  try { localStorage.setItem("phrasen.deckVersion", deck.manifest.deck_version); } catch (e) { /* ignore */ }
+  refresh();
+  const m = deck.manifest;
+  $("deck-info").textContent = `Deck ${m.deck_version} · ${m.unit_count} Einheiten · ${m.glossed_card_count} von ${m.card_count} Karten mit Übersetzung`;
+  setSyncStatus(settings.token ? "…" : "lokal", settings.token ? "busy" : "off");
+  show("practice");
+  if (settings.token) sync().then((r) => { if (r && r.pulled > 0 && !answered) loadCard(); }).catch(() => {});
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").then((reg) => {
+      if (reg.active) reg.active.postMessage({ type: "deck", version: m.deck_version });
+      navigator.serviceWorker.ready.then((r) => r.active && r.active.postMessage({ type: "deck", version: m.deck_version }));
+    }).catch(() => {});
+  }
+  window.addEventListener("online", () => { if (settings.token && settings.autoSync) scheduleSync(); });
+}
+
+boot();

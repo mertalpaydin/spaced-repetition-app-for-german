@@ -5,6 +5,15 @@ from pathlib import Path
 import pytest
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--regen-web",
+        action="store_true",
+        default=False,
+        help="rewrite the files tests/test_web.py generates for the PWA",
+    )
+
+
 @pytest.fixture
 def repo_root() -> Path:
     return Path(__file__).parent.parent

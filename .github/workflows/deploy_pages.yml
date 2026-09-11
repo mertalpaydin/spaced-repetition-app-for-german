@@ -2,7 +2,7 @@ name: Deploy Static Web PWA to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feat/phrase-deck ]
   workflow_dispatch:
 
 permissions:

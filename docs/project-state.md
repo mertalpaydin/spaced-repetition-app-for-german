@@ -1,4 +1,4 @@
-# Project state, 8 September 2026
+# Project state, 11 September 2026
 
 Written for the next person to work on this repository. It says what the
 project is, what is built, what is not, and what will trip you up.
@@ -146,20 +146,34 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   phase 2 engine (standard library only); the page has practice (inline
   gap inputs, umlaut bar, reveal, "Kannte ich schon"), triage and stats
   views and works on the laptop and on the phone over the same Wi-Fi. The
-  review log stays on the laptop. Not yet offline and not on GitHub Pages:
-  that is phase 3b, the engine in JavaScript.
+  review log stays on the laptop. Kept as the development server.
+- **Phase 3b, the page on GitHub Pages, 2026-09-11.** The product is now
+  `web/` alone: no server, no command. `web/lib/engine.js` is a direct port
+  of the py-fsrs 6 scheduler as `src/engine/fsrs.py` configures it (one
+  learning step, no fuzz); ts-fsrs was tried first and dropped, because it
+  measures elapsed time in calendar days and orders the hard/good/easy
+  intervals, and both moved due dates away from the Python engine's.
+  `grader.js`, `session.js` and `log.js` port the grader, the scheduler and
+  the replay; node tests (`tests/js/`, run by `tests/test_web.py`) pin them
+  against fixtures the Python side generates (`--regen-web`). The log is in
+  IndexedDB and, with a fine-grained GitHub token (gist scope only, entered
+  under ⚙), in one private gist that every device pulls, merges and pushes,
+  so laptop and phone replay the same log; the merge is by (type, unit,
+  time), which is why entries carry no device id. A service worker caches
+  the shell (bump `APP_VERSION` in `web/sw.js` when the shell changes) and
+  the deck shards under the deck version, so the page works offline after
+  one visit. The deck moved to `web/data/deck/`; `deploy_pages.yml` also
+  deploys `feat/phrase-deck`. Pages must be set to deploy from GitHub
+  Actions once, in the repository settings.
 
 ## What is not built
 
 - **Gemini's second reading of 15,882 agent glosses** (Claude has read all
   38,882; Gemini's quota ended at 23,000). First item in TODO.
-- **Phase 3b, the offline PWA.** `web/` now only talks to the local server;
-  the GitHub Pages build needs the scheduler and grader in JavaScript
-  (ts-fsrs, same parameters), IndexedDB for the log, a service worker for
-  the deck shards, and log export/import in the `ReviewEntry`/`MarkEntry`
-  shape so laptop and phone logs merge.
-- **Nothing else of phase 2**; `train merge <other.jsonl>` folds a second
-  device's log in, so the phone log can be merged once phase 3 exists.
+- **An installable icon flow on iOS** is untested; Android and desktop
+  Chrome install from the page's manifest.
+- **Nothing else of phase 2**; `train merge <other.jsonl>` folds the page's
+  exported log into the terminal client's if that is ever wanted.
 
 ---
 

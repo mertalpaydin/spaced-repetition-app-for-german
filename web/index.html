@@ -7,6 +7,8 @@
   <meta name="theme-color" content="#1f5f8b">
   <title>Phrasen</title>
   <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -20,8 +22,9 @@
       <button data-view="triage">Sortieren</button>
       <button data-view="units">Einheiten</button>
       <button data-view="stats">Statistik</button>
+      <button data-view="settings">⚙</button>
       <button id="btn-theme" title="hell/dunkel">◐</button>
-      <button id="btn-quit" title="Server beenden">⏻</button>
+      <button id="btn-sync" title="jetzt sichern"><span id="sync-status" class="sync off">lokal</span></button>
     </nav>
   </header>
 
@@ -34,7 +37,7 @@
         <p id="gloss" class="line gloss"></p>
         <div id="feedback" class="feedback" hidden></div>
         <div class="actions">
-          <button id="btn-prev" title="letzte Antwort">◀</button>
+          <button id="btn-prev" title="letzte Antworten">◀</button>
           <button id="btn-check" class="primary">Prüfen</button>
           <button id="btn-reveal">Zeigen</button>
           <button id="btn-known">Kannte ich schon</button>
@@ -48,7 +51,7 @@
         <p>Tagesziel erreicht. Nichts ist mehr fällig; neue Einheiten kommen sonst morgen.</p>
         <div class="actions">
           <button id="btn-more" class="primary">Trotzdem weiter</button>
-          <button id="btn-prev-2">◀ letzte Antwort</button>
+          <button id="btn-prev-2">◀ letzte Antworten</button>
         </div>
       </div>
       <p id="practice-empty" class="empty" hidden>Nichts fällig und keine neuen Einheiten.</p>
@@ -78,6 +81,34 @@
 
     <section id="view-stats" class="view" hidden>
       <div id="stats" class="card"></div>
+    </section>
+
+    <section id="view-settings" class="view" hidden>
+      <div class="card settings">
+        <h3>Sicherung über GitHub</h3>
+        <p class="hint">Ein Log für alle Geräte: ein privater Gist unter deinem GitHub-Konto. Erstelle unter
+          GitHub → Settings → Developer settings → Fine-grained tokens ein Token, dessen einzige Berechtigung
+          „Gists: read and write“ ist, und trage es hier ein. Die Gist-ID wird beim ersten Sichern angelegt;
+          auf dem zweiten Gerät trägst du Token und dieselbe ID ein.</p>
+        <label>Token <input id="set-token" type="password" autocomplete="off" spellcheck="false"></label>
+        <label>Gist-ID <input id="set-gist" type="text" autocomplete="off" spellcheck="false"></label>
+        <label><input id="set-autosync" type="checkbox"> nach jeder Antwort sichern</label>
+        <h3>Tagespensum</h3>
+        <label>Karten pro Tag <input id="set-cards" type="number" min="1" step="1"></label>
+        <label>Neue Einheiten pro Tag (leer = unbegrenzt) <input id="set-new" type="number" min="0" step="1"></label>
+        <div class="actions">
+          <button id="btn-settings-save" class="primary">Speichern</button>
+          <button id="btn-sync-now">Jetzt sichern</button>
+        </div>
+        <p id="settings-sync-status" class="muted"></p>
+        <h3>Log ohne GitHub</h3>
+        <p id="set-log-info" class="muted"></p>
+        <div class="actions">
+          <button id="btn-export">Log kopieren</button>
+          <label class="file">Log-Datei einlesen <input id="set-import" type="file" accept=".jsonl,.txt,application/json"></label>
+        </div>
+        <textarea id="set-export" rows="6" readonly hidden></textarea>
+      </div>
     </section>
   </main>
 
