@@ -15,6 +15,7 @@ function fakeGithub(initialContent) {
     assert.equal(init.headers.Authorization, "Bearer tok");
     if (method === "POST" && url.endsWith("/gists")) {
       content = JSON.parse(init.body).files["review_log.jsonl"].content;
+      if (!content.trim()) return { ok: false, status: 422, json: async () => ({ message: "Validation Failed" }) };
       return { ok: true, status: 201, json: async () => ({ id: "g1" }) };
     }
     if (method === "GET") {
@@ -38,8 +39,18 @@ test("first sync creates the gist and pushes the local log", async () => {
   assert.equal(settings.gistId, "g1");
   assert.equal(r.pushed, 1);
   assert.equal(r.pulled, 0);
-  assert.ok(gh.calls.some((c) => c.startsWith("PATCH")));
+  assert.ok(!gh.calls.some((c) => c.startsWith("PATCH")), "the create carries the log");
   assert.equal(gh.content, toJsonl([e(1, "u1", "2026-09-01T08:00:00Z")]));
+});
+
+test("an empty log is never sent as empty content, which GitHub rejects", async () => {
+  const gh = fakeGithub("\n");
+  await syncLog({ token: "tok", gistId: "" }, []);
+  assert.ok(gh.content.trim().length > 0);
+  const gh2 = fakeGithub(gh.content);
+  const r = await syncLog({ token: "tok", gistId: "g1" }, []);
+  assert.equal(r.merged.length, 0);
+  assert.ok(!gh2.calls.some((c) => c.startsWith("PATCH")));
 });
 
 test("a sync pulls the other device's entries and pushes only when local had something new", async () => {
