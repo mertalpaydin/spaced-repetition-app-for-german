@@ -127,6 +127,88 @@ def _reflexive_next_to_verb(occ: Occurrence) -> bool:
     return "sich" in (w.lower() for w in following)
 
 
+_COMPLEMENT_PREPS: frozenset[str] = frozenset(
+    {
+        "an",
+        "auf",
+        "aus",
+        "bei",
+        "für",
+        "gegen",
+        "in",
+        "mit",
+        "nach",
+        "über",
+        "um",
+        "unter",
+        "von",
+        "vor",
+        "zu",
+    }
+)
+_COMPLEMENT_RE = re.compile(r"\s(\w+)(?:\s\+(?:Akk|Dat|Gen))?$")
+_CONTRACTIONS: dict[str, tuple[str, ...]] = {
+    "an": ("am", "ans"),
+    "auf": ("aufs",),
+    "bei": ("beim",),
+    "für": ("fürs",),
+    "in": ("im", "ins"),
+    "um": ("ums",),
+    "über": ("übers",),
+    "von": ("vom",),
+    "zu": ("zum", "zur"),
+}
+
+
+def complement_preposition(unit: PhraseUnit) -> str | None:
+    """The governing preposition a reviewer put into a unit's display that
+    the mined parts do not carry ("Wert legen auf +Akk", "sich zubewegen auf
+    +Akk"). Verb-preposition and reflexive units already gap theirs."""
+    if unit.kind in {"verb_prep", "reflexive_verb", "connector", "two_part_connector"}:
+        return None
+    m = _COMPLEMENT_RE.search(unit.display_de)
+    if m is None:
+        return None
+    prep = m.group(1).lower()
+    if prep not in _COMPLEMENT_PREPS or prep in {p.lower() for p in unit.parts}:
+        return None
+    return prep
+
+
+def with_complement_gap(occ: Occurrence, prep: str) -> Occurrence | None:
+    """Add the complement preposition as one more gap when the sentence has
+    exactly one candidate token for it outside the existing gaps (its bare
+    or contracted form); otherwise the sentence does not instantiate the
+    complement unambiguously and yields no card."""
+    forms = (prep, *_CONTRACTIONS.get(prep, ()))
+    pattern = re.compile(
+        r"(?<![\wäöüÄÖÜß])(" + "|".join(re.escape(f) for f in forms) + r")(?![\wäöüÄÖÜß])",
+        re.IGNORECASE,
+    )
+    hits = [
+        m for m in pattern.finditer(occ.text) if not any(s <= m.start() < e for s, e in occ.spans)
+    ]
+    if len(hits) != 1:
+        return None
+    m = hits[0]
+    spans = sorted([*occ.spans, (m.start(), m.end())])
+    surfaces_by_span = dict(zip(occ.spans, occ.surfaces, strict=True))
+    surfaces_by_span[(m.start(), m.end())] = m.group(0)
+    # Token index: the number of whitespace-separated tokens before the hit,
+    # which is what the existing indices count for spaCy's tokenisation of
+    # these sentences closely enough for a gap ordering.
+    before = len(occ.text[: m.start()].split())
+    indices_by_span = dict(zip(occ.spans, occ.token_indices, strict=True))
+    indices_by_span[(m.start(), m.end())] = before
+    return occ.model_copy(
+        update={
+            "spans": spans,
+            "surfaces": [surfaces_by_span[sp] for sp in spans],
+            "token_indices": [indices_by_span[sp] for sp in spans],
+        }
+    )
+
+
 def unsuitable_reason(occ: Occurrence) -> str | None:
     """Sentence-level reasons a correct occurrence still makes a bad card.
 
@@ -238,6 +320,14 @@ def select_cards(
     for unit in units:
         cap = k_trivial if unit.trivial else k
         occurrences = occurrences_by_unit.get(unit.unit_id, [])
+        complement = complement_preposition(unit)
+        if complement is not None:
+            occurrences = [
+                o for o in (with_complement_gap(occ, complement) for occ in occurrences) if o
+            ]
+            stats["complement_missing"] += len(occurrences_by_unit.get(unit.unit_id, [])) - len(
+                occurrences
+            )
         # One occurrence per sentence: a sentence hosting the unit twice is
         # ambiguous as a card.
         per_sentence: dict[str, list[Occurrence]] = defaultdict(list)

@@ -116,6 +116,10 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   glosses for the picked sentences through `agy`, checked deterministically
   before they are stored; glosses land in the translation store with
   `source: "gemini"`.
+- **Complement prepositions are gaps.** A unit whose display carries a
+  governing preposition its mined parts lack (`Wert legen auf +Akk`) gets
+  that preposition as one more gap on every card that has exactly one
+  candidate token for it.
 - **Prepositional adjective-noun units.** An adjective-noun pair governed by
   one preposition in at least 80% of its sentences is a three-token unit
   with three gaps (`auf freiem Fuß`); 44 such units.

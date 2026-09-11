@@ -353,9 +353,10 @@ had passed; applied as round gloss2b.
   findings Claude had not made, mostly sentences and unit mismatches),
   though still only 10 bad glosses against Claude's 189 on the first
   23,000; on glosses the vendors do not corroborate each other.
-- Adjective-noun and collocation displays that carry a governing
-  preposition (`auf freiem Fuß`) blank only the adjective and noun. Both
-  reviewers keep flagging the unbracketed preposition; blanking it would
-  need the miner to record the preposition token.
+- Nothing known: the last systematic gap defect (a complement preposition
+  shown in the display but not blanked, `Wert legen auf`, `sich die Zähne
+  ausbeißen an`) is fixed on 11 September 2026: the preposition is a gap
+  when the sentence has exactly one candidate token for it, and a
+  sentence without one yields no card.
 - The CEFR default now follows the hardest word and the register; the
   reviewers' remaining per-unit CEFR corrections stay as overrides.

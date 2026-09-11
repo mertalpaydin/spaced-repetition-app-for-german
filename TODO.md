@@ -58,9 +58,6 @@ the next band of what survives. Open:
 - **Adjective-noun citation forms without a nominative or a governing
   preposition** still show the commonest oblique form; a gender lookup
   would fix the rest.
-- **Noun-verb displays with a complement** (`ein Auge werfen auf`) still
-  blank only noun and verb; the adjective-noun case is solved, this one
-  would need the same treatment in the collocation miner.
 
 ## Before phase 2 (owner's instruction, 2026-09-09)
 

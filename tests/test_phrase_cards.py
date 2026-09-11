@@ -228,3 +228,42 @@ def test_url_stubs_and_sodass_fragments_are_unsuitable() -> None:
         unsuitable_reason(_occ("Sodass er auf den Bus wartet.", "wartet", "auf"))
         == "subordinate_fragment"
     )
+
+
+def test_complement_preposition_becomes_a_gap_when_unambiguous() -> None:
+    from src.phrases.cards import complement_preposition, with_complement_gap
+
+    unit = UNIT.model_copy(
+        update={
+            "kind": "noun_verb",
+            "display_de": "Wert legen auf +Akk",
+            "parts": ["Wert", "legen"],
+        }
+    )
+    assert complement_preposition(unit) == "auf"
+    assert complement_preposition(UNIT) is None  # verb_prep already gaps its preposition
+
+    def occ(text: str, noun: str, verb: str) -> Occurrence:
+        n, v = text.index(noun), text.index(verb)
+        spans = sorted([(n, n + len(noun)), (v, v + len(verb))])
+        return Occurrence(
+            kind="noun_verb",
+            unit_key="wert legen",
+            parts=["Wert", "legen"],
+            token_indices=[1, 2],
+            spans=spans,
+            surfaces=[text[a:b] for a, b in spans],
+            corpus_source="tatoeba",
+            line_id=text,
+            text=text,
+        )
+
+    one = with_complement_gap(occ("Er legt großen Wert auf Pünktlichkeit.", "Wert", "legt"), "auf")
+    assert one is not None
+    assert one.surfaces == ["legt", "Wert", "auf"]
+    assert one.text[one.spans[2][0] : one.spans[2][1]] == "auf"
+    assert with_complement_gap(occ("Sie legen Wert darauf.", "Wert", "legen"), "auf") is None
+    two = occ("Er legt Wert auf Ordnung auf dem Tisch.", "Wert", "legt")
+    assert with_complement_gap(two, "auf") is None
+    contracted = with_complement_gap(occ("Er legt Wert aufs Detail.", "Wert", "legt"), "auf")
+    assert contracted is not None and contracted.surfaces[-1] == "aufs"
