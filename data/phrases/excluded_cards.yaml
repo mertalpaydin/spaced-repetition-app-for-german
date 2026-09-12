@@ -4080,3 +4080,154 @@
 - c7c8d5bb3cf2  # BAD_SENTENCE: Sentence fragment lacking a main clause predicate, with uncapitalized 'ihr schlafenden'.
 - f83238738812  # WRONG_UNIT: 'hin' belongs to the fixed phrase 'vor sich hin' rather than the separable verb 'hinblicken'.
 - f83e3cbc7e0c  # BAD_SENTENCE: Grammar error: uninflected participle 'beschlossen' instead of 'beschlossenen'.
+# Review round gloss6.
+- 014352b46294  # WRONG_GAPS: The reflexive pronoun 'sich' is part of the unit display but omitted from the brackets.
+- 05382103ca0f  # WRONG_GAPS: The verb 'starb' is part of the unit display but omitted from the brackets.
+- 089099373fd4  # BAD_SENTENCE: The sentence 'Die westliche Welt bezüglich Geistlichkeit hinkt sehr' is ungrammatical and unnatu
+- 0e4d6a38936c  # BAD_SENTENCE: The sentence 'Hier FDP klagt gegen Rasselisten' is an ungrammatical newspaper headline fragment 
+- 0f8f8507cef5  # WRONG_UNIT: The sentence uses the noun phrase 'ein hohes Maß', not the prepositional phrase 'in hohem Maße'.
+- 11044a9dc7c0  # WRONG_GAPS: The verb form 'ließen' is part of the unit lemma 'sich einschüchtern lassen' but is not bracketed.
+- 1453add35be8  # WRONG_UNIT: The sentence uses transitive 'etwas einem Test unterziehen', not the reflexive unit 'sich einem Te
+- 18f933a9d732  # WRONG_UNIT: The unit specifies 'seinen Teil dazu beitragen', but 'dazu' is missing from the sentence.
+- 1eac9740bf53  # BAD_SENTENCE: The sentence uses dative 'an der Oderbruchbahn' instead of standard accusative 'an die Oderbruch
+- 20d4081e3ea8  # WRONG_UNIT: The unit includes the preposition 'in', which does not appear in the sentence or the gap.
+- 211008776db4  # WRONG_GAPS: The verb form 'lässt' is part of the unit lemma 'sich einschüchtern lassen' but is not bracketed.
+- 246956815f1b  # WRONG_GAPS: The reflexive pronoun 'sich' is part of the unit display but omitted from the brackets.
+- 25ed5fe3e849  # WRONG_GAPS: The reflexive pronoun 'sich' is part of the unit display but omitted from the brackets.
+- 26033e523929  # BAD_SENTENCE: The sentence is an ungrammatical sentence fragment missing a main subject/copula.
+- 2725f747b4dd  # WRONG_GAPS: The verb form 'lassen' is part of the unit lemma 'sich einschüchtern lassen' but is not bracketed.
+- 2834c21a4bc7  # WRONG_GAPS: The unit tokens 'um', 'den', and 'herumreden' are missing from the brackets.
+- 298fb16c5fd4  # WRONG_GAPS: The unit tokens 'um', 'den', and 'herumredet' are missing from the brackets.
+- 2d73ebd1d29e  # BAD_SENTENCE: The German text 'Die hin und her... sich wiegt im Meer' is a broken sentence fragment.
+- 2ec6b82c521b  # WRONG_UNIT: The unit specifies 'in ernsten Schwierigkeiten', but the sentence uses 'haben ernste Schwierigkeit
+- 345806063ca7  # WRONG_UNIT: The preposition 'mit' from the unit display is not present in the sentence.
+- 34b4ae38f543  # WRONG_UNIT: The sentence uses transitive 'einsingen' (to record audio), not the reflexive verb 'sich einsingen
+- 3b5e4e643eaa  # WRONG_GAPS: 'auf die' and 'geraten' are part of the unit but are not bracketed.
+- 3be4724554ce  # WRONG_UNIT: The sentence uses 'sich versetzt fühlen in' (participle complement) rather than the reflexive verb
+- 3c47bec1c370  # WRONG_UNIT: In 'wie es sich anhört' the pronoun is accusative ('to sound'), not the dative reflexive phrase 's
+- 3fbb45d3ce99  # WRONG_UNIT: 'Vor dem Ryder Cup' is a temporal adjunct ('before'), not the complement of 'posieren vor'.
+- 3fe83edd7739  # BAD_SENTENCE: The gap contains the obsolete pre-reform spelling 'eingefaßt' instead of 'eingefasst'.
+- 40829b862793  # WRONG_UNIT: The unit includes the preposition 'in', which does not appear in the sentence or the gap.
+- 417462cc1875  # WRONG_UNIT: The sentence uses the non-reflexive construction 'jemandem/etwas Luft verschaffen' ('dem Benziner'
+- 41a4eaa8be12  # BAD_GLOSS: 'talk plain text' is an incorrect literal translation for 'Klartext reden' (to speak frankly / spea
+- 44b7221dacd6  # WRONG_UNIT: 'Nach der Ausfahrt' is a temporal adjunct ('after the exit'), not the complement of 'biegen nach'.
+- 4689a72aaeeb  # WRONG_UNIT: 'zu' is a preposition governing 'euch', not a separable prefix of 'zuweisen'.
+- 4d2a246456d0  # BAD_SENTENCE: Grammatical error in sentence: 'mit zunehmenden Alter' should be 'mit zunehmendem Alter'.
+- 4dfaa04a7bfb  # WRONG_UNIT: The unit is 'auf die schiefe Bahn geraten', but the sentence uses 'auf eine schiefe Bahn bringen'.
+- 4f33205f9df2  # BAD_SENTENCE: The sentence is missing an article before the singular 'Änderung' ('eine Änderung') or should us
+- 500972f7f3f1  # BAD_SENTENCE: 'und uns Kämpfen mit Gefechtsstationen liefern' is ungrammatical German.
+- 53a2f6cdbf73  # WRONG_GAPS: The preposition 'Aus' is part of the unit display but omitted from the brackets.
+- 544fd44af79e  # BAD_SENTENCE: The sentence contains the offensive profanity 'Motherfucker'.
+- 5a373866d8ff  # WRONG_UNIT: The sentence uses directional accusative 'in den fünften Stock' instead of the displayed dative ph
+- 5e77891a74e0  # WRONG_UNIT: The verb 'ziehen' from the unit display is not present in the sentence.
+- 618567f7852d  # WRONG_GAPS: The verb form 'Lassen' is part of the unit lemma 'sich einschüchtern lassen' but is not bracketed.
+- 65f701982a1f  # BAD_SENTENCE: The sentence is an incomplete fragment lacking a finite verb.
+- 66dd0b9ca2ab  # WRONG_GAPS: The unit tokens 'Um', 'den', and 'herumreden' are missing from the brackets.
+- 68d4f52e6568  # WRONG_UNIT: The preposition 'mit' from the unit display is not present in the sentence.
+- 690cb85e1f20  # WRONG_GAPS: The preposition 'aus' is part of the unit display but omitted from the brackets.
+- 6aab9a5c8679  # WRONG_UNIT: The sentence uses non-reflexive 'jemandem einen Kampf liefern' ('dem Weltmeister'), not reflexive 
+- 6d83569c1b7e  # WRONG_UNIT: The sentence uses 'solche Töne spucken' without the adjective 'große' specified in the unit.
+- 6fb6ae9f6053  # WRONG_UNIT: The sentence uses transitive 'einsingen' (to record audio), not reflexive 'sich einsingen'.
+- 77431f263781  # WRONG_UNIT: The sentence uses the passive of transitive 'etwas einer Prüfung unterziehen' ('Unterlagen werden 
+- 790ed051949c  # WRONG_GAPS: The reflexive pronoun 'sich' is part of the unit display but omitted from the brackets.
+- 81baeb74702d  # WRONG_UNIT: The sentence uses 'bei' instead of the preposition 'mit' in the displayed unit.
+- 831dd14ec447  # WRONG_GAPS: 'die Zähne' is a core component of the idiom unit but is omitted from the brackets.
+- 84c0aad82702  # WRONG_GAPS: The verb 'ziehen' is part of the unit display but omitted from the brackets.
+- 85fbee93effe  # WRONG_GAPS: The verb 'ziehen' is part of the unit display but omitted from the brackets.
+- 8617bf8c8f93  # WRONG_GAPS: The reflexive pronoun 'sich' belongs to the unit lemma but is not bracketed.
+- 8cb701e70f32  # BAD_SENTENCE: The sentence is ungrammatical because 'nachreichen' is transitive and lacks a subject/passive vo
+- 8fffaccb8f8c  # WRONG_UNIT: The preposition 'mit' from the unit display is not present in the sentence.
+- 92b40c1b18a6  # WRONG_UNIT: The unit contains 'aus', but the sentence uses 'in armen Verhältnissen'.
+- 9798dd7266cd  # WRONG_UNIT: The verb 'sterben' is absent and the phrase is in the nominative rather than genitive.
+- 987c8ec0eb67  # WRONG_GAPS: The infinitive 'lassen' is part of the unit lemma 'sich einschüchtern lassen' but is not bracketed
+- 991cee34b359  # WRONG_UNIT: The unit is 'auf die schiefe Bahn geraten', but the sentence uses 'auf eine schiefe Bahn bringen'.
+- a8c0a5a77dd6  # WRONG_GAPS: The verb form 'ließen' is part of the unit lemma 'sich einschüchtern lassen' but is not bracketed.
+- a9a2e34de70a  # WRONG_UNIT: The preposition 'mit' from the unit display is not present in the sentence.
+- ab0fb8131f2a  # WRONG_GAPS: The preposition 'aus' is part of the unit display but omitted from the brackets.
+- b190439cb9cd  # WRONG_UNIT: The sentence uses the idiom 'außen vor lassen', not the separable verb 'vorlassen'.
+- b57058dcfba8  # WRONG_UNIT: The unit displayed is 'beigeben', but the sentence instantiates the fixed expression 'klein beigeb
+- c077464b5f66  # BAD_SENTENCE: The sentence is an incomplete fragment missing a noun after 'dem'.
+- c129c5f017cc  # WRONG_GAPS: The reflexive pronoun 'sich' is part of the unit display but omitted from the brackets.
+- c1821b993869  # BAD_SENTENCE: The sentence contains broken truncated tokens ('-Symptomen', '[-Test]').
+- c4104cca4fcd  # WRONG_GAPS: The verb 'gezogen' is part of the unit display but omitted from the brackets.
+- c5ea8318367e  # WRONG_UNIT: The unit displayed is 'beigeben', but the sentence instantiates the fixed expression 'klein beigeb
+- c60abfc59d0f  # WRONG_GAPS: The verb 'ziehen' is part of the unit display but omitted from the brackets.
+- c6aa59f14163  # WRONG_UNIT: The unit is 'auf die schiefe Bahn geraten', but the sentence uses 'auf die schiefe Bahn kommen'.
+- cb03a4d9357d  # BAD_SENTENCE: The German text is a sentence fragment missing context and subject.
+- cc41f43162bb  # WRONG_GAPS: The preposition 'in' and verb 'war' are part of the unit display but omitted from the brackets.
+- cf5701e6a982  # WRONG_UNIT: 'Zimmer frei haben' uses the predicative adjective 'frei', not the separable verb 'freihaben' (hav
+- dd5d307a6fdb  # WRONG_UNIT: The sentence uses the noun phrase 'ein hohes Maß', not the prepositional phrase 'in hohem Maße'.
+- deb7f830615f  # WRONG_GAPS: The verb 'Ziehen' is part of the unit display but omitted from the brackets.
+- e0718b438c2c  # WRONG_UNIT: 'zu' is part of the directional circumposition 'auf ... zu' with simplex 'fliegen', not the separa
+- e9f1350c5298  # WRONG_UNIT: The sentence is a passive construction of transitive 'etwas einem Test unterziehen', not reflexive
+- ea7673f68a92  # WRONG_UNIT: The sentence uses transitive 'etwas einem Test unterziehen' with object 'diese Maschine', not refl
+- efc28c5af6e1  # BAD_GLOSS: 'nachsehen' means to overlook or forgive, which is the opposite of 'holds it against him'.
+- efe54b39d40b  # WRONG_UNIT: The sentence uses transitive 'etwas einsingen' (to sing in the new year), not reflexive 'sich eins
+- f1455390b0dc  # WRONG_UNIT: The sentence uses non-reflexive 'einen Kampf liefern' without 'sich'.
+- f1a819ce2ff7  # WRONG_GAPS: 'dazu' is part of the unit but is left unbracketed in the sentence.
+- f5383c84d022  # WRONG_GAPS: 'auf die' and 'geraten' are part of the unit but are not bracketed.
+- f829b49be719  # WRONG_GAPS: The verb 'starb' is part of the unit display but omitted from the brackets.
+- fcc79e11e639  # WRONG_GAPS: The reflexive pronoun 'sich' is part of the unit display but omitted from the brackets.
+# Review round gloss2d.
+- 208540843d37  # BAD_SENTENCE: Contains Swiss spelling 'Ausserdem' instead of standard German 'Außerdem'.
+- 2b9ec7b24674  # BAD_SENTENCE: The sentence is ungrammatical as it lacks a subject for the 3rd-person singular verb 'gräbt' (or
+- 3ea36deedca8  # WRONG_GAPS: The separable verb prefix 'ein' is missing from the bracketed gaps.
+- 4356b4df0451  # WRONG_UNIT: The separable prefix 'umher' belongs to 'bummelten' (umherbummeln), not to 'fuhren'.
+- 4b21d7bff105  # WRONG_UNIT: The verb is 'hausieren gehen mit +Dat' and the finite verb 'geht' is left outside the brackets.
+- 551739db7a14  # WRONG_GAPS: The separable verb prefix 'ein' is missing from the bracketed gaps.
+- 55b183dd9b68  # BAD_SENTENCE: The sentence contains the offensive slur 'Missgeburt'.
+- 581b49f3712e  # WRONG_UNIT: "her" is part of the adverbial phrase "vor sich her" modifying "tragen", not the separable verb "h
+- 5b14300574bc  # BAD_SENTENCE: Contains Swiss spelling 'zweitgrösste' instead of standard German 'zweitgrößte'.
+- 6d578fecb359  # BAD_SENTENCE: The sentence is a news headline with web scrap junk ("- Yahoo!").
+- 8a5cffe2cae1  # BAD_GLOSS: The English gloss 'out in the world' directly contradicts the German 'hinein in die Welt'.
+- 9b3bec9dc86b  # BAD_SENTENCE: The sentence contains concatenated text without a space ('FührerscheinFast').
+- a4d154d4ccf8  # WRONG_UNIT: "hinein" is part of the prepositional phrase "bis in die Nacht hinein", not a prefix of "hineinfei
+- aa96cb2e3244  # BAD_SENTENCE: Sentence has a fused headline artifact without spacing ('Treffpunkt RegensburgDie Klänge').
+- ad2e2a379bd7  # BAD_SENTENCE: Sentence contains trailing scraper artifact '- Yahoo!'.
+- ae568946d028  # BAD_SENTENCE: Contains the typo 'Mailling-Liste' instead of 'Mailing-Liste'.
+- c32748fef24c  # WRONG_UNIT: The verb is 'hausieren gehen mit +Dat' and the finite verb 'geht' is left outside the brackets.
+- dc281f610ee5  # WRONG_UNIT: The sentence uses the reflexive verb 'sich mitentwickeln', but the reflexive pronoun 'uns' is left
+- e0c2964ae150  # WRONG_GAPS: The separable verb prefix 'ein' is missing from the bracketed gaps.
+- e2e01c81b55c  # BAD_SENTENCE: The sentence is an incomplete fragment lacking a finite verb.
+- ef538d91f201  # WRONG_UNIT: 'mich' is the direct object of the transitive verb 'hineinziehen' under 'lassen', not an instance 
+- f0e869494d87  # WRONG_UNIT: "hinein" belongs to the temporal phrase "bis in den Juli 2021 hinein", while the verb is plain "fe
+# Review round gloss6b.
+- 10ae4e073938  # WRONG_UNIT: Passive construction of transitive 'jdn einem Test unterziehen' rather than the reflexive unit.
+- 1bdc2783a4ab  # WRONG_GAPS: The verb 'lassen' is part of the unit but left unbracketed.
+- 1f61ddb76fa6  # WRONG_UNIT: The sentence uses the subject noun phrase 'hohe Geschwindigkeiten' without the preposition 'mit'.
+- 38669701950c  # WRONG_UNIT: The sentence uses the direct object 'hohe Geschwindigkeit' without the preposition 'mit'.
+- 4eb9e982785b  # WRONG_UNIT: Passive construction of transitive 'etw. einem Test unterziehen' rather than reflexive 'sich unter
+- 531ed17003c8  # WRONG_UNIT: The sentence uses 'natürlicher Tod' as a noun phrase without the verb 'sterben'.
+- 55db295030a6  # WRONG_UNIT: The sentence uses the subject 'Die hohe Geschwindigkeit' without the preposition 'mit'.
+- 60012e59a4c0  # WRONG_GAPS: The verb 'lassen' is part of the unit but left unbracketed.
+- 62e292fa290a  # WRONG_UNIT: The sentence uses 'ein hohes Maß an', not the prepositional phrase 'in hohem Maße'.
+- 6b75497a31eb  # WRONG_UNIT: The sentence uses the genitive object 'keiner ärztlichen Behandlung', not the prepositional phrase
+- 714c83efaa9e  # WRONG_GAPS: The verb 'lässt' is part of the unit but left unbracketed.
+- 7237fe65b61b  # WRONG_GAPS: The verb 'ließen' is part of the unit but left unbracketed.
+- 770d62fb754f  # WRONG_UNIT: Transitive use 'etw. Tests unterziehen' rather than the reflexive unit.
+- 7ad649a7904d  # WRONG_UNIT: The sentence uses 'ausgehen von einem natürlichen Tod', omitting 'sterben'.
+- 8c7f70e515df  # BAD_SENTENCE: Headline fragment missing the definite article before 'Kirmessaison'.
+- a1fd7f3c9827  # WRONG_GAPS: The verb 'ziehen' belongs to the unit but is missing from the brackets.
+- a97025f92fe8  # WRONG_GAPS: The verb 'lassen' is part of the unit but left unbracketed.
+- d5745b9c7c1d  # BAD_SENTENCE: Contains a typo: 'Vollksko-Gesellschaft' instead of 'Vollkasko-Gesellschaft'.
+- dbb24cd2c6c1  # WRONG_GAPS: The verb 'lassen' is part of the unit but left unbracketed.
+- e42c54eb55fd  # WRONG_UNIT: The sentence uses non-reflexive 'einen Kampf liefern' without 'sich'.
+- f4b4061d4248  # WRONG_UNIT: Passive construction of transitive 'etw. Tests unterziehen' rather than the reflexive unit.
+# Review round gloss6c.
+- 1abd20bb458e  # BAD_SENTENCE: Grammatically incorrect sentence: singular count noun 'Verkaufsentscheidung' lacks an article or
+- 38ed5a030d3c  # WRONG_GAPS: The verb 'lassen' is part of the unit lemma but left unbracketed.
+- 39d4a8169e65  # WRONG_UNIT: The sentence uses the subject noun phrase 'die hohe Geschwindigkeit', not the prepositional phrase
+- 3b82660b259b  # WRONG_GAPS: The preposition 'mit' is part of the unit but left unbracketed.
+- 66027b7ee61c  # WRONG_GAPS: The unit tokens 'eines' and 'starb' are missing from the brackets.
+- 899a57432f99  # WRONG_GAPS: The verb form 'ließen' is part of the unit lemma but left unbracketed.
+- 97a98546f3c0  # WRONG_UNIT: The sentence uses plural 'hohe Geschwindigkeiten' without the preposition 'mit'.
+- 988e96bf7896  # WRONG_GAPS: The preposition 'in' belongs to the unit display but is left unbracketed.
+- 9f971629f363  # WRONG_UNIT: The sentence instantiates transitive 'etwas einem Test unterziehen' rather than reflexive 'sich ei
+- a0cc5e2f6df3  # WRONG_UNIT: The sentence uses 'ein hohes Maß an', not the fixed prepositional phrase 'in hohem Maße'.
+- a5834693b9d0  # WRONG_UNIT: The sentence instantiates transitive 'etwas einem Test unterziehen' rather than reflexive 'sich ei
+- b5df24ce3f88  # WRONG_GAPS: The unit tokens 'eines' and 'starb' are missing from the brackets.
+- c2eace424411  # WRONG_GAPS: The verb form 'lässt' is part of the unit lemma but left unbracketed.
+- d7946c607a3a  # WRONG_UNIT: The sentence is a passive construction of transitive 'etwas einem Test unterziehen' rather than re
+# Review round gloss6d.
+- 7f6c67bf9ea3  # WRONG_UNIT: 'hohe Geschwindigkeiten fahren' is the object, not the prepositional phrase 'mit hoher Geschwindig
+- dc483b3c6e46  # WRONG_UNIT: The sentence has the noun phrase 'natürlicher Tod' without 'sterben'.

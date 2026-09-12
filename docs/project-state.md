@@ -177,11 +177,16 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
 - **Partial answers stay wrong (owner's decision, 2026-09-12).** On a
   multi-gap phrase the worst gap rates the card: one wrong gap is "again".
   The feedback colours each gap so the learner sees which part failed.
+- **The translation backlog is closed, 2026-09-12.** `scripts/api_jobs.py`
+  runs the sentence glosses and the card review through the project's
+  client when the agent quota is spent (owner's allowance 2 USD, spent
+  0.50). Every sentence the deck wanted is glossed, every new card read,
+  Gemini's unread tail of the gloss review read; record in
+  `docs/audits/phase-1-review/README.md`. The 89 unit overrides whose
+  display carried "+Case" (shown as "+Dat +Dat") are split at load time.
 
 ## What is not built
 
-- **Gemini's second reading of 15,882 agent glosses** (Claude has read all
-  38,882; Gemini's quota ended at 23,000). First item in TODO.
 - **An installable icon flow on iOS** is untested; Android and desktop
   Chrome install from the page's manifest.
 - **Nothing else of phase 2**; `train merge <other.jsonl>` folds the page's

@@ -2284,3 +2284,12 @@
 # Review round gloss2c: units the reviewer rejected.
 - "ausgestoßen bei"  # BAD_UNIT: 'ausstoßen bei' is not a fixed prepositional verb and '+Dat +Dat' is a corrupted case specification.
 - "gegenüberwohnen"  # BAD_UNIT: 'gegenüberwohnen' is not a recognized German verb because 'gegenüber' functions as an adverb.
+# Review round gloss6: units the reviewer rejected.
+# Review round gloss2d: units the reviewer rejected.
+- "einmieten"  # BAD_UNIT: The verb in the sense of renting premises is inherently reflexive (sich einmieten).
+- "mitsitzen"  # BAD_UNIT: mitsitzen is not an established German verb; 'mit' in these sentences functions as an adverb.
+- "vorstehen als"  # BAD_UNIT: 'vorstehen als' is not a fixed verb-preposition combination; 'vorstehen' governs a dative object and
+- "zurückerhalten durch"  # BAD_UNIT: zurückerhalten does not govern a fixed prepositional complement with durch; durch is a generic instr
+# Review round gloss6b: units the reviewer rejected.
+# Review round gloss6c: units the reviewer rejected.
+# Review round gloss6d: units the reviewer rejected.

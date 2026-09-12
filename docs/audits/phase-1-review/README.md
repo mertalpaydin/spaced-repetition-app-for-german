@@ -345,14 +345,36 @@ read by hand, two dropped. Gemini's second run (medium effort, 63
 batches before the quota ended again) added 429 findings on cards Claude
 had passed; applied as round gloss2b.
 
+## The API rounds (12 September 2026)
+
+The agent quota stayed spent, so the last two jobs went through the
+project's own client (`scripts/api_jobs.py`, owner's allowance 2 USD,
+spent 0.50 USD). Gemini 3.5 Flash Lite glossed the 1,291 replacement
+sentences the deck still wanted (1,290 stored, one rejected for length,
+free lane, cost 0). The 1,306 cards those glosses created were read by
+Gemini 3.7 Flash as round gloss6: 87 findings, all cards dropped
+(39 wrong unit, 31 gaps, 15 sentences, 2 glosses). Gemini's unread tail
+of the gloss review (batches 180 to 187 of the current ordering, 1,600
+cards) went as round gloss2d: 36 findings, 22 cards and 5 units dropped,
+4 case overrides. The rebuilds' replacement cards were read twice more
+(gloss6b, 45 cards, 21 findings; gloss6c, 17 cards, 14 findings) and the
+last five by hand (gloss6d, two dropped).
+
+One systematic defect surfaced from the tail findings: 89 unit overrides
+carried the case in the display text ("abhängen von +Dat"), and the deck
+appends the case itself, so those units showed "+Dat +Dat". The override
+loader now splits the suffix into the case field; one unit dropped for
+that reason alone (`erschrocken über`) was restored.
+
+Deck `5af7c652fc34`: 7,452 units, 40,397 cards, 40,347 with a gloss.
+Every card that reaches a learner has been read by Claude, and every
+Gemini-glossed card by Gemini as well.
+
 ## What is still open
 
-- 3,200 agent-glossed cards (16 batches) have Claude's verdict on the
-  gloss only: Gemini's quota ran out twice. Its second run, at medium
-  effort, read 13,200 more cards and was a far better second reader (429
-  findings Claude had not made, mostly sentences and unit mismatches),
-  though still only 10 bad glosses against Claude's 189 on the first
-  23,000; on glosses the vendors do not corroborate each other.
+- Two unglossed replacement cards (`eines natürlichen Todes sterben`,
+  `mit hoher Geschwindigkeit`) were read by hand and are fine; they are
+  not shown until the monthly gloss job reaches them.
 - Nothing known: the last systematic gap defect (a complement preposition
   shown in the display but not blanked, `Wert legen auf`, `sich die Zähne
   ausbeißen an`) is fixed on 11 September 2026: the preposition is a gap

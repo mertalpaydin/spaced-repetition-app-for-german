@@ -9,7 +9,7 @@
 - {key: "abgeglichen mit", display: "abgleichen mit +Dat"}
 - {key: "abgeraten von", display: "abraten von +Dat"}
 - {key: "abgezogen von", case: "Dat", display: "abziehen von +Dat"}
-- {key: "abhingen von", display: "abhängen von +Dat"}
+- {key: "abhingen von", case: "Dat", display: "abhängen von +Dat"}
 - {key: "abhingen", display: "abhängen"}
 - {key: "abprallen nach", display: "abprallen von +Dat"}
 - {key: "abregen", display: "sich abregen"}
@@ -759,7 +759,7 @@
 - {key: "scheißdreck angehen", display: "jemanden einen Scheißdreck angehen"}
 - {key: "scheren über", display: "über einen Kamm scheren"}
 - {key: "schief bahn", display: "auf die schiefe Bahn geraten"}
-- {key: "schiefgelaufen bei", display: "schieflaufen bei +Dat"}
+- {key: "schiefgelaufen bei", case: "Dat", display: "schieflaufen bei +Dat"}
 - {key: "schlecht erziehung", cefr: "B1"}
 - {key: "schlecht manier", display: "schlechte Manieren"}
 - {key: "schlecht presse", cefr: "B1"}
