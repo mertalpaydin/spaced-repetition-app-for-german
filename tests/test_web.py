@@ -214,8 +214,10 @@ def render_replay_fixture() -> str:
             uid: {
                 "state": r.state,
                 "due": r.due.isoformat(),
-                "stability": r.stability,
-                "difficulty": r.difficulty,
+                # Rounded: libm's exp and pow differ in the last bit between
+                # Windows and Linux, and the JavaScript side compares at 1e-6.
+                "stability": round(r.stability or 0.0, 9),
+                "difficulty": round(r.difficulty or 0.0, 9),
                 "reps": r.reps,
                 "lapses": r.lapses,
                 "retrievability": engine.get_retrievability(r, now),

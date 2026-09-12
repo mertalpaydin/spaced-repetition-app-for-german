@@ -174,6 +174,9 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   paid overflow, approved by the owner for up to 2 USD. Results are in
   `data/phrases/unit_glosses.jsonl` (committed); the export joins them with
   " / " into `gloss_en`, curated glosses winning.
+- **Partial answers stay wrong (owner's decision, 2026-09-12).** On a
+  multi-gap phrase the worst gap rates the card: one wrong gap is "again".
+  The feedback colours each gap so the learner sees which part failed.
 
 ## What is not built
 
