@@ -116,6 +116,31 @@ never re-asks. The export stage joins the accepted renderings with " / "
 into `gloss_en`; curated glosses always win. First run 2026-09-12: 182
 calls, 7,245 units, approved by the owner for up to 2 USD.
 
+## Growing the deck (the recurring round)
+
+The Windows task "LLA monthly translation" (`run-monthly-translation.cmd`,
+owner's machine, daily) spends Azure's free allowance on the sentences the
+last build asked for in `build/wanted_carriers.txt`. It never rebuilds the
+deck: new cards are reviewed before they reach the learner. The rebuild is
+a manual round, every month or two:
+
+```bash
+uv run python scripts/build_phrase_deck.py --stage cards
+uv run python scripts/build_phrase_deck.py --stage export
+uv run python scripts/review_deck.py batches <dir> --card-batch 200
+uv run python scripts/api_jobs.py review <dir> --approved-by-owner
+uv run python scripts/review_deck.py apply <dir>/findings --round <label>
+uv run python scripts/build_phrase_deck.py --stage cards
+uv run python scripts/build_phrase_deck.py --stage export
+git add web/data/deck data/phrases docs/audits && git commit && git push
+```
+
+`batches` lists only cards no reviewer has read; if it lists none, stop
+after the first export. Repeat review, apply and rebuild until it lists
+nothing. Run `--stage mine` first when the store gained many sentences, so
+ranks and overrides refresh. Units keep their ids across rebuilds, so an
+existing review log keeps working.
+
 ## The API jobs (when the agent quota is spent)
 
 ```

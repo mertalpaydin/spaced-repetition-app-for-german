@@ -23,8 +23,9 @@ sentence; then the card has several gaps.
 
 Eight kinds of phrase are mined: verb + preposition, reflexive verb, separable
 verb, noun-verb and adjective-noun collocations, connectors, two-part
-connectors, and fixed expressions. 7,456 phrases, 40,471 cards, introduced
-most-frequent first.
+connectors, and fixed expressions. 7,452 phrases, 40,397 cards, introduced
+most-frequent first; every phrase shows its English after the answer, most
+common rendering first (`aussehen: to look / to appear`).
 
 ## What it looks like
 
@@ -57,10 +58,11 @@ translation (Azure Translator or Gemini) become cards; the corpus's own
 crowd translations are never shown. A sentence-initial connector (`Trotzdem
 …`) gets a one-sentence context so the connector is answerable.
 
-**The reviewer read every card.** The deck was reviewed sentence by
+**Two reviewers read every card.** The deck was reviewed sentence by
 sentence by two independent model reviewers under a zero-defect policy,
 and every systematic finding became a mining rule with a test; the record is
-in `docs/audits/phase-1-review/`.
+in `docs/audits/phase-1-review/`. New cards from a rebuild go through the
+same review before they are committed.
 
 **The page is the whole product.** `web/` is plain ES modules with no build
 step and no npm dependency. The FSRS-6 scheduler, the grader, the session
@@ -91,12 +93,14 @@ page deploys from the repository on every push.
 ```bash
 uv sync                                                   # Python deps and the German spaCy model
 uv run pytest -q                                          # the whole suite, no network, no key
-uv run python -m src.cli.serve                            # the page on http://localhost:8000
+uv run python -m src.cli.serve                            # the page on http://localhost:8765
 uv run python scripts/build_phrase_deck.py --stage all    # rebuild the deck (needs the corpora, see docs/phrase-deck.md)
 ```
 
 The terminal client (`uv run python -m src.cli.train practice`) runs the same
-engine on the same log format without a browser.
+engine on the same log format without a browser. Growing the deck (new
+translations, review, rebuild) is a manual round described in
+`docs/phrase-deck.md`.
 
 ## Where to read next
 
