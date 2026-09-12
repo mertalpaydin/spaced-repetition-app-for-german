@@ -39,6 +39,8 @@ THINKING_FLASH_LITE: str = "low"
 PURPOSE_SENTENCE_GENERATION: str = "sentence_generation"
 PURPOSE_PHRASE_CONTEXT: str = "phrase_context"
 PURPOSE_UNIT_GLOSS: str = "unit_gloss"
+PURPOSE_SENTENCE_GLOSS: str = "sentence_gloss"
+PURPOSE_DECK_REVIEW: str = "deck_review"
 
 # ==============================================================================
 # The phrase deck

@@ -116,6 +116,22 @@ never re-asks. The export stage joins the accepted renderings with " / "
 into `gloss_en`; curated glosses always win. First run 2026-09-12: 182
 calls, 7,245 units, approved by the owner for up to 2 USD.
 
+## The API jobs (when the agent quota is spent)
+
+```
+uv run python scripts/api_jobs.py glosses --approved-by-owner            # build/wanted_carriers.txt, 50 a call
+uv run python scripts/api_jobs.py review <batch-dir> --approved-by-owner  # the card batches review_deck.py wrote
+```
+
+The same two jobs through `src/llm/client.py`: sentence glosses on
+`gemini-3.5-flash-lite` into the translation store (`source="gemini"`,
+same shape checks as the agent job), and the card review on
+`gemini-3.7-flash`, writing `findings/<batch>.jsonl` in the shape
+`review_deck.py apply` reads. Free lane first, paid overflow, one cost-log
+row per call, and both refuse without `--approved-by-owner`. First used
+2026-09-12 under a 2 USD allowance: 1,290 glosses and 15 review batches
+for 0.46 USD.
+
 ## The agent jobs (no API spend)
 
 Since 2026-09-09 the context sentences and the glosses come from the Gemini
