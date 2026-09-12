@@ -718,3 +718,14 @@ def test_existential_gibt_and_tag_question_are_not_particles() -> None:
     )
     kept = _sep("Sie gibt das Buch raus.", "gibt", "raus", "rausgeben")
     assert canonical_occurrence(kept, None) is not None
+
+
+def test_unit_override_display_with_case_suffix_is_split_into_case() -> None:
+    from src.phrases.curated import UnitOverride
+
+    o = UnitOverride(key="abhingen von", display="abhängen von +Dat")
+    assert (o.display, o.case) == ("abhängen von", "Dat")
+    kept = UnitOverride(key="x", display="warten auf +Akk", case="Dat")
+    assert (kept.display, kept.case) == ("warten auf", "Dat")
+    plain = UnitOverride(key="y", display="nach Hause")
+    assert (plain.display, plain.case) == ("nach Hause", None)

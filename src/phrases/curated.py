@@ -6,11 +6,12 @@ units unconditionally, whatever the counts say, and a seed's case wins over
 the corpus tally (the disagreement is reported, never silently resolved).
 """
 
+import re
 from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.contracts import CEFR, Case
 
@@ -96,8 +97,17 @@ class CollocationSeed(BaseModel):
     gloss_en: str | None = None
 
 
+_CASE_SUFFIX_RE = re.compile(r"\s*\+(Akk|Dat|Gen)\s*$")
+
+
 class UnitOverride(BaseModel):
-    """A reviewer's correction to one unit: case, citation form, level."""
+    """A reviewer's correction to one unit: case, citation form, level.
+
+    Reviewers write the citation form the way the deck shows it, case
+    included ("abhängen von +Dat"); the deck appends the case itself, so a
+    display kept verbatim showed "+Dat +Dat". The suffix is split off into
+    ``case`` here, once, at load time.
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -106,6 +116,19 @@ class UnitOverride(BaseModel):
     display: str | None = None
     cefr: CEFR | None = None
     gloss_en: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _split_case_suffix(cls, data: object) -> object:
+        if not isinstance(data, dict) or not isinstance(data.get("display"), str):
+            return data
+        match = _CASE_SUFFIX_RE.search(data["display"])
+        if match is None:
+            return data
+        out = dict(data)
+        out["display"] = data["display"][: match.start()].rstrip()
+        out["case"] = data.get("case") or match.group(1)
+        return out
 
 
 class CuratedLists(BaseModel):
