@@ -38,6 +38,7 @@ THINKING_FLASH_LITE: str = "low"
 # literal.
 PURPOSE_SENTENCE_GENERATION: str = "sentence_generation"
 PURPOSE_PHRASE_CONTEXT: str = "phrase_context"
+PURPOSE_UNIT_GLOSS: str = "unit_gloss"
 
 # ==============================================================================
 # The phrase deck
@@ -222,6 +223,22 @@ class ContextRecord(BaseModel):
     sentence_de: str
     context_de: str | None = None
     context_en: str | None = None
+    accepted: bool
+    reject_reason: str | None = None
+    model: str
+    prompt_version: int
+    generated_at: datetime
+
+
+class UnitGlossRecord(BaseModel):
+    """One row of ``data/phrases/unit_glosses.jsonl``: the English of one
+    phrase unit, most common rendering first, or a rejection with why."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    unit_id: str
+    display_de: str
+    glosses: list[str] = Field(default_factory=list)
     accepted: bool
     reject_reason: str | None = None
     model: str

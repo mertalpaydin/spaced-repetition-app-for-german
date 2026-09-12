@@ -166,6 +166,15 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   deploys `feat/phrase-deck`. Pages must be set to deploy from GitHub
   Actions once, in the repository settings.
 
+- **Unit glosses for the mined units, 2026-09-12.** The learner saw
+  `aussehen` after answering with no English. A second opt-in model stage
+  (`--stage unit-glosses`, `src/phrases/unit_glosses.py`) asks
+  `gemini-3.5-flash-lite` for one to three renderings per unit, most common
+  first, one per sense, 40 units a call in rank order, free lane first with
+  paid overflow, approved by the owner for up to 2 USD. Results are in
+  `data/phrases/unit_glosses.jsonl` (committed); the export joins them with
+  " / " into `gloss_en`, curated glosses winning.
+
 ## What is not built
 
 - **Gemini's second reading of 15,882 agent glosses** (Claude has read all

@@ -98,6 +98,24 @@ and stores every result in `data/phrases/contexts.jsonl` (committed) so a
 re-run never re-asks. Without both flags it reports and does nothing. The
 owner approves each run in chat on top of the flag.
 
+## The unit glosses (opt-in, the second model stage)
+
+```
+uv run python scripts/build_phrase_deck.py --stage unit-glosses --generate-unit-glosses --approved-by-owner
+```
+
+Mined units have no English of their own until this stage asks
+`gemini-3.5-flash-lite` for one to three renderings per unit, most common
+first, one sense each when the phrase has several ("sich vorstellen: to
+imagine / to introduce oneself"). Units go in rank order, 40 per call, with
+the unit's shortest card sentence as an example; the free lane is used
+first and the paid lane takes the overflow. Replies are parsed strictly and
+checked for shape (empty, German echoed back, over 60 characters) and every
+result lands in `data/phrases/unit_glosses.jsonl` (committed) so a re-run
+never re-asks. The export stage joins the accepted renderings with " / "
+into `gloss_en`; curated glosses always win. First run 2026-09-12: 182
+calls, 7,245 units, approved by the owner for up to 2 USD.
+
 ## The agent jobs (no API spend)
 
 Since 2026-09-09 the context sentences and the glosses come from the Gemini

@@ -5,8 +5,10 @@ Stages, each idempotent over ``data/phrases/build/``:
     parse     read both corpora, parse once, write every phrase occurrence
     mine      aggregate occurrences into ranked units (thresholds, report)
     cards     pick glossed sentences per unit; list what to gloss next
-    contexts  OPT-IN, the one model stage: a preceding sentence for
-              sentence-initial connectors (free lane, needs approval)
+    contexts  OPT-IN model stage: a preceding sentence for sentence-initial
+              connectors (free lane, needs approval)
+    unit-glosses  OPT-IN model stage: English for the mined units, most
+              common rendering first (needs approval)
     export    write web/data/deck/ (manifest, units, shards) and the JSON schema
     all       parse, mine, cards, export (never contexts)
 
@@ -22,12 +24,13 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 from src.atomic_write import write_text_atomic
-from src.contracts import ContextRecord, PhraseCard, PhraseUnit
+from src.contracts import MODEL_GENERATE, ContextRecord, PhraseCard, PhraseUnit, UnitGlossRecord
 from src.lexicon.vocabulary import VocabularyStore
 from src.llm.env import FreeLaneKeyMissingError, client_from_env, load_env_file
 from src.phrases import cards as cards_module
 from src.phrases import carrier_validation
 from src.phrases import contexts as contexts_module
+from src.phrases import unit_glosses as glosses_module
 from src.phrases.curated import DEFAULT_PHRASES_DIR, load_curated
 from src.phrases.export import DEFAULT_DECK_DIR, check_deck, export_deck, write_schema
 from src.phrases.mining import LemmaCounts, detect_all
@@ -65,7 +68,7 @@ DEFAULT_EXTRA_CORPORA: tuple[tuple[str, str], ...] = (
 )
 DEFAULT_LIMIT = 2_000_000
 DEFAULT_SEED = 7
-STAGES = ("parse", "mine", "cards", "contexts", "export", "all")
+STAGES = ("parse", "mine", "cards", "contexts", "unit-glosses", "export", "all")
 
 
 def _log(message: str) -> None:
@@ -320,6 +323,54 @@ def stage_contexts(args: argparse.Namespace) -> int:
     return 0
 
 
+# -- unit glosses --------------------------------------------------------------
+
+
+def stage_unit_glosses(args: argparse.Namespace) -> int:
+    build_dir: Path = args.build_dir
+    units = _read_units(build_dir / "units.jsonl")
+    cards = _read_cards(build_dir / "cards.jsonl") if (build_dir / "cards.jsonl").exists() else []
+    existing = glosses_module.load_records(args.unit_glosses)
+    todo = [u for u in glosses_module.units_needing_gloss(units) if u.unit_id not in existing]
+    batches = -(-len(todo) // args.gloss_batch_size)
+    _log(f"unit-glosses: {len(existing)} stored, {len(todo)} unit(s) still need one")
+    if not args.generate_unit_glosses:
+        _log("unit-glosses: nothing generated (pass --generate-unit-glosses to spend)")
+        return 0
+    if not todo:
+        return 0
+    if not args.approved_by_owner:
+        _log(
+            f"unit-glosses: REFUSED. {min(batches, args.max_gloss_calls)} call(s) of "
+            f"{args.gloss_batch_size} units on {MODEL_GENERATE} (free lane first, paid "
+            "overflow) need --approved-by-owner and the owner's say-so in chat."
+        )
+        return 2
+    load_env_file()
+    client = client_from_env()
+    if client is None:
+        _log("unit-glosses: no Gemini key configured")
+        return 2
+    produced: list[UnitGlossRecord] = []
+    try:
+        produced = glosses_module.generate_unit_glosses(
+            units,
+            cards,
+            client=client,
+            existing=existing,
+            approved=True,
+            max_calls=args.max_gloss_calls,
+            batch_size=args.gloss_batch_size,
+        )
+    finally:
+        if produced:
+            merged = {**existing, **{r.unit_id: r for r in produced}}
+            glosses_module.save_records(merged.values(), args.unit_glosses)
+    accepted = sum(1 for r in produced if r.accepted)
+    _log(f"unit-glosses: {len(produced)} generated, {accepted} accepted")
+    return 0
+
+
 # -- export --------------------------------------------------------------------
 
 
@@ -329,6 +380,7 @@ def stage_export(args: argparse.Namespace) -> int:
     cards = _read_cards(build_dir / "cards.jsonl") if (build_dir / "cards.jsonl").exists() else []
     cards = contexts_module.apply_contexts(cards, contexts_module.load_records(args.contexts))
     units = cards_module.with_card_counts(units, cards)
+    units = glosses_module.apply_unit_glosses(units, glosses_module.load_records(args.unit_glosses))
     corpus: dict[str, int] = {}
     stats_path = build_dir / "parse_stats.json"
     if stats_path.exists():
@@ -385,6 +437,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--generate-contexts", action="store_true")
     parser.add_argument("--approved-by-owner", action="store_true")
     parser.add_argument("--max-context-calls", type=int, default=100)
+    parser.add_argument(
+        "--unit-glosses", type=Path, default=glosses_module.DEFAULT_UNIT_GLOSSES_PATH
+    )
+    parser.add_argument("--generate-unit-glosses", action="store_true")
+    parser.add_argument("--max-gloss-calls", type=int, default=250)
+    parser.add_argument("--gloss-batch-size", type=int, default=glosses_module.DEFAULT_BATCH_SIZE)
     return parser
 
 
@@ -402,6 +460,7 @@ def main(argv: list[str] | None = None) -> int:
         "mine": stage_mine,
         "cards": stage_cards,
         "contexts": stage_contexts,
+        "unit-glosses": stage_unit_glosses,
         "export": stage_export,
     }
     try:
