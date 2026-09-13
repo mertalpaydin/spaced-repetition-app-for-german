@@ -94,20 +94,28 @@ export function gradeText(userInput, acceptedAnswers) {
 
 const SEVERITY = { revealed: 5, wrong: 4, case: 3, typo: 2, translit: 1, exact: 0 };
 
-export function acceptedForms(card, i) {
+// `alternatives` are the unit's accepted near-synonyms ("deswegen" for
+// "deshalb"); single-gap cards only, capitalised like the answer.
+export function acceptedForms(card, i, alternatives = []) {
   const gap = card.gaps[i];
   const forms = [gap.answer];
   const first = gap.answer.slice(0, 1), second = gap.answer.slice(1, 2);
-  if (gap.start === 0 && first !== first.toLowerCase() && second === second.toLowerCase()) {
-    forms.push(first.toLowerCase() + gap.answer.slice(1));
+  const initial = gap.start === 0 && first !== first.toLowerCase() && second === second.toLowerCase();
+  if (initial) forms.push(first.toLowerCase() + gap.answer.slice(1));
+  if (card.gaps.length === 1) {
+    for (const alt of alternatives) {
+      if (alt.toLowerCase() === gap.answer.toLowerCase()) continue;
+      forms.push(alt);
+      if (initial) forms.push(alt.slice(0, 1).toUpperCase() + alt.slice(1));
+    }
   }
   return forms;
 }
 
-export function gradeGap(card, i, typed) {
+export function gradeGap(card, i, typed, alternatives = []) {
   const expected = card.gaps[i].answer;
   if (typed === null || typed === undefined) return { expected, typed: "", outcome: "revealed", accepted: false };
-  const r = gradeText(typed, acceptedForms(card, i));
+  const r = gradeText(typed, acceptedForms(card, i, alternatives));
   let outcome;
   if (r.is_correct && r.is_exact) outcome = "exact";
   else if (r.is_correct && r.is_transliteration) outcome = "translit";
@@ -117,9 +125,9 @@ export function gradeGap(card, i, typed) {
   return { expected, typed, outcome, accepted: r.is_correct };
 }
 
-export function gradeCard(card, typed) {
+export function gradeCard(card, typed, alternatives = []) {
   if (typed.length !== card.gaps.length) throw new Error(`${card.gaps.length} gaps, ${typed.length} answers`);
-  const gaps = typed.map((t, i) => gradeGap(card, i, t));
+  const gaps = typed.map((t, i) => gradeGap(card, i, t, alternatives));
   const worst = gaps.reduce((w, g) => (SEVERITY[g.outcome] > SEVERITY[w.outcome] ? g : w), gaps[0]);
   const rating = worst.outcome === "exact" || worst.outcome === "translit" ? "good" : worst.outcome === "typo" ? "hard" : "again";
   return { gaps, outcome: worst.outcome, rating };

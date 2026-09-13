@@ -143,18 +143,20 @@ def next_unit(
 def units_by_stage(
     deck: Deck, state: LearnerState, now: datetime
 ) -> dict[str, list[tuple[PhraseUnit, datetime | None]]]:
-    """Every unit the log knows, grouped: known, learning, young, mature; each
-    with its next due time (``None`` for known)."""
+    """Every unit the log knows, grouped: known, deferred, learning, young,
+    mature; each with its next due time (``None`` for known and deferred)."""
     by_id = deck.by_id
     groups: dict[str, list[tuple[PhraseUnit, datetime | None]]] = {
         "known": [],
+        "deferred": [],
         "learning": [],
         "young": [],
         "mature": [],
     }
     for unit_id in state.known:
         if unit_id in by_id:
-            groups["known"].append((by_id[unit_id], None))
+            stage = "deferred" if state.known_source.get(unit_id) == "defer" else "known"
+            groups[stage].append((by_id[unit_id], None))
     for unit_id, record in state.records.items():
         unit = by_id.get(unit_id)
         if unit is None or unit_id in state.known:
@@ -170,6 +172,11 @@ def units_by_stage(
     return groups
 
 
+def is_praeteritum(card: PhraseCard) -> bool:
+    """A finite past-tense form in the gaps (``form_key`` ``Fin|Past|...``)."""
+    return card.form_key.startswith("Fin|Past")
+
+
 def pick_card(
     deck: Deck, unit: PhraseUnit, state: LearnerState, choose: Callable[[int], int] | None = None
 ) -> PhraseCard | None:
@@ -177,6 +184,12 @@ def pick_card(
     ``choose(n)`` picks an index in ``range(n)``; the default is the card
     after the last one, so a session walks the surface forms in order."""
     cards = showable_cards(deck.cards_by_unit.get(unit.unit_id, []))
+    record = state.records.get(unit.unit_id)
+    if record is None or record.state != "review":
+        # Präteritum is a B1 form; a unit still being learnt is shown in the
+        # present, the perfect and the infinitive first (feedback 2026-09-13).
+        easier = [c for c in cards if not is_praeteritum(c)]
+        cards = easier or cards
     if not cards:
         return None
     if len(cards) == 1:

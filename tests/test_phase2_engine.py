@@ -409,3 +409,76 @@ def test_merge_appends_only_the_other_devices_new_entries(tmp_path: Path) -> Non
     assert [e.seq for e in client.log.entries] == [1, 2, 3]
     assert "2 Einträge" in out[0] and "0 Einträge" in out[1]
     assert client.state().records["vp:warten_auf"].reps == 1
+
+
+# -- feedback of 2026-09-13 ------------------------------------------------------
+
+
+def test_pick_card_keeps_praeteritum_until_the_unit_is_in_review() -> None:
+    deck = _deck()
+    deck.cards_by_unit["vp:warten_auf"] = [
+        _card(
+            "p10000000000",
+            "vp:warten_auf",
+            "Er wartete auf den Bus.",
+            ["wartete", "auf"],
+            form_key="Fin|Past|3|Sing",
+        ),
+        _card(
+            "w20000000000",
+            "vp:warten_auf",
+            "Wir warten auf dich.",
+            ["warten", "auf"],
+            form_key="Fin|Pres|1|Plur",
+        ),
+    ]
+    engine = FSRSEngine()
+    unit = deck.by_id["vp:warten_auf"]
+    state = derive_state([], engine)
+    assert pick_card(deck, unit, state).card_id == "w20000000000"
+    state.last_card["vp:warten_auf"] = "w20000000000"
+    assert pick_card(deck, unit, state).card_id == "w20000000000"  # never the past form yet
+    review = ReviewEntry(
+        seq=1,
+        ts=T0,
+        unit_id="vp:warten_auf",
+        card_id="w20000000000",
+        rating="good",
+        outcome="exact",
+        answers=["warten", "auf"],
+        expected=["warten", "auf"],
+        elapsed_ms=1,
+        deck_version="t",
+    )
+    good_twice = [review, review.model_copy(update={"seq": 2, "ts": T0 + timedelta(minutes=11)})]
+    state = derive_state(good_twice, engine)
+    assert state.records["vp:warten_auf"].state == "review"
+    assert pick_card(deck, unit, state).card_id == "p10000000000"
+
+
+def test_near_synonyms_are_accepted_in_single_gap_cards_only() -> None:
+    card = _card("d10000000000", "cn:deshalb", "Deshalb kam er.", ["Deshalb"])
+    for typed in ("deswegen", "Deswegen", "daher"):
+        grade = grade_card(card, [typed], alternatives=["deswegen", "daher"])
+        assert grade.rating == "good" and grade.gaps[0].accepted, typed
+    assert grade_card(card, ["darum"], alternatives=["deswegen"]).rating == "again"
+    two = _card("w10000000000", "vp:warten_auf", "Er wartet auf den Bus.", ["wartet", "auf"])
+    assert grade_card(two, ["hofft", "auf"], alternatives=["hofft"]).rating == "again"
+
+
+def test_deferred_units_are_skipped_and_listed_apart_until_relearned() -> None:
+    from src.engine.session import units_by_stage
+
+    deck = _deck()
+    engine = FSRSEngine()
+    defer = MarkEntry(seq=1, ts=T0, unit_id="vp:warten_auf", known=True, source="defer")
+    state = derive_state([defer], engine)
+    assert next_unit(deck, state, engine, Settings(), T0).unit_id == "cn:trotzdem"
+    groups = units_by_stage(deck, state, T0)
+    assert [u.unit_id for u, _ in groups["deferred"]] == ["vp:warten_auf"] and groups["known"] == []
+    back = MarkEntry(
+        seq=2, ts=T0 + timedelta(hours=1), unit_id="vp:warten_auf", known=False, source="practice"
+    )
+    state = derive_state([defer, back], engine)
+    assert next_unit(deck, state, engine, Settings(), T0).unit_id == "vp:warten_auf"
+    assert units_by_stage(deck, state, T0)["deferred"] == []

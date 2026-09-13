@@ -313,6 +313,13 @@
         "additionalProperties": false,
         "description": "A phrase the deck teaches. What FSRS schedules.",
         "properties": {
+          "also_accepted": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Also Accepted",
+            "type": "array"
+          },
           "card_count": {
             "minimum": 0,
             "title": "Card Count",
@@ -514,6 +521,13 @@
         "additionalProperties": false,
         "description": "A phrase the deck teaches. What FSRS schedules.",
         "properties": {
+          "also_accepted": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Also Accepted",
+            "type": "array"
+          },
           "card_count": {
             "minimum": 0,
             "title": "Card Count",

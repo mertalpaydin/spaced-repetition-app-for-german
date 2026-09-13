@@ -9,6 +9,7 @@ the tested morpheme is the whole token, so an edit in the last two letters
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from src.contracts import PhraseCard, ReviewOutcome, ReviewRating
@@ -45,22 +46,36 @@ _SEVERITY: dict[ReviewOutcome, int] = {
 }
 
 
-def accepted_forms(card: PhraseCard, gap_index: int) -> list[str]:
+def accepted_forms(card: PhraseCard, gap_index: int, alternatives: Sequence[str] = ()) -> list[str]:
     """The gap's answer, plus its lower-cased form when the gap opens the
     sentence: a connector typed as "trotzdem" for "Trotzdem" is right, the
-    capital belongs to the sentence, not the word."""
+    capital belongs to the sentence, not the word. ``alternatives`` are the
+    unit's accepted near-synonyms ("deswegen" for "deshalb"); they apply to
+    single-gap cards only, capitalised like the answer."""
     gap = card.gaps[gap_index]
     forms = [gap.answer]
-    if gap.start == 0 and gap.answer[:1].isupper() and not gap.answer[1:2].isupper():
+    initial = gap.start == 0 and gap.answer[:1].isupper() and not gap.answer[1:2].isupper()
+    if initial:
         forms.append(gap.answer[:1].lower() + gap.answer[1:])
+    if len(card.gaps) == 1:
+        for alt in alternatives:
+            if alt.lower() == gap.answer.lower():
+                continue
+            forms.append(alt)
+            if initial:
+                forms.append(alt[:1].upper() + alt[1:])
     return forms
 
 
-def grade_gap(card: PhraseCard, gap_index: int, typed: str | None) -> GapGrade:
+def grade_gap(
+    card: PhraseCard, gap_index: int, typed: str | None, alternatives: Sequence[str] = ()
+) -> GapGrade:
     expected = card.gaps[gap_index].answer
     if typed is None:
         return GapGrade(expected=expected, typed="", outcome="revealed", accepted=False)
-    result = ScopedTypoGrader.grade(typed, accepted_forms(card, gap_index), topic_id=None)
+    result = ScopedTypoGrader.grade(
+        typed, accepted_forms(card, gap_index, alternatives), topic_id=None
+    )
     if result.is_correct and result.is_exact:
         outcome: ReviewOutcome = "exact"
     elif result.is_correct and result.is_transliteration:
@@ -74,11 +89,13 @@ def grade_gap(card: PhraseCard, gap_index: int, typed: str | None) -> GapGrade:
     return GapGrade(expected=expected, typed=typed, outcome=outcome, accepted=result.is_correct)
 
 
-def grade_card(card: PhraseCard, typed: list[str | None]) -> CardGrade:
+def grade_card(
+    card: PhraseCard, typed: list[str | None], alternatives: Sequence[str] = ()
+) -> CardGrade:
     """``typed`` has one entry per gap; ``None`` means the learner revealed it."""
     if len(typed) != len(card.gaps):
         raise ValueError(f"{len(card.gaps)} gaps, {len(typed)} answers")
-    gaps = [grade_gap(card, i, t) for i, t in enumerate(typed)]
+    gaps = [grade_gap(card, i, t, alternatives) for i, t in enumerate(typed)]
     worst = max(gaps, key=lambda g: _SEVERITY[g.outcome])
     if worst.outcome in {"exact", "translit"}:
         rating: ReviewRating = "good"

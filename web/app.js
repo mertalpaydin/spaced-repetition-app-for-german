@@ -154,12 +154,24 @@ function loadCard() {
   answered = false;
   $("feedback").hidden = true;
   $("btn-next").hidden = true;
-  ["btn-check", "btn-reveal", "btn-known"].forEach((id) => { $(id).hidden = false; });
+  ["btn-check", "btn-reveal", "btn-known", "btn-defer"].forEach((id) => { $(id).hidden = false; });
   renderToday();
   const t = now();
   let unit = nextUnit(deck, state, engine, settings, t, { overLimit });
-  if (unit === null && !overLimit && budgetLeft(state, settings, t) === 0) {
-    if (nextUnit(deck, state, engine, settings, t, { overLimit: true })) { showPanel("limit"); return; }
+  if (!overLimit && budgetLeft(state, settings, t) === 0) {
+    // The day's budget is spent: stop and ask, unless the unit is mid
+    // learning-step and due (finishing it is not new work).
+    const record = unit ? state.records[unit.unit_id] : null;
+    const midStep = record && record.state !== "review" && new Date(record.due) <= t;
+    const more = unit || nextUnit(deck, state, engine, settings, t, { overLimit: true });
+    if (more && !midStep) {
+      const due = dueUnits(deck, state, engine, t, 0).length;
+      $("limit-text").textContent = due
+        ? `Tagesziel erreicht (${settings.cardsPerDay} Karten). ${due} Einheit${due === 1 ? " ist" : "en sind"} noch fällig.`
+        : `Tagesziel erreicht (${settings.cardsPerDay} Karten). Nichts ist mehr fällig; neue Einheiten kommen morgen.`;
+      showPanel("limit");
+      return;
+    }
   }
   const card = unit ? pickCard(deck, unit, state) : null;
   if (!unit || !card) { showPanel("empty"); return; }
@@ -170,6 +182,10 @@ function loadCard() {
   $("context-en").textContent = card.context_en || "";
   $("context-en").hidden = !card.context_en;
   $("gloss").textContent = card.gloss_en || "";
+  // The phrase's own English is shown before the answer (owner's decision,
+  // 2026-09-13): the sentence gloss alone did not always pin the phrase.
+  $("hint").textContent = unit.gloss_en ? `Gesucht: ${unit.gloss_en}` : "";
+  $("hint").hidden = !unit.gloss_en;
   renderSentence(card);
   startedAt = performance.now();
   const first = $("sentence").querySelector("input");
@@ -185,7 +201,7 @@ async function check(reveal = false) {
   answered = true;
   const typed = typedValues(reveal);
   const { card, unit } = current;
-  const result = gradeCard(card, typed);
+  const result = gradeCard(card, typed, unit.also_accepted || []);
   await record(makeReview(entries, {
     unit_id: unit.unit_id, card_id: card.card_id, rating: result.rating, outcome: result.outcome,
     answers: result.gaps.map((g) => g.typed), expected: result.gaps.map((g) => g.expected),
@@ -203,12 +219,14 @@ async function check(reveal = false) {
   const verdict = { good: "Richtig", hard: "Richtig, mit Tippfehler", again: "Falsch" }[result.rating];
   const wrong = result.gaps.filter((g) => !g.accepted || g.outcome === "typo")
     .map((g) => `${g.typed || "(gezeigt)"} → ${g.expected}`).join(", ");
+  const synonym = result.gaps.filter((g) => g.accepted && g.typed.toLowerCase() !== g.expected.toLowerCase()
+    && g.outcome !== "typo").map((g) => `${g.typed} gilt auch; im Satz: ${g.expected}`).join(", ");
   const u = unitPayload(unit);
-  fb.innerHTML = `<div>${verdict}${wrong ? ": " + escapeHtml(wrong) : ""}</div>` +
+  fb.innerHTML = `<div>${verdict}${wrong ? ": " + escapeHtml(wrong) : ""}${synonym ? " (" + escapeHtml(synonym) + ")" : ""}</div>` +
     `<div class="unit">${escapeHtml(u.display)}` +
     (u.gloss ? ` <span class="muted">= ${escapeHtml(u.gloss)}</span>` : "") + `</div>`;
   fb.hidden = false;
-  ["btn-check", "btn-reveal", "btn-known"].forEach((id) => { $(id).hidden = true; });
+  ["btn-check", "btn-reveal", "btn-known", "btn-defer"].forEach((id) => { $(id).hidden = true; });
   $("btn-next").hidden = false;
   $("btn-next").focus();
   renderToday();
@@ -218,6 +236,17 @@ async function markKnown() {
   if (!current) return;
   await record(makeMark(entries, current.unit.unit_id, true, "practice", now()));
   loadCard();
+}
+
+async function defer() {
+  if (!current) return;
+  await record(makeMark(entries, current.unit.unit_id, true, "defer", now()));
+  loadCard();
+}
+
+async function relearn(unitId) {
+  await record(makeMark(entries, unitId, false, "practice", now()));
+  loadUnits();
 }
 
 function nextCard() { loadCard(); }
@@ -243,6 +272,7 @@ function showHistory() {
 $("btn-check").addEventListener("click", () => check(false));
 $("btn-reveal").addEventListener("click", () => check(true));
 $("btn-known").addEventListener("click", markKnown);
+$("btn-defer").addEventListener("click", defer);
 $("btn-next").addEventListener("click", nextCard);
 $("btn-prev").addEventListener("click", showHistory);
 $("btn-prev-2").addEventListener("click", showHistory);
@@ -304,14 +334,16 @@ function fmtDue(iso) {
 
 function loadUnits() {
   const g = unitsByStage(deck, state, now().toISOString());
-  const section = (title, items, withDue) =>
+  const section = (title, items, withDue, relearnable = false) =>
     `<h3>${title} (${items.length})</h3>` + (items.length
       ? `<table>${items.map(([unit, due]) => { const u = unitPayload(unit); return `<tr><td>${escapeHtml(u.display)}${u.gloss ? ` <span class="muted">${escapeHtml(u.gloss)}</span>` : ""}</td>` +
-        `<td class="num muted">${withDue ? fmtDue(due) : ""}</td></tr>`; }).join("")}</table>`
+        `<td class="num muted">${withDue ? fmtDue(due) : relearnable ? `<button class="small" data-relearn="${escapeHtml(u.unit_id)}">Wieder lernen</button>` : ""}</td></tr>`; }).join("")}</table>`
       : `<p class="muted">–</p>`);
   $("units").innerHTML =
     section("Lernend", g.learning, true) + section("Jung", g.young, true) +
-    section("Reif", g.mature, true) + section("Bekannt", g.known, false);
+    section("Reif", g.mature, true) + section("Zurückgestellt", g.deferred, false, true) +
+    section("Bekannt", g.known, false, true);
+  $("units").querySelectorAll("button[data-relearn]").forEach((b) => b.addEventListener("click", () => relearn(b.dataset.relearn)));
 }
 
 // -- stats --------------------------------------------------------------------

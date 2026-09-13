@@ -3,7 +3,7 @@
 // the page reports, so a new deck build replaces the old shards and an old
 // one never lingers. Everything else (the GitHub API) goes to the network.
 
-const APP_VERSION = "3b.3";
+const APP_VERSION = "3b.4";
 const SHELL_CACHE = `app-${APP_VERSION}`;
 const SHELL = [
   "./",

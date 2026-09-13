@@ -61,8 +61,18 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
   return ahead.length ? ahead[0] : null;
 }
 
+// A finite past-tense form in the gaps: Präteritum is a B1 form, so a unit
+// still being learnt is shown in the present, the perfect and the infinitive
+// first (feedback 2026-09-13). Matches src/engine/session.py.
+export function isPraeteritum(card) { return (card.form_key || "").startsWith("Fin|Past"); }
+
 export function pickCard(deck, unit, state) {
-  const cards = showableCards(deck.cardsByUnit[unit.unit_id] || []);
+  let cards = showableCards(deck.cardsByUnit[unit.unit_id] || []);
+  const record = state.records[unit.unit_id];
+  if (!record || record.state !== "review") {
+    const easier = cards.filter((c) => !isPraeteritum(c));
+    cards = easier.length ? easier : cards;
+  }
   if (!cards.length) return null;
   if (cards.length === 1) return cards[0];
   const last = state.lastCard[unit.unit_id];
@@ -75,8 +85,11 @@ export function untriagedUnits(deck, state) {
 }
 
 export function unitsByStage(deck, state, now) {
-  const groups = { known: [], learning: [], young: [], mature: [] };
-  for (const id of state.known) if (deck.byId[id]) groups.known.push([deck.byId[id], null]);
+  const groups = { known: [], deferred: [], learning: [], young: [], mature: [] };
+  for (const id of state.known) {
+    if (!deck.byId[id]) continue;
+    groups[state.knownSource[id] === "defer" ? "deferred" : "known"].push([deck.byId[id], null]);
+  }
   for (const [id, r] of Object.entries(state.records)) {
     const unit = deck.byId[id];
     if (!unit || state.known.has(id)) continue;

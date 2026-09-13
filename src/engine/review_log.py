@@ -126,6 +126,9 @@ class LearnerState:
     records: dict[str, FSRSRecord] = field(default_factory=dict)
     #: Units the learner marked known (the latest mark wins).
     known: set[str] = field(default_factory=set)
+    #: Where the latest known-mark came from: "triage", "practice" or "defer"
+    #: ("Später": parked as too hard for now, listed apart from the known).
+    known_source: dict[str, str] = field(default_factory=dict)
     #: Units the learner has passed judgement on in triage, known or not.
     triaged: set[str] = field(default_factory=set)
     #: The card shown last per unit, so the next review rotates.
@@ -149,8 +152,10 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
             state.triaged.add(entry.unit_id)
             if entry.known:
                 state.known.add(entry.unit_id)
+                state.known_source[entry.unit_id] = entry.source
             else:
                 state.known.discard(entry.unit_id)
+                state.known_source.pop(entry.unit_id, None)
             continue
         record = state.records.get(entry.unit_id) or FSRSRecord(card_id=entry.unit_id, due=entry.ts)
         state.records[entry.unit_id] = engine.schedule_review(record, entry.rating, now=entry.ts)

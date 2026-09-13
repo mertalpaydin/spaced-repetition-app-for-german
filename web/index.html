@@ -35,12 +35,14 @@
         <p id="sentence" class="line sentence"></p>
         <p id="context-en" class="line gloss"></p>
         <p id="gloss" class="line gloss"></p>
+        <p id="hint" class="line hint"></p>
         <div id="feedback" class="feedback" hidden></div>
         <div class="actions">
           <button id="btn-prev" title="letzte Antworten">◀</button>
           <button id="btn-check" class="primary">Prüfen</button>
           <button id="btn-reveal">Zeigen</button>
           <button id="btn-known">Kannte ich schon</button>
+          <button id="btn-defer" title="zu schwer für jetzt; unter Einheiten wieder aufnehmen">Später</button>
           <button id="btn-next" class="primary" hidden>Weiter ▶</button>
         </div>
         <div class="umlauts">
@@ -48,7 +50,7 @@
         </div>
       </div>
       <div id="practice-limit" class="card" hidden>
-        <p>Tagesziel erreicht. Nichts ist mehr fällig; neue Einheiten kommen sonst morgen.</p>
+        <p id="limit-text">Tagesziel erreicht.</p>
         <div class="actions">
           <button id="btn-more" class="primary">Trotzdem weiter</button>
           <button id="btn-prev-2">◀ letzte Antworten</button>

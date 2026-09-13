@@ -184,6 +184,18 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   Gemini's unread tail of the gloss review read; record in
   `docs/audits/phase-1-review/README.md`. The 89 unit overrides whose
   display carried "+Case" (shown as "+Dat +Dat") are split at load time.
+- **Second feedback round, 2026-09-13.** Präteritum cards (16% of the
+  deck) are held back until a unit is in review state, on both engines;
+  the phrase's English is shown before the answer ("Gesucht: …", rule 2
+  reworded); the day's budget now stops the session even when cards are
+  due, except mid learning step; connectors that translate alike accept
+  each other (`also_accepted` on the curated list, `deshalb`/`deswegen`/
+  `daher`/`darum`, `trotzdem`/`dennoch`, `außerdem`/`zudem`,
+  `jedoch`/`allerdings`), rated correct with the sentence's own word shown;
+  and "Später" parks a unit (a mark with source `defer`, additive to the
+  log format) until "Wieder lernen" under Einheiten brings it back. The
+  ranking residue the owner noticed is real: units introduced before the
+  reweighting of 2026-09-11 stay in the log; "Später" is the way out.
 
 ## What is not built
 

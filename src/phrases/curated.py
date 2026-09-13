@@ -43,6 +43,8 @@ class ConnectorSpec(BaseModel):
     display: str | None = None
     needs_context_when_initial: bool = False
     trivial: bool = False
+    #: Near-synonyms the grader accepts in this connector's gap.
+    also_accepted: list[str] = Field(default_factory=list)
 
     def part(self) -> ConnectorPart:
         if self.forms is None:

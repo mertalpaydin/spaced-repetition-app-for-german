@@ -786,6 +786,7 @@ class _Decision:
     trivial: bool = False
     trivial_reason: str | None = None
     score: float = 0.0
+    also_accepted: tuple[str, ...] = ()
 
 
 class UnitBuilder:
@@ -1010,6 +1011,7 @@ class UnitBuilder:
                 True,
                 cefr=spec.cefr,
                 gloss_en=spec.gloss_en,
+                also_accepted=tuple(spec.also_accepted),
                 display=spec.display,
                 source="curated",
                 trivial=spec.trivial,
@@ -1204,6 +1206,7 @@ class UnitBuilder:
                     count_by_source=dict(sorted(s.count_by_source.items())),
                     per_million=round(self._per_million(s), 3),
                     rank=rank,
+                    also_accepted=list(d.also_accepted),
                     trivial=trivial,
                     trivial_reason=reason,
                     source=d.source,  # type: ignore[arg-type]

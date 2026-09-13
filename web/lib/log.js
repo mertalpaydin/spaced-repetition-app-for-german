@@ -44,13 +44,14 @@ export function toJsonl(entries) {
 
 export function deriveState(entries, engine) {
   const state = {
-    records: {}, known: new Set(), triaged: new Set(), lastCard: {}, ratings: {},
+    records: {}, known: new Set(), knownSource: {}, triaged: new Set(), lastCard: {}, ratings: {},
     firstReview: {}, reviewTimes: [], lastUnit: null,
   };
   for (const e of sortEntries(entries)) {
     if (e.type === "mark") {
       state.triaged.add(e.unit_id);
-      if (e.known) state.known.add(e.unit_id); else state.known.delete(e.unit_id);
+      if (e.known) { state.known.add(e.unit_id); state.knownSource[e.unit_id] = e.source; }
+      else { state.known.delete(e.unit_id); delete state.knownSource[e.unit_id]; }
       continue;
     }
     const record = state.records[e.unit_id] || newRecord(e.unit_id, e.ts);

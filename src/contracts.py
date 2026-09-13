@@ -120,6 +120,9 @@ class PhraseUnit(BaseModel):
     #: Unit-level English, curated lists only. Mined units have none until an
     #: opt-in gloss run adds them.
     gloss_en: str | None = None
+    #: Near-synonyms accepted in this unit's gaps and rated as correct
+    #: ("deswegen" for "deshalb"): curated, single-token connectors only.
+    also_accepted: list[str] = Field(default_factory=list)
     #: Distinct corpus sentences containing the unit, all corpora together.
     sentence_count: int = Field(ge=0)
     count_by_source: dict[str, int] = Field(default_factory=dict)
@@ -335,7 +338,9 @@ class ReviewEntry(BaseModel):
 class MarkEntry(BaseModel):
     """The learner marked a unit known (``known=True``, skipped by the
     scheduler) or unmarked it. ``source`` says where: the one-time triage, or
-    the "Kannte ich schon" button in practice."""
+    the "Kannte ich schon" button in practice, or "Später" (``defer``), which
+    parks a unit the learner finds too hard for now; ``known=False`` from any
+    source brings it back."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -344,7 +349,7 @@ class MarkEntry(BaseModel):
     ts: datetime
     unit_id: str
     known: bool
-    source: Literal["triage", "practice"]
+    source: Literal["triage", "practice", "defer"]
 
 
 LogEntry = ReviewEntry | MarkEntry

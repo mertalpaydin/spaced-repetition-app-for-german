@@ -58,6 +58,7 @@ def _unit_payload(unit: PhraseUnit) -> dict[str, Any]:
         "rank": unit.rank,
         "cefr": unit.cefr,
         "gloss": unit.gloss_en,
+        "also_accepted": list(unit.also_accepted),
     }
 
 
@@ -122,6 +123,13 @@ class Api:
             unit = next_unit(
                 self.deck, state, self.engine, self.settings, now, over_limit=over_limit
             )
+            if unit is not None and not over_limit and today["left"] == 0:
+                # The day's budget is spent: stop and ask, unless the unit is
+                # mid-learning-step and due (finishing it is not new work).
+                record = state.records.get(unit.unit_id)
+                mid_step = record is not None and record.state != "review" and record.due <= now
+                if not mid_step:
+                    return {"done": False, "limit_reached": True, "today": today}
             if unit is None and not over_limit and today["left"] == 0:
                 more = next_unit(self.deck, state, self.engine, self.settings, now, over_limit=True)
                 if more is not None:
@@ -185,8 +193,8 @@ class Api:
             raise ApiError(HTTPStatus.BAD_REQUEST, f"typed must have {len(card.gaps)} entries")
         typed = [None if t is None else str(t) for t in typed_raw]
         elapsed = int(body.get("elapsed_ms", 0) or 0)
-        grade = grade_card(card, typed)
         unit = self.deck.by_id[card.unit_id]
+        grade = grade_card(card, typed, unit.also_accepted)
         with self.lock:
             self.log.record_review(
                 unit_id=card.unit_id,
@@ -213,7 +221,8 @@ class Api:
         unit_id = str(body.get("unit_id", ""))
         if unit_id not in self.deck.by_id:
             raise ApiError(HTTPStatus.NOT_FOUND, "unknown unit")
-        source = "triage" if body.get("source") == "triage" else "practice"
+        raw_source = body.get("source")
+        source = raw_source if raw_source in ("triage", "defer") else "practice"
         with self.lock:
             self.log.record_mark(
                 unit_id=unit_id, known=bool(body.get("known", True)), source=source

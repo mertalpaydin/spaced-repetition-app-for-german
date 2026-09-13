@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from src.cli.serve import WEB_DIR, Api, ApiError, make_handler
 from src.engine.review_log import ReviewLog
+from src.engine.session import Settings
 
 from tests.test_phase2_engine import T0, _deck
 
@@ -78,3 +79,21 @@ def test_deck_info_and_stats_after_a_day(tmp_path: Path) -> None:
     assert api.deck_info()["deck_version"] == "test"
     api.now = lambda: T0 + timedelta(days=1)
     assert api.stats()["streak_days"] == 0
+
+
+def test_spent_budget_stops_before_due_cards_unless_mid_learning_step(tmp_path: Path) -> None:
+    api = _api(tmp_path)
+    api.settings = Settings(cards_per_day=1)
+    first = api.next()
+    api.answer({"card_id": first["card"]["card_id"], "typed": ["x", "auf"], "elapsed_ms": 1})
+    # budget spent; warten's learning step is due in 10 minutes: mid-step, so it is served
+    api.now = lambda: T0 + timedelta(minutes=11)
+    nxt = api.next()
+    assert not nxt["limit_reached"] and nxt["unit"]["unit_id"] == "vp:warten_auf"
+    api.answer({"card_id": nxt["card"]["card_id"], "typed": ["x", "auf"], "elapsed_ms": 1})
+    # a new unit is not mid-step: the limit panel comes first, over_limit serves it
+    api.now = lambda: T0 + timedelta(minutes=12)
+    api.log.record_mark(unit_id="vp:warten_auf", known=True, source="defer")
+    assert api.next()["limit_reached"]
+    assert api.next(over_limit=True)["unit"]["unit_id"] == "cn:trotzdem"
+    assert api.units()["deferred"][0]["unit_id"] == "vp:warten_auf"
