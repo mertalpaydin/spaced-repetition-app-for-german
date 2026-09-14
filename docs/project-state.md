@@ -196,6 +196,16 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   log format) until "Wieder lernen" under Einheiten brings it back. The
   ranking residue the owner noticed is real: units introduced before the
   reweighting of 2026-09-11 stay in the log; "Später" is the way out.
+- **Two seed glosses quoted their own German, 2026-09-14.** "gehen um" was
+  glossed "to be about (es geht um)" and "sich handeln um" likewise, hand
+  written in `verb_prep_seed.yaml` during phase 1 as a note to the deck
+  author. Harmless until the phrase gloss started being shown before the
+  answer on 2026-09-13, from when it printed the answer on the card. Both
+  fixed; `german_leak` in `src/phrases/unit_glosses.py` now rejects such a
+  gloss on the model path and `check_deck` fails the deck on any path, so
+  CI catches it whatever writes it. The other 7,245 model-written glosses
+  and every other curated one were checked and are clean; the parentheses
+  that remain are English hints ("to answer (a question)", "since (then)").
 
 ## What is not built
 

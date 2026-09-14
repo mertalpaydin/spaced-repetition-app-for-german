@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from src.atomic_write import write_text_atomic
 from src.contracts import DeckManifest, DeckShard, PhraseCard, PhraseUnit, ShardInfo, UnitsIndex
+from src.phrases.unit_glosses import german_leak
 
 DEFAULT_DECK_DIR = Path("web/data/deck")
 DEFAULT_SCHEMA_PATH = Path("data/fixtures/schemas/phrase_deck.schema.json")
@@ -127,7 +128,8 @@ def write_schema(path: Path = DEFAULT_SCHEMA_PATH) -> None:
 
 def check_deck(deck_dir: Path = DEFAULT_DECK_DIR) -> list[str]:
     """Problems with a committed deck, for CI: every file parses, every card's
-    unit exists, the manifest counts match."""
+    unit exists, the manifest counts match, and no unit gloss quotes the
+    German it translates (that gloss is shown before the answer)."""
     problems: list[str] = []
     try:
         manifest, units, cards = load_deck(deck_dir)
@@ -143,4 +145,10 @@ def check_deck(deck_dir: Path = DEFAULT_DECK_DIR) -> list[str]:
         problems.append(f"manifest says {manifest.card_count} cards, found {len(cards)}")
     if manifest.deck_version != deck_version_for(units, cards):
         problems.append("manifest deck_version does not match the content")
+    for unit in units:
+        if unit.gloss_en is None:
+            continue
+        leak = german_leak(unit.gloss_en, unit)
+        if leak is not None:
+            problems.append(f"unit {unit.unit_id} gloss gives the German away: {leak!r}")
     return problems

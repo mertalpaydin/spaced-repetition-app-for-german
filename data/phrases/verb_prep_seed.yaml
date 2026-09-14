@@ -29,7 +29,7 @@
 - {verb: sorgen, prep: für, case: Akk, cefr: B1, gloss_en: to take care of}
 - {verb: kämpfen, prep: für, case: Akk, cefr: B1, gloss_en: to fight for}
 - {verb: kämpfen, prep: gegen, case: Akk, cefr: B1, gloss_en: to fight against}
-- {verb: gehen, prep: um, case: Akk, cefr: B1, gloss_en: to be about (es geht um)}
+- {verb: gehen, prep: um, case: Akk, cefr: B1, gloss_en: to be about / to concern}
 - {verb: handeln, prep: von, case: Dat, cefr: B1, gloss_en: to be about (a story)}
 - {verb: einladen, prep: zu, case: Dat, cefr: A2, gloss_en: to invite to}
 - {verb: passen, prep: zu, case: Dat, cefr: A2, gloss_en: to suit / to go with}
@@ -59,5 +59,5 @@
 - {verb: entscheiden, prep: für, case: Akk, reflexive: true, cefr: B1, gloss_en: to decide on}
 - {verb: wundern, prep: über, case: Akk, reflexive: true, cefr: B1, gloss_en: to be surprised at}
 - {verb: fürchten, prep: vor, case: Dat, reflexive: true, cefr: B1, gloss_en: to be afraid of}
-- {verb: handeln, prep: um, case: Akk, reflexive: true, cefr: B1, gloss_en: to be a matter of (es handelt sich um)}
+- {verb: handeln, prep: um, case: Akk, reflexive: true, cefr: B1, gloss_en: to be a matter of / to be about}
 - {verb: sehnen, prep: nach, case: Dat, reflexive: true, cefr: B2, gloss_en: to long for}

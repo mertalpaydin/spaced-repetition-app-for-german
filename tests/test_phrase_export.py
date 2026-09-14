@@ -94,3 +94,16 @@ def test_committed_schema_matches_the_models() -> None:
         "the deck models changed; regenerate with scripts/build_phrase_deck.py --stage export "
         "and explain the format change in the commit"
     )
+
+
+def test_check_deck_reports_a_gloss_that_quotes_the_german(tmp_path: Path) -> None:
+    """The phrase gloss is shown before the answer, so a gloss citing the
+    German ("to be about (es geht um)") prints the answer on the card."""
+    units = [_unit(r) for r in range(1, 4)]
+    leaky = units[0].model_copy(update={"gloss_en": "to be about (es geht um)"})
+    units[0] = leaky
+    cards = [_card(u) for u in units]
+    export_deck(units, cards, tmp_path, now=lambda: NOW)
+    problems = check_deck(tmp_path)
+    assert len(problems) == 1
+    assert "vp:unit_1" in problems[0] and "gives the German away" in problems[0]

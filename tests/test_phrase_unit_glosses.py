@@ -178,3 +178,32 @@ def test_existing_records_are_not_re_asked_and_apply_keeps_curated(tmp_path: Pat
     loaded = unit_glosses.load_records(path)
     applied = unit_glosses.apply_unit_glosses([A, B, C], loaded)
     assert [u.gloss_en for u in applied] == ["to look / to appear", "to wait for", "nevertheless"]
+
+
+def test_german_leak_flags_a_quoted_phrase_and_spares_cognates() -> None:
+    gehen_um = unit("vp:gehen_um", "gehen um", 1, kind="verb_prep", case="Akk")
+    assert unit_glosses.german_leak("to be about (es geht um)", gehen_um) == "es um"
+    assert unit_glosses.german_leak("to be about / to concern", gehen_um) is None
+    handeln = unit("rv:sich_handeln_um", "sich handeln um", 2, kind="reflexive_verb")
+    assert unit_glosses.german_leak("to be a matter of (es handelt sich um)", handeln)
+    # cognates are the translation, not a leak
+    krieg = unit("an:total_krieg", "der totale Krieg", 3, kind="adj_noun")
+    assert unit_glosses.german_leak("total war", krieg) is None
+    assert (
+        unit_glosses.german_leak("bitter taste", unit("an:bitter", "bitterer Geschmack", 4)) is None
+    )
+    assert (
+        unit_glosses.german_leak(
+            "a private conversation", unit("an:priv", "eine private Unterhaltung", 5)
+        )
+        is None
+    )
+    # the display quoted whole, without a function word
+    entscheidung = unit("nv:entscheidung_treffen", "eine Entscheidung treffen", 6, kind="noun_verb")
+    assert unit_glosses.german_leak("to decide, eine Entscheidung treffen", entscheidung)
+
+
+def test_a_gloss_that_quotes_the_german_is_rejected() -> None:
+    gehen_um = unit("vp:gehen_um", "gehen um", 1, kind="verb_prep", case="Akk")
+    assert unit_glosses.reject_reason(gehen_um, ["to be about (es geht um)"]) == "german_leak"
+    assert unit_glosses.reject_reason(gehen_um, ["to be about", "to concern"]) is None

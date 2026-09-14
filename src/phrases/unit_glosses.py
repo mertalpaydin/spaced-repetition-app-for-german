@@ -15,6 +15,7 @@ without ``--generate-unit-glosses`` and refuses without
 
 import json
 import re
+import unicodedata
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -101,6 +102,116 @@ def build_prompt(batch: list[PhraseUnit], examples: dict[str, str]) -> str:
     )
 
 
+#: German tokens with no English homograph. An English gloss containing one
+#: of these is quoting the German, which a card must not do: the phrase gloss
+#: is shown BEFORE the answer (CLAUDE.md rule 2). Tokens that are also English
+#: words ("war", "hat", "man", "die", "an", "am", "so", "den") are deliberately
+#: absent, so that "total war" stays a legitimate gloss of "der totale Krieg",
+#: and so are the umlaut words, which fold onto English ones ("fuer" -> "fur",
+#: "ueber" -> "uber"). A gloss that quotes a German phrase carries one of the
+#: tokens below almost always; a false positive costs a unit its English.
+GERMAN_ONLY_TOKENS: frozenset[str] = frozenset(
+    {
+        "sich",
+        "es",
+        "und",
+        "oder",
+        "dass",
+        "nicht",
+        "kein",
+        "keine",
+        "keinen",
+        "ein",
+        "eine",
+        "einen",
+        "einem",
+        "einer",
+        "eines",
+        "der",
+        "das",
+        "dem",
+        "des",
+        "zu",
+        "um",
+        "auf",
+        "aus",
+        "mit",
+        "nach",
+        "vor",
+        "durch",
+        "gegen",
+        "ohne",
+        "ist",
+        "sind",
+        "wird",
+        "werden",
+        "wurde",
+        "weil",
+        "wenn",
+        "etwas",
+        "jemand",
+        "jemanden",
+        "jemandem",
+        "jmd",
+        "etw",
+        "ich",
+        "du",
+        "wir",
+        "ihr",
+        "sie",
+        "ihn",
+        "ihm",
+        "mir",
+        "mich",
+        "dir",
+        "dich",
+        "uns",
+        "euch",
+        "zum",
+        "zur",
+        "vom",
+        "beim",
+        "bei",
+        "als",
+        "auch",
+        "noch",
+        "schon",
+        "sehr",
+        "nur",
+    }
+)
+
+_WORD_RE = re.compile(r"[a-z]+")
+
+
+def _fold(text: str) -> str:
+    """Lower case, ss for the eszett, umlauts stripped to their base letter."""
+    return (
+        unicodedata.normalize("NFKD", text.replace("\u00df", "ss").lower())
+        .encode("ascii", "ignore")
+        .decode()
+    )
+
+
+def german_leak(gloss_en: str, unit: PhraseUnit) -> str | None:
+    """The German this English gloss gives away, or ``None``.
+
+    Two seed glosses cited the German they translate ("to be about (es geht
+    um)"). That was a note to the deck author until 2026-09-13; since the
+    phrase gloss is shown before the answer, it is the answer, printed on the
+    card. Cognates are not a leak: "bitter taste" for "bitterer Geschmack"
+    is simply the translation.
+    """
+    folded = _fold(gloss_en)
+    quoted = sorted({w for w in _WORD_RE.findall(folded) if w in GERMAN_ONLY_TOKENS})
+    if quoted:
+        return " ".join(quoted)
+    display = _fold(unit.display_de)
+    if len(display.split()) > 1 and display in folded:
+        return display
+    return None
+
+
 _OBJECT_RE = re.compile(r"\{[^{}]*\}")
 
 
@@ -151,6 +262,8 @@ def reject_reason(unit: PhraseUnit, glosses: list[str]) -> str | None:
             return "german_echoed"
         if any(ch in g for ch in "\n{}[]"):
             return "malformed"
+        if german_leak(g, unit) is not None:
+            return "german_leak"
     return None
 
 
