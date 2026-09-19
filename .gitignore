@@ -163,3 +163,7 @@ data/review_log.jsonl
 data/corpus_candidate_pool.json
 data/*_pool.json
 data/review_log.jsonl
+
+# The owner's own study history: word lists exported from other tools, and
+# anything derived from them. Personal, and this repository is public.
+/Deutsch Words*.csv

@@ -218,6 +218,12 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   `new_pool` by rank (50, settable) instead of always the next one, so two
   sessions do not march down the ranking in lockstep; the draw is a runtime
   choice and does not affect replay.
+- **The deck checked against an outside list, 2026-09-19.** 1,420 entries the
+  owner had saved over two years of Lingvist: about four in five of its real
+  phrases are taught, median rank 190, and 46 of 55 matched units sit in the
+  first 500. One structural gap found, adjective + verb collocations
+  (`ernst nehmen`, `bereit machen`), recorded in `docs/audits/lingvist-coverage.md`.
+
 ## What is not built
 
 - **An installable icon flow on iOS** is untested; Android and desktop
