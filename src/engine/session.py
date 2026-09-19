@@ -30,6 +30,10 @@ class Settings:
 
     cards_per_day: int = 40
     new_per_day: int | None = None
+    #: A new unit is drawn at random from the next ``new_pool`` by rank
+    #: rather than always the very next one, so a session does not march
+    #: down the ranking in lockstep (feedback, 2026-09-19).
+    new_pool: int = 50
     learn_ahead: timedelta = timedelta(minutes=20)
     retention: float = 0.9
 
@@ -113,11 +117,18 @@ def next_unit(
     now: datetime,
     *,
     over_limit: bool = False,
+    choose: Callable[[int], int] | None = None,
 ) -> PhraseUnit | None:
-    """Due units first, least retrievable first; then new units in rank order
-    while the day's budget lasts (or ``over_limit`` says go on); then the
-    learn-ahead window. The unit shown last is skipped when there is a
-    choice, so a session never shows one unit twice in a row."""
+    """Due units first, least retrievable first; then a new unit while the
+    day's budget lasts (or ``over_limit`` says go on); then the learn-ahead
+    window. The unit shown last is skipped when there is a choice, so a
+    session never shows one unit twice in a row.
+
+    The new unit is drawn from the next ``settings.new_pool`` by rank:
+    ``choose(n)`` picks an index in ``range(n)`` and the clients pass a
+    random one, so two sessions do not introduce the same units in the same
+    order. The default picks the first, which keeps the order deterministic
+    for the tests and for anyone replaying a build."""
     last = state.last_unit
     overdue = _not_last(due_units(deck, state, engine, now, timedelta(0)), last)
     if overdue:
@@ -127,11 +138,16 @@ def next_unit(
         new_units_started_today(state, now) < settings.new_per_day
     )
     if within_budget and (under_cap or over_limit):
+        pool: list[PhraseUnit] = []
         for unit in deck.units:
             if unit.unit_id in state.records:
                 continue
             if is_learnable(deck, unit, state):
-                return unit
+                pool.append(unit)
+                if len(pool) >= max(settings.new_pool, 1):
+                    break
+        if pool:
+            return pool[(choose(len(pool)) if choose else 0) % len(pool)]
     # Learn-ahead never re-shows the unit just answered: that is the
     # back-to-back repeat the first learner complained about.
     ahead = [

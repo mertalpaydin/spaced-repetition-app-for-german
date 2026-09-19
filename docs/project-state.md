@@ -206,7 +206,18 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   CI catches it whatever writes it. The other 7,245 model-written glosses
   and every other curated one were checked and are clean; the parentheses
   that remain are English hints ("to answer (a question)", "since (then)").
-
+- **Restart, and a less rigid introduction order, 2026-09-19.** "Von vorne
+  anfangen" under the settings writes a `ResetEntry` to the log; `derive_state`
+  replays only what follows it, so every unit is new again and the counters
+  start at zero, while the old lines stay in the file and the restart reaches
+  the other device like any other entry. **This adds a third entry type to the
+  review log** (rule 8): both engines parse it, and a reader that does not
+  know it would silently ignore the restart, so the Python and JavaScript
+  sides were changed together. `entries_since_reset` is what the statistics
+  and the history panel count. A new unit is now drawn at random from the next
+  `new_pool` by rank (50, settable) instead of always the next one, so two
+  sessions do not march down the ranking in lockstep; the draw is a runtime
+  choice and does not affect replay.
 ## What is not built
 
 - **An installable icon flow on iOS** is untested; Android and desktop

@@ -4,7 +4,9 @@
 
 import { newRecord } from "./engine.js";
 
-export function entryKey(e) { return `${e.type}|${e.unit_id}|${e.ts}`; }
+// A reset carries no unit, so the empty string stands in for one; the
+// Python side builds the same key (src/engine/review_log.entry_key).
+export function entryKey(e) { return `${e.type}|${e.unit_id || ""}|${e.ts}`; }
 
 export function sortEntries(entries) {
   return [...entries].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.seq - b.seq));
@@ -32,7 +34,8 @@ export function parseJsonl(text) {
     if (!s) continue;
     try {
       const e = JSON.parse(s);
-      if (e && (e.type === "review" || e.type === "mark") && e.unit_id && e.ts) out.push(e);
+      const known = e && (e.type === "review" || e.type === "mark" || e.type === "reset");
+      if (known && e.ts && (e.type === "reset" || e.unit_id)) out.push(e);
     } catch (err) { /* a corrupt line never hides the rest */ }
   }
   return out;
@@ -42,12 +45,18 @@ export function toJsonl(entries) {
   return sortEntries(entries).map((e) => JSON.stringify(e)).join("\n") + (entries.length ? "\n" : "");
 }
 
-export function deriveState(entries, engine) {
-  const state = {
+function freshState() {
+  return {
     records: {}, known: new Set(), knownSource: {}, triaged: new Set(), lastCard: {}, ratings: {},
     firstReview: {}, reviewTimes: [], lastUnit: null,
   };
+}
+
+export function deriveState(entries, engine) {
+  let state = freshState();
   for (const e of sortEntries(entries)) {
+    // A restart: everything before it is history, the replay starts over.
+    if (e.type === "reset") { state = freshState(); continue; }
     if (e.type === "mark") {
       state.triaged.add(e.unit_id);
       if (e.known) { state.known.add(e.unit_id); state.knownSource[e.unit_id] = e.source; }
@@ -71,6 +80,20 @@ export function nextSeq(entries) {
 
 export function makeReview(entries, fields, now) {
   return { type: "review", seq: nextSeq(entries), ts: new Date(now).toISOString(), ...fields };
+}
+
+// What still counts: the entries after the last restart. Matches
+// src/engine/review_log.entries_since_reset.
+export function entriesSinceReset(entries) {
+  const ordered = sortEntries(entries);
+  for (let i = ordered.length - 1; i >= 0; i--) {
+    if (ordered[i].type === "reset") return ordered.slice(i + 1);
+  }
+  return ordered;
+}
+
+export function makeReset(entries, note, now) {
+  return { type: "reset", seq: nextSeq(entries), ts: new Date(now).toISOString(), note };
 }
 
 export function makeMark(entries, unitId, known, source, now) {

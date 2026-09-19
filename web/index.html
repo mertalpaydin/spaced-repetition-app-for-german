@@ -98,6 +98,7 @@
         <h3>Tagespensum</h3>
         <label>Karten pro Tag <input id="set-cards" type="number" min="1" step="1"></label>
         <label>Neue Einheiten pro Tag (leer = unbegrenzt) <input id="set-new" type="number" min="0" step="1"></label>
+        <label>Neue Einheit zufällig aus den nächsten <input id="set-pool" type="number" min="1" step="1"></label>
         <div class="actions">
           <button id="btn-settings-save" class="primary">Speichern</button>
           <button id="btn-sync-now">Jetzt sichern</button>
@@ -110,6 +111,11 @@
           <label class="file">Log-Datei einlesen <input id="set-import" type="file" accept=".jsonl,.txt,application/json"></label>
         </div>
         <textarea id="set-export" rows="6" readonly hidden></textarea>
+        <h3>Von vorne anfangen</h3>
+        <p class="hint">Setzt den Lernstand zurück: alle Einheiten gelten wieder als neu, die Zähler
+          beginnen bei null. Der bisherige Verlauf bleibt als Zeile im Log stehen und der Neustart
+          geht auf deine anderen Geräte über.</p>
+        <div class="actions"><button id="btn-reset" class="danger">Lernstand zurücksetzen</button></div>
       </div>
     </section>
   </main>

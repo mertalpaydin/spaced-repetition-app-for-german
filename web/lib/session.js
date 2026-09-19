@@ -1,6 +1,11 @@
 // The scheduler and stats, matching src/engine/session.py and stats.py.
 
-export const DEFAULT_SETTINGS = { cardsPerDay: 40, newPerDay: null, learnAheadMinutes: 20, retention: 0.9 };
+import { entriesSinceReset } from "./log.js";
+
+// newPool: a new unit is drawn at random from the next N by rank rather
+// than always the very next one (feedback 2026-09-19). Matches
+// src/engine/session.py Settings.
+export const DEFAULT_SETTINGS = { cardsPerDay: 40, newPerDay: null, learnAheadMinutes: 20, retention: 0.9, newPool: 50 };
 
 const dayOf = (iso) => new Date(iso).toISOString().slice(0, 10);
 
@@ -45,17 +50,25 @@ function notLast(units, last) {
   return others.length ? others : units;
 }
 
-export function nextUnit(deck, state, engine, settings, now, { overLimit = false } = {}) {
+// `choose(n)` picks an index in [0, n) among the new units on offer; the
+// page passes a random one. The default picks the first, so a replay and
+// the tests stay deterministic.
+export function nextUnit(deck, state, engine, settings, now, { overLimit = false, choose = null } = {}) {
   const last = state.lastUnit;
   const overdue = notLast(dueUnits(deck, state, engine, now, 0), last);
   if (overdue.length) return overdue[0];
   const withinBudget = overLimit || budgetLeft(state, settings, now) > 0;
   const underCap = settings.newPerDay === null || newUnitsStartedToday(state, now) < settings.newPerDay;
   if (withinBudget && (underCap || overLimit)) {
+    const pool = [];
     for (const unit of deck.units) {
       if (unit.unit_id in state.records) continue;
-      if (isLearnable(deck, unit, state)) return unit;
+      if (isLearnable(deck, unit, state)) {
+        pool.push(unit);
+        if (pool.length >= Math.max(settings.newPool || 1, 1)) break;
+      }
     }
+    if (pool.length) return pool[(choose ? choose(pool.length) : 0) % pool.length];
   }
   const ahead = dueUnits(deck, state, engine, now, settings.learnAheadMinutes * 60000).filter((u) => u.unit_id !== last);
   return ahead.length ? ahead[0] : null;
@@ -114,7 +127,7 @@ export function computeStats(deck, state, entries, engine, now) {
     if (new Date(r.due).getTime() <= nowMs) s.due_now++;
   }
   s.new_remaining = deck.units.filter((u) => !(u.unit_id in state.records) && isLearnable(deck, u, state)).length;
-  const reviews = entries.filter((e) => e.type === "review");
+  const reviews = entriesSinceReset(entries).filter((e) => e.type === "review");
   s.reviews_total = reviews.length;
   const days = new Map();
   for (const e of reviews) days.set(dayOf(e.ts), (days.get(dayOf(e.ts)) || 0) + 1);

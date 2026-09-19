@@ -6,7 +6,7 @@
 import { loadDeck } from "./lib/deck.js";
 import { createEngine } from "./lib/engine.js";
 import { gradeCard, renderMarked } from "./lib/grader.js";
-import { deriveState, makeMark, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
+import { deriveState, entriesSinceReset, makeMark, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import {
   DEFAULT_SETTINGS, budgetLeft, computeStats, dueUnits, nextUnit, pickCard, reviewsToday, unitsByStage, untriagedUnits,
 } from "./lib/session.js";
@@ -15,6 +15,8 @@ import { syncLog } from "./lib/sync.js";
 
 const $ = (id) => document.getElementById(id);
 const now = () => new Date();
+//: which of the new units on offer to introduce next; see session.nextUnit.
+const pickAny = (n) => Math.floor(Math.random() * n);
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -157,7 +159,7 @@ function loadCard() {
   ["btn-check", "btn-reveal", "btn-known", "btn-defer"].forEach((id) => { $(id).hidden = false; });
   renderToday();
   const t = now();
-  let unit = nextUnit(deck, state, engine, settings, t, { overLimit });
+  let unit = nextUnit(deck, state, engine, settings, t, { overLimit, choose: pickAny });
   if (!overLimit && budgetLeft(state, settings, t) === 0) {
     // The day's budget is spent: stop and ask, unless the unit is mid
     // learning-step and due (finishing it is not new work).
@@ -252,7 +254,7 @@ async function relearn(unitId) {
 function nextCard() { loadCard(); }
 
 function showHistory() {
-  const reviews = entries.filter((e) => e.type === "review").slice(-20).reverse();
+  const reviews = entriesSinceReset(entries).filter((e) => e.type === "review").slice(-20).reverse();
   const list = $("history-list");
   list.innerHTML = reviews.map((e) => {
     const card = deck.cardById[e.card_id];
@@ -369,6 +371,7 @@ function loadSettingsView() {
   $("set-gist").value = settings.gistId || "";
   $("set-cards").value = settings.cardsPerDay;
   $("set-new").value = settings.newPerDay === null ? "" : settings.newPerDay;
+  $("set-pool").value = settings.newPool;
   $("set-autosync").checked = !!settings.autoSync;
   $("set-log-info").textContent = `${entries.length} Einträge im Log auf diesem Gerät.`;
 }
@@ -379,6 +382,7 @@ $("btn-settings-save").addEventListener("click", () => {
   settings.cardsPerDay = Math.max(1, parseInt($("set-cards").value, 10) || DEFAULT_SETTINGS.cardsPerDay);
   const n = $("set-new").value.trim();
   settings.newPerDay = n === "" ? null : Math.max(0, parseInt(n, 10) || 0);
+  settings.newPool = Math.max(1, parseInt($("set-pool").value, 10) || DEFAULT_SETTINGS.newPool);
   settings.autoSync = $("set-autosync").checked;
   saveSettings(settings);
   $("settings-sync-status").textContent = "gespeichert";
@@ -387,6 +391,15 @@ $("btn-settings-save").addEventListener("click", () => {
 });
 
 $("btn-sync-now").addEventListener("click", () => sync().then(loadSettingsView).catch(() => {}));
+
+$("btn-reset").addEventListener("click", async () => {
+  if (!confirm("Von vorne anfangen? Alle Einheiten gelten wieder als neu und die Zähler beginnen bei null. Das gilt auch auf deinen anderen Geräten.")) return;
+  await record(makeReset(entries, "restart", now()));
+  overLimit = false;
+  loadSettingsView();
+  $("settings-sync-status").textContent = "Lernstand zurückgesetzt.";
+  show("practice");
+});
 $("btn-sync").addEventListener("click", () => sync().catch(() => {}));
 
 $("btn-export").addEventListener("click", async () => {

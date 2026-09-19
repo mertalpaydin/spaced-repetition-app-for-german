@@ -49,6 +49,7 @@ main { max-width: 680px; margin: 0 auto; padding: 1rem; }
 .line.gloss { font-size: 1.05rem; color: var(--muted); font-style: italic; }
 .line.context { color: var(--ink); opacity: 0.85; }
 .line.hint { font-size: 1rem; color: var(--accent); margin-top: 0; }
+.actions button.danger { border-color: var(--bad); color: var(--bad); }
 button.small { font: inherit; font-size: 0.85rem; padding: 0.2rem 0.6rem; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--ink); }
 .sentence { font-size: 1.35rem; line-height: 1.8; margin: 0.4rem 0; }
 .muted { color: var(--muted); }

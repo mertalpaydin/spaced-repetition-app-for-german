@@ -352,4 +352,19 @@ class MarkEntry(BaseModel):
     source: Literal["triage", "practice", "defer"]
 
 
-LogEntry = ReviewEntry | MarkEntry
+class ResetEntry(BaseModel):
+    """The learner started over. ``derive_state`` replays only what follows
+    this line, so every unit is new again and the day's counters start from
+    zero. The earlier entries stay in the file: the restart is auditable, and
+    it reaches the other device like any other line rather than by deleting
+    history behind its back."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: Literal["reset"] = "reset"
+    seq: int = Field(ge=1)
+    ts: datetime
+    note: str = ""
+
+
+LogEntry = ReviewEntry | MarkEntry | ResetEntry

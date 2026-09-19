@@ -1,7 +1,8 @@
 """The review log and its replay: the single source of truth for progress.
 
 CLAUDE.md rule 1: every progress number is computed in code from this log.
-The log is JSONL, append-only, one ``ReviewEntry`` or ``MarkEntry`` per line
+The log is JSONL, append-only, one ``ReviewEntry``, ``MarkEntry`` or
+``ResetEntry`` per line
 (``data/review_log.jsonl``, gitignored). ``derive_state`` replays it through
 the FSRS engine deterministically (fuzzing off), so the laptop client and,
 later, the PWA reach the same memory state from the same lines.
@@ -16,7 +17,7 @@ from pathlib import Path
 
 from pydantic import TypeAdapter, ValidationError
 
-from src.contracts import LogEntry, MarkEntry, ReviewEntry
+from src.contracts import LogEntry, MarkEntry, ResetEntry, ReviewEntry
 from src.engine.fsrs import FSRSEngine, FSRSRecord
 
 DEFAULT_LOG_PATH = Path("data/review_log.jsonl")
@@ -44,6 +45,24 @@ def read_entries(path: Path) -> list[LogEntry]:
     return sorted((e for e in entries if e is not None), key=lambda e: (e.ts, e.seq))
 
 
+def entries_since_reset(entries: Iterable[LogEntry]) -> list[LogEntry]:
+    """What still counts: the entries after the last restart. The numbers a
+    learner sees come from these, so a restart really does put the day's
+    count, the total and the streak back to zero."""
+    ordered = sorted(entries, key=lambda e: (e.ts, e.seq))
+    for index in range(len(ordered) - 1, -1, -1):
+        if isinstance(ordered[index], ResetEntry):
+            return ordered[index + 1 :]
+    return ordered
+
+
+def entry_key(entry: LogEntry) -> tuple[str, str, datetime]:
+    """What makes an entry the same entry on two devices. A reset carries no
+    unit, so the empty string stands in for one; the JavaScript side builds
+    the same key (``web/lib/log.js``)."""
+    return (entry.type, getattr(entry, "unit_id", ""), entry.ts)
+
+
 def merge_entries(*logs: Iterable[LogEntry]) -> list[LogEntry]:
     """Two devices' logs as one: the same review appearing in both (same
     ``unit_id`` and ``ts``) counts once; order is by time, then sequence."""
@@ -51,7 +70,7 @@ def merge_entries(*logs: Iterable[LogEntry]) -> list[LogEntry]:
     merged: list[LogEntry] = []
     for log in logs:
         for entry in log:
-            key = (entry.type, entry.unit_id, entry.ts)
+            key = entry_key(entry)
             if key in seen:
                 continue
             seen.add(key)
@@ -106,6 +125,12 @@ class ReviewLog:
         self.append(entry)
         return entry
 
+    def record_reset(self, *, note: str = "") -> ResetEntry:
+        """Start over: everything before this entry stops counting."""
+        entry = ResetEntry(seq=self.next_seq, ts=self.now(), note=note)
+        self.append(entry)
+        return entry
+
     def record_mark(self, *, unit_id: str, known: bool, source: str) -> MarkEntry:
         entry = MarkEntry(
             seq=self.next_seq,
@@ -148,6 +173,9 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
     same state, on any machine."""
     state = LearnerState()
     for entry in sorted(entries, key=lambda e: (e.ts, e.seq)):
+        if isinstance(entry, ResetEntry):
+            state = LearnerState()
+            continue
         if isinstance(entry, MarkEntry):
             state.triaged.add(entry.unit_id)
             if entry.known:

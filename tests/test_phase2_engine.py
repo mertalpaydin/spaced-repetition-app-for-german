@@ -11,11 +11,12 @@ from src.contracts import (
     MarkEntry,
     PhraseCard,
     PhraseUnit,
+    ResetEntry,
     ReviewEntry,
 )
 from src.engine.fsrs import FSRSEngine
 from src.engine.grading import grade_card, render_marked, render_with_gaps
-from src.engine.review_log import ReviewLog, derive_state, merge_entries, read_entries
+from src.engine.review_log import ReviewLog, derive_state, entry_key, merge_entries, read_entries
 from src.engine.session import Deck, Settings, next_unit, pick_card, showable_cards
 from src.engine.stats import compute_stats
 
@@ -482,3 +483,112 @@ def test_deferred_units_are_skipped_and_listed_apart_until_relearned() -> None:
     state = derive_state([defer, back], engine)
     assert next_unit(deck, state, engine, Settings(), T0).unit_id == "vp:warten_auf"
     assert units_by_stage(deck, state, T0)["deferred"] == []
+
+
+# -- feedback of 2026-09-19 ------------------------------------------------------
+
+
+def test_a_reset_starts_the_replay_over_but_keeps_the_lines() -> None:
+    engine = FSRSEngine()
+    history = [
+        ReviewEntry(
+            seq=1,
+            ts=T0,
+            unit_id="vp:warten_auf",
+            card_id="w10000000000",
+            rating="good",
+            outcome="exact",
+            answers=["wartet", "auf"],
+            expected=["wartet", "auf"],
+            elapsed_ms=1,
+            deck_version="t",
+        ),
+        MarkEntry(
+            seq=2, ts=T0 + timedelta(minutes=1), unit_id="cn:trotzdem", known=True, source="triage"
+        ),
+    ]
+    before = derive_state(history, engine)
+    assert before.records and before.known and before.review_times
+
+    reset = ResetEntry(seq=3, ts=T0 + timedelta(minutes=2), note="restart")
+    after = derive_state([*history, reset], engine)
+    assert after.records == {} and after.known == set() and after.triaged == set()
+    assert after.review_times == [] and after.last_unit is None
+
+    # what comes after the reset counts again
+    later = ReviewEntry(
+        seq=4,
+        ts=T0 + timedelta(minutes=3),
+        unit_id="cn:trotzdem",
+        card_id="t20000000000",
+        rating="good",
+        outcome="exact",
+        answers=["Trotzdem"],
+        expected=["Trotzdem"],
+        elapsed_ms=1,
+        deck_version="t",
+    )
+    assert list(derive_state([*history, reset, later], engine).records) == ["cn:trotzdem"]
+
+
+def test_a_reset_puts_the_counters_back_to_zero() -> None:
+    """The numbers come from the log, so the restart has to reach them too:
+    a leftover "heute 1" after starting over is what the browser showed."""
+    deck = _deck()
+    engine = FSRSEngine()
+    history = [
+        ReviewEntry(
+            seq=1,
+            ts=T0,
+            unit_id="vp:warten_auf",
+            card_id="w10000000000",
+            rating="good",
+            outcome="exact",
+            answers=["wartet", "auf"],
+            expected=["wartet", "auf"],
+            elapsed_ms=1,
+            deck_version="t",
+        ),
+    ]
+    before = compute_stats(deck, derive_state(history, engine), history, engine, T0)
+    assert (before.reviews_total, before.reviews_today, before.streak_days) == (1, 1, 1)
+
+    entries = [*history, ResetEntry(seq=2, ts=T0 + timedelta(minutes=1), note="restart")]
+    after = compute_stats(deck, derive_state(entries, engine), entries, engine, T0)
+    assert (after.reviews_total, after.reviews_today, after.streak_days) == (0, 0, 0)
+    assert after.retention_30d is None and after.young == 0
+    assert after.new_remaining == before.new_remaining + 1
+
+
+def test_a_reset_round_trips_through_the_log_and_merges_once(tmp_path: Path) -> None:
+    log = ReviewLog(tmp_path / "log.jsonl", now=lambda: T0)
+    log.record_review(
+        unit_id="vp:warten_auf",
+        card_id="w10000000000",
+        rating="good",
+        outcome="exact",
+        answers=["wartet", "auf"],
+        expected=["wartet", "auf"],
+        elapsed_ms=1,
+        deck_version="t",
+    )
+    reset = log.record_reset(note="restart")
+    assert reset.type == "reset" and reset.note == "restart"
+    reread = read_entries(tmp_path / "log.jsonl")
+    assert [e.type for e in reread] == ["review", "reset"]
+    assert entry_key(reset) == ("reset", "", T0)
+    assert len(merge_entries(reread, reread)) == 2
+
+
+def test_a_new_unit_is_drawn_from_the_next_pool_by_rank() -> None:
+    deck = _deck()
+    engine = FSRSEngine()
+    state = derive_state([], engine)
+    # two units are learnable here: warten auf (rank 1) and trotzdem (rank 3)
+    assert next_unit(deck, state, engine, Settings(), T0).unit_id == "vp:warten_auf"
+    assert (
+        next_unit(deck, state, engine, Settings(), T0, choose=lambda n: 1).unit_id == "cn:trotzdem"
+    )
+    # the pool bounds the choice: with a pool of one only the next by rank
+    tight = Settings(new_pool=1)
+    assert next_unit(deck, state, engine, tight, T0, choose=lambda n: 1).unit_id == "vp:warten_auf"

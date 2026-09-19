@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 from src.contracts import LogEntry, ReviewEntry
 from src.engine.fsrs import FSRSEngine
-from src.engine.review_log import LearnerState
+from src.engine.review_log import LearnerState, entries_since_reset
 from src.engine.session import Deck, is_learnable
 
 MATURE_DAYS = 21.0
@@ -51,7 +51,7 @@ def compute_stats(
     stats.new_remaining = sum(
         1 for u in deck.units if u.unit_id not in state.records and is_learnable(deck, u, state)
     )
-    reviews = [e for e in entries if isinstance(e, ReviewEntry)]
+    reviews = [e for e in entries_since_reset(entries) if isinstance(e, ReviewEntry)]
     stats.reviews_total = len(reviews)
     today = now.astimezone(UTC).date()
     days = Counter(e.ts.astimezone(UTC).date() for e in reviews)

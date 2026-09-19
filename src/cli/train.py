@@ -26,6 +26,7 @@ from src.engine.review_log import (
     LearnerState,
     ReviewLog,
     derive_state,
+    entry_key,
     merge_entries,
     read_entries,
 )
@@ -171,10 +172,10 @@ class Client:
         have (by type, unit and time) are appended, renumbered after ours."""
         incoming = read_entries(other)
         merged = merge_entries(self.log.entries, incoming)
-        have = {(e.type, e.unit_id, e.ts) for e in self.log.entries}
+        have = {entry_key(e) for e in self.log.entries}
         added = 0
         for entry in merged:
-            if (entry.type, entry.unit_id, entry.ts) in have:
+            if entry_key(entry) in have:
                 continue
             self.log.append(entry.model_copy(update={"seq": self.log.next_seq}))
             added += 1
