@@ -25,7 +25,7 @@ from pathlib import Path
 
 from src.atomic_write import write_text_atomic
 from src.contracts import MODEL_GENERATE, ContextRecord, PhraseCard, PhraseUnit, UnitGlossRecord
-from src.lexicon.vocabulary import VocabularyStore
+from src.lexicon.vocabulary import VocabularyStore, _load_frequency_ranks
 from src.llm.env import FreeLaneKeyMissingError, client_from_env, load_env_file
 from src.phrases import cards as cards_module
 from src.phrases import carrier_validation
@@ -33,7 +33,7 @@ from src.phrases import contexts as contexts_module
 from src.phrases import unit_glosses as glosses_module
 from src.phrases.curated import DEFAULT_PHRASES_DIR, load_curated
 from src.phrases.export import DEFAULT_DECK_DIR, check_deck, export_deck, write_schema
-from src.phrases.mining import LemmaCounts, detect_all
+from src.phrases.mining import NGRAM_VOCAB_SIZE, LemmaCounts, WordGate, detect_all
 from src.phrases.occurrences import Occurrence, read_occurrences, write_occurrences
 from src.phrases.parse import parse_many, parser_available
 from src.phrases.units import (
@@ -105,6 +105,40 @@ def read_corpora(
     return lines
 
 
+#: n-grams below this are dropped before the counts are written: a fixed
+#: expression recurs, a one-off sequence does not, and keeping the tail would
+#: make the counts file unreadable.
+NGRAM_MIN_COUNT = 20
+
+
+def _ngram_vocab() -> frozenset[str]:
+    """The commonest surface forms, which is all a fixed expression is made
+    of ("soweit ich weiss", "auf jeden Fall"). Bounding the n-gram counter
+    to these keeps the parse stage inside its memory."""
+    ranks = _load_frequency_ranks(str(VocabularyStore.DEFAULT_FREQUENCY_RANKS_PATH))
+    return frozenset(word for word, rank in ranks.items() if rank <= NGRAM_VOCAB_SIZE)
+
+
+def _word_gate(args: argparse.Namespace) -> WordGate:
+    """Which words may become units, and from which sentences.
+
+    The real-word filter is the CEFR list union the dictionary filter, so
+    names, typos and rare compounds never enter. Only sentences with an Azure
+    or Gemini gloss are carriers, because ``cards.select_cards`` can never use
+    any other sentence; that bound is what keeps the occurrence file from
+    growing by an order of magnitude.
+    """
+    vocabulary = VocabularyStore()
+    dictionary = carrier_validation._load_dictionary()  # noqa: SLF001
+    lemmas = frozenset(vocabulary.vocab) | (dictionary or frozenset())
+    store = _load_store(args.store)
+    trusted = cards_module.TRUSTED_GLOSS_SOURCES
+    glossed = frozenset(german for german, record in store.items() if record.source in trusted)
+    return WordGate(
+        lemmas=lemmas, glossed=glossed, dictionary=dictionary, cap=args.word_cap, seed=args.seed
+    )
+
+
 def stage_parse(args: argparse.Namespace) -> int:
     if not parser_available():
         _log("spaCy model de_core_news_sm is not installed; run `uv sync`.")
@@ -131,7 +165,16 @@ def stage_parse(args: argparse.Namespace) -> int:
     )
     ordered = sorted(lines.values(), key=lambda line: (line.source, line.line_id))
     _log(f"parse: {len(ordered):,} distinct sentences")
-    counts = LemmaCounts()
+    gate = _word_gate(args)
+    _log(
+        f"parse: {len(gate.lemmas):,} words may become units, "
+        f"{len(gate.glossed):,} sentences carry a trusted gloss"
+    )
+    counts = LemmaCounts(
+        gate=gate,
+        count_ngrams=not args.no_ngrams,
+        ngram_vocab=_ngram_vocab(),
+    )
     started = time.monotonic()
     occurrences_path = build_dir / "occurrences.jsonl"
     total = 0
@@ -144,7 +187,12 @@ def stage_parse(args: argparse.Namespace) -> int:
         ):
             counts.add(parsed, line.source)
             for occ in detect_all(
-                parsed, curated, source=line.source, line_id=line.line_id, dictionary=dictionary
+                parsed,
+                curated,
+                source=line.source,
+                line_id=line.line_id,
+                dictionary=dictionary,
+                words=gate,
             ):
                 kinds[occ.kind] += 1
                 total += 1
@@ -154,6 +202,7 @@ def stage_parse(args: argparse.Namespace) -> int:
                 _log(f"  {index:,} sentences, {total:,} occurrences, {elapsed / 60:.1f} min")
 
     write_occurrences(occurrences_path, generate())
+    counts.prune_ngrams(NGRAM_MIN_COUNT)
     write_text_atomic(
         build_dir / "lemma_counts.json", json.dumps(counts.to_dict(), ensure_ascii=False)
     )
@@ -442,6 +491,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--generate-unit-glosses", action="store_true")
     parser.add_argument("--max-gloss-calls", type=int, default=250)
+    parser.add_argument("--word-cap", type=int, default=60)
+    parser.add_argument("--no-ngrams", action="store_true")
     parser.add_argument("--gloss-batch-size", type=int, default=glosses_module.DEFAULT_BATCH_SIZE)
     return parser
 

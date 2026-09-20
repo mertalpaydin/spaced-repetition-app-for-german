@@ -4,7 +4,12 @@ Detection is generous; the units stage applies the association measure
 (``units.log_likelihood``) and abstains where the counts are sparse.
 """
 
-from src.phrases.mining.common import LIGHT_VERB_LEMMAS, is_word, make_occurrence
+from src.phrases.mining.common import (
+    LIGHT_VERB_LEMMAS,
+    STOP_ADVERBS,
+    is_word,
+    make_occurrence,
+)
 from src.phrases.occurrences import Occurrence
 from src.phrases.parse import (
     ParsedSentence,
@@ -258,6 +263,63 @@ def detect_adj_noun(sentence: ParsedSentence, *, source: str, line_id: str) -> l
                 line_id=line_id,
                 form_key=f"{adj.morph.get('Case', '?')}|{adj.morph.get('Number', '?')}",
                 evidence={"adj": lemma, "noun": noun.lemma.lower()},
+            )
+        )
+    return found
+
+
+def stop_adjective(lemma: str) -> bool:
+    """Adjectives that combine with everything. Public so the single-word
+    detector applies the same list (``mining.words``)."""
+    return lemma in _STOP_ADJECTIVES
+
+
+#: The dependency labels a predicative or adverbial adjective takes under its
+#: verb. ``nk`` is attributive and belongs to ``adj_noun``; ``svp`` is a
+#: separable particle and belongs to ``separable_verb``.
+_ADJ_VERB_DEPS: frozenset[str] = frozenset({"pd", "oc", "mo"})
+
+
+def detect_adj_verb(sentence: ParsedSentence, *, source: str, line_id: str) -> list[Occurrence]:
+    """Adjective + verb collocations: ``ernst nehmen``, ``bereit machen``,
+    ``bekannt geben``. The gap the Lingvist list exposed on 2026-09-19: the
+    miner had adjective + noun and noun + verb but nothing for an adjective
+    that forms a set phrase with a verb."""
+    found: list[Occurrence] = []
+    for adj in sentence.tokens:
+        # The tagger calls a predicative adjective an adverb, so both parts of
+        # speech are candidates; ``units._decide_adj_verb`` requires the
+        # modifier to be used as an adjective somewhere in the corpus.
+        if adj.pos not in {"ADJ", "ADV"} or adj.dep not in _ADJ_VERB_DEPS or not is_word(adj):
+            continue
+        if adj.morph.get("Degree", "Pos") != "Pos":
+            continue
+        lemma = adj.lemma.lower()
+        if lemma in _STOP_ADJECTIVES or lemma in STOP_ADVERBS or len(lemma) < 3:
+            continue
+        if adj.text[:1].isupper() and adj.i > 0:
+            continue
+        verb = lexical_verb(sentence, adj.i)
+        # A copula reading ("ist schön") is every predicative adjective, not
+        # a collocation, so the light verbs are excluded as for noun + verb.
+        if verb is None or verb.pos != "VERB" or verb.lemma.lower() in LIGHT_VERB_LEMMAS:
+            continue
+        vkey = verb_lemma_key(sentence, verb)
+        if not vkey:
+            continue
+        particle = separable_particle(sentence, verb)
+        tokens = [adj, verb] + ([particle] if particle is not None else [])
+        found.append(
+            make_occurrence(
+                kind="adj_verb",
+                unit_key=f"{lemma} {vkey}",
+                parts=[lemma, vkey],
+                tokens=tokens,
+                sentence=sentence,
+                corpus_source=source,
+                line_id=line_id,
+                form_key=form_key(verb),
+                evidence={"dep": adj.dep, "adj": lemma, "verb": vkey},
             )
         )
     return found

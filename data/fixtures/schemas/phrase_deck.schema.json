@@ -268,14 +268,20 @@
           },
           "kind": {
             "enum": [
+              "noun",
+              "verb",
+              "adjective",
+              "adverb",
               "verb_prep",
               "reflexive_verb",
               "separable_verb",
               "noun_verb",
+              "adj_verb",
               "adj_noun",
               "connector",
               "two_part_connector",
-              "idiom"
+              "idiom",
+              "expression"
             ],
             "title": "Kind",
             "type": "string"
@@ -392,14 +398,20 @@
           },
           "kind": {
             "enum": [
+              "noun",
+              "verb",
+              "adjective",
+              "adverb",
               "verb_prep",
               "reflexive_verb",
               "separable_verb",
               "noun_verb",
+              "adj_verb",
               "adj_noun",
               "connector",
               "two_part_connector",
-              "idiom"
+              "idiom",
+              "expression"
             ],
             "title": "Kind",
             "type": "string"
@@ -600,14 +612,20 @@
           },
           "kind": {
             "enum": [
+              "noun",
+              "verb",
+              "adjective",
+              "adverb",
               "verb_prep",
               "reflexive_verb",
               "separable_verb",
               "noun_verb",
+              "adj_verb",
               "adj_noun",
               "connector",
               "two_part_connector",
-              "idiom"
+              "idiom",
+              "expression"
             ],
             "title": "Kind",
             "type": "string"

@@ -17,7 +17,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 
-from src.contracts import GapSpan, PhraseCard, PhraseUnit
+from src.contracts import WORD_KINDS, GapSpan, PhraseCard, PhraseUnit
 from src.phrases.occurrences import Occurrence
 
 TRUSTED_GLOSS_SOURCES: frozenset[str] = frozenset({"azure", "gemini"})
@@ -160,11 +160,23 @@ _CONTRACTIONS: dict[str, tuple[str, ...]] = {
 }
 
 
+#: Kinds whose display never hides a governing preposition the parts miss.
+#: A new kind left out of this set has its display scanned by
+#: ``_COMPLEMENT_RE`` and can acquire a spurious gap.
+_NO_COMPLEMENT_KINDS: frozenset[str] = WORD_KINDS | {
+    "verb_prep",
+    "reflexive_verb",
+    "connector",
+    "two_part_connector",
+    "expression",
+}
+
+
 def complement_preposition(unit: PhraseUnit) -> str | None:
     """The governing preposition a reviewer put into a unit's display that
     the mined parts do not carry ("Wert legen auf +Akk", "sich zubewegen auf
     +Akk"). Verb-preposition and reflexive units already gap theirs."""
-    if unit.kind in {"verb_prep", "reflexive_verb", "connector", "two_part_connector"}:
+    if unit.kind in _NO_COMPLEMENT_KINDS:
         return None
     m = _COMPLEMENT_RE.search(unit.display_de)
     if m is None:

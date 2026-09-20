@@ -93,7 +93,7 @@ class CollocationSeed(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     key: str
-    kind: Literal["noun_verb", "adj_noun"]
+    kind: Literal["noun_verb", "adj_noun", "adj_verb"]
     display: str | None = None
     cefr: CEFR | None = None
     gloss_en: str | None = None

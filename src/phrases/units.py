@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from src.contracts import UNIT_ID_PREFIX, Case, PhraseUnit
+from src.contracts import UNIT_ID_PREFIX, WORD_KINDS, Case, PhraseUnit
 from src.lexicon.lemmatizer import SEPARABLE_PREFIXES, normalise
 from src.lexicon.vocabulary import VocabularyStore
 from src.phrases import paradigms, verb_government
@@ -65,6 +65,12 @@ _FUNCTION_PARTS: frozenset[str] = frozenset(
     }
 )
 _KIND_ORDER: dict[str, int] = {
+    "noun": -6,
+    "verb": -5,
+    "adjective": -4,
+    "adverb": -3,
+    "adj_verb": -2,
+    "expression": -1,
     "verb_prep": 0,
     "reflexive_verb": 1,
     "separable_verb": 2,
@@ -114,6 +120,23 @@ class Thresholds:
     #: collocations and useless to a learner; everyday evidence is what
     #: separates "gute Idee" from them.
     colloc_min_everyday: int = 3
+    #: Single words. ``word_min_count`` is the sentence count a word needs to
+    #: be worth teaching; 100 over 4M sentences leaves about 9,400 nouns,
+    #: verbs and adjectives (measured 2026-09-20). ``word_share`` is the
+    #: proportion of the ranking given to single words: the owner's choice of
+    #: 2026-09-20 is one interleaved ranking rather than words first, because
+    #: a word is always at least as frequent as any phrase containing it and
+    #: would otherwise fill the first two thousand ranks.
+    word_min_count: int = 100
+    word_share: float = 0.6
+    #: Adjective + verb, as for the other collocations but stricter, and the
+    #: modifier must be used as an adjective somewhere: the tagger calls a
+    #: predicative adjective an adverb, so "oft kommen" reaches the detector
+    #: too.
+    adj_verb_min_count: int = 8
+    adj_verb_min_lift: float = 8.0
+    adj_verb_min_adjective_use: int = 50
+    adj_verb_cap_per_verb: int = 6
 
 
 @dataclass
@@ -141,10 +164,18 @@ class UnitStats:
     form_keys: Counter[str] = field(default_factory=Counter)
     discontinuous: int = 0
     fused: int = 0
+    #: Noun units only: the gender the corpus shows, for the article in the
+    #: citation form ("die Frage"). The gap stays the noun alone.
+    gender_tally: Counter[str] = field(default_factory=Counter)
+    #: Single-word kinds only. Their occurrences are capped at parse time
+    #: (``mining.words``), so the sentence set understates them; the counts
+    #: file holds the true corpus figures and these two fields carry them.
+    corpus_count: int = 0
+    corpus_count_by_source: Counter[str] = field(default_factory=Counter)
 
     @property
     def count(self) -> int:
-        return len(self.sentences)
+        return self.corpus_count or len(self.sentences)
 
     @property
     def best_parts(self) -> tuple[str, ...]:
@@ -203,6 +234,8 @@ _VERB_INDEX: dict[str, int] = {
     "reflexive_verb": 1,
     "separable_verb": 0,
     "noun_verb": -1,
+    "adj_verb": -1,
+    "verb": 0,
 }
 
 
@@ -677,6 +710,30 @@ def _merge_counts(dst: UnitStats, src: UnitStats) -> None:
     dst.prep_phrases += src.prep_phrases
 
 
+_WORD_ARTICLE: dict[str, str] = {"Masc": "der", "Fem": "die", "Neut": "das"}
+
+
+def interleave_by_share[T](words: list[T], phrases: list[T], share: float) -> list[T]:
+    """One ranking out of two, in the given proportion.
+
+    A single word is always at least as frequent as any phrase containing it,
+    so a straight frequency sort puts every word before almost every phrase.
+    The owner's choice of 2026-09-20 is to interleave: with ``share`` 0.6 the
+    ranking runs six words to four phrases, each group keeping its own
+    frequency order.
+    """
+    share = min(max(share, 0.0), 1.0)
+    if not words or share <= 0.0:
+        return list(phrases)
+    if not phrases or share >= 1.0:
+        return list(words)
+    keyed: list[tuple[float, int, T]] = []
+    keyed += [(i / share, 0, item) for i, item in enumerate(words)]
+    keyed += [(j / (1.0 - share), 1, item) for j, item in enumerate(phrases)]
+    keyed.sort(key=lambda row: (row[0], row[1]))
+    return [item for _, _, item in keyed]
+
+
 def _settle_prepositional(stats: dict[tuple[str, str], UnitStats], share: float) -> None:
     """One unit per adjective-noun pair: the prepositional variant when a
     single preposition governs at least ``share`` of the pair's sentences,
@@ -738,6 +795,10 @@ def aggregate(
         if occ.kind == "adj_noun" and len(occ.parts) == 2:
             if occ.form_key.startswith("Nom|"):
                 entry.nominative_surfaces[_nominative_phrase(occ)] += 1
+        if occ.kind == "noun":
+            gender = occ.evidence.get("gender", "")
+            if gender:
+                entry.gender_tally[gender] += 1
         if occ.kind == "noun_verb" and len(occ.parts) == 2:
             stem = normalise(occ.parts[0])[:4]
             for surface in occ.surfaces:
@@ -787,6 +848,9 @@ class _Decision:
     trivial_reason: str | None = None
     score: float = 0.0
     also_accepted: tuple[str, ...] = ()
+    #: Set when the decision settles a kind the detector could not
+    #: (``adjective`` against ``adverb``); otherwise the stats' kind stands.
+    kind: str | None = None
 
 
 class UnitBuilder:
@@ -821,6 +885,10 @@ class UnitBuilder:
             "zero_hit_curated": [],
             "top_by_kind": {},
         }
+        #: Components of an accepted collocation, kept even when they fall
+        #: below the word threshold, so "Frage", "stellen" and "eine Frage
+        #: stellen" are all units (owner, 2026-09-20).
+        self.forced_words: set[str] = set()
 
     # -- per-kind decisions ---------------------------------------------------
 
@@ -1002,6 +1070,53 @@ class UnitBuilder:
             return _Decision(False, "lift")
         return _Decision(True, cefr=self._cefr_for(head), score=g2)
 
+    def _decide_word(self, s: UnitStats) -> _Decision:
+        """A single word. The frequency comes from the counts file, not from
+        the capped occurrence tally, and the final kind is settled here: the
+        tagger files a predicative adjective under ADV, so the detector emits
+        both as ``adjective`` and the corpus decides which it mostly is."""
+        lemma = s.key
+        if s.count < self.t.word_min_count and lemma not in self.forced_words:
+            return _Decision(False, "count")
+        if lemma in self.connectors or lemma in self.stoplist:
+            return _Decision(False, "curated_connector")
+        kind = s.kind
+        if kind == "adjective":
+            adverb_uses = self.counts.adverbs.get(lemma, 0)
+            adjective_uses = self.counts.adjectives.get(lemma, 0)
+            if adverb_uses > adjective_uses:
+                kind = "adverb"
+        return _Decision(True, cefr=self._cefr_for(lemma), score=float(s.count), kind=kind)
+
+    def _decide_adj_verb(self, s: UnitStats) -> _Decision:
+        parts = s.best_parts
+        if len(parts) < 2:
+            return _Decision(False, "parts")
+        adjective, verb = parts[-2].lower(), parts[-1]
+        seed = self.colloc_seeds.get(s.key)
+        if seed is not None:
+            return _Decision(True, cefr=seed.cefr, gloss_en=seed.gloss_en, score=float(s.count))
+        if s.count < self.t.adj_verb_min_count:
+            return _Decision(False, "count")
+        # The modifier has to be an adjective somewhere, or every adverb that
+        # happens to modify a verb ("oft kommen") becomes a collocation.
+        if self.counts.adjectives.get(adjective, 0) < self.t.adj_verb_min_adjective_use:
+            return _Decision(False, "not_an_adjective")
+        a = self.counts.adjectives.get(adjective, 0)
+        b = self.counts.verbs.get(verb, 0)
+        n = self.counts.sentences
+        if min(a, b) < self.t.colloc_min_lemma_count:
+            return _Decision(False, "sparse")
+        everyday = sum(s.count_by_source.get(src, 0) for src in EVERYDAY_SOURCES)
+        if self.counts.sentences_by_source and everyday < self.t.colloc_min_everyday:
+            return _Decision(False, "no_everyday_evidence")
+        g2 = log_likelihood(s.count, a, b, n)
+        if g2 < self.t.colloc_min_g2:
+            return _Decision(False, "g2")
+        if lift(s.count, a, b, n) < self.t.adj_verb_min_lift:
+            return _Decision(False, "lift")
+        return _Decision(True, cefr=self._cefr_for(verb), score=g2)
+
     def _decide_curated(self, s: UnitStats) -> _Decision:
         if s.kind in {"connector", "two_part_connector"}:
             spec = self.connectors.get(s.key)
@@ -1035,6 +1150,8 @@ class UnitBuilder:
     def _display(self, s: UnitStats, decision: _Decision) -> str:
         if decision.display:
             return decision.display
+        if s.kind in WORD_KINDS:
+            return self._word_display(s)
         parts = s.best_parts
         if s.kind in {"verb_prep", "reflexive_verb", "separable_verb"}:
             return " ".join(parts)
@@ -1055,16 +1172,42 @@ class UnitBuilder:
             return " ".join(parts)
         return s.key
 
+    def _apply_corpus_counts(self, stats: dict[tuple[str, str], UnitStats]) -> None:
+        """Single-word frequency comes from the counts file, which saw every
+        sentence, not from the occurrence tally, which is capped."""
+        for (kind, key), s in stats.items():
+            if kind not in WORD_KINDS:
+                continue
+            by_source = self.counts.word_by_source.get(f"{kind}:{key}")
+            if by_source:
+                s.corpus_count_by_source = Counter(by_source)
+                s.corpus_count = sum(by_source.values())
+            else:
+                role = self.counts.role_counts(kind) if hasattr(self.counts, "role_counts") else {}
+                s.corpus_count = role.get(key, 0)
+
     def _trivial(self, s: UnitStats, decision: _Decision) -> tuple[bool, str | None]:
         if decision.trivial:
             return True, decision.trivial_reason
         if s.key in self.stoplist:
             return True, "stoplist"
-        if " " not in s.key and s.kind in {"connector", "idiom"}:
+        if " " not in s.key and (s.kind in {"connector", "idiom"} or s.kind in WORD_KINDS):
             rank = self.frequency_ranks.get(normalise(s.key))
             if rank is not None and rank <= self.t.trivial_rank_max:
                 return True, f"rank<={self.t.trivial_rank_max}"
         return False, None
+
+    def _word_display(self, s: UnitStats) -> str:
+        """The citation form of a single word. A noun carries its article so
+        the gender is taught alongside it (owner, 2026-09-20); the gap in the
+        sentence stays the noun alone."""
+        lemma = s.key
+        if s.kind != "noun":
+            return lemma
+        noun = lemma[:1].upper() + lemma[1:]
+        gender = s.gender_tally.most_common(1)
+        article = _WORD_ARTICLE.get(gender[0][0]) if gender else None
+        return f"{article} {noun}" if article else noun
 
     def _apply_caps(
         self,
@@ -1149,19 +1292,30 @@ class UnitBuilder:
         stats = aggregate(occurrences, self.dictionary, self.vocabulary.vocab)
         _settle_prepositional(stats, self.t.prep_share)
         self._ensure_curated_present(stats)
+        self._apply_corpus_counts(stats)
         accepted: dict[tuple[str, str], tuple[UnitStats, _Decision]] = {}
         excluded_stats: list[UnitStats] = []
-        for ident, s in stats.items():
+        # Phrases first, so the words a collocation needs are known before the
+        # word threshold is applied: "eine Frage stellen" is only worth
+        # teaching beside "Frage" and "stellen" (owner, 2026-09-20).
+        word_idents = [ident for ident, s in stats.items() if s.kind in WORD_KINDS]
+        phrase_idents = [ident for ident, s in stats.items() if s.kind not in WORD_KINDS]
+        for ident in phrase_idents + word_idents:
+            s = stats[ident]
             if s.key in self.excluded:
                 self.report["rejected"][f"{s.kind}:excluded"] += 1
                 excluded_stats.append(s)
                 continue
-            if s.kind == "verb_prep":
+            if s.kind in WORD_KINDS:
+                decision = self._decide_word(s)
+            elif s.kind == "verb_prep":
                 decision = self._decide_verb_prep(s, stats)
             elif s.kind == "reflexive_verb":
                 decision = self._decide_reflexive(s, stats)
             elif s.kind == "separable_verb":
                 decision = self._decide_separable(s)
+            elif s.kind == "adj_verb":
+                decision = self._decide_adj_verb(s)
             elif s.kind in {"noun_verb", "adj_noun"}:
                 decision = self._decide_collocation(s)
             else:
@@ -1170,21 +1324,25 @@ class UnitBuilder:
                 self.report["rejected"][f"{s.kind}:{decision.reason}"] += 1
                 continue
             accepted[ident] = (s, decision)
+            if s.kind in {"noun_verb", "adj_verb"}:
+                self.forced_words.update(part.lower() for part in s.best_parts)
         self._apply_caps(accepted, excluded_stats)
 
-        ordered = sorted(
-            accepted.items(),
-            key=lambda item: (
-                -self._per_million(item[1][0]),
-                -item[1][0].count,
-                _KIND_ORDER[item[1][0].kind],
-                item[1][0].key,
-            ),
-        )
+        def frequency_key(
+            item: tuple[tuple[str, str], tuple[UnitStats, _Decision]],
+        ) -> tuple[float, int, int, str]:
+            stat = item[1][0]
+            return (-self._per_million(stat), -stat.count, _KIND_ORDER[stat.kind], stat.key)
+
+        rows = list(accepted.items())
+        words = sorted((r for r in rows if r[1][0].kind in WORD_KINDS), key=frequency_key)
+        phrases = sorted((r for r in rows if r[1][0].kind not in WORD_KINDS), key=frequency_key)
+        ordered = interleave_by_share(words, phrases, self.t.word_share)
         units: list[PhraseUnit] = []
         seen_ids: set[str] = set()
         for rank, (_, (s, d)) in enumerate(ordered, start=1):
-            unit_id = unit_id_for(s.kind, s.key)
+            kind = d.kind or s.kind
+            unit_id = unit_id_for(kind, s.key)
             if unit_id in seen_ids:
                 self.report["rejected"]["duplicate_id"] += 1
                 continue
@@ -1194,7 +1352,7 @@ class UnitBuilder:
             units.append(
                 PhraseUnit(
                     unit_id=unit_id,
-                    kind=s.kind,  # type: ignore[arg-type]
+                    kind=kind,  # type: ignore[arg-type]
                     lemma_key=s.key,
                     parts=list(s.best_parts),
                     display_de=(override.display if override and override.display else None)
@@ -1238,15 +1396,18 @@ class UnitBuilder:
             return float(s.count)
         weighted = 0.0
         weight_sum = 0.0
+        by_source = s.corpus_count_by_source or s.count_by_source
         for source, n in totals.items():
             if not n:
                 continue
             weight = SOURCE_WEIGHTS.get(source, 1.0)
-            weighted += weight * 1e6 * s.count_by_source.get(source, 0) / n
+            weighted += weight * 1e6 * by_source.get(source, 0) / n
             weight_sum += weight
         return weighted / weight_sum if weight_sum else 0.0
 
     def _head_lemma(self, unit: PhraseUnit) -> str:
+        if unit.kind in WORD_KINDS:
+            return unit.lemma_key
         if unit.kind in {"verb_prep", "separable_verb"}:
             return unit.parts[0]
         if unit.kind == "reflexive_verb":

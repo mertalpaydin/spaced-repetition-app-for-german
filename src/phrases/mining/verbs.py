@@ -366,7 +366,7 @@ def detect_reflexive(
     return found
 
 
-def _fused_separable_key(verb: ParsedToken, dictionary: frozenset[str] | None) -> str | None:
+def fused_separable_key(verb: ParsedToken, dictionary: frozenset[str] | None) -> str | None:
     lemma = verb.lemma.lower()
     if verb.morph.get("VerbForm") not in {"Inf", "Part"} and verb.dep not in {"oc", "re", "cj"}:
         return None
@@ -421,7 +421,7 @@ def detect_separable(
                 )
             )
             continue
-        fused_key = _fused_separable_key(verb, dictionary)
+        fused_key = fused_separable_key(verb, dictionary)
         if fused_key is None:
             continue
         found.append(

@@ -37,6 +37,12 @@ MAX_GLOSSES = 3
 _MAX_GLOSS_CHARS = 60
 
 _KIND_LABEL = {
+    "noun": "noun",
+    "verb": "verb",
+    "adjective": "adjective",
+    "adverb": "adverb",
+    "adj_verb": "adjective + verb collocation",
+    "expression": "fixed expression",
     "verb_prep": "verb + preposition",
     "reflexive_verb": "reflexive verb",
     "separable_verb": "separable verb",

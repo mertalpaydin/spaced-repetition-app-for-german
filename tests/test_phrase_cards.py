@@ -271,3 +271,58 @@ def test_complement_preposition_becomes_a_gap_when_unambiguous() -> None:
     assert with_complement_gap(two, "auf") is None
     contracted = with_complement_gap(occ("Er legt Wert aufs Detail.", "Wert", "legt"), "auf")
     assert contracted is not None and contracted.surfaces[-1] == "aufs"
+
+
+# -- single-word units, added 2026-09-20 ----------------------------------------
+
+WORD_UNIT = PhraseUnit(
+    unit_id="nn:frage",
+    kind="noun",
+    lemma_key="frage",
+    parts=["frage"],
+    display_de="die Frage",
+    sentence_count=500,
+    rank=1,
+    source="mined",
+    card_count=0,
+)
+
+
+def _word_occ(text: str, surface: str, form_key: str = "Acc|Sing") -> Occurrence:
+    start = text.index(surface)
+    return Occurrence(
+        kind="noun",
+        unit_key="frage",
+        parts=["frage"],
+        token_indices=[3],
+        spans=[(start, start + len(surface))],
+        surfaces=[surface],
+        corpus_source="tatoeba",
+        line_id=text,
+        text=text,
+        form_key=form_key,
+    )
+
+
+def test_a_single_word_unit_makes_a_one_gap_card_that_slices_back() -> None:
+    occ = _word_occ("Er stellte eine Frage.", "Frage")
+    glosses = {occ.text: Gloss("He asked a question.", "azure")}
+    selection = select_cards(
+        [WORD_UNIT], {WORD_UNIT.unit_id: [occ]}, glosses, validate=lambda _: True
+    )
+    assert len(selection.cards) == 1
+    card = selection.cards[0]
+    assert len(card.gaps) == 1
+    assert card.answers == ["Frage"]
+    assert card.sentence_de[card.gaps[0].start : card.gaps[0].end] == "Frage"
+    assert card.kind == "noun"
+
+
+def test_a_word_display_with_its_article_gets_no_complement_gap() -> None:
+    """The citation form carries the article ("die Frage"); the complement
+    scanner must not read a trailing word as a governing preposition."""
+    from src.phrases.cards import complement_preposition
+
+    assert complement_preposition(WORD_UNIT) is None
+    ends_in_a_preposition = WORD_UNIT.model_copy(update={"display_de": "der Weg zu"})
+    assert complement_preposition(ends_in_a_preposition) is None

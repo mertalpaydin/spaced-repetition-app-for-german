@@ -729,3 +729,108 @@ def test_unit_override_display_with_case_suffix_is_split_into_case() -> None:
     assert (kept.display, kept.case) == ("warten auf", "Dat")
     plain = UnitOverride(key="y", display="nach Hause")
     assert (plain.display, plain.case) == ("nach Hause", None)
+
+
+# -- single words, adjective + verb, and the interleaved ranking ----------------
+
+
+def _word_occ(kind: str, lemma: str, n: int) -> list[Occurrence]:
+    out = []
+    for i in range(n):
+        text = f"Ein Satz mit {lemma} Nummer {i}."
+        start = text.index(lemma)
+        out.append(
+            Occurrence(
+                kind=kind,  # type: ignore[arg-type]
+                unit_key=lemma,
+                parts=[lemma],
+                token_indices=[3],
+                spans=[(start, start + len(lemma))],
+                surfaces=[lemma],
+                corpus_source="tatoeba",
+                line_id=f"{kind}{i}",
+                text=text,
+                form_key="Nom|Sing",
+                evidence={"gender": "Fem"},
+            )
+        )
+    return out
+
+
+def _word_counts(**kw: object) -> LemmaCounts:
+    counts = _counts(warten=100, stellen=300)
+    counts.nouns.update({"frage": 500})
+    counts.adjectives.update({"wichtig": 400, "schnell": 20})
+    counts.adverbs = Counter({"schnell": 90, "endlich": 300})
+    counts.word_by_source = {
+        "noun:frage": Counter({"tatoeba": 500}),
+        "adjective:wichtig": Counter({"tatoeba": 400}),
+        "adjective:schnell": Counter({"tatoeba": 110}),
+        "adjective:endlich": Counter({"tatoeba": 300}),
+    }
+    for key, value in kw.items():
+        setattr(counts, key, value)
+    return counts
+
+
+def test_interleave_by_share_mixes_two_rankings_in_proportion() -> None:
+    from src.phrases.units import interleave_by_share
+
+    words = [f"w{i}" for i in range(6)]
+    phrases = [f"p{i}" for i in range(4)]
+    mixed = interleave_by_share(words, phrases, 0.6)
+    assert len(mixed) == 10
+    assert [m for m in mixed if m.startswith("w")] == words  # each group keeps its order
+    assert [m for m in mixed if m.startswith("p")] == phrases
+    assert sum(1 for m in mixed[:5] if m.startswith("w")) == 3
+    # the degenerate shares fall back to one group
+    assert interleave_by_share(words, phrases, 1.0) == words
+    assert interleave_by_share(words, phrases, 0.0) == phrases
+    assert interleave_by_share([], phrases, 0.6) == phrases
+
+
+def test_a_word_needs_the_frequency_threshold_and_carries_its_corpus_count() -> None:
+    counts = _word_counts()
+    builder = _builder(counts)
+    builder.t = Thresholds(word_min_count=200)
+    units = {u.unit_id: u for u in builder.build(_word_occ("noun", "frage", 3))}
+    # three occurrences, but the corpus count from the counts file is what rules
+    assert units["nn:frage"].sentence_count == 500
+    assert units["nn:frage"].display_de == "die Frage"  # gender from the corpus
+    builder2 = _builder(_word_counts())
+    builder2.t = Thresholds(word_min_count=600)
+    assert builder2.build(_word_occ("noun", "frage", 3)) == []
+
+
+def test_an_adjective_used_mostly_as_an_adverb_is_filed_as_one() -> None:
+    builder = _builder(_word_counts())
+    builder.t = Thresholds(word_min_count=50)
+    units = {u.lemma_key: u for u in builder.build(_word_occ("adjective", "schnell", 2))}
+    assert units["schnell"].kind == "adverb"  # adverbs 90 against adjectives 20
+    builder2 = _builder(_word_counts())
+    builder2.t = Thresholds(word_min_count=50)
+    other = {u.lemma_key: u for u in builder2.build(_word_occ("adjective", "wichtig", 2))}
+    assert other["wichtig"].kind == "adjective"
+
+
+def test_a_collocation_forces_its_components_to_be_units() -> None:
+    """Kaffee, trinken and Kaffee trinken are three units (owner, 2026-09-20).
+    The components are kept even under the word threshold."""
+    counts = _word_counts()
+    counts.verbs.update({"trinken": 300})
+    counts.word_by_source["noun:kaffee"] = Counter({"tatoeba": 60})
+    builder = _builder(counts)
+    builder.t = Thresholds(
+        word_min_count=10_000,  # far above anything here
+        colloc_min_count=2,
+        colloc_min_g2=0.0,
+        colloc_min_lift=0.0,
+        colloc_min_lemma_count=1,
+        colloc_min_everyday=0,
+    )
+    occurrences = _occ("noun_verb", "kaffee trinken", ["Kaffee", "trinken"], 5) + _word_occ(
+        "noun", "kaffee", 2
+    )
+    kinds = {u.lemma_key: u.kind for u in builder.build(occurrences)}
+    assert kinds["kaffee trinken"] == "noun_verb"
+    assert kinds["kaffee"] == "noun"  # kept although it is under the threshold

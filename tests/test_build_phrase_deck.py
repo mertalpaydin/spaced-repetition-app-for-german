@@ -43,6 +43,10 @@ def test_build_over_the_sample_corpus_matches_the_golden_outputs(tmp_path: Path)
     build_dir = tmp_path / "build"
     out_dir = tmp_path / "deck"
     common = ["--build-dir", str(build_dir), "--phrases-dir", "data/phrases"]
+    # The parse stage reads the gloss store too, to decide which sentences may
+    # carry a single-word card. Without this the test would read the owner's
+    # real 51 MB store and behave differently on a machine that has none.
+    store = ["--store", str(FIXTURES / "sample_store.jsonl")]
     assert (
         main(
             [
@@ -52,13 +56,14 @@ def test_build_over_the_sample_corpus_matches_the_golden_outputs(tmp_path: Path)
                 str(FIXTURES / "sample_corpus.tsv"),
                 "--skip-leipzig",
                 "--no-default-extras",
+                *store,
                 *common,
             ]
         )
         == 0
     )
     assert main(["--stage", "mine", *common]) == 0
-    assert main(["--stage", "cards", "--store", str(FIXTURES / "sample_store.jsonl"), *common]) == 0
+    assert main(["--stage", "cards", *store, *common]) == 0
     assert main(["--stage", "export", "--out", str(out_dir), *common]) == 0
     assert main(["--check", "--out", str(out_dir)]) == 0
 

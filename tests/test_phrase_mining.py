@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from src.phrases import carrier_validation, parse
 from src.phrases.curated import load_curated
-from src.phrases.mining import LemmaCounts, detect_all
+from src.phrases.mining import LemmaCounts, WordGate, detect_all, detect_words
 from src.phrases.occurrences import Occurrence
 
 requires_model = pytest.mark.skipif(
@@ -200,3 +200,56 @@ def test_round_two_rules() -> None:
 def test_a_pronominal_adverb_of_a_seeded_verb_prep_is_not_a_connector() -> None:
     """ "bitten um" is a seed, so its "darum" is an object whatever the parser says."""
     assert not [o for o in _detect("Ich habe ihn darum gebeten.") if o.kind == "connector"]
+
+
+# -- single words and adjective + verb, added 2026-09-20 -------------------------
+
+
+def _words(text: str) -> list[Occurrence]:
+    """The word detector needs its gate; every sentence here is "glossed"."""
+    sentence = parse.parse_one(text)
+    assert sentence is not None
+    gate = WordGate(
+        lemmas=frozenset(DICTIONARY or frozenset()) | {"frage", "stellen", "ernst", "termin"},
+        glossed=frozenset({text}),
+        dictionary=DICTIONARY,
+    )
+    return detect_words(sentence, gate, source="tatoeba", line_id="1")
+
+
+@requires_model
+def test_single_words_are_one_gap_each_with_a_form_key() -> None:
+    found = {(o.kind, o.unit_key): o for o in _words("Ich stellte eine Frage.")}
+    assert ("noun", "frage") in found and ("verb", "stellen") in found
+    noun = found[("noun", "frage")]
+    assert noun.surfaces == ["Frage"] and len(noun.spans) == 1
+    assert noun.text[noun.spans[0][0] : noun.spans[0][1]] == "Frage"
+    assert noun.form_key == "Acc|Sing"
+    assert noun.evidence["gender"] == "Fem"
+    # a past tense keeps the verb's own form key, so the session can hold
+    # Praeteritum back until the unit is in review
+    assert found[("verb", "stellen")].form_key.startswith("Fin|Past")
+
+
+@requires_model
+def test_a_separable_verb_is_never_also_a_plain_verb() -> None:
+    """Fused or split, "absagen" belongs to separable_verb."""
+    assert [o.unit_key for o in _words("Er hat den Termin abgesagt.")] == ["termin"]
+    assert not [o for o in _words("Der Zug faellt heute aus.") if o.kind == "verb"]
+
+
+@requires_model
+def test_a_predicative_adjective_is_tagged_adverb_and_still_counts() -> None:
+    """The tagger calls "ernst" an adverb here; the detector files both under
+    the provisional kind "adjective" so one word is not taught twice."""
+    found = [o for o in _words("Er nimmt das ernst.") if o.unit_key == "ernst"]
+    assert [o.kind for o in found] == ["adjective"]
+
+
+@requires_model
+def test_adj_verb_keeps_a_collocation_and_drops_a_bare_adverb() -> None:
+    occ = _one("Er wurde schwer verletzt.", "adj_verb", "schwer verletzen")
+    assert sorted(occ.surfaces) == ["schwer", "verletzt"]
+    assert [occ.text[s:e] for s, e in occ.spans] == occ.surfaces
+    assert not [o for o in _detect("Dann kommt er.") if o.kind == "adj_verb"]
+    assert not [o for o in _detect("Hier findet man alles.") if o.kind == "adj_verb"]

@@ -10,6 +10,15 @@
   "form_key": "Fin|Pres|3|Sing"
  },
  {
+  "card_id": "0a75f2b7928a",
+  "unit_id": "vb:kommen",
+  "sentence_de": "Jetzt kommen wir zum Kern des Themas.",
+  "answers": [
+   "kommen"
+  ],
+  "form_key": "Fin|Pres|1|Plur"
+ },
+ {
   "card_id": "0a9aea705354",
   "unit_id": "id:es_kommt_darauf_an",
   "sentence_de": "Es kommt darauf an, was Sie darunter verstehen.",
@@ -41,6 +50,15 @@
   "form_key": "Part"
  },
  {
+  "card_id": "1652c489978f",
+  "unit_id": "vb:machen",
+  "sentence_de": "Hoffentlich macht er nicht schlapp, so kurz vor dem Ziel.",
+  "answers": [
+   "macht"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
   "card_id": "17ce15c03dd1",
   "unit_id": "vp:bestehen_aus",
   "sentence_de": "Die Ringelwürmer sind Würmer, deren Körper aus ringförmigen Segmenten bestehen.",
@@ -58,6 +76,33 @@
    "sondern"
   ],
   "form_key": "medial"
+ },
+ {
+  "card_id": "19647d7c11ac",
+  "unit_id": "nn:ausdruck",
+  "sentence_de": "Seine rhetorischen Ergüsse sind voller banaler Ausdrücke.",
+  "answers": [
+   "Ausdrücke"
+  ],
+  "form_key": "Gen|Plur"
+ },
+ {
+  "card_id": "20db4d1ce13f",
+  "unit_id": "vb:bringen",
+  "sentence_de": "Es bringt nichts, mit ihm zu diskutieren.",
+  "answers": [
+   "bringt"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
+  "card_id": "25c3247bfacd",
+  "unit_id": "vb:machen",
+  "sentence_de": "Maria könnte das selbst machen.",
+  "answers": [
+   "machen"
+  ],
+  "form_key": "Inf"
  },
  {
   "card_id": "27aa56cb4c1d",
@@ -98,6 +143,33 @@
   "form_key": "es|gibt"
  },
  {
+  "card_id": "3c6394f95fa3",
+  "unit_id": "nn:ende",
+  "sentence_de": "Was mache ich bloß, wenn am Ende des Geldes noch so viel Monat übrig ist?",
+  "answers": [
+   "Ende"
+  ],
+  "form_key": "Dat|Sing"
+ },
+ {
+  "card_id": "3ca2650fb02e",
+  "unit_id": "nn:fehler",
+  "sentence_de": "Man muss die Fehler, die man nicht ablegen kann, in Tugenden verwandeln.",
+  "answers": [
+   "Fehler"
+  ],
+  "form_key": "Acc|Plur"
+ },
+ {
+  "card_id": "41a27e9abacd",
+  "unit_id": "vb:geben",
+  "sentence_de": "Auch im Bükk-Gebirge gibt es einen Urwald.",
+  "answers": [
+   "gibt"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
   "card_id": "427957b1b17b",
   "unit_id": "cn:denn",
   "sentence_de": "Ich will mich in dieser Angelegenheit nicht einmischen, denn der Mann ist offensichtlich schuldig.",
@@ -116,6 +188,15 @@
   "form_key": "medial"
  },
  {
+  "card_id": "4787f6577bbf",
+  "unit_id": "nn:frage",
+  "sentence_de": "Mit Fragen kommt man durch die Welt.",
+  "answers": [
+   "Fragen"
+  ],
+  "form_key": "Dat|Plur"
+ },
+ {
   "card_id": "4e6aa3158a22",
   "unit_id": "id:es_gibt",
   "sentence_de": "Es gibt nichts schöneres als einen Spaziergang.",
@@ -126,6 +207,15 @@
   "form_key": "es|gibt"
  },
  {
+  "card_id": "5c2d24b50b3d",
+  "unit_id": "vb:treffen",
+  "sentence_de": "Der Todesfall traf uns nicht unerwartet.",
+  "answers": [
+   "traf"
+  ],
+  "form_key": "Fin|Past|3|Sing"
+ },
+ {
   "card_id": "65200ecb8805",
   "unit_id": "cn:waehrend",
   "sentence_de": "Während ich daran dachte, packte mich das Grauen.",
@@ -133,6 +223,15 @@
    "Während"
   ],
   "form_key": "initial"
+ },
+ {
+  "card_id": "66d4cde3dd26",
+  "unit_id": "vb:nehmen",
+  "sentence_de": "Ich nahm vom Bahnhof zum Hotel ein Taxi.",
+  "answers": [
+   "nahm"
+  ],
+  "form_key": "Fin|Past|1|Sing"
  },
  {
   "card_id": "705becddf573",
@@ -182,6 +281,33 @@
   "form_key": "initial"
  },
  {
+  "card_id": "8ce4815f79d6",
+  "unit_id": "vb:stellen",
+  "sentence_de": "Tom stellte sich mutig der Gefahr.",
+  "answers": [
+   "stellte"
+  ],
+  "form_key": "Fin|Past|3|Sing"
+ },
+ {
+  "card_id": "97145c3d334a",
+  "unit_id": "nn:angst",
+  "sentence_de": "Wir werden keine Angst haben.",
+  "answers": [
+   "Angst"
+  ],
+  "form_key": "Acc|Sing"
+ },
+ {
+  "card_id": "973eafe996aa",
+  "unit_id": "vb:wissen",
+  "sentence_de": "Wir müssen ganz genau wissen, was vor sich geht.",
+  "answers": [
+   "wissen"
+  ],
+  "form_key": "Inf"
+ },
+ {
   "card_id": "9e619dc61aa9",
   "unit_id": "vp:warten_auf",
   "sentence_de": "Letzte Nacht bin ich zuhause geblieben, um auf deinen Anruf zu warten.",
@@ -202,6 +328,15 @@
   "form_key": "Fin|Pres|1|Sing"
  },
  {
+  "card_id": "a5095a6a77fe",
+  "unit_id": "vb:kommen",
+  "sentence_de": "Mit Fragen kommt man durch die Welt.",
+  "answers": [
+   "kommt"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
   "card_id": "a55cf769e740",
   "unit_id": "cn:dass",
   "sentence_de": "Ich zähle auf dich, dass du dich uns anschließen wirst.",
@@ -209,6 +344,33 @@
    "dass"
   ],
   "form_key": "medial"
+ },
+ {
+  "card_id": "a8a612505d20",
+  "unit_id": "vb:stehen",
+  "sentence_de": "Heute stand Tom knapp vor dem Tod.",
+  "answers": [
+   "stand"
+  ],
+  "form_key": "Fin|Past|3|Sing"
+ },
+ {
+  "card_id": "b8dbcd9168e8",
+  "unit_id": "vb:haben",
+  "sentence_de": "Wir haben zurzeit sehr viel zu tun.",
+  "answers": [
+   "haben"
+  ],
+  "form_key": "Fin|Pres|1|Plur"
+ },
+ {
+  "card_id": "be6837721345",
+  "unit_id": "vb:treffen",
+  "sentence_de": "Wir trafen ihn in einer fernen Stadt.",
+  "answers": [
+   "trafen"
+  ],
+  "form_key": "Fin|Past|1|Plur"
  },
  {
   "card_id": "cc336383f225",
@@ -220,6 +382,51 @@
   "form_key": "medial"
  },
  {
+  "card_id": "d03eca046606",
+  "unit_id": "vb:haben",
+  "sentence_de": "Das hätte ich nicht für möglich gehalten.",
+  "answers": [
+   "hätte"
+  ],
+  "form_key": "Fin|Past|1|Sing"
+ },
+ {
+  "card_id": "d58e4b9528a0",
+  "unit_id": "vb:geben",
+  "sentence_de": "Es gibt nichts schöneres als einen Spaziergang.",
+  "answers": [
+   "gibt"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
+  "card_id": "d5f7836447bd",
+  "unit_id": "vb:spielen",
+  "sentence_de": "Wer ist dieser Mann, der Klavier spielt?",
+  "answers": [
+   "spielt"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
+  "card_id": "d6b4a7be7d25",
+  "unit_id": "vb:stehen",
+  "sentence_de": "Bei ihm zuhause herrscht Geldmangel, doch an jedes Raumes Wand steht ein Schrank voller Dank.",
+  "answers": [
+   "steht"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
+  "card_id": "d9563aaea3c6",
+  "unit_id": "nn:antwort",
+  "sentence_de": "Es würde mich freuen, eine Antwort zu bekommen.",
+  "answers": [
+   "Antwort"
+  ],
+  "form_key": "Acc|Sing"
+ },
+ {
   "card_id": "dcaf3315b3a2",
   "unit_id": "cn:vorher",
   "sentence_de": "Das, was du nun sagst, stimmt nicht überein mit dem, was du vorher gesagt hast.",
@@ -227,6 +434,15 @@
    "vorher"
   ],
   "form_key": "medial"
+ },
+ {
+  "card_id": "e3c9244e13d3",
+  "unit_id": "vb:gehen",
+  "sentence_de": "Ich gehe immer um 9 Uhr ins Bett.",
+  "answers": [
+   "gehe"
+  ],
+  "form_key": "Fin|Pres|1|Sing"
  },
  {
   "card_id": "f1ac0c87522f",
@@ -246,6 +462,33 @@
    "aus"
   ],
   "form_key": "Fin|Pres|3|Sing"
+ },
+ {
+  "card_id": "f4973556a15e",
+  "unit_id": "vb:nehmen",
+  "sentence_de": "Wer sich Zeit zum Denken nehmen will, muss auch darauf vorbereitet sein.",
+  "answers": [
+   "nehmen"
+  ],
+  "form_key": "Inf"
+ },
+ {
+  "card_id": "f744748d837f",
+  "unit_id": "vb:gehen",
+  "sentence_de": "Wir müssen ganz genau wissen, was vor sich geht.",
+  "answers": [
+   "geht"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
+  "card_id": "f79f5d995b73",
+  "unit_id": "vb:wissen",
+  "sentence_de": "Glauben heißt nicht wissen wollen, was wahr ist.",
+  "answers": [
+   "wissen"
+  ],
+  "form_key": "Inf"
  },
  {
   "card_id": "fa64ae688a48",

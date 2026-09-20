@@ -46,21 +46,40 @@ PURPOSE_DECK_REVIEW: str = "deck_review"
 # The phrase deck
 # ==============================================================================
 
+#: The word kinds teach one word; the rest teach a multi-word phrase. Both
+#: are ranked together (``units.py``), interleaved by ``Thresholds.word_share``.
+WordKind = Literal["noun", "verb", "adjective", "adverb"]
+
 PhraseKind = Literal[
+    "noun",
+    "verb",
+    "adjective",
+    "adverb",
     "verb_prep",
     "reflexive_verb",
     "separable_verb",
     "noun_verb",
+    "adj_verb",
     "adj_noun",
     "connector",
     "two_part_connector",
     "idiom",
+    "expression",
 ]
+
+#: The single-word kinds, as a set for the many ``kind in ...`` tests.
+WORD_KINDS: frozenset[str] = frozenset({"noun", "verb", "adjective", "adverb"})
 
 #: ``unit_id`` prefix per kind. Ids are stable across builds because they are
 #: derived from the unit's lemma key, never from a row number: the review log
 #: joins on them.
 UNIT_ID_PREFIX: dict[str, str] = {
+    "noun": "nn",
+    "verb": "vb",
+    "adjective": "aj",
+    "adverb": "av",
+    "adj_verb": "jv",
+    "expression": "ex",
     "verb_prep": "vp",
     "reflexive_verb": "rv",
     "separable_verb": "sv",
