@@ -1,7 +1,0 @@
-nv:auskunft_geben
-nv:huhn_essen
-nv:orang_essen
-nv:pizza_essen
-nv:pullover_kaufen
-nv:satz_interpretieren
-nv:wort_uebersetzen

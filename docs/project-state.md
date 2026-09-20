@@ -36,7 +36,10 @@ into a phrase trainer instead.
 The grammar trainer's code survives on `main` and `feat/generate-then-blank`.
 Its design record (`docs/plan/`, `docs/00-` to `04-*.md`,
 `docs/building-the-bank.md`, `docs/known-defects.md`) carries a dated STALE
-header and is kept for the reasoning, not as instructions. `docs/audits/` is
+header and is kept for the reasoning, not as instructions. Since 2026-09-20
+none of it is tracked by git: it lives on the owner's machine only, because
+the repository is public and none of it helps a visitor. The same goes for
+`docs/audits/`, which is
 untouched.
 
 ## The phases

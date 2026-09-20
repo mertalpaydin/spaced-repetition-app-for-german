@@ -167,3 +167,16 @@ data/review_log.jsonl
 # The owner's own study history: word lists exported from other tools, and
 # anything derived from them. Personal, and this repository is public.
 /Deutsch Words*.csv
+/Deck top *.csv
+
+# Internal working documents. They stay on the owner's machine: the review
+# record is long, unfinished in places, and of no use to a visitor, and the
+# stage documents describe the grammar trainer this repository replaced.
+# NOTE: docs/audits/phase-1-review/ holds the reviewed-card ledger that
+# scripts/review_deck.py diffs against. Untracked, it exists on one machine
+# only and is no longer backed up by a push.
+/docs/audits/
+/docs/plan/
+/docs/0[0-4]-*.md
+/docs/known-defects.md
+/docs/building-the-bank.md

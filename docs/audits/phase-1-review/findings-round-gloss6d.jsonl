@@ -1,2 +1,0 @@
-{"card_id": "dc483b3c6e46", "unit": "eines natürlichen Todes sterben", "category": "WRONG_UNIT", "severity": "high", "note": "The sentence has the noun phrase 'natürlicher Tod' without 'sterben'.", "action": "drop_card"}
-{"card_id": "7f6c67bf9ea3", "unit": "mit hoher Geschwindigkeit", "category": "WRONG_UNIT", "severity": "high", "note": "'hohe Geschwindigkeiten fahren' is the object, not the prepositional phrase 'mit hoher Geschwindigkeit'.", "action": "drop_card"}
