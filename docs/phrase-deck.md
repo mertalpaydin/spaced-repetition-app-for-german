@@ -34,7 +34,7 @@ Subtitle lines become cards only when the sentence validator passes them.
 | `connectors.yaml` | connectors and two-part connectors, with forms, POS guards, `needs_context_when_initial`, `trivial` | matched, never mined |
 | `idioms.yaml` | fixed expressions as token patterns with `max_gap` | matched, never mined |
 | `verb_prep_seed.yaml` | verb + preposition (and reflexive) units with case, CEFR, gloss | unit whatever the counts say; seed case wins, disagreement reported |
-| `collocation_seed.yaml` | noun-verb collocations with display form, CEFR, gloss | unit whatever the association says |
+| `collocation_seed.yaml` | noun-verb, adjective-noun or adjective-verb collocations with display form, CEFR, gloss | unit whatever the association says |
 | `trivial_stoplist.yaml` | lemma keys flagged trivial | skipped by the scheduler by default |
 | `exclude.yaml` | lemma keys dropped outright, each with its reason | the curation round; grows from `report.json` and from reviews |
 | `excluded_cards.yaml` | card ids a review rejected | never selected again |
@@ -43,7 +43,7 @@ Subtitle lines become cards only when the sentence validator passes them.
 ## Stages
 
 ```
-uv run python scripts/build_phrase_deck.py --stage parse     # ~10 min: spaCy over both corpora
+uv run python scripts/build_phrase_deck.py --stage parse     # 2-3 h: spaCy over six corpora, 4.1M sentences
 uv run python scripts/build_phrase_deck.py --stage mine      # seconds: build/units.jsonl, build/report.json
 uv run python scripts/build_phrase_deck.py --stage cards     # minutes: build/cards.jsonl, wanted_carriers.txt
 uv run python scripts/build_phrase_deck.py --stage export    # seconds: web/data/deck/, the JSON schema fixture
@@ -57,19 +57,50 @@ stops two builds from overlapping.
 
 ### What each stage decides
 
-- **parse** writes one `Occurrence` per phrase match per sentence, generously.
+- **parse** writes one `Occurrence` per match per sentence, generously.
   Detectors: verb + preposition (`op`/`mo` prepositions on a lexical verb,
   time and measure frames excluded), reflexive verbs (pronouns with
   `Reflex=Yes` or subject agreement), separable verbs (`svp` particle;
-  fused infinitives and participles), noun-verb and adjective-noun
-  collocations (objects only, `cvc` for Funktionsverbgefüge), connectors and
-  idioms from the lists.
+  fused infinitives and participles), noun-verb, adjective-noun and
+  adjective-verb collocations (`cvc` for Funktionsverbgefüge), connectors and
+  idioms from the lists, and the single words.
+
+  The **single-word detector** (`src/phrases/mining/words.py`) is bounded in
+  two ways a phrase detector is not, because a common word occurs in millions
+  of sentences. It emits only from sentences that already carry an Azure or
+  Gemini gloss, since `select_cards` could never use any other sentence, and
+  at most `--word-cap` sentences per word per corpus (12). Its frequency for
+  the ranking therefore does NOT come from the occurrence tally: it comes
+  from `lemma_counts.json`, which counts every sentence. A word must be in
+  the CEFR list or the dictionary filter to be emitted at all, so names and
+  typos never enter; the frequency threshold is applied in `mine`, where it
+  is cheap to re-tune.
+
+  The tagger calls a predicative adjective an adverb ("er nimmt das ernst"),
+  so ADJ and ADV are both emitted under the provisional kind `adjective` and
+  `mine` settles which a lemma mostly is. Keying on the token's part of
+  speech would teach one word twice.
+
+  The parse also counts surface 2-to-4-grams over the commonest 20,000
+  words, for the expression kind, over the glossed sentences only.
+  `--no-ngrams` skips it.
 - **mine** applies the thresholds in `src/phrases/units.py` (`Thresholds`):
   count, verb ratio and lift for verb + preposition; share or hand list for
   reflexives, with `sich V prep` replacing `sich V` when it covers 60%; a
   fused-only separable verb is dropped; collocations need count, both lemmas
   attested 20 times, G² ≥ 15.13 and lift ≥ 5, capped per verb and per noun.
-  Ranks by distinct sentence count. Flags trivial units. Writes
+  A single word needs `word_min_count` sentences, or to be a component of an
+  accepted collocation: "Frage", "stellen" and "eine Frage stellen" are three
+  units by design. An adjective + verb pair needs its modifier to be used as
+  an adjective somewhere, or every adverb that modifies a verb would qualify.
+
+  **Words and phrases are interleaved, not sorted together.** A word is at
+  least as frequent as any phrase containing it, so one ranking by frequency
+  would put some two thousand words before almost every phrase.
+  `Thresholds.word_share` (0.6) is the proportion of the ranking given to
+  single words; each group keeps its own frequency order. Flags trivial
+  units: a single word inside the 300 commonest is trivial, as a connector
+  is. Writes
   `report.json`: top 200 per kind, rejections by reason, seed disagreements,
   zero-hit curated entries.
 - **cards** picks from the whole corpus: one occurrence of the unit per
