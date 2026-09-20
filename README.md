@@ -1,9 +1,9 @@
-# Phrasen: a German phrase trainer
+# Phrasen: a German vocabulary trainer
 
-A spaced-repetition trainer for German **phrases**, not words, in the spirit of
-Lingvist. Every card is a real sentence from a corpus with the tokens of one
-phrase blanked out, plus its English translation. You type the missing tokens;
-FSRS decides when you see the phrase again.
+A spaced-repetition trainer that teaches German words **and** the phrases they
+live in. Every card is a real sentence from a corpus with one unit blanked out,
+plus its English translation. You type what is missing; FSRS decides when you
+see it again.
 
 **Try it:** <https://mertalpaydin.github.io/spaced-repetition-app-for-german/>
 (works offline after the first visit, installs as an app on Android and desktop Chrome).
@@ -12,24 +12,35 @@ FSRS decides when you see the phrase again.
   <img src="docs/screenshots/practice-dark.png" width="640" alt="A card: a German sentence with two gaps and its English translation">
 </p>
 
-## Why phrases
+## What it teaches
 
-Word lists teach `warten`. German is spoken in `warten auf + Akk`, `sich
-interessieren für`, `aufstehen`, `eine Entscheidung treffen`, `zwar … aber`,
-`auf jeden Fall`. The unit of learning here is the phrase, and a phrase is
-taught in every surface form the corpus uses it in: `wartet auf`, `wartete
-auf`, `warte … auf`, `gewartet auf`. A phrase may be split across the
-sentence; then the card has several gaps.
+A word list teaches `warten`. German is also spoken in `warten auf + Akk`,
+`sich interessieren für`, `aufstehen`, `eine Entscheidung treffen`,
+`zwar … aber`, `auf jeden Fall`. Both are vocabulary, so the deck mines both
+and ranks them together.
 
-Eight kinds of phrase are mined: verb + preposition, reflexive verb, separable
-verb, noun-verb and adjective-noun collocations, connectors, two-part
-connectors, and fixed expressions. 7,452 phrases, 40,397 cards, introduced
-most-frequent first; every phrase shows its English after the answer, most
-common rendering first (`aussehen: to look / to appear`).
+| | Kinds |
+|---|---|
+| **Words** | noun (with its gender), verb, adjective, adverb |
+| **Phrases** | verb + preposition, reflexive verb, separable verb, noun + verb, adjective + verb, adjective + noun, connector, two-part connector, fixed expression |
+
+A phrase is taught in every surface form the corpus uses: `wartet auf`,
+`wartete auf`, `warte … auf`, `gewartet auf`. It may be split across the
+sentence, and then the card has several gaps. A word is taught the same way,
+in the case or tense the sentence happens to need.
+
+Words and phrases are **interleaved** rather than sorted into one frequency
+order. A word is always at least as frequent as any phrase containing it, so a
+single ranking would put some two thousand words ahead of almost every phrase.
+Six words to four phrases, each group in its own frequency order, is the
+default and a setting.
+
+Every unit shows its English after the answer, most common rendering first
+(`aussehen: to look / to appear`), and a hint before it.
 
 ## What it looks like
 
-| Answer graded, phrase revealed | Your phrases by stage |
+| Answer graded, unit revealed | Your units by stage |
 |---|---|
 | ![feedback](docs/screenshots/feedback-light.png) | ![units](docs/screenshots/units-dark.png) |
 
@@ -41,44 +52,53 @@ Typing is graded with a scoped typo tolerance: one edit outside the inflected
 ending counts as a typo (rated "hard"), an edit that changes the grammar
 (`dem` for `den`, `hatte` for `hätte`) counts as wrong. `ae`, `oe`, `ue` and
 `ss` are accepted for umlauts and ß. A sentence-initial gap accepts lower case.
+Connectors that translate alike accept each other.
 
 ## How it is built
 
 **The deck is mined, not written.** No model writes German. Six corpora
 (Tatoeba, four Leipzig packages, an OpenSubtitles sample, about four million
-sentences) are parsed once with spaCy. Deterministic detectors find each
-phrase kind from the dependency parse: a preposition governed by a verb, a
-reflexive pronoun that agrees with the subject, a separable prefix attached
-to its verb, a noun-verb pair with a high log-likelihood ratio. Phrases are
-ranked by how many distinct sentences use them, with everyday corpora
-weighted up so that `jedoch` does not outrank `nicht mehr`.
+sentences) are parsed once with spaCy. Deterministic detectors find each kind
+from the dependency parse: a preposition governed by a verb, a reflexive
+pronoun that agrees with its subject, a separable prefix attached to its verb,
+a noun-verb pair with a high log-likelihood ratio, an adjective that forms a
+set phrase with a verb. Units are ranked by how many distinct sentences use
+them, with everyday corpora weighted up so that `jedoch` does not outrank
+`nicht mehr`.
+
+**A single word needs bounding.** It occurs in millions of sentences, so the
+detector emits only from sentences that already carry a trusted translation,
+because no other sentence could become a card anyway, and at most a dozen per
+corpus. Its frequency for the ranking comes from a separate pass that counts
+every sentence, so capping the carriers never distorts the order. A word must
+be in the CEFR list or the dictionary filter to be mined at all, which keeps
+names, typos and rare compounds out.
 
 **Cards need a trusted translation.** Only sentences with a machine
-translation (Azure Translator or Gemini) become cards; the corpus's own
-crowd translations are never shown. A sentence-initial connector (`Trotzdem
-…`) gets a one-sentence context so the connector is answerable.
+translation (Azure Translator or Gemini) become cards; the corpus's own crowd
+translations are never shown. A sentence-initial connector (`Trotzdem …`) gets
+a one-sentence context so the connector is answerable.
 
-**Two reviewers read every card.** The deck was reviewed sentence by
-sentence by two independent model reviewers under a zero-defect policy,
-and every systematic finding became a mining rule with a test; the record is
-in `docs/audits/phase-1-review/`. New cards from a rebuild go through the
-same review before they are committed.
+**Two reviewers read every card.** The deck is reviewed sentence by sentence
+by two independent model reviewers under a zero-defect policy, and every
+systematic finding becomes a mining rule with a test. New cards from a rebuild
+go through the same review before they are committed.
 
 **The page is the whole product.** `web/` is plain ES modules with no build
 step and no npm dependency. The FSRS-6 scheduler, the grader, the session
 logic and the review-log replay are ports of the Python originals in `src/`,
-and node tests pin each port against fixtures the Python side generates, so
-a log replays to the same due dates on both. The review log is an
-append-only JSONL; it lives in IndexedDB and, with a fine-grained GitHub
-token (gist scope only), in a private gist that every device merges, so the
-laptop and the phone keep one log. A service worker caches the shell and the
-deck by version for offline use.
+and node tests pin each port against fixtures the Python side generates, so a
+log replays to the same due dates on both. The review log is an append-only
+JSONL; it lives in IndexedDB and, with a fine-grained GitHub token (gist scope
+only), in a private gist that every device merges, so the laptop and the phone
+keep one log. A service worker caches the shell and the deck by version for
+offline use.
 
 ```text
-corpora ──parse──▶ occurrences ──mine──▶ ranked phrases ──cards──▶ deck (JSON shards)
-                                                                       │
-                                        GitHub Pages ◀──── web/ ◀──────┘
-                                        browser: FSRS · grader · IndexedDB log · gist sync
+corpora ──parse──▶ occurrences ──mine──▶ ranked units ──cards──▶ deck (JSON shards)
+                                                                      │
+                                       GitHub Pages ◀──── web/ ◀──────┘
+                                       browser: FSRS · grader · IndexedDB log · gist sync
 ```
 
 ## Stack
@@ -109,6 +129,5 @@ translations, review, rebuild) is a manual round described in
 | `docs/project-state.md` | What works, what does not, what is risky. |
 | `docs/phrase-deck.md` | The deck build runbook. |
 | `docs/monthly-translation-job.md` | The Azure gloss top-up. |
-| `docs/audits/README.md` | The review record, and the earlier grammar trainer this repository grew out of. |
 
 Licence: `LICENSE.md`.

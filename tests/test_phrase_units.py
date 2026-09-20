@@ -49,11 +49,22 @@ def _counts(**verbs: int) -> LemmaCounts:
     )
 
 
-def _builder(counts: LemmaCounts, curated: CuratedLists | None = None) -> UnitBuilder:
+#: The adjective-noun bar was raised hard on 2026-09-20 (count 8 -> 40, lift
+#: 8 -> 25) because the adjective and the noun are now units in their own
+#: right. These tests are about the mechanism, not about the tuned constant,
+#: so they keep the bar they were written against.
+ADJ_NOUN_TEST_THRESHOLDS = Thresholds(adj_min_count=8, adj_min_lift=8.0, adj_cap_per_noun=4)
+
+
+def _builder(
+    counts: LemmaCounts,
+    curated: CuratedLists | None = None,
+    thresholds: Thresholds | None = None,
+) -> UnitBuilder:
     return UnitBuilder(
         counts,
         curated or CuratedLists(),
-        Thresholds(),
+        thresholds or Thresholds(),
         vocabulary=VocabularyStore({"warten": "A1", "kaffee": "A1"}, frequency_ranks={"und": 1}),
         frequency_ranks={"und": 1, "trotzdem": 900},
     )
@@ -147,7 +158,7 @@ def test_collocation_passes_on_g2_and_lift_and_seed_display_wins() -> None:
             )
         ]
     )
-    builder = _builder(_counts(treffen=30, trinken=80), curated)
+    builder = _builder(_counts(treffen=30, trinken=80), curated, ADJ_NOUN_TEST_THRESHOLDS)
     units = builder.build(
         _occ("noun_verb", "entscheidung treffen", ["Entscheidung", "treffen"], 12)
         + _occ("adj_noun", "stark kaffee", ["stark", "Kaffee"], 9)
@@ -223,7 +234,7 @@ def test_a_collocation_seen_only_in_news_and_web_is_not_a_unit() -> None:
         for o in _occ("adj_noun", "personenbezogen datum", ["personenbezogen", "Datum"], 12)
     ]
     everyday = _occ("adj_noun", "stark kaffee", ["stark", "Kaffee"], 9)
-    builder = _builder(counts)
+    builder = _builder(counts, thresholds=ADJ_NOUN_TEST_THRESHOLDS)
     builder.vocabulary.vocab["datum"] = "A1"
     keys = [u.lemma_key for u in builder.build(web_only + everyday)]
     assert keys == ["stark kaffee"]
@@ -289,7 +300,7 @@ def test_noun_verb_display_uses_the_commonest_noun_surface() -> None:
     builder = UnitBuilder(
         counts,
         CuratedLists(),
-        Thresholds(),
+        ADJ_NOUN_TEST_THRESHOLDS,
         vocabulary=VocabularyStore({"angabe": "B1", "machen": "A1"}, frequency_ranks={}),
         frequency_ranks={},
         dictionary=_dict(),
@@ -377,7 +388,7 @@ def test_adj_noun_display_prefers_the_nominative_with_its_article() -> None:
     builder = UnitBuilder(
         counts,
         CuratedLists(),
-        Thresholds(),
+        ADJ_NOUN_TEST_THRESHOLDS,
         vocabulary=VocabularyStore({"gut": "A1", "zweck": "B1"}, frequency_ranks={}),
         frequency_ranks={},
         dictionary=frozenset(),
@@ -416,7 +427,7 @@ def test_mined_unit_cefr_is_the_hardest_part_and_unknown_words_are_b2() -> None:
     builder = UnitBuilder(
         counts,
         CuratedLists(),
-        Thresholds(),
+        ADJ_NOUN_TEST_THRESHOLDS,
         vocabulary=VocabularyStore({"nehmen": "A1", "kenntnis": "B2"}, frequency_ranks={}),
         frequency_ranks={},
         dictionary=frozenset(),
@@ -488,7 +499,7 @@ def test_adj_noun_display_uses_the_governing_preposition_when_never_nominative()
     builder = UnitBuilder(
         counts,
         CuratedLists(),
-        Thresholds(),
+        ADJ_NOUN_TEST_THRESHOLDS,
         vocabulary=VocabularyStore({"sicher": "A2", "entfernung": "B1"}, frequency_ranks={}),
         frequency_ranks={},
         dictionary=frozenset(),
@@ -514,7 +525,7 @@ def test_adj_noun_display_drops_sentence_capital_and_negation() -> None:
     builder = UnitBuilder(
         counts,
         CuratedLists(),
-        Thresholds(),
+        ADJ_NOUN_TEST_THRESHOLDS,
         vocabulary=VocabularyStore({"heftig": "B1", "regen": "A1"}, frequency_ranks={}),
         frequency_ranks={},
         dictionary=frozenset(),
@@ -632,7 +643,7 @@ def _adj_builder(adj: str, noun: str) -> UnitBuilder:
     return UnitBuilder(
         counts,
         CuratedLists(),
-        Thresholds(),
+        ADJ_NOUN_TEST_THRESHOLDS,
         vocabulary=VocabularyStore({adj: "A2", noun: "B1"}, frequency_ranks={}),
         frequency_ranks={},
         dictionary=frozenset(),
@@ -802,15 +813,24 @@ def test_a_word_needs_the_frequency_threshold_and_carries_its_corpus_count() -> 
     assert builder2.build(_word_occ("noun", "frage", 3)) == []
 
 
-def test_an_adjective_used_mostly_as_an_adverb_is_filed_as_one() -> None:
-    builder = _builder(_word_counts())
+def test_a_word_the_tagger_never_calls_an_adjective_is_filed_as_an_adverb() -> None:
+    """The tagger calls a predicative adjective an adverb, so "schnell" is
+    ADV in most of its sentences and is still an adjective. A real adverb is
+    never ADJ at all (measured: "endlich" 0.7%, "sofort" 0%)."""
+    counts = _word_counts()
+    counts.adjectives.update({"endlich": 0})
+    counts.adverbs.update({"endlich": 300})
+    counts.word_by_source["adjective:endlich"] = Counter({"tatoeba": 300})
+    builder = _builder(counts)
     builder.t = Thresholds(word_min_count=50)
-    units = {u.lemma_key: u for u in builder.build(_word_occ("adjective", "schnell", 2))}
-    assert units["schnell"].kind == "adverb"  # adverbs 90 against adjectives 20
+    units = {u.lemma_key: u for u in builder.build(_word_occ("adjective", "endlich", 2))}
+    assert units["endlich"].kind == "adverb"
+
+    # schnell: 20 adjective uses against 90 adverb ones, still an adjective
     builder2 = _builder(_word_counts())
     builder2.t = Thresholds(word_min_count=50)
-    other = {u.lemma_key: u for u in builder2.build(_word_occ("adjective", "wichtig", 2))}
-    assert other["wichtig"].kind == "adjective"
+    kept = {u.lemma_key: u for u in builder2.build(_word_occ("adjective", "schnell", 2))}
+    assert kept["schnell"].kind == "adjective"
 
 
 def test_a_collocation_forces_its_components_to_be_units() -> None:

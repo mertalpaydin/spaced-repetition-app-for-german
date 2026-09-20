@@ -85,3 +85,24 @@ def test_drop_contained_keeps_the_longer_expression() -> None:
         ]
     )
     assert [e.text for e in kept] == ["auf jeden fall", "ein anderes ding"]
+
+
+# -- counting over the raw corpus ----------------------------------------------
+
+
+def test_count_ngrams_stops_at_punctuation_and_outside_the_vocabulary() -> None:
+    from scripts.count_ngrams import count_ngrams
+
+    vocabulary = frozenset({"auf", "jeden", "fall", "ich", "komme", "und", "gehe"})
+    ngrams, surfaces = count_ngrams(
+        ["Auf jeden Fall, ich komme.", "Auf jeden Fall!", "Ich komme und gehe."],
+        vocabulary,
+        log=None,
+    )
+    assert ngrams["auf jeden fall"] == 2
+    assert surfaces["auf"] == 2
+    # the comma ends the run, so no n-gram spans it
+    assert "fall ich" not in ngrams
+    # a word outside the vocabulary ends the run as punctuation does
+    ngrams2, _ = count_ngrams(["auf jeden Xylophon fall"], vocabulary, log=None)
+    assert "jeden fall" not in ngrams2

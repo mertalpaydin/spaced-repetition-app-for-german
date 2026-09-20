@@ -106,12 +106,15 @@ class Thresholds:
     #: least this share of its sentences; otherwise as the bare pair.
     prep_share: float = 0.8
     colloc_cap_per_noun: int = 4
-    adj_cap_per_noun: int = 4
+    adj_cap_per_noun: int = 2
     #: Free adjective-noun combinations ("alter Mann") pass the collocation
     #: bar on Tatoeba's repetitive sentences; the review flagged them as not
-    #: worth a card, so adjective-noun pairs need stronger evidence.
-    adj_min_count: int = 8
-    adj_min_lift: float = 8.0
+    #: worth a card, so adjective-noun pairs need stronger evidence. Raised
+    #: hard on 2026-09-20: the adjective and the noun are now units in their
+    #: own right, which makes most of the pairs redundant, so only the set
+    #: phrases stay ("die goldene Regel", "kuenstliche Intelligenz").
+    adj_min_count: int = 40
+    adj_min_lift: float = 25.0
     case_majority: float = 0.75
     trivial_rank_max: int = 300
     #: A mined collocation must also occur in everyday registers (Tatoeba,
@@ -137,6 +140,11 @@ class Thresholds:
     adj_verb_min_lift: float = 8.0
     adj_verb_min_adjective_use: int = 50
     adj_verb_cap_per_verb: int = 6
+    #: An "adjective" is a word the tagger calls one in at least this share
+    #: of its sentences. Predicative adjectives are tagged ADV, so the bar is
+    #: low: measured 2026-09-20, "gut" 42%, "schnell" 18%, "ernst" 19%, while
+    #: "endlich" is 0.7% and "sofort", "kaum", "gern" are 0%.
+    adjective_min_share: float = 0.05
 
 
 @dataclass
@@ -1082,11 +1090,26 @@ class UnitBuilder:
             return _Decision(False, "curated_connector")
         kind = s.kind
         if kind == "adjective":
-            adverb_uses = self.counts.adverbs.get(lemma, 0)
-            adjective_uses = self.counts.adjectives.get(lemma, 0)
-            if adverb_uses > adjective_uses:
-                kind = "adverb"
+            kind = self._modifier_kind(lemma)
         return _Decision(True, cefr=self._cefr_for(lemma), score=float(s.count), kind=kind)
+
+    def _modifier_kind(self, lemma: str) -> str:
+        """Adjective or adverb, from how the corpus tags the word.
+
+        The tagger calls a predicative adjective an adverb, so a comparison
+        of the two counts files "gut" (42% adjective) under the adverbs. A
+        true adverb is a different animal: "endlich" is tagged adjective in
+        0.7% of its sentences, "sofort" and "kaum" in none. A small share of
+        adjective uses is therefore enough to call it an adjective.
+        """
+        adjective_uses = self.counts.adjectives.get(lemma, 0)
+        adverb_uses = self.counts.adverbs.get(lemma, 0)
+        total = adjective_uses + adverb_uses
+        if not total:
+            return "adjective"
+        if adjective_uses >= max(20, self.t.adjective_min_share * total):
+            return "adjective"
+        return "adverb"
 
     def _decide_adj_verb(self, s: UnitStats) -> _Decision:
         parts = s.best_parts
@@ -1221,10 +1244,12 @@ class UnitBuilder:
         by_verb: dict[str, list[tuple[str, str]]] = defaultdict(list)
         by_noun: dict[str, list[tuple[str, str]]] = defaultdict(list)
         by_noun_adj: dict[str, list[tuple[str, str]]] = defaultdict(list)
+        by_verb_adj: dict[str, list[tuple[str, str]]] = defaultdict(list)
         taken: dict[str, Counter[str]] = {
             "verb": Counter(),
             "noun": Counter(),
             "noun_adj": Counter(),
+            "verb_adj": Counter(),
         }
         for s in excluded or []:
             if s.kind == "noun_verb" and len(s.best_parts) >= 2:
@@ -1232,6 +1257,8 @@ class UnitBuilder:
                 taken["noun"][s.best_parts[-2].lower()] += 1
             elif s.kind == "adj_noun" and len(s.best_parts) >= 2:
                 taken["noun_adj"][s.best_parts[-1].lower()] += 1
+            elif s.kind == "adj_verb" and len(s.best_parts) >= 2:
+                taken["verb_adj"][s.best_parts[-1]] += 1
         for ident, (s, d) in accepted.items():
             if d.source != "mined":
                 continue
@@ -1240,6 +1267,8 @@ class UnitBuilder:
                 by_noun[s.best_parts[-2].lower()].append(ident)
             elif s.kind == "adj_noun":
                 by_noun_adj[s.best_parts[-1].lower()].append(ident)
+            elif s.kind == "adj_verb":
+                by_verb_adj[s.best_parts[-1]].append(ident)
 
         def trim(
             groups: dict[str, list[tuple[str, str]]],
@@ -1261,6 +1290,7 @@ class UnitBuilder:
         trim(by_verb, self.t.colloc_cap_per_verb, "cap_per_verb", taken["verb"])
         trim(by_noun, self.t.colloc_cap_per_noun, "cap_per_noun", taken["noun"])
         trim(by_noun_adj, self.t.adj_cap_per_noun, "cap_adj_per_noun", taken["noun_adj"])
+        trim(by_verb_adj, self.t.adj_verb_cap_per_verb, "cap_adj_per_verb", taken["verb_adj"])
 
     def _ensure_curated_present(self, stats: dict[tuple[str, str], UnitStats]) -> None:
         """Curated entries with no corpus hit still become (card-less) units,
