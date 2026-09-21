@@ -391,12 +391,17 @@ def stage_unit_glosses(args: argparse.Namespace) -> int:
     if not args.approved_by_owner:
         _log(
             f"unit-glosses: REFUSED. {min(batches, args.max_gloss_calls)} call(s) of "
-            f"{args.gloss_batch_size} units on {MODEL_GENERATE} (free lane first, paid "
-            "overflow) need --approved-by-owner and the owner's say-so in chat."
+            f"{args.gloss_batch_size} units on {MODEL_GENERATE} "
+            f"({'free lane only' if args.free_lane_only else 'free lane first, paid overflow'})"
+            " need --approved-by-owner and the owner's say-so in chat."
         )
         return 2
     load_env_file()
-    client = client_from_env()
+    # The free lane is the whole budget story for this stage: 10,000 unit
+    # glosses cost nothing on it and about a dollar on the paid overflow, so
+    # the owner can choose to stop at the daily quota and resume after the
+    # Pacific-midnight reset instead of spending.
+    client = client_from_env(free_lane_only=args.free_lane_only)
     if client is None:
         _log("unit-glosses: no Gemini key configured")
         return 2
@@ -490,6 +495,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--unit-glosses", type=Path, default=glosses_module.DEFAULT_UNIT_GLOSSES_PATH
     )
     parser.add_argument("--generate-unit-glosses", action="store_true")
+    parser.add_argument(
+        "--free-lane-only",
+        action="store_true",
+        help="refuse the paid overflow: the run stops when the free lane's daily quota is gone",
+    )
     parser.add_argument("--max-gloss-calls", type=int, default=250)
     parser.add_argument("--word-cap", type=int, default=60)
     parser.add_argument("--no-ngrams", action="store_true")

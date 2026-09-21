@@ -123,3 +123,40 @@ def test_contexts_stage_refuses_without_the_approval_flag(tmp_path: Path) -> Non
     assert main(common) == 0  # no --generate-contexts: a dry report only
     assert main([*common, "--generate-contexts"]) == 2  # refused, nothing written
     assert not (tmp_path / "c.jsonl").exists()
+
+
+def test_unit_gloss_stage_names_the_lane_it_would_spend_on(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """--free-lane-only is the zero-spend choice, so the refusal has to say
+    which lane the run would use before the owner approves it."""
+    from src.contracts import PhraseUnit
+
+    build_dir = tmp_path / "build"
+    build_dir.mkdir()
+    unit = PhraseUnit(
+        unit_id="nn:frage",
+        kind="noun",
+        lemma_key="frage",
+        parts=["frage"],
+        display_de="die Frage",
+        sentence_count=400,
+        rank=12,
+        source="mined",
+        card_count=1,
+    )
+    (build_dir / "units.jsonl").write_text(unit.model_dump_json() + "\n", encoding="utf-8")
+    common = [
+        "--stage",
+        "unit-glosses",
+        "--build-dir",
+        str(build_dir),
+        "--unit-glosses",
+        str(tmp_path / "g.jsonl"),
+        "--generate-unit-glosses",
+    ]
+    assert main(common) == 2
+    assert "free lane first, paid overflow" in capsys.readouterr().out
+    assert main([*common, "--free-lane-only"]) == 2
+    assert "free lane only" in capsys.readouterr().out
+    assert not (tmp_path / "g.jsonl").exists()
