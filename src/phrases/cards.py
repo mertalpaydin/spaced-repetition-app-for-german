@@ -118,24 +118,48 @@ _WORD = re.compile(r"[\w\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00df]+")
 
 
 def _reflexive_next_to_verb(occ: Occurrence) -> bool:
-    """``Es stellt sich heraus``: the sentence shows the reflexive verb, which
-    is its own unit, not the plain one the card would teach. Only
-    third-person "sich" is unambiguous; "mich"/"uns" are also plain objects
-    ("Er ruft uns an").
+    """``Es stellt sich heraus``: the sentence shows the reflexive verb,
+    which is its own unit, not the plain one the card would teach.
 
-    Both sides are checked. A plain-verb card is drawn from a single token,
-    so "sich" can precede it as easily as follow it ("wo es sich befindet"),
-    and the review of 2026-09-21 found six cards for "befinden" and six for
-    "kuemmern" that taught a reflexive verb with the pronoun left outside
-    the gap.
+    The window started as the two words after the verb, grew to both sides
+    when single words became units, and is now the whole sentence, because
+    each round of the review of 2026-09-21 turned up carriers the previous
+    window missed: "wo es sich befindet", then "wir beschaeftigen uns mit",
+    then "Ich habe mich auf die Pruefung vorbereitet", where the pronoun is
+    five words from the participle.
     """
-    # Anchored on the verb token, which is the first span in both kinds: for
-    # a separable verb "sich" sits between the verb and its particle, for a
-    # plain verb it can sit on either side.
     start, end = occ.spans[0]
-    following = _WORD.findall(occ.text[end:])[:2]
-    preceding = _WORD.findall(occ.text[:start])[-2:]
-    return "sich" in (w.lower() for w in [*following, *preceding])
+    following = [w.lower() for w in _WORD.findall(occ.text[end:])[:2]]
+    preceding = [w.lower() for w in _WORD.findall(occ.text[:start])[-2:]]
+    beside = [*following, *preceding]
+    words = [w.lower() for w in _WORD.findall(occ.text)]
+    # "sich" anywhere in the sentence: a participle or an infinitive at the
+    # end sits far from its pronoun ("Ich habe mich auf die Pruefung
+    # vorbereitet"), and the two-word window missed those. A carrier dropped
+    # in error costs nothing, since the unit has others; a reflexive carrier
+    # kept teaches the wrong unit.
+    if "sich" in beside or "sich" in words:
+        return True
+    # "mich", "uns" and "euch" are plain objects as often as reflexives
+    # ("Er ruft uns an"), so they count only when the sentence also carries
+    # the subject they would have to agree with: "wir ... uns", "ich ...
+    # mich". Without this the deck kept drawing reflexive carriers for
+    # "beschaeftigen" and "interessieren", whose reflexive share (0.31 and
+    # 0.46) sits under the bar that makes a verb a reflexive unit, and
+    # lowering that bar would take "aendern", "vorstellen" and 75 more
+    # ordinary verbs with it (measured 2026-09-21).
+    return any(
+        pronoun in words and subject in words for subject, pronoun in _AGREEING_REFLEXIVES.items()
+    )
+
+
+#: Subject pronoun to the reflexive pronoun that agrees with it.
+_AGREEING_REFLEXIVES: dict[str, str] = {
+    "ich": "mich",
+    "du": "dich",
+    "wir": "uns",
+    "ihr": "euch",
+}
 
 
 _COMPLEMENT_PREPS: frozenset[str] = frozenset(
@@ -235,7 +259,49 @@ def with_complement_gap(occ: Occurrence, prep: str) -> Occurrence | None:
     )
 
 
-def unsuitable_reason(occ: Occurrence) -> str | None:
+def _prepositional_reading(occ: Occurrence, governed: frozenset[str]) -> bool:
+    """A plain-verb carrier that really shows a verb the deck teaches with a
+    preposition.
+
+    "sorgen" and "sorgen fuer" are both units, and the plain one kept
+    drawing sentences that use the prepositional one, so the card taught the
+    wrong unit with the preposition outside the gap. The same held for
+    "leiden unter", "denken an" and "entscheiden ueber" (review,
+    2026-09-21). ``governed`` is what the deck itself teaches for this
+    lemma, so the rule cannot invent a government the deck does not have.
+
+    The preposition has to follow the verb and stay close to it: "Ich denke
+    an dich" is the prepositional unit, while "An diesem Tag denke ich viel"
+    is not.
+    """
+    if not governed:
+        return False
+    after = [w.lower() for w in _WORD.findall(occ.text[occ.spans[0][1] :])[:4]]
+    wanted = set(governed)
+    for prep in governed:
+        wanted |= _PRONOMINAL_FORMS.get(prep, frozenset())
+    return bool(wanted & set(after))
+
+
+def _pronominal(prep: str) -> frozenset[str]:
+    """``fuer`` -> ``dafuer``, ``wofuer``; ``auf`` -> ``darauf``, ``worauf``.
+
+    A preposition that governs a verb often appears as its pronominal
+    adverb instead ("dafuer sorgen", "darauf warten"), and the review of
+    2026-09-21 found the plain-verb cards drawing exactly those sentences
+    after the first version of this rule shipped.
+    """
+    stem = "dar" if prep[0] in "aeiouäöü" else "da"
+    ask = "wor" if prep[0] in "aeiouäöü" else "wo"
+    return frozenset({stem + prep, ask + prep})
+
+
+_PRONOMINAL_FORMS: dict[str, frozenset[str]] = {
+    prep: _pronominal(prep) for prep in _COMPLEMENT_PREPS
+}
+
+
+def unsuitable_reason(occ: Occurrence, governed_preps: frozenset[str] = frozenset()) -> str | None:
     """Sentence-level reasons a correct occurrence still makes a bad card.
 
     Found by the phase 1 review: reported-speech Konjunktiv I in the
@@ -260,6 +326,8 @@ def unsuitable_reason(occ: Occurrence) -> str | None:
         return "broken_hyphen"
     if occ.kind in {"separable_verb", "verb"} and _reflexive_next_to_verb(occ):
         return "reflexive_reading"
+    if occ.kind == "verb" and _prepositional_reading(occ, governed_preps):
+        return "prepositional_reading"
     first = _WORD.findall(occ.text.lower())[:1]
     if first and first[0] in _SUBORDINATORS and "," not in occ.text:
         return "subordinate_fragment"
@@ -327,6 +395,15 @@ def select_cards(
     rule is applied here). ``validate`` is the carrier validator, injected.
     ``max_validations`` bounds the validator calls; past it, remaining units
     get no cards this run and the stats say so."""
+    # What the deck teaches as a verb plus preposition, per verb lemma, so a
+    # plain-verb card never shows the prepositional unit instead.
+    governed: dict[str, frozenset[str]] = {}
+    units = list(units)
+    for unit in units:
+        if unit.kind == "verb_prep" and len(unit.parts) >= 2:
+            verb, *preps = unit.parts
+            governed[verb] = governed.get(verb, frozenset()) | {p.lower() for p in preps}
+
     cards: list[PhraseCard] = []
     wanted: list[WantedCarrier] = []
     validation_cache: dict[str, bool] = {}
@@ -367,7 +444,7 @@ def select_cards(
             if card_id_for(unit.unit_id, text) in excluded_card_ids:
                 stats["excluded_by_review"] += 1
                 continue
-            reason = unsuitable_reason(group[0])
+            reason = unsuitable_reason(group[0], governed.get(unit.lemma_key, frozenset()))
             if reason is not None:
                 stats[reason] += 1
                 continue

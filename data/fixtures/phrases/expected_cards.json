@@ -299,15 +299,6 @@
     "form_key": "Acc|Sing"
   },
   {
-    "card_id": "973eafe996aa",
-    "unit_id": "vb:wissen",
-    "sentence_de": "Wir müssen ganz genau wissen, was vor sich geht.",
-    "answers": [
-      "wissen"
-    ],
-    "form_key": "Inf"
-  },
-  {
     "card_id": "9e619dc61aa9",
     "unit_id": "vp:warten_auf",
     "sentence_de": "Letzte Nacht bin ich zuhause geblieben, um auf deinen Anruf zu warten.",
@@ -436,15 +427,6 @@
     "form_key": "medial"
   },
   {
-    "card_id": "e3c9244e13d3",
-    "unit_id": "vb:gehen",
-    "sentence_de": "Ich gehe immer um 9 Uhr ins Bett.",
-    "answers": [
-      "gehe"
-    ],
-    "form_key": "Fin|Pres|1|Sing"
-  },
-  {
     "card_id": "f1ac0c87522f",
     "unit_id": "cn:und",
     "sentence_de": "Und doch, war es nicht ihr Aussehen, was ihn angezogen hat?",
@@ -462,15 +444,6 @@
       "aus"
     ],
     "form_key": "Fin|Pres|3|Sing"
-  },
-  {
-    "card_id": "f4973556a15e",
-    "unit_id": "vb:nehmen",
-    "sentence_de": "Wer sich Zeit zum Denken nehmen will, muss auch darauf vorbereitet sein.",
-    "answers": [
-      "nehmen"
-    ],
-    "form_key": "Inf"
   },
   {
     "card_id": "f79f5d995b73",

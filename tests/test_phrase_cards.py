@@ -353,3 +353,108 @@ def test_a_plain_verb_card_drawn_from_a_reflexive_sentence_is_unsuitable() -> No
     )
     assert unsuitable_reason(verb("Er befindet sich im Haus.", "befindet")) == "reflexive_reading"
     assert unsuitable_reason(verb("Das Gericht befindet ihn für schuldig.", "befindet")) is None
+
+
+def test_a_reflexive_pronoun_counts_only_when_it_agrees_with_the_subject() -> None:
+    """ "Wir beschaeftigen uns mit" is the reflexive verb; "Er ruft uns an"
+    is a plain object. "beschaeftigen" is reflexive in 31% of its uses,
+    under the bar that makes a verb a reflexive unit, and lowering that bar
+    would drop 77 ordinary verbs (review, 2026-09-21)."""
+    from src.phrases.cards import unsuitable_reason
+
+    def verb(text: str, surface: str, kind: str = "verb") -> Occurrence:
+        start = text.index(surface)
+        return Occurrence(
+            kind=kind,  # type: ignore[arg-type]
+            unit_key="beschäftigen",
+            parts=["beschäftigen"],
+            token_indices=[1],
+            spans=[(start, start + len(surface))],
+            surfaces=[surface],
+            corpus_source="tatoeba",
+            line_id=text,
+            text=text,
+            form_key="Fin|Pres|1|Plur",
+        )
+
+    assert unsuitable_reason(verb("Wir beschäftigen uns mit dem Thema.", "beschäftigen")) == (
+        "reflexive_reading"
+    )
+    assert unsuitable_reason(verb("Ich beschäftige mich damit.", "beschäftige")) == (
+        "reflexive_reading"
+    )
+    # no agreeing subject: "uns" is the object, not a reflexive
+    assert unsuitable_reason(verb("Die Firma beschäftigt uns seit Mai.", "beschäftigt")) is None
+    assert unsuitable_reason(verb("Der Chef beschäftigt zehn Leute.", "beschäftigt")) is None
+
+
+def test_a_plain_verb_card_does_not_show_the_prepositional_unit() -> None:
+    """ "sorgen" and "sorgen fuer" are both units, and the plain one kept
+    drawing sentences that use the prepositional one (review, 2026-09-21).
+    The government comes from the deck, so the rule cannot invent one."""
+    from src.phrases.cards import unsuitable_reason
+
+    def verb(text: str, surface: str) -> Occurrence:
+        start = text.index(surface)
+        return Occurrence(
+            kind="verb",
+            unit_key="sorgen",
+            parts=["sorgen"],
+            token_indices=[1],
+            spans=[(start, start + len(surface))],
+            surfaces=[surface],
+            corpus_source="tatoeba",
+            line_id=text,
+            text=text,
+            form_key="Fin|Pres|3|Sing",
+        )
+
+    governed = frozenset({"für"})
+    assert unsuitable_reason(verb("Er sorgt für das Essen.", "sorgt"), governed) == (
+        "prepositional_reading"
+    )
+    # the same sentence is fine when the deck teaches no such unit
+    assert unsuitable_reason(verb("Er sorgt für das Essen.", "sorgt")) is None
+    # a preposition far from the verb is not its government
+    assert (
+        unsuitable_reason(verb("Er sorgt schon lange nicht mehr für das Essen.", "sorgt"), governed)
+        is None
+    )
+
+
+def test_the_prepositional_reading_catches_the_pronominal_form() -> None:
+    """ "dafuer sorgen" and "darauf warten" are the prepositional unit too.
+    The first version of the rule matched only the bare preposition, and the
+    next review round found the plain-verb cards drawing exactly those
+    sentences (2026-09-21)."""
+    from src.phrases.cards import unsuitable_reason
+
+    def verb(text: str, surface: str, key: str) -> Occurrence:
+        start = text.index(surface)
+        return Occurrence(
+            kind="verb",
+            unit_key=key,
+            parts=[key],
+            token_indices=[1],
+            spans=[(start, start + len(surface))],
+            surfaces=[surface],
+            corpus_source="tatoeba",
+            line_id=text,
+            text=text,
+            form_key="Fin|Pres|3|Sing",
+        )
+
+    assert (
+        unsuitable_reason(
+            verb("Er sorgt dafür, dass alle essen.", "sorgt", "sorgen"), frozenset({"für"})
+        )
+        == "prepositional_reading"
+    )
+    assert (
+        unsuitable_reason(verb("Ich warte schon darauf.", "warte", "warten"), frozenset({"auf"}))
+        == "prepositional_reading"
+    )
+    assert (
+        unsuitable_reason(verb("Worauf wartest du denn?", "wartest", "warten"), frozenset({"auf"}))
+        is None
+    )  # the pronominal form precedes the verb here
