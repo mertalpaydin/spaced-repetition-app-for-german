@@ -112,6 +112,10 @@ DETERMINERS: frozenset[str] = frozenset(
 )
 _WORD_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
 
+#: The personal endings a finite verb form can carry, longest first so
+#: "glaubst" is cut at "-st" and not at "-t".
+_PERSONAL_ENDINGS: tuple[str, ...] = ("est", "ten", "tet", "st", "te", "t", "e")
+
 _CEFR_RANK: dict[str, int] = {"A1": 1, "A2": 2, "B1": 3, "B2": 4}
 #: Parts that carry no vocabulary of their own: the reflexive pronoun and
 #: the prepositions of verb-preposition units and Funktionsverbgefuege.
@@ -230,6 +234,10 @@ class Thresholds:
     #: A word the corpus uses this many times more often as a verb than as a
     #: modifier is an infinitive the tagger mislabelled, not an adjective.
     verb_dominance: float = 3.0
+    #: An "adverb" is a conjugated verb when its stem plus -en is a verb
+    #: this common and this much commoner than the word's own modifier uses.
+    finite_form_min_verb: int = 500
+    finite_form_ratio: float = 3.0
     #: A noun shown in the singular this rarely is plural-only, so its
     #: citation form takes "die" whatever the tagger called the gender.
     plural_only_share: float = 0.1
@@ -1238,7 +1246,9 @@ class UnitBuilder:
         # would otherwise throw away, while "glaubst", "warst" and "lass"
         # really are verb forms the tagger filed under ADV (review,
         # 2026-09-21).
-        if kind in {"verb", "adverb"} and self._is_conjugated(lemma):
+        if kind == "verb" and self._is_conjugated(lemma):
+            return _Decision(False, "not_an_infinitive")
+        if kind == "adverb" and self._finite_verb_form(lemma):
             return _Decision(False, "not_an_infinitive")
         if kind in {"adjective", "adverb"} and self._dominated_by_the_verb(lemma):
             return _Decision(False, "also_a_verb")
@@ -1308,6 +1318,38 @@ class UnitBuilder:
             candidate != key and counts.get(candidate, 0) > here
             for candidate in lemma_candidates(key)
         )
+
+    def _finite_verb_form(self, lemma: str) -> bool:
+        """An "adverb" that is really a conjugated verb: "glaubst", "meinst".
+
+        ``_is_conjugated`` cannot be used here. It asks whether some stem
+        variant is a commoner verb than the word itself, and a word that
+        reached the adverbs has no verb count at all, so a single stray
+        tagging of any variant beat it: 454 ordinary adverbs were dropped
+        that way, "mindestens" among them, losing to "mindesten" on one
+        occurrence (measured 2026-09-21).
+
+        This asks the narrower question instead. The word must end in a
+        personal ending whose stem plus -en or -n is a common verb, and that
+        verb must outweigh the word's own modifier uses several times over,
+        which is what separates "glaubst" (glauben 17,084 against 2,006)
+        from "bitte" (bitten 6,774 against 12,612) and "passt" (passen 1,522
+        against 1,843).
+        """
+        counts = self._normalised_verb_counts()
+        key = normalise(lemma)
+        modifier_uses = self.counts.adverbs.get(lemma, 0) + self.counts.adjectives.get(lemma, 0)
+        for ending in _PERSONAL_ENDINGS:
+            if not key.endswith(ending) or len(key) - len(ending) < 2:
+                continue
+            stem = key[: -len(ending)]
+            for infinitive in (stem + "en", stem + "n"):
+                verb_uses = counts.get(infinitive, 0)
+                if verb_uses >= self.t.finite_form_min_verb and verb_uses >= (
+                    self.t.finite_form_ratio * modifier_uses
+                ):
+                    return True
+        return False
 
     def _normalised_verb_counts(self) -> dict[str, int]:
         """The verb counts keyed the way ``lemma_candidates`` spells them.

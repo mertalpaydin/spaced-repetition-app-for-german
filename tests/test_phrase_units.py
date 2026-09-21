@@ -969,3 +969,36 @@ def test_an_infinitive_the_tagger_mislabelled_is_not_an_adverb() -> None:
     assert [u.lemma_key for u in builder2.build(_word_occ("adjective", "trocken", 2))] == [
         "trocken"
     ]
+
+
+def test_a_finite_verb_form_is_not_an_adverb_but_a_common_word_survives() -> None:
+    """The test that catches "glaubst" must not catch "bitte". The old one
+    did worse: it dropped 454 ordinary adverbs, "mindestens" among them,
+    because a single stray tagging of "mindesten" outscored a word with no
+    verb count at all (review, 2026-09-21)."""
+    counts = _word_counts()
+    counts.verbs.update({"glauben": 17_084})
+    counts.adverbs.update({"glaubst": 2_006, "mindestens": 6_019, "bitte": 12_612})
+    counts.verbs.update({"mindesten": 1, "bitten": 6_774})
+    builder = _builder(counts)
+    builder.t = Thresholds(word_min_count=50)
+    assert builder._finite_verb_form("glaubst") is True
+    assert builder._finite_verb_form("mindestens") is False
+    assert builder._finite_verb_form("bitte") is False
+
+    counts.word_by_source["adjective:mindestens"] = Counter({"tatoeba": 6_019})
+    kept = {u.lemma_key: u.kind for u in builder.build(_word_occ("adjective", "mindestens", 2))}
+    assert kept["mindestens"] == "adverb"
+
+
+def test_an_ordinary_adverb_is_not_banned_by_the_collocation_stop_list() -> None:
+    """STOP_ADVERBS says what may not anchor a collocation. Until
+    2026-09-21 it also decided what may not be a unit, which cost the deck
+    "vielleicht", "nun" and "vorbei"."""
+    from src.phrases.mining.common import NON_UNIT_ADVERBS, STOP_ADVERBS
+
+    for word in ("vielleicht", "nun", "vorbei", "heute", "gern", "oft"):
+        assert word in STOP_ADVERBS
+        assert word not in NON_UNIT_ADVERBS
+    for word in ("dann", "auch", "nicht", "darauf", "warum"):
+        assert word in NON_UNIT_ADVERBS

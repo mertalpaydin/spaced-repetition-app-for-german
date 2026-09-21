@@ -23,7 +23,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 from src.phrases.mining.collocations import STOP_NOUNS, stop_adjective
-from src.phrases.mining.common import STOP_ADVERBS, is_word, make_occurrence
+from src.phrases.mining.common import NON_UNIT_ADVERBS, is_word, make_occurrence
 from src.phrases.mining.verbs import fused_separable_key
 from src.phrases.occurrences import Occurrence
 from src.phrases.parse import (
@@ -130,7 +130,7 @@ def _word_of(
         if token.morph.get("Degree", "Pos") != "Pos":
             return None
         lemma = token.lemma.lower()
-        if len(lemma) < 3 or stop_adjective(lemma) or lemma in STOP_ADVERBS:
+        if len(lemma) < 3 or stop_adjective(lemma) or lemma in NON_UNIT_ADVERBS:
             return None
         return "adjective", lemma
     return None

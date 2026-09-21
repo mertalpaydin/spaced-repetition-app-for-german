@@ -31,6 +31,76 @@ _CASE_MAP: dict[str, Case] = {"Acc": "Akk", "Dat": "Dat", "Gen": "Gen"}
 
 #: Pronominal and interrogative adverbs: grammar words, not vocabulary, and
 #: the ones worth teaching are already curated connectors.
+#: The subset of STOP_ADVERBS that must not become a unit of its own.
+#:
+#: STOP_ADVERBS answers a different question, "may this word anchor a
+#: collocation", and the two were the same list until 2026-09-21, when the
+#: owner's word list showed what that cost: "vielleicht" (18,176 uses),
+#: "nun" (42,370) and "vorbei" (4,827) are ordinary vocabulary that no rule
+#: about collocations should have banned. What belongs here is grammar:
+#: particles, question words, and the da- and wo- compounds, which the
+#: curated connector list teaches where it wants them.
+NON_UNIT_ADVERBS: frozenset[str] = frozenset(
+    {
+        "da",
+        "dann",
+        "so",
+        "auch",
+        "nur",
+        "noch",
+        "schon",
+        "mehr",
+        "nicht",
+        "ja",
+        "nein",
+        "doch",
+        "denn",
+        "mal",
+        "man",
+        "halt",
+        "eben",
+        "etwa",
+        "her",
+        "hin",
+        "heraus",
+        "herein",
+        "hinaus",
+        "wo",
+        "wann",
+        "wie",
+        "warum",
+        "weshalb",
+        "wieso",
+        "woher",
+        "wohin",
+        "darum",
+        "daher",
+        "deshalb",
+        "deswegen",
+        "dabei",
+        "dadurch",
+        "dafür",
+        "dagegen",
+        "damit",
+        "danach",
+        "daran",
+        "darauf",
+        "daraus",
+        "darin",
+        "davon",
+        "davor",
+        "dazu",
+        "hierbei",
+        "hierfür",
+        "worauf",
+        "worum",
+        "womit",
+        "wovon",
+        "wobei",
+        "wodurch",
+    }
+)
+
 STOP_ADVERBS: frozenset[str] = frozenset(
     {
         "da",
