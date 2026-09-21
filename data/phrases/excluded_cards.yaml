@@ -4311,3 +4311,248 @@
 - facfe5a0e365  # WRONG_UNIT: Same reflexive-unit mismatch: 'sich' unbracketed while the tested meaning is 'sich kuemmern um'.
 - fc2e1e26bdd3  # BAD_GLOSS: Gloss is missing ('no gloss yet').
 - fc9fc0a7ce82  # BAD_SENTENCE: 'Dutzende sterben in Londoner Zugunfall' is telegraphic headline style, missing an article, not 
+# Review round g1000.
+- 02d3ee030f3e  # WRONG_UNIT: uses idiom einen Blick werfen, needs phrase not plain verb
+- 0362d4d89424  # WRONG_UNIT: Bracketed word is part of the separable verb 'schwerfallen', not 'fallen'.
+- 037d6ddddebf  # BAD_SENTENCE: question ends with a period
+- 0439b0d4eccf  # WRONG_UNIT: Reflexive 'sich entwickeln'
+- 0444c45219e1  # BAD_SENTENCE: Sentence is an email sign-off containing names and junk context.
+- 0477971af370  # BAD_SENTENCE: missing context for 'Dieser'
+- 05470aa8fcfa  # WRONG_UNIT: selber is an adverb or pronoun, not an adjective
+- 062280d5a8fb  # WRONG_UNIT: Unit is plain verb but used reflexively
+- 062c3440f9e5  # WRONG_UNIT: uses idiom ein Auge werfen, needs phrase not plain verb
+- 078d5bdc0cd9  # WRONG_UNIT: different lemma: Daten (data) instead of Datum (date)
+- 0c889d44835b  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- 0c9ef967c57e  # WRONG_UNIT: needs prepositional phrase leiden an
+- 0e04232ff69d  # BAD_SENTENCE: typo missing space after colon
+- 0e5850490d70  # BAD_SENTENCE: unter Schmerz is unidiomatic, should be unter Schmerzen
+- 0efde9fb659e  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- 0f5fbd63a2b2  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- 0f755c83ea97  # BAD_GLOSS: German sentence means 'reminded of', but gloss says 'recalled'.
+- 0fbd055d02f4  # WRONG_UNIT: used reflexively but unit is plain verb
+- 1292eff69f97  # WRONG_UNIT: sentence uses reflexive sich überzeugen
+- 13c178684b5e  # WRONG_UNIT: bracketed word is the adverb bisschen, not the noun das Bisschen
+- 15ed5291be9b  # WRONG_UNIT: selben is from lemma derselbe
+- 17bdb0cc2fc8  # BAD_SENTENCE: Weird metaphor 'Lebenslicht'
+- 1b2c17699ceb  # WRONG_UNIT: Used as part of verb phrase in Ordnung bringen
+- 1c1adce8310a  # WRONG_UNIT: "besessen" is a participle used as an adjective, which is a different word class and meaning from 
+- 1ca337a0f928  # WRONG_UNIT: Sentence needs 'zählen zu'
+- 1d08ee19c37a  # BAD_SENTENCE: ungrammatical sentence
+- 21c1d49d5a3a  # BAD_SENTENCE: Grammar/Typo: 'das Dinge' is incorrect, should be 'das Ding'.
+- 24444ca14524  # WRONG_UNIT: needs phrase Gesellschaft leisten
+- 256cd995e15e  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- 2633ba313bfb  # WRONG_UNIT: bracketed word is the adverb bisschen, not the noun das Bisschen
+- 2762a1ad7d18  # WRONG_UNIT: idiom 'kalt machen' not named in display
+- 27c4a49cad1f  # WRONG_UNIT: Sentence needs 'zählen auf'
+- 283ec68e508d  # WRONG_UNIT: Bracketed word is a prefix of 'festhalten', not the adjective 'fest'.
+- 2875fd85e868  # WRONG_UNIT: Used as adjective not plain verb
+- 2b36c7cf8389  # WRONG_UNIT: sentence uses reflexive sich interessieren für
+- 2beadaa27c61  # BAD_SENTENCE: Missing article 'Der'
+- 2cb93f2fb278  # WRONG_UNIT: bracketed word 'Beste' is a different lemma from 'Gute'
+- 2ced867fa7f6  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- 2ecde3f5d7b6  # WRONG_UNIT: Reflexive 'sich bewegen'
+- 2ef74cb255d8  # BAD_SENTENCE: unnatural translated proverb
+- 2f3e78bf43ef  # BAD_SENTENCE: Poetic word order
+- 32e8a7f56c27  # WRONG_UNIT: Bracketed word is part of the separable verb 'klarkommen', not the adjective 'klar'.
+- 340e6e5a19a6  # WRONG_UNIT: Reflexive 'sich bewegen'
+- 347d0a734582  # BAD_SENTENCE: unnatural German translation of a foreign proverb
+- 34fcc43201fd  # WRONG_UNIT: the sentence uses the verb reflexively but the unit does not specify this
+- 374ad7be2e3c  # WRONG_UNIT: Bracketed word is a prefix of 'festhalten', not the adjective 'fest'.
+- 375c285b88d7  # WRONG_UNIT: Reflexive 'sich bewegen'
+- 394da0ec693b  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- 39dd33a509b1  # BAD_SENTENCE: Typo in formal address: "sie" should be capitalized as "Sie".
+- 3a9fa3e2439d  # WRONG_UNIT: Used as verb 'reden'
+- 3c0ae0016567  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- 3c465f447287  # WRONG_UNIT: Used in idiom nah am Wasser gebaut
+- 3d9cc436f07d  # BAD_SENTENCE: Archaic 'bist mir nötig'
+- 405ebb965b0e  # BAD_SENTENCE: statement word order with a question mark
+- 42f8b8d2d59f  # BAD_SENTENCE: Missing context for what Sie refers to translated as It
+- 453f3752ffab  # WRONG_UNIT: Bracketed word 'recht' is used as an adjective/adverb, not the noun 'das Recht'.
+- 456d067d3baf  # WRONG_UNIT: Used in idiom Luftschlösser bauen
+- 45851440f423  # WRONG_UNIT: Bracketed word 'gehört' is from 'hören', not 'gehören'.
+- 4c600894763e  # BAD_SENTENCE: Kunde for female subject is incorrect, should be Kundin
+- 4da518952f30  # WRONG_UNIT: bracketed word 'Beste' is a different lemma from 'Gute'
+- 508238623479  # WRONG_UNIT: used reflexively but unit is plain verb
+- 5093ef10a813  # WRONG_UNIT: selben is from lemma derselbe
+- 5190b1d2e69b  # BAD_GLOSS: Literal translation 'hundred things' misleads; it means 100 km/h.
+- 52edf25ed050  # BAD_SENTENCE: Colloquial fragment missing subject and verb
+- 56ef02d2ab08  # WRONG_UNIT: Bracketed word is a prefix of 'feststehen', not the adjective 'fest'.
+- 5b8422222ab5  # WRONG_UNIT: Sentence uses 'am Morgen früh', which does not instantiate 'morgen früh' (tomorrow morning).
+- 5cd100868a64  # BAD_SENTENCE: Missing the date after 'für den'
+- 5d1e0c65e4ac  # WRONG_UNIT: idiom 'ein harter Brocken' not named in display
+- 5ee8634634b4  # WRONG_UNIT: Idiom 'am Boden zerstört'
+- 60c180b7f973  # WRONG_UNIT: bracketed word is a verb, not the noun
+- 6490ded2a55b  # BAD_SENTENCE: Unnatural 'mit einer falschen Nummer'
+- 653d9cd23bf6  # BAD_SENTENCE: archaic proverb
+- 6803ed0a91f9  # WRONG_UNIT: Sentence needs 'zählen zu'
+- 682830c7aa0c  # WRONG_UNIT: sentence uses phrase Aufmerksamkeit schenken
+- 68477cc53feb  # WRONG_UNIT: Sentence needs 'brechen mit'
+- 68ed4c9c150d  # BAD_SENTENCE: junk sentence
+- 6b2a67a57d8b  # BAD_SENTENCE: unnatural phrasing for days of the week
+- 6b83809f7bfd  # BAD_SENTENCE: archaic/unnatural proverb
+- 6d6570756fc1  # WRONG_UNIT: needs prepositional phrase leiden unter
+- 6e6024c46c47  # BAD_SENTENCE: unter Schmerz is unidiomatic, should be unter Schmerzen
+- 6eefad343af7  # WRONG_UNIT: Used as adjective not plain verb
+- 6f835b4d1220  # WRONG_UNIT: bracketed word is the adverb bisschen, not the noun das Bisschen
+- 6feec14429d2  # WRONG_UNIT: used reflexively but unit is plain verb
+- 70b0aed685d2  # WRONG_UNIT: different lemma: Daten (data) instead of Datum (date)
+- 7462b4e495f7  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- 77ad0efa9830  # BAD_SENTENCE: "ein brennend Auge" is archaic/poetic (missing the -es ending) and unnatural for a modern langua
+- 77d0bb152132  # WRONG_UNIT: sentence uses phrase Beachtung schenken
+- 7ac9409c11cb  # BAD_SENTENCE: Obsolete use of leiden for dulden
+- 7acbbf95c1d9  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- 7c691f65ded4  # BAD_SENTENCE: Poetic Faust quote
+- 7d8d0e9baf68  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- 82d1c64ba00e  # BAD_SENTENCE: translates Sie as It, missing context to understand subject
+- 82db800d6030  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- 82e0085339f3  # WRONG_UNIT: bracketed word is the adverb bisschen, not the noun das Bisschen
+- 847a8c04f6d2  # WRONG_UNIT: used reflexively but unit is plain verb
+- 85ba56099b67  # WRONG_UNIT: Used as adverb 'überrascht'
+- 86b2007b70ae  # WRONG_UNIT: "Armen" is a nominalized adjective (noun), which is a different word class than the adjective "arm
+- 873186f8d870  # WRONG_UNIT: idiom 'Öl ins Feuer gießen' not named in display
+- 882936a6850b  # WRONG_UNIT: needs prepositional phrase leiden an
+- 8a8f8fcd7ab1  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- 8acabc67f86a  # BAD_SENTENCE: tolle gute Idee is redundant and unnatural
+- 8d2bf556a9ff  # WRONG_UNIT: sentence uses phrase Aufmerksamkeit schenken
+- 8ece94bb1072  # WRONG_UNIT: Nominalized verb 'das Reden'
+- 8f31b3cb14d9  # BAD_SENTENCE: unnatural double negative
+- 90c93a2b6db3  # WRONG_UNIT: used reflexively but unit is plain verb
+- 93bf61179f9b  # WRONG_UNIT: Reflexive 'sich fertig machen'
+- 9996217b62e1  # WRONG_UNIT: Used in fixed idiom ein rotes Tuch
+- 99de217b18df  # BAD_SENTENCE: literal translation of English idiom (anglicism)
+- 9be994ef687b  # WRONG_UNIT: used as adverb usually, different word class from adjective
+- 9cde20842180  # BAD_SENTENCE: Fragment missing a main clause
+- 9f45089e82ef  # WRONG_UNIT: Idiom 'auf den Geist gehen'
+- 9f8d30f9daf2  # WRONG_UNIT: sentence uses phrase Glauben schenken
+- a10718eec758  # WRONG_UNIT: Reflexive 'sich fertig machen'
+- a37235583db4  # WRONG_UNIT: selben is from lemma derselbe
+- a3de0eac4d5b  # WRONG_UNIT: Part of separable verb sich krankmelden
+- a5694729951d  # BAD_GLOSS: pick wine is incorrect translation for Wein lesen
+- a5fb2ce7d137  # WRONG_UNIT: Idiom 'In der Tat'
+- a65dd59c0503  # WRONG_UNIT: Used in fixed idiom Drachen steigen lassen
+- a68a2acb014b  # BAD_SENTENCE: Literal translation of an English joke that makes no sense in German.
+- a8d5c361af9f  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- a93b4abd3956  # WRONG_UNIT: sentence uses phrase interessiert sein an
+- ac863ceb13d3  # BAD_SENTENCE: archaic/unnatural proverb
+- af4c837b3fea  # WRONG_UNIT: Unit is plain verb but used reflexively
+- af73d9ed1827  # BAD_GLOSS: literal translation misses idiomatic meaning
+- afb33dafb893  # BAD_SENTENCE: Nonsensical sentence
+- aff08d741193  # WRONG_UNIT: Used in fixed idiom roter Faden
+- b02f8ecb0c50  # WRONG_UNIT: Used as adjective 'überrascht'
+- b0f974e88967  # WRONG_UNIT: reflexive use (sich fürchten) requires a different unit
+- b1104fc1f162  # WRONG_UNIT: phrase 'in der Regel' not named in display
+- b2cf1c656bb1  # BAD_SENTENCE: Archaic and poetic word order
+- b2d08870ec68  # BAD_SENTENCE: calque from English idiom, unnatural German
+- b3b08b120d93  # WRONG_UNIT: Unit is plain verb but used reflexively
+- b55fd6ab5f08  # WRONG_UNIT: wert is used as an adjective here
+- b64054b5fc19  # BAD_SENTENCE: "Deine Mutter ist ein Computer" is a weird, unnatural sentence (likely a junk "yo mama" joke).
+- b69933aa5624  # WRONG_UNIT: gebaut is used as adjective
+- b8c431b72050  # WRONG_UNIT: used as adverb usually, different word class from adjective
+- b8dab6826e1e  # BAD_SENTENCE: wrong gender for text corpus
+- babca42f17c1  # BAD_SENTENCE: Typo 'und und' in sentence
+- bb5af06a4418  # WRONG_UNIT: sentence uses reflexive sich interessieren für
+- bc442383cfd6  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- bda6f37cfabc  # WRONG_UNIT: used reflexively but unit is plain verb
+- bdae377c33f5  # WRONG_UNIT: used reflexively but unit is plain verb
+- be578abbf9fb  # WRONG_UNIT: bracketed word is the adverb bisschen, not the noun das Bisschen
+- c315f4f9b0c6  # WRONG_UNIT: Used as phrasal verb handeln von
+- c3323c13e508  # WRONG_UNIT: idiom 'jemandem bleibt die Luft weg' not named in display
+- c7bc1b730e4c  # WRONG_UNIT: Reflexive 'sich bewegen'
+- c8177cad5429  # BAD_SENTENCE: the noun volk in the gap has a lowercase typo
+- c8312b92a5bd  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- c8f85b457853  # WRONG_UNIT: reflexive use (sich fürchten) requires a different unit
+- cbbd72b74179  # BAD_SENTENCE: Typo: 'abend' should be capitalized as 'Abend'.
+- cbf84c48eeb5  # BAD_SENTENCE: incorrect comma between subject and verb
+- cf7d7c7d7566  # BAD_SENTENCE: Typo 'und und' in sentence
+- cf96f2c07d8a  # WRONG_UNIT: Sentence needs 'zählen zu'
+- d071e2f7bd1c  # WRONG_UNIT: idiom 'der springende Punkt' not named in display
+- d0b3257e7f78  # BAD_SENTENCE: 1742 is a year, not a date
+- d1df76fd3f29  # BAD_SENTENCE: Archaic phrasing 'sinnst du... in deiner Seele'
+- d480d3a1908d  # BAD_GLOSS: Literal translation of German idiom
+- d51cfdc43461  # BAD_SENTENCE: im Sinn behalten is an anglicism
+- d582b573cd49  # WRONG_UNIT: Reflexive 'sich fertig machen'
+- d94213453c54  # WRONG_UNIT: Idiom 'ein Herz und eine Seele'
+- dcd667ca19cb  # BAD_SENTENCE: mixed idiom malaphorism
+- ddfbe1aeabb0  # BAD_GLOSS: "sees through his fingers" is a literal mistranslation of the idiom "durch die Finger sehen" (which
+- e05976b26274  # WRONG_UNIT: Used as adverb 'bestimmt', not verb
+- e1059b444f6a  # WRONG_UNIT: bracketed word is the adverb bisschen, not the noun das Bisschen
+- e20958714eb4  # BAD_SENTENCE: missing context for pronoun Diese
+- e2ac5b0410d7  # WRONG_UNIT: Sentence needs reflexive 'sich etwas brechen'
+- e3dacad031e2  # BAD_SENTENCE: colloquial spelling werd missing apostrophe
+- e4015a16749c  # WRONG_UNIT: Bracketed word is the separable prefix 'rein', not the adjective 'rein'.
+- e6b5ed5195f3  # WRONG_UNIT: Reflexive 'sich bewegen'
+- e8e2bb4c4224  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- ec4cd94e5178  # WRONG_UNIT: needs prepositional phrase leiden unter
+- ee4da59eeb40  # WRONG_UNIT: selber is an adverb or pronoun, not an adjective
+- f07fb02de19e  # WRONG_UNIT: used as adverb usually, different word class from adjective
+- f0e3711fe20a  # WRONG_UNIT: needs prepositional phrase leiden an
+- f1f952b652e7  # WRONG_UNIT: Used as adjective not plain verb
+- f237eccbcaa6  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- f2d113833e60  # WRONG_UNIT: Sentence needs 'schätzen auf'
+- f35a1c68ab95  # BAD_SENTENCE: Typo 'das' instead of 'dass'
+- f3e7c538f0eb  # WRONG_UNIT: used reflexively but unit is plain verb
+- f3fc43b1a1d3  # WRONG_UNIT: prepositional phrase 'fürchten um' requires a different unit
+- f41000d5dda4  # WRONG_UNIT: Sentence needs 'schätzen auf'
+- f418eb997ed5  # WRONG_UNIT: used reflexively but unit is plain verb
+- f48312cf1823  # WRONG_UNIT: selber is an adverb or pronoun, not an adjective
+- f56d7fb24c53  # WRONG_UNIT: Idiom 'In der Tat'
+- f5b7dc57cb0a  # WRONG_UNIT: der Weise means the wise man, different lemma from die Weise
+- f75a982dcffc  # WRONG_UNIT: Plain verb bracketed where the sentence uses it reflexively.
+- f7f8ae1f88d4  # BAD_SENTENCE: "haben weit heim" is a regional/dialect expression (Swiss/South German) and not standard German.
+- fa43b3519fc8  # WRONG_UNIT: idiom 'der springende Punkt' not named in display
+- fb684ce56cd7  # WRONG_UNIT: used as adverb usually, different word class from adjective
+- fceab5af5d3b  # WRONG_UNIT: Sentence needs 'zählen zu'
+- fda576b632d0  # BAD_SENTENCE: Unnatural word order; "mit einem Computer" should normally not be placed before "den ganzen Tag"
+- ffeb59c7180c  # BAD_SENTENCE: Nonsensical sentence
+# Review round s1000.
+- 0362d4d89424  # WRONG_UNIT: 'fiel schwer' is the separable idiom schwerfallen (to be difficult), not plain fallen (to fall).
+- 037d6ddddebf  # BAD_SENTENCE: 'Wollt ihr mich singen hören.' is phrased as a question (V1 word order) but punctuated with a pe
+- 0439b0d4eccf  # WRONG_UNIT: 'hat sich ... entwickelt' is reflexive 'sich entwickeln' (to develop intransitively), while the di
+- 062280d5a8fb  # WRONG_UNIT: Reflexive 'sich beschäftigen mit' used, but unit is displayed as plain verb beschäftigen.
+- 0f5fbd63a2b2  # WRONG_UNIT: Reflexive 'sich sorgen um' (to worry about) used, but unit is displayed as plain verb sorgen (to p
+- 0f755c83ea97  # BAD_SENTENCE: 'Er erinnerte an das Datum' is missing the reflexive 'sich' (or an accusative object); as writte
+- 1292eff69f97  # WRONG_UNIT: 'Ich überzeugte mich' is the reflexive 'sich überzeugen' (to see for oneself), while the display n
+- 15ed5291be9b  # WRONG_UNIT: Bracketed 'selben' is the declined form of 'derselbe' (the same), a different word from the adject
+- 1c1adce8310a  # WRONG_UNIT: 'wie besessen von' is the idiom 'obsessed with', a different sense from 'besitzen' = to own.
+- 1d08ee19c37a  # BAD_SENTENCE: 'Jetzt ist sie freie Wahl.' is not grammatical standalone German (subject 'sie' cannot simply eq
+- 21c1d49d5a3a  # BAD_SENTENCE: Article/number mismatch: 'das Dinge' is ungrammatical (das Ding or die Dinge).
+- 256cd995e15e  # WRONG_UNIT: Reflexive 'sich freuen' used, but unit is displayed as the plain verb freuen.
+- 2762a1ad7d18  # WRONG_UNIT: 'Ich mache sie nicht kalt' is the separable verb idiom kaltmachen (to kill), not the plain adjecti
+- 2b36c7cf8389  # WRONG_UNIT: 'Ich interessiere mich für' is the reflexive 'sich interessieren für', while the display names the
+- 2ecde3f5d7b6  # WRONG_UNIT: 'Wir bewegen uns' is the reflexive 'sich bewegen' (to move/be in motion), while the display names 
+- 32c0f7c64553  # WRONG_UNIT: Lowercase 'leid' here is the fixed 'tut mir leid' expression element, not an instance of the noun 
+- 32e8a7f56c27  # WRONG_UNIT: Token is part of the separable verb klarkommen (to get along), not a standalone use of adjective k
+- 340e6e5a19a6  # WRONG_UNIT: 'Wir bewegten uns nicht' is reflexive 'sich bewegen', while the display names the plain verb 'bewe
+- 34fcc43201fd  # WRONG_UNIT: Sentence uses reflexive 'sich einbringen' (to get involved), a different sense from plain 'einbrin
+- 375c285b88d7  # WRONG_UNIT: 'ich mich nicht mehr bewegen' is reflexive 'sich bewegen', while the display names the plain verb 
+- 45851440f423  # WRONG_UNIT: Bracketed 'gehört' is past participle of hören (to hear), not gehören (to belong); gloss confirms 
+- 5093ef10a813  # WRONG_UNIT: Bracketed 'selben' is 'derselbe' (the same), not 'selber'.
+- 5b8422222ab5  # WRONG_UNIT: 'am Morgen früh' means 'early in the morning', not the idiom 'morgen früh' (tomorrow morning); glo
+- 5cd100868a64  # BAD_SENTENCE: Sentence and gloss are both truncated ('für den [geplant]' / 'planned for the.' leave a dangling
+- 60c180b7f973  # WRONG_UNIT: 'Folge deinem Herz' brackets the imperative of the verb 'folgen', not the noun 'die Folge'.
+- 77ad0efa9830  # BAD_SENTENCE: 'ein brennend Auge' is missing the adjective ending (brennendes), ungrammatical outside poetic l
+- 7d8d0e9baf68  # WRONG_UNIT: Reflexive 'sich entscheiden' used, but unit is displayed as the plain verb entscheiden.
+- 86b2007b70ae  # WRONG_UNIT: 'des Armen' is a nominalized adjective (the poor man), functioning as a noun rather than the adjec
+- 8a8f8fcd7ab1  # WRONG_UNIT: Reflexive 'sich verlassen auf' (to rely on) is a different meaning from plain verlassen (to leave/
+- 8ece94bb1072  # WRONG_UNIT: In 'Zwischen Reden und Tun liegt das Meer', 'Reden' parallels the nominalized infinitive 'Tun' and
+- 9cde20842180  # BAD_SENTENCE: Sentence is a fragment missing its subject article and clause context ('Bank ein paar der Altkre
+- a37235583db4  # WRONG_UNIT: Bracketed 'selben' is 'derselbe' (the same), not 'selber'.
+- af4c837b3fea  # WRONG_UNIT: Reflexive 'sich beschäftigen mit' used, but unit is displayed as plain verb beschäftigen.
+- af73d9ed1827  # BAD_GLOSS: 'Das ist nicht auf seinem Mist gewachsen' is an idiom meaning 'that wasn't his own idea', not liter
+- b0f974e88967  # WRONG_UNIT: Sentence uses reflexive 'sich fürchten vor' (Wir fürchten uns vor dem Tod) but the unit is display
+- b3b08b120d93  # WRONG_UNIT: Reflexive 'sich beschäftigen mit' used, but unit is displayed as plain verb beschäftigen.
+- b55fd6ab5f08  # WRONG_UNIT: Bracketed 'wert' is the predicate adjective in 'des andern wert sein' (to be worth), not the noun 
+- bb5af06a4418  # WRONG_UNIT: 'Ich interessiere mich sehr für' is reflexive 'sich interessieren für', while the display names th
+- bc442383cfd6  # WRONG_UNIT: Reflexive 'sich freuen auf' used, but unit is displayed as the plain verb freuen.
+- c7bc1b730e4c  # WRONG_UNIT: 'sich mehr zu bewegen' is reflexive 'sich bewegen', while the display names the plain verb 'bewege
+- c8177cad5429  # BAD_SENTENCE: Gap word 'volk' is lowercase in 'unters volk'; German nouns are capitalized, so this teaches the
+- c8312b92a5bd  # WRONG_UNIT: Sentence uses reflexive 'sich treffen' (uns) but the unit is displayed as the plain verb treffen.
+- c8f85b457853  # WRONG_UNIT: Sentence uses reflexive 'sich fürchten vor' (Ich fürchte mich vor nichts) but the unit is displaye
+- cbbd72b74179  # BAD_SENTENCE: Noun 'abend' is lowercase, a spelling error; should be 'Abend'.
+- ddfbe1aeabb0  # BAD_GLOSS: Literal 'sees through his fingers' misses the idiom 'durch die Finger sehen' (to turn a blind eye).
+- e1f4e660cb18  # BAD_SENTENCE: Explicit sexual content inappropriate for a language-learning card.
+- e6b5ed5195f3  # WRONG_UNIT: 'Wir bewegen uns nach Norden' is reflexive 'sich bewegen', while the display names the plain verb 
+- f5b7dc57cb0a  # WRONG_UNIT: 'der Weise' here means 'the wise man' (masc. noun/adjective-noun), a different lemma than the disp
+- f7f8ae1f88d4  # BAD_SENTENCE: 'Arme Leute haben weit heim' is missing the dummy 'es' (haben's weit heim), reading as incomplet
+- f9377f0a81e0  # BAD_GLOSS: In a river-rescue context 'reichte ihr die Hand' means extended/gave her a hand, not 'shook her han
+- ff3ec981a7a2  # BAD_GLOSS: Gloss translates both 'trinken' and 'saufen' as 'drinking', losing the distinction the sentence is 

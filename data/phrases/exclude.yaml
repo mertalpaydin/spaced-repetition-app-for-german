@@ -2300,3 +2300,35 @@
 - "muss"  # NOT_A_PHRASE: muss is a conjugated form of muessen mistagged as an adverb, not a citation-form word.
 - "okay"  # BAD_UNIT: The noun sense of Okay (the go-ahead) is neuter, 'das Okay', not 'der Okay'; as given the unit has w
 - "wussten"  # BAD_UNIT: Unit display 'wussten' is a plural preterite form, but every example in this unit uses the singular 
+# Review round g1000: units the reviewer rejected.
+- "besonderer"  # NOT_A_PHRASE: Inflected form, not a citation form.
+- "danke"  # BAD_UNIT: Not a valid phrase; the noun is der Dank
+- "daran erinnern"  # NOT_A_PHRASE: Fragment of 'sich daran erinnern'.
+- "der ganzen welt"  # BAD_UNIT: "der ganzen Welt" is just an inflected noun phrase; a useful base unit would be "die ganze Welt" or 
+- "dir keine sorgen"  # BAD_UNIT: unit is a conjugated fragment of sich Sorgen machen
+- "französische"  # DUPLICATE: Duplicates nn:franzoesisch
+- "fünf minuten"  # NOT_A_PHRASE: Free combination of a numeral and a noun.
+- "ganzes leben"  # NOT_A_PHRASE: Fragment, usually combined with a possessive pronoun.
+- "gib"  # BAD_UNIT: das Gib is not a real noun phrase
+- "glaubst"  # NOT_A_PHRASE: Conjugated verb form, not a citation form.
+- "hör"  # BAD_UNIT: not a real noun (likely typo for das Gehör)
+- "jahre alt"  # NOT_A_PHRASE: Fragment of a phrase like '10 Jahre alt'.
+- "jahre lang"  # NOT_A_PHRASE: Should be one word 'jahrelang' which is an adjective/adverb, not an expression.
+- "jung"  # BAD_UNIT: Dialect/incorrect for 'der Junge'
+- "langer zeit"  # BAD_UNIT: "langer Zeit" is an inflected phrase without a preposition; the base form should be "lange Zeit".
+- "lass"  # NOT_A_PHRASE: Imperative verb form, not an adverb and not a citation form.
+- "leben gerettet"  # BAD_UNIT: unit is an inflected fragment of jemandes Leben retten
+- "leid"  # NOT_A_PHRASE: Adjective 'leid', not a standalone adverb citation form.
+- "lustig machen"  # BAD_UNIT: missing obligatory reflexive sich
+- "meines lebens"  # BAD_UNIT: This is a genitive phrase, not a base unit
+- "sir"  # BAD_UNIT: not a useful German phrase for A1-B2 learners
+- "unterschied zwischen"  # NOT_A_PHRASE: Fragment of a phrase, missing article.
+- "verlieben"  # BAD_UNIT: Missing 'sich', should be 'sich verlieben'
+- "warst"  # NOT_A_PHRASE: Conjugated verb form, not a citation form.
+- "zehn minuten"  # NOT_A_PHRASE: Free combination of a numeral and a noun.
+# Review round s1000: units the reviewer rejected.
+- "befinden"  # WRONG_UNIT: Reflexive 'sich befinden' (to be located) used, but unit is displayed as plain verb befinden, whic
+- "bisschen"  # BAD_UNIT: 'bisschen' is invariant and always written lowercase per current orthography (kein/ein bisschen), so
+- "gute"  # WRONG_UNIT: Bracketed token is 'Beste' (superlative of gut), a different lemma than the displayed noun 'das Gu
+- "kümmern"  # WRONG_UNIT: Reflexive 'sich kümmern um' used, but unit is displayed as plain verb kümmern.
+- "vereinigten staaten"  # NOT_A_PHRASE: proper name of a country mined as an expression.

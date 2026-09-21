@@ -127,6 +127,7 @@
 - {key: "beschlossen sache", cefr: "B2"}
 - {key: "beschreiben als", cefr: "B2"}
 - {key: "besonderer anlaß", display: "besondere Anlässe"}
+- {key: "besonderer", display: "besondere"}
 - {key: "besseres einfallen", display: "sich etwas Besseres einfallen lassen"}
 - {key: "besserung wünschen", display: "gute Besserung wünschen"}
 - {key: "best wissen", cefr: "B2", display: "nach bestem Wissen"}
@@ -170,6 +171,7 @@
 - {key: "comeback feiern", cefr: "B2"}
 - {key: "daherkommen", cefr: "B2"}
 - {key: "danebengehen", cefr: "B2"}
+- {key: "danken", case: "Dat"}
 - {key: "dastehen als", display: "dastehen als +Nom"}
 - {key: "datei heruntergeladen", display: "Dateien herunterladen"}
 - {key: "datum abrufen", display: "Daten abrufen"}
@@ -359,6 +361,7 @@
 - {key: "gekommen auf", display: "kommen auf +Akk"}
 - {key: "gelangen zu", cefr: "B2"}
 - {key: "geliebt mensch", display: "geliebter Mensch"}
+- {key: "gelingen", case: "Dat"}
 - {key: "gelitten unter", case: "Dat", display: "leiden unter +Dat"}
 - {key: "gelten als", display: "gelten als"}
 - {key: "gemeinnützig arbeit", cefr: "B2"}
@@ -593,6 +596,7 @@
 - {key: "lektüre empfehlen", cefr: "B2"}
 - {key: "lerne kennen", display: "kennenlernen"}
 - {key: "letzt beißen", display: "den Letzten beißen die Hunde"}
+- {key: "letztes jahr", cefr: "A1"}
 - {key: "leuchtend stern", display: "leuchtende Sterne"}
 - {key: "leute ausstehen", display: "jemanden nicht ausstehen können"}
 - {key: "licht ausschalten", cefr: "A2"}
@@ -606,6 +610,8 @@
 - {key: "logik folgen", cefr: "B2"}
 - {key: "los mundwerk", cefr: "B2"}
 - {key: "luft verschaffen", display: "sich Luft verschaffen"}
+- {key: "luft", cefr: "A2"}
+- {key: "lustig machen", display: "sich lustig machen ueber +Akk"}
 - {key: "ländlich gebiet", display: "ländliche Gebiete"}
 - {key: "löffel abgeben", cefr: "B2"}
 - {key: "lücke schließen", cefr: "B2"}
@@ -1042,6 +1048,7 @@
 - {key: "verantwortung entziehen", display: "sich der Verantwortung entziehen"}
 - {key: "verantwortung tragen", cefr: "B1"}
 - {key: "verband wechseln", cefr: "B1"}
+- {key: "vereinigten staaten", display: "die Vereinigten Staaten"}
 - {key: "vereint kraft", display: "mit vereinten Kräften"}
 - {key: "vergleichen mit", cefr: "B1"}
 - {key: "verglichen mit", display: "vergleichen mit +Dat"}
@@ -1192,7 +1199,7 @@
 - {key: "örtlich behörde", display: "örtliche Behörden"}
 - {key: "übergelaufen zu", display: "überlaufen zu +Dat"}
 - {key: "überhöht geschwindigkeit", display: "mit überhöhter Geschwindigkeit"}
-- {key: "übersetzen", cefr: "B2"}
+- {key: "übersetzen", cefr: "A2"}
 - {key: "übertragen sinn", display: "im übertragenen Sinne"}
 - {key: "überziehen mit", cefr: "B2"}
 - {key: "übrigbleiben", display: "übrig bleiben"}
