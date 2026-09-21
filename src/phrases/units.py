@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from src.contracts import UNIT_ID_PREFIX, WORD_KINDS, Case, PhraseUnit
-from src.lexicon.lemmatizer import SEPARABLE_PREFIXES, normalise
+from src.lexicon.lemmatizer import SEPARABLE_PREFIXES, lemma_candidates, normalise
 from src.lexicon.vocabulary import VocabularyStore
 from src.phrases import paradigms, verb_government
 from src.phrases.carrier_validation import _load_dictionary
@@ -145,6 +145,9 @@ class Thresholds:
     #: low: measured 2026-09-20, "gut" 42%, "schnell" 18%, "ernst" 19%, while
     #: "endlich" is 0.7% and "sofort", "kaum", "gern" are 0%.
     adjective_min_share: float = 0.05
+    #: A noun shown in the singular this rarely is plural-only, so its
+    #: citation form takes "die" whatever the tagger called the gender.
+    plural_only_share: float = 0.1
 
 
 @dataclass
@@ -175,6 +178,9 @@ class UnitStats:
     #: Noun units only: the gender the corpus shows, for the article in the
     #: citation form ("die Frage"). The gap stays the noun alone.
     gender_tally: Counter[str] = field(default_factory=Counter)
+    #: Noun units only: singular against plural, because a plural-only noun
+    #: ("die Eltern", "die Leute") has no singular gender to cite.
+    number_tally: Counter[str] = field(default_factory=Counter)
     #: Single-word kinds only. Their occurrences are capped at parse time
     #: (``mining.words``), so the sentence set understates them; the counts
     #: file holds the true corpus figures and these two fields carry them.
@@ -807,6 +813,9 @@ def aggregate(
             gender = occ.evidence.get("gender", "")
             if gender:
                 entry.gender_tally[gender] += 1
+            number = occ.form_key.split("|")[-1]
+            if number in {"Sing", "Plur"}:
+                entry.number_tally[number] += 1
         if occ.kind == "noun_verb" and len(occ.parts) == 2:
             stem = normalise(occ.parts[0])[:4]
             for surface in occ.surfaces:
@@ -872,6 +881,7 @@ class UnitBuilder:
         dictionary: frozenset[str] | None = None,
     ) -> None:
         self.counts = counts
+        self._verb_counts_normalised: dict[str, int] | None = None
         self.curated = curated
         self.t = thresholds or Thresholds()
         self.vocabulary = vocabulary or VocabularyStore.load(DEFAULT_VOCAB_PATH)
@@ -1088,10 +1098,49 @@ class UnitBuilder:
             return _Decision(False, "count")
         if lemma in self.connectors or lemma in self.stoplist:
             return _Decision(False, "curated_connector")
+        # "ein" and "muss" reach the adverb kind because the tagger calls
+        # them ADV somewhere. They are grammar, not vocabulary.
+        # The verb kind is exempt: "haben", "sein" and "werden" are function
+        # words to a parser and vocabulary to a learner. A conjugated form
+        # that reached the verb kind ("muss") is caught below instead.
+        if s.kind != "verb" and normalise(lemma) in VocabularyStore.FUNCTION_WORDS:
+            return _Decision(False, "function_word")
+        if s.kind == "verb" and self._is_conjugated(lemma):
+            return _Decision(False, "not_an_infinitive")
         kind = s.kind
         if kind == "adjective":
             kind = self._modifier_kind(lemma)
         return _Decision(True, cefr=self._cefr_for(lemma), score=float(s.count), kind=kind)
+
+    def _is_conjugated(self, lemma: str) -> bool:
+        """A verb "lemma" the tagger never reduced to its infinitive.
+
+        "wussten" survives ``repair_verb_lemma`` (it ends in -n and is long
+        enough) and became a unit beside "wissen" (review, 2026-09-21). The
+        lemmatiser offers the infinitive as a candidate, so a candidate that
+        the corpus knows better as a verb settles it.
+        """
+        counts = self._normalised_verb_counts()
+        key = normalise(lemma)
+        here = counts.get(key, 0)
+        return any(
+            candidate != key and counts.get(candidate, 0) > here
+            for candidate in lemma_candidates(key)
+        )
+
+    def _normalised_verb_counts(self) -> dict[str, int]:
+        """The verb counts keyed the way ``lemma_candidates`` spells them.
+
+        The candidates come back eszett- and umlaut-folded, so "muss" offers
+        "mussen" while the counter holds "muessen"; comparing the two raw
+        misses every umlauted infinitive.
+        """
+        if self._verb_counts_normalised is None:
+            folded: dict[str, int] = {}
+            for verb, count in self.counts.verbs.items():
+                folded[normalise(verb)] = folded.get(normalise(verb), 0) + count
+            self._verb_counts_normalised = folded
+        return self._verb_counts_normalised
 
     def _modifier_kind(self, lemma: str) -> str:
         """Adjective or adverb, from how the corpus tags the word.
@@ -1228,6 +1277,13 @@ class UnitBuilder:
         if s.kind != "noun":
             return lemma
         noun = lemma[:1].upper() + lemma[1:]
+        # A noun the corpus almost never shows in the singular is plural-only
+        # ("die Eltern", "die Leute"); citing a singular gender for it is
+        # wrong however the tokens were tagged (review, 2026-09-21).
+        singular = s.number_tally.get("Sing", 0)
+        plural = s.number_tally.get("Plur", 0)
+        if plural and singular <= plural * self.t.plural_only_share:
+            return f"die {noun}"
         gender = s.gender_tally.most_common(1)
         article = _WORD_ARTICLE.get(gender[0][0]) if gender else None
         return f"{article} {noun}" if article else noun

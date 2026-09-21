@@ -119,12 +119,23 @@ _WORD = re.compile(r"[\w\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00df]+")
 
 def _reflexive_next_to_verb(occ: Occurrence) -> bool:
     """``Es stellt sich heraus``: the sentence shows the reflexive verb, which
-    is its own unit, not the plain separable one the card would teach.
-    Only third-person "sich" is unambiguous; "mich"/"uns" are also plain
-    objects ("Er ruft uns an")."""
-    verb_end = occ.spans[0][1]
-    following = _WORD.findall(occ.text[verb_end:])[:2]
-    return "sich" in (w.lower() for w in following)
+    is its own unit, not the plain one the card would teach. Only
+    third-person "sich" is unambiguous; "mich"/"uns" are also plain objects
+    ("Er ruft uns an").
+
+    Both sides are checked. A plain-verb card is drawn from a single token,
+    so "sich" can precede it as easily as follow it ("wo es sich befindet"),
+    and the review of 2026-09-21 found six cards for "befinden" and six for
+    "kuemmern" that taught a reflexive verb with the pronoun left outside
+    the gap.
+    """
+    # Anchored on the verb token, which is the first span in both kinds: for
+    # a separable verb "sich" sits between the verb and its particle, for a
+    # plain verb it can sit on either side.
+    start, end = occ.spans[0]
+    following = _WORD.findall(occ.text[end:])[:2]
+    preceding = _WORD.findall(occ.text[:start])[-2:]
+    return "sich" in (w.lower() for w in [*following, *preceding])
 
 
 _COMPLEMENT_PREPS: frozenset[str] = frozenset(
@@ -247,7 +258,7 @@ def unsuitable_reason(occ: Occurrence) -> str | None:
         return "old_spelling"
     if _BROKEN_HYPHEN.search(text) and "e-mail" not in text.lower():
         return "broken_hyphen"
-    if occ.kind == "separable_verb" and _reflexive_next_to_verb(occ):
+    if occ.kind in {"separable_verb", "verb"} and _reflexive_next_to_verb(occ):
         return "reflexive_reading"
     first = _WORD.findall(occ.text.lower())[:1]
     if first and first[0] in _SUBORDINATORS and "," not in occ.text:

@@ -326,3 +326,30 @@ def test_a_word_display_with_its_article_gets_no_complement_gap() -> None:
     assert complement_preposition(WORD_UNIT) is None
     ends_in_a_preposition = WORD_UNIT.model_copy(update={"display_de": "der Weg zu"})
     assert complement_preposition(ends_in_a_preposition) is None
+
+
+def test_a_plain_verb_card_drawn_from_a_reflexive_sentence_is_unsuitable() -> None:
+    """ "Wo es sich befindet" teaches "sich befinden"; a plain-verb card from
+    it would leave "sich" outside the gap (review, 2026-09-21)."""
+    from src.phrases.cards import unsuitable_reason
+
+    def verb(text: str, surface: str) -> Occurrence:
+        start = text.index(surface)
+        return Occurrence(
+            kind="verb",
+            unit_key="befinden",
+            parts=["befinden"],
+            token_indices=[3],
+            spans=[(start, start + len(surface))],
+            surfaces=[surface],
+            corpus_source="tatoeba",
+            line_id=text,
+            text=text,
+            form_key="Fin|Pres|3|Sing",
+        )
+
+    assert unsuitable_reason(verb("Ich weiss, wo es sich befindet.", "befindet")) == (
+        "reflexive_reading"
+    )
+    assert unsuitable_reason(verb("Er befindet sich im Haus.", "befindet")) == "reflexive_reading"
+    assert unsuitable_reason(verb("Das Gericht befindet ihn für schuldig.", "befindet")) is None
