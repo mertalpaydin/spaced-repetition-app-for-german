@@ -454,7 +454,48 @@ def test_the_prepositional_reading_catches_the_pronominal_form() -> None:
         unsuitable_reason(verb("Ich warte schon darauf.", "warte", "warten"), frozenset({"auf"}))
         == "prepositional_reading"
     )
+    # The pronominal form before the verb counts too, since 2026-09-21:
+    # "darauf achten" and "darueber verfuegen" are verb-final or fronted,
+    # and nine cards at ranks 1000 to 2000 taught the plain verb that way.
     assert (
         unsuitable_reason(verb("Worauf wartest du denn?", "wartest", "warten"), frozenset({"auf"}))
+        == "prepositional_reading"
+    )
+    # a bare preposition before the verb is still its own phrase
+    assert (
+        unsuitable_reason(
+            verb("Auf dem Tisch wartet das Essen.", "wartet", "warten"), frozenset({"auf"})
+        )
         is None
-    )  # the pronominal form precedes the verb here
+    )
+
+
+def test_a_dative_reflexive_also_blocks_a_plain_verb_card() -> None:
+    """ "sich etwas merken" and "sich etwas ueberlegen" take "mir" and
+    "dir", not "mich" and "dich". The accusative-only rule let eight such
+    cards through at ranks 1000 to 2000 (review, 2026-09-21)."""
+    from src.phrases.cards import unsuitable_reason
+
+    def verb(text: str, surface: str, key: str) -> Occurrence:
+        start = text.index(surface)
+        return Occurrence(
+            kind="verb",
+            unit_key=key,
+            parts=[key],
+            token_indices=[1],
+            spans=[(start, start + len(surface))],
+            surfaces=[surface],
+            corpus_source="tatoeba",
+            line_id=text,
+            text=text,
+            form_key="Fin|Pres|1|Sing",
+        )
+
+    assert unsuitable_reason(verb("Ich merke mir die Zahl.", "merke", "merken")) == (
+        "reflexive_reading"
+    )
+    assert unsuitable_reason(verb("Das musst du dir überlegen.", "überlegen", "überlegen")) == (
+        "reflexive_reading"
+    )
+    # "mir" without the subject it would agree with is a plain dative object
+    assert unsuitable_reason(verb("Er merkt mir nichts an.", "merkt", "merken")) is None

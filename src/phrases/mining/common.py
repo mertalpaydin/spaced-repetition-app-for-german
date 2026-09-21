@@ -103,6 +103,33 @@ NON_UNIT_ADVERBS: frozenset[str] = frozenset(
 
 STOP_ADVERBS: frozenset[str] = frozenset(
     {
+        # Intensity and modal particles. They precede any verb at all, so
+        # every pair they form is compositional: the review of ranks 1000 to
+        # 2000 found 535 of the 1,307 adj_verb units were one of these plus a
+        # common verb ("wirklich wissen", "bitte erklaeren", "gerade
+        # beschaeftigen"). Manner adverbs are deliberately not here, because
+        # "hart arbeiten", "schwer fallen" and "genau nehmen" are real.
+        "wirklich",
+        "ziemlich",
+        "total",
+        "wahnsinnig",
+        "riesig",
+        "voll",
+        "echt",
+        "natürlich",
+        "eigentlich",
+        "unbedingt",
+        "bestimmt",
+        "sicherlich",
+        "ebenfalls",
+        "weiterhin",
+        "zusätzlich",
+        "einfach",
+        "bitte",
+        "gerade",
+        "lange",
+        "endlich",
+        "fast",
         "da",
         "dann",
         "dort",

@@ -1002,3 +1002,114 @@ def test_an_ordinary_adverb_is_not_banned_by_the_collocation_stop_list() -> None
         assert word not in NON_UNIT_ADVERBS
     for word in ("dann", "auch", "nicht", "darauf", "warum"):
         assert word in NON_UNIT_ADVERBS
+
+
+def test_a_separable_verb_does_not_also_stand_as_a_plain_verb() -> None:
+    """ "herausfinden", "durchfuehren", "beibringen" and "stattfinden" each
+    stood twice. The detector rejects a verb token carrying a particle, but
+    the fused infinitive has none to reject (review, 2026-09-21)."""
+    counts = _word_counts()
+    counts.verbs.update({"herausfinden": 900})
+    counts.word_by_source["verb:herausfinden"] = Counter({"tatoeba": 900})
+    builder = _builder(counts)
+    builder.t = Thresholds(word_min_count=50)
+    occurrences = [
+        *_word_occ("verb", "herausfinden", 3),
+        *_occ("separable_verb", "herausfinden", ["heraus", "finden"], 40),
+    ]
+    kinds = {(u.lemma_key, u.kind) for u in builder.build(occurrences)}
+    assert ("herausfinden", "verb") not in kinds
+
+    # without the separable candidate the plain verb stands as before
+    bare = _word_counts()
+    bare.verbs.update({"herausfinden": 900})
+    bare.word_by_source["verb:herausfinden"] = Counter({"tatoeba": 900})
+    plain = _builder(bare)
+    plain.t = Thresholds(word_min_count=50)
+    assert ("herausfinden", "verb") in {
+        (u.lemma_key, u.kind) for u in plain.build(_word_occ("verb", "herausfinden", 3))
+    }
+
+
+def test_an_intensity_adverb_never_anchors_a_collocation() -> None:
+    """ "wirklich wissen" and "bitte erklaeren" are compositional; "hart
+    arbeiten" and "schwer fallen" are not, so manner adverbs stay out of
+    the list (review, 2026-09-21: 535 of 1,307 adj_verb units)."""
+    from src.phrases.mining.common import STOP_ADVERBS
+
+    for word in ("wirklich", "bitte", "gerade", "einfach", "ziemlich", "eigentlich"):
+        assert word in STOP_ADVERBS
+    for word in ("hart", "schwer", "genau", "gut", "schnell", "richtig"):
+        assert word not in STOP_ADVERBS
+
+
+def test_the_noun_article_comes_from_the_corpus_not_the_tagger() -> None:
+    """The morph tally cited "die Fan", "das Kuchen" and "der Schloss"; the
+    singular articles say der, der and das. Only the singular counts, since
+    the plural takes "die" whatever the gender, which is how "die Fan"
+    happened (review, 2026-09-21)."""
+    counts = _word_counts()
+    counts.nouns.update({"fan": 500})
+    counts.word_by_source["noun:fan"] = Counter({"tatoeba": 500})
+    builder = _builder(counts)
+    builder.t = Thresholds(word_min_count=50)
+
+    def noun_occ(text: str, number: str) -> Occurrence:
+        start = text.index("fan")
+        return Occurrence(
+            kind="noun",
+            unit_key="fan",
+            parts=["fan"],
+            token_indices=[2],
+            spans=[(start, start + 3)],
+            surfaces=["fan"],
+            corpus_source="tatoeba",
+            line_id=text + number,
+            text=text,
+            form_key=f"Nom|{number}",
+            evidence={"gender": "Fem"},  # what the tagger said, and it is wrong
+        )
+
+    units = builder.build(
+        [
+            noun_occ("Ich sah der fan dort.", "Sing"),
+            noun_occ("Dort stand der fan allein.", "Sing"),
+            noun_occ("Alle die fan waren laut.", "Plur"),
+        ]
+    )
+    assert units[0].display_de == "der Fan"
+
+
+def test_the_article_beats_the_plural_only_rule() -> None:
+    """ "Medien" is commoner than "Medium", so the plural-only rule would
+    cite "die Medium". The nominative singular article says das, and it is
+    consulted first (review, 2026-09-21)."""
+    counts = _word_counts()
+    counts.nouns.update({"medium": 500})
+    counts.word_by_source["noun:medium"] = Counter({"tatoeba": 500})
+    builder = _builder(counts)
+    builder.t = Thresholds(word_min_count=50)
+
+    def occ(text: str, number: str, line: str) -> Occurrence:
+        start = text.index("medium")
+        return Occurrence(
+            kind="noun",
+            unit_key="medium",
+            parts=["medium"],
+            token_indices=[1],
+            spans=[(start, start + 6)],
+            surfaces=["medium"],
+            corpus_source="tatoeba",
+            line_id=line,
+            text=text,
+            form_key=f"Nom|{number}",
+            evidence={"gender": "Fem"},
+        )
+
+    units = builder.build(
+        [
+            occ("Das medium berichtet darüber.", "Sing", "a"),
+            *[occ(f"Die medium berichten {i}.", "Plur", f"p{i}") for i in range(12)],
+        ]
+    )
+    assert units[0].display_de == "das Medium"

@@ -23,7 +23,7 @@ from src.phrases.carrier_validation import _load_dictionary
 from src.phrases.curated import CuratedLists
 from src.phrases.mining import LemmaCounts
 from src.phrases.mining.collocations import _STOP_ADJECTIVES
-from src.phrases.mining.common import CONTRACTED_PREPS
+from src.phrases.mining.common import CONTRACTED_PREPS, STOP_ADVERBS
 from src.phrases.occurrences import Occurrence
 
 DEFAULT_VOCAB_PATH = Path("data/fixtures/corpus/vocab_levels.json")
@@ -110,6 +110,9 @@ DETERMINERS: frozenset[str] = frozenset(
         "mehrere",
     }
 )
+#: The three nominative definite articles, which name the gender outright.
+_DEFINITE_ARTICLES: frozenset[str] = frozenset({"der", "die", "das"})
+
 _WORD_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
 
 #: The personal endings a finite verb form can carry, longest first so
@@ -249,6 +252,10 @@ class Thresholds:
     #: an interjection the tagger capitalised. Measured 2026-09-21: the fake
     #: nouns sit at 0.00 and the thinnest real noun at 0.31.
     determiner_min_share: float = 0.1
+    #: Singular definite articles needed before they outrank the tagger's
+    #: gender. Two is enough: the tagger is wrong about a loanword from the
+    #: first occurrence, and a real noun reaches two quickly.
+    article_min_occurrences: int = 2
     determiner_min_occurrences: int = 8
     #: A verb used with a reflexive pronoun this much of the time is taught
     #: as the reflexive unit, not as a plain verb.
@@ -284,6 +291,9 @@ class UnitStats:
     #: Noun units only: the gender the corpus shows, for the article in the
     #: citation form ("die Frage"). The gap stays the noun alone.
     gender_tally: Counter[str] = field(default_factory=Counter)
+    #: Noun units only: which definite article the corpus puts in front of
+    #: the singular, which is better evidence of gender than the tagger.
+    article_tally: Counter[str] = field(default_factory=Counter)
     #: Noun units only: how often the corpus puts the word behind an
     #: article, which an imperative filed as a noun never is.
     determiner_hits: int = 0
@@ -940,6 +950,12 @@ def aggregate(
             before = _WORD_RE.findall(occ.text[: occ.spans[0][0]])
             if before and before[-1].lower() in DETERMINERS:
                 entry.determiner_hits += 1
+                article = before[-1].lower()
+                nominative_singular = occ.form_key.startswith("Nom|") and occ.form_key.endswith(
+                    "Sing"
+                )
+                if article in _DEFINITE_ARTICLES and nominative_singular:
+                    entry.article_tally[article] += 1
             else:
                 entry.determiner_misses += 1
             gender = occ.evidence.get("gender", "")
@@ -1021,6 +1037,7 @@ class UnitBuilder:
             frequency_ranks if frequency_ranks is not None else self.vocabulary._frequency_ranks
         )
         self._reflexive_counts: dict[str, int] = {}
+        self._separable_keys: set[str] = set()
         self.prep_counts = _base_prep_counts(counts)
         self.vp_seeds = {s.key: s for s in curated.verb_prep_seeds}
         self.colloc_seeds = {s.key: s for s in curated.collocation_seeds}
@@ -1256,6 +1273,12 @@ class UnitBuilder:
             return _Decision(False, "no_determiner")
         if kind == "verb" and self._mostly_reflexive(s):
             return _Decision(False, "mostly_reflexive")
+        if kind == "verb" and s.key in self._separable_keys:
+            # "herausfinden", "durchfuehren", "beibringen" and "stattfinden"
+            # each stood twice, once per kind: the detector rejects a verb
+            # token that carries a particle, but the fused infinitive has
+            # none to reject (review, 2026-09-21).
+            return _Decision(False, "also_separable")
         return _Decision(True, cefr=self._cefr_for(lemma), score=float(s.count), kind=kind)
 
     def _dominated_by_the_verb(self, lemma: str) -> bool:
@@ -1339,10 +1362,13 @@ class UnitBuilder:
         counts = self._normalised_verb_counts()
         key = normalise(lemma)
         modifier_uses = self.counts.adverbs.get(lemma, 0) + self.counts.adjectives.get(lemma, 0)
-        for ending in _PERSONAL_ENDINGS:
+        # The empty ending first: a bare imperative carries none at all, and
+        # "stell", "hab" and "mach" reached the adjectives that way (review,
+        # 2026-09-21).
+        for ending in ("", *_PERSONAL_ENDINGS):
             if not key.endswith(ending) or len(key) - len(ending) < 2:
                 continue
-            stem = key[: -len(ending)]
+            stem = key[: len(key) - len(ending)]
             for infinitive in (stem + "en", stem + "n"):
                 verb_uses = counts.get(infinitive, 0)
                 if verb_uses >= self.t.finite_form_min_verb and verb_uses >= (
@@ -1384,6 +1410,14 @@ class UnitBuilder:
         return "adverb"
 
     def _decide_adj_verb(self, s: UnitStats) -> _Decision:
+        # The detector applies STOP_ADVERBS too, but at parse time, so a
+        # word added to the list after the last parse would otherwise wait
+        # three hours to take effect. Re-checking here is cheap and makes
+        # the list authoritative from the next mine (review, 2026-09-21).
+        modifier = s.best_parts[0].lower() if s.best_parts else ""
+        if modifier in STOP_ADVERBS:
+            return _Decision(False, "stop_adverb")
+
         parts = s.best_parts
         if len(parts) < 2:
             return _Decision(False, "parts")
@@ -1552,6 +1586,15 @@ class UnitBuilder:
         if s.kind != "noun":
             return lemma
         noun = lemma[:1].upper() + lemma[1:]
+        # The article the corpus puts in front of the nominative singular is
+        # the best evidence there is, and it comes first: the tagger cited
+        # "die Fan" and "die Medium", and the plural-only rule below would
+        # have cited "die Medium" too, since "Medien" is the commoner form.
+        # The nominative is what makes one observation enough, because there
+        # der, die and das name the gender outright, while "der Stadt" and
+        # "der Frage" are datives that say nothing about it.
+        if s.article_tally:
+            return f"{s.article_tally.most_common(1)[0][0]} {noun}"
         # A noun the corpus almost never shows in the singular is plural-only
         # ("die Eltern", "die Leute"); citing a singular gender for it is
         # wrong however the tokens were tagged (review, 2026-09-21).
@@ -1659,6 +1702,7 @@ class UnitBuilder:
         # thresholds will reject: a lemma with no reflexive unit of its own
         # is exactly the case where teaching the plain verb hides the
         # reflexive one ("sich kuemmern um").
+        self._separable_keys = {key for (kind, key) in stats if kind == "separable_verb"}
         self._reflexive_counts = {
             key.removeprefix("sich "): stat.count
             for (kind, key), stat in stats.items()

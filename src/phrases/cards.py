@@ -149,16 +149,21 @@ def _reflexive_next_to_verb(occ: Occurrence) -> bool:
     # lowering that bar would take "aendern", "vorstellen" and 75 more
     # ordinary verbs with it (measured 2026-09-21).
     return any(
-        pronoun in words and subject in words for subject, pronoun in _AGREEING_REFLEXIVES.items()
+        subject in words and any(pronoun in words for pronoun in pronouns)
+        for subject, pronouns in _AGREEING_REFLEXIVES.items()
     )
 
 
-#: Subject pronoun to the reflexive pronoun that agrees with it.
-_AGREEING_REFLEXIVES: dict[str, str] = {
-    "ich": "mich",
-    "du": "dich",
-    "wir": "uns",
-    "ihr": "euch",
+#: Subject pronoun to the reflexive pronouns that agree with it, accusative
+#: and dative. The dative ones were added on 2026-09-21, when the review of
+#: ranks 1000 to 2000 found "sich etwas merken" and "sich etwas ueberlegen"
+#: taught as plain verbs: those verbs take "mir" and "dir", which the
+#: accusative-only rule never looked for.
+_AGREEING_REFLEXIVES: dict[str, tuple[str, ...]] = {
+    "ich": ("mich", "mir"),
+    "du": ("dich", "dir"),
+    "wir": ("uns",),
+    "ihr": ("euch",),
 }
 
 
@@ -277,10 +282,19 @@ def _prepositional_reading(occ: Occurrence, governed: frozenset[str]) -> bool:
     if not governed:
         return False
     after = [w.lower() for w in _WORD.findall(occ.text[occ.spans[0][1] :])[:4]]
-    wanted = set(governed)
+    pronominal: set[str] = set()
     for prep in governed:
-        wanted |= _PRONOMINAL_FORMS.get(prep, frozenset())
-    return bool(wanted & set(after))
+        pronominal |= _PRONOMINAL_FORMS.get(prep, frozenset())
+    if (set(governed) | pronominal) & set(after):
+        return True
+    # The pronominal form also comes before the verb, in a verb-final clause
+    # or when it is fronted: "darauf achten", "darueber verfuegen", which
+    # cost nine cards at ranks 1000 to 2000. Only the pronominal one is
+    # checked backwards: a bare preposition before a verb is usually its own
+    # phrase ("Auf dem Tisch liegt das Buch"), while "darauf" can only be
+    # the government (review, 2026-09-21).
+    before = [w.lower() for w in _WORD.findall(occ.text[: occ.spans[0][0]])[-6:]]
+    return bool(pronominal & set(before))
 
 
 def _pronominal(prep: str) -> frozenset[str]:
