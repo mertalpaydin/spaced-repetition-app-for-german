@@ -131,10 +131,15 @@ def write_batches(
     card_batch: int,
     unit_batch: int,
     gloss_source: str | None = None,
+    max_rank: int | None = None,
 ) -> dict[str, int]:
     """``gloss_source`` selects the gloss review: every card whose gloss came
     from that source, whatever the reviewed-id lists say (those record that
-    the sentence was read, not that its English was), and no units."""
+    the sentence was read, not that its English was), and no units.
+
+    ``max_rank`` stops at a rank, so a deck far larger than a year of
+    learning is reviewed from the top down in steps rather than in one pass
+    (owner, 2026-09-21)."""
     manifest, units, cards = load_deck(deck_dir)
     by_unit = {u.unit_id: u for u in units}
     reviewed_cards = set() if everything else _reviewed_ids("card")
@@ -144,8 +149,12 @@ def write_batches(
         reviewed_units = {u.unit_id for u in units}
     else:
         chosen = (c for c in cards if c.card_id not in reviewed_cards)
+    if max_rank is not None:
+        chosen = (c for c in chosen if by_unit[c.unit_id].rank <= max_rank)
     new_cards = sorted(chosen, key=lambda c: (by_unit[c.unit_id].rank, c.card_id))
     new_units = [u for u in units if u.unit_id not in reviewed_units]
+    if max_rank is not None:
+        new_units = [u for u in new_units if u.rank <= max_rank]
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "findings").mkdir(exist_ok=True)
     for stale in out_dir.glob("*.txt"):
@@ -381,6 +390,7 @@ def main(argv: list[str] | None = None) -> int:
         help="gloss review: every card glossed by this source (e.g. gemini), no units",
     )
     b.add_argument("--card-batch", type=int, default=600)
+    b.add_argument("--max-rank", type=int, default=None, help="only units at or above this rank")
     b.add_argument("--unit-batch", type=int, default=700)
     g = sub.add_parser("gemini")
     g.add_argument("batch_dir", type=Path)
@@ -398,6 +408,7 @@ def main(argv: list[str] | None = None) -> int:
             deck_dir=args.deck,
             everything=args.everything,
             gloss_source=args.gloss_source,
+            max_rank=args.max_rank,
             card_batch=args.card_batch,
             unit_batch=args.unit_batch,
         )
