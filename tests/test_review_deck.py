@@ -81,6 +81,13 @@ def test_apply_writes_reasons_and_records_the_round(repo: Path) -> None:
     findings = repo / "batches/findings"
     findings.mkdir(parents=True)
     (repo / "batches/units_00.txt").write_text("vp:unit_3\tverb_prep\n", encoding="utf-8")
+    # The batch files are what a reviewer was actually shown. Card 3 was not
+    # among them, so the round must not record it as reviewed.
+    (repo / "batches/cards_000.txt").write_text(
+        "000000000001\tverb_prep\tunit 1\t[Satz] 1 hier.\tgloss\n"
+        "000000000002\tverb_prep\tunit 2\t[Satz] 2 hier.\tgloss\n",
+        encoding="utf-8",
+    )
     (findings / "cards_000.jsonl").write_text(
         json.dumps(
             {
@@ -140,7 +147,6 @@ def test_apply_writes_reasons_and_records_the_round(repo: Path) -> None:
     assert (audit / "reviewed-card-ids-round-t.txt").read_text().split() == [
         "000000000001",
         "000000000002",
-        "000000000003",
     ]
     assert (audit / "reviewed-unit-ids-round-t.txt").read_text().split() == ["vp:unit_3"]
 

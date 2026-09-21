@@ -238,6 +238,17 @@ def _yaml_str(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def _ids_in_batches(batch_dir: Path, pattern: str) -> set[str]:
+    """The ids a reviewer was actually shown: the first column of every batch
+    file the round was written from."""
+    return {
+        line.split("\t")[0]
+        for path in batch_dir.glob(pattern)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    }
+
+
 def apply_findings(findings_dir: Path, *, round_label: str, deck_dir: Path) -> dict[str, int]:
     manifest, units, cards = load_deck(deck_dir)
     by_id = {u.unit_id: u for u in units}
@@ -351,15 +362,17 @@ def apply_findings(findings_dir: Path, *, round_label: str, deck_dir: Path) -> d
     with (AUDIT_DIR / f"findings-round-{round_label}.jsonl").open("w", encoding="utf-8") as h:
         for r in card_rows + unit_rows:
             h.write(json.dumps(r, ensure_ascii=False) + "\n")
-    (AUDIT_DIR / f"reviewed-card-ids-round-{round_label}.txt").write_text(
-        "".join(c + "\n" for c in sorted(card_by_id)), encoding="utf-8"
-    )
-    reviewed_units = {
-        line.split("\t")[0]
-        for path in findings_dir.parent.glob("units_*.txt")
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    }
+    # The ledger records what a reviewer actually read, which is the batch
+    # files, not the whole deck. Writing every card id was harmless while
+    # every round covered everything; with --max-rank a round covers the top
+    # of the deck only, and claiming the tail was reviewed both hides the
+    # unreviewed cards and empties the next round's batches.
+    reviewed_cards = _ids_in_batches(findings_dir.parent, "cards_*.txt")
+    if reviewed_cards:
+        (AUDIT_DIR / f"reviewed-card-ids-round-{round_label}.txt").write_text(
+            "".join(c + "\n" for c in sorted(reviewed_cards)), encoding="utf-8"
+        )
+    reviewed_units = _ids_in_batches(findings_dir.parent, "units_*.txt")
     if reviewed_units:
         (AUDIT_DIR / f"reviewed-unit-ids-round-{round_label}.txt").write_text(
             "".join(u + "\n" for u in sorted(reviewed_units)), encoding="utf-8"
