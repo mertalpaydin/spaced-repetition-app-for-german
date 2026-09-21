@@ -1861,7 +1861,10 @@ def test_generate_many_batch_rows_are_logged_as_batch_and_discounted(tmp_path: P
         rows[0]["model"], rows[0]["prompt_tokens"], rows[0]["completion_tokens"], "paid", "sync"
     )
     assert on_demand > 0.0, "the fixture must bill something for the halving to mean anything"
-    assert rows[0]["cost_usd"] == pytest.approx(on_demand / 2)
+    # ``_estimate_cost`` rounds once, after the discount, while this halves a
+    # figure that was already rounded, so the two can differ by up to half a
+    # rounding unit. The tolerance is that unit, not a slackened assertion.
+    assert rows[0]["cost_usd"] == pytest.approx(on_demand / 2, abs=1e-6)
 
 
 # ---------------------------------------------------------------------------

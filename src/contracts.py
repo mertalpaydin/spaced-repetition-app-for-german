@@ -24,13 +24,19 @@ FsrsRating = Literal["again", "hard", "good", "easy"]
 # ==============================================================================
 
 MODEL_LIVE: str = "gemini-3.5-flash-lite"
-MODEL_GENERATE: str = "gemini-3.5-flash-lite"
+#: The generation model. Moved from gemini-3.5-flash-lite to 3.8 Flash on
+#: 2026-09-21 at the owner's instruction. Introductory pricing runs to
+#: 2026-12-31; standard pricing doubles it.
+MODEL_GENERATE: str = "gemini-3.8-flash"
 MODEL_VERIFY: str = "gemini-3.7-flash"
 # gemini-3.7-flash's own default is "medium"; restated so the level stays a
 # named, greppable config value.
 THINKING_VERIFY: str = "medium"
 # Flash-Lite's own default is "minimal"; "low" is the smallest step up. Keyed
 # on the model, not the purpose (``GeminiLlmClient._thinking_config_for``).
+#: The thinking level for MODEL_GENERATE. "low", not "minimal": 3.8 Flash
+#: does not support minimal at all, and the name is kept for the constant
+#: the client already imports.
 THINKING_FLASH_LITE: str = "low"
 
 # ``purpose=`` values passed to ``GeminiLlmClient.generate``. One constant per

@@ -565,6 +565,8 @@ class GeminiLlmClient:
     PRICING_PER_MILLION: dict[str, tuple[float, float]] = {
         "gemini-3.5-flash-lite": (0.30, 2.50),
         "gemini-3.7-flash": (0.75, 3.75),
+        # Introductory pricing to 2026-12-31; 1.50/7.50 from 2027-01-01.
+        "gemini-3.8-flash": (0.75, 3.75),
     }
 
     # RPM 429s are transient; retry the same (free) lane after a backoff. This
