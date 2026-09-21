@@ -854,3 +854,118 @@ def test_a_collocation_forces_its_components_to_be_units() -> None:
     kinds = {u.lemma_key: u.kind for u in builder.build(occurrences)}
     assert kinds["kaffee trinken"] == "noun_verb"
     assert kinds["kaffee"] == "noun"  # kept although it is under the threshold
+
+
+def _noun_occ(lemma: str, n: int, *, determiner: str | None) -> list[Occurrence]:
+    """Carriers for a noun, with or without an article in front of it."""
+    out = []
+    for i in range(n):
+        head = f"Ich sehe {determiner} " if determiner else f"Nummer {i}, "
+        text = f"{head}{lemma} heute."
+        start = text.index(lemma)
+        out.append(
+            Occurrence(
+                kind="noun",
+                unit_key=lemma,
+                parts=[lemma],
+                token_indices=[3],
+                spans=[(start, start + len(lemma))],
+                surfaces=[lemma],
+                corpus_source="tatoeba",
+                line_id=f"n{i}",
+                text=text,
+                form_key="Nom|Sing",
+                evidence={"gender": "Fem"},
+            )
+        )
+    return out
+
+
+def test_a_noun_the_corpus_never_puts_behind_an_article_is_not_a_noun() -> None:
+    """ "die Hoer" and "das Gib" are capitalised imperatives. Measured over
+    the occurrence file, they follow a determiner in 0 of 16 and 0 of 21
+    sentences, while the thinnest real noun manages 0.31 (review,
+    2026-09-21)."""
+    counts = _word_counts()
+    counts.nouns.update({"hoer": 500})
+    builder = _builder(counts)
+    builder.t = Thresholds(word_min_count=50)
+    assert builder.build(_noun_occ("hoer", 10, determiner=None)) == []
+
+    kept = _builder(_word_counts())
+    kept.t = Thresholds(word_min_count=50)
+    units = kept.build(_noun_occ("frage", 10, determiner="die"))
+    assert [u.lemma_key for u in units] == ["frage"]
+
+
+def test_a_verb_the_corpus_uses_reflexively_is_not_taught_as_a_plain_verb() -> None:
+    """ "sich kuemmern um" taught as "kuemmern" leaves the pronoun outside
+    the gap, and the learner never meets the unit that matters. The review
+    of 2026-09-21 found this on eight lemmas."""
+    counts = _word_counts()
+    counts.verbs.update({"kuemmern": 100})
+    builder = _builder(counts)
+    builder.t = Thresholds(word_min_count=50)
+    occurrences = [
+        *_word_occ("verb", "kuemmern", 3),
+        *_occ("reflexive_verb", "sich kuemmern", ["sich", "kuemmern"], 80),
+    ]
+    kinds = {u.lemma_key: u.kind for u in builder.build(occurrences)}
+    assert "kuemmern" not in kinds
+
+    # a verb that is only sometimes reflexive stays a plain verb too
+    counts2 = _word_counts()
+    counts2.verbs.update({"waschen": 100})
+    builder2 = _builder(counts2)
+    builder2.t = Thresholds(word_min_count=50)
+    occurrences2 = [
+        *_word_occ("verb", "waschen", 3),
+        *_occ("reflexive_verb", "sich waschen", ["sich", "waschen"], 25),
+    ]
+    assert "waschen" in {u.lemma_key for u in builder2.build(occurrences2)}
+
+
+def test_a_conjugated_form_the_tagger_called_an_adverb_is_dropped() -> None:
+    """ "glaubst", "warst" and "lass" reached the adverb kind because the
+    tagger files what it cannot place under ADV. "wert" is a predicative
+    adjective and must survive, so the kind is settled before the test."""
+    counts = _word_counts()
+    counts.adverbs.update({"glaubst": 300})
+    counts.verbs.update({"glauben": 4000})
+    counts.word_by_source["adjective:glaubst"] = Counter({"tatoeba": 300})
+    builder = _builder(counts)
+    builder.t = Thresholds(word_min_count=50)
+    assert builder.build(_word_occ("adjective", "glaubst", 2)) == []
+
+    counts2 = _word_counts()
+    counts2.adjectives.update({"wert": 50})
+    counts2.adverbs.update({"wert": 1880})
+    counts2.word_by_source["adjective:wert"] = Counter({"tatoeba": 1930})
+    builder2 = _builder(counts2)
+    builder2.t = Thresholds(word_min_count=50)
+    kept = {u.lemma_key: u.kind for u in builder2.build(_word_occ("adjective", "wert", 2))}
+    assert kept["wert"] == "adjective"
+
+
+def test_an_infinitive_the_tagger_mislabelled_is_not_an_adverb() -> None:
+    """ "wissen" reached the adverbs on 152 uses against 37,413 as a verb.
+    A genuine modifier that shares a form with a verb keeps its place:
+    "trocken" is 34 verb uses against 1,477 (review, 2026-09-21)."""
+    counts = _word_counts()
+    counts.verbs.update({"wissen": 37_413})
+    counts.adverbs.update({"wissen": 152})
+    counts.word_by_source["adjective:wissen"] = Counter({"tatoeba": 152})
+    builder = _builder(counts)
+    builder.t = Thresholds(word_min_count=50)
+    assert builder.build(_word_occ("adjective", "wissen", 2)) == []
+
+    counts2 = _word_counts()
+    counts2.verbs.update({"trocken": 34})
+    counts2.adjectives.update({"trocken": 657})
+    counts2.adverbs.update({"trocken": 820})
+    counts2.word_by_source["adjective:trocken"] = Counter({"tatoeba": 1477})
+    builder2 = _builder(counts2)
+    builder2.t = Thresholds(word_min_count=50)
+    assert [u.lemma_key for u in builder2.build(_word_occ("adjective", "trocken", 2))] == [
+        "trocken"
+    ]

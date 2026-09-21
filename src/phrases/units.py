@@ -34,6 +34,84 @@ EVERYDAY_SOURCES: frozenset[str] = frozenset({"tatoeba", "opensubtitles_2018"})
 #: decision, 2026-09-11). Unlisted corpora weigh one.
 SOURCE_WEIGHTS: dict[str, float] = dict.fromkeys(EVERYDAY_SOURCES, 10.0)
 
+#: Words a German noun stands behind. Used to tell a noun from a
+#: capitalised imperative, which never follows one.
+DETERMINERS: frozenset[str] = frozenset(
+    {
+        "der",
+        "die",
+        "das",
+        "den",
+        "dem",
+        "des",
+        "ein",
+        "eine",
+        "einen",
+        "einem",
+        "einer",
+        "eines",
+        "kein",
+        "keine",
+        "keinen",
+        "keinem",
+        "keiner",
+        "keines",
+        "mein",
+        "meine",
+        "meinen",
+        "meinem",
+        "meiner",
+        "dein",
+        "deine",
+        "deinen",
+        "deinem",
+        "deiner",
+        "sein",
+        "seine",
+        "seinen",
+        "seinem",
+        "seiner",
+        "ihr",
+        "ihre",
+        "ihren",
+        "ihrem",
+        "ihrer",
+        "unser",
+        "unsere",
+        "unseren",
+        "unserem",
+        "unserer",
+        "euer",
+        "eure",
+        "euren",
+        "eurem",
+        "eurer",
+        "dieser",
+        "diese",
+        "dieses",
+        "diesen",
+        "diesem",
+        "jeder",
+        "jede",
+        "jedes",
+        "jeden",
+        "jedem",
+        "welcher",
+        "welche",
+        "welches",
+        "manche",
+        "solche",
+        "alle",
+        "allen",
+        "aller",
+        "viele",
+        "vielen",
+        "einige",
+        "mehrere",
+    }
+)
+_WORD_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
+
 _CEFR_RANK: dict[str, int] = {"A1": 1, "A2": 2, "B1": 3, "B2": 4}
 #: Parts that carry no vocabulary of their own: the reflexive pronoun and
 #: the prepositions of verb-preposition units and Funktionsverbgefuege.
@@ -144,7 +222,14 @@ class Thresholds:
     #: of its sentences. Predicative adjectives are tagged ADV, so the bar is
     #: low: measured 2026-09-20, "gut" 42%, "schnell" 18%, "ernst" 19%, while
     #: "endlich" is 0.7% and "sofort", "kaum", "gern" are 0%.
-    adjective_min_share: float = 0.05
+    #: Lowered from 0.05/20 on 2026-09-21: at the old bar "muede" (2.4%, 29
+    #: adjective uses) and "wert" (2.6%, 50) were filed as adverbs. A true
+    #: adverb still sits below it: "endlich" 0.7%, "sofort" and "gern" 0.
+    adjective_min_share: float = 0.02
+    adjective_min_count: int = 10
+    #: A word the corpus uses this many times more often as a verb than as a
+    #: modifier is an infinitive the tagger mislabelled, not an adjective.
+    verb_dominance: float = 3.0
     #: A noun shown in the singular this rarely is plural-only, so its
     #: citation form takes "die" whatever the tagger called the gender.
     plural_only_share: float = 0.1
@@ -152,6 +237,15 @@ class Thresholds:
     #: corpus frequency was already weighed when it was chosen; this is only
     #: the carrier test, and 3 is what select_cards needs to fill a unit.
     expression_min_carriers: int = 3
+    #: A "noun" the corpus never puts behind an article is an imperative or
+    #: an interjection the tagger capitalised. Measured 2026-09-21: the fake
+    #: nouns sit at 0.00 and the thinnest real noun at 0.31.
+    determiner_min_share: float = 0.1
+    determiner_min_occurrences: int = 8
+    #: A verb used with a reflexive pronoun this much of the time is taught
+    #: as the reflexive unit, not as a plain verb.
+    reflexive_verb_share: float = 0.5
+    reflexive_min_count: int = 20
 
 
 @dataclass
@@ -182,6 +276,10 @@ class UnitStats:
     #: Noun units only: the gender the corpus shows, for the article in the
     #: citation form ("die Frage"). The gap stays the noun alone.
     gender_tally: Counter[str] = field(default_factory=Counter)
+    #: Noun units only: how often the corpus puts the word behind an
+    #: article, which an imperative filed as a noun never is.
+    determiner_hits: int = 0
+    determiner_misses: int = 0
     #: Expression units only: how much of the whole-corpus count came from
     #: the everyday corpora, carried in from the n-gram pass.
     evidence_everyday: int = 0
@@ -831,6 +929,11 @@ def aggregate(
             if not occ.sentence_initial:
                 entry.medial_surfaces[" ".join(occ.surfaces)] += 1
         if occ.kind == "noun":
+            before = _WORD_RE.findall(occ.text[: occ.spans[0][0]])
+            if before and before[-1].lower() in DETERMINERS:
+                entry.determiner_hits += 1
+            else:
+                entry.determiner_misses += 1
             gender = occ.evidence.get("gender", "")
             if gender:
                 entry.gender_tally[gender] += 1
@@ -909,6 +1012,7 @@ class UnitBuilder:
         self.frequency_ranks = (
             frequency_ranks if frequency_ranks is not None else self.vocabulary._frequency_ranks
         )
+        self._reflexive_counts: dict[str, int] = {}
         self.prep_counts = _base_prep_counts(counts)
         self.vp_seeds = {s.key: s for s in curated.verb_prep_seeds}
         self.colloc_seeds = {s.key: s for s in curated.collocation_seeds}
@@ -1126,12 +1230,68 @@ class UnitBuilder:
         # that reached the verb kind ("muss") is caught below instead.
         if s.kind != "verb" and normalise(lemma) in VocabularyStore.FUNCTION_WORDS:
             return _Decision(False, "function_word")
-        if s.kind == "verb" and self._is_conjugated(lemma):
-            return _Decision(False, "not_an_infinitive")
         kind = s.kind
         if kind == "adjective":
             kind = self._modifier_kind(lemma)
+        # Settle the kind first, then ask whether the word is a citation
+        # form: "wert" is a predicative adjective that the conjugation test
+        # would otherwise throw away, while "glaubst", "warst" and "lass"
+        # really are verb forms the tagger filed under ADV (review,
+        # 2026-09-21).
+        if kind in {"verb", "adverb"} and self._is_conjugated(lemma):
+            return _Decision(False, "not_an_infinitive")
+        if kind in {"adjective", "adverb"} and self._dominated_by_the_verb(lemma):
+            return _Decision(False, "also_a_verb")
+        if kind == "noun" and self._never_after_a_determiner(s):
+            return _Decision(False, "no_determiner")
+        if kind == "verb" and self._mostly_reflexive(s):
+            return _Decision(False, "mostly_reflexive")
         return _Decision(True, cefr=self._cefr_for(lemma), score=float(s.count), kind=kind)
+
+    def _dominated_by_the_verb(self, lemma: str) -> bool:
+        """A modifier that is really the infinitive of a common verb.
+
+        The tagger mislabels a few tokens of almost any verb, so "wissen"
+        reached the adverbs on 152 uses against 37,413 as a verb, and
+        "verlieren" the adjectives on 16 against 13,172. Measured
+        2026-09-21, a factor of three separates these from the genuine
+        modifiers that share a form with a verb: "trocken" 34 verb uses
+        against 1,477, "erwachsen" 316 against 495.
+        """
+        verb_uses = self.counts.verbs.get(lemma, 0)
+        modifier_uses = self.counts.adjectives.get(lemma, 0) + self.counts.adverbs.get(lemma, 0)
+        if not verb_uses or not modifier_uses:
+            return False
+        return verb_uses >= self.t.verb_dominance * modifier_uses
+
+    def _never_after_a_determiner(self, s: UnitStats) -> bool:
+        """A "noun" the corpus never puts behind an article.
+
+        "die Hoer", "das Gib" and "die Danke" are capitalised imperatives and
+        interjections the tagger called nouns. Measured over the occurrence
+        file on 2026-09-21, all three follow a determiner in 0 of 16, 21 and
+        40 sentences, while the thinnest real noun in the sample manages
+        0.31; the bar sits far below that gap.
+        """
+        seen = s.determiner_hits + s.determiner_misses
+        if seen < self.t.determiner_min_occurrences:
+            return False
+        return s.determiner_hits / seen < self.t.determiner_min_share
+
+    def _mostly_reflexive(self, s: UnitStats) -> bool:
+        """A verb the corpus almost always uses with a reflexive pronoun.
+
+        "sich befinden", "sich kuemmern um", "sich beschaeftigen mit". Taught
+        as a plain verb the card leaves the pronoun outside the gap, and the
+        learner never meets the unit that matters; the review of 2026-09-21
+        found this on eight lemmas. ``verb_prep`` has had the same rule since
+        the deck was phrases only.
+        """
+        reflexive = self._reflexive_counts.get(s.key, 0)
+        plain = self.counts.verbs.get(s.key, 0)
+        if not plain or reflexive < self.t.reflexive_min_count:
+            return False
+        return reflexive / plain >= self.t.reflexive_verb_share
 
     def _is_conjugated(self, lemma: str) -> bool:
         """A verb "lemma" the tagger never reduced to its infinitive.
@@ -1177,7 +1337,7 @@ class UnitBuilder:
         total = adjective_uses + adverb_uses
         if not total:
             return "adjective"
-        if adjective_uses >= max(20, self.t.adjective_min_share * total):
+        if adjective_uses >= max(self.t.adjective_min_count, self.t.adjective_min_share * total):
             return "adjective"
         return "adverb"
 
@@ -1452,6 +1612,16 @@ class UnitBuilder:
         _settle_prepositional(stats, self.t.prep_share)
         self._ensure_curated_present(stats)
         self._apply_corpus_counts(stats)
+        # How often each verb was seen with a reflexive pronoun, from the
+        # reflexive detector's own candidates, including the ones its
+        # thresholds will reject: a lemma with no reflexive unit of its own
+        # is exactly the case where teaching the plain verb hides the
+        # reflexive one ("sich kuemmern um").
+        self._reflexive_counts = {
+            key.removeprefix("sich "): stat.count
+            for (kind, key), stat in stats.items()
+            if kind == "reflexive_verb"
+        }
         accepted: dict[tuple[str, str], tuple[UnitStats, _Decision]] = {}
         excluded_stats: list[UnitStats] = []
         # Phrases first, so the words a collocation needs are known before the
