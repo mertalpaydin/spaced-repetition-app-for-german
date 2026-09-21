@@ -2423,3 +2423,20 @@
 - "tote"  # BAD_UNIT: Citation is feminine singular 'die Tote' but no example in this unit's set shows that specific sense
 - "union"  # BAD_UNIT: All example sentences use 'Union' as shorthand for the CDU/CSU political party (proper-noun jargon),
 - "verzichten"  # WRONG_UNIT: Every example sentence for this unit governs the preposition 'auf +Akk' ('verzichten auf', includi
+- "achten"  # NOT_A_PHRASE: every carrier is "achten auf +Akk" or the fixed "Vorfahrt achten"; the plain verb is not instantiated (both reviewers, 2026-09-21).
+- "fern"  # NOT_A_PHRASE: the carriers are the separable prefix of fernsehen and sich fernhalten, not the adjective (both reviewers, 2026-09-21).
+# Review round g2k2: units the reviewer rejected.
+- "beamter"  # BAD_UNIT: Lemma with definite article must be 'der Beamte', not 'der Beamter'
+- "einiger zeit"  # BAD_UNIT: missing preposition for 'einiger Zeit'
+- "ihres vaters"  # BAD_UNIT: declined noun phrase instead of unit
+- "keine sorgen machen"  # BAD_UNIT: missing reflexive 'sich'
+- "linker"  # BAD_UNIT: wrong lemma 'linker' instead of 'link'
+- "sicher fühlen"  # BAD_UNIT: unit missing reflexive 'sich'
+- "sicher stellen"  # BAD_UNIT: Separable verb 'sicherstellen' must be written as one word
+- "was ich tun soll"  # NOT_A_PHRASE: This is a sentence fragment.
+# Review round s2k2: units the reviewer rejected.
+- "beteiligen"  # NOT_A_PHRASE: every carrier is the Zustandspassiv "ist beteiligt", a predicate adjective, not the active verb (Gemini, 5 findings, 2026-09-21).
+- "sich verheiraten"  # NOT_A_PHRASE: the carriers are "ist verheiratet", the stative adjective with no reflexive present (both reviewers, 2026-09-21).
+# Review round g2k3: units the reviewer rejected.
+# Review round s2k3: units the reviewer rejected.
+# Review round g2k4: units the reviewer rejected.

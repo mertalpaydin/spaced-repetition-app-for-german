@@ -5212,3 +5212,155 @@
 - f80c0f151839  # WRONG_UNIT: 'Bitte' is used as the sentence-initial politeness interjection ('please'), not an instance of the
 - f91a9e81a3b7  # WRONG_UNIT: Sentence instantiates 'verfügen über +Akk' (to have/possess), a different verb-prep unit from the 
 - fa1ad7713a25  # WRONG_UNIT: 'Kosten Sie diesen Wein' is the imperative of the verb kosten (to taste), not the plural noun die 
+# Review round g2k2.
+- 00c9f1bbd36e  # WRONG_UNIT: sentence uses 'verheiratet sein' without reflexive 'sich'
+- 0bff3d96c4e4  # BAD_SENTENCE: fragment 'sprachen mit'
+- 0dd1e1c281d0  # WRONG_UNIT: used as adverb
+- 0e5d0b7ce294  # BAD_SENTENCE: comma error
+- 0f66a98f4761  # BAD_SENTENCE: unnatural
+- 143921dbde6e  # WRONG_UNIT: bracketed word 'fern' is a separable prefix of 'fernsehen', not the adjective 'fern'
+- 154a6cd47466  # BAD_SENTENCE: typo: 'Kugelschreiberentfernen'
+- 1551ce592e9e  # BAD_SENTENCE: Tatoeba reference missing context
+- 15f5368a99ff  # BAD_SENTENCE: Swiss spelling 'zweitgrössten'
+- 1990cdea056a  # BAD_SENTENCE: unnatural junk sentence
+- 19a4797c9ea1  # WRONG_UNIT: sentence uses 'verheiratet sein' without reflexive 'sich'
+- 1c6b165b85e8  # WRONG_UNIT: sentence uses 'verheiratet sein' without reflexive 'sich'
+- 2243f7390ee6  # WRONG_UNIT: used as verb 'sich interessieren', unit is adjective
+- 2370d85d32c3  # WRONG_UNIT: used as adverb
+- 2c1c93341b77  # BAD_SENTENCE: missing context SAK
+- 2c911b47b1d4  # BAD_SENTENCE: tautology
+- 3193c4ea59ff  # WRONG_UNIT: used as adverb
+- 31b5eda02395  # WRONG_UNIT: sentence uses 'verheiratet sein' without reflexive 'sich'
+- 322602775533  # WRONG_UNIT: used as adverb
+- 38bad4b0d6e8  # BAD_SENTENCE: grammar error: 'ins linke Ecke' instead of 'in die linke Ecke'
+- 3f0db9059480  # WRONG_UNIT: bracketed word 'fern' is a separable prefix of 'fernsehen', not the adjective 'fern'
+- 45e227329e13  # WRONG_UNIT: bracketed word is the noun 'Russisch', not the adjective 'russisch'
+- 4631190d70b2  # WRONG_GAPS: missing 'es' from brackets
+- 4c38cfc28911  # WRONG_UNIT: bracketed word 'getrennt' is used as an adverb in 'getrennt schreiben', not instantiating the verb
+- 4c415cc7cc6e  # WRONG_UNIT: bracketed word 'lieber' is the comparative of 'gern', not the adjective 'lieb'
+- 51680a596512  # BAD_SENTENCE: grammar 'kommt'
+- 544af495b6dc  # WRONG_UNIT: fixed phrase 'in Wirklichkeit'
+- 5546aca1fb32  # WRONG_UNIT: bracketed word 'fern' is a separable prefix of 'fernhalten', not the adjective 'fern'
+- 5740dc59bd79  # BAD_SENTENCE: wrong word 'beinhalten'
+- 57a869a7f228  # WRONG_UNIT: idiom 'im vollen Gange'
+- 594a6ea84928  # WRONG_UNIT: idiom 'im Laufe'
+- 597c7e2b9814  # BAD_SENTENCE: unnatural missing 'mir'
+- 5dcb6e8a7d13  # WRONG_UNIT: idiom 'im Laufe'
+- 5e91a2ae71d0  # BAD_SENTENCE: word order error
+- 5ffb10eb9472  # BAD_SENTENCE: poetic and unnatural
+- 6127f96f316d  # WRONG_UNIT: used as verb 'sich interessieren', unit is adjective
+- 627a602dd434  # WRONG_UNIT: bracketed word is the verb 'schaden', not the noun 'der Schaden'
+- 63b2cf79f500  # BAD_SENTENCE: creepy junk
+- 65db2dffd18b  # BAD_SENTENCE: weird proverb
+- 69551cb12d29  # WRONG_UNIT: idiom 'in Betrieb nehmen'
+- 69cf1da04b12  # WRONG_UNIT: used as verb 'sich interessieren', unit is adjective
+- 6bdb53dcd700  # WRONG_UNIT: sentence uses verb 'ziehen' with phrase 'auf ... zu', not the separable verb 'zuziehen'
+- 714255356d81  # WRONG_UNIT: fixed phrase 'in Wirklichkeit'
+- 73cf7ee8d54a  # BAD_SENTENCE: fragment junk
+- 77d4e90ace00  # WRONG_UNIT: sentence uses 'verheiratet sein' without reflexive 'sich'
+- 797cc59173c1  # BAD_GLOSS: literal translation of idiom 'Jacke wie Hose' makes no sense in English
+- 7abd66848a07  # BAD_SENTENCE: weird collocation
+- 82cbd4945449  # BAD_SENTENCE: lowercase h in Heiligen Geist
+- 86269f621200  # WRONG_UNIT: Sentence uses phrase 'beteiligt sein', not plain 'beteiligen'
+- 8de1f50af548  # BAD_SENTENCE: missing currency after '20'
+- 8f7e88c366bc  # WRONG_UNIT: idiom 'außer Betrieb'
+- 9011ccb771dd  # BAD_SENTENCE: typo at start
+- 90d0d40ce848  # WRONG_UNIT: bracketed word 'fern' is a separable prefix of 'fernsehen', not the adjective 'fern'
+- 91dd6a971519  # WRONG_UNIT: no dative object in sentence
+- 972265e94cb5  # WRONG_UNIT: sentence uses prepositional verb 'verfügen über'
+- 9838ae88e346  # WRONG_UNIT: idiom 'ihren Lauf nehmen'
+- 9b95eb028a8e  # WRONG_UNIT: idiom 'über die Runden kommen'
+- 9da748c87ff1  # BAD_SENTENCE: tautology
+- 9e51d64672f5  # WRONG_UNIT: idiom 'wie ein Schwein ins Uhrwerk'
+- 9f37691158a8  # BAD_SENTENCE: missing context 'TM7'
+- a146b598b5bc  # BAD_SENTENCE: weird variant of idiom
+- a522361b207c  # BAD_SENTENCE: fragment, missing noun after 'fünf dieser'
+- a840adb4cb25  # BAD_SENTENCE: fragment, not a self-contained sentence
+- a9b3e8c88891  # WRONG_UNIT: idiom 'mit gespaltener Zunge'
+- aa63c8202de3  # WRONG_UNIT: sentence uses the neuter noun 'das Band' (bond), not the feminine noun 'die Band' (music group)
+- b3f4db4f1b00  # WRONG_UNIT: Sentence uses phrase 'beteiligt sein', not plain 'beteiligen'
+- b49891a72b1b  # WRONG_UNIT: idiom 'mit gespaltener Zunge'
+- b609b3353682  # WRONG_UNIT: used as noun 'das Hin und Her'
+- be246f0a47de  # WRONG_UNIT: Sentence uses idiom 'an Fahrt aufnehmen', not literal noun
+- c00f9bb92779  # WRONG_UNIT: Sentence uses phrase 'beteiligt sein', not plain 'beteiligen'
+- c21f760b7f6d  # WRONG_UNIT: used as adverb
+- c344d68bb24f  # WRONG_UNIT: idiom 'ihren Lauf nehmen'
+- c9408df12215  # BAD_SENTENCE: fragment headline
+- cf6ab7d3228b  # WRONG_UNIT: Sentence uses phrase 'beteiligt sein', not plain 'beteiligen'
+- d186c8d98009  # BAD_SENTENCE: typo 'am laufen' should be 'am Laufen'
+- d400ed07a7a7  # BAD_SENTENCE: junk sentence
+- de234619e459  # WRONG_UNIT: verb phrase 'willkommen heißen'
+- e1e77214ffc4  # BAD_SENTENCE: wrong word 'schneidet' instead of 'erntet'
+- e7d3ff94afc8  # BAD_SENTENCE: wrong word 'schneidet' instead of 'erntet'
+- eb0c7fcfb0df  # WRONG_UNIT: Sentence uses phrase 'beteiligt sein', not plain 'beteiligen'
+- f03558f398be  # WRONG_UNIT: fixed phrase 'in Wirklichkeit'
+- f9fb497d1683  # BAD_SENTENCE: obsolete phrasing 'gen Himmel'
+- ff75d5a10be6  # BAD_SENTENCE: nonsense sentence
+- ffe956cb99be  # BAD_SENTENCE: Erroneous comma after subject 'Eine Mitteilung,'
+# Review round s2k2.
+- 00c9f1bbd36e  # WRONG_UNIT: war verheiratet is the stative adjective, no sich present; not the reflexive verb.
+- 01b6adb37655  # WRONG_UNIT: die Klappe halten is a fixed idiom (shut up), not plain halten.
+- 143921dbde6e  # WRONG_UNIT: schaue fern is the separable verb fernsehen (watch TV), an opaque compound unrelated to the adject
+- 154a6cd47466  # WRONG_UNIT: auf das Material achten is the prepositional verb achten auf +Akk, not plain achten.
+- 19165ea12bcb  # WRONG_UNIT: plural Mittel here means funds/resources, a different sense than the cited singular das Mittel (a 
+- 19a4797c9ea1  # WRONG_UNIT: ist verheiratet is the stative adjective, no sich present; not the reflexive verb.
+- 1c6b165b85e8  # WRONG_UNIT: sind verheiratet is the stative adjective, no sich present; not the reflexive verb.
+- 2243f7390ee6  # WRONG_UNIT: hat sich ... interessiert is the reflexive verb sich interessieren (sich present in sentence but n
+- 31b5eda02395  # WRONG_UNIT: ist verheiratet is the stative adjective, no sich present; not the reflexive verb.
+- 3f0db9059480  # WRONG_UNIT: schaue fern is the separable verb fernsehen (watch TV), not the adjective fern.
+- 45e227329e13  # WRONG_UNIT: Russisch here is the substantivized language noun (sprechen wir Russisch), not the attributive adj
+- 4c415cc7cc6e  # WRONG_UNIT: lieber here is the comparative adverb (prefer to), a different lemma from the adjective lieb.
+- 4d4aaaa1e0c6  # WRONG_UNIT: ins Fettnapfchen treten is a fixed idiom (put one's foot in it), not plain treten.
+- 51680a596512  # WRONG_UNIT: von Hass entfernt uses the adjectival sense entfernt (away/distant), not the transitive verb entfe
+- 6127f96f316d  # WRONG_UNIT: dass ihr euch ... interessiert is the reflexive verb sich interessieren, not the adjective interes
+- 69cf1da04b12  # WRONG_UNIT: dessen Artikel dich so interessiert is the plain transitive verb interessieren (the article intere
+- 6ededd40ec0d  # WRONG_UNIT: auf seine Gelenke achten is achten auf +Akk, not plain achten.
+- 73cf7ee8d54a  # BAD_SENTENCE: Die hin und her... sich wiegt im Meer is a clipped, ungrammatical fragment (missing subject noun
+- 77d4e90ace00  # WRONG_UNIT: war verheiratet is the stative adjective, no sich present; not the reflexive verb.
+- 7c30eaaba83e  # WRONG_UNIT: Vorfahrt achten is a fixed noun-verb collocation (yield right of way), not plain achten.
+- 8ac06968efa4  # WRONG_UNIT: auf die Zutatenliste achten is achten auf +Akk, not plain achten.
+- 9011ccb771dd  # BAD_SENTENCE: Leading stray quote marks „“: „ before the sentence are a scraping/OCR artifact, not natural tex
+- 90d0d40ce848  # WRONG_UNIT: sehe fern is the separable verb fernsehen (watch TV), not the adjective fern.
+- 972265e94cb5  # WRONG_UNIT: verfugte ... uber eine Standardweiterleitung is verfugen uber +Akk (have at one's disposal), not p
+- 9b95eb028a8e  # WRONG_UNIT: uber die Runden kommen (make ends meet) is an idiom where plural Runden has a different sense than
+- a522361b207c  # BAD_SENTENCE: Wir stellen funf dieser vor is a fragment, funf dieser needs a noun.
+- a840adb4cb25  # BAD_SENTENCE: Polo der jetzt vorgestellt wurde? is scraped junk missing the article/comma of a relative clause
+- aa63c8202de3  # WRONG_UNIT: ein Band (bond/tie) is the neuter das Band, a homograph of die Band (music group), wrong gender/se
+- c9408df12215  # BAD_SENTENCE: News headline with a disjointed appended fragment (– sexuelle Uebergriffe?), not a self-containe
+- eeb2133f8efd  # WRONG_UNIT: in Kraft treten is a fixed collocation (enter into force), not plain treten.
+# Review round g2k3.
+- 2730cc0a44ec  # WRONG_UNIT: sentence uses 'beteiligt' as a predicate adjective/Zustandspassiv, not the active verb 'beteiligen
+- 2a711237f094  # WRONG_UNIT: bracketed word 'getrennt' functions as an adverb/adjective, not the active verb 'trennen'
+- 3e1391b210b4  # BAD_SENTENCE: typo: 'böses' should be capitalized as 'Böses' after 'nichts'
+- 44f2d564d11b  # WRONG_UNIT: sentence uses 'beteiligt' as a predicate adjective/Zustandspassiv, not the active verb 'beteiligen
+- 5cca208ba756  # WRONG_UNIT: bracketed word is part of the verb 'willkommen heißen', but unit is the adjective 'willkommen'
+- 680a1d57aea7  # WRONG_UNIT: sentence uses participle 'verheiratet' as adjective, not the reflexive verb 'sich verheiraten'
+- 6ea8d28330dc  # WRONG_UNIT: sentence uses 'Bände' from 'der Band' (volume), not 'die Band' (music group)
+- 733ac3b333e3  # WRONG_UNIT: sentence uses 'beteiligt' as a predicate adjective/Zustandspassiv, not the active verb 'beteiligen
+- 76390e52855b  # WRONG_UNIT: sentence uses 'beteiligt' as a predicate adjective/Zustandspassiv, not the active verb 'beteiligen
+- 924d01f76ffd  # WRONG_UNIT: sentence uses 'beteiligt' as a predicate adjective/Zustandspassiv, not the active verb 'beteiligen
+- 9d7191726124  # BAD_SENTENCE: grammatical error: 'lehren' takes double accusative ('die Henne', not 'der Henne')
+- a19aa7203949  # WRONG_UNIT: bracketed word is the noun 'Russisch', but unit is the adjective 'russisch'
+- b57a6c8a9917  # BAD_SENTENCE: 'gegenseitig kämpfen' is unnatural German, should be 'gegeneinander kämpfen'
+- bbae1eab97bc  # BAD_SENTENCE: 'ernsthafte Miene' is an unnatural collocation, should be 'ernste Miene'
+- ca83e59aa20a  # WRONG_UNIT: unit specifies +Dat, but the sentence only has an Akkusativ object ('die Störung')
+- d10c45806a07  # WRONG_UNIT: sentence uses the fixed adverbial phrase 'genau genommen', which lacks 'es' and does not instantia
+- de6101832f07  # WRONG_UNIT: sentence uses participle 'verheiratet' as adjective, not the reflexive verb
+# Review round s2k3.
+- 28f120363b62  # WRONG_UNIT: Vorträge halten is a fixed noun-verb collocation (give lectures), not the plain sense of halten.
+- 3e1391b210b4  # BAD_SENTENCE: nichts böses should be capitalized as nichts Böses (nominalized adjective); lowercase typo in th
+- 680a1d57aea7  # WRONG_UNIT: sind verheiratet is the stative adjective (to be married); no sich present, so it does not instant
+- 6ea8d28330dc  # WRONG_UNIT: Baende here is the plural of der Band (volume/tome, in the idiom Baende sprechen), a different gen
+- 7ba53459e1cf  # WRONG_UNIT: in Kontakt treten is a fixed idiom (get in touch), a different sense from plain treten (step/kick)
+- a19aa7203949  # WRONG_UNIT: Russisch here is the nominalized language noun (object of lernen), not the adjective russisch.
+- b3c808a840e1  # WRONG_UNIT: in Kraft treten is a fixed idiom (come into force), unrelated to plain treten.
+- ca83e59aa20a  # WRONG_CASE: Sentence has only an accusative object (die Störung); no dative complement present to justify the 
+- de6101832f07  # WRONG_UNIT: ist verheiratet is the stative adjective (to be married), not the reflexive verb sich verheiraten.
+# Review round g2k4.
+- 0c78232baeae  # WRONG_UNIT: Sentence uses 'das Band' (ribbon), not 'die Band' (music band)
+- 15b4523457d1  # WRONG_UNIT: Bracketed word is the noun 'Russisch', but unit is the adjective 'russisch'
+- 28da70c130cb  # WRONG_UNIT: Sentence needs the phrase 'in Kraft treten'
+- 3b7b0cefa814  # BAD_SENTENCE: Unnatural German, literal translation of 'are serious'
+- 4da0f276d2f1  # WRONG_UNIT: Sentence has no dative object, only the accusative 'die Störung'
+- 6ae2b5230856  # WRONG_UNIT: Sentence needs the phrase 'in Kontakt treten'
+- 91ca4ab4f7df  # WRONG_UNIT: Sentence uses the fixed expression 'genau genommen', not 'es genau nehmen'

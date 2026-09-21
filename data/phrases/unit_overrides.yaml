@@ -122,6 +122,7 @@
 - {key: "beifall klatschen", cefr: "B1"}
 - {key: "beimissen", display: "beimessen"}
 - {key: "beispiel folgen", display: "einem Beispiel folgen"}
+- {key: "bekannt vorkommen", case: "Dat"}
 - {key: "bekanntgeben", display: "bekannt geben"}
 - {key: "belasten durch", display: "belasten mit +Dat"}
 - {key: "beraten über", cefr: "B2"}
@@ -551,6 +552,7 @@
 - {key: "kampf ansagen", cefr: "B2"}
 - {key: "kampf liefern", display: "sich einen Kampf liefern"}
 - {key: "kaution bezahlen", cefr: "B2"}
+- {key: "keine sorgen machen", display: "sich keine Sorgen machen"}
 - {key: "kekse gegessen", display: "Kekse essen"}
 - {key: "kerze anzünden", cefr: "A2"}
 - {key: "kind stillen", cefr: "B1"}
@@ -579,6 +581,7 @@
 - {key: "kreisen über", case: "Dat"}
 - {key: "krieg anzetteln", display: "einen Krieg anzetteln"}
 - {key: "kritik üben", cefr: "B2"}
+- {key: "kritisieren", cefr: "B1"}
 - {key: "kräftig applaus", display: "kräftiger Applaus"}
 - {key: "kuchen", display: "der Kuchen"}
 - {key: "kugel einfangen", display: "sich eine Kugel einfangen"}
@@ -760,6 +763,7 @@
 - {key: "rein wein", cefr: "B2"}
 - {key: "reinfallen auf", case: "Akk"}
 - {key: "reingefallen auf", case: "Akk", display: "reinfallen auf +Akk"}
+- {key: "religion", cefr: "B1"}
 - {key: "rennen fahren", display: "Rennen fahren"}
 - {key: "respekt verdienen", cefr: "B1"}
 - {key: "respekt zollen", cefr: "B2"}
@@ -960,6 +964,8 @@
 - {key: "sich äusseren", display: "sich äußern zu +Dat"}
 - {key: "sich überschlagen", cefr: "B2"}
 - {key: "sicher entfernung", display: "in sicherer Entfernung"}
+- {key: "sicher fühlen", display: "sich sicher fühlen"}
+- {key: "sicher stellen", display: "sicherstellen"}
 - {key: "siebter klasse", display: "die siebte Klasse"}
 - {key: "sieg holen", cefr: "B2"}
 - {key: "sinkend schiff", display: "sinkendes Schiff"}
@@ -1128,6 +1134,7 @@
 - {key: "vorhatten", display: "vorhaben"}
 - {key: "vorkehrung treffen", cefr: "B2"}
 - {key: "vorlesung halten", cefr: "B1"}
+- {key: "vorne", cefr: "A1"}
 - {key: "vorschlägen", display: "vorschlagen"}
 - {key: "vorsicht walten", display: "Vorsicht walten lassen"}
 - {key: "vorsorge treffen", cefr: "B2"}
@@ -1184,6 +1191,7 @@
 - {key: "zugegen bei", case: "Dat", display: "zugegen sein bei +Dat"}
 - {key: "zugehen auf", case: "Akk"}
 - {key: "zugrundeliegen", cefr: "B2"}
+- {key: "zuhause", cefr: "A1"}
 - {key: "zum opfer fallen", cefr: "B2"}
 - {key: "zum schweigen bringen", display: "zum Schweigen bringen"}
 - {key: "zum stillstand kommen", cefr: "B2"}
