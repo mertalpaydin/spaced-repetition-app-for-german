@@ -1311,6 +1311,14 @@ class UnitBuilder:
             return False
         return s.determiner_hits / seen < self.t.determiner_min_share
 
+    def _mostly_reflexive_lemma(self, lemma: str) -> bool:
+        """Whether the corpus mostly uses this verb with a reflexive."""
+        reflexive = self._reflexive_counts.get(lemma, 0)
+        plain = self.counts.verbs.get(lemma, 0)
+        if not plain or reflexive < self.t.reflexive_min_count:
+            return False
+        return reflexive / plain >= self.t.reflexive_verb_share
+
     def _mostly_reflexive(self, s: UnitStats) -> bool:
         """A verb the corpus almost always uses with a reflexive pronoun.
 
@@ -1320,11 +1328,7 @@ class UnitBuilder:
         found this on eight lemmas. ``verb_prep`` has had the same rule since
         the deck was phrases only.
         """
-        reflexive = self._reflexive_counts.get(s.key, 0)
-        plain = self.counts.verbs.get(s.key, 0)
-        if not plain or reflexive < self.t.reflexive_min_count:
-            return False
-        return reflexive / plain >= self.t.reflexive_verb_share
+        return self._mostly_reflexive_lemma(s.key)
 
     def _is_conjugated(self, lemma: str) -> bool:
         """A verb "lemma" the tagger never reduced to its infinitive.
@@ -1497,6 +1501,14 @@ class UnitBuilder:
         parts = s.best_parts
         if s.kind in {"verb_prep", "reflexive_verb", "separable_verb"}:
             return " ".join(parts)
+        if s.kind == "adj_verb":
+            # "sicher fuehlen" and "negativ auswirken" are only ever said
+            # with the pronoun. The citation carries it; the gap does not,
+            # because the mined parts are the adjective and the verb
+            # (review, 2026-09-21: 104 such units).
+            verb = parts[-1] if parts else ""
+            prefix = "sich " if self._mostly_reflexive_lemma(verb) else ""
+            return prefix + " ".join(parts)
         if s.kind == "noun_verb":
             if s.noun_surfaces and len(parts) == 2:
                 return f"{s.noun_surfaces.most_common(1)[0][0]} {parts[1]}"

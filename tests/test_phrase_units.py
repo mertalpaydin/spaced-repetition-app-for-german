@@ -1113,3 +1113,28 @@ def test_the_article_beats_the_plural_only_rule() -> None:
         ]
     )
     assert units[0].display_de == "das Medium"
+
+
+def test_a_reflexive_adj_verb_carries_sich_in_its_citation() -> None:
+    """ "sicher fuehlen" and "negativ auswirken" are only ever said with the
+    pronoun, and the review of ranks 1000 to 2000 found 104 such units cited
+    without it. The gap stays the adjective and the verb."""
+    counts = _word_counts()
+    counts.verbs.update({"auswirken": 1072, "arbeiten": 5000})
+    counts.adjectives.update({"negativ": 400, "hart": 400})
+    builder = _builder(counts)
+    builder.t = Thresholds(
+        word_min_count=50,
+        adj_verb_min_count=2,
+        adj_verb_min_lift=0.0,
+        adj_verb_min_adjective_use=1,
+        colloc_min_g2=0.0,
+    )
+    occurrences = [
+        *_occ("adj_verb", "negativ auswirken", ["negativ", "auswirken"], 30),
+        *_occ("reflexive_verb", "sich auswirken", ["sich", "auswirken"], 1066),
+        *_occ("adj_verb", "hart arbeiten", ["hart", "arbeiten"], 30),
+    ]
+    displays = {u.lemma_key: u.display_de for u in builder.build(occurrences)}
+    assert displays.get("negativ auswirken") == "sich negativ auswirken"
+    assert displays.get("hart arbeiten") == "hart arbeiten"

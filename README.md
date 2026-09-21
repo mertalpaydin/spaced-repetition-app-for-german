@@ -21,10 +21,10 @@ and ranks them together.
 
 | | Kinds | Units |
 |---|---|---:|
-| **Words** | noun (with its gender), verb, adjective, adverb | 9,200 |
-| **Phrases** | verb + preposition, reflexive verb, separable verb, noun + verb, adjective + verb, adjective + noun, connector, two-part connector, idiom, fixed expression | 7,716 |
+| **Words** | noun (with its gender), verb, adjective, adverb | 8,882 |
+| **Phrases** | verb + preposition, reflexive verb, separable verb, noun + verb, adjective + verb, adjective + noun, connector, two-part connector, idiom, fixed expression | 7,195 |
 
-16,916 units and 78,539 cards in the deck as it stands.
+16,077 units and 73,785 cards in the deck as it stands.
 
 A phrase is taught in every surface form the corpus uses: `wartet auf`,
 `wartete auf`, `warte … auf`, `gewartet auf`. It may be split across the
@@ -94,10 +94,11 @@ a one-sentence context so the connector is answerable.
 **Two reviewers read the cards, from the top down.** Every card and unit is
 read by two independent model reviewers under a zero-defect policy, and every
 systematic finding becomes a mining rule with a test rather than an exclusion:
-the last round turned 376 findings into four rules that removed 495 units,
-against 30 excluded by hand. The deck is 16,916 units, far more than a year of
+the two bands read so far turned 1,478 findings into eleven rules that
+removed some 1,500 units, against about 100 excluded by hand. The deck is
+16,077 units, far more than a year of
 learning, so the review walks down the ranking in steps and is complete to
-rank 1000; the tail below that is read before the learner reaches it.
+rank 2000; the tail below that is read before the learner reaches it.
 
 **The page is the whole product.** `web/` is plain ES modules with no build
 step and no npm dependency. The FSRS-6 scheduler, the grader, the session

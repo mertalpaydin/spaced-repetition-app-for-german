@@ -82,7 +82,7 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   `client_from_env` moved to `src/llm/env.py`.
 - **The FSRS wrapper** (`src/engine/fsrs.py`, over the `fsrs` package) and the
   typo grader, kept for phase 2.
-- **892 tests pass.** `ruff`, `ruff format --check` and
+- **903 tests pass.** `ruff`, `ruff format --check` and
   `mypy --strict src/ scripts/` are clean. Coverage on `src/` is 87%.
 
 - **The deck build, phase 1.** `scripts/build_phrase_deck.py` parses both
@@ -272,7 +272,22 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   adjective/adverb split so `wert` survives it. And a modifier the corpus uses
   three times more often as a verb is a mislabelled infinitive (`wissen` as an
   adverb on 152 uses against 37,413).
-  **The deck is reviewed to rank 1000 only.** Below that it is unread; see
+- **The ranks 1000 to 2000 review, 2026-09-21.** The same two reviewers over
+  3,734 cards and 681 units, in four rounds: 655 card findings and 185 unit
+  findings. Six more mining rules came out of it. A noun's article now comes
+  from the corpus rather than the tagger, counted over nominative singulars
+  only, because the plural takes "die" whatever the gender ("die Fan") and
+  the dative "der" says nothing ("der Stadt"); that fixed "der Fan", "der
+  Kuchen", "das Medium" and "das Schloss", which the reviewers had wanted
+  dropped. An intensity adverb no longer anchors a collocation, which took
+  535 compositional adj_verb units while leaving "hart arbeiten" and "schwer
+  fallen". A separable verb no longer also stands as a plain verb, 353
+  duplicates. A governed preposition counts before the verb in its
+  pronominal form ("darauf achten"). A dative reflexive blocks a plain-verb
+  card ("sich etwas merken"), and a bare imperative is a verb form
+  ("stell"). And an adj_verb whose verb is reflexive carries "sich" in its
+  citation, 61 units.
+  **The deck is reviewed to rank 2000 only.** Below that it is unread; see
   `TODO.md`.
 
 ## What is not built
