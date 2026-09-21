@@ -106,3 +106,14 @@ def test_count_ngrams_stops_at_punctuation_and_outside_the_vocabulary() -> None:
     # a word outside the vocabulary ends the run as punctuation does
     ngrams2, _ = count_ngrams(["auf jeden Xylophon fall"], vocabulary, log=None)
     assert "jeden fall" not in ngrams2
+
+
+def test_count_ngrams_folds_the_eszett_like_the_vocabulary_does() -> None:
+    """The frequency list is normalised (ss for the eszett) so the text must
+    be too, or every word spelled with an eszett ends the run."""
+    from scripts.count_ngrams import count_ngrams
+
+    vocabulary = frozenset({"soweit", "ich", "weiss", "zu", "fuss"})
+    ngrams, surfaces = count_ngrams(["Soweit ich weiß.", "Soweit ich weiß!"], vocabulary, log=None)
+    assert ngrams["soweit ich weiss"] == 2
+    assert surfaces["weiss"] == 2

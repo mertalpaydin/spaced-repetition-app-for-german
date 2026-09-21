@@ -28,6 +28,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from src.atomic_write import write_text_atomic
+from src.lexicon.lemmatizer import normalise
 from src.lexicon.vocabulary import VocabularyStore, _load_frequency_ranks
 from src.phrases.mining import NGRAM_SIZES, NGRAM_VOCAB_SIZE
 
@@ -63,6 +64,9 @@ def count_ngrams(
     for text in texts:
         seen += 1
         run: list[str] = []
+        # The vocabulary is eszett-folded (``normalise``), so the text has to
+        # be too: without this every word with an "ss" spelling breaks the
+        # run and "soweit ich weiss" is never counted at all.
         lowered = text.lower()
         previous_end: int | None = None
         for match in _TOKEN.finditer(lowered):
@@ -72,7 +76,7 @@ def count_ngrams(
                 _flush(run, ngrams, surfaces)
                 run = []
             previous_end = match.end()
-            word = match.group(0)
+            word = normalise(match.group(0))
             if word in vocabulary:
                 run.append(word)
                 continue
