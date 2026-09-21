@@ -4556,3 +4556,311 @@
 - f7f8ae1f88d4  # BAD_SENTENCE: 'Arme Leute haben weit heim' is missing the dummy 'es' (haben's weit heim), reading as incomplet
 - f9377f0a81e0  # BAD_GLOSS: In a river-rescue context 'reichte ihr die Hand' means extended/gave her a hand, not 'shook her han
 - ff3ec981a7a2  # BAD_GLOSS: Gloss translates both 'trinken' and 'saufen' as 'drinking', losing the distinction the sentence is 
+# Review round g2.
+- 0174926ffefa  # WRONG_UNIT: Used as preposition rund um, not as adjective
+- 06f521cbdc6b  # WRONG_UNIT: Sentence uses verb reflexively (sich fertig machen)
+- 0733632c01bd  # WRONG_UNIT: Sentence uses verb reflexively (sich ausdrücken)
+- 158c977f275b  # WRONG_UNIT: Used in idiom große Reden schwingen
+- 25b621b31b7e  # WRONG_UNIT: Used in idiom Glauben schenken
+- 281dd3f8d384  # WRONG_UNIT: Uses plural Daten meaning data, different lemma concept
+- 28729f1b4646  # WRONG_UNIT: Used as adjective/participle überzeugt
+- 29c428e58a59  # WRONG_UNIT: Sentence uses verb reflexively with dative (sich brechen)
+- 29ca7801d166  # BAD_SENTENCE: Not a natural standalone sentence, copied review response
+- 2ae76af61587  # WRONG_UNIT: Sentence uses verb reflexively (sich melden)
+- 2c012b7407f6  # WRONG_UNIT: Bracketed word is selben from derselbe, different lemma
+- 2e21182bdaaa  # WRONG_UNIT: Used as adjective/participle entwickelt
+- 2e8cf2de2145  # WRONG_UNIT: Sentence uses verb reflexively (sich verstecken)
+- 2fa2406b6512  # WRONG_UNIT: Used in idiom auf frischer Tat
+- 32d1b6d7718b  # WRONG_UNIT: Sentence uses verb reflexively (sich fertig machen)
+- 39abc980c8f0  # WRONG_UNIT: Used in idiom Mist bauen
+- 3d90e73456d1  # WRONG_UNIT: Sentence needs prepositional phrase leiden an
+- 4312d0f6159c  # WRONG_UNIT: Sentence needs prepositional phrase leiden unter
+- 442ecc9b29b8  # WRONG_UNIT: Used as separable prefix in sich festlegen
+- 469f6b439a3a  # WRONG_UNIT: Used as separable prefix in festhalten
+- 4ca25236aec9  # WRONG_UNIT: Used in idiom jmdm über den Kopf wachsen
+- 514b5502ae62  # WRONG_UNIT: Sentence uses verb reflexively (sich interessieren)
+- 51544e9b815b  # BAD_SENTENCE: Pronoun 'Die' requires context to be a self-contained sentence
+- 5ab059ae8aed  # WRONG_UNIT: Used as adjective besessen (possessed)
+- 5d4375050bae  # WRONG_UNIT: Used as adjective/participle überrascht
+- 5f72bbf7a728  # WRONG_UNIT: Sentence uses verb reflexively (sich beschäftigen)
+- 61938e388db8  # WRONG_UNIT: Sentence needs prepositional phrase leiden an
+- 6430ce3c6398  # WRONG_UNIT: Bracketed word is selben from derselbe, different lemma
+- 7b6094d85e1d  # WRONG_UNIT: Sentence uses recht haben, requires adjective/adverb or different phrase
+- 7e31713f902d  # WRONG_UNIT: Used in idiom Mist bauen
+- 80d8cfd1e757  # WRONG_UNIT: Used as separable prefix in klarkommen, not as adjective
+- 830d0b986ddf  # BAD_SENTENCE: Typo, Wert capitalized instead of adjective wert
+- 89c00d1bfee2  # WRONG_UNIT: Sentence needs prepositional phrase leiden an
+- 8f9d01438b44  # WRONG_UNIT: Used in fixed phrase für gewöhnlich
+- 9644805fc8d0  # WRONG_UNIT: Sentence uses gefallen, not fallen
+- 9ad1a55b8628  # WRONG_UNIT: Sentence uses the verb phrase 'sich lustig machen', but the unit only names the adjective 'lustig'
+- 9c6765f0c43c  # WRONG_UNIT: Used in idiom Beachtung schenken
+- a40dc775991a  # WRONG_UNIT: Sentence needs prepositional phrase zählen auf
+- a6cd1b2d9234  # WRONG_UNIT: Sentence uses verb reflexively (sich interessieren)
+- a8a957648493  # WRONG_UNIT: Bracketed word is selben from derselbe, different lemma
+- a9daf6a1c450  # BAD_SENTENCE: Missing noun after ein, incomplete sentence
+- b0caf5fd14de  # WRONG_UNIT: Used in idiom auf frischer Tat
+- b478101d1162  # WRONG_UNIT: Sentence needs prepositional phrase leiden unter
+- b6cd701c7c90  # WRONG_UNIT: Sentence uses verb reflexively (sich interessieren)
+- c3316770923a  # BAD_SENTENCE: Uses speichern instead of lagern for wine
+- c5c0ff44cdd7  # WRONG_UNIT: Used as adjective beschäftigt (busy)
+- cc57f9e2cf1f  # WRONG_UNIT: Sentence uses the fixed idiom 'auf frischer Tat', which is not named by the unit
+- d72e40601069  # WRONG_UNIT: Used in fixed phrase für gewöhnlich
+- dcea78f441a0  # WRONG_UNIT: Used as adjective beschäftigt (busy)
+- e032133bd054  # WRONG_UNIT: Used as adjective/participle überrascht
+- e0ffa1f2ac0c  # WRONG_UNIT: Uses plural Daten meaning data, different lemma concept
+- e49bb06a6a17  # WRONG_UNIT: Used in idiom Gehör schenken
+- e5341004ae07  # WRONG_UNIT: Sentence uses reflexive separable verb (sich zurückmelden)
+- e74ff4af55ef  # WRONG_UNIT: Used as adjective beschäftigt (busy)
+- eb5360459a51  # WRONG_UNIT: Bracketed word is selben from derselbe, different lemma
+- ec78273749d1  # WRONG_UNIT: Uses plural Daten meaning data, different lemma concept
+- f1637c5205f1  # WRONG_UNIT: Used as adjective beschäftigt (busy)
+- f1a4b8d5dfeb  # BAD_SENTENCE: Typo: 'ähnliches' must be capitalized as 'Ähnliches' after 'nichts'
+- f6405166fb95  # BAD_SENTENCE: 'erfolgen über' is ungrammatical; it should be 'durch einen Täter'
+- f8472638f00e  # WRONG_UNIT: Sentence uses the verb phrase 'ähnlich sehen', but the unit only names the adjective 'ähnlich'
+# Review round s2.
+- 107fe90aab0e  # BAD_GLOSS: The idiomatic 'gehören' (colloquial: is due/deserves) is glossed with a confusing literal 'belongs 
+- 29ca7801d166  # BAD_SENTENCE: Scraped business review text with a real name and company (Kirsten Staab, Clap Tzu Team), not a 
+- 2c012b7407f6  # WRONG_UNIT: den selben Traum uses derselbe/denselben (the same), a different word from the invariable adverb s
+- 32d1b6d7718b  # BAD_SENTENCE: The gap contains the colloquial clipped form 'mach' instead of standard 'mache', teaching a nons
+- 442ecc9b29b8  # WRONG_UNIT: sich festlegen (to commit oneself) is a separable reflexive verb; fest alone is not the plain adje
+- 469f6b439a3a  # WRONG_UNIT: festhalten an +Dat (to hold on to) is a separable verb; fest alone bracketed mislabels it as the p
+- 51544e9b815b  # BAD_SENTENCE: "Die erfolgt über das Sprachenzentrum." opens with a bare pronoun 'Die' with no antecedent in th
+- 6430ce3c6398  # WRONG_UNIT: im selben Zug is derselbe (the same), not selber (myself); gloss confirms 'the same train'.
+- 7b6094d85e1d  # WRONG_UNIT: recht gehabt is the idiom recht haben (to be right), not the noun das Recht; sentence and gloss ar
+- 80d8cfd1e757  # WRONG_UNIT: nicht klarkommen mit is the separable verb klarkommen (to get along/cope), not the plain adjective
+- 830d0b986ddf  # WRONG_UNIT: Ist es Wert, das zu reparieren is the idiom 'es ist wert, etwas zu tun' using the adjective wert (
+- 9644805fc8d0  # WRONG_UNIT: gefallen here is the verb gefallen (to please), not a form of fallen (to fall); gloss confirms 'pl
+- a8a957648493  # WRONG_UNIT: im selben Boot is derselbe (the same), not selber (myself); gloss confirms 'the same boat'.
+- a9daf6a1c450  # BAD_SENTENCE: "Auch ein wird nicht ausgeschlossen." is an ungrammatical fragment, missing a noun after 'ein'.
+- bd97a7cabd8a  # WRONG_UNIT: sorgen für here means to ensure/take care of (sorgen für +Akk); für is not bracketed and plain sor
+- c3316770923a  # BAD_SENTENCE: speichern (to save/store data) is an unnatural verb choice for storing wine in a cellar; lagern 
+- eb5360459a51  # WRONG_UNIT: im selben Boot is derselbe (the same), not selber (myself); gloss confirms 'the same boat'.
+- fddafb3159e9  # BAD_SENTENCE: The gap contains the colloquial clipped form 'werd' instead of standard 'werde', teaching a nons
+# Review round g3.
+- 03f6670c9c72  # BAD_SENTENCE: obsolete spelling 'viel düstre' in proverb
+- 0730bedba0b2  # WRONG_UNIT: bracketed word is part of the separable verb 'festsitzen'
+- 1fa0c14849db  # WRONG_UNIT: sentence uses reflexive prepositional verb 'sich beschäftigen mit'
+- 213e06e221ea  # WRONG_UNIT: word class is pronoun, not adjective
+- 334817bf4144  # WRONG_UNIT: sentence needs phrase 'Beachtung schenken'
+- 42b2bc0d4df4  # WRONG_UNIT: sentence needs phrase 'Beachtung schenken'
+- 4d36495a2e31  # WRONG_UNIT: lemma for data is 'die Daten', not 'das Datum'
+- 556cc29a0052  # BAD_GLOSS: misleading literal translation of idiom 'jemandem über den Kopf wachsen'
+- 63c90c3693d4  # WRONG_UNIT: sentence uses prepositional verb 'sorgen für'
+- 64804afc6cb8  # WRONG_UNIT: lemma for data is 'die Daten', not 'das Datum'
+- 665ea509772e  # WRONG_UNIT: sentence uses prepositional verb 'leiden unter'
+- 6ba1edcd347a  # WRONG_UNIT: sentence uses prepositional verb 'leiden an'
+- 70224e700df0  # WRONG_UNIT: sentence uses reflexive prepositional verb 'sich interessieren für'
+- 772274dd730d  # WRONG_UNIT: word class is pronoun, not adjective
+- 7d0eeb757e7a  # WRONG_UNIT: bracketed word is used as an adjective, not a verb
+- 7e2965ab4e82  # WRONG_UNIT: sentence uses prepositional verb 'leiden an'
+- 821283094ae8  # WRONG_UNIT: bracketed word is part of the separable verb 'feststellen'
+- 8305e69abc8d  # BAD_GLOSS: archaic English translation 'suffer' for 'tolerate'
+- 88298b0baee4  # BAD_SENTENCE: offensive sexist stereotype
+- 8947430e9d88  # WRONG_UNIT: bracketed word is used as an adjective, not a verb
+- 9a4b06f575fb  # WRONG_UNIT: bracketed word is used as an adjective, not a verb
+- 9c4ac8e74712  # WRONG_UNIT: word class is pronoun, not adjective
+- ac46cc294a09  # BAD_SENTENCE: colloquial spelling 'werd' instead of 'werde'
+- af1e7921aaf7  # WRONG_UNIT: bracketed word is a form of 'derselbe', different lemma
+- b18a46b03029  # WRONG_UNIT: sentence uses fixed phrase 'auf frischer Tat'
+- b73b01fc92f8  # WRONG_UNIT: bracketed word is used as an adjective, not a verb
+- cbccc48184c5  # BAD_SENTENCE: colloquial spelling 'mach' and missing context
+- cca8e7094dc9  # WRONG_UNIT: lemma for data is 'die Daten', not 'das Datum'
+- d0966ce211a6  # WRONG_UNIT: sentence uses prepositional verb 'leiden unter'
+- d1d666c52ec3  # WRONG_UNIT: sentence uses verb reflexively 'sich etwas brechen'
+- df5355f3b8f2  # WRONG_UNIT: sentence needs phrase 'sich ähnlich sehen'
+- ec704b4de8d2  # WRONG_UNIT: sentence needs phrase 'Beachtung schenken'
+- ed95f78f6f3e  # WRONG_UNIT: bracketed word is used as an adjective, not a verb
+# Review round s3.
+- 0730bedba0b2  # WRONG_UNIT: 'sitzt...fest' is the separable verb festsitzen; 'fest' is bracketed as if it were the plain adjec
+- 17767fcc2241  # WRONG_UNIT: 'du hattest Recht' is the idiom 'Recht haben' (to be right), not an instance of the noun 'das Rech
+- 1fa0c14849db  # WRONG_UNIT: 'beschäftigen uns' is the reflexive 'sich beschäftigen mit', but the unit is tagged as the plain v
+- 70224e700df0  # WRONG_UNIT: 'interessiere mich für' is the reflexive 'sich interessieren für', tagged as the plain verb, not r
+- 821283094ae8  # WRONG_UNIT: 'stellte fest' is the separable verb feststellen (to realize); 'fest' is bracketed as if it were t
+- 88298b0baee4  # BAD_SENTENCE: Sexist stereotype proverb ('a woman belongs at the stove') is offensive content for a card.
+- ac46cc294a09  # BAD_SENTENCE: Gap contains the clipped colloquial 'werd' instead of 'werde'.
+- af1e7921aaf7  # WRONG_UNIT: 'selben' in 'im selben Boot' is the inflected form of 'derselbe' (the same), not the adjective 'se
+- cbccc48184c5  # BAD_SENTENCE: Gap contains the clipped colloquial 'mach' instead of 'mache'.
+- d1d666c52ec3  # WRONG_UNIT: 'sich den Arm brechen' is a dative-reflexive collocation, tagged here as the plain verb brechen.
+# Review round g4.
+- 0bdd3575c6bb  # WRONG_UNIT: sentence uses reflexive sich brechen, needs phrase
+- 1a1a2dc7fa6c  # BAD_SENTENCE: archaic proverb where leiden means tolerate
+- 1be68a79b593  # WRONG_UNIT: sentence uses Glauben schenken, needs phrase
+- 3dcb2380fbbb  # WRONG_UNIT: sentence uses Aufmerksamkeit schenken, needs phrase
+- 4b1b3a4ae6a1  # WRONG_UNIT: sentence uses auf frischer Tat, needs phrase
+- 514688138857  # WRONG_UNIT: fest is a separable prefix of feststehen here, not an adjective
+- 596a28b90089  # WRONG_UNIT: sentence uses leiden unter, needs phrase
+- 5e0f20552b9b  # BAD_SENTENCE: werd without apostrophe is colloquial spelling, a typo in gap
+- 61bcd5c873ac  # BAD_SENTENCE: fresse diese Daten auf is an unnatural literal translation of eating up data
+- 6dc7c4bb4b6f  # BAD_SENTENCE: philosophical quote lacking context, not a natural A1-B2 sentence
+- 705da9dc3053  # WRONG_UNIT: recht is an adjective/adverb here, not the noun das Recht
+- 71baa98e355b  # WRONG_UNIT: beschäftigt is used as a predicate adjective, not a verb
+- 7b97fd2a9060  # WRONG_UNIT: sentence uses leiden unter, needs phrase
+- 89146fa18dc7  # WRONG_UNIT: selben belongs to the lemma derselbe, not selber
+- 9477aabba7c0  # WRONG_UNIT: sentence uses sorgen für, needs phrase
+- a1c2dd0fb2fc  # WRONG_UNIT: sentence uses reflexive sich beschäftigen mit, needs phrase
+- a247d846b296  # WRONG_UNIT: fest is a separable prefix of festhalten here, not an adjective
+- b6913865bb33  # WRONG_UNIT: beschäftigt is used as a predicate adjective, not a verb
+- c40edf6fd562  # BAD_GLOSS: macht dick means is fattening, not is fat
+- c60abd764f8a  # WRONG_UNIT: sentence uses leiden an, needs phrase
+- c767597af853  # WRONG_UNIT: beschäftigt is used as a predicate adjective, not a verb
+- d363b5a8c4bd  # WRONG_UNIT: beschäftigt is used as a predicate adjective, not a verb
+- d4cbd8806451  # WRONG_UNIT: Daten means data, which is conceptually different from the date
+- ee60acf88889  # WRONG_UNIT: selben belongs to the lemma derselbe, not selber
+- f5fad3ba5d84  # WRONG_UNIT: sentence uses Beachtung schenken, needs phrase
+# Review round s4.
+- 1a1a2dc7fa6c  # BAD_SENTENCE: leiden nicht Gesellschaft is nonstandard; the fixed idiom takes keine Gesellschaft, not nicht pl
+- 2a0e0ef099e4  # BAD_SENTENCE: mach is a clipped colloquial form of mache inside the gap.
+- 514688138857  # WRONG_UNIT: fest here is the separable prefix of feststehen, not the free adjective fest.
+- 5e0f20552b9b  # BAD_SENTENCE: werd is a clipped colloquial form of werde inside the gap.
+- 61bcd5c873ac  # WRONG_UNIT: Daten here means data (computing sense), a distinct lexicalization from das Datum (the calendar da
+- 705da9dc3053  # WRONG_UNIT: recht in 'recht haben' is the idiomatic adjective/adverb (to be right), not the noun das Recht.
+- 89146fa18dc7  # WRONG_UNIT: selben is an inflected form of derselbe/der gleiche (the same), a different lemma from the emphati
+- a1c2dd0fb2fc  # WRONG_UNIT: sentence uses reflexive sich beschäftigen mit (to occupy oneself with) but sich is missing from th
+- a247d846b296  # WRONG_UNIT: fest here is the separable prefix of festhalten, not the free adjective fest.
+- d4cbd8806451  # WRONG_UNIT: Daten here means data, not the plural of das Datum in its calendar-date sense the unit displays.
+- ee60acf88889  # WRONG_UNIT: selben is an inflected form of derselbe (the same), not the emphatic adverb selber.
+# Review round g5.
+- 00409175218a  # WRONG_UNIT: bracketed word 'recht' is used as an adjective/adverb, unit is noun 'das Recht'
+- 024ad905d7c8  # WRONG_UNIT: used as prepositional verb 'leiden an' but unit is plain leiden
+- 03267f3841ab  # WRONG_UNIT: used reflexively (sich vorbereiten auf) but unit is plain vorbereiten
+- 06e423fdbd8c  # WRONG_UNIT: used as prepositional verb 'leiden an' but unit is plain leiden
+- 075c5526a026  # WRONG_UNIT: used reflexively (sich anpassen) but unit is plain anpassen
+- 0b83880d18b7  # WRONG_UNIT: 'Daten' here means data, which is a different lemma from 'Datum' (calendar date)
+- 24f8d0e4a4ab  # WRONG_UNIT: used reflexively (sich anschließen) but unit is plain anschließen
+- 26554d1b97e2  # WRONG_UNIT: used as prepositional verb 'sorgen für' but unit is plain sorgen
+- 33e8ca48a8c5  # WRONG_UNIT: beschäftigt acts as an adjective (beschäftigt sein mit) but unit is a verb
+- 3893ba7fe0d2  # WRONG_UNIT: used as prepositional verb 'sorgen für' but unit is plain sorgen
+- 42e189f033f5  # WRONG_UNIT: used reflexively (sich anmelden) but unit is plain anmelden
+- 5521c1af35c0  # WRONG_UNIT: used as prepositional verb 'denken an' but unit is plain denken
+- 55f7438d46eb  # WRONG_UNIT: used reflexively (sich anschließen) but unit is plain anschließen
+- 59be171a9672  # BAD_SENTENCE: nonsensical variation of the idiom 'den Bock zum Gärtner machen'
+- 61b388942ab1  # WRONG_UNIT: beschäftigt acts as an adjective here but unit is verb
+- 65754a88f317  # WRONG_UNIT: used as prepositional verb 'leiden an' but unit is plain leiden
+- 669030b923c9  # BAD_SENTENCE: offensive language ('Mistkerl umbringen') without context
+- 7143fe331e2a  # WRONG_UNIT: used as prepositional verb 'zukommen auf' but unit is plain zukommen
+- 811ad8b95d07  # WRONG_UNIT: used reflexively (sich anschließen) but unit is plain anschließen
+- 861f8afcf022  # BAD_GLOSS: gloss 'gave him the rest' misleads about the idiom 'jemandem den Rest geben' (finish someone off)
+- 8d2217847997  # WRONG_UNIT: used as prepositional verb 'sorgen für' but unit is plain sorgen
+- 8f0b600c7f4f  # WRONG_UNIT: used as prepositional verb 'leiden an' but unit is plain leiden
+- a003114ee795  # WRONG_UNIT: 'Daten' here means data, which is a different lemma from 'Datum' (calendar date)
+- a4f31edd9248  # WRONG_UNIT: used reflexively (sich einsetzen) but unit is plain einsetzen
+- c31e7487842d  # WRONG_UNIT: used reflexively (sich entscheiden) but unit is plain entscheiden
+- c4bb3742be6a  # WRONG_UNIT: used reflexively (sich entscheiden) but unit is plain entscheiden
+- c71e42d14e98  # BAD_SENTENCE: 'eine Lüge erzählen' is unnatural literal translation, normally one says 'lügen' or 'eine Lüge a
+- cddcea0179d6  # WRONG_UNIT: used as prepositional verb 'sorgen für' but unit is plain sorgen
+- d59281453cc3  # WRONG_UNIT: used in idiom 'für dumm verkaufen' which the display does not name
+- d9f8d87e1134  # WRONG_UNIT: used reflexively (sich anschließen) but unit is plain anschließen
+- dfbc2a8a6b85  # WRONG_UNIT: used as prepositional verb 'sorgen für' but unit is plain sorgen
+- ebe7130e51ad  # BAD_SENTENCE: contains Swiss German word 'gäng'
+# Review round s5.
+- 00409175218a  # WRONG_UNIT: sentence uses the idiom 'recht haben' (to be right), not the noun 'das Recht'.
+- 075c5526a026  # WRONG_UNIT: 'sich anpassen' (adapt oneself) is reflexive here but the unit is displayed as the plain separable
+- 0b83880d18b7  # WRONG_UNIT: 'Daten' here means 'data', a different sense than the cited singular 'das Datum' (the date).
+- 24f8d0e4a4ab  # WRONG_UNIT: 'sich anschließen' (join) is reflexive here but the unit is displayed as the plain separable verb 
+- 42e189f033f5  # WRONG_UNIT: 'sich anmelden' (sign up/register oneself) is reflexive here, a different sense than the plain sep
+- 55f7438d46eb  # WRONG_UNIT: 'sich anschließen' (join) is reflexive here but the unit is displayed as the plain separable verb 
+- 811ad8b95d07  # WRONG_UNIT: 'sich anschließen' (join) is reflexive here but the unit is displayed as the plain separable verb 
+- 861f8afcf022  # BAD_GLOSS: 'That gave him the rest' is not valid English; the idiom 'jemandem den Rest geben' means 'that fini
+- a003114ee795  # WRONG_UNIT: 'Daten' here means 'data', a different sense than the cited singular 'das Datum' (the date).
+- a4f31edd9248  # WRONG_UNIT: 'sich einsetzen für' (advocate for) is reflexive and a different sense than the plain separable ve
+- c31e7487842d  # WRONG_UNIT: 'sich entscheiden' is reflexive here but the unit is displayed as the plain verb 'entscheiden'.
+- c4bb3742be6a  # WRONG_UNIT: 'sich entscheiden für' is reflexive here but the unit is displayed as the plain verb 'entscheiden'
+- d59281453cc3  # BAD_GLOSS: 'taken for fools' should be singular 'taken for a fool' to match 'mich'.
+- d9f8d87e1134  # WRONG_UNIT: 'sich anschließen' (join) is reflexive here but the unit is displayed as the plain separable verb 
+- ebe7130e51ad  # BAD_SENTENCE: sentence uses Swiss/dialect and informal spelling ('gäng', 'sooo'), not standard German.
+# Review round g6.
+- 065ac2f44ebe  # BAD_SENTENCE: Unnatural phrasing ('nicht genau einmal')
+- 0b2293bccabc  # BAD_SENTENCE: Missing noun after 'ihre', making it a fragment or typo
+- 1c43cbb97064  # WRONG_UNIT: Sentence uses prepositional verb 'leiden an'
+- 214adabfe53c  # WRONG_UNIT: Bracketed word is used as an adjective 'beschäftigt', not the verb
+- 28c442a8e87a  # WRONG_UNIT: Sentence uses prepositional verb 'leiden unter'
+- 2bdf866f9280  # WRONG_UNIT: Sentence uses prepositional verb 'fürchten um'
+- 2d44c8e92cda  # WRONG_UNIT: Sentence uses prepositional verb 'sterben an'
+- 37c079970b66  # BAD_SENTENCE: Archaic/literary quotation from Goethe with unnatural syntax
+- 3ea57e301ee7  # WRONG_UNIT: Sentence uses prepositional verb 'lachen über'
+- 63a141e9b779  # WRONG_UNIT: Sentence means 'data' which corresponds to lemma 'die Daten', not 'das Datum'
+- 6897ce5e740e  # WRONG_UNIT: Sentence uses reflexive 'sich wünschen'
+- 85f079be5128  # WRONG_UNIT: Bracketed word is used as an adjective or stative passive
+- 8bcba2f9059c  # WRONG_UNIT: Sentence uses phrase 'leiden können' (to like), different lemma
+- 8de67ab4e206  # WRONG_UNIT: Sentence uses prepositional verb 'sorgen für'
+- 91afd5573b30  # WRONG_UNIT: Sentence uses prepositional verb 'sorgen für'
+- 99a0eb3e088c  # WRONG_UNIT: Sentence uses prepositional verb 'sorgen für'
+- a6b121e2d7ba  # WRONG_UNIT: Sentence uses prepositional verb 'entscheiden über'
+- b4d28e5b7d0e  # WRONG_UNIT: Sentence means 'data' which corresponds to lemma 'die Daten', not 'das Datum'
+- bb3a66d51755  # WRONG_UNIT: Sentence uses fixed idiom 'Recht behalten'
+- c053ec6e0bb5  # WRONG_UNIT: Sentence uses prepositional verb 'zukommen auf'
+- c1d1bfcf8709  # WRONG_UNIT: Sentence uses phrase 'leiden können' (to like), different lemma
+- c70a9eb808db  # WRONG_UNIT: Sentence uses prepositional verb 'sorgen für'
+- d3e16661337f  # WRONG_UNIT: Sentence uses prepositional verb 'sorgen für'
+- dddf219582e1  # WRONG_UNIT: Sentence uses prepositional verb 'beginnen mit'
+- df412fd2ac6a  # WRONG_UNIT: Sentence uses prepositional verb 'anpassen an'
+- e019443ac782  # WRONG_UNIT: Sentence uses adjective/adverb 'recht', not the noun 'das Recht'
+# Review round s6.
+- 065ac2f44ebe  # BAD_SENTENCE: Awkward phrasing 'nicht genau einmal' makes the sentence unnatural.
+- 0b2293bccabc  # BAD_SENTENCE: Fragment: 'nutzte dazu ihre besser' is missing a noun and is ungrammatical.
+- 27f5b96f806e  # WRONG_UNIT: 'Zweifel anmelden' is the fixed collocation 'raise doubts', not plain separable 'anmelden' (to reg
+- 2bdf866f9280  # WRONG_UNIT: 'fürchten um' is a prepositional variant (to fear for) not covered by the plain-verb citation.
+- 37c079970b66  # BAD_SENTENCE: Archaic, unnatural word order ('so zu handeln mir'), not a self-contained natural sentence.
+- 6897ce5e740e  # WRONG_UNIT: 'mir' signals reflexive 'sich etwas wünschen' (to want), not plain 'wünschen' (to wish someone som
+- 8bcba2f9059c  # WRONG_UNIT: 'leiden können' means 'to like/stand', a different sense than 'to suffer' taught by this unit.
+- a6b121e2d7ba  # WRONG_UNIT: 'entscheiden über' is a prepositional verb use, but the unit is cited as plain 'entscheiden'.
+- bb3a66d51755  # WRONG_UNIT: 'Recht behalten' means 'to be proven right', a different sense than plain 'behalten' (to keep).
+- c1d1bfcf8709  # WRONG_UNIT: 'nicht leiden können' means 'to dislike', not 'to suffer'.
+- e019443ac782  # WRONG_UNIT: 'in allem recht haben' uses the idiomatic adverb 'recht', not the noun 'das Recht'.
+# Review round g7.
+- 07294cf2b458  # WRONG_UNIT: idiom: mit harten Bandagen kämpfen
+- 08d3055b67a2  # WRONG_UNIT: idiom: jemanden gut leiden können
+- 0cd755975959  # WRONG_UNIT: prepositional verb: zukommen auf
+- 30751033683f  # WRONG_UNIT: prepositional verb: berichten von
+- 39001b4ea74e  # WRONG_UNIT: prepositional verb: warten auf
+- 45edfef17eb8  # BAD_SENTENCE: fragment, missing word (den Verstand zu verlieren)
+- 478a210acbb3  # WRONG_UNIT: idiom: die Nerven behalten
+- 491644aa4d20  # WRONG_UNIT: different lemma: abwarten
+- 534004f8efb5  # WRONG_UNIT: prepositional verb: lachen über
+- 5f03584e1426  # WRONG_UNIT: phrase: es gilt zu
+- 6174f9831325  # WRONG_UNIT: different lemma conceptually: die Daten
+- 61c3fe2ad710  # WRONG_UNIT: idiom: jemandem die Stange halten
+- 694ed3475417  # WRONG_UNIT: idiom: ein Zeichen setzen
+- 6de02c9b6f3d  # WRONG_UNIT: prepositional verb: berichten von
+- 74230a34e129  # WRONG_UNIT: prepositional verb: sorgen für
+- 7a758f5262de  # WRONG_UNIT: prepositional verb: sorgen für
+- 81b3cd4bc217  # WRONG_UNIT: collocation: Not leiden
+- 8536817f6066  # WRONG_UNIT: collocation: Hunger leiden
+- 884276f31ea6  # WRONG_UNIT: idiom: jemanden zum Narren halten
+- 89ea0c16ad05  # WRONG_UNIT: beschäftigt is used as an adjective here
+- 8b6f41b3857b  # WRONG_UNIT: prepositional phrase: dafür sorgen
+- 8fe8fe082fdd  # WRONG_UNIT: prepositional verb: sorgen für
+- acf38be5dde8  # WRONG_UNIT: phrase: es gilt zu
+- b16d160db0da  # WRONG_UNIT: prepositional phrase: dafür sorgen
+- d1c1eb1851ee  # WRONG_UNIT: used reflexively as sich denken
+- e8b22065c0d5  # WRONG_UNIT: prepositional verb: gehören zu
+- fd007de9f115  # WRONG_UNIT: prepositional verb: sorgen für
+# Review round s7.
+- 07294cf2b458  # BAD_GLOSS: 'mit harten Bandagen kämpfen' is an idiom for fighting ruthlessly/dirty; the literal gloss 'fights 
+- 08d3055b67a2  # WRONG_UNIT: 'jemanden nicht leiden können' is a fixed idiom (can't stand someone), a different sense from plai
+- 39001b4ea74e  # WRONG_UNIT: Sentence uses the governed-preposition verb 'warten auf +Akk' but the unit is plain warten and 'au
+- 405e3307b291  # BAD_SENTENCE: 'I'd rather die than lose my life' is a non-sequitur since dying and losing one's life are the s
+- 45edfef17eb8  # BAD_GLOSS: 'is slowly afraid of losing it' is awkward English for 'fürchtet langsam'; 'gradually fears' would 
+- 491644aa4d20  # WRONG_UNIT: 'warten ab' is the separable verb abwarten (wait and see); the unit is displayed as plain warten a
+- 6174f9831325  # WRONG_UNIT: 'die erhobenen Daten' uses Daten in the sense of 'data/information', not the plural of the cited n
+- 61c3fe2ad710  # WRONG_UNIT: 'jemandem die Stange halten' is a fixed idiom meaning to back someone up; gloss also mistranslates
+- 694ed3475417  # WRONG_UNIT: 'ein Zeichen setzen' is a fixed noun_verb collocation (to make a statement), not the plain verb se
+- 884276f31ea6  # WRONG_UNIT: 'jemanden zum Narren halten' is a fixed idiom (to fool someone), a different sense from plain halt
+- d1c1eb1851ee  # WRONG_UNIT: Dative 'dir' makes this the reflexive idiom 'sich (dat.) etwas denken' (to imagine/suppose), not p
+- db9639369b30  # WRONG_UNIT: 'einen Vortrag halten' is a noun_verb collocation (to give a lecture), not the plain verb halten.
+# Review round g8.
+- 8e0447c685c0  # BAD_SENTENCE: Typo in sentence: 'wie- der' instead of 'wieder'.
+- a73135b6a072  # WRONG_UNIT: Sentence uses the separable verb 'innehalten', so the lemma is not 'halten'.
+- ddd409db1418  # WRONG_UNIT: The bracketed word is used as an adjective, not as the verb 'beschäftigen'.
+# Review round s8.
+- 17bf5ce15405  # WRONG_UNIT: 'jemanden unter Druck setzen' is a fixed idiom (to put someone under pressure), not the plain verb
+- 1b91c11d401e  # WRONG_UNIT: 'die Nerven behalten' is the fixed idiom to keep one's nerve, not the general sense of behalten.
+- 7d8e287b0cfd  # WRONG_UNIT: 'sein Versprechen halten' is the fixed collocation to keep a promise, not the plain verb sense of 
+- 8e0447c685c0  # BAD_SENTENCE: Sentence contains a scraped/OCR artifact: 'wie- der' instead of 'wieder'.
+- a73135b6a072  # WRONG_UNIT: 'hielt inne' is the separable verb innehalten (to pause), a different lemma than halten, and 'inne
+- de65ae333fc1  # WRONG_UNIT: 'eine Rede halten' is the fixed noun-verb collocation to give a speech, not plain halten.
+- ed783e0c8657  # WRONG_UNIT: Sentence tests 'daran ... gedacht' i.e. the prepositional verb denken an, not plain denken.
+# Review round g9.
+- b5639c7e3882  # BAD_SENTENCE: Missing 'zu' before 'werden' in the infinitive clause.
+- dc649c84cfcf  # WRONG_UNIT: Sentence requires the prepositional object 'auf' for this meaning, but it is not in the unit displ
+- dfddad4f1790  # BAD_SENTENCE: The gap contains the colloquial spelling 'halt' instead of standard 'halte'.

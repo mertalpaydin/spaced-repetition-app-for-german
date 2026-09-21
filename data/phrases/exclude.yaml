@@ -2332,3 +2332,26 @@
 - "gute"  # WRONG_UNIT: Bracketed token is 'Beste' (superlative of gut), a different lemma than the displayed noun 'das Gu
 - "kümmern"  # WRONG_UNIT: Reflexive 'sich kümmern um' used, but unit is displayed as plain verb kümmern.
 - "vereinigten staaten"  # NOT_A_PHRASE: proper name of a country mined as an expression.
+# Review round g2: units the reviewer rejected.
+- "fühle ich mich"  # NOT_A_PHRASE: Fragment and parser artefact, not a standalone phrase.
+- "gern"  # DUPLICATE: Duplicates the unit av:gerne.
+- "meines vaters"  # BAD_UNIT: 'meines Vaters' is a declined noun phrase, not a useful base phrase for learners
+# Review round s2: units the reviewer rejected.
+# Review round g3: units the reviewer rejected.
+# Review round s3: units the reviewer rejected.
+# Review round g4: units the reviewer rejected.
+# Review round s4: units the reviewer rejected.
+- "selber"  # NOT_A_PHRASE: the tagger lemmatises "selben" (derselbe) to "selber", so every carrier teaches a different word (18 findings, rounds 2-4).
+- "fest"  # NOT_A_PHRASE: almost every carrier is the separable prefix of feststellen, festhalten or feststehen, not the free adjective (12 findings).
+- "klar"  # NOT_A_PHRASE: the carriers are the separable prefix of klarkommen and klarstellen rather than the adjective (3 findings).
+# Review round g5: units the reviewer rejected.
+# Review round s5: units the reviewer rejected.
+# Review round g6: units the reviewer rejected.
+# Review round s6: units the reviewer rejected.
+- "datum"  # BAD_UNIT: 'Daten' here means data (information), not the plural sense of 'das Datum' (a calendar date); same i
+- "sorgen"  # BAD_UNIT: All five sorgen cards (this and 91afd5573b30, 99a0eb3e088c, c70a9eb808db, d3e16661337f) use 'sorgen 
+# Review round g7: units the reviewer rejected.
+# Review round s7: units the reviewer rejected.
+# Review round g8: units the reviewer rejected.
+# Review round s8: units the reviewer rejected.
+# Review round g9: units the reviewer rejected.
