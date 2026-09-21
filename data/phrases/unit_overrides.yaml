@@ -52,11 +52,15 @@
 - {key: "anstoß geben", cefr: "B2"}
 - {key: "anteil verkaufen", cefr: "B1"}
 - {key: "antrag stellen", cefr: "B1"}
+- {key: "antun", case: "Dat"}
+- {key: "antworten", case: "Dat"}
 - {key: "antworteten auf", case: "Akk", display: "antworten auf +Akk"}
 - {key: "anweisung folgen", cefr: "B1"}
 - {key: "anzeigen", cefr: "B1"}
 - {key: "arm leute", display: "arme Leute"}
 - {key: "arm verhältnis", display: "aus armen Verhältnissen"}
+- {key: "arme", display: "der Arme"}
+- {key: "armee", cefr: "B1"}
 - {key: "arsch aufgerissen", display: "sich den Arsch aufreißen"}
 - {key: "auf frei fuß", cefr: "B2"}
 - {key: "aufdringen", display: "aufdrängen"}
@@ -110,8 +114,11 @@
 - {key: "bedeutung unterstreichen", cefr: "B2"}
 - {key: "bedingung erfüllen", cefr: "B2"}
 - {key: "bedingung stellen", cefr: "B2"}
+- {key: "begegnen", case: "Dat"}
 - {key: "begonnen mit", case: "Dat", display: "beginnen mit +Dat"}
 - {key: "behandelnd arzt", display: "behandelnder Arzt"}
+- {key: "behörde", cefr: "B1"}
+- {key: "beibringen", case: "Dat"}
 - {key: "beifall klatschen", cefr: "B1"}
 - {key: "beimissen", display: "beimessen"}
 - {key: "beispiel folgen", display: "einem Beispiel folgen"}
@@ -139,6 +146,7 @@
 - {key: "beziehung pflegen", cefr: "B2"}
 - {key: "beziehung unterhalten", cefr: "B2"}
 - {key: "billig hotel", display: "ein billiges Hotel"}
+- {key: "bin mir nicht sicher", display: "ich bin mir nicht sicher"}
 - {key: "bisherig erkenntnis", display: "nach bisherigen Erkenntnissen"}
 - {key: "bissch geld", display: "ein bisschen Geld"}
 - {key: "bitter ende", cefr: "B2"}
@@ -172,9 +180,11 @@
 - {key: "daherkommen", cefr: "B2"}
 - {key: "danebengehen", cefr: "B2"}
 - {key: "danken", case: "Dat"}
+- {key: "darum kümmern", display: "sich darum kümmern"}
 - {key: "dastehen als", display: "dastehen als +Nom"}
 - {key: "datei heruntergeladen", display: "Dateien herunterladen"}
 - {key: "datum abrufen", display: "Daten abrufen"}
+- {key: "davon überzeugt", display: "davon überzeugt sein"}
 - {key: "derzeitig stand", display: "nach derzeitigem Stand"}
 - {key: "deuten auf", cefr: "B2"}
 - {key: "deutlich mehrheit", display: "deutliche Mehrheit"}
@@ -183,6 +193,7 @@
 - {key: "deutschsprachig raum", cefr: "B2"}
 - {key: "dicht nebel", display: "dichter Nebel"}
 - {key: "dienen als", display: "dienen als"}
+- {key: "dienen", case: "Dat"}
 - {key: "dinger drehen", display: "ein Ding drehen"}
 - {key: "diplomatisch lösung", cefr: "B2"}
 - {key: "doppelt boden", cefr: "B2"}
@@ -194,6 +205,7 @@
 - {key: "dreck scheren", display: "sich einen Dreck um etwas scheren"}
 - {key: "dringend bitte", cefr: "B1"}
 - {key: "dringend fall", display: "in dringenden Fällen"}
+- {key: "drohen", case: "Dat"}
 - {key: "dunkel anzug", display: "ein dunkler Anzug"}
 - {key: "dunkel ecke", display: "dunkle Ecken"}
 - {key: "dunkel gasse", display: "eine dunkle Gasse"}
@@ -246,6 +258,7 @@
 - {key: "entscheidend moment", display: "entscheidender Moment"}
 - {key: "entscheidung fällen", cefr: "B2"}
 - {key: "entschluss treffen", cefr: "B1"}
+- {key: "entsprechen", case: "Dat"}
 - {key: "erfolgen durch", cefr: "B2"}
 - {key: "erfolgen über", cefr: "B2"}
 - {key: "erfolgreich abschluss", display: "erfolgreicher Abschluss"}
@@ -260,6 +273,7 @@
 - {key: "erkältung zuziehen", display: "sich eine Erkältung zuziehen"}
 - {key: "ermittlung aufnehmen", display: "Ermittlungen aufnehmen"}
 - {key: "ermittlung übernehmen", cefr: "B2"}
+- {key: "ermöglichen", case: "Dat"}
 - {key: "erneuerbar energiequelle", display: "erneuerbare Energiequellen"}
 - {key: "ernsthaft schwierigkeit", display: "ernsthafte Schwierigkeiten"}
 - {key: "erschrocken über", display: "erschrecken über +Akk"}
@@ -368,6 +382,7 @@
 - {key: "gemeinsam ziel", display: "gemeinsames Ziel"}
 - {key: "genau datum", display: "das genaue Datum"}
 - {key: "genau gegenteil", display: "das genaue Gegenteil"}
+- {key: "genau nehmen", display: "es genau nehmen"}
 - {key: "genau vorstellung", display: "eine genaue Vorstellung"}
 - {key: "genau wortlaut", cefr: "B2"}
 - {key: "genau zeitpunkt", display: "der genaue Zeitpunkt"}
@@ -417,6 +432,7 @@
 - {key: "gut geister", display: "von allen guten Geistern verlassen"}
 - {key: "gut gesundheit", display: "bei guter Gesundheit"}
 - {key: "gut letzt", cefr: "B2", display: "zu guter Letzt"}
+- {key: "gut schmecken", case: "Dat"}
 - {key: "gut verfassung", display: "in guter Verfassung"}
 - {key: "gut wünschen", display: "alles Gute wünschen"}
 - {key: "gut zweck", display: "guter Zweck"}
@@ -488,6 +504,7 @@
 - {key: "humanitär hilfe", cefr: "B2"}
 - {key: "hut ziehen", cefr: "B2"}
 - {key: "hängen an", case: "Dat"}
+- {key: "hätte nie gedacht", display: "ich hätte nie gedacht"}
 - {key: "in aussicht stellen", cefr: "B2"}
 - {key: "in betracht kommen", cefr: "B2"}
 - {key: "in betracht ziehen", cefr: "B2"}
@@ -563,6 +580,7 @@
 - {key: "krieg anzetteln", display: "einen Krieg anzetteln"}
 - {key: "kritik üben", cefr: "B2"}
 - {key: "kräftig applaus", display: "kräftiger Applaus"}
+- {key: "kuchen", display: "der Kuchen"}
 - {key: "kugel einfangen", display: "sich eine Kugel einfangen"}
 - {key: "kunst beherrschen", cefr: "B2"}
 - {key: "kurz leine", display: "an der kurzen Leine"}
@@ -574,6 +592,7 @@
 - {key: "lang schwanz", display: "der lange Schwanz"}
 - {key: "lasten auf", cefr: "B2"}
 - {key: "lauf nehmen", display: "seinen Lauf nehmen"}
+- {key: "lauf", cefr: "B1"}
 - {key: "laufbahn beginnen", cefr: "B2"}
 - {key: "laufend geschäftsjahr", display: "laufendes Geschäftsjahr"}
 - {key: "laufend verfahren", display: "laufendes Verfahren"}
@@ -591,6 +610,7 @@
 - {key: "lehre ziehen", cefr: "B2"}
 - {key: "leiblich mutter", cefr: "B2"}
 - {key: "leiblich wohl", display: "das leibliche Wohl"}
+- {key: "leicht fallen", case: "Dat"}
 - {key: "leicht schulter", cefr: "B2"}
 - {key: "leid klagen", display: "jemandem sein Leid klagen"}
 - {key: "lektüre empfehlen", cefr: "B2"}
@@ -688,6 +708,7 @@
 - {key: "offen brief", display: "offener Brief"}
 - {key: "offen ohr", cefr: "B2"}
 - {key: "offiziell angabe", display: "nach offiziellen Angaben"}
+- {key: "oh mein gott", cefr: "A1"}
 - {key: "ohr trauen", display: "seinen Ohren nicht trauen"}
 - {key: "operation unterziehen", display: "sich einer Operation unterziehen"}
 - {key: "operativ gewinn", display: "operativer Gewinn"}
@@ -719,6 +740,7 @@
 - {key: "rangekommen an", case: "Akk", display: "rankommen an +Akk"}
 - {key: "rangieren auf", case: "Dat"}
 - {key: "ranzukommen an", case: "Akk", display: "rankommen an +Akk"}
+- {key: "raten", case: "Dat"}
 - {key: "rau see", display: "raue See"}
 - {key: "rauchen abgewöhnen", display: "sich das Rauchen abgewöhnen"}
 - {key: "rauchen aufgeben", display: "das Rauchen aufgeben"}
@@ -732,6 +754,7 @@
 - {key: "rechter seite", display: "auf der rechten Seite"}
 - {key: "rechter straßenseite", display: "die rechte Straßenseite"}
 - {key: "rechter wange", display: "die rechte Wange"}
+- {key: "rechter", display: "recht"}
 - {key: "rechtlich grund", display: "rechtliche Gründe"}
 - {key: "rein formsache", cefr: "B2"}
 - {key: "rein wein", cefr: "B2"}
@@ -775,6 +798,7 @@
 - {key: "schlimme überstehen", display: "das Schlimmste überstehen"}
 - {key: "schlussfolgerung ziehen", cefr: "B2"}
 - {key: "schlussstrich ziehen", cefr: "B2"}
+- {key: "schmecken", case: "Dat"}
 - {key: "schmerz aushalten", display: "Schmerzen aushalten"}
 - {key: "schmissen aus", display: "schmeissen aus +Dat"}
 - {key: "schuld begleichen", cefr: "B2"}
@@ -787,6 +811,7 @@
 - {key: "schwarz schaf", display: "das schwarze Schaf"}
 - {key: "schwarz zahl", cefr: "B2"}
 - {key: "schweben über", case: "Dat"}
+- {key: "schwer fallen", case: "Dat"}
 - {key: "schwer gerät", display: "schweres Gerät"}
 - {key: "schwer krankheit", display: "schwere Krankheit"}
 - {key: "schwer körperverletzung", display: "schwere Körperverletzung"}
@@ -1003,6 +1028,7 @@
 - {key: "tot hose", cefr: "B2"}
 - {key: "tote erwecken", display: "Tote erwecken"}
 - {key: "transparent kommunikation", cefr: "B2"}
+- {key: "trauen", case: "Dat"}
 - {key: "treffen vereinbaren", cefr: "B1"}
 - {key: "trennung bekanntgeben", cefr: "B2"}
 - {key: "treppe runtergefallen", display: "die Treppe runterfallen"}
@@ -1016,6 +1042,7 @@
 - {key: "umbenennen in", case: "Akk"}
 - {key: "umfangreich wissen", cefr: "B2"}
 - {key: "umgang pflegen", cefr: "B2"}
+- {key: "umgehen", case: "Dat"}
 - {key: "umgekehrt reihenfolge", display: "in umgekehrter Reihenfolge"}
 - {key: "umschaun", display: "sich umschauen"}
 - {key: "umwandeln in", case: "Akk"}
@@ -1045,13 +1072,17 @@
 - {key: "urteil abgeben", cefr: "B2"}
 - {key: "urteil fällen", cefr: "B2"}
 - {key: "urteilen nach", cefr: "B2"}
+- {key: "verabschieden", display: "sich verabschieden"}
 - {key: "verantwortung entziehen", display: "sich der Verantwortung entziehen"}
 - {key: "verantwortung tragen", cefr: "B1"}
 - {key: "verband wechseln", cefr: "B1"}
+- {key: "verbieten", case: "Dat"}
 - {key: "vereinigten staaten", display: "die Vereinigten Staaten"}
 - {key: "vereint kraft", display: "mit vereinten Kräften"}
 - {key: "vergleichen mit", cefr: "B1"}
 - {key: "verglichen mit", display: "vergleichen mit +Dat"}
+- {key: "verheiraten", display: "sich verheiraten"}
+- {key: "verlaufen", display: "sich verlaufen"}
 - {key: "verletzung erliegen", display: "den Verletzungen erliegen"}
 - {key: "verletzung zuziehen", display: "sich eine Verletzung zuziehen"}
 - {key: "verloben mit", display: "sich verloben mit +Dat"}
@@ -1069,7 +1100,9 @@
 - {key: "vertrauen aufbauen", display: "Vertrauen aufbauen"}
 - {key: "vertrauen gewinnen", display: "Vertrauen gewinnen"}
 - {key: "vertrauen schenken", display: "Vertrauen schenken"}
+- {key: "vertrauen", case: "Dat"}
 - {key: "verursacht schaden", display: "der verursachte Schaden"}
+- {key: "verzeihen", case: "Dat"}
 - {key: "vielfältig weise", display: "auf vielfältige Weise"}
 - {key: "vokabel lernen", display: "Vokabeln lernen"}
 - {key: "voll gang", cefr: "B2"}
@@ -1082,6 +1115,7 @@
 - {key: "voll zug", cefr: "B2"}
 - {key: "voneinanderunterscheiden", display: "sich voneinander unterscheiden"}
 - {key: "vor laufend kamera", cefr: "B2"}
+- {key: "vor sich geht", display: "vor sich gehen"}
 - {key: "vorbeigefahren an", display: "vorbeifahren an +Dat"}
 - {key: "vorbeischaun bei", display: "vorbeischauen bei +Dat"}
 - {key: "vorbeischaun", display: "vorbeischauen"}
@@ -1126,9 +1160,11 @@
 - {key: "wiedergeboren als", display: "wiedergeboren werden als"}
 - {key: "wild westen", cefr: "B2"}
 - {key: "wille durchsetzen", display: "seinen Willen durchsetzen"}
+- {key: "wille", cefr: "B1"}
 - {key: "wirklich leben", display: "das wirkliche Leben"}
 - {key: "wirkung zeigen", cefr: "B2"}
 - {key: "wirtschaftswissenschaft studieren", cefr: "B1"}
+- {key: "wissenschaft", cefr: "B1"}
 - {key: "wissenschaftlich erkenntnis", display: "wissenschaftliche Erkenntnisse"}
 - {key: "wuchsen um", display: "wachsen um +Akk"}
 - {key: "wunsch erfüllen", cefr: "B1"}
@@ -1190,6 +1226,7 @@
 - {key: "zuständig stelle", cefr: "B2"}
 - {key: "zwanzigster jahrhundert", display: "im zwanzigsten Jahrhundert"}
 - {key: "zwischenmenschlich beziehung", display: "zwischenmenschliche Beziehungen"}
+- {key: "ähnlich sehen", case: "Dat"}
 - {key: "ältest sohn", display: "der älteste Sohn"}
 - {key: "öffentlich bibliothek", display: "öffentliche Bibliotheken"}
 - {key: "öffentlich gebäude", display: "öffentliches Gebäude"}

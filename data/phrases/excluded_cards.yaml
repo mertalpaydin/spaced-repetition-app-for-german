@@ -4864,3 +4864,351 @@
 - b5639c7e3882  # BAD_SENTENCE: Missing 'zu' before 'werden' in the infinitive clause.
 - dc649c84cfcf  # WRONG_UNIT: Sentence requires the prepositional object 'auf' for this meaning, but it is not in the unit displ
 - dfddad4f1790  # BAD_SENTENCE: The gap contains the colloquial spelling 'halt' instead of standard 'halte'.
+# Review round g2k.
+- 0072d07c21a5  # BAD_SENTENCE: Missing article
+- 009b89d50eb7  # WRONG_UNIT: 'rings um' is a preposition, not the noun
+- 01a3f7363a5a  # WRONG_UNIT: bracketed word is an adjective here, display is verb
+- 0455207bb9fc  # WRONG_UNIT: Uses reflexive sich zuziehen
+- 0642389b8857  # BAD_SENTENCE: unnatural phrasing, normally 'zubereiten'
+- 06d6f0f7f0dc  # BAD_SENTENCE: offensive/profane 'heilige Scheiße'
+- 0ae779d0e5ec  # WRONG_UNIT: Uses phrase in Betrieb nehmen
+- 0b6a0522c0e9  # BAD_SENTENCE: typo, laufen should be capitalized as Laufen
+- 0d031a183b5e  # BAD_SENTENCE: sentence fragment missing subject
+- 0dda085107d9  # WRONG_UNIT: verb in sentence is the separable verb absichern, not sichern
+- 0fd552e66b2d  # WRONG_UNIT: Uses idiom sich mit fremden Federn schmücken
+- 0fe51a75265f  # BAD_SENTENCE: unnatural sentence, should be eine andere Meinung
+- 10a8c3e5f85d  # WRONG_UNIT: used reflexively as sich eine Meinung bilden
+- 10c27b677675  # WRONG_UNIT: Uses idiom seinen Lauf nehmen
+- 1167d26ffff7  # WRONG_UNIT: unit is female singular, sentence uses generic plural
+- 120641b40ebe  # BAD_SENTENCE: unnatural phrasing, herrschen doesn't fit Tempo-Limit
+- 122a1bdb3cb7  # BAD_SENTENCE: 'Dieser' lacks context
+- 1255a9c12aa1  # BAD_SENTENCE: unnatural sentence
+- 12d9ad6e8c1c  # BAD_SENTENCE: grammar error: mehrerer instead of mehrere
+- 13b6a984f788  # WRONG_UNIT: inseparable umgehen (circumvent) is a different lemma from separable umgehen (deal with)
+- 142e1ffa8f14  # WRONG_UNIT: bracketed word is an adjective here, display is verb
+- 14329cbaf6a4  # WRONG_UNIT: Uses idiom zum Hals raushängen
+- 14addb921472  # WRONG_UNIT: needs phrase 'in Gang kommen'
+- 14d6a160687c  # BAD_SENTENCE: Ecke means corner kick here, missing sports context
+- 16f4bd791ae8  # BAD_GLOSS: poor translation of er gerät in Wallung
+- 1720e3d261bf  # WRONG_UNIT: Uses phrase in Betrieb nehmen
+- 17f9c8602b96  # WRONG_UNIT: sentence uses idiom 'die Klappe halten', display is plain verb
+- 1c5492191d4b  # BAD_SENTENCE: unnatural sentence, sounds like a literal translation
+- 1cb9a850c56f  # BAD_SENTENCE: sentence fragment
+- 1cd1c18347d8  # BAD_SENTENCE: vulgar language 'pissen'
+- 1d1e810ec37b  # WRONG_UNIT: phrase uses neuter 'das Gefallen', unit is masculine 'der Gefallen'
+- 1d7661669683  # BAD_SENTENCE: unidiomatic 'Gras im Gehirn'
+- 1ed0c2655682  # WRONG_UNIT: Uses idiom über die Runden kommen
+- 1f98089b89b7  # BAD_SENTENCE: missing context for 'Sie' (they)
+- 1fc9f354e8e9  # BAD_GLOSS: poor translation of er gerät in Wallung
+- 2023ff9c86b7  # BAD_SENTENCE: UI text with slash 'Kommentare/[Beiträge]'
+- 2049608b2340  # BAD_SENTENCE: comma between subject and verb is wrong
+- 207e49ca594a  # WRONG_UNIT: unit is female singular, sentence uses generic plural
+- 2202164175ed  # WRONG_UNIT: used reflexively as sich die Haare waschen
+- 22686cbda6ad  # BAD_GLOSS: literal translation of idiom einen Schaden haben
+- 22ad4d3b16f2  # BAD_GLOSS: pronoun Sie translated as It instead of She without context
+- 230d290b061d  # BAD_SENTENCE: archaic biblical meaning 'to happen to'
+- 23713910d63e  # BAD_SENTENCE: missing context, unclear meaning
+- 253215730203  # WRONG_UNIT: Uses phrase sich in Geduld üben
+- 287693153aa9  # BAD_SENTENCE: grammar error: niemand instead of niemandem
+- 2a27d2754175  # WRONG_UNIT: Uses phrase im Laufe
+- 2ae559e63b60  # BAD_GLOSS: in anderen Umständen means pregnant, gloss is literal
+- 2ca3973918e2  # BAD_SENTENCE: incorrect comma before 'und' in a simple enumeration
+- 2da9fcfdbeae  # BAD_SENTENCE: grammar error: should be 'wie viele' before plural noun
+- 2e69d292f724  # WRONG_UNIT: Uses idiom über die Runden kommen
+- 3174763c8d09  # WRONG_UNIT: Uses idiom seinen Lauf nehmen
+- 31f3a41d0272  # WRONG_UNIT: unit is music group (die Band), sentence uses ribbon (das Band)
+- 3223ba1288e7  # BAD_SENTENCE: 'Was' instead of 'Warum', and gloss is ungrammatical
+- 32e8bff58a79  # BAD_SENTENCE: Typo 'Seit dem' (should be 'Seitdem') and unnatural phrasing 'wechselt sie keine Farbe'.
+- 3332d0e28195  # BAD_GLOSS: Windeisen means tap wrench, not wind iron
+- 34f3058c7ad6  # WRONG_UNIT: gebildet is an adjective here
+- 382a90ac0df9  # WRONG_UNIT: The bracketed word refers to a dance event, which is a different lemma from the toy.
+- 38dc11e650ba  # BAD_GLOSS: 'Krebs' means 'crab' in this context, not 'cancer'
+- 38f4f535e7aa  # BAD_SENTENCE: ungrammatical Hart Schneuzen
+- 39069a84f91c  # BAD_SENTENCE: highly unnatural phrasing
+- 39edfb9f31d4  # WRONG_UNIT: verb used adjectivally
+- 3a47240a5765  # BAD_SENTENCE: literal translation of castles in the air (Luftschlösser)
+- 3d8176429ce5  # BAD_SENTENCE: typo nicht instead of nichts
+- 3e0632fba005  # BAD_GLOSS: completely wrong translation of proverb
+- 3e89dec6a394  # WRONG_UNIT: fern is a separable prefix of fernhalten, not an independent adjective
+- 3e8b608f4a20  # WRONG_UNIT: Uses idiom seinen Lauf nehmen
+- 3fb84ac6094e  # BAD_SENTENCE: typo 'Or' instead of 'Er'
+- 3fb91a238005  # WRONG_UNIT: unit is female singular, sentence uses generic plural
+- 3fe09aa7a37a  # WRONG_UNIT: used as verb interessieren, not adjective
+- 400c5bd68912  # BAD_GLOSS: idiom refers to an older woman, gloss translates as 'It'
+- 410cba165d39  # BAD_SENTENCE: typo geschätzer instead of geschätzter
+- 42774e2ffd4d  # BAD_SENTENCE: anglicism laufende Nase
+- 44054e191de5  # BAD_SENTENCE: typo mit gehen instead of mitgehen
+- 485424d8c591  # BAD_SENTENCE: unnatural passive, should be versucht worden
+- 4967281c108b  # WRONG_UNIT: Word used as adverb display says verb
+- 4b97efa8fdec  # WRONG_UNIT: Mitte acts as an adverbial here without article, different syntactic use
+- 4bf7de159b56  # WRONG_UNIT: Missing reflexive sich
+- 4c96d567f126  # WRONG_UNIT: noun die Bitte used as particle bitte
+- 4e149a9d9f63  # WRONG_UNIT: Bracketed word is the interjection 'Danke', not the noun 'der Dank'.
+- 4e4605c7edd9  # BAD_SENTENCE: 'gefallene Blätter' sounds like fallen soldiers, should be 'abgefallene'
+- 5125869efc1e  # BAD_SENTENCE: USA Bürgern is grammatically incorrect
+- 51288c3872e4  # BAD_SENTENCE: fragment, reads like a headline missing article
+- 51dfa13287b0  # WRONG_UNIT: bracketed word is a noun here, display is adjective
+- 545f8abfb273  # WRONG_UNIT: used as noun 'im Allgemeinen'
+- 5560bcba5547  # BAD_GLOSS: poor literal translation of proverb
+- 55914ae6ca94  # BAD_SENTENCE: capitalization typo: Freiwilligen
+- 5a12439247f9  # WRONG_UNIT: used reflexively as sich eine Meinung bilden
+- 5c14a1b4bc9b  # WRONG_UNIT: used as verb interessieren, not adjective
+- 5cbcfeef373c  # WRONG_UNIT: adjective used as adverb
+- 5dd2081a88da  # BAD_SENTENCE: unnatural word order
+- 5e3733d044ce  # WRONG_UNIT: accidental juxtaposition means saw similarly
+- 5fe759496e51  # WRONG_UNIT: unit is music group (die Band), sentence uses tape (das Band)
+- 601b919c470c  # BAD_SENTENCE: headline style fragment missing articles
+- 6136147db9d6  # BAD_SENTENCE: unnatural German phrase
+- 6139ea25afd9  # WRONG_UNIT: die See (sea) is a different lemma from der See (lake)
+- 6165c00d241f  # WRONG_UNIT: idiom 'aus dem Rahmen fallen' needs phrase display
+- 61bf67d75731  # WRONG_UNIT: Missing reflexive sich
+- 62014da7ba1a  # WRONG_UNIT: betrügen is a different verb from betragen
+- 6336594dd2f8  # BAD_SENTENCE: missing comma before infinitive clause 'das zu glauben'
+- 642b5a54a48f  # BAD_SENTENCE: Typo ein eine
+- 65e95b8fd8f3  # BAD_SENTENCE: headline style, missing definite article 'Die'
+- 6647e43ec306  # WRONG_UNIT: Uses phrase in Wirklichkeit
+- 66c2dbf72ab9  # BAD_SENTENCE: sentence is missing context (future predecessor makes no sense without it)
+- 69792fe2f0d7  # WRONG_UNIT: prepositional phrase 'im Rahmen' not named in display
+- 6a201e4c2706  # BAD_SENTENCE: missing 'zu' before 'hören'
+- 6a22e563f5d8  # WRONG_UNIT: Uses idiom seinen Lauf nehmen
+- 6a471ab07cd0  # BAD_SENTENCE: Missing article
+- 6b1696d5bf0f  # WRONG_UNIT: im Deutschen refers to the language (das Deutsche), not the person (der Deutsche)
+- 6b7f3b616c8d  # WRONG_UNIT: reflexive use requires 'sich merken', display is plain verb
+- 6c37fa2d78ea  # WRONG_UNIT: unit is music group (die Band), sentence uses bond (das Band)
+- 6cd4e1fb9ae1  # BAD_GLOSS: gloss says peed, but Aa means poop
+- 6e17d8075756  # WRONG_UNIT: verb used reflexively but unit is plain verb
+- 6e814f8cf2be  # BAD_SENTENCE: typo 'am sein'
+- 700f92fee9c4  # BAD_SENTENCE: colloquial spelling ziehn
+- 703d25032715  # BAD_SENTENCE: Korpus in the linguistic sense is neuter, so das Korpus, not der
+- 70a05cdbfe1f  # BAD_GLOSS: gloss translates as statement but German is imperative
+- 72fea7a120be  # WRONG_UNIT: reflexive use requires 'sich merken', display is plain verb
+- 73c5a1fd1040  # WRONG_UNIT: fern is a separable prefix of fernsehen
+- 73e8052747fb  # BAD_SENTENCE: typo 'mir wenn'
+- 76a6d7296dff  # BAD_GLOSS: literal translation of an idiom
+- 78d0c434d3d6  # WRONG_UNIT: verb used reflexively
+- 78e14ce6d803  # BAD_SENTENCE: missing mandatory comma before darauf zu antworten (correlative es)
+- 79ec93a2dc5d  # WRONG_UNIT: fern is a separable prefix of fernliegen
+- 7aa4cb901ae6  # BAD_SENTENCE: Incomplete sentence; 'entfernt' needs a modifier like 'weit'.
+- 7b2f5cdfa12d  # WRONG_UNIT: Uses idiom zum Hals raushängen
+- 7b32dbb00f8e  # BAD_SENTENCE: unidiomatic phrase 'eine Musik' for some music
+- 7b5c170879c8  # WRONG_UNIT: Word used as adjective angetan unit is verb
+- 7c85766e2b2b  # BAD_SENTENCE: missing prefix before -Account, making it junk/typo
+- 7d96ea2e92f2  # WRONG_UNIT: Uses phrase in Betrieb nehmen
+- 7e453a55a64f  # BAD_SENTENCE: missing context for dangling demonstrative pronoun Diese
+- 809cf45fac65  # WRONG_UNIT: The verb in the sentence is 'anfangen', not 'fangen'.
+- 8275e1db4d6a  # BAD_SENTENCE: missing context, only pronouns
+- 828356ec080a  # BAD_SENTENCE: grammar error: eine Skandal instead of ein Skandal
+- 82c7eb1bd3ab  # BAD_SENTENCE: obsolete spelling Thiere
+- 8560ae28b06f  # BAD_SENTENCE: typo 'Wissenschaftlern' instead of 'Wissenschaftler'
+- 85e8a46e1b82  # BAD_GLOSS: literal translation of idiom misses the meaning
+- 87e6eb41523b  # BAD_SENTENCE: unnatural metaphor calqued from English
+- 88a22604f2d7  # BAD_SENTENCE: unnatural verb 'verschlechterte', normally 'verschlimmerte'
+- 893b796f16c4  # BAD_SENTENCE: missing context for es and Doch
+- 899eedc04138  # BAD_SENTENCE: literal translation 'Ein Gerücht tötet den Mann'
+- 8a992c7b388b  # BAD_SENTENCE: sentence is missing the reflexive pronoun 'sich'
+- 8acd8e86d195  # BAD_SENTENCE: unnatural German, literal translation
+- 8b64953819af  # WRONG_UNIT: used as noun 'im Allgemeinen'
+- 8bfa6539ef73  # WRONG_UNIT: verdammt used as interjection not verb
+- 8c8c94e13b7f  # WRONG_UNIT: unit is female singular, sentence uses generic plural
+- 8d3fcc52f98c  # BAD_SENTENCE: comma after Latein is incorrect in German
+- 8d9e53b45386  # BAD_SENTENCE: Missing context for 'den richtigen Umgang'.
+- 8da78ff5ce1d  # WRONG_UNIT: unit is female singular, sentence uses generic plural
+- 8f2f5ffe674f  # BAD_SENTENCE: Grammar error: mixes nominative adjective 'moderner' with noun form 'Aberglauben' (should be 'Ab
+- 8f5e172e8bbb  # BAD_SENTENCE: junk fragment '- Yahoo!'
+- 90ee57b0f2aa  # BAD_SENTENCE: fragment missing subject
+- 947a24b165e9  # BAD_SENTENCE: grammatical error, should be Jahrhunderts
+- 948135cf2ad0  # WRONG_UNIT: Uses phrase in Wirklichkeit
+- 95087e642a7f  # BAD_SENTENCE: Swiss spelling with guillemets
+- 972f55562ff4  # BAD_SENTENCE: chinesische Wissenschaft is not a standard German idiom
+- 98aa6cfc4fc1  # WRONG_UNIT: participle used as adverb or adjective
+- 9cd48401083c  # WRONG_UNIT: used as verb interessieren, not adjective
+- 9d04a04e9f7a  # BAD_SENTENCE: unnatural poetic phrasing
+- 9d8b2b163273  # BAD_GLOSS: German 'ihn' means 'him', but English gloss says 'It'
+- 9e29c7e6b16e  # WRONG_UNIT: künftig is used as an adverb here, not an adjective
+- a1845ab4890f  # WRONG_UNIT: reflexive use requires 'sich merken', display is plain verb
+- a3c75dd093ca  # WRONG_UNIT: fern is a separable prefix of fernsehen
+- a410b8e440be  # WRONG_UNIT: verdammt used as interjection not verb
+- a4a63a920640  # WRONG_UNIT: lieber is an adverb/comparative of gern, not the adjective lieb
+- a4c4d4d80ff3  # BAD_SENTENCE: unnatural phrase den Mut anstrengen
+- a67f4648d2d7  # BAD_SENTENCE: grammatically incomplete, should be 'sowohl ... als auch'
+- a70ee6f33f03  # BAD_SENTENCE: Punctuation mismatch for word order
+- a71e938d7054  # BAD_SENTENCE: photo caption, missing context
+- a7dcd17f350f  # BAD_GLOSS: literal translation of idiom
+- a8f0f8a2f12b  # BAD_SENTENCE: gelang instead of gelangte is a grammatical error
+- a9493550e0aa  # BAD_SENTENCE: incorrect comma before und
+- a9c8ed7aa1a7  # BAD_SENTENCE: Unnatural sentence / fragment / missing context.
+- aa72d41b67e7  # BAD_SENTENCE: nonsense sentence
+- ab26f428ada9  # BAD_SENTENCE: missing context, 'Er' mapped to 'It' requires previous sentence
+- ac6473c22d36  # WRONG_UNIT: reflexive use requires 'sich merken', display is plain verb
+- ac695176ab92  # WRONG_UNIT: Uses idiom den Hals umdrehen
+- af2da29f06e2  # BAD_GLOSS: impossible is unnatural translation for unmögliche Verspätung
+- af88983a43b5  # BAD_SENTENCE: bad grammar: Ausdruck einer weißen Weste
+- b12549af7212  # WRONG_UNIT: bracketed word refers to 'der Böse' (person), not 'das Böse' (concept)
+- b157edaef05f  # WRONG_UNIT: besorgt is an adjective here, but the unit is a verb
+- b2495d6e4be1  # WRONG_UNIT: used reflexively as sich das Gesicht waschen
+- b339d30ef183  # BAD_GLOSS: Gloss Foreign misfortune is misleading
+- b3d61b4aebe8  # BAD_SENTENCE: contains insult 'du blöder alter Sack'
+- b3e3990bb2f7  # BAD_GLOSS: Literal translation of idiom einen Hals haben
+- b41e1accfd6c  # BAD_SENTENCE: comma splice and grammatically incorrect comma before als
+- b480d05da1b3  # WRONG_UNIT: bracketed word is an adjective here, display is verb
+- b51e51008ff9  # WRONG_UNIT: Uses phrase verfügen über
+- b639b4619c91  # WRONG_UNIT: Uses phrase verfügen über
+- b6a95d3b8331  # BAD_SENTENCE: typo: formal 'Ihre' should be capitalized to match translation 'your'
+- b7783aa1219f  # BAD_GLOSS: ihn knapp halten means to keep someone short of money
+- b862f6a9362f  # BAD_GLOSS: 'Diäten' here refers to parliamentary salaries, not food 'diets'
+- b8813ce59db3  # WRONG_UNIT: participle used as adverb or adjective
+- ba4d4e3d28d7  # BAD_SENTENCE: ein Produkt Liisas Einbildung is grammatically incorrect, should use von
+- bac2db005f6b  # BAD_SENTENCE: typo, Wert should be lowercase
+- bce22ebb1672  # WRONG_UNIT: unit is female singular, sentence uses generic plural
+- bdb04573ceab  # BAD_SENTENCE: fragment, missing end of sentence
+- bdc8ea33f6d1  # BAD_SENTENCE: behörden should be capitalized
+- be1fc8fb028a  # BAD_SENTENCE: Missing context / confusing word order.
+- bedcdf9d63d3  # BAD_GLOSS: English gloss completely omits the word 'ungefähr' (approximately/roughly).
+- c0310814c6d7  # BAD_GLOSS: literal translation of an idiom
+- c1dda1098648  # WRONG_UNIT: needs phrase 'Schlange stehen'
+- c242a2927f28  # BAD_SENTENCE: typo in gap: 'mal' should be capitalized 'Mal'
+- c2a1bc2f355a  # WRONG_UNIT: participle used as adverb or adjective
+- c2f3a2de033b  # BAD_SENTENCE: very unnatural idiom translation
+- c44579f54688  # BAD_GLOSS: The English gloss 'laffy' is incorrect for the German 'laff' (bland).
+- c486da0cda53  # BAD_SENTENCE: missing context for name Groß
+- c48cf350c581  # WRONG_UNIT: bracketed word is 'ein Neuer' (person), not 'das Neue' (concept)
+- c61fc44fd31c  # WRONG_UNIT: used as verb interessieren, not adjective
+- c70c2d3c7314  # BAD_SENTENCE: Ring used as name without context, and typo lhre
+- c73f3a3f08e9  # WRONG_UNIT: prepositional phrase 'im Rahmen' not named in display
+- c7d0ddd1fc87  # WRONG_UNIT: verdammt used as interjection not verb
+- c85f9dfceb65  # BAD_SENTENCE: Junk translation in dieser Weide
+- ccd61a70d0ad  # BAD_SENTENCE: Swiss spelling with guillemets
+- cceec67c6893  # BAD_SENTENCE: fragment, subordinate clause used as a standalone sentence
+- cd766c485050  # BAD_SENTENCE: obsolete dative e in Kirchhofe
+- ce26cb97799e  # BAD_SENTENCE: unnatural use of indefinite article 'an einem Willen', should be 'an Willen' or 'am Willen'
+- cffe7fc3d417  # BAD_SENTENCE: highly specific term 'OGAW-Fonds' missing context
+- d01d0cece2d1  # BAD_SENTENCE: typo in sentence, Verletze instead of Verletzte
+- d144d80dbd9c  # WRONG_UNIT: bracketed word exactly modifies the phrase unter die Lupe nehmen, not es genau nehmen
+- d14bc3a69ccb  # BAD_SENTENCE: Incorrect verb/word order 'Dem zuvor ging'; should be 'Dem ging voraus'.
+- d170ad7a5456  # BAD_SENTENCE: Unnatural word Blutsfreunde
+- d3f2fa88c387  # BAD_SENTENCE: wrong valency, 'verbergen vor' requires dative object, not personal dative
+- d43a70ec7b55  # BAD_SENTENCE: Fragment missing words like 'Im' at the beginning and a main clause.
+- d44326a8aa14  # WRONG_UNIT: verb used reflexively
+- d51c17ada440  # BAD_SENTENCE: poetic or obsolete form hofft' ich
+- d6459dd62288  # BAD_SENTENCE: Offensive/violent content.
+- d7069302f76f  # WRONG_UNIT: bracketed word is an adjective here, display is verb
+- d70897172b54  # WRONG_UNIT: künftig is used as an adverb here, not an adjective
+- da888cc039dc  # BAD_SENTENCE: unnatural preposition, should be 'in einer schwachen Stunde'
+- dc9ce3d2712b  # BAD_SENTENCE: missing context for pronoun 'Diese'
+- dcf7c67fc76e  # WRONG_UNIT: verb used reflexively
+- e076de2faf74  # WRONG_UNIT: adjective used as adverb
+- e09b076e5a9e  # WRONG_UNIT: betont is used as adjective/adverb here, not the verb betonen
+- e0c61d599e40  # BAD_SENTENCE: Obsolete spelling Gesell
+- e22540f024b3  # WRONG_UNIT: In this sentence, 'Englisch' is a noun (the language), not the adjective 'englisch'.
+- e32c6b1bee4d  # WRONG_UNIT: participle used as adverb or adjective
+- e339b1e32523  # BAD_GLOSS: gloss missing translation for verbunden
+- e3479f653a72  # BAD_SENTENCE: missing comma before ist
+- e53530c2f142  # BAD_SENTENCE: Missing context for K.
+- e565f1807d7d  # BAD_SENTENCE: sentence fragment missing subject
+- e5f366aee16c  # WRONG_UNIT: Uses phrase verfügen über
+- e70d202b74e0  # BAD_SENTENCE: nonsense/humorous expression 'schweigen sich rum'
+- e9c524dedc7c  # BAD_SENTENCE: junk proverb, literal translation of unknown phrase
+- eba9b77925f0  # BAD_SENTENCE: Missing context for pronoun Die
+- ee84df49418f  # BAD_GLOSS: poor translation of Schaden in proverb
+- f0861b47e061  # BAD_SENTENCE: slang usage of Tante, missing context
+- f24944fbb4c0  # WRONG_UNIT: Uses phrase in Wirklichkeit
+- f2af04f174c5  # WRONG_UNIT: needs phrase 'Schlange stehen'
+- f31248af26a5  # BAD_SENTENCE: wrong word 'gegenseitig' instead of 'gegeneinander'
+- f31423a7b2b2  # BAD_SENTENCE: paradoxical and unnatural sentence
+- f53ac9f5c890  # BAD_SENTENCE: missing sowohl before als auch
+- f63ac0bfbced  # BAD_SENTENCE: Missing context for alle
+- f66ab0126ecd  # BAD_SENTENCE: Typo -Piloten
+- f6df35e0e0c7  # WRONG_UNIT: Uses reflexive sich zuziehen
+- f702288a6d5c  # BAD_SENTENCE: Typo: 'Emoära' should probably be 'Emo-Ära'.
+- f750fd1afe16  # WRONG_UNIT: fern is a separable prefix of fernsehen here, not an adjective
+- f80c0f151839  # WRONG_UNIT: noun die Bitte used as particle bitte
+- f91a9e81a3b7  # WRONG_UNIT: Uses phrase verfügen über
+- f939273a8176  # BAD_GLOSS: pronoun Sie translated as It instead of She without context
+- fa1ad7713a25  # WRONG_UNIT: verb kosten is a different lemma from noun die Kosten
+- fa218c439a94  # BAD_SENTENCE: Missing context (what digital object was bought?).
+- fadcbcb71601  # BAD_GLOSS: kaputt for a person means exhausted, broken is misleading
+- fb796b3437c5  # WRONG_UNIT: adjective used as adverb
+- fe71a1407104  # WRONG_UNIT: bracketed word is an adjective here, display is verb
+# Review round s2k.
+- 009b89d50eb7  # WRONG_UNIT: 'Rings um' is the fixed adverb 'rings' (all around), not an inflected form of the noun 'der Ring'.
+- 0455207bb9fc  # WRONG_UNIT: Dative reflexive 'mir' + 'sich etwas zuziehen' (to catch/incur) is used, but unit is displayed as 
+- 081bb7bf1a74  # WRONG_UNIT: 'in Kraft treten' is a fixed verb+preposition idiom (come into effect), not the plain verb treten.
+- 0ae64610ef38  # BAD_GLOSS: Gloss drops 'lieben' entirely; should read 'the dear little ones' not 'the little ones'.
+- 1146f023d2d9  # WRONG_UNIT: Sentence instantiates 'achten auf +Akk' (pay attention to), a different verb-prep unit from the pl
+- 13b6a984f788  # WRONG_UNIT: 'Die App umgeht das Gesetz' uses the inseparable verb 'umgehen' (to circumvent), a different lexem
+- 17f9c8602b96  # WRONG_UNIT: 'die Klappe halten' is a fixed idiom (shut up) tested under the plain verb halten, whose base sens
+- 1cd1c18347d8  # BAD_SENTENCE: Contains crude vulgar language ('pissen zu gehen'), arguably inappropriate tone for a general le
+- 1ed0c2655682  # WRONG_UNIT: 'über die Runden kommen' is idiomatic for 'to make ends meet'; plural sense differs from the cited
+- 22686cbda6ad  # WRONG_UNIT: 'einen Schaden haben' is the colloquial idiom for being crazy/having a screw loose, a different se
+- 23713910d63e  # BAD_SENTENCE: 'Wenn der Sack kommt, wirft man den Beutel hinter die Kiste' is a nonsensical non-sequitur, not 
+- 2e69d292f724  # WRONG_UNIT: 'über die Runden kommen' is idiomatic for 'to make ends meet'; plural sense differs from the cited
+- 31f3a41d0272  # WRONG_UNIT: 'ein Band um den Kopf' (ribbon) is the neuter noun 'das Band', not the feminine 'die Band' (music 
+- 344a365f039c  # WRONG_UNIT: 'nicht mit rechten Dingen zugehen' is a fixed idiom (something fishy/not natural), a different sen
+- 3e89dec6a394  # WRONG_UNIT: 'fern' here is the separable prefix of 'sich fernhalten' (keep away), not the standalone adjective
+- 400fdd4aa39a  # BAD_SENTENCE: Sentence is a trailing-off literary fragment ('lass ...') not self-contained for a learner.
+- 4c96d567f126  # WRONG_UNIT: 'Bitte' is used as the sentence-initial politeness interjection ('please'), not an instance of the
+- 4d3fc7684fcf  # WRONG_UNIT: Sentence instantiates 'achten auf +Akk' (pay attention to), a different verb-prep unit from the pl
+- 4e149a9d9f63  # WRONG_UNIT: Bracketed 'Danke' is the interjection/verb form (danken), not the cited noun 'der Dank'.
+- 5e3733d044ce  # WRONG_UNIT: 'Ähnlich sah es die Stadtratsmehrheit' uses 'etwas ähnlich sehen' (to view sth similarly, accusati
+- 5fe759496e51  # WRONG_UNIT: 'die Bänder' (tapes) is the plural of neuter 'das Band', not the feminine 'die Band' (music group)
+- 61305ed3f1d7  # WRONG_UNIT: 'in Kontakt treten' is a fixed verb+preposition idiom (get in touch), not the plain verb treten.
+- 6139ea25afd9  # WRONG_UNIT: Sentence and gloss ('sea') and the dative adjective ending -er indicate feminine 'die See' (sea), 
+- 62014da7ba1a  # WRONG_UNIT: Bracketed 'betrügen' (to cheat/deceive) is a different lemma from the displayed unit betragen (to 
+- 6b1696d5bf0f  # WRONG_UNIT: "im Deutschen" here means the German language (das Deutsche, neuter), not a German person (der Deu
+- 6b7f3b616c8d  # WRONG_UNIT: Sentence uses reflexive 'sich (mir) etwas merken' (to remember) while the unit is displayed as the
+- 6c37fa2d78ea  # WRONG_UNIT: 'das Band, das uns verbunden hat' (bond) is the neuter noun 'das Band', not the feminine 'die Band
+- 6e17d8075756  # WRONG_UNIT: 'sich (mir) etwas anders überlegen' is the reflexive verb (to change one's mind) while the unit is
+- 6e814f8cf2be  # BAD_SENTENCE: 'Ruslan hatte am sein Handy verloren' has a dangling stray 'am', ungrammatical/scraped junk.
+- 700f92fee9c4  # BAD_SENTENCE: 'Der Wind lässt sich nicht auf Flaschen ziehn' is an obscure, poetic/archaic turn of phrase, not
+- 72fea7a120be  # WRONG_UNIT: Sentence uses reflexive 'sich (mir) etwas merken' (to remember) while the unit is displayed as the
+- 73c5a1fd1040  # WRONG_UNIT: 'fern' here is the separable prefix of 'fernsehen' (to watch TV), a distinct lexeme from the adjec
+- 758afda218c3  # WRONG_UNIT: 'einen Vortrag halten' is a fixed noun-verb collocation (give a lecture), not an instance of plain
+- 76a6d7296dff  # BAD_GLOSS: 'Da haben wir ja noch mal Schwein gehabt' is the idiom 'Schwein haben' (to get lucky); the gloss 'W
+- 78d0c434d3d6  # WRONG_UNIT: 'sich (dir) etwas anders überlegen' is the reflexive verb (to change one's mind) while the unit is
+- 7b5c170879c8  # WRONG_UNIT: 'von jemandem angetan sein' (to be taken with/impressed) is a distinct fixed sense from 'jemandem 
+- 7c85766e2b2b  # BAD_SENTENCE: "der offizielle -Account" has a dangling hyphen where a word (e.g. a platform name) was stripped
+- 82a3dede16f9  # BAD_SENTENCE: Subjectless colloquial fragment built on the 'wetten, dass' construction, not a self-contained s
+- 82c7eb1bd3ab  # BAD_SENTENCE: "Thiere" is obsolete pre-1901 spelling of "Tiere".
+- 87020ea3102b  # BAD_GLOSS: gloss 'I'll do what you told me to do' does not translate 'empfohlen' (recommended); misrepresents 
+- 8a992c7b388b  # WRONG_GAPS: Reflexive pronoun 'sich' is missing from the sentence entirely, leaving the sentence ungrammatical
+- 90ee57b0f2aa  # BAD_SENTENCE: 'Kann im Internet nachgelesen werden.' is a subjectless verb-first fragment, not a self-containe
+- 93e38467aec6  # BAD_SENTENCE: Archaic proverb with obsolete dative -e ending ('Zwecke', 'rechten ... Strecke') unsuitable for 
+- 947a24b165e9  # BAD_SENTENCE: 'des 21. Jahrhundert' is missing the required genitive -s (should be 'Jahrhunderts'); ungrammati
+- 9e5d41750073  # WRONG_UNIT: Sentence instantiates 'achten auf +Akk' (pay attention to), a different verb-prep unit from the pl
+- a1845ab4890f  # WRONG_UNIT: Sentence uses reflexive 'sich (mir) etwas merken' (to remember) while the unit is displayed as the
+- a3c75dd093ca  # WRONG_UNIT: Same issue: 'fernsehen' (watch TV) prefix bracketed under the plain adjective 'fern'.
+- a4a63a920640  # WRONG_UNIT: 'lieber' here is the comparative adverb 'rather' ("Sagen Sie lieber 'nein'"), not the adjective 'l
+- a4c4d4d80ff3  # BAD_SENTENCE: "den Mut anstrengen" is not an idiomatic German collocation; reads as an unnatural/mistranslated
+- a71e938d7054  # BAD_SENTENCE: "Lucy (Mitte) schüttet ihr Herz aus." reads as a scraped photo caption fragment, not a natural s
+- a7dcd17f350f  # WRONG_UNIT: sentence uses the fixed idiom 'Haare auf den Zähnen haben' (to be tough/feisty), a different sense
+- ac6473c22d36  # WRONG_UNIT: Sentence uses reflexive 'sich (mir) etwas merken' (to remember) while the unit is displayed as the
+- b157edaef05f  # WRONG_UNIT: "besorgt sein um" (to be worried about) is the lexicalized adjective sense, distinct from "besorge
+- b3e3990bb2f7  # BAD_GLOSS: 'einen Hals haben' is idiomatic for 'to be furious'; gloss 'has such a neck' is nonsensical English
+- b51e51008ff9  # WRONG_UNIT: Sentence instantiates 'verfügen über +Akk' (to have/possess), a different verb-prep unit from the 
+- b639b4619c91  # WRONG_UNIT: Sentence instantiates 'verfügen über +Akk' (to have/possess), a different verb-prep unit from the 
+- ba4d4e3d28d7  # BAD_SENTENCE: "Ein Produkt Liisas Einbildung" stacks two nouns without a linking preposition; needs 'ein Produ
+- bcf07271fb18  # WRONG_UNIT: Sentence instantiates 'darauf achten' (achten auf +Akk, pay attention to), a different verb-prep u
+- bedcdf9d63d3  # BAD_GLOSS: gloss 'I don't know about it either' omits ungefähr entirely, losing the idiom 'nicht ungefähr wiss
+- c242a2927f28  # BAD_SENTENCE: The gap reads lowercase 'mal' instead of the required capitalized noun 'Mal', teaching a spellin
+- c44579f54688  # BAD_SENTENCE: 'laff' is a regional dialect word (not standard German 'fade'/'lasch'), and the gloss 'tasted la
+- c48cf350c581  # WRONG_UNIT: 'einen Neuen' here is masculine 'der Neue' (a newcomer/new person), not the neuter abstract 'das N
+- c70c2d3c7314  # BAD_SENTENCE: Contains a typo 'lhre' (lowercase L) for 'Ihre'; also a garbled comma-spliced fragment.
+- d43a70ec7b55  # BAD_SENTENCE: Fragment: missing preposition and broken word order ('Juli erbitterte Kämpfe um Witebsk geführt 
+- d44326a8aa14  # WRONG_UNIT: 'sich (mir) etwas überlegen' is the reflexive verb (to think it over) while the unit is displayed 
+- d4c960a75dea  # WRONG_UNIT: 'ein blaues Auge' is the fixed idiom for a black eye/injury, a different sense from the plain colo
+- da888cc039dc  # BAD_SENTENCE: 'auf eine schwache Stunde kommen' is not idiomatic German and the gloss 'came to me for a weak h
+- dcf7c67fc76e  # WRONG_UNIT: 'sich (mir) etwas überlegen' is the reflexive verb (to think it over) while the unit is displayed 
+- e09b076e5a9e  # BAD_SENTENCE: 'Die Atmosphäre – betont harmonisch.' is a headline-style fragment with no subject-verb clause.
+- e565f1807d7d  # BAD_SENTENCE: Subjectless fragment: 'Hat ihren ersten Roman veröffentlicht.' has no subject before the finite 
+- e5c7ab309e9b  # WRONG_UNIT: 'sich Umstände machen' is idiomatic for 'to go to trouble', a different sense from the cited singu
+- e5f366aee16c  # WRONG_UNIT: Sentence instantiates 'verfügen über +Akk' (to have/possess), a different verb-prep unit from the 
+- e70d202b74e0  # BAD_SENTENCE: 'Gerüchte schweigen sich schnell rum' is not idiomatic/grammatical German; the standard collocat
+- ea40bc759f00  # BAD_SENTENCE: Uses 'was' as relative pronoun for a concrete neuter noun antecedent; standard German requires '
+- eba9b77925f0  # BAD_SENTENCE: Sentence opens with dangling demonstrative pronoun 'Die' with no antecedent, not self-contained.
+- f66ab0126ecd  # WRONG_UNIT: Sentence instantiates 'verfügen über +Akk' (to have/possess), a different verb-prep unit from the 
+- f6df35e0e0c7  # WRONG_UNIT: Dative reflexive 'mir' + 'sich etwas zuziehen' (to catch/incur) is used, but unit is displayed as 
+- f702288a6d5c  # BAD_SENTENCE: 'Emoära' is a garbled/unhyphenated compound, reads as scraped junk rather than a real German wor
+- f750fd1afe16  # WRONG_UNIT: Bracketed 'fern' is the separable prefix of 'fernsehen' (to watch TV), not the adjective 'fern' (f
+- f80c0f151839  # WRONG_UNIT: 'Bitte' is used as the sentence-initial politeness interjection ('please'), not an instance of the
+- f91a9e81a3b7  # WRONG_UNIT: Sentence instantiates 'verfügen über +Akk' (to have/possess), a different verb-prep unit from the 
+- fa1ad7713a25  # WRONG_UNIT: 'Kosten Sie diesen Wein' is the imperative of the verb kosten (to taste), not the plural noun die 

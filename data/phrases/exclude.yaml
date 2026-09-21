@@ -2355,3 +2355,71 @@
 # Review round g8: units the reviewer rejected.
 # Review round s8: units the reviewer rejected.
 # Review round g9: units the reviewer rejected.
+# Review round g2k: units the reviewer rejected.
+- "angst davor"  # NOT_A_PHRASE: Fragment of 'Angst davor haben'.
+- "arsch"  # BAD_UNIT: vulgar word
+- "besteht darin"  # BAD_UNIT: Conjugated phrase base unit should be bestehen in
+- "bin mir nicht sicher"  # NOT_A_PHRASE: fragment missing a subject
+- "brief geschrieben"  # BAD_UNIT: arbitrary phrase chunk, not a base form unit
+- "captain"  # BAD_UNIT: not a useful German phrase for A1-B2
+- "daran gedacht"  # NOT_A_PHRASE: fragment containing a participle
+- "darum gebeten"  # BAD_UNIT: unit is in past participle form instead of infinitive darum bitten
+- "darüber nachgedacht"  # NOT_A_PHRASE: fragment containing a participle
+- "deines vaters"  # BAD_UNIT: not a valid standalone phrase, just a genitive construction
+- "die wahrheit zu sagen"  # BAD_UNIT: Unit should be 'die Wahrheit sagen' without 'zu'.
+- "dringend brauchen"  # NOT_A_PHRASE: Free combination.
+- "einer halben stunde"  # BAD_UNIT: unit is in dative/genitive case, should be base form 'eine halbe Stunde'
+- "erinnere ich mich"  # NOT_A_PHRASE: Sentence fragment.
+- "gute nachricht"  # NOT_A_PHRASE: free combination or fragment missing an article
+- "hab"  # BAD_UNIT: hab is a conjugated verb form, not an adjective base form
+- "halbe stunde"  # NOT_A_PHRASE: fragment or free combination missing its article
+- "halben stunde"  # BAD_UNIT: unit is inflected; base form would be 'halbe Stunde'
+- "hast du schon einmal"  # NOT_A_PHRASE: Sentence fragment.
+- "hätte nie gedacht"  # BAD_UNIT: unit is a conjugated chunk, not a base phrase
+- "ich je gesehen habe"  # NOT_A_PHRASE: This is a grammatical fragment, not a valid phrase.
+- "im stich gelassen"  # BAD_UNIT: inflected form, unit should be infinitive 'im Stich lassen'
+- "junger mann"  # NOT_A_PHRASE: free combination of adjective and noun
+- "kannst"  # NOT_A_PHRASE: Conjugated verb form, not an adverb.
+- "kennt nicht den unterschied"  # NOT_A_PHRASE: fragment missing a subject
+- "kleines mädchen"  # NOT_A_PHRASE: free combination of adjective and noun
+- "leicht verletzen"  # NOT_A_PHRASE: Free combination of adverb and verb.
+- "magst"  # BAD_UNIT: conjugated verb is not a valid unit display
+- "mein ganzes leben"  # NOT_A_PHRASE: free combination
+- "millionen dollar"  # BAD_UNIT: not a fixed phrase, just number and currency
+- "miss"  # BAD_UNIT: English loanword/title, not a core German vocabulary word for A1-B2.
+- "passt"  # NOT_A_PHRASE: conjugated verb form rather than an adverb
+- "rechter"  # BAD_UNIT: adjective lemma should be uninflected 'recht', not 'rechter'
+- "rein kommen"  # BAD_UNIT: misspelled separable verb 'reinkommen', and kind adj_verb is incorrect
+- "richtig verstehen"  # NOT_A_PHRASE: This is a free combination of an adverb and a verb.
+- "schnell gehen"  # BAD_UNIT: adverb and verb is not a lexical phrase
+- "schnell laufen"  # BAD_UNIT: free combination of adverb and verb, not a set phrase
+- "schwer verletzen"  # NOT_A_PHRASE: free combination of adverb and verb
+- "sechs monate"  # NOT_A_PHRASE: free combination of numeral and noun
+- "sechs monaten"  # BAD_UNIT: Unit is inflected (dative plural). Should be 'sechs Monate'.
+- "seines lebens"  # BAD_UNIT: Genitive phrase not a useful base unit
+- "seines vaters"  # BAD_UNIT: just a genitive phrase, not a standalone expression
+- "stell"  # BAD_UNIT: stell is a verb form, not an adjective
+- "tage lang"  # NOT_A_PHRASE: Free combination or fragment of a phrase.
+- "tasse kaffee"  # NOT_A_PHRASE: fragment missing its article
+- "tasse tee"  # NOT_A_PHRASE: Noun phrase fragment missing article.
+- "uhr morgens"  # NOT_A_PHRASE: fragment of a time expression
+- "vor sich geht"  # NOT_A_PHRASE: Subordinate clause fragment.
+- "was ich gesagt habe"  # NOT_A_PHRASE: Subordinate clause fragment.
+- "willen"  # BAD_UNIT: willen is not a verb lemma, should be wollen
+- "wirklich denken"  # NOT_A_PHRASE: This is a free combination of an adverb and a verb.
+- "wirklich geben"  # BAD_UNIT: not a real phrase
+- "wirklich gehen"  # BAD_UNIT: 'wirklich gehen' is not a fixed phrase or useful lexical unit.
+- "wirklich glauben"  # BAD_UNIT: free combination, not a set phrase
+- "wirklich wissen"  # BAD_UNIT: not a fixed phrase
+- "wolltest"  # NOT_A_PHRASE: conjugated verb form rather than an infinitive citation form
+# Review round s2k: units the reviewer rejected.
+- "arme"  # BAD_UNIT: Wrong citation form: every sentence shows the dative plural 'den Armen' (the poor people); the subst
+- "beste freundin"  # NOT_A_PHRASE: free adjective+noun combination (best friend), not a fixed unit.
+- "desto"  # NOT_A_PHRASE: desto only occurs correlatively with je; alone it is a fragment of the two-part connector je...d
+- "frische luft"  # NOT_A_PHRASE: free adjective+noun combination (fresh air), not idiomatic on its own.
+- "guter freund"  # NOT_A_PHRASE: free adjective+noun combination (good friend), not idiomatic.
+- "guter mensch"  # NOT_A_PHRASE: free adjective+noun combination (good person), not idiomatic.
+- "kleiner junge"  # NOT_A_PHRASE: free adjective+noun combination (little boy), not idiomatic.
+- "tote"  # BAD_UNIT: Citation is feminine singular 'die Tote' but no example in this unit's set shows that specific sense
+- "union"  # BAD_UNIT: All example sentences use 'Union' as shorthand for the CDU/CSU political party (proper-noun jargon),
+- "verzichten"  # WRONG_UNIT: Every example sentence for this unit governs the preposition 'auf +Akk' ('verzichten auf', includi
