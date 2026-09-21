@@ -2293,3 +2293,10 @@
 # Review round gloss6b: units the reviewer rejected.
 # Review round gloss6c: units the reviewer rejected.
 # Review round gloss6d: units the reviewer rejected.
+# Review round words1: units the reviewer rejected.
+- "ein"  # NOT_A_PHRASE: This is the indefinite article/numeral ein mistagged as an adverb, not a genuine adverb lemma.
+- "eltern"  # BAD_UNIT: 'Eltern' is plural-only and takes the article 'die', not 'das'; affects all six cards for this unit.
+- "leute"  # BAD_UNIT: Leute is plural-only and takes 'die', not 'das'; the unit display carries the wrong article.
+- "muss"  # NOT_A_PHRASE: muss is a conjugated form of muessen mistagged as an adverb, not a citation-form word.
+- "okay"  # BAD_UNIT: The noun sense of Okay (the go-ahead) is neuter, 'das Okay', not 'der Okay'; as given the unit has w
+- "wussten"  # BAD_UNIT: Unit display 'wussten' is a plural preterite form, but every example in this unit uses the singular 

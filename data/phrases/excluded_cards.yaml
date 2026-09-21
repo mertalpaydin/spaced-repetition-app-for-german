@@ -4231,3 +4231,83 @@
 # Review round gloss6d.
 - 7f6c67bf9ea3  # WRONG_UNIT: 'hohe Geschwindigkeiten fahren' is the object, not the prepositional phrase 'mit hoher Geschwindig
 - dc483b3c6e46  # WRONG_UNIT: The sentence has the noun phrase 'natürlicher Tod' without 'sterben'.
+# Review round words1.
+- 01fd3f32e326  # BAD_SENTENCE: 'Kackhaltung' is crude, nonsensical junk rather than a natural, usable German sentence.
+- 03412f12963e  # WRONG_UNIT: 'jemanden am Arm festhalten' is the separable verb festhalten (hold onto), not a standalone use of
+- 0716babb2193  # BAD_GLOSS: Gloss is the placeholder '(no gloss yet)', not an English translation of the sentence.
+- 0bf602776a3d  # WRONG_UNIT: 'Ihm ging die Uhr verloren' uses the separate verb 'verlorengehen' (finite verb is 'ging'), not 'v
+- 1029977dd57b  # BAD_SENTENCE: Es passt ihm wie dem Hund die Wurst is not a real German idiom or natural sentence; it reads as 
+- 1a6a67636599  # WRONG_UNIT: Sentence tests reflexive 'sich befinden' (to be located) but 'sich' is not bracketed and unit is f
+- 1d2ad3f75305  # WRONG_UNIT: 'etwas fertigbringen' (to manage to do something) is a fixed idiom; 'fertig' here does not carry t
+- 1d6f9973ae5e  # BAD_GLOSS: 'Du hast echt einen Schaden' colloquially means 'you're really messed up/crazy', not the literal 'y
+- 20dbe99178ad  # WRONG_UNIT: Sentence tests reflexive 'sich kuemmern um' (to take care of) but 'mich' is not bracketed and unit
+- 26571d555b9b  # WRONG_UNIT: Same reflexive-unit mismatch: 'sich' unbracketed while the tested meaning is 'sich befinden'.
+- 2c481d7031e5  # WRONG_UNIT: 'Satz' here means a musical movement, diverging from the 'sentence' sense taught by the other five
+- 2ca00251b440  # BAD_SENTENCE: The fixed idiom is bekannt wie ein bunter Hund; substituting roter Hund breaks the expression an
+- 2f43b4017540  # BAD_GLOSS: 'blau' colloquially means drunk in this context; translating it literally as 'blue' misleads about 
+- 33ecca31d7e1  # BAD_SENTENCE: Archaic, poetic inverted word order ('der Erde Gott') lifted out of a literary quotation without
+- 3aec24937d93  # BAD_GLOSS: Er hat gesessen, weil er gestanden hat relies on slang double meanings (sitzen = do prison time, ge
+- 3ccbbca98e89  # WRONG_UNIT: 'sich festhalten' is the separable verb festhalten (hold on), not a standalone use of the adjectiv
+- 3f50a412cc8c  # BAD_SENTENCE: Contains a derogatory slur (Schlampe), unsuitable for a learner card.
+- 3f558ce1745b  # BAD_SENTENCE: Wir schlagen ihnen die Köpfe ab depicts graphic beheading violence, which is inappropriate conte
+- 418c9c4512e0  # WRONG_UNIT: Same reflexive-unit mismatch: 'sich' unbracketed while the tested meaning is 'sich befinden'.
+- 43db236726b8  # BAD_GLOSS: Es war ein Schlag ins Wasser is an idiom meaning a total washout, but the gloss translates it liter
+- 45fa99d605b9  # BAD_SENTENCE: 'eine undenkbare Arbeit' is an unnatural collocation; undenkbar does not normally modify Arbeit 
+- 467187f1620e  # WRONG_UNIT: 'rein' in 'Ich lasse sie nicht rein' is the colloquial particle for 'herein' (in), not the adjecti
+- 4ab39e5e652c  # WRONG_UNIT: gestanden here is the participle of gestehen (confess), not stehen; the sentence conflates the two
+- 4c1a58fdeeb5  # WRONG_UNIT: Same reflexive-unit mismatch: 'uns' unbracketed while the tested meaning is 'sich kuemmern um'.
+- 52cac7f5bc95  # WRONG_UNIT: Same reflexive-unit mismatch: 'sich' unbracketed while the tested meaning is 'sich befinden'.
+- 536686dac4b2  # BAD_GLOSS: 'Das war ein bisschen mager als Plan' means 'that was a bit meager as a plan', not 'meager than a p
+- 5b19d3adc414  # WRONG_UNIT: In 'Es tut mir leid' the lowercase 'leid' is a fixed predicative element of 'leidtun', not an inst
+- 5c37cf649303  # BAD_GLOSS: Gloss is missing ('no gloss yet').
+- 63addf2ffc52  # BAD_GLOSS: 'mit hundert Sachen fahren' idiomatically means driving at 100 km/h; the gloss 'drove with a hundre
+- 646f392d2522  # WRONG_UNIT: 'dass der Wein dir gefallen wird' uses the verb 'gefallen' (to please), a different verb from 'fal
+- 66745a84fe7f  # BAD_GLOSS: Gloss is the placeholder '(no gloss yet)', not an English translation of the sentence.
+- 6acd1fa63f17  # BAD_SENTENCE: 'haben weit heim' is a dialectal/regional construction, unnatural for a general learner sentence
+- 6adb095727da  # WRONG_UNIT: The sentence uses the separable verb fortfahren (to continue), a different verb from fahren; the g
+- 6b5caa81979b  # WRONG_UNIT: 'Sorge dafür' is the imperative of the verb sorgen (to make sure), not the noun die Sorge.
+- 6b94de53e944  # BAD_SENTENCE: Sentence is a literary quote fragment with a trailing ellipsis ('lass ...'), not self-contained.
+- 6d261c255cb2  # WRONG_UNIT: 'nicht klarkommen mit' is the separable verb klarkommen; bracketed 'klar' is a verb prefix, not th
+- 70e989f80535  # WRONG_UNIT: 'sich verlassen auf' (to rely on) is a distinct reflexive verb from 'verlassen' (to leave), a diff
+- 714564df0fcc  # BAD_GLOSS: Literal word-for-word gloss ('howling misery') does not convey the idiom's meaning of feeling miser
+- 7700c29d368c  # WRONG_UNIT: Same reflexive-unit mismatch: 'sich' unbracketed while the tested meaning is 'sich kuemmern um'.
+- 77327c41ca02  # BAD_SENTENCE: Archaic proverb-like construction, unnatural for a learner-facing sentence.
+- 77bba73e5354  # WRONG_UNIT: gehört here is the participle of hören (to hear) in 'Ich habe gehört...', not a form of gehören.
+- 79c6eb6aa41b  # BAD_SENTENCE: Sentence lacks a subject ('kriegt was gebacken' with no 'man'), and the gloss mistranslates the 
+- 7a9442fcfc93  # BAD_SENTENCE: kennen cannot take a dass-clause complement; the sentence is ungrammatical (wissen is needed for
+- 7dd53fe2bd46  # WRONG_UNIT: Same idiom 'etwas fertigbringen' (to manage to); 'fertig' does not instantiate the plain adjective
+- 830ff1d69c5c  # WRONG_UNIT: Bracketed 'recht' is the idiom 'recht haben' (to be right), not the noun 'das Recht' (law/justice)
+- 84a887402ced  # BAD_SENTENCE: Depicts domestic violence ('he hit her out of anger'), tonally inappropriate for a learner card.
+- 8f35686d0479  # WRONG_UNIT: 'sich hinlegen' (to lie down) is a distinct separable reflexive verb from legen (to lay/put); only
+- 907d25cd7d65  # BAD_SENTENCE: Subject 'BsF' is a meaningless/garbled token, not a real name or word, leaving the sentence with
+- 930f814f1f9a  # BAD_SENTENCE: Archaic literary genitive construction 'ob deiner schnellen Antwort' is not natural A1-B2 German
+- 94c7a4e99924  # BAD_GLOSS: Gloss 'cannot guess' is a wrong translation of geraten (to turn out/succeed); does not translate th
+- 97cf26f18c02  # BAD_GLOSS: Sentence has lowercase ihr (her) but gloss says your ticket, which requires capitalized Ihr for for
+- 9a0172379b4e  # WRONG_UNIT: 'auflegen' (to hang up the phone) is a distinct separable verb from legen; only the root is bracke
+- 9a6b52ab103f  # WRONG_UNIT: 'Teilen Sie ... mit' is the separable verb mitteilen (to inform), not the noun der Teil.
+- 9adb2191b0be  # WRONG_UNIT: 'in vollen Zuegen genieszen' uses Zug in an idiomatic sense unrelated to the trained 'train' meani
+- 9b832db555bc  # BAD_SENTENCE: 'Er wünscht euch nicht zusehen' is ungrammatical; wünschen does not take dative plus bare infini
+- 9ff8354a630c  # WRONG_UNIT: Same reflexive-unit mismatch: 'sich' unbracketed while the tested meaning is 'sich kuemmern um'.
+- a00d170ed375  # BAD_SENTENCE: Er bessert sich wie ein junger Wolf is not a recognized German expression and reads as unnatural
+- a3b34507a41e  # BAD_SENTENCE: 'Weißafrika' is a dated, racialized geographic term unsuitable for learner content.
+- a612c1cc572c  # BAD_SENTENCE: Wasser used as a count plural (kleinen Wasser) for bodies of water is archaic and unnatural for 
+- aecbdaca9b58  # WRONG_UNIT: Same reflexive-unit mismatch: 'sich' unbracketed while the tested meaning is 'sich befinden'.
+- b02f19a5318e  # BAD_GLOSS: Gloss is the placeholder '(no gloss yet)', not an English translation of the sentence.
+- be0ed7bbda05  # WRONG_UNIT: Same reflexive-unit mismatch: 'sich' unbracketed while the tested meaning is 'sich befinden'.
+- c0806e7fb907  # BAD_SENTENCE: Garbled idiom: the fixed expression is 'bekannt wie ein bunter Hund' (colorful dog); 'roter Hund
+- c46d3e3dcebd  # BAD_GLOSS: Gloss is the placeholder '(no gloss yet)', not an English translation of the sentence.
+- ca360d96846a  # BAD_SENTENCE: 'Allen zusammengesetzten Ding' is a case-agreement error; dative plural 'allen' requires 'Dingen
+- cd21b6b6fd88  # WRONG_UNIT: 'jemanden festhalten' (here negated) is the separable verb festhalten (hold/detain), not a standal
+- cf21903375c7  # BAD_GLOSS: Gloss 'One does not sleep oneself, taught.' is garbled and not a real English translation.
+- d0819717b4a7  # BAD_SENTENCE: 'Fon' is an obscure alternate spelling of 'Foehn' (hair dryer) that a learner will misread as an
+- d3b68a89af92  # BAD_SENTENCE: 'Das erfaehrt man neu ueber ihn' is stilted, unnatural word order for a learner sentence.
+- e1928ea5a9a2  # WRONG_UNIT: Same reflexive-unit mismatch: 'sich' unbracketed while the tested meaning is 'sich kuemmern um'.
+- e47387acc0a1  # BAD_GLOSS: Gloss is missing ('no gloss yet').
+- e9ecc9401899  # BAD_SENTENCE: Sentence names a specific real controversial political party (AfD) with a partisan opinion, inap
+- ee638a9c3bf4  # BAD_GLOSS: Gloss is the placeholder '(no gloss yet)', not an English translation of the sentence.
+- f0bac819ce8e  # WRONG_UNIT: 'feststehen' is a separable verb (to be certain/decided); the bracketed token is not the adjective
+- f3ab297a0f8e  # BAD_SENTENCE: Vulgar sexual content ('Tom jerks off'), inappropriate for the deck.
+- f3fbb7a009c4  # BAD_GLOSS: Gloss drops 'ziemlich' entirely ('I don't care' vs 'I really/pretty much don't care'), giving no cl
+- facfe5a0e365  # WRONG_UNIT: Same reflexive-unit mismatch: 'sich' unbracketed while the tested meaning is 'sich kuemmern um'.
+- fc2e1e26bdd3  # BAD_GLOSS: Gloss is missing ('no gloss yet').
+- fc9fc0a7ce82  # BAD_SENTENCE: 'Dutzende sterben in Londoner Zugunfall' is telegraphic headline style, missing an article, not 
