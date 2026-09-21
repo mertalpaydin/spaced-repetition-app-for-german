@@ -156,7 +156,11 @@ function loadCard() {
   answered = false;
   $("feedback").hidden = true;
   $("btn-next").hidden = true;
-  ["btn-check", "btn-reveal", "btn-known", "btn-defer"].forEach((id) => { $(id).hidden = false; });
+  // "Kannte ich schon" belongs after the answer, not before it: offered
+  // beforehand it asks the learner to judge a unit they have not been shown
+  // (owner, 2026-09-21).
+  $("btn-known").hidden = true;
+  ["btn-check", "btn-reveal", "btn-defer"].forEach((id) => { $(id).hidden = false; });
   renderToday();
   const t = now();
   let unit = nextUnit(deck, state, engine, settings, t, { overLimit, choose: pickAny });
@@ -228,7 +232,8 @@ async function check(reveal = false) {
     `<div class="unit">${escapeHtml(u.display)}` +
     (u.gloss ? ` <span class="muted">= ${escapeHtml(u.gloss)}</span>` : "") + `</div>`;
   fb.hidden = false;
-  ["btn-check", "btn-reveal", "btn-known", "btn-defer"].forEach((id) => { $(id).hidden = true; });
+  ["btn-check", "btn-reveal", "btn-defer"].forEach((id) => { $(id).hidden = true; });
+  $("btn-known").hidden = false;
   $("btn-next").hidden = false;
   $("btn-next").focus();
   renderToday();
