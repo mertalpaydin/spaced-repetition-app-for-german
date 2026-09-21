@@ -1,4 +1,4 @@
-# Project state, 11 September 2026
+# Project state, 21 September 2026
 
 Written for the next person to work on this repository. It says what the
 project is, what is built, what is not, and what will trip you up.
@@ -10,19 +10,25 @@ in `TODO.md`, by phase.
 
 ## What this is
 
-A personal, German-only phrase spaced-repetition trainer. The learner reads a
-real German sentence with the tokens of one phrase blanked, sees the sentence's
-English translation, and types the missing tokens. FSRS schedules phrase units;
-units are introduced most-frequent first, trivial function words are skipped,
-and a one-time triage lets the learner mark phrases already known.
+A personal, German-only vocabulary spaced-repetition trainer. The learner reads
+a real German sentence with the tokens of one unit blanked, sees the sentence's
+English translation, and types the missing tokens. FSRS schedules the units;
+they are introduced most-frequent first, trivial function words are skipped,
+and a one-time triage lets the learner mark units already known.
 
-A phrase unit is a verb with its preposition (`warten auf`), a reflexive verb
-(`sich interessieren für`), a separable verb (`aufstehen`), a noun-verb or
-adjective-noun collocation (`eine Entscheidung treffen`), a connector including
-two-part ones (`trotzdem`, `zwar … aber`), or a fixed expression
-(`auf jeden Fall`). A unit may be discontinuous in the sentence and is taught
-across its surface forms, never as one fixed string. Sentence-initial connectors
-get a generated preceding sentence so the connector has something to connect.
+A unit is a **single word** (a noun cited with its gender, a verb, an adjective,
+an adverb) or a **phrase**: a verb with its preposition (`warten auf`), a
+reflexive verb (`sich interessieren für`), a separable verb (`aufstehen`), a
+noun-verb, adjective-verb or adjective-noun collocation (`eine Entscheidung
+treffen`, `ernst nehmen`), a connector including two-part ones (`trotzdem`,
+`zwar … aber`), a curated idiom, or a mined fixed expression (`auf jeden Fall`).
+A unit may be discontinuous in the sentence and is taught across its surface
+forms, never as one fixed string. Sentence-initial connectors get a generated
+preceding sentence so the connector has something to connect.
+
+Until 2026-09-20 the deck taught phrases only. Single words were out of scope
+by an assumption nobody had checked with the owner, and the check against his
+own Lingvist list is what surfaced it; see the entry for that date below.
 
 ## Where it came from
 
@@ -70,18 +76,17 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
 - **Frequency and CEFR.** `src/lexicon/` with the OpenSubtitles 50k list and
   a 16,825-lemma CEFR list.
 - **The gloss store and its top-up.** `data/fixtures/translations/de_en.jsonl`
-  holds 258,806 records: 199,837 Tatoeba (never shown), 58,709 Azure, 260
-  Gemini. `scripts/monthly_translation_topup.py` spends Azure's free 2,000,000
+  holds 289,397 records, of which only the Azure and Gemini ones may be shown. `scripts/monthly_translation_topup.py` spends Azure's free 2,000,000
   characters a month and now takes `--carriers-file` so the deck can steer it.
 - **The LLM client** with cost log, cache and the two-lane policy, unchanged.
   `client_from_env` moved to `src/llm/env.py`.
 - **The FSRS wrapper** (`src/engine/fsrs.py`, over the `fsrs` package) and the
   typo grader, kept for phase 2.
-- **675 tests pass.** `ruff`, `ruff format --check` and
+- **892 tests pass.** `ruff`, `ruff format --check` and
   `mypy --strict src/ scripts/` are clean. Coverage on `src/` is 87%.
 
 - **The deck build, phase 1.** `scripts/build_phrase_deck.py` parses both
-  corpora once (about 10 minutes), mines every phrase kind, ranks units by
+  corpora once (about 80 minutes over the six corpora), mines every kind, ranks units by
   distinct sentence count, picks glossed cards covering distinct surface
   forms, and exports `data/deck/` with a content-hashed `deck_version`.
   `docs/phrase-deck.md` is the runbook; `data/phrases/build/report.json` is
@@ -226,6 +231,49 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   phrases are taught, median rank 190, and 46 of 55 matched units sit in the
   first 500. One structural gap found, adjective + verb collocations
   (`ernst nehmen`, `bereit machen`), recorded in `docs/audits/lingvist-coverage.md`.
+- **Single words became units, 2026-09-20.** The Lingvist check above also
+  showed the real gap: 897 single nouns and adjectives and 391 single verbs on
+  the owner's own list were classed "out of scope", 452 of them reachable only
+  inside a collocation. The owner's verdict was that this was never the intent.
+  Four word kinds were added (noun with its gender, verb, adjective, adverb),
+  adjective + verb collocations are mined, a noun-verb collocation now yields
+  three units (`Frage`, `stellen`, `eine Frage stellen`), and `adj_noun` was cut
+  from 1,549 to the 236 genuinely set phrases because its parts now stand on
+  their own. **Words and phrases are interleaved by quota**, six to four, each
+  group in its own frequency order: a word is always at least as frequent as any
+  phrase containing it, so one ranking would have put two thousand words ahead
+  of almost every phrase. A single word occurs in millions of sentences, so its
+  carriers are bounded to the glossed ones and capped per corpus, and its
+  frequency for the ranking comes from a separate full-corpus count instead.
+  This needed the full re-parse (80 minutes, not the 10 the runbook claimed).
+- **Fixed expressions are mined, 2026-09-21.** `scripts/count_ngrams.py` counts
+  surface n-grams over all four million sentences in two minutes (no parsing),
+  and `--stage expressions` selects from them by the weakest seam (minimum split
+  PMI), then matches the chosen 600 over the glossed sentences alone in two and
+  a half minutes. Three gates do what the measure cannot: dictionary words only
+  (the PMI ranking's head is proper names), a minimum everyday share (or the
+  head is Leipzig news boilerplate), and two content words for a pair. 316 units
+  at ranks 49 to 8,314. An expression's occurrence tally counts carriers, not
+  frequency, so each occurrence carries the whole-corpus count and its everyday
+  half; without that `tut mir leid` ranked 2,717 instead of 49.
+- **Deck format, 2026-09-21 (rule 8).** The exported units carry six kind values
+  phase 2 has not seen: `noun`, `verb`, `adjective`, `adverb`, `adj_verb`,
+  `expression`. They are additive and every consumer switches on kind with a
+  default, but the deck version changed with them.
+- **The ranks 1-1000 review, 2026-09-21.** Gemini (`gemini-3.1-pro-high`) and
+  Sonnet each read all 1,974 cards and 345 units at ranks 1 to 1000 that no
+  earlier round had seen: 295 card findings and 81 unit findings. Four mining
+  rules came out of it and removed 495 units, against 30 excluded by hand.
+  A noun the corpus never puts behind an article is a capitalised imperative
+  (`die Hör` 0 of 16, `das Gib` 0 of 21, against 0.31 for the thinnest real
+  noun). A verb used reflexively at least half the time is taught as the
+  reflexive unit, a rule `verb_prep` had and the new plain verb kind did not.
+  A conjugated form is not a modifier, and the test now runs after the
+  adjective/adverb split so `wert` survives it. And a modifier the corpus uses
+  three times more often as a verb is a mislabelled infinitive (`wissen` as an
+  adverb on 152 uses against 37,413).
+  **The deck is reviewed to rank 1000 only.** Below that it is unread; see
+  `TODO.md`.
 
 ## What is not built
 
@@ -242,7 +290,7 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
    48 MB operational store built a bit at a time against a free monthly
    allowance, gitignored, existing only on the owner's machine. Never delete
    it, never commit it.
-2. **Only 59k of the 259k stored glosses may reach a learner.** Cards need an
+2. **Only a third of the stored glosses may reach a learner.** Cards need an
    Azure or Gemini gloss. Coverage grows about 33,000 sentences a month; the
    deck build tells the monthly job which sentences to gloss first.
 3. **Set `GEMINI_FREE_API_KEY` from an unbilled project.** The client falls

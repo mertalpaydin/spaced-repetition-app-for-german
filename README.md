@@ -19,10 +19,12 @@ A word list teaches `warten`. German is also spoken in `warten auf + Akk`,
 `zwar … aber`, `auf jeden Fall`. Both are vocabulary, so the deck mines both
 and ranks them together.
 
-| | Kinds |
-|---|---|
-| **Words** | noun (with its gender), verb, adjective, adverb |
-| **Phrases** | verb + preposition, reflexive verb, separable verb, noun + verb, adjective + verb, adjective + noun, connector, two-part connector, fixed expression |
+| | Kinds | Units |
+|---|---|---:|
+| **Words** | noun (with its gender), verb, adjective, adverb | 9,200 |
+| **Phrases** | verb + preposition, reflexive verb, separable verb, noun + verb, adjective + verb, adjective + noun, connector, two-part connector, idiom, fixed expression | 7,716 |
+
+16,916 units and 78,539 cards in the deck as it stands.
 
 A phrase is taught in every surface form the corpus uses: `wartet auf`,
 `wartete auf`, `warte … auf`, `gewartet auf`. It may be split across the
@@ -66,6 +68,16 @@ set phrase with a verb. Units are ranked by how many distinct sentences use
 them, with everyday corpora weighted up so that `jedoch` does not outrank
 `nicht mehr`.
 
+**A fixed expression has no grammar to find it by.** `auf jeden Fall`,
+`tut mir leid`, `soweit ich weiß` are held together by usage, so they are
+mined from surface n-grams counted over the whole corpus instead, scored by
+the weakest seam (the lowest mutual information over every way of cutting the
+sequence in two). That measure alone ranks proper names highest, so a
+candidate must also be built of dictionary words, must earn a share of its
+count from everyday speech rather than the news wire, and grows to the longest
+span the corpus never leaves bare (`erster Linie` becomes `in erster Linie`,
+763 of its 766 uses).
+
 **A single word needs bounding.** It occurs in millions of sentences, so the
 detector emits only from sentences that already carry a trusted translation,
 because no other sentence could become a card anyway, and at most a dozen per
@@ -79,10 +91,13 @@ translation (Azure Translator or Gemini) become cards; the corpus's own crowd
 translations are never shown. A sentence-initial connector (`Trotzdem …`) gets
 a one-sentence context so the connector is answerable.
 
-**Two reviewers read every card.** The deck is reviewed sentence by sentence
-by two independent model reviewers under a zero-defect policy, and every
-systematic finding becomes a mining rule with a test. New cards from a rebuild
-go through the same review before they are committed.
+**Two reviewers read the cards, from the top down.** Every card and unit is
+read by two independent model reviewers under a zero-defect policy, and every
+systematic finding becomes a mining rule with a test rather than an exclusion:
+the last round turned 376 findings into four rules that removed 495 units,
+against 30 excluded by hand. The deck is 16,916 units, far more than a year of
+learning, so the review walks down the ranking in steps and is complete to
+rank 1000; the tail below that is read before the learner reaches it.
 
 **The page is the whole product.** `web/` is plain ES modules with no build
 step and no npm dependency. The FSRS-6 scheduler, the grader, the session
