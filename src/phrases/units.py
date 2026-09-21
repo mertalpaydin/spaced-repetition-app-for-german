@@ -148,6 +148,10 @@ class Thresholds:
     #: A noun shown in the singular this rarely is plural-only, so its
     #: citation form takes "die" whatever the tagger called the gender.
     plural_only_share: float = 0.1
+    #: A mined expression needs this many glossed sentences to sit on. Its
+    #: corpus frequency was already weighed when it was chosen; this is only
+    #: the carrier test, and 3 is what select_cards needs to fill a unit.
+    expression_min_carriers: int = 3
 
 
 @dataclass
@@ -178,6 +182,12 @@ class UnitStats:
     #: Noun units only: the gender the corpus shows, for the article in the
     #: citation form ("die Frage"). The gap stays the noun alone.
     gender_tally: Counter[str] = field(default_factory=Counter)
+    #: Expression units only: how much of the whole-corpus count came from
+    #: the everyday corpora, carried in from the n-gram pass.
+    evidence_everyday: int = 0
+    #: Expression units only: the casing the corpus uses away from the start
+    #: of a sentence, which is the only place a capital means anything.
+    medial_surfaces: Counter[str] = field(default_factory=Counter)
     #: Noun units only: singular against plural, because a plural-only noun
     #: ("die Eltern", "die Leute") has no singular gender to cite.
     number_tally: Counter[str] = field(default_factory=Counter)
@@ -809,6 +819,17 @@ def aggregate(
         if occ.kind == "adj_noun" and len(occ.parts) == 2:
             if occ.form_key.startswith("Nom|"):
                 entry.nominative_surfaces[_nominative_phrase(occ)] += 1
+        if occ.kind == "expression":
+            # An expression is only matched over the glossed sentences, so
+            # its occurrence tally counts carriers, not frequency. The
+            # expression stage writes the whole-corpus count it was chosen
+            # on onto each occurrence, and that is what the ranking uses.
+            entry.corpus_count = max(entry.corpus_count, int(occ.evidence.get("corpus_count", 0)))
+            entry.evidence_everyday = max(
+                entry.evidence_everyday, int(occ.evidence.get("corpus_everyday", 0))
+            )
+            if not occ.sentence_initial:
+                entry.medial_surfaces[" ".join(occ.surfaces)] += 1
         if occ.kind == "noun":
             gender = occ.evidence.get("gender", "")
             if gender:
@@ -1189,6 +1210,19 @@ class UnitBuilder:
             return _Decision(False, "lift")
         return _Decision(True, cefr=self._cefr_for(verb), score=g2)
 
+    def _decide_expression(self, s: UnitStats) -> _Decision:
+        """A mined fixed expression.
+
+        Every threshold it has to meet was already applied when the
+        expression stage chose it from the n-gram counts over the whole
+        corpus: score, register, dictionary, and not duplicating a unit that
+        exists. What is left here is the carrier test every kind shares, a
+        sentence the deck can actually build a card from.
+        """
+        if len(s.sentences) < self.t.expression_min_carriers:
+            return _Decision(False, "carriers")
+        return _Decision(True, score=float(s.count))
+
     def _decide_curated(self, s: UnitStats) -> _Decision:
         if s.kind in {"connector", "two_part_connector"}:
             spec = self.connectors.get(s.key)
@@ -1242,12 +1276,26 @@ class UnitBuilder:
                 adj, _, noun = s.surface_tally.most_common(1)[0][0].partition(" ")
                 return f"{adj[:1].lower()}{adj[1:]} {noun}"
             return " ".join(parts)
+        if s.kind == "expression":
+            # The key is lowercase, because the n-grams were counted that
+            # way, and German capitalises its nouns: "art und weise" has to
+            # be cited as "Art und Weise". The casing comes from the corpus,
+            # counted over the carriers where the expression is not
+            # sentence-initial, since there the capital says only that a
+            # sentence began.
+            tally = s.medial_surfaces or s.surface_tally
+            if tally:
+                return tally.most_common(1)[0][0]
+            return s.key
         return s.key
 
     def _apply_corpus_counts(self, stats: dict[tuple[str, str], UnitStats]) -> None:
         """Single-word frequency comes from the counts file, which saw every
         sentence, not from the occurrence tally, which is capped."""
         for (kind, key), s in stats.items():
+            if kind == "expression":
+                self._spread_expression_count(s)
+                continue
             if kind not in WORD_KINDS:
                 continue
             by_source = self.counts.word_by_source.get(f"{kind}:{key}")
@@ -1257,6 +1305,31 @@ class UnitBuilder:
             else:
                 role = self.counts.role_counts(kind) if hasattr(self.counts, "role_counts") else {}
                 s.corpus_count = role.get(key, 0)
+
+    def _spread_expression_count(self, s: UnitStats) -> None:
+        """Give an expression a per-corpus count the ranking can weigh.
+
+        The n-gram pass counted each expression over the whole corpus and
+        over the everyday corpora, which is the split the ranking weight
+        actually turns on. Inside each register the count is spread in
+        proportion to the corpora's sizes, the neutral assumption, because
+        the pass did not record which of the four news and web corpora a
+        run came from.
+        """
+        totals = self.counts.sentences_by_source
+        if not totals or not s.corpus_count:
+            return
+        everyday = min(int(s.evidence_everyday), s.corpus_count)
+        for register, amount in (
+            (EVERYDAY_SOURCES, everyday),
+            (frozenset(totals) - EVERYDAY_SOURCES, s.corpus_count - everyday),
+        ):
+            sentences = sum(totals[src] for src in register if totals.get(src))
+            if not sentences or amount <= 0:
+                continue
+            for src in register:
+                if totals.get(src):
+                    s.corpus_count_by_source[src] = round(amount * totals[src] / sentences)
 
     def _trivial(self, s: UnitStats, decision: _Decision) -> tuple[bool, str | None]:
         if decision.trivial:
@@ -1404,6 +1477,8 @@ class UnitBuilder:
                 decision = self._decide_adj_verb(s)
             elif s.kind in {"noun_verb", "adj_noun"}:
                 decision = self._decide_collocation(s)
+            elif s.kind == "expression":
+                decision = self._decide_expression(s)
             else:
                 decision = self._decide_curated(s)
             if not decision.accept:

@@ -188,7 +188,20 @@ def detect_idioms(
     *,
     source: str,
     line_id: str,
+    kind: str = "idiom",
+    parts_from_tokens: bool = False,
 ) -> list[Occurrence]:
+    """Match a curated pattern against the sentence.
+
+    ``kind`` is a parameter because a mined fixed expression is matched
+    exactly like a curated idiom, by surface, in order, with a gap budget.
+    Only its provenance differs, and that is what the kind records.
+
+    ``parts_from_tokens`` records the surfaces the sentence used instead of
+    the key. A curated idiom carries a written citation form; a mined
+    expression has only its lowercase key, so the corpus has to supply the
+    casing, or the deck would cite "auf jeden fall".
+    """
     found: list[Occurrence] = []
     for spec in specs:
         first = spec.pattern[0]
@@ -211,9 +224,9 @@ def detect_idioms(
                 continue
             found.append(
                 make_occurrence(
-                    kind="idiom",
+                    kind=kind,
                     unit_key=spec.key,
-                    parts=[spec.key],
+                    parts=[t.text for t in matched] if parts_from_tokens else [spec.key],
                     tokens=matched,
                     sentence=sentence,
                     corpus_source=source,

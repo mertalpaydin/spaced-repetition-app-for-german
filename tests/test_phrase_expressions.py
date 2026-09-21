@@ -94,18 +94,40 @@ def test_count_ngrams_stops_at_punctuation_and_outside_the_vocabulary() -> None:
     from scripts.count_ngrams import count_ngrams
 
     vocabulary = frozenset({"auf", "jeden", "fall", "ich", "komme", "und", "gehe"})
-    ngrams, surfaces = count_ngrams(
+    counts = count_ngrams(
         ["Auf jeden Fall, ich komme.", "Auf jeden Fall!", "Ich komme und gehe."],
         vocabulary,
         log=None,
     )
-    assert ngrams["auf jeden fall"] == 2
-    assert surfaces["auf"] == 2
+    assert counts.ngrams["auf jeden fall"] == 2
+    assert counts.surfaces["auf"] == 2
     # the comma ends the run, so no n-gram spans it
-    assert "fall ich" not in ngrams
+    assert "fall ich" not in counts.ngrams
     # a word outside the vocabulary ends the run as punctuation does
-    ngrams2, _ = count_ngrams(["auf jeden Xylophon fall"], vocabulary, log=None)
-    assert "jeden fall" not in ngrams2
+    assert (
+        "jeden fall" not in count_ngrams(["auf jeden Xylophon fall"], vocabulary, log=None).ngrams
+    )
+
+
+def test_count_ngrams_counts_the_everyday_corpora_separately() -> None:
+    """The register gate needs to know how much of a count came from speech
+    rather than from the news wire."""
+    from scripts.count_ngrams import count_ngrams
+
+    vocabulary = frozenset({"auf", "jeden", "fall", "laut", "angaben"})
+    counts = count_ngrams(
+        [
+            ("tatoeba", "Auf jeden Fall."),
+            ("opensubtitles_2018", "Auf jeden Fall!"),
+            ("leipzig_news", "Auf jeden Fall."),
+            ("leipzig_news", "Laut Angaben."),
+        ],
+        vocabulary,
+        log=None,
+    )
+    assert counts.ngrams["auf jeden fall"] == 3
+    assert counts.everyday["auf jeden fall"] == 2
+    assert counts.everyday["laut angaben"] == 0
 
 
 def test_count_ngrams_folds_the_eszett_like_the_vocabulary_does() -> None:
@@ -114,6 +136,89 @@ def test_count_ngrams_folds_the_eszett_like_the_vocabulary_does() -> None:
     from scripts.count_ngrams import count_ngrams
 
     vocabulary = frozenset({"soweit", "ich", "weiss", "zu", "fuss"})
-    ngrams, surfaces = count_ngrams(["Soweit ich weiß.", "Soweit ich weiß!"], vocabulary, log=None)
-    assert ngrams["soweit ich weiss"] == 2
-    assert surfaces["weiss"] == 2
+    counts = count_ngrams(["Soweit ich weiß.", "Soweit ich weiß!"], vocabulary, log=None)
+    assert counts.ngrams["soweit ich weiss"] == 2
+    assert counts.surfaces["weiss"] == 2
+
+
+# -- the gates -----------------------------------------------------------------
+
+
+def test_extend_to_longest_grows_a_span_the_corpus_never_leaves_bare() -> None:
+    """ "erster Linie" scores well and "in erster Linie" does not, because "in"
+    is too common for the seam to look surprising. The counts settle it: the
+    preposition is there 99% of the time (owner, 2026-09-21)."""
+    from src.phrases.mining.expressions import extend_to_longest
+
+    ngrams = Counter({"erster linie": 766, "in erster linie": 763, "linie stehen": 40})
+    grown = extend_to_longest([Expression(text="erster linie", count=766, score=9.0)], ngrams)
+    assert [e.text for e in grown] == ["in erster linie"]
+    assert grown[0].count == 763
+
+
+def test_extend_to_longest_leaves_a_span_with_several_frames_alone() -> None:
+    """ "Krankenhaus gebracht" follows "ins", "in ein" and more, so no single
+    extension speaks for it."""
+    from src.phrases.mining.expressions import extend_to_longest
+
+    ngrams = Counter({"krankenhaus gebracht": 1088, "ins krankenhaus gebracht": 503})
+    grown = extend_to_longest(
+        [Expression(text="krankenhaus gebracht", count=1088, score=7.0)], ngrams
+    )
+    assert [e.text for e in grown] == ["krankenhaus gebracht"]
+
+
+def test_everyday_share_separates_speech_from_the_news_wire() -> None:
+    from src.phrases.mining.expressions import everyday_share
+
+    ngrams = Counter({"auf jeden fall": 100, "angaben zufolge": 100})
+    everyday = Counter({"auf jeden fall": 80})
+    assert everyday_share("auf jeden fall", ngrams, everyday) == 0.8
+    assert everyday_share("angaben zufolge", ngrams, everyday) == 0.0
+    assert everyday_share("nie gezaehlt", ngrams, everyday) == 0.0
+
+
+def test_choose_expressions_drops_names_and_news_boilerplate() -> None:
+    """The two gates no measure stands in for: a proper name scores highest
+    of all on PMI, and news boilerplate is real German a learner does not
+    need first."""
+    from src.phrases.mining.expressions import choose_expressions
+
+    surfaces = Counter({"auf": 5000, "jeden": 400, "fall": 600, "buenos": 90, "aires": 95})
+    ngrams = Counter(
+        {"auf jeden": 380, "jeden fall": 390, "auf jeden fall": 370, "buenos aires": 86}
+    )
+    everyday = Counter({"auf jeden fall": 300, "buenos aires": 80})
+    dictionary = frozenset({"auf", "jeden", "fall"})
+    chosen = choose_expressions(
+        ngrams,
+        surfaces,
+        everyday,
+        sentences=100_000,
+        dictionary=dictionary,
+        min_everyday_share=0.05,
+    )
+    assert [e.text for e in chosen] == ["auf jeden fall"]
+    denied = choose_expressions(
+        ngrams,
+        surfaces,
+        everyday,
+        sentences=100_000,
+        dictionary=dictionary,
+        deny=["auf jeden fall"],
+    )
+    assert denied == []
+
+
+def test_a_two_word_candidate_needs_two_content_words() -> None:
+    """At a low score floor the pairs are otherwise conjugation frames.
+    Three words and up keep the one-content-word rule, or "zum ersten Mal"
+    would go with them."""
+    from src.phrases.mining.expressions import _carries_vocabulary
+
+    assert _carries_vocabulary(["jeden", "tag"])
+    assert not _carries_vocabulary(["habt", "ihr"])
+    assert not _carries_vocabulary(["mein", "vater"])
+    assert _carries_vocabulary(["zum", "ersten", "mal"])
+    assert _carries_vocabulary(["soweit", "ich", "weiss"])
+    assert not _carries_vocabulary(["in", "der", "das"])

@@ -4,6 +4,9 @@ Stages, each idempotent over ``data/phrases/build/``:
 
     parse     read both corpora, parse once, write every phrase occurrence
     mine      aggregate occurrences into ranked units (thresholds, report)
+    expressions  choose fixed expressions from the n-gram counts (written by
+              scripts/count_ngrams.py) and match them over the glossed
+              sentences; run it between two mines, then mine again
     cards     pick glossed sentences per unit; list what to gloss next
     contexts  OPT-IN model stage: a preceding sentence for sentence-initial
               connectors (free lane, needs approval)
@@ -31,9 +34,10 @@ from src.phrases import cards as cards_module
 from src.phrases import carrier_validation
 from src.phrases import contexts as contexts_module
 from src.phrases import unit_glosses as glosses_module
-from src.phrases.curated import DEFAULT_PHRASES_DIR, load_curated
+from src.phrases.curated import DEFAULT_PHRASES_DIR, IdiomElement, IdiomSpec, load_curated
 from src.phrases.export import DEFAULT_DECK_DIR, check_deck, export_deck, write_schema
-from src.phrases.mining import NGRAM_VOCAB_SIZE, LemmaCounts, WordGate, detect_all
+from src.phrases.mining import NGRAM_VOCAB_SIZE, LemmaCounts, WordGate, detect_all, detect_idioms
+from src.phrases.mining import expressions as expressions_module
 from src.phrases.occurrences import Occurrence, read_occurrences, write_occurrences
 from src.phrases.parse import parse_many, parser_available
 from src.phrases.units import (
@@ -68,7 +72,16 @@ DEFAULT_EXTRA_CORPORA: tuple[tuple[str, str], ...] = (
 )
 DEFAULT_LIMIT = 2_000_000
 DEFAULT_SEED = 7
-STAGES = ("parse", "mine", "cards", "contexts", "unit-glosses", "export", "all")
+STAGES = (
+    "parse",
+    "mine",
+    "expressions",
+    "cards",
+    "contexts",
+    "unit-glosses",
+    "export",
+    "all",
+)
 
 
 def _log(message: str) -> None:
@@ -233,6 +246,25 @@ def _write_models(path: Path, models: Iterable[PhraseUnit | PhraseCard]) -> None
     write_text_atomic(path, "".join(m.model_dump_json() + "\n" for m in models))
 
 
+def _occurrence_files(build_dir: Path) -> list[Path]:
+    """The parse stage's occurrences, plus the expression stage's if it ran.
+
+    Expressions are matched over the glossed sentences alone, in a pass of
+    their own that takes minutes rather than hours, so they land in a second
+    file instead of being merged into the 2.5 GiB one.
+    """
+    paths = [build_dir / "occurrences.jsonl"]
+    extra = build_dir / "expression_occurrences.jsonl"
+    if extra.exists():
+        paths.append(extra)
+    return paths
+
+
+def _read_all_occurrences(build_dir: Path) -> Iterable[Occurrence]:
+    for path in _occurrence_files(build_dir):
+        yield from read_occurrences(path)
+
+
 def stage_mine(args: argparse.Namespace) -> int:
     build_dir: Path = args.build_dir
     occurrences_path = build_dir / "occurrences.jsonl"
@@ -243,13 +275,157 @@ def stage_mine(args: argparse.Namespace) -> int:
         json.loads((build_dir / "lemma_counts.json").read_text(encoding="utf-8"))
     )
     builder = UnitBuilder(counts, load_curated(args.phrases_dir), Thresholds())
-    units = builder.build(read_occurrences(occurrences_path))
+    units = builder.build(_read_all_occurrences(build_dir))
     _write_models(build_dir / "units.jsonl", units)
     write_text_atomic(
         build_dir / "report.json", json.dumps(builder.report, indent=2, ensure_ascii=False)
     )
     _log(f"mine: {len(units):,} units; kinds {builder.report['kinds']}")
     _log(f"mine: rejected {builder.report['rejected']}")
+    return 0
+
+
+# -- expressions ---------------------------------------------------------------
+
+
+#: The n-gram measure alone ranks proper names highest and fixed expressions
+#: below them, so the selection is gated (dictionary, register) rather than
+#: cut off at a score. These are the bars those gates use; see
+#: ``src.phrases.mining.expressions``.
+EXPRESSION_MIN_SCORE = 4.5
+EXPRESSION_MIN_EVERYDAY = 0.15
+#: How many candidates become units. The tail below this is real German but
+#: thin evidence, and every unit costs a review.
+EXPRESSION_LIMIT = 600
+
+
+def _with_corpus_count(
+    occurrences: Iterable[Occurrence], counts: dict[str, tuple[int, int]]
+) -> Iterable[Occurrence]:
+    """Carry each expression's whole-corpus counts on its occurrences.
+
+    The match runs over the glossed sentences alone, so the occurrence tally
+    counts carriers. The ranking needs the frequency the n-gram pass
+    measured over all four million sentences, and the everyday share of it,
+    which is what the register weight turns on. This is where the two meet.
+    """
+    for occ in occurrences:
+        measured = counts.get(occ.unit_key)
+        if measured is None:
+            yield occ
+            continue
+        total, everyday = measured
+        yield occ.model_copy(
+            update={
+                "evidence": {
+                    **occ.evidence,
+                    "corpus_count": str(total),
+                    "corpus_everyday": str(everyday),
+                }
+            }
+        )
+
+
+def stage_expressions(args: argparse.Namespace) -> int:
+    """Choose fixed expressions from the n-gram counts and match them.
+
+    Runs between mine and a second mine: the first tells it which units
+    already exist, so an expression never duplicates one. Matching parses
+    only the sentences that carry a trusted gloss, which is minutes rather
+    than the parse stage's hours, because no other sentence could become a
+    card anyway.
+    """
+    if not parser_available():
+        _log("spaCy model de_core_news_sm is not installed; run `uv sync`.")
+        return 1
+    build_dir: Path = args.build_dir
+    counts_path = build_dir / "ngram_counts.json"
+    if not counts_path.exists():
+        _log("expressions: no ngram_counts.json; run scripts/count_ngrams.py first")
+        return 1
+    payload = json.loads(counts_path.read_text(encoding="utf-8"))
+    units_path = build_dir / "units.jsonl"
+    # Expression units from an earlier run of this stage are not "already
+    # exists": counting them would make the stage pick a different, rarer
+    # set every time it ran.
+    known = (
+        [u.lemma_key for u in _read_units(units_path) if u.kind != "expression"]
+        if units_path.exists()
+        else []
+    )
+    dictionary = carrier_validation._load_dictionary() or frozenset()  # noqa: SLF001
+    curated = load_curated(args.phrases_dir)
+    chosen = expressions_module.choose_expressions(
+        Counter(payload["ngrams"]),
+        Counter(payload["surfaces"]),
+        Counter(payload.get("everyday", {})),
+        sentences=payload["sentences"],
+        dictionary=dictionary,
+        known_keys=known,
+        min_score=args.expression_min_score,
+        min_everyday_share=args.expression_min_everyday,
+        deny=[entry.key for entry in curated.idioms],
+    )
+    chosen.sort(key=lambda e: (-e.count, e.text))
+    chosen = chosen[: args.expression_limit]
+    write_text_atomic(
+        build_dir / "expressions.json",
+        json.dumps(
+            [{"text": e.text, "count": e.count, "score": round(e.score, 3)} for e in chosen],
+            ensure_ascii=False,
+            indent=1,
+        ),
+    )
+    _log(f"expressions: {len(chosen):,} chosen of the candidates that pass every gate")
+
+    specs = [
+        IdiomSpec(key=e.text, pattern=[IdiomElement(surface=token) for token in e.tokens])
+        for e in chosen
+    ]
+    everyday_counts = Counter(payload.get("everyday", {}))
+    corpus_counts = {e.text: (e.count, everyday_counts[e.text]) for e in chosen}
+    store = _load_store(args.store)
+    trusted = cards_module.TRUSTED_GLOSS_SOURCES
+    glossed = {german for german, record in store.items() if record.source in trusted}
+    lines = read_corpora(
+        args.tatoeba,
+        args.leipzig,
+        limit=args.limit,
+        seed=args.seed,
+        extra=[(name, default_corpus_path(file)) for name, file in DEFAULT_EXTRA_CORPORA],
+    )
+    carriers = sorted(
+        (line for line in lines.values() if line.text in glossed),
+        key=lambda line: (line.source, line.line_id),
+    )
+    _log(f"expressions: matching over {len(carriers):,} glossed sentences")
+    started = time.monotonic()
+    total = 0
+
+    def generate() -> Iterable[Occurrence]:
+        nonlocal total
+        for index, (line, parsed) in enumerate(
+            zip(carriers, parse_many(entry.text for entry in carriers), strict=True), start=1
+        ):
+            for occ in _with_corpus_count(
+                detect_idioms(
+                    parsed,
+                    specs,
+                    source=line.source,
+                    line_id=line.line_id,
+                    kind="expression",
+                    parts_from_tokens=True,
+                ),
+                corpus_counts,
+            ):
+                total += 1
+                yield occ
+            if index % 20_000 == 0:
+                _log(f"  {index:,} sentences, {total:,} occurrences")
+
+    write_occurrences(build_dir / "expression_occurrences.jsonl", generate())
+    minutes = (time.monotonic() - started) / 60
+    _log(f"expressions: {total:,} occurrences in {minutes:.1f} min")
     return 0
 
 
@@ -267,7 +443,7 @@ def stage_cards(args: argparse.Namespace) -> int:
     by_unit: dict[str, list[Occurrence]] = defaultdict(list)
     dictionary = carrier_validation._load_dictionary()  # noqa: SLF001
     infinitives = VocabularyStore.load(DEFAULT_VOCAB_PATH).vocab
-    for raw in read_occurrences(build_dir / "occurrences.jsonl"):
+    for raw in _read_all_occurrences(build_dir):
         occ = canonical_occurrence(raw, dictionary, infinitives)
         if occ is None:
             continue
@@ -494,6 +670,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--unit-glosses", type=Path, default=glosses_module.DEFAULT_UNIT_GLOSSES_PATH
     )
+    parser.add_argument("--expression-min-score", type=float, default=EXPRESSION_MIN_SCORE)
+    parser.add_argument("--expression-min-everyday", type=float, default=EXPRESSION_MIN_EVERYDAY)
+    parser.add_argument("--expression-limit", type=int, default=EXPRESSION_LIMIT)
     parser.add_argument("--generate-unit-glosses", action="store_true")
     parser.add_argument(
         "--free-lane-only",
@@ -519,6 +698,7 @@ def main(argv: list[str] | None = None) -> int:
     runners = {
         "parse": stage_parse,
         "mine": stage_mine,
+        "expressions": stage_expressions,
         "cards": stage_cards,
         "contexts": stage_contexts,
         "unit-glosses": stage_unit_glosses,
