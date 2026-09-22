@@ -30,8 +30,17 @@ export function newUnitsStartedToday(state, now) {
   return Object.values(state.firstReview).filter((ts) => dayOf(ts) === day).length;
 }
 
+// What the day's budget has actually been charged for. Not the same as
+// reviewsToday: the first retry of a unit mid step is left out, because
+// finishing a step is not new work, so the two differ by the number of
+// lapses (owner, 2026-09-22). Matches budget_spent_today in session.py.
+export function budgetSpentToday(state, now) {
+  const day = dayOf(now);
+  return (state.budgetReviewTimes || []).filter((ts) => dayOf(ts) === day).length;
+}
+
 export function budgetLeft(state, settings, now) {
-  return Math.max(settings.cardsPerDay - reviewsToday(state, now), 0);
+  return Math.max(settings.cardsPerDay - budgetSpentToday(state, now), 0);
 }
 
 export function dueUnits(deck, state, engine, now, horizonMs) {

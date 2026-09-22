@@ -20,9 +20,12 @@ from src.engine.review_log import ReviewLog, derive_state, entry_key, merge_entr
 from src.engine.session import (
     Deck,
     Settings,
+    budget_left,
+    budget_spent_today,
     eligible_pending_units,
     next_unit,
     pick_card,
+    reviews_today,
     session_start,
     showable_cards,
 )
@@ -714,3 +717,26 @@ def test_only_the_first_retry_is_free_of_the_days_budget() -> None:
     state = derive_state(entries, engine)
     assert len(state.review_times) == 3
     assert len(state.budget_review_times) == 2  # the second retry is not
+
+
+def test_the_budget_and_the_statistics_count_a_retry_differently() -> None:
+    """The learner did the work, so the statistics count it; the budget does
+    not charge for the first retry, so it cannot strand them mid step. The
+    two numbers differ by the number of lapses (owner, 2026-09-22)."""
+    engine = FSRSEngine()
+    settings = Settings(cards_per_day=40)
+    entries = [
+        _review(1, T0, "vp:warten_auf", "again"),
+        _review(2, T0 + timedelta(seconds=30), "vp:warten_auf", "again"),
+    ]
+    state = derive_state(entries, engine)
+    assert reviews_today(state, T0) == 2
+    assert budget_spent_today(state, T0) == 1
+    assert budget_left(state, settings, T0) == 39
+
+    # keep failing and the budget starts charging again
+    entries.append(_review(3, T0 + timedelta(seconds=60), "vp:warten_auf", "again"))
+    state = derive_state(entries, engine)
+    assert reviews_today(state, T0) == 3
+    assert budget_spent_today(state, T0) == 2
+    assert budget_left(state, settings, T0) == 38

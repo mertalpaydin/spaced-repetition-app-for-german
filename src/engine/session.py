@@ -91,8 +91,20 @@ def reviews_today(state: LearnerState, now: datetime) -> int:
     return sum(1 for ts in state.review_times if ts.astimezone(UTC).date() == day)
 
 
+def budget_spent_today(state: LearnerState, now: datetime) -> int:
+    """What the day's budget has actually been charged for.
+
+    Not the same as ``reviews_today``: the first retry of a unit mid step is
+    left out, because finishing a step is not new work. The statistics keep
+    counting every answer, so the two numbers differ by the number of lapses
+    (owner, 2026-09-22).
+    """
+    day = now.astimezone(UTC).date()
+    return sum(1 for ts in state.budget_review_times if ts.astimezone(UTC).date() == day)
+
+
 def budget_left(state: LearnerState, settings: Settings, now: datetime) -> int:
-    return max(settings.cards_per_day - reviews_today(state, now), 0)
+    return max(settings.cards_per_day - budget_spent_today(state, now), 0)
 
 
 def due_units(

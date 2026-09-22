@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
 import { deriveState, entryKey, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
-import { DEFAULT_SETTINGS, computeStats, eligiblePendingUnits, nextUnit, pickCard, sessionStart, unitsByStage } from "../../web/lib/session.js";
+import { DEFAULT_SETTINGS, budgetLeft, budgetSpentToday, computeStats, eligiblePendingUnits, nextUnit, pickCard, reviewsToday, sessionStart, unitsByStage } from "../../web/lib/session.js";
 
 const T0 = "2026-09-01T08:00:00Z";
 const unit = (unit_id, rank, display_de, extra = {}) => ({ unit_id, kind: "verb_prep", display_de, rank, trivial: false, gloss_en: null, also_accepted: [], ...extra });
@@ -187,4 +187,20 @@ test("with nothing else to show, the pending unit comes back at once", () => {
   const soon = "2026-09-01T08:01:00Z";
   assert.equal(nextUnit(d, state, engine, tight, soon).unit_id, "vp:warten_auf");
   assert.ok(new Date(soon).getTime() < new Date(state.records["vp:warten_auf"].due).getTime());
+});
+
+test("the budget and the statistics count a retry differently", () => {
+  const engine = createEngine();
+  const settings = { ...DEFAULT_SETTINGS, cardsPerDay: 40 };
+  const entries = [rev(1, T0, "vp:warten_auf", "again"), rev(2, "2026-09-01T08:00:30Z", "vp:warten_auf", "again")];
+  let state = deriveState(entries, engine);
+  assert.equal(reviewsToday(state, T0), 2);
+  assert.equal(budgetSpentToday(state, T0), 1);
+  assert.equal(budgetLeft(state, settings, T0), 39);
+
+  entries.push(rev(3, "2026-09-01T08:01:00Z", "vp:warten_auf", "again"));
+  state = deriveState(entries, engine);
+  assert.equal(reviewsToday(state, T0), 3);
+  assert.equal(budgetSpentToday(state, T0), 2);
+  assert.equal(budgetLeft(state, settings, T0), 38);
 });
