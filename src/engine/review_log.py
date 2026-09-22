@@ -162,8 +162,17 @@ class LearnerState:
     ratings: dict[str, list[str]] = field(default_factory=dict)
     #: When each unit was first reviewed, so "new today" can be counted.
     first_review: dict[str, datetime] = field(default_factory=dict)
-    #: Every review's time, for the day's exercise budget.
+    #: Every review's time, for the statistics.
     review_times: list[datetime] = field(default_factory=list)
+    #: The times that spend the day's exercise budget. The first retry of a
+    #: unit that is mid learning step is left out: finishing a step is not new
+    #: work. Every retry after that is back in, so a unit the learner keeps
+    #: failing drains the budget and stops new units being introduced
+    #: (owner, 2026-09-22).
+    budget_review_times: list[datetime] = field(default_factory=list)
+    #: Reviews since each unit entered learning or relearning, cleared when it
+    #: graduates. Only the exemption above reads it.
+    retries_pending: dict[str, int] = field(default_factory=dict)
     #: The unit of the last review, so the scheduler does not repeat it.
     last_unit: str | None = None
 
@@ -185,11 +194,33 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
                 state.known.discard(entry.unit_id)
                 state.known_source.pop(entry.unit_id, None)
             continue
-        record = state.records.get(entry.unit_id) or FSRSRecord(card_id=entry.unit_id, due=entry.ts)
+        before = state.records.get(entry.unit_id)
+        record = before or FSRSRecord(card_id=entry.unit_id, due=entry.ts)
         state.records[entry.unit_id] = engine.schedule_review(record, entry.rating, now=entry.ts)
         state.last_card[entry.unit_id] = entry.card_id
         state.ratings.setdefault(entry.unit_id, []).append(entry.rating)
         state.first_review.setdefault(entry.unit_id, entry.ts)
         state.review_times.append(entry.ts)
+        if _spends_budget(state, entry.unit_id, before):
+            state.budget_review_times.append(entry.ts)
+        if state.records[entry.unit_id].state == "review":
+            state.retries_pending.pop(entry.unit_id, None)
         state.last_unit = entry.unit_id
     return state
+
+
+def _spends_budget(state: LearnerState, unit_id: str, before: FSRSRecord | None) -> bool:
+    """Whether this review counts against the day's budget.
+
+    A unit's first review and the one that lapses it both count: that is new
+    work. The first retry while it is mid step does not, because the learner
+    is finishing what they started and the budget should not strand them.
+    Every retry after that counts again, so failing the same unit over and
+    over drains the budget instead of introducing more units on top of it.
+    """
+    if before is None or before.state == "review":
+        state.retries_pending[unit_id] = 0
+        return True
+    retries = state.retries_pending.get(unit_id, 0)
+    state.retries_pending[unit_id] = retries + 1
+    return retries > 0

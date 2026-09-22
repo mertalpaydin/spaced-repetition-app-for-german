@@ -36,6 +36,14 @@ class Settings:
     new_pool: int = 50
     learn_ahead: timedelta = timedelta(minutes=20)
     retention: float = 0.9
+    #: How many other reviews go by before a unit the learner got wrong comes
+    #: back. It replaces the ten-minute learning step as the thing that spaces
+    #: a retry, so the clock stops deciding what the session shows
+    #: (owner, 2026-09-22).
+    relearn_spacing: int = 3
+    #: Inactivity that ends a sitting. Only used to waive the spacing above
+    #: for a unit still pending from an earlier one.
+    session_gap: timedelta = timedelta(minutes=60)
 
 
 @dataclass
@@ -101,6 +109,55 @@ def due_units(
         due.append((engine.get_retrievability(record, now), unit.rank, unit))
     due.sort(key=lambda item: (item[0], item[1]))
     return [unit for _, _, unit in due]
+
+
+def session_start(review_times: Sequence[datetime], now: datetime, gap: timedelta) -> datetime:
+    """When the current sitting began: walk the reviews back while the gaps
+    between them stay under ``gap``.
+
+    Derived from the timestamps the log already carries, so no entry type and
+    no field is added for it (CLAUDE.md 8). With no reviews, or none recent
+    enough, the sitting starts now.
+    """
+    start = now
+    for ts in reversed(review_times):
+        if start - ts > gap:
+            break
+        start = ts
+    return start
+
+
+def eligible_pending_units(
+    deck: Deck,
+    state: LearnerState,
+    engine: FSRSEngine,
+    settings: Settings,
+    now: datetime,
+) -> list[PhraseUnit]:
+    """Units mid learning or relearning step that may be shown again now.
+
+    Their FSRS ``due`` is ten minutes out, and waiting for it is what let the
+    day's budget strand a unit the learner had just failed (owner, 2026-09-22).
+    Eligibility is spacing instead of the clock: the unit comes back once
+    ``relearn_spacing`` other reviews have gone by. A unit left pending from an
+    earlier sitting skips the wait, since the reviews that would have spaced it
+    happened before the break.
+    """
+    by_id = deck.by_id
+    started = session_start(state.review_times, now, settings.session_gap)
+    out: list[tuple[float, int, PhraseUnit]] = []
+    for unit_id, record in state.records.items():
+        unit = by_id.get(unit_id)
+        if unit is None or unit_id in state.known or record.state == "review":
+            continue
+        last = record.last_review
+        if last is not None and last >= started:
+            since = sum(1 for ts in state.review_times if ts > last)
+            if since < settings.relearn_spacing:
+                continue
+        out.append((engine.get_retrievability(record, now), unit.rank, unit))
+    out.sort(key=lambda item: (item[0], item[1]))
+    return [unit for _, _, unit in out]
 
 
 def _not_last(units: list[PhraseUnit], last: str | None) -> list[PhraseUnit]:

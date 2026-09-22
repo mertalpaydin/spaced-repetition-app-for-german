@@ -5,7 +5,8 @@ import { entriesSinceReset } from "./log.js";
 // newPool: a new unit is drawn at random from the next N by rank rather
 // than always the very next one (feedback 2026-09-19). Matches
 // src/engine/session.py Settings.
-export const DEFAULT_SETTINGS = { cardsPerDay: 40, newPerDay: null, learnAheadMinutes: 20, retention: 0.9, newPool: 50 };
+export const DEFAULT_SETTINGS = { cardsPerDay: 40, newPerDay: null, learnAheadMinutes: 20, retention: 0.9, newPool: 50,
+  relearnSpacing: 3, sessionGapMinutes: 60 };
 
 const dayOf = (iso) => new Date(iso).toISOString().slice(0, 10);
 
@@ -43,6 +44,44 @@ export function dueUnits(deck, state, engine, now, horizonMs) {
   }
   due.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   return due.map((d) => d[2]);
+}
+
+// When the current sitting began: walk the reviews back while the gaps
+// between them stay under the session gap. Matches session_start in
+// src/engine/session.py.
+export function sessionStart(reviewTimes, now, gapMs) {
+  let start = new Date(now).getTime();
+  for (let i = reviewTimes.length - 1; i >= 0; i -= 1) {
+    const ts = new Date(reviewTimes[i]).getTime();
+    if (start - ts > gapMs) break;
+    start = ts;
+  }
+  return start;
+}
+
+// Units mid learning or relearning step that may be shown again now. Their
+// FSRS due is ten minutes out, and waiting for it is what let the day's
+// budget strand a unit the learner had just failed (owner, 2026-09-22):
+// eligibility is spacing instead of the clock. A unit left pending from an
+// earlier sitting skips the wait. Matches eligible_pending_units in
+// src/engine/session.py.
+export function eligiblePendingUnits(deck, state, engine, settings, now) {
+  const gapMs = (settings.sessionGapMinutes ?? 60) * 60000;
+  const spacing = settings.relearnSpacing ?? 3;
+  const started = sessionStart(state.reviewTimes, now, gapMs);
+  const out = [];
+  for (const [unitId, record] of Object.entries(state.records)) {
+    const unit = deck.byId[unitId];
+    if (!unit || state.known.has(unitId) || record.state === "review") continue;
+    const last = record.last_review ? new Date(record.last_review).getTime() : null;
+    if (last !== null && last >= started) {
+      const since = state.reviewTimes.filter((ts) => new Date(ts).getTime() > last).length;
+      if (since < spacing) continue;
+    }
+    out.push([engine.retrievability(record, now), unit.rank, unit]);
+  }
+  out.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  return out.map((d) => d[2]);
 }
 
 function notLast(units, last) {

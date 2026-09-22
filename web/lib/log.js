@@ -48,8 +48,21 @@ export function toJsonl(entries) {
 function freshState() {
   return {
     records: {}, known: new Set(), knownSource: {}, triaged: new Set(), lastCard: {}, ratings: {},
-    firstReview: {}, reviewTimes: [], lastUnit: null,
+    firstReview: {}, reviewTimes: [], budgetReviewTimes: [], retriesPending: {}, lastUnit: null,
   };
+}
+
+// Whether a review counts against the day's budget. A unit's first review
+// and the one that lapses it both count: that is new work. The first retry
+// while it is mid step does not, so the budget cannot strand a learner in the
+// middle of relearning. Every retry after that counts again, so failing the
+// same unit over and over drains the budget instead of piling new units on
+// top of it (owner, 2026-09-22). Matches _spends_budget in review_log.py.
+function spendsBudget(state, unitId, before) {
+  if (!before || before.state === "review") { state.retriesPending[unitId] = 0; return true; }
+  const retries = state.retriesPending[unitId] || 0;
+  state.retriesPending[unitId] = retries + 1;
+  return retries > 0;
 }
 
 export function deriveState(entries, engine) {
@@ -63,12 +76,15 @@ export function deriveState(entries, engine) {
       else { state.known.delete(e.unit_id); delete state.knownSource[e.unit_id]; }
       continue;
     }
-    const record = state.records[e.unit_id] || newRecord(e.unit_id, e.ts);
+    const before = state.records[e.unit_id];
+    const record = before || newRecord(e.unit_id, e.ts);
     state.records[e.unit_id] = engine.schedule(record, e.rating, e.ts);
     state.lastCard[e.unit_id] = e.card_id;
     (state.ratings[e.unit_id] ||= []).push(e.rating);
     if (!(e.unit_id in state.firstReview)) state.firstReview[e.unit_id] = e.ts;
     state.reviewTimes.push(e.ts);
+    if (spendsBudget(state, e.unit_id, before)) state.budgetReviewTimes.push(e.ts);
+    if (state.records[e.unit_id].state === "review") delete state.retriesPending[e.unit_id];
     state.lastUnit = e.unit_id;
   }
   return state;

@@ -17,7 +17,15 @@ from src.contracts import (
 from src.engine.fsrs import FSRSEngine
 from src.engine.grading import grade_card, render_marked, render_with_gaps
 from src.engine.review_log import ReviewLog, derive_state, entry_key, merge_entries, read_entries
-from src.engine.session import Deck, Settings, next_unit, pick_card, showable_cards
+from src.engine.session import (
+    Deck,
+    Settings,
+    eligible_pending_units,
+    next_unit,
+    pick_card,
+    session_start,
+    showable_cards,
+)
 from src.engine.stats import compute_stats
 
 T0 = datetime(2026, 9, 10, 8, 0, tzinfo=UTC)
@@ -592,3 +600,93 @@ def test_a_new_unit_is_drawn_from_the_next_pool_by_rank() -> None:
     # the pool bounds the choice: with a pool of one only the next by rank
     tight = Settings(new_pool=1)
     assert next_unit(deck, state, engine, tight, T0, choose=lambda n: 1).unit_id == "vp:warten_auf"
+
+
+# -- sessions instead of minutes (owner, 2026-09-22) ---------------------------
+
+
+def _review(seq: int, ts: datetime, unit_id: str, rating: str) -> ReviewEntry:
+    return ReviewEntry(
+        seq=seq,
+        ts=ts,
+        unit_id=unit_id,
+        card_id=f"{unit_id[:1]}{seq:011d}",
+        rating=rating,  # type: ignore[arg-type]
+        outcome="exact" if rating != "again" else "wrong",
+        answers=["x"],
+        expected=["x"],
+        elapsed_ms=1,
+        deck_version="t",
+    )
+
+
+def test_session_start_walks_back_while_the_gaps_are_small() -> None:
+    """The sitting is derived from the timestamps the log already has, so
+    nothing is added to the log format for it."""
+    gap = timedelta(minutes=60)
+    assert session_start([], T0, gap) == T0
+
+    recent = [T0 - timedelta(minutes=30), T0 - timedelta(minutes=20), T0 - timedelta(minutes=5)]
+    assert session_start(recent, T0, gap) == recent[0]
+
+    # a long pause ends the sitting: only what follows it counts
+    split = [T0 - timedelta(hours=5), *recent]
+    assert session_start(split, T0, gap) == recent[0]
+
+    # nothing recent at all: the sitting starts now
+    assert session_start([T0 - timedelta(hours=9)], T0, gap) == T0
+
+
+def test_a_pending_unit_waits_for_other_cards_not_for_the_clock() -> None:
+    """A unit the learner got wrong used to wait ten minutes. It now waits
+    for `relearn_spacing` other reviews, so the clock stops deciding what the
+    session shows (owner, 2026-09-22)."""
+    deck = _deck()
+    engine = FSRSEngine()
+    settings = Settings(relearn_spacing=3)
+    entries = [_review(1, T0, "vp:warten_auf", "again")]
+    state = derive_state(entries, engine)
+    soon = T0 + timedelta(seconds=30)
+    assert state.records["vp:warten_auf"].state != "review"
+    # nothing else has been answered yet, so it is not offered back at once
+    assert [u.unit_id for u in eligible_pending_units(deck, state, engine, settings, soon)] == []
+
+    for i, unit_id in enumerate(("cn:trotzdem", "sv:aufstehen", "cn:trotzdem"), start=2):
+        entries.append(_review(i, T0 + timedelta(seconds=i * 10), unit_id, "good"))
+    state = derive_state(entries, engine)
+    later = T0 + timedelta(minutes=1)
+    pending = [u.unit_id for u in eligible_pending_units(deck, state, engine, settings, later)]
+    assert "vp:warten_auf" in pending  # three other reviews have gone by
+    assert later < state.records["vp:warten_auf"].due  # and its due time has not
+
+
+def test_a_unit_pending_from_an_earlier_sitting_skips_the_spacing() -> None:
+    """The reviews that would have spaced it happened before the break."""
+    deck = _deck()
+    engine = FSRSEngine()
+    settings = Settings(relearn_spacing=3)
+    state = derive_state([_review(1, T0, "vp:warten_auf", "again")], engine)
+    tomorrow = T0 + timedelta(days=1)
+    pending = [u.unit_id for u in eligible_pending_units(deck, state, engine, settings, tomorrow)]
+    assert pending == ["vp:warten_auf"]
+
+
+def test_only_the_first_retry_is_free_of_the_days_budget() -> None:
+    """Finishing a step is not new work, so the budget cannot strand a
+    learner mid relearning. Failing the same unit again and again does spend
+    it, so new units stop being introduced while they struggle
+    (owner, 2026-09-22)."""
+    engine = FSRSEngine()
+    entries = [_review(1, T0, "vp:warten_auf", "again")]  # the lapse itself counts
+    state = derive_state(entries, engine)
+    assert len(state.budget_review_times) == 1
+
+    entries.append(_review(2, T0 + timedelta(seconds=30), "vp:warten_auf", "again"))
+    state = derive_state(entries, engine)
+    assert len(state.review_times) == 2  # the statistics count every answer
+    assert len(state.budget_review_times) == 1  # the first retry is free
+
+    entries.append(_review(3, T0 + timedelta(seconds=60), "vp:warten_auf", "again"))
+    state = derive_state(entries, engine)
+    assert len(state.review_times) == 3
+    assert len(state.budget_review_times) == 2  # the second retry is not

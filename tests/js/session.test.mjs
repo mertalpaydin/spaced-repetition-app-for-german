@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
 import { deriveState, entryKey, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
-import { DEFAULT_SETTINGS, computeStats, nextUnit, pickCard, unitsByStage } from "../../web/lib/session.js";
+import { DEFAULT_SETTINGS, computeStats, eligiblePendingUnits, nextUnit, pickCard, sessionStart, unitsByStage } from "../../web/lib/session.js";
 
 const T0 = "2026-09-01T08:00:00Z";
 const unit = (unit_id, rank, display_de, extra = {}) => ({ unit_id, kind: "verb_prep", display_de, rank, trivial: false, gloss_en: null, also_accepted: [], ...extra });
@@ -102,4 +102,65 @@ test("a reset puts the counters back to zero", () => {
   assert.equal(after.reviews_today, 0);
   assert.equal(after.streak_days, 0);
   assert.equal(after.retention_30d, null);
+});
+
+// -- sessions instead of minutes (owner, 2026-09-22) --------------------------
+
+const rev = (seq, ts, unit_id, rating) => ({
+  type: "review", seq, ts, unit_id, card_id: "c1", rating,
+  outcome: rating === "again" ? "wrong" : "exact",
+  answers: ["x"], expected: ["x"], elapsed_ms: 1, deck_version: "t",
+});
+
+test("sessionStart walks back while the gaps are small", () => {
+  const gap = 60 * 60000;
+  assert.equal(sessionStart([], T0, gap), new Date(T0).getTime());
+  const recent = ["2026-09-01T07:30:00Z", "2026-09-01T07:40:00Z", "2026-09-01T07:55:00Z"];
+  assert.equal(sessionStart(recent, T0, gap), new Date(recent[0]).getTime());
+  // a long pause ends the sitting
+  assert.equal(sessionStart(["2026-09-01T03:00:00Z", ...recent], T0, gap), new Date(recent[0]).getTime());
+  assert.equal(sessionStart(["2026-08-31T23:00:00Z"], T0, gap), new Date(T0).getTime());
+});
+
+test("a pending unit waits for other cards, not for the clock", () => {
+  const d = deck(); const engine = createEngine();
+  const settings = { ...DEFAULT_SETTINGS, relearnSpacing: 3 };
+  const entries = [rev(1, T0, "vp:warten_auf", "again")];
+  let state = deriveState(entries, engine);
+  const soon = "2026-09-01T08:00:30Z";
+  assert.notEqual(state.records["vp:warten_auf"].state, "review");
+  assert.deepEqual(eligiblePendingUnits(d, state, engine, settings, soon).map((u) => u.unit_id), []);
+
+  entries.push(rev(2, "2026-09-01T08:00:20Z", "cn:trotzdem", "good"));
+  entries.push(rev(3, "2026-09-01T08:00:30Z", "cn:trotzdem", "good"));
+  entries.push(rev(4, "2026-09-01T08:00:40Z", "cn:trotzdem", "good"));
+  state = deriveState(entries, engine);
+  const later = "2026-09-01T08:01:00Z";
+  assert.deepEqual(eligiblePendingUnits(d, state, engine, settings, later).map((u) => u.unit_id), ["vp:warten_auf"]);
+  assert.ok(new Date(later).getTime() < new Date(state.records["vp:warten_auf"].due).getTime());
+});
+
+test("a unit pending from an earlier sitting skips the spacing", () => {
+  const d = deck(); const engine = createEngine();
+  const settings = { ...DEFAULT_SETTINGS, relearnSpacing: 3 };
+  const state = deriveState([rev(1, T0, "vp:warten_auf", "again")], engine);
+  const tomorrow = "2026-09-02T08:00:00Z";
+  assert.deepEqual(eligiblePendingUnits(d, state, engine, settings, tomorrow).map((u) => u.unit_id), ["vp:warten_auf"]);
+});
+
+test("only the first retry is free of the day's budget", () => {
+  const engine = createEngine();
+  const entries = [rev(1, T0, "vp:warten_auf", "again")];
+  let state = deriveState(entries, engine);
+  assert.equal(state.budgetReviewTimes.length, 1);
+
+  entries.push(rev(2, "2026-09-01T08:00:30Z", "vp:warten_auf", "again"));
+  state = deriveState(entries, engine);
+  assert.equal(state.reviewTimes.length, 2);
+  assert.equal(state.budgetReviewTimes.length, 1);
+
+  entries.push(rev(3, "2026-09-01T08:01:00Z", "vp:warten_auf", "again"));
+  state = deriveState(entries, engine);
+  assert.equal(state.reviewTimes.length, 3);
+  assert.equal(state.budgetReviewTimes.length, 2);
 });
