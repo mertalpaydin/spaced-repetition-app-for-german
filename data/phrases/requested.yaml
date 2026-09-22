@@ -1,0 +1,22 @@
+# Words and phrases the owner asked for by hand, taught before the mined
+# units, in the order they are listed here.
+#
+# The deck is mined from a corpus and only teaches what that corpus uses
+# often enough, so ordinary vocabulary the corpus is thin in never arrives.
+# An entry here is permission for one word: it clears the frequency floor,
+# the kind rules and the trivial flag, but nothing else about the mining
+# changes.
+#
+#   - {key: bewölkt, kind: adjective, note: "Lingvist, weather"}
+#
+# key   the miner's lemma key, lowercase, as it would appear in units.jsonl
+# kind  required: noun, verb, adjective, adverb, verb_prep, reflexive_verb,
+#       separable_verb, noun_verb, adj_verb, adj_noun, connector,
+#       two_part_connector, idiom, expression. The unit id is derived from
+#       the kind and the lemma, so guessing it wrong gives one word two ids
+#       and forks the review log.
+# note  free text, never shown to a learner.
+#
+# A multi-word request usually belongs in the file for its shape instead:
+# a fixed expression in idioms.yaml, a verb with its preposition in
+# verb_prep_seed.yaml, a collocation in collocation_seed.yaml.

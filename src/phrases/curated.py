@@ -13,7 +13,8 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.contracts import CEFR, Case
+from src.contracts import CEFR, Case, PhraseKind
+from src.engine.typo_grader import ScopedTypoGrader
 
 DEFAULT_PHRASES_DIR = Path("data/phrases")
 
@@ -99,6 +100,29 @@ class CollocationSeed(BaseModel):
     gloss_en: str | None = None
 
 
+class RequestedUnit(BaseModel):
+    """A word the owner asked for by hand, taught before the mined units.
+
+    The deck only teaches what the corpus uses often enough, so ordinary
+    vocabulary the corpus is thin in never arrives: measured against the
+    owner's own list, 98 single words were missing, 26 of them merely under
+    the frequency floor (owner, 2026-09-22).
+
+    ``kind`` is required rather than guessed. The unit id is derived from
+    the kind and the lemma, so the wrong guess would give the same word two
+    ids and fork the review log; and six of the wanted words are genuinely
+    ambiguous ("braten" is a noun and a verb, "stur" and "gegenueber"
+    likewise).
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    key: str
+    kind: PhraseKind
+    #: Free text for the owner, never shown to a learner.
+    note: str | None = None
+
+
 _CASE_SUFFIX_RE = re.compile(r"\s*\+(Akk|Dat|Gen)\s*$")
 
 
@@ -147,6 +171,8 @@ class CuratedLists(BaseModel):
     excluded_cards: list[str] = Field(default_factory=list)
     #: Reviewer corrections applied after the unit decision.
     overrides: list[UnitOverride] = Field(default_factory=list)
+    #: Words the owner asked for, in the order he wants them taught.
+    requested: list[RequestedUnit] = Field(default_factory=list)
 
 
 def _load_yaml_list(path: Path) -> list[object]:
@@ -175,6 +201,30 @@ def _parse_idiom(raw: object) -> IdiomSpec:
     return IdiomSpec.model_validate({**raw, "pattern": pattern})
 
 
+def _check_requested(requested: list[RequestedUnit]) -> None:
+    """Catch in the file what would otherwise be a silent miss in the build.
+
+    The list is written by hand, so a typo or the same word listed twice is
+    cheapest to catch here. Keys are compared through the grader's own
+    transliteration, because "bewoelkt" and "bewölkt" are one request.
+    """
+    seen: dict[tuple[str, str], str] = {}
+    fold = ScopedTypoGrader.apply_transliteration
+    for entry in requested:
+        if entry.key != entry.key.strip() or not entry.key:
+            raise ValueError(f"requested.yaml: blank or padded key {entry.key!r}")
+        if entry.key != entry.key.lower():
+            raise ValueError(
+                f"requested.yaml: {entry.key!r} must be lowercase, the miner's lemma key"
+            )
+        folded = (fold(entry.key), entry.kind)
+        if folded in seen:
+            raise ValueError(
+                f"requested.yaml: {entry.key!r} ({entry.kind}) repeats {seen[folded]!r}"
+            )
+        seen[folded] = entry.key
+
+
 def load_curated(phrases_dir: Path = DEFAULT_PHRASES_DIR) -> CuratedLists:
     connectors = [
         ConnectorSpec.model_validate(raw)
@@ -196,9 +246,13 @@ def load_curated(phrases_dir: Path = DEFAULT_PHRASES_DIR) -> CuratedLists:
         UnitOverride.model_validate(raw)
         for raw in _load_yaml_list(phrases_dir / "unit_overrides.yaml")
     ]
+    requested = [
+        RequestedUnit.model_validate(raw) for raw in _load_yaml_list(phrases_dir / "requested.yaml")
+    ]
     keys = [c.key for c in connectors]
     if len(keys) != len(set(keys)):
         raise ValueError("duplicate connector keys in connectors.yaml")
+    _check_requested(requested)
     return CuratedLists(
         connectors=connectors,
         idioms=idioms,
@@ -208,4 +262,5 @@ def load_curated(phrases_dir: Path = DEFAULT_PHRASES_DIR) -> CuratedLists:
         exclude=exclude,
         excluded_cards=excluded_cards,
         overrides=overrides,
+        requested=requested,
     )
