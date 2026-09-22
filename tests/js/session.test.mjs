@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
 import { deriveState, entryKey, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
-import { DEFAULT_SETTINGS, budgetLeft, budgetSpentToday, computeStats, eligiblePendingUnits, nextUnit, pickCard, reviewsToday, sessionStart, unitsByStage } from "../../web/lib/session.js";
+import { DEFAULT_SETTINGS, budgetLeft, budgetSpentToday, computeStats, eligiblePendingUnits, introductionOrder, nextUnit, pickCard, reviewsToday, sessionStart, unitsByStage } from "../../web/lib/session.js";
 
 const T0 = "2026-09-01T08:00:00Z";
 const unit = (unit_id, rank, display_de, extra = {}) => ({ unit_id, kind: "verb_prep", display_de, rank, trivial: false, gloss_en: null, also_accepted: [], ...extra });
@@ -203,4 +203,21 @@ test("the budget and the statistics count a retry differently", () => {
   assert.equal(reviewsToday(state, T0), 3);
   assert.equal(budgetSpentToday(state, T0), 2);
   assert.equal(budgetLeft(state, settings, T0), 38);
+});
+
+test("a requested unit is introduced before any mined one", () => {
+  // The twin of test_a_requested_unit_is_introduced_before_any_mined_one in
+  // tests/test_phase2_engine.py: same deck, same answer. Nothing else guards
+  // the two engines from drifting apart (owner, 2026-09-22).
+  const d = deck(); const engine = createEngine();
+  d.units = d.units.map((u) => (u.unit_id === "cn:trotzdem" ? { ...u, requested_order: 1 } : u));
+  d.byId = Object.fromEntries(d.units.map((u) => [u.unit_id, u]));
+  const state = deriveState([], engine);
+  assert.deepEqual(introductionOrder(d).map((u) => u.unit_id), ["cn:trotzdem", "vp:warten_auf"]);
+  assert.equal(nextUnit(d, state, engine, DEFAULT_SETTINGS, T0).unit_id, "cn:trotzdem");
+
+  // without the request, rank order decides as before
+  const plain = deck();
+  assert.deepEqual(introductionOrder(plain).map((u) => u.unit_id), ["vp:warten_auf", "cn:trotzdem"]);
+  assert.equal(nextUnit(plain, state, engine, DEFAULT_SETTINGS, T0).unit_id, "vp:warten_auf");
 });

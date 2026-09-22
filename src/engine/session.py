@@ -178,6 +178,25 @@ def eligible_pending_units(
     return [unit for _, _, unit in out]
 
 
+def introduction_order(deck: Deck) -> list[PhraseUnit]:
+    """The order new units are introduced in.
+
+    The units the owner asked for by hand come first, in the order he listed
+    them, then everything else by corpus frequency as before. His list is
+    carried on the unit as ``requested_order`` rather than by rewriting
+    ``rank``: rank is part of the deck's content hash and the review
+    ledger's idea of "the top of the deck", and it promises to mean corpus
+    frequency (owner, 2026-09-22).
+
+    ``web/lib/session.js`` holds the same sort key and the two are pinned
+    against each other by tests in both suites.
+    """
+    return sorted(
+        deck.units,
+        key=lambda u: (u.requested_order is None, u.requested_order or 0, u.rank),
+    )
+
+
 def _not_last(units: list[PhraseUnit], last: str | None) -> list[PhraseUnit]:
     """Never the unit just shown when anything else is available."""
     others = [u for u in units if u.unit_id != last]
@@ -222,7 +241,7 @@ def next_unit(
     )
     if within_budget and (under_cap or over_limit):
         pool: list[PhraseUnit] = []
-        for unit in deck.units:
+        for unit in introduction_order(deck):
             if unit.unit_id in state.records:
                 continue
             if is_learnable(deck, unit, state):

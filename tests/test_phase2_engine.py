@@ -23,6 +23,7 @@ from src.engine.session import (
     budget_left,
     budget_spent_today,
     eligible_pending_units,
+    introduction_order,
     next_unit,
     pick_card,
     reviews_today,
@@ -740,3 +741,29 @@ def test_the_budget_and_the_statistics_count_a_retry_differently() -> None:
     assert reviews_today(state, T0) == 3
     assert budget_spent_today(state, T0) == 2
     assert budget_left(state, settings, T0) == 38
+
+
+def test_a_requested_unit_is_introduced_before_any_mined_one() -> None:
+    """The owner's list comes first, in his order, whatever the ranks say.
+    Its twin in tests/js/session.test.mjs pins the same deck and state to
+    the same answer, since nothing else guards the two engines from drifting
+    (owner, 2026-09-22)."""
+    deck = _deck()
+    # aufstehen is rank 4 of 4; asking for it puts it first
+    deck.units = [
+        u.model_copy(update={"requested_order": 1}) if u.unit_id == "sv:aufstehen" else u
+        for u in deck.units
+    ]
+    engine = FSRSEngine()
+    state = derive_state([], engine)
+    assert [u.unit_id for u in introduction_order(deck)][0] == "sv:aufstehen"
+    # sv:aufstehen has no glossed card in the fixture, so the scheduler skips
+    # it and takes the next in order; the ordering itself is what is pinned
+    assert introduction_order(deck)[1].unit_id == "vp:warten_auf"
+    assert next_unit(deck, state, engine, Settings(), T0).unit_id == "vp:warten_auf"
+
+    # and with a glossed card it is what comes first
+    deck.cards_by_unit["sv:aufstehen"] = [
+        _card("a20000000000", "sv:aufstehen", "Er steht früh auf.", ["steht", "auf"])
+    ]
+    assert next_unit(deck, state, engine, Settings(), T0).unit_id == "sv:aufstehen"
