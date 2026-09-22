@@ -11,6 +11,7 @@ from src.phrases.curated import (
     CuratedLists,
     IdiomElement,
     IdiomSpec,
+    RequestedUnit,
     VerbPrepSeed,
 )
 from src.phrases.mining import LemmaCounts
@@ -1138,3 +1139,62 @@ def test_a_reflexive_adj_verb_carries_sich_in_its_citation() -> None:
     displays = {u.lemma_key: u.display_de for u in builder.build(occurrences)}
     assert displays.get("negativ auswirken") == "sich negativ auswirken"
     assert displays.get("hart arbeiten") == "hart arbeiten"
+
+
+# -- words the owner asks for by hand (owner, 2026-09-22) ---------------------
+
+
+def test_a_requested_word_clears_the_frequency_floor() -> None:
+    """ "bewoelkt" has 57 corpus uses against a floor of 100. The owner asked
+    for it, so it is taught, and it carries his ordering."""
+    counts = _word_counts()
+    counts.adjectives.update({"bewoelkt": 57})
+    counts.word_by_source["adjective:bewoelkt"] = Counter({"tatoeba": 57})
+    curated = CuratedLists(requested=[RequestedUnit(key="bewoelkt", kind="adjective")])
+    builder = _builder(counts, curated)
+    units = {u.lemma_key: u for u in builder.build(_word_occ("adjective", "bewoelkt", 3))}
+    assert units["bewoelkt"].requested_order == 1
+    assert builder.report["requested"] == ["adjective:bewoelkt"]
+
+    # without the request the same word is under the floor and absent
+    plain = _builder(counts)
+    assert plain.build(_word_occ("adjective", "bewoelkt", 3)) == []
+
+
+def test_a_requested_word_is_taught_even_when_the_corpus_calls_it_trivial() -> None:
+    """is_learnable hides trivial units in both clients, so without this a
+    requested common word would have cards and priority and never be shown."""
+    counts = _word_counts()
+    counts.adverbs.update({"und": 90_000})
+    counts.word_by_source["adjective:und"] = Counter({"tatoeba": 90_000})
+    curated = CuratedLists(requested=[RequestedUnit(key="und", kind="adverb")])
+    builder = _builder(counts, curated)
+    units = {u.lemma_key: u for u in builder.build(_word_occ("adjective", "und", 3))}
+    assert units["und"].trivial is False  # frequency_ranks puts "und" at 1
+
+
+def test_a_request_never_overrides_an_exclusion() -> None:
+    """Exclusions say the occurrences themselves are wrong: every carrier of
+    "sorgen" teaches a different lemma. Force-accepting them would put false
+    sentences in front of the learner under a citation form claiming to be
+    right, so the request is reported and refused (owner, 2026-09-22)."""
+    counts = _word_counts()
+    counts.verbs.update({"sorgen": 4000})
+    counts.word_by_source["verb:sorgen"] = Counter({"tatoeba": 4000})
+    curated = CuratedLists(
+        exclude=["sorgen"],
+        requested=[RequestedUnit(key="sorgen", kind="verb")],
+    )
+    builder = _builder(counts, curated)
+    assert builder.build(_word_occ("verb", "sorgen", 3)) == []
+    assert builder.report["requested_but_excluded"] == ["verb:sorgen"]
+
+
+def test_a_request_the_corpus_cannot_serve_is_named() -> None:
+    """ "Haehnchen" has corpus sentences but none glossed, so no occurrence
+    reaches the miner. Reported by name, because at this point it is usually
+    a misspelling."""
+    curated = CuratedLists(requested=[RequestedUnit(key="haehnchen", kind="noun")])
+    builder = _builder(_word_counts(), curated)
+    builder.build([])
+    assert builder.report["requested_missing"] == ["noun:haehnchen"]

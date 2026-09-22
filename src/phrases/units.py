@@ -119,6 +119,11 @@ _WORD_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
 #: "glaubst" is cut at "-st" and not at "-t".
 _PERSONAL_ENDINGS: tuple[str, ...] = ("est", "ten", "tet", "st", "te", "t", "e")
 
+#: The kind a request is written as, to the kind the detector emits for it.
+#: The word detector files ADJ and ADV together and lets the corpus settle
+#: the difference later (see ``_modifier_kind``).
+_REQUEST_STAT_KIND: dict[str, str] = {"adverb": "adjective"}
+
 _CEFR_RANK: dict[str, int] = {"A1": 1, "A2": 2, "B1": 3, "B2": 4}
 #: Parts that carry no vocabulary of their own: the reflexive pronoun and
 #: the prepositions of verb-preposition units and Funktionsverbgefuege.
@@ -1047,11 +1052,27 @@ class UnitBuilder:
         self.excluded = set(curated.exclude)
         self.dictionary = dictionary if dictionary is not None else _load_dictionary()
         self.overrides = {o.key: o for o in curated.overrides}
+        #: (kind, key) the owner asked for by hand, to the position in his
+        #: list, which is the order they are taught in.
+        #: Keyed by the kind the *detector* emits, not the kind the owner
+        #: wrote: ADJ and ADV share the provisional kind "adjective" until
+        #: the corpus settles which one the word mostly is, so a request for
+        #: an adverb would otherwise never match anything.
+        self.requested_order: dict[tuple[str, str], int] = {}
+        for i, r in enumerate(curated.requested, start=1):
+            self.requested_order.setdefault((_REQUEST_STAT_KIND.get(r.kind, r.kind), r.key), i)
         self.report: dict[str, Any] = {
             "rejected": Counter(),
             "seed_disagreements": [],
             "zero_hit_curated": [],
             "top_by_kind": {},
+            #: What the owner asked for by hand and got.
+            "requested": [],
+            #: And what he asked for that a review had already excluded,
+            #: which a request never overrides.
+            "requested_but_excluded": [],
+            #: Asked for but nowhere in the corpus: nothing can be built.
+            "requested_missing": [],
         }
         #: Components of an accepted collocation, kept even when they fall
         #: below the word threshold, so "Frage", "stellen" and "eine Frage
@@ -1582,6 +1603,12 @@ class UnitBuilder:
     def _trivial(self, s: UnitStats, decision: _Decision) -> tuple[bool, str | None]:
         if decision.trivial:
             return True, decision.trivial_reason
+        if (s.kind, s.key) in self.requested_order:
+            # He hand-picked it, so "the corpus thinks it is too common to
+            # teach" is not a veto he asked for. Without this a requested
+            # common word would have cards and priority and never be shown,
+            # because is_learnable hides trivial units in both clients.
+            return False, None
         if s.key in self.stoplist:
             return True, "stoplist"
         if " " not in s.key and (s.kind in {"connector", "idiom"} or s.kind in WORD_KINDS):
@@ -1730,10 +1757,25 @@ class UnitBuilder:
         for ident in phrase_idents + word_idents:
             s = stats[ident]
             if s.key in self.excluded:
+                # A request never overrides an exclusion. Those were written
+                # because the occurrences themselves are wrong: every carrier
+                # of "sorgen", "achten" and "selber" teaches a different
+                # lemma, so force-accepting them would put false sentences in
+                # front of the learner under a citation form claiming to be
+                # right. The request is reported instead (owner, 2026-09-22).
+                if (s.kind, s.key) in self.requested_order:
+                    self.report["requested_but_excluded"].append(f"{s.kind}:{s.key}")
                 self.report["rejected"][f"{s.kind}:excluded"] += 1
                 excluded_stats.append(s)
                 continue
-            if s.kind in WORD_KINDS:
+            if (s.kind, s.key) in self.requested_order:
+                # The owner asked for this one by name: it clears the
+                # frequency floor and every kind rule, which is the whole
+                # point of the list. Checked once here rather than taught to
+                # each of the eight decision methods.
+                decision = _Decision(True, score=float(s.count))
+                self.report["requested"].append(f"{s.kind}:{s.key}")
+            elif s.kind in WORD_KINDS:
                 decision = self._decide_word(s)
             elif s.kind == "verb_prep":
                 decision = self._decide_verb_prep(s, stats)
@@ -1793,6 +1835,7 @@ class UnitBuilder:
                     count_by_source=dict(sorted(s.count_by_source.items())),
                     per_million=round(self._per_million(s), 3),
                     rank=rank,
+                    requested_order=self.requested_order.get((s.kind, s.key)),
                     also_accepted=list(d.also_accepted),
                     trivial=trivial,
                     trivial_reason=reason,
@@ -1800,6 +1843,14 @@ class UnitBuilder:
                     card_count=0,
                 )
             )
+        # A request the corpus cannot serve at all: no occurrence under that
+        # kind and lemma, so nothing can be built from it. Reported by name
+        # rather than passed over, because at this point it is usually a
+        # misspelling or a word this corpus simply never uses.
+        built = {(u.kind, u.lemma_key) for u in units}
+        self.report["requested_missing"] = [
+            f"{kind}:{key}" for (kind, key) in self.requested_order if (kind, key) not in built
+        ]
         self.report["rejected"] = dict(self.report["rejected"])
         by_kind: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for unit in units:

@@ -159,6 +159,11 @@ class PhraseUnit(BaseModel):
     rank: int = Field(ge=1)
     trivial: bool = False
     trivial_reason: str | None = None
+    #: Where this unit sits in the owner's hand-written request list, and
+    #: ``None`` for every mined unit. The clients introduce requested units
+    #: before mined ones, in this order; ``rank`` keeps meaning corpus
+    #: frequency (owner, 2026-09-22).
+    requested_order: int | None = None
     source: UnitSource
     card_count: int = Field(ge=0)
     glossed_card_count: int = Field(default=0, ge=0)
