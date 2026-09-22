@@ -65,7 +65,7 @@ export function sessionStart(reviewTimes, now, gapMs) {
 // eligibility is spacing instead of the clock. A unit left pending from an
 // earlier sitting skips the wait. Matches eligible_pending_units in
 // src/engine/session.py.
-export function eligiblePendingUnits(deck, state, engine, settings, now) {
+export function eligiblePendingUnits(deck, state, engine, settings, now, ignoreSpacing = false) {
   const gapMs = (settings.sessionGapMinutes ?? 60) * 60000;
   const spacing = settings.relearnSpacing ?? 3;
   const started = sessionStart(state.reviewTimes, now, gapMs);
@@ -74,7 +74,7 @@ export function eligiblePendingUnits(deck, state, engine, settings, now) {
     const unit = deck.byId[unitId];
     if (!unit || state.known.has(unitId) || record.state === "review") continue;
     const last = record.last_review ? new Date(record.last_review).getTime() : null;
-    if (last !== null && last >= started) {
+    if (!ignoreSpacing && last !== null && last >= started) {
       const since = state.reviewTimes.filter((ts) => new Date(ts).getTime() > last).length;
       if (since < spacing) continue;
     }
@@ -96,6 +96,11 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
   const last = state.lastUnit;
   const overdue = notLast(dueUnits(deck, state, engine, now, 0), last);
   if (overdue.length) return overdue[0];
+  // A unit mid learning step comes back on spacing, not on the clock, and
+  // ahead of any new unit: there is no point introducing more while the
+  // learner is still getting this one wrong (owner, 2026-09-22).
+  const pending = eligiblePendingUnits(deck, state, engine, settings, now).filter((u) => u.unit_id !== last);
+  if (pending.length) return pending[0];
   const withinBudget = overLimit || budgetLeft(state, settings, now) > 0;
   const underCap = settings.newPerDay === null || newUnitsStartedToday(state, now) < settings.newPerDay;
   if (withinBudget && (underCap || overLimit)) {
@@ -110,7 +115,12 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
     if (pool.length) return pool[(choose ? choose(pool.length) : 0) % pool.length];
   }
   const ahead = dueUnits(deck, state, engine, now, settings.learnAheadMinutes * 60000).filter((u) => u.unit_id !== last);
-  return ahead.length ? ahead[0] : null;
+  if (ahead.length) return ahead[0];
+  // Nothing else to interleave with: show the pending unit again rather than
+  // stopping. Drilling what the learner just got wrong is the only useful
+  // work left, and the ten-minute wait this replaces was the complaint.
+  const looping = eligiblePendingUnits(deck, state, engine, settings, now, true);
+  return looping.length ? looping[0] : null;
 }
 
 // A finite past-tense form in the gaps: Präteritum is a B1 form, so a unit

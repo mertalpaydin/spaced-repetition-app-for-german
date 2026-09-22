@@ -164,3 +164,27 @@ test("only the first retry is free of the day's budget", () => {
   assert.equal(state.reviewTimes.length, 3);
   assert.equal(state.budgetReviewTimes.length, 2);
 });
+
+test("a pending unit yields to other work until its spacing is met", () => {
+  const d = deck(); const engine = createEngine();
+  const roomy = { ...DEFAULT_SETTINGS, cardsPerDay: 40, relearnSpacing: 3 };
+  const entries = [rev(1, T0, "vp:warten_auf", "again")];
+  let state = deriveState(entries, engine);
+  // a new unit comes first: warten has had no other reviews to space it
+  assert.equal(nextUnit(d, state, engine, roomy, "2026-09-01T08:00:30Z").unit_id, "cn:trotzdem");
+
+  for (let i = 2; i <= 4; i += 1) entries.push(rev(i, `2026-09-01T08:00:${10 * i}Z`, "cn:trotzdem", "good"));
+  state = deriveState(entries, engine);
+  const spaced = "2026-09-01T08:01:00Z";
+  assert.equal(nextUnit(d, state, engine, roomy, spaced).unit_id, "vp:warten_auf");
+  assert.ok(new Date(spaced).getTime() < new Date(state.records["vp:warten_auf"].due).getTime());
+});
+
+test("with nothing else to show, the pending unit comes back at once", () => {
+  const d = deck(); const engine = createEngine();
+  const tight = { ...DEFAULT_SETTINGS, cardsPerDay: 1, relearnSpacing: 3 };
+  const state = deriveState([rev(1, T0, "vp:warten_auf", "again")], engine);
+  const soon = "2026-09-01T08:01:00Z";
+  assert.equal(nextUnit(d, state, engine, tight, soon).unit_id, "vp:warten_auf");
+  assert.ok(new Date(soon).getTime() < new Date(state.records["vp:warten_auf"].due).getTime());
+});

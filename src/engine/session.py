@@ -133,6 +133,8 @@ def eligible_pending_units(
     engine: FSRSEngine,
     settings: Settings,
     now: datetime,
+    *,
+    ignore_spacing: bool = False,
 ) -> list[PhraseUnit]:
     """Units mid learning or relearning step that may be shown again now.
 
@@ -142,6 +144,10 @@ def eligible_pending_units(
     ``relearn_spacing`` other reviews have gone by. A unit left pending from an
     earlier sitting skips the wait, since the reviews that would have spaced it
     happened before the break.
+
+    ``ignore_spacing`` is the last resort in ``next_unit``: when there is
+    nothing else at all to show, the unit comes back at once rather than the
+    session ending.
     """
     by_id = deck.by_id
     started = session_start(state.review_times, now, settings.session_gap)
@@ -151,7 +157,7 @@ def eligible_pending_units(
         if unit is None or unit_id in state.known or record.state == "review":
             continue
         last = record.last_review
-        if last is not None and last >= started:
+        if not ignore_spacing and last is not None and last >= started:
             since = sum(1 for ts in state.review_times if ts > last)
             if since < settings.relearn_spacing:
                 continue
@@ -190,6 +196,14 @@ def next_unit(
     overdue = _not_last(due_units(deck, state, engine, now, timedelta(0)), last)
     if overdue:
         return overdue[0]
+    # A unit mid learning step comes back on spacing, not on the clock, and
+    # ahead of any new unit: there is no point introducing more while the
+    # learner is still getting this one wrong (owner, 2026-09-22).
+    pending = [
+        u for u in eligible_pending_units(deck, state, engine, settings, now) if u.unit_id != last
+    ]
+    if pending:
+        return pending[0]
     within_budget = over_limit or budget_left(state, settings, now) > 0
     under_cap = settings.new_per_day is None or (
         new_units_started_today(state, now) < settings.new_per_day
@@ -210,7 +224,14 @@ def next_unit(
     ahead = [
         u for u in due_units(deck, state, engine, now, settings.learn_ahead) if u.unit_id != last
     ]
-    return ahead[0] if ahead else None
+    if ahead:
+        return ahead[0]
+    # Nothing else to interleave with: show the pending unit again rather
+    # than stopping. Drilling what the learner just got wrong is the only
+    # useful work left, and the ten-minute wait this replaces was the
+    # complaint (owner, 2026-09-22).
+    looping = eligible_pending_units(deck, state, engine, settings, now, ignore_spacing=True)
+    return looping[0] if looping else None
 
 
 def units_by_stage(

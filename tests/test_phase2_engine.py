@@ -280,14 +280,38 @@ def test_budget_and_over_limit_and_no_back_to_back_unit() -> None:
         ),
     ]
     state = derive_state(entries, engine)
-    # budget spent (1 of 1), warten is due in 10 min: a new unit is not offered
-    # within budget, offered over the limit; and warten is not repeated while
-    # another unit exists
+    # The budget is spent (1 of 1) and warten is mid step. Until 2026-09-22
+    # this asserted that nothing was offered until the ten-minute due time
+    # passed, which is the defect: the session stopped and the step never
+    # finished. The unit now comes back, because there is nothing else to
+    # interleave with and finishing a step is not new work.
     soon = T0 + timedelta(minutes=1)
-    assert next_unit(deck, state, engine, tight, soon) is None
+    assert next_unit(deck, state, engine, tight, soon).unit_id == "vp:warten_auf"
+    assert soon < state.records["vp:warten_auf"].due
+    # a new unit still waits for the budget, and is offered over the limit
     assert next_unit(deck, state, engine, tight, soon, over_limit=True).unit_id == "cn:trotzdem"
     later = state.records["vp:warten_auf"].due + timedelta(minutes=1)
     assert next_unit(deck, state, engine, tight, later).unit_id == "vp:warten_auf"
+
+
+def test_a_pending_unit_yields_to_other_work_until_its_spacing_is_met() -> None:
+    """With other units to show, the one just failed waits for them rather
+    than looping: the loop is only the last resort (owner, 2026-09-22)."""
+    deck = _deck()
+    engine = FSRSEngine()
+    roomy = Settings(cards_per_day=40, relearn_spacing=3)
+    entries = [_review(1, T0, "vp:warten_auf", "again")]
+    state = derive_state(entries, engine)
+    soon = T0 + timedelta(seconds=30)
+    # a new unit comes first: warten has had no other reviews to space it
+    assert next_unit(deck, state, engine, roomy, soon).unit_id == "cn:trotzdem"
+
+    for i, unit_id in enumerate(("cn:trotzdem", "sv:aufstehen", "cn:trotzdem"), start=2):
+        entries.append(_review(i, T0 + timedelta(seconds=i * 10), unit_id, "good"))
+    state = derive_state(entries, engine)
+    spaced = T0 + timedelta(minutes=1)
+    assert next_unit(deck, state, engine, roomy, spaced).unit_id == "vp:warten_auf"
+    assert spaced < state.records["vp:warten_auf"].due
 
 
 def test_pick_card_rotates_and_never_repeats_the_last_one() -> None:
