@@ -12,6 +12,7 @@ from src.phrases.curated import (
     IdiomElement,
     IdiomSpec,
     RequestedUnit,
+    UnitOverride,
     VerbPrepSeed,
 )
 from src.phrases.mining import LemmaCounts
@@ -1198,3 +1199,45 @@ def test_a_request_the_corpus_cannot_serve_is_named() -> None:
     builder = _builder(_word_counts(), curated)
     builder.build([])
     assert builder.report["requested_missing"] == ["noun:haehnchen"]
+
+
+def test_a_requested_noun_with_no_article_in_the_corpus_is_flagged() -> None:
+    """ "Ausdauer" never appears after a definite article in its occurrences,
+    so the gender falls to the tagger, which calls it masculine 8 times to 1.
+    A requested noun is hand-picked and usually rare, which is exactly where
+    that bites, so the build says so and the owner corrects it in
+    unit_overrides.yaml (owner, 2026-09-22)."""
+    counts = _word_counts()
+    counts.nouns.update({"ausdauer": 278})
+    counts.word_by_source["noun:ausdauer"] = Counter({"tatoeba": 278})
+    curated = CuratedLists(requested=[RequestedUnit(key="ausdauer", kind="noun")])
+    builder = _builder(counts, curated)
+    # _word_occ puts "mit" before the noun, never an article
+    builder.build(_word_occ("noun", "ausdauer", 3))
+    assert builder.report["requested_check_article"] == ["ausdauer"]
+
+    # with the override the citation is settled and nothing is flagged
+    corrected = _builder(
+        counts,
+        CuratedLists(
+            requested=[RequestedUnit(key="ausdauer", kind="noun")],
+            overrides=[UnitOverride(key="ausdauer", display="die Ausdauer")],
+        ),
+    )
+    units = {u.lemma_key: u for u in corrected.build(_word_occ("noun", "ausdauer", 3))}
+    assert units["ausdauer"].display_de == "die Ausdauer"
+    assert corrected.report["requested_check_article"] == []
+
+
+def test_a_refused_request_is_not_also_reported_as_missing() -> None:
+    """It was found and refused, which is a different thing from absent."""
+    counts = _word_counts()
+    counts.verbs.update({"sorgen": 4000})
+    counts.word_by_source["verb:sorgen"] = Counter({"tatoeba": 4000})
+    builder = _builder(
+        counts,
+        CuratedLists(exclude=["sorgen"], requested=[RequestedUnit(key="sorgen", kind="verb")]),
+    )
+    builder.build(_word_occ("verb", "sorgen", 3))
+    assert builder.report["requested_but_excluded"] == ["verb:sorgen"]
+    assert builder.report["requested_missing"] == []

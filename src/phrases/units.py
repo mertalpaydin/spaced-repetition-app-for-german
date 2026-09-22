@@ -1073,6 +1073,9 @@ class UnitBuilder:
             "requested_but_excluded": [],
             #: Asked for but nowhere in the corpus: nothing can be built.
             "requested_missing": [],
+            #: Requested nouns whose article had to come from the tagger,
+            #: which gets it wrong on exactly this sort of word.
+            "requested_check_article": [],
         }
         #: Components of an accepted collocation, kept even when they fall
         #: below the word threshold, so "Frage", "stellen" and "eine Frage
@@ -1634,6 +1637,13 @@ class UnitBuilder:
         # "der Frage" are datives that say nothing about it.
         if s.article_tally:
             return f"{s.article_tally.most_common(1)[0][0]} {noun}"
+        if (s.kind, s.key) in self.requested_order:
+            # No article in the corpus, so the gender falls to the tagger,
+            # which is wrong often enough to matter: it calls "Ausdauer"
+            # masculine 8 times to 1. A requested noun is hand-picked and
+            # usually rare, so this is where that bites. Say so, and the
+            # owner corrects it in unit_overrides.yaml (owner, 2026-09-22).
+            self.report["requested_check_article"].append(s.key)
         # A noun the corpus almost never shows in the singular is plural-only
         # ("die Eltern", "die Leute"); citing a singular gender for it is
         # wrong however the tokens were tagged (review, 2026-09-21).
@@ -1848,8 +1858,11 @@ class UnitBuilder:
         # rather than passed over, because at this point it is usually a
         # misspelling or a word this corpus simply never uses.
         built = {(u.kind, u.lemma_key) for u in units}
+        refused = {entry.split(":", 1)[1] for entry in self.report["requested_but_excluded"]}
         self.report["requested_missing"] = [
-            f"{kind}:{key}" for (kind, key) in self.requested_order if (kind, key) not in built
+            f"{kind}:{key}"
+            for (kind, key) in self.requested_order
+            if (kind, key) not in built and key not in refused
         ]
         self.report["rejected"] = dict(self.report["rejected"])
         by_kind: dict[str, list[dict[str, Any]]] = defaultdict(list)
