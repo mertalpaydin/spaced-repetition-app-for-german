@@ -440,6 +440,18 @@
             "title": "Rank",
             "type": "integer"
           },
+          "requested_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Requested Order"
+          },
           "sentence_count": {
             "minimum": 0,
             "title": "Sentence Count",
@@ -653,6 +665,18 @@
             "minimum": 1,
             "title": "Rank",
             "type": "integer"
+          },
+          "requested_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Requested Order"
           },
           "sentence_count": {
             "minimum": 0,
