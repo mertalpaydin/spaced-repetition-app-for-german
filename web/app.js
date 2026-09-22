@@ -166,9 +166,11 @@ function loadCard() {
   let unit = nextUnit(deck, state, engine, settings, t, { overLimit, choose: pickAny });
   if (!overLimit && budgetLeft(state, settings, t) === 0) {
     // The day's budget is spent: stop and ask, unless the unit is mid
-    // learning-step and due (finishing it is not new work).
+    // learning step. Its due time is not consulted any more: nextUnit already
+    // decided the unit is eligible, on spacing rather than on the clock
+    // (owner, 2026-09-22).
     const record = unit ? state.records[unit.unit_id] : null;
-    const midStep = record && record.state !== "review" && new Date(record.due) <= t;
+    const midStep = record && record.state !== "review";
     const more = unit || nextUnit(deck, state, engine, settings, t, { overLimit: true });
     if (more && !midStep) {
       const due = dueUnits(deck, state, engine, t, 0).length;

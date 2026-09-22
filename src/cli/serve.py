@@ -125,9 +125,11 @@ class Api:
             )
             if unit is not None and not over_limit and today["left"] == 0:
                 # The day's budget is spent: stop and ask, unless the unit is
-                # mid-learning-step and due (finishing it is not new work).
+                # mid learning step. Its due time is not consulted any more:
+                # next_unit already decided the unit is eligible, on spacing
+                # rather than on the clock (owner, 2026-09-22).
                 record = state.records.get(unit.unit_id)
-                mid_step = record is not None and record.state != "review" and record.due <= now
+                mid_step = record is not None and record.state != "review"
                 if not mid_step:
                     return {"done": False, "limit_reached": True, "today": today}
             if unit is None and not over_limit and today["left"] == 0:

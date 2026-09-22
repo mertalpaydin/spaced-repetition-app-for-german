@@ -86,14 +86,42 @@ def test_spent_budget_stops_before_due_cards_unless_mid_learning_step(tmp_path: 
     api.settings = Settings(cards_per_day=1)
     first = api.next()
     api.answer({"card_id": first["card"]["card_id"], "typed": ["x", "auf"], "elapsed_ms": 1})
-    # budget spent; warten's learning step is due in 10 minutes: mid-step, so it is served
-    api.now = lambda: T0 + timedelta(minutes=11)
+    # Budget spent and warten's step is not due for another ten minutes. Until
+    # 2026-09-22 this test waited for that due time; the whole point of the
+    # change is that it no longer has to, so a minute is enough.
+    api.now = lambda: T0 + timedelta(minutes=1)
     nxt = api.next()
     assert not nxt["limit_reached"] and nxt["unit"]["unit_id"] == "vp:warten_auf"
     api.answer({"card_id": nxt["card"]["card_id"], "typed": ["x", "auf"], "elapsed_ms": 1})
     # a new unit is not mid-step: the limit panel comes first, over_limit serves it
-    api.now = lambda: T0 + timedelta(minutes=12)
+    api.now = lambda: T0 + timedelta(minutes=2)
     api.log.record_mark(unit_id="vp:warten_auf", known=True, source="defer")
     assert api.next()["limit_reached"]
     assert api.next(over_limit=True)["unit"]["unit_id"] == "cn:trotzdem"
     assert api.units()["deferred"][0]["unit_id"] == "vp:warten_auf"
+
+
+def test_done_and_left_no_longer_sum_to_the_target(tmp_path: Path) -> None:
+    """Since 2026-09-22 the first retry of a unit mid step does not spend the
+    budget, while the statistics still count it. "done" is every answer and
+    "left" is what the budget will still pay for, so they differ by the
+    number of lapses. Pinned here so it reads as a decision, not a bug."""
+    api = _api(tmp_path)
+    # spacing 0 so one card in between is enough; a unit is never shown twice
+    # in a row whatever the spacing says
+    api.settings = Settings(cards_per_day=10, relearn_spacing=0)
+    first = api.next()
+    api.answer({"card_id": first["card"]["card_id"], "typed": ["x", "auf"], "elapsed_ms": 1})
+    api.now = lambda: T0 + timedelta(minutes=1)
+    other = api.next()
+    api.answer({"card_id": other["card"]["card_id"], "typed": ["Trotzdem"], "elapsed_ms": 1})
+
+    api.now = lambda: T0 + timedelta(minutes=2)
+    retry = api.next()
+    assert retry["unit"]["unit_id"] == "vp:warten_auf"  # back before its due time
+    api.answer({"card_id": retry["card"]["card_id"], "typed": ["x", "auf"], "elapsed_ms": 1})
+
+    today = api.next()["today"]
+    assert today["done"] == 3  # every answer is real work
+    assert today["left"] == 8  # the retry was not charged
+    assert today["done"] + today["left"] != today["target"]
