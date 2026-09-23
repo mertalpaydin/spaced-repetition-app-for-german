@@ -66,6 +66,33 @@ class Deck:
             manifest=manifest, units=sorted(units, key=lambda u: u.rank), cards_by_unit=by_unit
         )
 
+    def with_added(self, state: LearnerState) -> Deck:
+        """This deck plus whatever the learner added from the page.
+
+        A word the exported deck does not have arrives as a ``RequestEntry``
+        carrying its unit and cards, because a static artifact cannot be
+        written to from a phone. Folding them in here means the scheduler,
+        the grader and the statistics need to know nothing about where a
+        unit came from; everything downstream sees one deck.
+
+        The deck wins on a collision: once a word is mined into a real
+        build, the reviewed cards replace the written ones, and the
+        ``unit_id`` is the same so the learner's history carries over.
+        """
+        if not state.added_units and not state.added_cards:
+            return self
+        known = {u.unit_id for u in self.units}
+        extra = [u for uid, u in sorted(state.added_units.items()) if uid not in known]
+        cards_by_unit = dict(self.cards_by_unit)
+        for unit_id, cards in state.added_cards.items():
+            if not cards_by_unit.get(unit_id):
+                cards_by_unit[unit_id] = list(cards)
+        return Deck(
+            manifest=self.manifest,
+            units=sorted([*self.units, *extra], key=lambda u: u.rank),
+            cards_by_unit=cards_by_unit,
+        )
+
 
 def showable_cards(cards: Sequence[PhraseCard]) -> list[PhraseCard]:
     glossed = [c for c in cards if c.gloss_en is not None]
@@ -178,22 +205,34 @@ def eligible_pending_units(
     return [unit for _, _, unit in out]
 
 
-def introduction_order(deck: Deck) -> list[PhraseUnit]:
+def introduction_order(deck: Deck, state: LearnerState | None = None) -> list[PhraseUnit]:
     """The order new units are introduced in.
 
-    The units the owner asked for by hand come first, in the order he listed
-    them, then everything else by corpus frequency as before. His list is
-    carried on the unit as ``requested_order`` rather than by rewriting
-    ``rank``: rank is part of the deck's content hash and the review
-    ledger's idea of "the top of the deck", and it promises to mean corpus
-    frequency (owner, 2026-09-22).
+    Three tiers. First what the learner added from the page, newest last, in
+    the order they pressed the button: they asked for it a moment ago, so it
+    is the next thing they should see. Then the units the owner asked for by
+    hand in ``requested.yaml``. Then everything else by corpus frequency, as
+    before.
+
+    The owner's list is carried on the unit as ``requested_order`` rather
+    than by rewriting ``rank``: rank is part of the deck's content hash and
+    the review ledger's idea of "the top of the deck", and it promises to
+    mean corpus frequency (owner, 2026-09-22). The learner's list is not on
+    the unit at all, because it is per learner and lives in the log.
 
     ``web/lib/session.js`` holds the same sort key and the two are pinned
     against each other by tests in both suites.
     """
+    added = {unit_id: position for position, unit_id in enumerate(state.requested)} if state else {}
     return sorted(
         deck.units,
-        key=lambda u: (u.requested_order is None, u.requested_order or 0, u.rank),
+        key=lambda u: (
+            u.unit_id not in added,
+            added.get(u.unit_id, 0),
+            u.requested_order is None,
+            u.requested_order or 0,
+            u.rank,
+        ),
     )
 
 
@@ -241,7 +280,7 @@ def next_unit(
     )
     if within_budget and (under_cap or over_limit):
         pool: list[PhraseUnit] = []
-        for unit in introduction_order(deck):
+        for unit in introduction_order(deck, state):
             if unit.unit_id in state.records:
                 continue
             if is_learnable(deck, unit, state):

@@ -17,7 +17,15 @@ from pathlib import Path
 
 from pydantic import TypeAdapter, ValidationError
 
-from src.contracts import LogEntry, MarkEntry, ResetEntry, ReviewEntry
+from src.contracts import (
+    LogEntry,
+    MarkEntry,
+    PhraseCard,
+    PhraseUnit,
+    RequestEntry,
+    ResetEntry,
+    ReviewEntry,
+)
 from src.engine.fsrs import FSRSEngine, FSRSRecord
 
 DEFAULT_LOG_PATH = Path("data/review_log.jsonl")
@@ -142,6 +150,25 @@ class ReviewLog:
         self.append(entry)
         return entry
 
+    def record_request(
+        self,
+        *,
+        unit_id: str,
+        origin: str,
+        unit: PhraseUnit | None = None,
+        cards: list[PhraseCard] | None = None,
+    ) -> RequestEntry:
+        entry = RequestEntry(
+            seq=self.next_seq,
+            ts=self.now(),
+            unit_id=unit_id,
+            origin=origin,  # type: ignore[arg-type]
+            unit=unit,
+            cards=cards or [],
+        )
+        self.append(entry)
+        return entry
+
 
 @dataclass
 class LearnerState:
@@ -175,6 +202,15 @@ class LearnerState:
     retries_pending: dict[str, int] = field(default_factory=dict)
     #: The unit of the last review, so the scheduler does not repeat it.
     last_unit: str | None = None
+    #: Units the learner added from the page, oldest first. They are taught
+    #: before the mined pool, the way ``requested_order`` works in the deck,
+    #: except that this list is the learner's and lives in the log rather
+    #: than in the artifact.
+    requested: list[str] = field(default_factory=list)
+    #: Units that exist only in the log: a word the reserve does not have.
+    added_units: dict[str, PhraseUnit] = field(default_factory=dict)
+    #: Cards written for an added unit, when no exported shard holds any.
+    added_cards: dict[str, list[PhraseCard]] = field(default_factory=dict)
 
 
 def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerState:
@@ -184,6 +220,14 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
     for entry in sorted(entries, key=lambda e: (e.ts, e.seq)):
         if isinstance(entry, ResetEntry):
             state = LearnerState()
+            continue
+        if isinstance(entry, RequestEntry):
+            if entry.unit_id not in state.requested:
+                state.requested.append(entry.unit_id)
+            if entry.unit is not None:
+                state.added_units[entry.unit_id] = entry.unit
+            if entry.cards:
+                state.added_cards[entry.unit_id] = list(entry.cards)
             continue
         if isinstance(entry, MarkEntry):
             state.triaged.add(entry.unit_id)

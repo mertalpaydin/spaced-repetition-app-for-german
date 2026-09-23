@@ -78,6 +78,16 @@
     </section>
 
     <section id="view-units" class="view" hidden>
+      <div class="card add-word">
+        <h3>Wort hinzufügen</h3>
+        <p class="hint">Ein Wort, das im Deck fehlt, weil der Korpus es zu selten benutzt. Es wird als
+          Nächstes gelehrt und erscheint auch auf deinen anderen Geräten.</p>
+        <div class="actions">
+          <input id="add-word" type="text" autocomplete="off" spellcheck="false" placeholder="z. B. bügeln">
+          <button id="btn-add-word" class="primary">Suchen</button>
+        </div>
+        <div id="add-result"></div>
+      </div>
       <div id="units" class="card"></div>
     </section>
 
@@ -95,6 +105,12 @@
         <label>Token <input id="set-token" type="password" autocomplete="off" spellcheck="false"></label>
         <label>Gist-ID <input id="set-gist" type="text" autocomplete="off" spellcheck="false"></label>
         <label><input id="set-autosync" type="checkbox"> nach jeder Antwort sichern</label>
+        <h3>Wörter schreiben lassen</h3>
+        <p class="hint">Für ein Wort, zu dem der Korpus keinen übersetzten Satz hat, schreibt Gemini die
+          Sätze. Dafür braucht die Seite deinen eigenen API-Schlüssel (Google AI Studio, kostenlose
+          Ebene). Er bleibt auf diesem Gerät und wird nie mitgesichert.</p>
+        <label>Gemini-Schlüssel <input id="set-gemini" type="password" autocomplete="off" spellcheck="false"></label>
+        <p id="set-gemini-usage" class="muted"></p>
         <h3>Tagespensum</h3>
         <label>Karten pro Tag <input id="set-cards" type="number" min="1" step="1"></label>
         <label>Neue Einheiten pro Tag (leer = unbegrenzt) <input id="set-new" type="number" min="0" step="1"></label>

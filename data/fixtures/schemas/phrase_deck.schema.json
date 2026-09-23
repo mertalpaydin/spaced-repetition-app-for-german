@@ -87,6 +87,11 @@
         "title": "Kinds",
         "type": "object"
       },
+      "model_generate": {
+        "default": "gemini-3.8-flash",
+        "title": "Model Generate",
+        "type": "string"
+      },
       "schema_version": {
         "default": 1,
         "title": "Schema Version",
@@ -125,6 +130,467 @@
       "shards"
     ],
     "title": "DeckManifest",
+    "type": "object"
+  },
+  "reserve_index": {
+    "additionalProperties": false,
+    "description": "What the page fetches once to know the reserve exists and how big it\nis. The shard for a word follows from its first letter, so there is no\nlemma-to-file map to keep in step.",
+    "properties": {
+      "built_at": {
+        "format": "date-time",
+        "title": "Built At",
+        "type": "string"
+      },
+      "card_count": {
+        "minimum": 0,
+        "title": "Card Count",
+        "type": "integer"
+      },
+      "deck_word_min_count": {
+        "minimum": 1,
+        "title": "Deck Word Min Count",
+        "type": "integer"
+      },
+      "letters": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Letters",
+        "type": "array"
+      },
+      "schema_version": {
+        "default": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      },
+      "unit_count": {
+        "minimum": 0,
+        "title": "Unit Count",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "built_at",
+      "letters",
+      "unit_count",
+      "card_count",
+      "deck_word_min_count"
+    ],
+    "title": "ReserveIndex",
+    "type": "object"
+  },
+  "reserve_shard": {
+    "$defs": {
+      "GapSpan": {
+        "additionalProperties": false,
+        "description": "One blank: a character span of ``sentence_de`` and the token it covers.",
+        "properties": {
+          "answer": {
+            "minLength": 1,
+            "title": "Answer",
+            "type": "string"
+          },
+          "end": {
+            "exclusiveMinimum": 0,
+            "title": "End",
+            "type": "integer"
+          },
+          "start": {
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "token_index": {
+            "minimum": 0,
+            "title": "Token Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "answer",
+          "token_index"
+        ],
+        "title": "GapSpan",
+        "type": "object"
+      },
+      "PhraseCard": {
+        "additionalProperties": false,
+        "description": "One corpus sentence with one unit's tokens blanked.",
+        "properties": {
+          "answers": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Answers",
+            "type": "array"
+          },
+          "card_id": {
+            "maxLength": 12,
+            "minLength": 12,
+            "title": "Card Id",
+            "type": "string"
+          },
+          "context_de": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Context De"
+          },
+          "context_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Context En"
+          },
+          "context_source": {
+            "anyOf": [
+              {
+                "const": "gemini",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Context Source"
+          },
+          "corpus_line_id": {
+            "title": "Corpus Line Id",
+            "type": "string"
+          },
+          "corpus_source": {
+            "title": "Corpus Source",
+            "type": "string"
+          },
+          "form_key": {
+            "title": "Form Key",
+            "type": "string"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/$defs/GapSpan"
+            },
+            "minItems": 1,
+            "title": "Gaps",
+            "type": "array"
+          },
+          "gloss_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Gloss En"
+          },
+          "gloss_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "azure",
+                  "gemini"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Gloss Source"
+          },
+          "kind": {
+            "enum": [
+              "noun",
+              "verb",
+              "adjective",
+              "adverb",
+              "verb_prep",
+              "reflexive_verb",
+              "separable_verb",
+              "noun_verb",
+              "adj_verb",
+              "adj_noun",
+              "connector",
+              "two_part_connector",
+              "idiom",
+              "expression"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "needs_context": {
+            "default": false,
+            "title": "Needs Context",
+            "type": "boolean"
+          },
+          "sentence_de": {
+            "minLength": 1,
+            "title": "Sentence De",
+            "type": "string"
+          },
+          "unit_id": {
+            "title": "Unit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "card_id",
+          "unit_id",
+          "kind",
+          "sentence_de",
+          "gaps",
+          "answers",
+          "form_key",
+          "corpus_source",
+          "corpus_line_id"
+        ],
+        "title": "PhraseCard",
+        "type": "object"
+      },
+      "PhraseUnit": {
+        "additionalProperties": false,
+        "description": "A phrase the deck teaches. What FSRS schedules.",
+        "properties": {
+          "also_accepted": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Also Accepted",
+            "type": "array"
+          },
+          "card_count": {
+            "minimum": 0,
+            "title": "Card Count",
+            "type": "integer"
+          },
+          "case": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Akk",
+                  "Dat",
+                  "Gen"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Case"
+          },
+          "cefr": {
+            "anyOf": [
+              {
+                "enum": [
+                  "A1",
+                  "A2",
+                  "B1",
+                  "B2"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cefr"
+          },
+          "count_by_source": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Count By Source",
+            "type": "object"
+          },
+          "display_de": {
+            "minLength": 1,
+            "title": "Display De",
+            "type": "string"
+          },
+          "gloss_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Gloss En"
+          },
+          "glossed_card_count": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Glossed Card Count",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "noun",
+              "verb",
+              "adjective",
+              "adverb",
+              "verb_prep",
+              "reflexive_verb",
+              "separable_verb",
+              "noun_verb",
+              "adj_verb",
+              "adj_noun",
+              "connector",
+              "two_part_connector",
+              "idiom",
+              "expression"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "lemma_key": {
+            "minLength": 1,
+            "title": "Lemma Key",
+            "type": "string"
+          },
+          "parts": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Parts",
+            "type": "array"
+          },
+          "per_million": {
+            "default": 0.0,
+            "minimum": 0,
+            "title": "Per Million",
+            "type": "number"
+          },
+          "rank": {
+            "minimum": 1,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "requested_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Requested Order"
+          },
+          "sentence_count": {
+            "minimum": 0,
+            "title": "Sentence Count",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "mined",
+              "curated",
+              "mined+curated"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "trivial": {
+            "default": false,
+            "title": "Trivial",
+            "type": "boolean"
+          },
+          "trivial_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trivial Reason"
+          },
+          "unit_id": {
+            "minLength": 4,
+            "title": "Unit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit_id",
+          "kind",
+          "lemma_key",
+          "parts",
+          "display_de",
+          "sentence_count",
+          "rank",
+          "source",
+          "card_count"
+        ],
+        "title": "PhraseUnit",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "One letter of the reserve: the words the frequency floor keeps out.\n\nThe deck teaches what the corpus uses often enough, so a word the corpus\nis thin in is never taught, however ordinary it is. The reserve holds\nthose words, already mined and already carded, so the page can activate\none the moment the learner asks for it: no build, no API call, no\nnetwork beyond one file. Sharded by the first letter of the lemma,\nbecause a lookup knows the word it wants and nothing else.\n\nNothing here is taught until the learner asks for it by name, which is\nalso why it is not reviewed: an entry nobody looks up costs the bytes it\noccupies and nothing else.",
+    "properties": {
+      "cards": {
+        "items": {
+          "$ref": "#/$defs/PhraseCard"
+        },
+        "title": "Cards",
+        "type": "array"
+      },
+      "letter": {
+        "maxLength": 1,
+        "minLength": 1,
+        "title": "Letter",
+        "type": "string"
+      },
+      "schema_version": {
+        "default": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      },
+      "units": {
+        "items": {
+          "$ref": "#/$defs/PhraseUnit"
+        },
+        "title": "Units",
+        "type": "array"
+      }
+    },
+    "required": [
+      "letter",
+      "units",
+      "cards"
+    ],
+    "title": "ReserveShard",
     "type": "object"
   },
   "shard": {

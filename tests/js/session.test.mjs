@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 
 import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
-import { deriveState, entryKey, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
+import { deriveState, entryKey, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
+import { reserveLetter, withAdded } from "../../web/lib/deck.js";
 import { DEFAULT_SETTINGS, budgetLeft, budgetSpentToday, computeStats, eligiblePendingUnits, introductionOrder, nextUnit, pickCard, reviewsToday, sessionStart, unitsByStage } from "../../web/lib/session.js";
 
 const T0 = "2026-09-01T08:00:00Z";
@@ -220,4 +221,72 @@ test("a requested unit is introduced before any mined one", () => {
   const plain = deck();
   assert.deepEqual(introductionOrder(plain).map((u) => u.unit_id), ["vp:warten_auf", "cn:trotzdem"]);
   assert.equal(nextUnit(plain, state, engine, DEFAULT_SETTINGS, T0).unit_id, "vp:warten_auf");
+});
+
+// ---------------------------------------------------------------------------
+// Words the learner adds from the page. The Python side of each of these is
+// in tests/test_phase2_engine.py; the two must agree or a word added on the
+// phone is taught in a different order on the laptop.
+// ---------------------------------------------------------------------------
+
+test("a word the learner added is introduced before anything the corpus ranked", () => {
+  const d = deck(); const engine = createEngine();
+  const added = unit("wn:hähnchen", 99999, "das Hähnchen", { kind: "noun" });
+  const entries = [makeRequest([], { unitId: "wn:hähnchen", origin: "generated", unit: added, cards: [card("h1", "wn:hähnchen", "Das Hähnchen ist fertig.", ["Hähnchen"])] }, T0)];
+  const state = deriveState(entries, engine);
+
+  assert.deepEqual(state.requested, ["wn:hähnchen"]);
+  const full = withAdded(d, state);
+  assert.equal(introductionOrder(full, state)[0].unit_id, "wn:hähnchen");
+  assert.equal(full.cardsByUnit["wn:hähnchen"][0].card_id, "h1");
+  // and without the learner's state it falls back to rank, as before
+  assert.equal(introductionOrder(full)[0].unit_id, "vp:warten_auf");
+});
+
+test("a reserve word carries no payload: both devices fetch the same shard", () => {
+  const engine = createEngine();
+  const state = deriveState([makeRequest([], { unitId: "wn:bügeln", origin: "reserve" }, T0)], engine);
+  assert.deepEqual(state.requested, ["wn:bügeln"]);
+  assert.deepEqual(state.addedUnits, {});
+  assert.equal(withAdded(deck(), state).byId["wn:bügeln"], undefined);
+});
+
+test("the deck wins when a written word is later mined for real", () => {
+  const d = deck(); const engine = createEngine();
+  const invented = unit("vp:warten_auf", 99999, "erfunden");
+  const state = deriveState([makeRequest([], { unitId: "vp:warten_auf", origin: "generated", unit: invented, cards: [card("x9", "vp:warten_auf", "Erfundener Satz hier.", ["Satz"])] }, T0)], engine);
+  const full = withAdded(d, state);
+  assert.equal(full.byId["vp:warten_auf"].display_de, "warten auf");
+  assert.ok(!full.cardsByUnit["vp:warten_auf"].some((c) => c.card_id === "x9"));
+});
+
+test("adding the same word twice does not queue it twice", () => {
+  const engine = createEngine();
+  const first = makeRequest([], { unitId: "wn:bügeln", origin: "reserve" }, T0);
+  const second = makeRequest([first], { unitId: "wn:bügeln", origin: "reserve" }, "2026-09-01T09:00:00Z");
+  assert.deepEqual(deriveState([first, second], engine).requested, ["wn:bügeln"]);
+});
+
+test("a reset forgets the added words like everything else", () => {
+  const engine = createEngine();
+  const req = makeRequest([], { unitId: "wn:bügeln", origin: "reserve" }, T0);
+  const state = deriveState([req, makeReset([req], "", "2026-09-01T10:00:00Z")], engine);
+  assert.deepEqual(state.requested, []);
+});
+
+test("an entry type this client does not know is skipped, not fatal", () => {
+  const engine = createEngine();
+  const entries = parseJsonl([
+    JSON.stringify({ type: "mark", seq: 1, ts: T0, unit_id: "cn:trotzdem", known: true, source: "triage" }),
+    JSON.stringify({ type: "something_new", seq: 2, ts: "2026-09-01T09:00:00Z" }),
+  ].join("\n"));
+  const state = deriveState(entries, engine);
+  assert.ok(state.known.has("cn:trotzdem"));
+});
+
+test("the reserve shard for a word follows from its folded first letter", () => {
+  assert.equal(reserveLetter("Ärger"), "a");
+  assert.equal(reserveLetter("bügeln"), "b");
+  assert.equal(reserveLetter("1990er"), "_");
+  assert.equal(reserveLetter(""), "_");
 });

@@ -3,14 +3,15 @@
 // review log lives in IndexedDB and, when a token is set, in a private GitHub
 // Gist so every device replays the same log. No server, no build step.
 
-import { loadDeck } from "./lib/deck.js";
+import { loadDeck, loadReserveIndex, lookupReserve, withAdded } from "./lib/deck.js";
 import { createEngine } from "./lib/engine.js";
 import { gradeCard, renderMarked } from "./lib/grader.js";
-import { deriveState, entriesSinceReset, makeMark, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
+import { deriveState, entriesSinceReset, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
+import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
   DEFAULT_SETTINGS, budgetLeft, computeStats, dueUnits, nextUnit, pickCard, reviewsToday, unitsByStage, untriagedUnits,
 } from "./lib/session.js";
-import { appendEntries, loadSettings, readLog, replaceLog, saveSettings } from "./lib/store.js";
+import { appendEntries, kv, loadSettings, readLog, replaceLog, saveSettings } from "./lib/store.js";
 import { syncLog } from "./lib/sync.js";
 
 const $ = (id) => document.getElementById(id);
@@ -24,14 +25,22 @@ function escapeHtml(s) {
 
 // -- state --------------------------------------------------------------------
 
-const settings = { ...DEFAULT_SETTINGS, token: "", gistId: "", autoSync: true, ...loadSettings() };
+const settings = { ...DEFAULT_SETTINGS, token: "", gistId: "", autoSync: true, geminiKey: "", ...loadSettings() };
+// The deck as exported, and the deck the rest of the page sees: the second
+// is the first plus whatever the learner added from this screen. Kept apart
+// so a new request entry only has to refold, never refetch.
+let baseDeck = null;
 let deck = null;
+let reserveIndex = null;
 let engine = createEngine({ retention: settings.retention });
 let entries = [];
 let state = null;
 let overLimit = false;
 
-function refresh() { state = deriveState(entries, engine); }
+function refresh() {
+  state = deriveState(entries, engine);
+  if (baseDeck) deck = withAdded(baseDeck, state);
+}
 
 async function record(entry) {
   entries.push(entry);
@@ -355,6 +364,144 @@ function loadUnits() {
   $("units").querySelectorAll("button[data-relearn]").forEach((b) => b.addEventListener("click", () => relearn(b.dataset.relearn)));
 }
 
+// -- adding a word by hand ----------------------------------------------------
+
+// Three cases, in the order they are tried. The deck already teaches the
+// word, so it only needs moving to the front. The reserve has it, with cards
+// or without. Or nothing has it, and the learner says which kind of word it
+// is so the unit id matches what a real build would later mine.
+//
+// The unit id is always unit_id_for(kind, lemma), which is why the kind is
+// asked for rather than guessed: guess it wrong and the same word gets two
+// ids and two histories (rule 5).
+const KIND_PREFIX = { noun: "nn", verb: "vb", adjective: "aj", adverb: "av" };
+const KIND_LABEL = { noun: "Nomen", verb: "Verb", adjective: "Adjektiv", adverb: "Adverb" };
+
+function unitIdFor(kind, lemma) { return `${KIND_PREFIX[kind]}:${lemma}`; }
+
+function addStatus(html) { $("add-result").innerHTML = html; }
+
+async function addWord() {
+  const typed = $("add-word").value.trim();
+  const lemma = typed.toLowerCase();
+  if (!lemma) return;
+  addStatus(`<p class="muted">„${escapeHtml(typed)}“ wird gesucht…</p>`);
+
+  const inDeck = deck.units.filter((u) => u.lemma_key === lemma);
+  const already = new Set(state.requested);
+  if (inDeck.length) {
+    addStatus(inDeck.map((u) => {
+      const done = already.has(u.unit_id) || u.unit_id in state.records;
+      return `<p>${escapeHtml(u.display_de)} <span class="muted">(${KIND_LABEL[u.kind] || u.kind}, schon im Deck)</span> ` +
+        (done ? '<span class="muted">wird bereits gelernt</span>'
+              : `<button class="small" data-front="${escapeHtml(u.unit_id)}">Als Nächstes lernen</button>`) + "</p>";
+    }).join(""));
+    wireAddButtons();
+    return;
+  }
+
+  let readings = [];
+  try {
+    readings = await lookupReserve(lemma, { index: reserveIndex });
+  } catch (err) {
+    addStatus(`<p class="muted">Die Reserve konnte nicht geladen werden: ${escapeHtml(err.message)}</p>`);
+    return;
+  }
+
+  if (readings.length) {
+    // Every reading, because the corpus disagrees with itself: "stur" is an
+    // adjective and also a surname the Tagger read as a noun. The learner
+    // knows which one was meant.
+    addStatus(
+      `<p class="muted">${readings.length > 1 ? "Welches Wort meinst du?" : "Gefunden:"}</p>` +
+      readings.map(({ unit, cards }, i) => {
+        const sample = cards.find((c) => c.gloss_en);
+        const done = already.has(unit.unit_id);
+        return `<p><strong>${escapeHtml(unit.display_de)}</strong> <span class="muted">${KIND_LABEL[unit.kind] || unit.kind}, ` +
+          `${unit.sentence_count} Belege</span><br>` +
+          (sample ? `<span class="muted">${escapeHtml(sample.sentence_de)}</span><br>` :
+            '<span class="muted">Kein übersetzter Satz im Korpus; die Sätze werden geschrieben.</span><br>') +
+          (done ? '<span class="muted">bereits hinzugefügt</span>'
+                : `<button class="small" data-add="${i}">${sample ? "Hinzufügen" : "Sätze schreiben lassen"}</button>`) +
+          "</p>";
+      }).join(""),
+    );
+    wireAddButtons(readings);
+    return;
+  }
+
+  // Nothing has it. The corpus may not use the word at all, so the kind
+  // cannot be read off anything and the learner picks.
+  addStatus(
+    `<p>„${escapeHtml(typed)}“ steht weder im Deck noch in der Reserve.</p>` +
+    '<p class="muted">Welche Wortart ist es? Die Sätze werden dann geschrieben.</p><p>' +
+    Object.keys(KIND_LABEL).map((k) => `<button class="small" data-kind="${k}">${KIND_LABEL[k]}</button>`).join(" ") +
+    "</p>",
+  );
+  $("add-result").querySelectorAll("button[data-kind]").forEach((b) =>
+    b.addEventListener("click", () => generateFor({
+      unit_id: unitIdFor(b.dataset.kind, lemma), kind: b.dataset.kind, lemma_key: lemma,
+      parts: [lemma], display_de: typed, sentence_count: 0, rank: 900000, source: "mined",
+      card_count: 0, glossed_card_count: 0, also_accepted: [], count_by_source: {}, per_million: 0,
+      trivial: false, trivial_reason: null, requested_order: null, case: null, cefr: null, gloss_en: null,
+    }, null)));
+}
+
+function wireAddButtons(readings = []) {
+  $("add-result").querySelectorAll("button[data-front]").forEach((b) =>
+    b.addEventListener("click", () => activate(deck.byId[b.dataset.front], [], "deck")));
+  $("add-result").querySelectorAll("button[data-add]").forEach((b) => b.addEventListener("click", () => {
+    const { unit, cards } = readings[Number(b.dataset.add)];
+    const usable = cards.filter((c) => c.gloss_en);
+    if (usable.length) activate(unit, usable, "reserve");
+    else generateFor(unit, "reserve");
+  }));
+}
+
+// The one model call the page makes (CLAUDE.md rule 4 names the exception).
+async function generateFor(unit, origin) {
+  if (!settings.geminiKey) {
+    addStatus('<p>Dafür fehlt der Gemini-Schlüssel. Trage ihn unter ⚙ ein.</p>');
+    return;
+  }
+  addStatus(`<p class="muted">Sätze für „${escapeHtml(unit.display_de)}“ werden geschrieben…</p>`);
+  try {
+    const { cards, fromCache } = await writeCards(unit, {
+      apiKey: settings.geminiKey,
+      model: deck.manifest.model_generate,
+      store: kv,
+    });
+    await activate(unit, cards, origin || "generated");
+    if (fromCache) showGeminiUsage();
+  } catch (err) {
+    const hint = err instanceof QuotaExhaustedError ? "" : " Versuch es später noch einmal.";
+    addStatus(`<p>${escapeHtml(err.message)}${hint}</p>`);
+  }
+}
+
+async function activate(unit, cards, origin) {
+  if (!unit) return;
+  await record(makeRequest(entries, { unitId: unit.unit_id, origin, unit, cards }, now()));
+  addStatus(`<p>„${escapeHtml(unit.display_de)}“ wird als Nächstes gelehrt` +
+    `${cards.length ? ` (${cards.length} Karten)` : ""}.</p>`);
+  $("add-word").value = "";
+  loadUnits();
+  showGeminiUsage();
+  if (settings.autoSync && settings.token) scheduleSync();
+}
+
+async function showGeminiUsage() {
+  try {
+    const s = await callSummary(kv);
+    $("set-gemini-usage").textContent = s.total
+      ? `${s.today} von ${s.limit} Aufrufen heute · ${s.total} insgesamt · ${s.cacheHits} aus dem Zwischenspeicher`
+      : "Noch keine Aufrufe.";
+  } catch (e) { /* the store is not there yet */ }
+}
+
+$("btn-add-word").addEventListener("click", addWord);
+$("add-word").addEventListener("keydown", (ev) => { if (ev.key === "Enter") addWord(); });
+
 // -- stats --------------------------------------------------------------------
 
 function loadStats() {
@@ -375,6 +522,8 @@ function loadStats() {
 
 function loadSettingsView() {
   $("set-token").value = settings.token || "";
+  $("set-gemini").value = settings.geminiKey || "";
+  showGeminiUsage();
   $("set-gist").value = settings.gistId || "";
   $("set-cards").value = settings.cardsPerDay;
   $("set-new").value = settings.newPerDay === null ? "" : settings.newPerDay;
@@ -391,6 +540,7 @@ $("btn-settings-save").addEventListener("click", () => {
   settings.newPerDay = n === "" ? null : Math.max(0, parseInt(n, 10) || 0);
   settings.newPool = Math.max(1, parseInt($("set-pool").value, 10) || DEFAULT_SETTINGS.newPool);
   settings.autoSync = $("set-autosync").checked;
+  settings.geminiKey = $("set-gemini").value.trim();
   saveSettings(settings);
   $("settings-sync-status").textContent = "gespeichert";
   if (settings.token) sync().then(loadSettingsView).catch(() => {});
@@ -439,11 +589,15 @@ $("set-import").addEventListener("change", async (ev) => {
 async function boot() {
   $("deck-info").textContent = "Deck wird geladen…";
   try {
-    [deck, entries] = await Promise.all([loadDeck("./data/deck"), readLog()]);
+    [baseDeck, entries] = await Promise.all([loadDeck("./data/deck"), readLog()]);
+    deck = baseDeck;
   } catch (err) {
     $("deck-info").textContent = `Deck konnte nicht geladen werden: ${err.message}`;
     return;
   }
+  // The reserve is optional: a deck built before it existed simply has none,
+  // and the add-word screen says so instead of the page failing to load.
+  loadReserveIndex("./data/deck/reserve").then((index) => { reserveIndex = index; }).catch(() => {});
   try { localStorage.setItem("phrasen.deckVersion", deck.manifest.deck_version); } catch (e) { /* ignore */ }
   refresh();
   const m = deck.manifest;

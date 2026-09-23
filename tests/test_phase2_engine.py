@@ -767,3 +767,111 @@ def test_a_requested_unit_is_introduced_before_any_mined_one() -> None:
         _card("a20000000000", "sv:aufstehen", "Er steht früh auf.", ["steht", "auf"])
     ]
     assert next_unit(deck, state, engine, Settings(), T0).unit_id == "sv:aufstehen"
+
+
+# ==============================================================================
+# Words the learner adds from the page (the request entry)
+# ==============================================================================
+
+
+def _added_unit() -> PhraseUnit:
+    return PhraseUnit(
+        unit_id="wn:hähnchen",
+        kind="noun",
+        lemma_key="hähnchen",
+        parts=["hähnchen"],
+        display_de="das Hähnchen",
+        sentence_count=46,
+        rank=99_999,
+        source="mined",
+        card_count=1,
+        glossed_card_count=1,
+    )
+
+
+def _added_card(unit: PhraseUnit) -> PhraseCard:
+    return _card("cafecafecafe", unit.unit_id, "Das Hähnchen ist fertig.", ["Hähnchen"])
+
+
+def test_request_entry_round_trips_and_orders_added_units_first(tmp_path: Path) -> None:
+    """A word added on the page is taught before anything the corpus ranked,
+    and before the owner's own requested.yaml list: the learner asked for it
+    a moment ago."""
+    log = ReviewLog(tmp_path / "log.jsonl", now=lambda: T0)
+    unit = _added_unit()
+    log.record_request(
+        unit_id=unit.unit_id, origin="generated", unit=unit, cards=[_added_card(unit)]
+    )
+    state = derive_state(read_entries(tmp_path / "log.jsonl"), FSRSEngine())
+
+    assert state.requested == ["wn:hähnchen"]
+    assert state.added_units["wn:hähnchen"].display_de == "das Hähnchen"
+    deck = _deck().with_added(state)
+    assert [u.unit_id for u in introduction_order(deck, state)][0] == "wn:hähnchen"
+    # and the card came with it, so the unit is answerable
+    assert [c.card_id for c in deck.cards_by_unit["wn:hähnchen"]] == ["cafecafecafe"]
+
+
+def test_a_reserve_word_carries_no_payload_because_both_devices_fetch_the_same_shard(
+    tmp_path: Path,
+) -> None:
+    log = ReviewLog(tmp_path / "log.jsonl", now=lambda: T0)
+    log.record_request(unit_id="wn:bügeln", origin="reserve")
+    state = derive_state(read_entries(tmp_path / "log.jsonl"), FSRSEngine())
+
+    assert state.requested == ["wn:bügeln"]
+    assert not state.added_units and not state.added_cards
+    # Nothing is invented for it: the shard is the deck's job, not the log's.
+    assert _deck().with_added(state).by_id.get("wn:bügeln") is None
+
+
+def test_the_deck_wins_when_a_written_word_is_later_mined_for_real(tmp_path: Path) -> None:
+    """Once a real build teaches the word, its reviewed cards replace the
+    written ones. The unit_id is the same either way, so the learner's
+    history carries over rather than forking (rule 5)."""
+    log = ReviewLog(tmp_path / "log.jsonl", now=lambda: T0)
+    unit = _added_unit().model_copy(update={"unit_id": "vp:warten_auf"})
+    log.record_request(
+        unit_id="vp:warten_auf",
+        origin="generated",
+        unit=unit,
+        cards=[_card("dddddddddddd", "vp:warten_auf", "Erfundener Satz hier.", ["Satz"])],
+    )
+    state = derive_state(read_entries(tmp_path / "log.jsonl"), FSRSEngine())
+
+    deck = _deck().with_added(state)
+    assert deck.by_id["vp:warten_auf"].display_de == "warten auf"  # the deck's, not "das Haehnchen"
+    assert [c.card_id for c in deck.cards_by_unit["vp:warten_auf"]] != ["dddddddddddd"]
+
+
+def test_requesting_the_same_word_twice_does_not_queue_it_twice(tmp_path: Path) -> None:
+    log = ReviewLog(tmp_path / "log.jsonl", now=lambda: T0)
+    log.record_request(unit_id="wn:bügeln", origin="reserve")
+    log.record_request(unit_id="wn:bügeln", origin="reserve")
+    state = derive_state(read_entries(tmp_path / "log.jsonl"), FSRSEngine())
+    assert state.requested == ["wn:bügeln"]
+
+
+def test_a_reset_forgets_the_added_words_like_everything_else(tmp_path: Path) -> None:
+    log = ReviewLog(tmp_path / "log.jsonl", now=lambda: T0)
+    unit = _added_unit()
+    log.record_request(unit_id=unit.unit_id, origin="generated", unit=unit)
+    log.record_reset(note="starting over")
+    state = derive_state(read_entries(tmp_path / "log.jsonl"), FSRSEngine())
+    assert not state.requested and not state.added_units
+
+
+def test_an_entry_type_this_client_does_not_know_is_skipped_not_fatal(tmp_path: Path) -> None:
+    """The log gains entry types over time and the two clients update
+    separately, so an older one must read past a newer line rather than
+    lose the history after it."""
+    path = tmp_path / "log.jsonl"
+    log = ReviewLog(path, now=lambda: T0)
+    log.record_mark(unit_id="cn:trotzdem", known=True, source="triage")
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write('{"type":"something_new","seq":9,"ts":"2026-09-10T09:00:00Z"}\n')
+    log2 = ReviewLog(path, now=lambda: T0 + timedelta(hours=2))
+    log2.record_mark(unit_id="sv:aufstehen", known=True, source="triage")
+
+    state = derive_state(read_entries(path), FSRSEngine())
+    assert state.known == {"cn:trotzdem", "sv:aufstehen"}

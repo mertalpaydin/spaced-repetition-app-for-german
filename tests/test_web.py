@@ -47,14 +47,23 @@ def test_manifest_is_the_phrase_trainer() -> None:
     assert all((WEB / icon["src"]).exists() for icon in manifest["icons"])
 
 
-def test_only_the_sync_module_talks_to_the_network() -> None:
+#: Which page module may name which host, and nothing else may name any.
+#: ``gemini.js`` was added on 2026-09-23 with the owner's waiver of rule 4
+#: for the add-a-word button: the page has no backend to call, so that one
+#: call is made from the browser. The waiver is for THAT module and THAT
+#: host; the test still fails if any other file reaches the network, which
+#: is what it was written to catch.
+NETWORK_MODULES: dict[str, set[str]] = {
+    "sync.js": {"api.github.com"},
+    "gemini.js": {"generativelanguage.googleapis.com"},
+}
+
+
+def test_only_the_two_allowed_modules_talk_to_the_network() -> None:
     for path in sorted(WEB.rglob("*.js")):
         text = path.read_text(encoding="utf-8")
         hosts = set(re.findall(r"https?://([\w.-]+)", text))
-        if path.name == "sync.js":
-            assert hosts == {"api.github.com"}, hosts
-        else:
-            assert not hosts, (path, hosts)
+        assert hosts == NETWORK_MODULES.get(path.name, set()), (path, hosts)
 
 
 def test_service_worker_precaches_every_shell_file() -> None:

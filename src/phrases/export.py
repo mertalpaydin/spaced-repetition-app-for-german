@@ -12,11 +12,21 @@ from typing import Any
 from pydantic import BaseModel
 
 from src.atomic_write import write_text_atomic
-from src.contracts import DeckManifest, DeckShard, PhraseCard, PhraseUnit, ShardInfo, UnitsIndex
+from src.contracts import (
+    DeckManifest,
+    DeckShard,
+    PhraseCard,
+    PhraseUnit,
+    ReserveIndex,
+    ReserveShard,
+    ShardInfo,
+    UnitsIndex,
+)
 from src.phrases.unit_glosses import german_leak
 
 DEFAULT_DECK_DIR = Path("web/data/deck")
 DEFAULT_SCHEMA_PATH = Path("data/fixtures/schemas/phrase_deck.schema.json")
+DEFAULT_RESERVE_DIR = DEFAULT_DECK_DIR / "reserve"
 
 
 def _dump(model: BaseModel) -> str:
@@ -97,6 +107,72 @@ def export_deck(
     return manifest
 
 
+#: A lemma that starts with anything but a-z (after folding the umlauts)
+#: goes here, so every word has exactly one shard to look in.
+RESERVE_OTHER_LETTER = "_"
+_FOLD = str.maketrans({"ä": "a", "ö": "o", "ü": "u", "ß": "s"})
+
+
+def reserve_letter(lemma_key: str) -> str:
+    """The shard a word is looked up in. Folded, so "Ärger" and "Arger" are
+    one letter and the page can pick the file from what the learner typed."""
+    first = lemma_key[:1].lower().translate(_FOLD)
+    return first if "a" <= first <= "z" else RESERVE_OTHER_LETTER
+
+
+def export_reserve(
+    units: list[PhraseUnit],
+    cards: list[PhraseCard],
+    out_dir: Path,
+    *,
+    deck_word_min_count: int,
+    now: Callable[[], datetime] = lambda: datetime.now(UTC),
+) -> ReserveIndex:
+    """Write ``reserve/<letter>.json`` plus its index.
+
+    Sharded by first letter rather than by rank, because the reserve is only
+    ever read by lookup: the learner names a word and the page fetches the
+    one file that could hold it. Ordering inside a shard is by rank, so a
+    shard is byte-identical for the same input like every other export.
+    """
+    cards_by_unit: dict[str, list[PhraseCard]] = defaultdict(list)
+    for card in sorted(cards, key=lambda c: c.card_id):
+        cards_by_unit[card.unit_id].append(card)
+    unit_ids = {u.unit_id for u in units}
+    orphans = [c for c in cards if c.unit_id not in unit_ids]
+    if orphans:
+        raise ValueError(f"{len(orphans)} reserve card(s) reference no unit: {orphans[0].card_id}")
+
+    by_letter: dict[str, list[PhraseUnit]] = defaultdict(list)
+    for unit in sorted(units, key=lambda u: u.rank):
+        by_letter[reserve_letter(unit.lemma_key)].append(unit)
+
+    written = 0
+    for letter, letter_units in sorted(by_letter.items()):
+        letter_cards = [c for u in letter_units for c in cards_by_unit.get(u.unit_id, [])]
+        write_text_atomic(
+            out_dir / f"{letter}.json",
+            _dump(ReserveShard(letter=letter, units=letter_units, cards=letter_cards)),
+        )
+        written += len(letter_cards)
+    # Remove stale shards from a previous, larger reserve.
+    if out_dir.exists():
+        keep = {out_dir / f"{letter}.json" for letter in by_letter}
+        for stale in out_dir.glob("*.json"):
+            if stale not in keep and stale.name != "index.json":
+                stale.unlink()
+
+    index = ReserveIndex(
+        built_at=now(),
+        letters=sorted(by_letter),
+        unit_count=len(units),
+        card_count=written,
+        deck_word_min_count=deck_word_min_count,
+    )
+    write_text_atomic(out_dir / "index.json", _dump(index))
+    return index
+
+
 def load_deck(
     deck_dir: Path = DEFAULT_DECK_DIR,
 ) -> tuple[DeckManifest, list[PhraseUnit], list[PhraseCard]]:
@@ -119,6 +195,8 @@ def deck_schema() -> dict[str, Any]:
         "manifest": DeckManifest.model_json_schema(),
         "units": UnitsIndex.model_json_schema(),
         "shard": DeckShard.model_json_schema(),
+        "reserve_index": ReserveIndex.model_json_schema(),
+        "reserve_shard": ReserveShard.model_json_schema(),
     }
 
 

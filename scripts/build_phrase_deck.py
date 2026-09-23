@@ -10,6 +10,8 @@ Stages, each idempotent over ``data/phrases/build/``:
     requests  corpus sentences for a requested word that has none glossed;
               run it between two mines, then translate its carriers file
     cards     pick glossed sentences per unit; list what to gloss next
+    reserve   mine and card the words the frequency floor keeps out, for the
+              page to activate on request; writes web/data/deck/reserve/
     contexts  OPT-IN model stage: a preceding sentence for sentence-initial
               connectors (free lane, needs approval)
     unit-glosses  OPT-IN model stage: English for the mined units, most
@@ -30,7 +32,15 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 from src.atomic_write import write_text_atomic
-from src.contracts import MODEL_GENERATE, ContextRecord, PhraseCard, PhraseUnit, UnitGlossRecord
+from src.contracts import (
+    MODEL_GENERATE,
+    WORD_KINDS,
+    ContextRecord,
+    PhraseCard,
+    PhraseUnit,
+    UnitGlossRecord,
+    UnitsIndex,
+)
 from src.lexicon.vocabulary import VocabularyStore, _load_frequency_ranks
 from src.llm.env import FreeLaneKeyMissingError, client_from_env, load_env_file
 from src.phrases import cards as cards_module
@@ -38,7 +48,13 @@ from src.phrases import carrier_validation
 from src.phrases import contexts as contexts_module
 from src.phrases import unit_glosses as glosses_module
 from src.phrases.curated import DEFAULT_PHRASES_DIR, IdiomElement, IdiomSpec, load_curated
-from src.phrases.export import DEFAULT_DECK_DIR, check_deck, export_deck, write_schema
+from src.phrases.export import (
+    DEFAULT_DECK_DIR,
+    check_deck,
+    export_deck,
+    export_reserve,
+    write_schema,
+)
 from src.phrases.mining import (
     NGRAM_VOCAB_SIZE,
     LemmaCounts,
@@ -88,6 +104,7 @@ STAGES = (
     "expressions",
     "requests",
     "cards",
+    "reserve",
     "contexts",
     "unit-glosses",
     "export",
@@ -629,13 +646,15 @@ def stage_requests(args: argparse.Namespace) -> int:
 # -- cards ---------------------------------------------------------------------
 
 
-def stage_cards(args: argparse.Namespace) -> int:
+def _select_cards(args: argparse.Namespace, units: list[PhraseUnit]) -> cards_module.CardSelection:
+    """Cards for ``units`` from the occurrences on disk.
+
+    Shared by the deck and the reserve, which differ only in which units
+    they are asked for. The caller writes the files, because the two write
+    different ones: the deck's ungossed carriers become the monthly job's
+    work list, the reserve's are simply dropped.
+    """
     build_dir: Path = args.build_dir
-    units_path = build_dir / "units.jsonl"
-    if not units_path.exists():
-        _log("cards: no units.jsonl; run --stage mine first")
-        return 1
-    units = _read_units(units_path)
     wanted_ids = {u.unit_id for u in units}
     by_unit: dict[str, list[Occurrence]] = defaultdict(list)
     dictionary = carrier_validation._load_dictionary()  # noqa: SLF001
@@ -656,15 +675,12 @@ def stage_cards(args: argparse.Namespace) -> int:
         for german, record in store.items()
     }
     _log(f"cards: {len(store):,} stored glosses, {len(by_unit):,} units with occurrences")
-    if not parser_available():
-        _log("cards: spaCy model missing; carrier validation cannot run")
-        return 1
 
     def validate(text: str) -> bool:
         return carrier_validation.validate_carrier(text).accepted
 
     curated = load_curated(args.phrases_dir)
-    selection = cards_module.select_cards(
+    return cards_module.select_cards(
         units,
         by_unit,
         glosses,
@@ -673,6 +689,18 @@ def stage_cards(args: argparse.Namespace) -> int:
         max_validations=args.max_validations,
         excluded_card_ids=frozenset(curated.excluded_cards),
     )
+
+
+def stage_cards(args: argparse.Namespace) -> int:
+    build_dir: Path = args.build_dir
+    units_path = build_dir / "units.jsonl"
+    if not units_path.exists():
+        _log("cards: no units.jsonl; run --stage mine first")
+        return 1
+    if not parser_available():
+        _log("cards: spaCy model missing; carrier validation cannot run")
+        return 1
+    selection = _select_cards(args, _read_units(units_path))
     _write_models(build_dir / "cards.jsonl", selection.cards)
     write_text_atomic(
         build_dir / "wanted_carriers.txt",
@@ -680,6 +708,98 @@ def stage_cards(args: argparse.Namespace) -> int:
     )
     write_text_atomic(build_dir / "cards_stats.json", json.dumps(selection.stats, indent=2))
     _log(f"cards: {selection.stats}")
+    return 0
+
+
+# -- reserve -------------------------------------------------------------------
+
+
+#: The corpus sentence count a word needs to reach the reserve. The deck's
+#: own floor is ``Thresholds.word_min_count`` (100 over 4.1M sentences); a
+#: word under it is ordinary vocabulary the corpus happens to be thin in,
+#: and 6,207 of them are kept out by that floor alone (measured 2026-09-23).
+#: Eight is low on purpose: a word missing from the reserve is the failure
+#: the button exists to prevent, while an entry nobody ever looks up costs
+#: the bytes it occupies. Nothing here is taught until the learner names it.
+RESERVE_WORD_MIN_COUNT = 8
+
+
+def stage_reserve(args: argparse.Namespace) -> int:
+    """Mine and card the words the deck's frequency floor keeps out.
+
+    Same occurrences, same curated lists, same kind rules, same exclusions:
+    the ONLY threshold that moves is ``word_min_count``. So a word is in the
+    reserve exactly when the miner would have taught it had the corpus used
+    it more often, which is the promise the button makes to the learner.
+
+    A unit with no card is kept, not dropped. Measured 2026-09-23, dropping
+    them cost the reserve exactly the words the owner asked for: "ledig",
+    "bewoelkt" and the ADJECTIVE reading of "stur" are all mined happily and
+    all have no surviving glossed carrier, so dropping them left "stur"
+    represented only by "die Stur", a surname the tagger read as a noun. A
+    card-less unit still carries the kind, the citation form and the noun's
+    article, which is everything the page needs to ask a model for a
+    sentence and, more importantly, it fixes the ``unit_id`` so the same
+    word activated on two devices is one unit and not two.
+    """
+    build_dir: Path = args.build_dir
+    units_path = build_dir / "units.jsonl"
+    counts_path = build_dir / "lemma_counts.json"
+    if not units_path.exists() or not counts_path.exists():
+        _log("reserve: no units.jsonl or lemma_counts.json; run --stage mine first")
+        return 1
+    if not parser_available():
+        _log("reserve: spaCy model missing; carrier validation cannot run")
+        return 1
+    # What counts as "already taught" is what the EXPORTED deck ships, not
+    # what the build directory happens to hold. The two drift: on 2026-09-23
+    # build/units.jsonl still carried five units from a verification run of
+    # requested.yaml that the exported deck never had, and the reserve
+    # duly left out "stur" and "bewoelkt" as already taught while the
+    # learner had no way to reach either.
+    exported = args.out / "units.json"
+    if exported.exists():
+        deck_units = UnitsIndex.model_validate_json(exported.read_text(encoding="utf-8")).units
+    else:
+        _log(f"reserve: no {exported}; falling back to the build directory's units")
+        deck_units = _read_units(units_path)
+    taught = {u.unit_id for u in deck_units}
+    deck_max_rank = max((u.rank for u in deck_units), default=0)
+    counts = LemmaCounts.from_dict(json.loads(counts_path.read_text(encoding="utf-8")))
+    builder = UnitBuilder(
+        counts,
+        load_curated(args.phrases_dir),
+        Thresholds(word_min_count=args.reserve_min_count),
+    )
+    mined = builder.build(_read_all_occurrences(build_dir))
+    candidates = [u for u in mined if u.kind in WORD_KINDS and u.unit_id not in taught]
+    # Ranks are renumbered to run on from the deck's last, so a reserve rank
+    # keeps the field's meaning (rarer word, higher number) and can never
+    # collide with a deck rank in a scheduler that sees both.
+    candidates.sort(key=lambda u: (-u.sentence_count, u.unit_id))
+    candidates = [
+        u.model_copy(update={"rank": deck_max_rank + position})
+        for position, u in enumerate(candidates, start=1)
+    ]
+    _log(f"reserve: {len(candidates):,} word units the deck's floor keeps out")
+
+    selection = _select_cards(args, candidates)
+    units = cards_module.with_card_counts(candidates, selection.cards)
+    _write_models(build_dir / "reserve_units.jsonl", units)
+    _write_models(build_dir / "reserve_cards.jsonl", selection.cards)
+    index = export_reserve(
+        units,
+        selection.cards,
+        args.out / "reserve",
+        deck_word_min_count=Thresholds().word_min_count,
+    )
+    write_schema()
+    cardless = sum(1 for u in units if u.card_count == 0)
+    _log(
+        f"reserve: {index.unit_count:,} units, {index.card_count:,} cards, "
+        f"{len(index.letters)} shards -> {args.out / 'reserve'}"
+    )
+    _log(f"reserve: {cardless:,} of them have no glossed carrier and need a written sentence")
     return 0
 
 
@@ -878,6 +998,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--max-gloss-calls", type=int, default=250)
     parser.add_argument("--word-cap", type=int, default=60)
+    parser.add_argument(
+        "--reserve-min-count",
+        type=int,
+        default=RESERVE_WORD_MIN_COUNT,
+        help="corpus sentences a word needs to reach the reserve (the deck's floor is 100)",
+    )
     parser.add_argument("--no-ngrams", action="store_true")
     parser.add_argument("--gloss-batch-size", type=int, default=glosses_module.DEFAULT_BATCH_SIZE)
     return parser
@@ -898,6 +1024,7 @@ def main(argv: list[str] | None = None) -> int:
         "expressions": stage_expressions,
         "requests": stage_requests,
         "cards": stage_cards,
+        "reserve": stage_reserve,
         "contexts": stage_contexts,
         "unit-glosses": stage_unit_glosses,
         "export": stage_export,

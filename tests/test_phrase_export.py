@@ -107,3 +107,85 @@ def test_check_deck_reports_a_gloss_that_quotes_the_german(tmp_path: Path) -> No
     problems = check_deck(tmp_path)
     assert len(problems) == 1
     assert "vp:unit_1" in problems[0] and "gives the German away" in problems[0]
+
+
+def _word_unit(lemma: str, rank: int) -> PhraseUnit:
+    return PhraseUnit(
+        unit_id=f"wn:{lemma}",
+        kind="noun",
+        lemma_key=lemma,
+        parts=[lemma],
+        display_de=lemma,
+        sentence_count=20,
+        rank=rank,
+        source="mined",
+        card_count=1,
+    )
+
+
+def _word_card(unit: PhraseUnit) -> PhraseCard:
+    return PhraseCard(
+        card_id=f"c{unit.rank:011d}",
+        unit_id=unit.unit_id,
+        kind="noun",
+        sentence_de=f"Hier steht {unit.lemma_key} im Satz.",
+        gloss_en="gloss",
+        gloss_source="azure",
+        gaps=[GapSpan(start=0, end=4, answer="Hier", token_index=0)],
+        answers=["Hier"],
+        form_key="",
+        corpus_source="tatoeba",
+        corpus_line_id=str(unit.rank),
+    )
+
+
+def test_reserve_shards_by_folded_first_letter(tmp_path: Path) -> None:
+    """A lookup knows only the word it wants, so the shard has to follow
+    from the word itself; an umlaut is folded because the learner may type
+    it either way."""
+    from src.phrases.export import export_reserve, reserve_letter
+
+    units = [_word_unit(lemma, rank) for rank, lemma in enumerate(["apfel", "ärger", "birne"], 1)]
+    cards = [_word_card(u) for u in units]
+    index = export_reserve(units, cards, tmp_path, deck_word_min_count=100, now=lambda: NOW)
+
+    assert index.letters == ["a", "b"]
+    assert index.unit_count == 3 and index.card_count == 3
+    assert index.deck_word_min_count == 100
+    assert sorted(p.name for p in tmp_path.glob("*.json")) == ["a.json", "b.json", "index.json"]
+    shard = json.loads((tmp_path / "a.json").read_text(encoding="utf-8"))
+    assert [u["lemma_key"] for u in shard["units"]] == ["apfel", "ärger"]
+    assert reserve_letter("ärger") == "a" and reserve_letter("1990er") == "_"
+
+
+def test_reserve_export_is_byte_identical_for_the_same_input(tmp_path: Path) -> None:
+    from src.phrases.export import export_reserve
+
+    units = [_word_unit("apfel", 1)]
+    cards = [_word_card(units[0])]
+    export_reserve(units, cards, tmp_path, deck_word_min_count=100, now=lambda: NOW)
+    first = (tmp_path / "a.json").read_bytes()
+    export_reserve(units, cards, tmp_path, deck_word_min_count=100, now=lambda: NOW)
+    assert (tmp_path / "a.json").read_bytes() == first
+
+
+def test_reserve_export_removes_a_letter_that_no_longer_has_words(tmp_path: Path) -> None:
+    from src.phrases.export import export_reserve
+
+    units = [_word_unit("apfel", 1), _word_unit("birne", 2)]
+    cards = [_word_card(u) for u in units]
+    export_reserve(units, cards, tmp_path, deck_word_min_count=100, now=lambda: NOW)
+    assert (tmp_path / "b.json").exists()
+
+    export_reserve(units[:1], cards[:1], tmp_path, deck_word_min_count=100, now=lambda: NOW)
+    assert not (tmp_path / "b.json").exists()
+    assert (tmp_path / "a.json").exists()
+
+
+def test_reserve_export_refuses_a_card_whose_unit_is_not_there(tmp_path: Path) -> None:
+    import pytest
+    from src.phrases.export import export_reserve
+
+    unit = _word_unit("apfel", 1)
+    with pytest.raises(ValueError, match="reserve card"):
+        export_reserve([], [_word_card(unit)], tmp_path, deck_word_min_count=100, now=lambda: NOW)

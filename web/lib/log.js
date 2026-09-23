@@ -49,6 +49,10 @@ function freshState() {
   return {
     records: {}, known: new Set(), knownSource: {}, triaged: new Set(), lastCard: {}, ratings: {},
     firstReview: {}, reviewTimes: [], budgetReviewTimes: [], retriesPending: {}, lastUnit: null,
+    // Words the learner added from the page, oldest first, and the units and
+    // cards that exist only here because no exported shard holds them.
+    // Matches LearnerState in src/engine/review_log.py.
+    requested: [], addedUnits: {}, addedCards: {},
   };
 }
 
@@ -70,6 +74,15 @@ export function deriveState(entries, engine) {
   for (const e of sortEntries(entries)) {
     // A restart: everything before it is history, the replay starts over.
     if (e.type === "reset") { state = freshState(); continue; }
+    // A word the learner added. The payload is only what the other device
+    // cannot look up for itself: a reserve word with cards carries nothing,
+    // because both devices fetch the same committed shard.
+    if (e.type === "request") {
+      if (!state.requested.includes(e.unit_id)) state.requested.push(e.unit_id);
+      if (e.unit) state.addedUnits[e.unit_id] = e.unit;
+      if (e.cards && e.cards.length) state.addedCards[e.unit_id] = e.cards;
+      continue;
+    }
     if (e.type === "mark") {
       state.triaged.add(e.unit_id);
       if (e.known) { state.known.add(e.unit_id); state.knownSource[e.unit_id] = e.source; }
@@ -114,4 +127,11 @@ export function makeReset(entries, note, now) {
 
 export function makeMark(entries, unitId, known, source, now) {
   return { type: "mark", seq: nextSeq(entries), ts: new Date(now).toISOString(), unit_id: unitId, known, source };
+}
+
+export function makeRequest(entries, { unitId, origin, unit = null, cards = [] }, now) {
+  const entry = { type: "request", seq: nextSeq(entries), ts: new Date(now).toISOString(), unit_id: unitId, origin };
+  if (unit) entry.unit = unit;
+  if (cards.length) entry.cards = cards;
+  return entry;
 }

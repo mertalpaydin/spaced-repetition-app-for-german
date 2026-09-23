@@ -4,30 +4,67 @@
 import { entryKey, sortEntries } from "./log.js";
 
 const DB_NAME = "phrasen";
-const DB_VERSION = 1;
+// Version 2 adds the two stores web/lib/gemini.js needs: the cache it checks
+// before calling the model, and one row per attempt so the day's free-lane
+// calls can be counted. Purely additive; the log store is untouched and a
+// database written by version 1 upgrades in place.
+const DB_VERSION = 2;
+const STORES = ["log", "geminiCache", "geminiCalls"];
 
 function openDb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (!db.objectStoreNames.contains("log")) db.createObjectStore("log");
+      for (const name of STORES) {
+        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
-function tx(db, mode, fn) {
+function tx(db, mode, fn, name = "log") {
   return new Promise((resolve, reject) => {
-    const t = db.transaction("log", mode);
-    const store = t.objectStore("log");
+    const t = db.transaction(name, mode);
+    const store = t.objectStore(name);
     const out = fn(store);
     t.oncomplete = () => resolve(out);
     t.onerror = () => reject(t.error);
     t.onabort = () => reject(t.error);
   });
 }
+
+// A small keyed store, the shape web/lib/gemini.js expects. Kept here so
+// there is one database and one upgrade path rather than two.
+export const kv = {
+  async get(name, key) {
+    const db = await openDb();
+    const value = await new Promise((resolve, reject) => {
+      const req = db.transaction(name, "readonly").objectStore(name).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    db.close();
+    return value;
+  },
+  async put(name, key, value) {
+    const db = await openDb();
+    await tx(db, "readwrite", (store) => store.put(value, key), name);
+    db.close();
+  },
+  async all(name) {
+    const db = await openDb();
+    const rows = await new Promise((resolve, reject) => {
+      const req = db.transaction(name, "readonly").objectStore(name).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+    db.close();
+    return rows;
+  },
+};
 
 export async function readLog() {
   const db = await openDb();

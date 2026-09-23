@@ -314,6 +314,10 @@ class DeckManifest(BaseModel):
     kinds: dict[str, int] = Field(default_factory=dict)
     units_file: str
     shards: list[ShardInfo]
+    #: The model the page names when it writes a card for a word the deck
+    #: does not have. Carried here because model ids live in this file and
+    #: nowhere else (CLAUDE.md section 9), and the page cannot import it.
+    model_generate: str = MODEL_GENERATE
 
 
 class UnitsIndex(BaseModel):
@@ -332,6 +336,49 @@ class DeckShard(BaseModel):
     band: int = Field(ge=0)
     units: list[PhraseUnit]
     cards: list[PhraseCard]
+
+
+class ReserveShard(BaseModel):
+    """One letter of the reserve: the words the frequency floor keeps out.
+
+    The deck teaches what the corpus uses often enough, so a word the corpus
+    is thin in is never taught, however ordinary it is. The reserve holds
+    those words, already mined and already carded, so the page can activate
+    one the moment the learner asks for it: no build, no API call, no
+    network beyond one file. Sharded by the first letter of the lemma,
+    because a lookup knows the word it wants and nothing else.
+
+    Nothing here is taught until the learner asks for it by name, which is
+    also why it is not reviewed: an entry nobody looks up costs the bytes it
+    occupies and nothing else.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: int = DECK_SCHEMA_VERSION
+    #: The folded first letter of every lemma in this shard, or "_" for a
+    #: lemma that does not start with a-z.
+    letter: str = Field(min_length=1, max_length=1)
+    units: list[PhraseUnit]
+    cards: list[PhraseCard]
+
+
+class ReserveIndex(BaseModel):
+    """What the page fetches once to know the reserve exists and how big it
+    is. The shard for a word follows from its first letter, so there is no
+    lemma-to-file map to keep in step."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: int = DECK_SCHEMA_VERSION
+    built_at: datetime
+    #: Letters that have a shard, sorted. A letter absent here has no words.
+    letters: list[str]
+    unit_count: int = Field(ge=0)
+    card_count: int = Field(ge=0)
+    #: The corpus sentence count below which a word is reserve rather than
+    #: deck, recorded so a later build can tell why a word is on one side.
+    deck_word_min_count: int = Field(ge=1)
 
 
 # ==============================================================================
@@ -397,4 +444,46 @@ class ResetEntry(BaseModel):
     note: str = ""
 
 
-LogEntry = ReviewEntry | MarkEntry | ResetEntry
+class RequestEntry(BaseModel):
+    """The learner added a word from the page, and it is taught from now on.
+
+    The deck is a static artifact on GitHub Pages, so a word added on the
+    phone cannot be written into it. It rides the review log instead, which
+    already syncs between devices through the gist, and the other device
+    replays this line and teaches the same unit. That is why the payload is
+    here and not in a store of its own: one thing syncs, so one thing can be
+    out of step.
+
+    ``unit`` and ``cards`` carry the whole word, so the entry stands on its
+    own. The reserve is committed and both devices could in principle fetch
+    the same shard, but relying on that makes the feature depend on the
+    other device having a deck new enough to have a reserve at all, on the
+    shard still being there, and on a network at replay time. A word added
+    on the phone then silently fails to appear on the laptop, which is the
+    one thing this entry exists to prevent. The payload is a few hundred
+    bytes per hand-added word.
+
+    ``cards`` is empty only while a word is waiting for sentences, for
+    instance when the model's daily quota ran out between adding the word
+    and writing them. The unit is taught as soon as it has one.
+
+    ``unit_id`` is always present and is always ``unit_id_for(kind, lemma)``,
+    so a word added twice, or added here and mined into the deck later, is
+    one unit with one history rather than two (rule 5, and the reason
+    ``requested.yaml`` demands the kind rather than guessing it).
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: Literal["request"] = "request"
+    seq: int = Field(ge=1)
+    ts: datetime
+    unit_id: str
+    #: Where the unit came from, so the page knows whether to trust the deck
+    #: for it and so a later audit can find every generated card.
+    origin: Literal["deck", "reserve", "generated"]
+    unit: PhraseUnit | None = None
+    cards: list[PhraseCard] = Field(default_factory=list)
+
+
+LogEntry = ReviewEntry | MarkEntry | ResetEntry | RequestEntry

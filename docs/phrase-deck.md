@@ -47,6 +47,7 @@ Subtitle lines become cards only when the sentence validator passes them.
 uv run python scripts/build_phrase_deck.py --stage parse     # 2-3 h: spaCy over six corpora, 4.1M sentences
 uv run python scripts/build_phrase_deck.py --stage mine      # seconds: build/units.jsonl, build/report.json
 uv run python scripts/build_phrase_deck.py --stage cards     # minutes: build/cards.jsonl, wanted_carriers.txt
+uv run python scripts/build_phrase_deck.py --stage reserve   # ~40 min: web/data/deck/reserve/, the words below the floor
 uv run python scripts/build_phrase_deck.py --stage export    # seconds: web/data/deck/, the JSON schema fixture
 uv run python scripts/build_phrase_deck.py --stage all       # the four above, never contexts
 uv run python scripts/build_phrase_deck.py --check           # validate web/data/deck/ (CI, no corpus needed)
@@ -143,6 +144,43 @@ accept that it stays card-less.
 - **export** joins accepted contexts, sets `card_count`, and writes
   `manifest.json`, `units.json` and `shards/band_NNN.json` (200 units each,
   ranked). `deck_version` is a content hash.
+
+## The reserve, and the page's add-a-word button
+
+`--stage reserve` mines and cards the words the deck's frequency floor keeps
+out, so the page can teach one the moment the learner asks for it. Same
+occurrences, same curated lists, same kind rules, same exclusions: the only
+threshold that moves is `word_min_count`, 100 down to 8. Measured 2026-09-23:
+6,207 units, 7,727 cards, 24 shards by first letter, 6.1 MB, of which 1,692
+units have no glossed carrier and carry no card.
+
+Three things worth knowing before changing it.
+
+- **It is keyed off the EXPORTED deck**, `web/data/deck/units.json`, not off
+  `build/units.jsonl`. The two drift: on 2026-09-23 the build directory still
+  held five units from a verification run of `requested.yaml` that the deck
+  never shipped, and the reserve duly left out `stur` and `bewoelkt` as
+  already taught while the learner had no way to reach either.
+- **A unit with no card is kept, not dropped.** Dropping them cost exactly
+  the words the owner asked for: `ledig` and the ADJECTIVE reading of `stur`
+  are mined happily and have no surviving glossed carrier, so dropping them
+  left `stur` represented only by `die Stur`, a surname the tagger read as a
+  noun. A card-less unit still carries the kind, the citation form and the
+  article, which is what the page needs to ask a model for a sentence.
+- **Both readings ship.** `braten` is a verb and a noun, `stur` an adjective
+  and (in the corpus) a surname. The page offers every reading and the
+  learner picks; the kind is never guessed, because the unit id derives from
+  it and a wrong guess forks the review log.
+
+The reserve is not reviewed. Nothing in it is taught until the learner names
+the word, so an entry nobody looks up costs only the bytes it occupies.
+
+A word the reserve has no unit for at all (`Haehnchen`: 46 corpus sentences,
+none glossed, so it was never mined) is written by Gemini in the browser,
+from the owner's own key. That is the one call outside `src/llm/client.py`;
+CLAUDE.md rule 4 states the waiver and its bounds, and `web/lib/gemini.js`
+carries the cache, the per-attempt record, the RPM/RPD distinction and the
+daily ceiling that pay for it.
 
 ## The one model stage
 

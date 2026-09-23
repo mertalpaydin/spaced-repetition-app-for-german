@@ -93,14 +93,19 @@ export function eligiblePendingUnits(deck, state, engine, settings, now, ignoreS
   return out.map((d) => d[2]);
 }
 
-// The order new units are introduced in: the units the owner asked for by
-// hand first, in the order he listed them, then everything else by corpus
-// frequency. Carried on the unit as requested_order rather than by rewriting
+// The order new units are introduced in. Three tiers: what the learner added
+// from the page, newest last, because they asked for it a moment ago; then
+// the units the owner asked for by hand in requested.yaml; then everything
+// else by corpus frequency. Carried on the unit as requested_order rather than by rewriting
 // rank, which is part of the deck's content hash and promises to mean
 // frequency (owner, 2026-09-22). Matches introduction_order in
 // src/engine/session.py; both suites pin the two against each other.
-export function introductionOrder(deck) {
+export function introductionOrder(deck, state = null) {
+  const added = new Map((state?.requested || []).map((id, i) => [id, i]));
   return [...deck.units].sort((a, b) => {
+    const aa = added.has(a.unit_id) ? added.get(a.unit_id) : Infinity;
+    const ba = added.has(b.unit_id) ? added.get(b.unit_id) : Infinity;
+    if (aa !== ba) return aa - ba;
     const ao = a.requested_order ?? Infinity;
     const bo = b.requested_order ?? Infinity;
     return ao - bo || a.rank - b.rank;
@@ -128,7 +133,7 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
   const underCap = settings.newPerDay === null || newUnitsStartedToday(state, now) < settings.newPerDay;
   if (withinBudget && (underCap || overLimit)) {
     const pool = [];
-    for (const unit of introductionOrder(deck)) {
+    for (const unit of introductionOrder(deck, state)) {
       if (unit.unit_id in state.records) continue;
       if (isLearnable(deck, unit, state)) {
         pool.push(unit);

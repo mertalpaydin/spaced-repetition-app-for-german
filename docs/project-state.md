@@ -309,6 +309,40 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   not silently lost (the corpus-wide reader takes only Tatoeba and Leipzig
   2025). The runbook is in `docs/phrase-deck.md`.
 
+- **A word the learner adds from the page** (2026-09-23). The Einheiten
+  screen takes a word and teaches it next, on every device. Three cases: the
+  deck already has it and it only moves to the front; the reserve has it,
+  with cards or without; nothing has it, the learner says which kind of word
+  it is, and Gemini writes the sentences.
+
+  `web/data/deck/reserve/` is the data half, written by `--stage reserve`:
+  the 6,207 word units the deck's frequency floor keeps out, 7,727 cards,
+  24 shards by first letter, 6.1 MB. Keyed off the EXPORTED deck rather than
+  the build directory, because the two drift. Card-less units are kept, and
+  every reading of an ambiguous word ships, both for the same reason: the
+  words the owner actually wanted (`ledig`, `bewoelkt`, the adjective `stur`)
+  are mined fine and have no surviving glossed carrier, so dropping them left
+  `stur` represented only by `die Stur`, a surname the tagger read as a noun.
+
+  It rides the review log as a `RequestEntry` (additive to the log union,
+  rule 8), carrying the unit and its cards so the entry stands on its own:
+  the other device must not need a deck new enough to have a reserve, the
+  shard still to be there, and a network at replay time. `Deck.with_added`
+  folds them in, so the scheduler, the grader and the statistics never learn
+  where a unit came from, and the deck wins on a collision, so a word later
+  mined for real replaces the written cards and keeps its history.
+
+  **The Gemini call is made from the browser**, `web/lib/gemini.js`, with the
+  owner's own key held in the page's settings beside the GitHub token that
+  already lives there. This is a waiver of rule 4, granted 2026-09-23 and
+  stated in CLAUDE.md: the page has no backend and the learner should not
+  wait for a laptop. The module owes what the Python client provides and the
+  tests in `tests/js/gemini.test.mjs` hold it to them: cache first, a record
+  of every attempt rather than every success, the per-minute 429 backed off
+  and the per-day one obeyed, and a daily ceiling refused before the call.
+  The model id comes from `manifest.model_generate`, so no model string is
+  written into the page.
+
 ## What is not built
 
 - **An installable icon flow on iOS** is untested; Android and desktop
