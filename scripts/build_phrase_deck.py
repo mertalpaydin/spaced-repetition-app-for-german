@@ -7,6 +7,8 @@ Stages, each idempotent over ``data/phrases/build/``:
     expressions  choose fixed expressions from the n-gram counts (written by
               scripts/count_ngrams.py) and match them over the glossed
               sentences; run it between two mines, then mine again
+    requests  corpus sentences for a requested word that has none glossed;
+              run it between two mines, then translate its carriers file
     cards     pick glossed sentences per unit; list what to gloss next
     contexts  OPT-IN model stage: a preceding sentence for sentence-initial
               connectors (free lane, needs approval)
@@ -20,6 +22,7 @@ Stages, each idempotent over ``data/phrases/build/``:
 
 import argparse
 import json
+import re
 import sys
 import time
 from collections import Counter, defaultdict
@@ -36,7 +39,14 @@ from src.phrases import contexts as contexts_module
 from src.phrases import unit_glosses as glosses_module
 from src.phrases.curated import DEFAULT_PHRASES_DIR, IdiomElement, IdiomSpec, load_curated
 from src.phrases.export import DEFAULT_DECK_DIR, check_deck, export_deck, write_schema
-from src.phrases.mining import NGRAM_VOCAB_SIZE, LemmaCounts, WordGate, detect_all, detect_idioms
+from src.phrases.mining import (
+    NGRAM_VOCAB_SIZE,
+    LemmaCounts,
+    WordGate,
+    detect_all,
+    detect_idioms,
+    detect_words,
+)
 from src.phrases.mining import expressions as expressions_module
 from src.phrases.occurrences import Occurrence, read_occurrences, write_occurrences
 from src.phrases.parse import parse_many, parser_available
@@ -76,6 +86,7 @@ STAGES = (
     "parse",
     "mine",
     "expressions",
+    "requests",
     "cards",
     "contexts",
     "unit-glosses",
@@ -152,6 +163,27 @@ def _word_gate(args: argparse.Namespace) -> WordGate:
     )
 
 
+def corpora_from_args(args: argparse.Namespace) -> dict[str, CorpusLine]:
+    """Every corpus the flags ask for. Shared by the stages that read the
+    corpus directly, so ``--skip-leipzig`` and ``--no-default-extras`` mean
+    the same thing in each of them."""
+    extra: list[tuple[str, Path]] = []
+    if not args.no_default_extras:
+        extra += [(name, default_corpus_path(file)) for name, file in DEFAULT_EXTRA_CORPORA]
+    for spec in args.extra_corpus:
+        name, _, path = spec.partition("=")
+        if not name or not path:
+            raise ValueError(f"--extra-corpus expects name=path, got {spec!r}")
+        extra.append((name, Path(path)))
+    return read_corpora(
+        None if args.skip_tatoeba else args.tatoeba,
+        None if args.skip_leipzig else args.leipzig,
+        limit=args.limit,
+        seed=args.seed,
+        extra=extra,
+    )
+
+
 def stage_parse(args: argparse.Namespace) -> int:
     if not parser_available():
         _log("spaCy model de_core_news_sm is not installed; run `uv sync`.")
@@ -160,22 +192,11 @@ def stage_parse(args: argparse.Namespace) -> int:
     build_dir.mkdir(parents=True, exist_ok=True)
     curated = load_curated(args.phrases_dir)
     dictionary = carrier_validation._load_dictionary()  # noqa: SLF001
-    extra: list[tuple[str, Path]] = []
-    if not args.no_default_extras:
-        extra += [(name, default_corpus_path(file)) for name, file in DEFAULT_EXTRA_CORPORA]
-    for spec in args.extra_corpus:
-        name, _, path = spec.partition("=")
-        if not name or not path:
-            _log(f"--extra-corpus expects name=path, got {spec!r}")
-            return 1
-        extra.append((name, Path(path)))
-    lines = read_corpora(
-        None if args.skip_tatoeba else args.tatoeba,
-        None if args.skip_leipzig else args.leipzig,
-        limit=args.limit,
-        seed=args.seed,
-        extra=extra,
-    )
+    try:
+        lines = corpora_from_args(args)
+    except ValueError as exc:
+        _log(str(exc))
+        return 1
     ordered = sorted(lines.values(), key=lambda line: (line.source, line.line_id))
     _log(f"parse: {len(ordered):,} distinct sentences")
     gate = _word_gate(args)
@@ -247,16 +268,18 @@ def _write_models(path: Path, models: Iterable[PhraseUnit | PhraseCard]) -> None
 
 
 def _occurrence_files(build_dir: Path) -> list[Path]:
-    """The parse stage's occurrences, plus the expression stage's if it ran.
+    """The parse stage's occurrences, plus those of the two targeted stages.
 
-    Expressions are matched over the glossed sentences alone, in a pass of
-    their own that takes minutes rather than hours, so they land in a second
-    file instead of being merged into the 2.5 GiB one.
+    Expressions are matched over the glossed sentences alone, and requested
+    words over the handful of corpus sentences that use them, in passes that
+    take minutes rather than hours. Both land in files of their own instead
+    of being merged into the 2.5 GiB one.
     """
     paths = [build_dir / "occurrences.jsonl"]
-    extra = build_dir / "expression_occurrences.jsonl"
-    if extra.exists():
-        paths.append(extra)
+    for name in ("expression_occurrences.jsonl", "requested_occurrences.jsonl"):
+        extra = build_dir / name
+        if extra.exists():
+            paths.append(extra)
     return paths
 
 
@@ -426,6 +449,180 @@ def stage_expressions(args: argparse.Namespace) -> int:
     write_occurrences(build_dir / "expression_occurrences.jsonl", generate())
     minutes = (time.monotonic() - started) / 60
     _log(f"expressions: {total:,} occurrences in {minutes:.1f} min")
+    return 0
+
+
+# -- requests ------------------------------------------------------------------
+
+
+#: Suffixes stripped to get a stem the corpus can be searched for. German
+#: inflects, so "Haehnchen" also appears as "Haehnchens" and "bewoelkt" as
+#: "bewoelkten". The stem is deliberately loose: every candidate sentence is
+#: parsed afterwards, and ``mining.words._word_of`` is what decides which
+#: lemma a sentence really teaches, so a false positive costs a parse and
+#: nothing else.
+_REQUEST_STEM_SUFFIXES: tuple[str, ...] = ("en", "es", "er", "em", "e", "n")
+_REQUEST_MIN_STEM = 4
+#: Only the vowel transliterations, never ss -> eszett: folding "essen" to
+#: "eszett-en" would make the commonest spelling of the word unfindable.
+_REQUEST_UMLAUTS: tuple[tuple[str, str], ...] = (("ae", "ä"), ("oe", "ö"), ("ue", "ü"))
+
+
+def _request_stems(key: str) -> set[str]:
+    """Every spelling of ``key`` worth searching the corpus for, shortened to
+    a stem. The owner may write the umlaut either way round; the corpus, in
+    practice, writes it with the umlaut."""
+    spellings = {key.lower()}
+    folded = key.lower()
+    for ascii_form, german_form in _REQUEST_UMLAUTS:
+        folded = folded.replace(ascii_form, german_form)
+    spellings.add(folded)
+    stems: set[str] = set()
+    for spelling in spellings:
+        stem = spelling
+        for suffix in _REQUEST_STEM_SUFFIXES:
+            if spelling.endswith(suffix) and len(spelling) - len(suffix) >= _REQUEST_MIN_STEM:
+                stem = spelling[: -len(suffix)]
+                break
+        stems.add(stem)
+    return stems
+
+
+def _requested_without_occurrences(report: dict[str, object]) -> list[tuple[str, str]]:
+    """``(kind, key)`` for each request the mine stage found no occurrence for.
+
+    A request that ``exclude.yaml`` refuses is not one of them: those keys
+    were excluded because their occurrences teach a different lemma, and
+    hunting the corpus for more of the same would put false sentences in
+    front of the learner (CLAUDE.md, the requested-unit plan)."""
+
+    def bucket(name: str) -> list[str]:
+        raw = report.get(name)
+        return [str(entry) for entry in raw] if isinstance(raw, list) else []
+
+    missing = bucket("requested_missing")
+    excluded = set(bucket("requested_but_excluded"))
+    out: list[tuple[str, str]] = []
+    for entry in missing:
+        if entry in excluded:
+            continue
+        kind, _, key = entry.partition(":")
+        if kind and key:
+            out.append((kind, key))
+    return out
+
+
+def stage_requests(args: argparse.Namespace) -> int:
+    """Find corpus sentences for a requested word that has no glossed one.
+
+    The word detector emits occurrences only from sentences that already
+    carry a trusted gloss, because no other sentence can become a card. That
+    bound is what keeps ``occurrences.jsonl`` to its present size, but it
+    also means a requested word whose corpus sentences are all untranslated
+    ("Haehnchen": 46 sentences, none glossed) produces nothing at all, and so
+    never reaches ``wanted_carriers.txt`` for the monthly Azure job either.
+
+    This stage lifts the gloss bound for those keys and nothing else. It
+    writes its occurrences to a file of their own, the way the expression
+    stage does, and it writes the candidate sentences in the format
+    ``scripts/monthly_translation_topup.py --carriers-file`` reads, so the
+    translation can be scoped to exactly these sentences.
+
+    Run it between two mines: the first says which requests came up empty,
+    the second turns these occurrences into units.
+    """
+    if not parser_available():
+        _log("spaCy model de_core_news_sm is not installed; run `uv sync`.")
+        return 1
+    build_dir: Path = args.build_dir
+    report_path = build_dir / "report.json"
+    if not report_path.exists():
+        _log("requests: no report.json; run --stage mine first")
+        return 1
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    wanted_keys = _requested_without_occurrences(report)
+    if not wanted_keys:
+        # Nothing is rewritten in this case, deliberately: a second run of
+        # this stage sees the keys of the first as present, and blanking the
+        # file would throw away the occurrences that made them present.
+        _log("requests: every request already has occurrences; nothing to do")
+        return 0
+    _log(f"requests: {len(wanted_keys)} request(s) with no occurrence: {wanted_keys}")
+
+    stems_by_key = {key: _request_stems(key) for _, key in wanted_keys}
+    pattern = re.compile(
+        r"\b(?:"
+        + "|".join(re.escape(stem) for stem in sorted(set().union(*stems_by_key.values())))
+        + r")",
+        re.IGNORECASE,
+    )
+    lines = corpora_from_args(args)
+    ordered = sorted(lines.values(), key=lambda line: (line.source, line.line_id))
+    _log(f"requests: scanning {len(ordered):,} sentences")
+    taken: Counter[str] = Counter()
+    candidates: list[CorpusLine] = []
+    for line in ordered:
+        if not pattern.search(line.text):
+            continue
+        # The same parser-free shape checks the translation job uses, so a
+        # sentence queued here is one the pipeline could accept later.
+        if carrier_validation._sentence_shape_reason(line.text) is not None:  # noqa: SLF001
+            continue
+        hit = next(
+            (
+                key
+                for key, stems in stems_by_key.items()
+                if any(s in line.text.lower() for s in stems)
+            ),
+            None,
+        )
+        if hit is None:
+            continue
+        bucket = f"{hit}:{line.source}"
+        if taken[bucket] >= args.word_cap:
+            continue
+        taken[bucket] += 1
+        candidates.append(line)
+    _log(f"requests: {len(candidates):,} candidate sentence(s) to parse")
+    if not candidates:
+        _log("requests: no corpus sentence matched any request")
+        return 0
+
+    gate = WordGate(
+        lemmas=frozenset(key for _, key in wanted_keys),
+        # The point of this stage: these sentences count as carriers even
+        # though nobody has translated them yet.
+        glossed=frozenset(line.text for line in candidates),
+        dictionary=carrier_validation._load_dictionary(),  # noqa: SLF001
+        cap=args.word_cap,
+        seed=args.seed,
+    )
+    found: list[Occurrence] = []
+    used: dict[str, CorpusLine] = {}
+    for line, parsed in zip(
+        candidates, parse_many(entry.text for entry in candidates), strict=True
+    ):
+        for occ in detect_words(parsed, gate, source=line.source, line_id=line.line_id):
+            found.append(occ)
+            used[line.text] = line
+    write_occurrences(build_dir / "requested_occurrences.jsonl", iter(found))
+    carriers = sorted(used.values(), key=lambda line: (line.source, line.line_id))
+    write_text_atomic(
+        build_dir / "requested_carriers.txt",
+        "".join(f"{line.source}\t{line.line_id}\t{line.text}\n" for line in carriers),
+    )
+    by_key = Counter(occ.unit_key for occ in found)
+    for _, key in wanted_keys:
+        _log(f"  {key}: {by_key[key]} occurrence(s)")
+    empty = [key for _, key in wanted_keys if not by_key[key]]
+    if empty:
+        _log(f"requests: NOT IN THE CORPUS, no sentence teaches them: {sorted(empty)}")
+    _log(
+        f"requests: {len(found):,} occurrences over {len(carriers):,} sentences; "
+        f"translate them with\n"
+        f"  uv run python scripts/monthly_translation_topup.py "
+        f"--carriers-file {build_dir / 'requested_carriers.txt'} --carriers-only"
+    )
     return 0
 
 
@@ -699,6 +896,7 @@ def main(argv: list[str] | None = None) -> int:
         "parse": stage_parse,
         "mine": stage_mine,
         "expressions": stage_expressions,
+        "requests": stage_requests,
         "cards": stage_cards,
         "contexts": stage_contexts,
         "unit-glosses": stage_unit_glosses,

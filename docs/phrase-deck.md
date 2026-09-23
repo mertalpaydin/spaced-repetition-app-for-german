@@ -39,6 +39,7 @@ Subtitle lines become cards only when the sentence validator passes them.
 | `exclude.yaml` | lemma keys dropped outright, each with its reason | the curation round; grows from `report.json` and from reviews |
 | `excluded_cards.yaml` | card ids a review rejected | never selected again |
 | `unit_overrides.yaml` | reviewer corrections: case, citation form, CEFR | applied after the unit decision |
+| `requested.yaml` | words the owner asks for by hand, each with its kind | unit whatever the frequency floor says, and taught before the mined units |
 
 ## Stages
 
@@ -54,6 +55,34 @@ uv run python scripts/build_phrase_deck.py --check           # validate web/data
 Every stage is deterministic and idempotent over `build/`; re-run `mine`
 after editing a curated list without re-parsing. A lock file in `build/`
 stops two builds from overlapping.
+
+### Words the owner asks for
+
+Add the word to `data/phrases/requested.yaml` with its kind, run `--stage
+mine`, and read the report's `requested` buckets. A word that is already
+mined, or that is only under the frequency floor, is now a unit and is
+taught before every mined one; nothing else is needed.
+
+`requested_missing` is the case that needs work: the corpus uses the word
+but no sentence that uses it has an English gloss, so the parse emitted no
+occurrence for it at all.
+
+```
+uv run python scripts/build_phrase_deck.py --stage requests   # minutes: finds and parses its corpus sentences
+uv run python scripts/monthly_translation_topup.py \
+    --carriers-file data/phrases/build/requested_carriers.txt --carriers-only
+uv run python scripts/build_phrase_deck.py --stage mine       # now the word is a unit
+uv run python scripts/build_phrase_deck.py --stage cards
+```
+
+The translation step is Azure F0, free, and it is the owner's call: ask
+before running it, and check `data/fixtures/translations/azure_f0_ledger.json`
+afterwards. It reads only the carriers file, so it spends a few thousand
+characters of the 2,000,000, not the month.
+
+A key the stage names as NOT IN THE CORPUS has no sentence that teaches it.
+Nothing can be built for that word; remove it from `requested.yaml` or
+accept that it stays card-less.
 
 ### What each stage decides
 

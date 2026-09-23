@@ -305,6 +305,30 @@ def load_exercise_carriers(carriers_path: Path | None) -> tuple[frozenset[str], 
     return frozenset(texts), notes
 
 
+def load_exercise_carrier_lines(carriers_path: Path) -> list[CorpusLine]:
+    """The same file as ``load_exercise_carriers``, read as corpus lines.
+
+    ``--carriers-only`` translates this file and nothing else, so it needs
+    each sentence's source and id, not just its text. Reading them here
+    rather than looking them up in the corpus matters twice over: the
+    corpus-wide reader takes only Tatoeba and the 2025 Leipzig file, so a
+    carrier from one of the four extra corpora would silently vanish, and a
+    run that touches a few hundred sentences should not pay for reading four
+    million.
+    """
+    lines: list[CorpusLine] = []
+    for raw in carriers_path.read_text(encoding="utf-8").splitlines():
+        fields = raw.rstrip("\r").split("\t")
+        text = fields[-1].strip()
+        if not text:
+            continue
+        source, line_id = ("", "")
+        if len(fields) >= 3:
+            source, line_id = fields[0].strip(), fields[1].strip()
+        lines.append(CorpusLine(line_id=line_id, text=text, source=source))
+    return lines
+
+
 @dataclass(frozen=True)
 class PrioritisedCarriers:
     """The corpus split into this job's passes, each already in order."""
@@ -853,6 +877,15 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--carriers-only",
+        action="store_true",
+        help=(
+            "Translate ONLY --carriers-file and stop, instead of continuing into "
+            "the corpus at large. For a handful of sentences a requested word "
+            "needs (scripts/build_phrase_deck.py --stage requests)."
+        ),
+    )
+    parser.add_argument(
         "--no-priority-carriers",
         action="store_true",
         help="Disable pass 0 and treat the corpus uniformly, as before.",
@@ -930,7 +963,16 @@ def main(argv: list[str] | None = None) -> int:
 
     load_env_file()
 
-    carriers = _read_corpora(args)
+    if args.carriers_only and args.no_priority_carriers:
+        parser.error("--carriers-only and --no-priority-carriers contradict each other")
+    if args.carriers_only:
+        carriers_path = Path(args.carriers_file)
+        if not carriers_path.exists():
+            print(f"--carriers-only: no carriers file at {carriers_path}; nothing to do.")
+            return 1
+        carriers = {line.text: line for line in load_exercise_carrier_lines(carriers_path)}
+    else:
+        carriers = _read_corpora(args)
     if not carriers:
         print("No carriers read; nothing to do. Check --tatoeba/--leipzig.")
         return 1
@@ -973,6 +1015,7 @@ def main(argv: list[str] | None = None) -> int:
             # Both were loaded above and, until 2026-09-08, never passed on: the
             # notes printed, and the run spent the month in corpus order anyway.
             exercise_carriers=exercise_carriers,
+            carriers_source="carriers-file" if args.carriers_only else "corpora",
             is_carrier_valid=_carrier_is_usable,
         )
     except LedgerVersionError as exc:

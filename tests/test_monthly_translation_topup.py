@@ -1288,6 +1288,63 @@ def test_main_wires_the_wanted_carriers_into_pass_zero(
     assert _sentence(0) not in translator.translated
 
 
+def test_carriers_only_translates_the_file_and_never_the_corpus(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--carriers-only exists for the handful of sentences a requested word
+    needs. It must not read the corpus at all: the corpus-wide reader takes
+    only Tatoeba and the 2025 Leipzig file, so a carrier from one of the four
+    extra corpora would silently vanish, and it must not spend the month's
+    allowance on sentences nobody asked for."""
+    wanted = [_sentence(3), _sentence(9)]
+    carriers_path = tmp_path / "requested_carriers.txt"
+    carriers_path.write_text(
+        "".join(f"opensubtitles_2018\t{i}\t{text}\n" for i, text in enumerate(wanted)),
+        encoding="utf-8",
+    )
+    translator = FakeTranslator()
+
+    def corpus_is_forbidden(args: object) -> dict[str, CorpusLine]:
+        raise AssertionError("--carriers-only must not read the corpus")
+
+    monkeypatch.setattr(topup, "load_env_file", lambda: None)
+    monkeypatch.setattr(topup, "client_from_env", lambda **kwargs: None)
+    monkeypatch.setattr(topup, "_read_corpora", corpus_is_forbidden)
+    monkeypatch.setattr(topup, "translator_from_env", lambda client: (translator, "azure_only"))
+    monkeypatch.setattr(topup, "_carrier_is_usable", lambda text: True)
+
+    argv = [
+        "--store",
+        str(tmp_path / "de_en.jsonl"),
+        "--ledger",
+        str(tmp_path / "ledger.json"),
+        "--report-file",
+        str(tmp_path / "report.json"),
+        "--carriers-file",
+        str(carriers_path),
+        "--carriers-only",
+        "--monthly-budget",
+        "100000",
+    ]
+    assert main(argv) == 0
+    assert set(translator.translated) == set(wanted)
+    report = json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))
+    assert report["run"]["carriers_source"] == "carriers-file"
+
+    # A second run spends nothing: the sentences are in the store now.
+    before = len(translator.translated)
+    assert main(argv) == 0
+    assert len(translator.translated) == before
+
+
+def test_carriers_only_without_a_file_is_a_refusal_not_a_corpus_wide_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(topup, "load_env_file", lambda: None)
+    monkeypatch.setattr(topup, "_read_corpora", lambda args: _carriers(5))
+    assert main(["--carriers-only", "--carriers-file", str(tmp_path / "absent.txt")]) == 1
+
+
 def test_ledger_quota_rejection_roundtrips_and_is_per_month(tmp_path: Path) -> None:
     ledger = TranslationLedger()
     assert not ledger.quota_rejected("2026-09")

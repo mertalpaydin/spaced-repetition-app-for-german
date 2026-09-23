@@ -290,6 +290,25 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   **The deck is reviewed to rank 2000 only.** Below that it is unread; see
   `TODO.md`.
 
+- **Words the owner asks for by hand** (2026-09-22). `data/phrases/requested.yaml`
+  takes a word and its kind; the miner accepts it ahead of the frequency
+  floor, the trivial flag and the kind rules, though never against
+  `exclude.yaml`, and both schedulers introduce it before any mined unit
+  (`PhraseUnit.requested_order`, additive, defaults to `None`). The measured
+  need: checked against the owner's Lingvist list, 98 single words were
+  missing and 26 of them only because the corpus uses them under 100 times.
+
+  `--stage requests` is the case where the corpus uses the word but no
+  sentence that uses it carries an English gloss, so the parse emitted
+  nothing at all for it. It lifts the gloss bound for those keys only, over a
+  few hundred prefiltered sentences, and writes `requested_occurrences.jsonl`
+  and `requested_carriers.txt`. `monthly_translation_topup.py --carriers-only`
+  translates exactly that file through the same Azure ledger the monthly job
+  uses, so the spend is visible; it reads the carriers file rather than the
+  corpus, which also means a carrier from one of the four extra corpora is
+  not silently lost (the corpus-wide reader takes only Tatoeba and Leipzig
+  2025). The runbook is in `docs/phrase-deck.md`.
+
 ## What is not built
 
 - **An installable icon flow on iOS** is untested; Android and desktop

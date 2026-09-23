@@ -160,3 +160,94 @@ def test_unit_gloss_stage_names_the_lane_it_would_spend_on(
     assert main([*common, "--free-lane-only"]) == 2
     assert "free lane only" in capsys.readouterr().out
     assert not (tmp_path / "g.jsonl").exists()
+
+
+@requires_model
+def test_requests_stage_finds_carriers_for_a_word_with_no_glossed_sentence(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The word detector emits only from glossed sentences, so a requested
+    word whose corpus sentences are all untranslated produces nothing at all.
+    This stage is the exception it needs: it finds those sentences, writes
+    occurrences for them, and queues them for the monthly Azure job."""
+    build_dir = tmp_path / "build"
+    build_dir.mkdir()
+    corpus = tmp_path / "corpus.tsv"
+    corpus.write_text(
+        "\n".join(
+            [
+                "1\tdeu\tDas Hähnchen im Ofen ist endlich fertig.",
+                "2\tdeu\tSie hat gestern das ganze Hähnchen alleine gegessen.",
+                # matches the stem, teaches a different lemma: dropped by the
+                # parse, which is the whole reason the prefilter may be loose
+                "3\tdeu\tDie Hähnchenbrust war gestern leider viel zu trocken.",
+                # a sentence about nothing that was requested
+                "4\tdeu\tDer kleine Hund schläft den ganzen Tag im Garten.",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (build_dir / "report.json").write_text(
+        json.dumps(
+            {
+                "requested_missing": ["noun:hähnchen", "noun:sorgen", "verb:knuspern"],
+                "requested_but_excluded": ["noun:sorgen"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert (
+        main(
+            [
+                "--stage",
+                "requests",
+                "--tatoeba",
+                str(corpus),
+                "--skip-leipzig",
+                "--no-default-extras",
+                "--build-dir",
+                str(build_dir),
+                "--phrases-dir",
+                "data/phrases",
+            ]
+        )
+        == 0
+    )
+    occurrences = [
+        json.loads(line)
+        for line in (build_dir / "requested_occurrences.jsonl")
+        .read_text(encoding="utf-8")
+        .split("\n")
+        if line
+    ]
+    assert {occ["unit_key"] for occ in occurrences} == {"hähnchen"}
+    carriers = (build_dir / "requested_carriers.txt").read_text(encoding="utf-8").splitlines()
+    assert [line.split("\t")[-1] for line in carriers] == [
+        "Das Hähnchen im Ofen ist endlich fertig.",
+        "Sie hat gestern das ganze Hähnchen alleine gegessen.",
+    ]
+    assert all(line.split("\t")[0] == "tatoeba" for line in carriers)
+    out = capsys.readouterr().out
+    # An excluded key is never hunted for: its occurrences teach a different
+    # lemma, which is why it was excluded.
+    assert "sorgen" not in out
+    # A key the corpus does not use at all is named, not silently missing.
+    assert "knuspern" in out and "NOT IN THE CORPUS" in out
+
+
+def test_requests_stage_is_idempotent_once_the_requests_have_occurrences(tmp_path: Path) -> None:
+    """A second run sees the first run's keys as present and must not blank
+    the file that made them present."""
+    build_dir = tmp_path / "build"
+    build_dir.mkdir()
+    (build_dir / "report.json").write_text(json.dumps({"requested_missing": []}), encoding="utf-8")
+    (build_dir / "requested_occurrences.jsonl").write_text("kept\n", encoding="utf-8")
+    assert main(["--stage", "requests", "--build-dir", str(build_dir)]) == 0
+    assert (build_dir / "requested_occurrences.jsonl").read_text(encoding="utf-8") == "kept\n"
+
+
+def test_requests_stage_says_to_mine_first_when_there_is_no_report(tmp_path: Path) -> None:
+    build_dir = tmp_path / "build"
+    build_dir.mkdir()
+    assert main(["--stage", "requests", "--build-dir", str(build_dir)]) == 1
