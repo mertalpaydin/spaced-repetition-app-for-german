@@ -46,6 +46,7 @@ async function record(entry) {
   entries.push(entry);
   await appendEntries([entry]);
   refresh();
+  if (settings.token && unpushed()) setSyncStatus(`${unpushed()} ungesichert`, "busy");
   if (settings.autoSync && settings.token) scheduleSync();
 }
 
@@ -83,6 +84,30 @@ function scheduleSync() {
   syncTimer = setTimeout(() => sync().catch(() => {}), 1500);
 }
 
+// How many entries have never reached the gist. Shown in the status line,
+// because "gesichert 14:32" said nothing about the twelve answers given
+// since, and a tab closed inside the debounce window pushed none of them:
+// the owner reloaded the page repeatedly to force a sync he could not see
+// the state of (2026-10-06). Nothing was ever lost locally; appendEntries
+// awaits the IndexedDB write before record() returns.
+let pushedCount = 0;
+
+function unpushed() { return Math.max(0, entries.length - pushedCount); }
+
+// A tab going away is the last chance to push. visibilitychange fires on
+// mobile where pagehide and beforeunload do not, so both are wired; the
+// debounce is skipped because there may be no next tick.
+function flushBeforeUnload() {
+  if (!settings.token || !unpushed()) return;
+  clearTimeout(syncTimer);
+  sync().catch(() => {});
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") flushBeforeUnload();
+});
+window.addEventListener("pagehide", flushBeforeUnload);
+
 async function sync() {
   if (!settings.token) { setSyncStatus("lokal", "off"); return; }
   if (syncing) { scheduleSync(); return; }
@@ -92,10 +117,17 @@ async function sync() {
     const r = await syncLog(settings, entries);
     if (settings.gistId) saveSettings(settings);
     if (r.pulled > 0) { entries = r.merged; await replaceLog(entries); refresh(); }
-    setSyncStatus(`gesichert ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`, "ok");
+    // Everything that was in the merge is now in the gist, pushed by this
+    // call or already there.
+    pushedCount = r.merged.length;
+    const at = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    setSyncStatus(`gesichert ${at}`, "ok");
     return r;
   } catch (err) {
-    setSyncStatus(navigator.onLine ? `nicht gesichert: ${err.message}` : "offline, später", "bad");
+    const pending = unpushed() ? ` (${unpushed()} ungesichert)` : "";
+    setSyncStatus(
+      (navigator.onLine ? `nicht gesichert: ${err.message}` : "offline, später") + pending, "bad",
+    );
     throw err;
   } finally {
     syncing = false;
@@ -296,15 +328,33 @@ $("btn-prev").addEventListener("click", showHistory);
 $("btn-prev-2").addEventListener("click", showHistory);
 $("btn-history-close").addEventListener("click", () => loadCard());
 $("btn-more").addEventListener("click", () => { overLimit = true; loadCard(); });
-document.querySelectorAll(".umlauts button").forEach((b) => b.addEventListener("click", () => {
+// Which gap an umlaut button types into. document.activeElement is useless
+// here: pressing a button moves focus off the input before the handler runs,
+// so the old code fell through to the FIRST gap and a card with two gaps
+// always got the character in the wrong one (owner, 2026-10-06). Two guards,
+// because one is not enough on every device: mousedown is prevented so focus
+// never leaves the input at all, and the last focused gap is remembered for
+// the touch case, where that does not hold.
+let lastGap = null;
+document.addEventListener("focusin", (ev) => {
+  if (ev.target instanceof HTMLInputElement && ev.target.classList.contains("gap")) lastGap = ev.target;
+});
+
+document.querySelectorAll(".umlauts button").forEach((b) => {
+  b.addEventListener("mousedown", (ev) => ev.preventDefault());
+  b.addEventListener("click", () => {
   const active = document.activeElement;
-  const target = active && active.classList.contains("gap") ? active : $("sentence").querySelector("input.gap");
+  const focused = active instanceof HTMLInputElement && active.classList.contains("gap") ? active : null;
+  const remembered = lastGap && lastGap.isConnected ? lastGap : null;
+  const target = focused || remembered || $("sentence").querySelector("input.gap");
   if (!target || target.readOnly) return;
   const pos = target.selectionStart ?? target.value.length;
   target.value = target.value.slice(0, pos) + b.dataset.ch + target.value.slice(pos);
   target.focus();
   target.setSelectionRange(pos + 1, pos + 1);
-}));
+  lastGap = target;
+  });
+});
 
 // -- triage -------------------------------------------------------------------
 
@@ -341,13 +391,20 @@ document.addEventListener("keydown", (ev) => {
 
 // -- units --------------------------------------------------------------------
 
-function fmtDue(iso) {
-  if (!iso) return "";
-  const mins = Math.round((new Date(iso) - Date.now()) / 60000);
-  if (mins < 1) return "jetzt";
-  if (mins < 60) return `in ${mins} min`;
-  if (mins < 60 * 36) return `in ${Math.round(mins / 60)} h`;
-  return `in ${Math.round(mins / 1440)} Tagen`;
+// How soon a unit is due, in the coarsest unit that is still true. Minutes
+// and hours were shown until 2026-10-06 and the number moved while the
+// learner watched it, which read as the schedule being unstable; nothing
+// below a day is actionable, since the scheduler itself now works in
+// sessions and days.
+function fmtDue(due) {
+  if (!due) return "";
+  const days = Math.round((new Date(due) - now()) / 86400000);
+  if (days <= 0) return new Date(due) <= now() ? "jetzt" : "heute";
+  if (days === 1) return "morgen";
+  if (days < 14) return `in ${days} Tagen`;
+  if (days < 60) return `in ${Math.round(days / 7)} Wochen`;
+  if (days < 365) return `in ${Math.round(days / 30)} Monaten`;
+  return `in ${(days / 365).toFixed(1).replace(".", ",")} Jahren`;
 }
 
 function loadUnits() {
@@ -357,9 +414,17 @@ function loadUnits() {
       ? `<table>${items.map(([unit, due]) => { const u = unitPayload(unit); return `<tr><td>${escapeHtml(u.display)}${u.gloss ? ` <span class="muted">${escapeHtml(u.gloss)}</span>` : ""}</td>` +
         `<td class="num muted">${withDue ? fmtDue(due) : relearnable ? `<button class="small" data-relearn="${escapeHtml(u.unit_id)}">Wieder lernen</button>` : ""}</td></tr>`; }).join("")}</table>`
       : `<p class="muted">–</p>`);
+  // Four stability bands, not one "Jung" spanning nought to 21 days: the
+  // owner had 110 units in that bucket and 19 in "Reif", which said nothing
+  // about what was settling (2026-10-06). The day ranges are in the heading
+  // so the bands explain themselves.
   $("units").innerHTML =
-    section("Lernend", g.learning, true) + section("Jung", g.young, true) +
-    section("Reif", g.mature, true) + section("Zurückgestellt", g.deferred, false, true) +
+    section("Lernend", g.learning, true) +
+    section("Frisch (unter 7 Tagen)", g.fresh, true) +
+    section("Jung (7 bis 21 Tage)", g.young, true) +
+    section("Reif (21 bis 90 Tage)", g.mature, true) +
+    section("Fest (über 90 Tage)", g.solid, true) +
+    section("Zurückgestellt", g.deferred, false, true) +
     section("Bekannt", g.known, false, true);
   $("units").querySelectorAll("button[data-relearn]").forEach((b) => b.addEventListener("click", () => relearn(b.dataset.relearn)));
 }
@@ -528,6 +593,7 @@ function loadSettingsView() {
   $("set-cards").value = settings.cardsPerDay;
   $("set-new").value = settings.newPerDay === null ? "" : settings.newPerDay;
   $("set-pool").value = settings.newPool;
+  $("set-retention").value = settings.retention;
   $("set-autosync").checked = !!settings.autoSync;
   $("set-log-info").textContent = `${entries.length} Einträge im Log auf diesem Gerät.`;
 }
@@ -539,6 +605,10 @@ $("btn-settings-save").addEventListener("click", () => {
   const n = $("set-new").value.trim();
   settings.newPerDay = n === "" ? null : Math.max(0, parseInt(n, 10) || 0);
   settings.newPool = Math.max(1, parseInt($("set-pool").value, 10) || DEFAULT_SETTINGS.newPool);
+  const ret = parseFloat($("set-retention").value);
+  settings.retention = Number.isFinite(ret) ? Math.min(0.97, Math.max(0.8, ret)) : DEFAULT_SETTINGS.retention;
+  engine = createEngine({ retention: settings.retention });
+  refresh();
   settings.autoSync = $("set-autosync").checked;
   settings.geminiKey = $("set-gemini").value.trim();
   saveSettings(settings);
@@ -591,6 +661,10 @@ async function boot() {
   try {
     [baseDeck, entries] = await Promise.all([loadDeck("./data/deck"), readLog()]);
     deck = baseDeck;
+    // Assume what is already on disk reached the gist; the boot sync below
+    // corrects this within a second either way. Starting at zero would
+    // greet the learner with "1158 ungesichert" on every load.
+    pushedCount = entries.length;
   } catch (err) {
     $("deck-info").textContent = `Deck konnte nicht geladen werden: ${err.message}`;
     return;

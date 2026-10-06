@@ -343,6 +343,60 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   The model id comes from `manifest.model_generate`, so no model string is
   written into the page.
 
+- **Three weeks of real use, 2026-10-06.** The owner practised daily and
+  reported eight things. Each fix carries its date in the code.
+
+  The one that mattered most: **a wrong ending was graded "again"**, which
+  sent the unit back to learning step 0, where the spacing of 3 brought it
+  back every fourth card. He knew the words and was being drilled on them
+  because of the ending. A wrong inflection of the right word is now the
+  outcome `inflection`, rated `hard` like a typo
+  (`src/engine/grading.is_inflection_of`, mirrored in `web/lib/grader.js`).
+  Not a morphology engine: both forms must share a stem of three or more
+  characters and differ only by a known ending, so `starken`/`stark` and
+  `gut`/`gute` pass while `Hund`/`Hand`, `legen`/`liegen` and
+  `geben`/`gegeben` do not.
+
+  With it: `relearn_spacing` 3 to 8, and `max_asks_per_session` 3, because
+  spacing alone cannot stop a loop (a unit never answered right stays
+  eligible for ever, so the sitting narrows onto it). Präteritum is dropped
+  at card selection and never shown by either client, on his instruction:
+  7,442 of 68,939 glossed cards, and the 101 units that lost their last card
+  are all below rank 2952, median 12,973. `fällig` is day-granular, because
+  minutes moved while he watched them. The Einheiten screen has four
+  stability bands (under 7 days, 7 to 21, 21 to 90, over 90) instead of one
+  "young" holding 110 units; `stats.py` deliberately keeps the classic
+  21-day split, so "jung" is narrower on Einheiten than in the statistics.
+  Retention is a settings field now, left at 0.90.
+
+  Two bugs. **The umlaut buttons always typed into the first gap**, because
+  pressing a button moves focus off the input before the handler runs and
+  `document.activeElement` was therefore the button; fixed by preventing
+  `mousedown` and remembering the last focused gap. And **the gist push was
+  a 1.5-second debounce with no flush on unload**, so backgrounding the tab
+  dropped it and he reloaded the page to force a sync he could not see the
+  state of; it now flushes on `visibilitychange` and `pagehide` and the
+  status line counts unsynced entries. Nothing was ever at risk locally:
+  `record()` awaits the IndexedDB write.
+
+- **The added words were lost, and why (2026-10-06).** `parseJsonl` in
+  `web/lib/log.js` carried an allow-list of `review`, `mark` and `reset`.
+  `request` went into the log in a329dbd and never into that list, so every
+  added word was dropped on parse; because `sync()` replaces the local log
+  with the merge and `pushGist` writes the merge back, one parse on one
+  device deleted them on all of them. The owner's exported log held 1,158
+  entries and not one request. The list is now a named `KNOWN_TYPES` set
+  with a comment saying that adding an entry type means adding it there, in
+  the same commit, with a round-trip test; both suites have one. The JS
+  tests had built `request` entries by hand and never sent one through
+  `parseJsonl`, which is exactly the gap.
+
+  The same feedback found a design fault, not just a bug: an added word sat
+  in the new-unit tier behind every due and relearning card, so with a
+  hundred due it would not have appeared for days even had it survived.
+  `requested_to_introduce` now puts it ahead of the due queue,
+  `requested_per_day` (5) at a time.
+
 ## What is not built
 
 - **An installable icon flow on iOS** is untested; Android and desktop

@@ -40,10 +40,26 @@ class Settings:
     #: back. It replaces the ten-minute learning step as the thing that spaces
     #: a retry, so the clock stops deciding what the session shows
     #: (owner, 2026-09-22).
-    relearn_spacing: int = 3
+    #: Raised from 3 to 8 on 2026-10-06. At 3, a unit the learner kept
+    #: getting wrong came back every fourth card; with a wrong ending
+    #: counting as "again" that was most of a sitting spent on a handful of
+    #: units, which is what "I see the same words again and again" was.
+    relearn_spacing: int = 8
+    #: How many times one unit may be asked in a single sitting before it is
+    #: left for tomorrow. Spacing alone cannot stop a loop: a unit the
+    #: learner never gets right is always eligible again, so without a cap
+    #: the sitting narrows to it. The unit keeps its FSRS state; it is simply
+    #: not offered again today (owner, 2026-10-06).
+    max_asks_per_session: int = 3
     #: Inactivity that ends a sitting. Only used to waive the spacing above
     #: for a unit still pending from an earlier one.
     session_gap: timedelta = timedelta(minutes=60)
+    #: Words the learner added from the page are introduced before the due
+    #: queue, this many per day. They asked for the word, so waiting behind
+    #: a hundred due cards is not an answer; but a learner who adds fifty
+    #: words at once should not lose the day's reviews to them either
+    #: (owner, 2026-10-06).
+    requested_per_day: int = 5
 
 
 @dataclass
@@ -242,6 +258,50 @@ def _not_last(units: list[PhraseUnit], last: str | None) -> list[PhraseUnit]:
     return others or units
 
 
+def asks_this_session(state: LearnerState, settings: Settings, now: datetime) -> dict[str, int]:
+    """How often each unit has already been asked in this sitting."""
+    start = session_start(state.review_times, now, settings.session_gap)
+    return {
+        unit_id: sum(1 for ts in times if ts >= start)
+        for unit_id, times in state.review_times_by_unit.items()
+    }
+
+
+def requested_to_introduce(
+    deck: Deck, state: LearnerState, settings: Settings, now: datetime
+) -> list[PhraseUnit]:
+    """Words the learner added from the page that have never been reviewed.
+
+    These jump the due queue. The learner typed the word a moment ago and
+    pressed a button that said it would be taught next; with a hundred cards
+    due, the new-unit tier meant days of waiting, so the promise was false
+    (owner, 2026-10-06). Bounded by ``requested_per_day`` so adding fifty
+    words does not cost a day's reviews.
+    """
+    if not state.requested:
+        return []
+    started_today = sum(
+        1
+        for unit_id in state.requested
+        if (first := state.first_review.get(unit_id)) is not None and first.date() == now.date()
+    )
+    budget = settings.requested_per_day - started_today
+    if budget <= 0:
+        return []
+    out: list[PhraseUnit] = []
+    by_id = deck.by_id
+    for unit_id in state.requested:
+        unit = by_id.get(unit_id)
+        if unit is None or unit_id in state.records or unit_id in state.known:
+            continue
+        if not is_learnable(deck, unit, state):
+            continue
+        out.append(unit)
+        if len(out) >= budget:
+            break
+    return out
+
+
 def next_unit(
     deck: Deck,
     state: LearnerState,
@@ -252,10 +312,12 @@ def next_unit(
     over_limit: bool = False,
     choose: Callable[[int], int] | None = None,
 ) -> PhraseUnit | None:
-    """Due units first, least retrievable first; then a new unit while the
-    day's budget lasts (or ``over_limit`` says go on); then the learn-ahead
-    window. The unit shown last is skipped when there is a choice, so a
-    session never shows one unit twice in a row.
+    """A word the learner just added first, then due units, least retrievable
+    first; then a new unit while the day's budget lasts (or ``over_limit``
+    says go on); then the learn-ahead window. The unit shown last is skipped
+    when there is a choice, so a session never shows one unit twice in a row,
+    and no unit is asked more than ``max_asks_per_session`` times in a
+    sitting.
 
     The new unit is drawn from the next ``settings.new_pool`` by rank:
     ``choose(n)`` picks an index in ``range(n)`` and the clients pass a
@@ -263,14 +325,32 @@ def next_unit(
     order. The default picks the first, which keeps the order deterministic
     for the tests and for anyone replaying a build."""
     last = state.last_unit
-    overdue = _not_last(due_units(deck, state, engine, now, timedelta(0)), last)
+    asks = asks_this_session(state, settings, now)
+
+    def not_exhausted(units: list[PhraseUnit]) -> list[PhraseUnit]:
+        """Drop units already asked ``max_asks_per_session`` times today.
+
+        Spacing cannot stop a loop on its own: a unit the learner never gets
+        right stays eligible for ever, so the sitting narrows onto it. The
+        unit keeps its FSRS state and comes back tomorrow.
+        """
+        cap = settings.max_asks_per_session
+        return [u for u in units if cap <= 0 or asks.get(u.unit_id, 0) < cap]
+
+    # A word the learner added comes first, ahead even of the due queue.
+    wanted = _not_last(not_exhausted(requested_to_introduce(deck, state, settings, now)), last)
+    if wanted:
+        return wanted[0]
+    overdue = _not_last(not_exhausted(due_units(deck, state, engine, now, timedelta(0))), last)
     if overdue:
         return overdue[0]
     # A unit mid learning step comes back on spacing, not on the clock, and
     # ahead of any new unit: there is no point introducing more while the
     # learner is still getting this one wrong (owner, 2026-09-22).
     pending = [
-        u for u in eligible_pending_units(deck, state, engine, settings, now) if u.unit_id != last
+        u
+        for u in not_exhausted(eligible_pending_units(deck, state, engine, settings, now))
+        if u.unit_id != last
     ]
     if pending:
         return pending[0]
@@ -292,7 +372,9 @@ def next_unit(
     # Learn-ahead never re-shows the unit just answered: that is the
     # back-to-back repeat the first learner complained about.
     ahead = [
-        u for u in due_units(deck, state, engine, now, settings.learn_ahead) if u.unit_id != last
+        u
+        for u in not_exhausted(due_units(deck, state, engine, now, settings.learn_ahead))
+        if u.unit_id != last
     ]
     if ahead:
         return ahead[0]
@@ -300,23 +382,47 @@ def next_unit(
     # than stopping. Drilling what the learner just got wrong is the only
     # useful work left, and the ten-minute wait this replaces was the
     # complaint (owner, 2026-09-22).
-    looping = eligible_pending_units(deck, state, engine, settings, now, ignore_spacing=True)
+    looping = not_exhausted(
+        eligible_pending_units(deck, state, engine, settings, now, ignore_spacing=True)
+    )
     return looping[0] if looping else None
+
+
+#: Stability bands, in days, for the Einheiten screen. The learner had 110
+#: units in one "young" bucket spanning 0 to 21 days and 19 in "mature",
+#: which told him nothing about what was actually settling (owner,
+#: 2026-10-06). The names are the client's; the boundaries are here so both
+#: clients agree.
+STABILITY_BANDS: tuple[tuple[str, float], ...] = (
+    ("fresh", 7.0),
+    ("young", 21.0),
+    ("mature", 90.0),
+    ("solid", float("inf")),
+)
+
+
+def stability_band(stability: float) -> str:
+    """Which band a unit's stability puts it in."""
+    for name, upper in STABILITY_BANDS:
+        if stability < upper:
+            return name
+    return STABILITY_BANDS[-1][0]
 
 
 def units_by_stage(
     deck: Deck, state: LearnerState, now: datetime
 ) -> dict[str, list[tuple[PhraseUnit, datetime | None]]]:
-    """Every unit the log knows, grouped: known, deferred, learning, young,
-    mature; each with its next due time (``None`` for known and deferred)."""
+    """Every unit the log knows, grouped: known, deferred, learning, then one
+    group per stability band; each with its next due time (``None`` for known
+    and deferred)."""
     by_id = deck.by_id
     groups: dict[str, list[tuple[PhraseUnit, datetime | None]]] = {
         "known": [],
         "deferred": [],
         "learning": [],
-        "young": [],
-        "mature": [],
     }
+    for name, _ in STABILITY_BANDS:
+        groups[name] = []
     for unit_id in state.known:
         if unit_id in by_id:
             stage = "deferred" if state.known_source.get(unit_id) == "defer" else "known"
@@ -327,10 +433,8 @@ def units_by_stage(
             continue
         if record.state != "review" or record.stability is None:
             groups["learning"].append((unit, record.due))
-        elif record.stability < 21.0:
-            groups["young"].append((unit, record.due))
         else:
-            groups["mature"].append((unit, record.due))
+            groups[stability_band(record.stability)].append((unit, record.due))
     for items in groups.values():
         items.sort(key=lambda pair: (pair[1] or now, pair[0].rank))
     return groups
@@ -348,12 +452,13 @@ def pick_card(
     ``choose(n)`` picks an index in ``range(n)``; the default is the card
     after the last one, so a session walks the surface forms in order."""
     cards = showable_cards(deck.cards_by_unit.get(unit.unit_id, []))
-    record = state.records.get(unit.unit_id)
-    if record is None or record.state != "review":
-        # Präteritum is a B1 form; a unit still being learnt is shown in the
-        # present, the perfect and the infinitive first (feedback 2026-09-13).
-        easier = [c for c in cards if not is_praeteritum(c)]
-        cards = easier or cards
+    # Präteritum is never shown, on the owner's instruction of 2026-10-06.
+    # The card stage no longer selects one, so this only matters for a deck
+    # built before that; it is kept rather than deleted because a client can
+    # be running against a cached older deck for weeks. ``or cards`` is the
+    # safety net: a unit whose only cards are Präteritum stays answerable on
+    # an old deck rather than silently vanishing.
+    cards = [c for c in cards if not is_praeteritum(c)] or cards
     if not cards:
         return None
     if len(cards) == 1:

@@ -20,15 +20,19 @@ from src.engine.review_log import ReviewLog, derive_state, entry_key, merge_entr
 from src.engine.session import (
     Deck,
     Settings,
+    asks_this_session,
     budget_left,
     budget_spent_today,
+    due_units,
     eligible_pending_units,
     introduction_order,
     next_unit,
     pick_card,
+    requested_to_introduce,
     reviews_today,
     session_start,
     showable_cards,
+    stability_band,
 )
 from src.engine.stats import compute_stats
 
@@ -146,7 +150,16 @@ def test_grade_card_maps_outcomes_to_ratings() -> None:
     assert grade_card(card, ["wartet", "auf"]).rating == "good"
     assert grade_card(card, ["wartet", "auf"]).outcome == "exact"
     assert grade_card(card, ["wertet", "auf"]).rating == "hard"
-    assert grade_card(card, ["warte", "auf"]).rating == "again"  # ending changed
+    # Until 2026-10-06 a changed ending was "again", which sent the unit back
+    # to learning step 0; the owner knew the words and was being shown them
+    # every few cards because of it. The right word in the wrong form is now
+    # "hard", like a typo: it costs an interval, not a restart.
+    assert grade_card(card, ["warte", "auf"]).outcome == "inflection"
+    assert grade_card(card, ["warte", "auf"]).rating == "hard"
+    # A different word is still "again", which is what keeps the change from
+    # being a blanket softening of the grader.
+    assert grade_card(card, ["suchen", "auf"]).outcome == "wrong"
+    assert grade_card(card, ["suchen", "auf"]).rating == "again"
     assert grade_card(card, [None, "auf"]).outcome == "revealed"
     assert grade_card(card, ["Wartet", "auf"]).outcome == "case"
     with pytest.raises(ValueError):
@@ -451,7 +464,11 @@ def test_merge_appends_only_the_other_devices_new_entries(tmp_path: Path) -> Non
 # -- feedback of 2026-09-13 ------------------------------------------------------
 
 
-def test_pick_card_keeps_praeteritum_until_the_unit_is_in_review() -> None:
+def test_pick_card_never_shows_a_praeteritum_card() -> None:
+    """Owner's instruction of 2026-10-06. It used to be held back only until
+    the unit reached review, so the learner met it eventually; now never.
+    The card stage stopped selecting them in the same commit, so this guards
+    a client running against a deck built before that, from cache."""
     deck = _deck()
     deck.cards_by_unit["vp:warten_auf"] = [
         _card(
@@ -474,7 +491,9 @@ def test_pick_card_keeps_praeteritum_until_the_unit_is_in_review() -> None:
     state = derive_state([], engine)
     assert pick_card(deck, unit, state).card_id == "w20000000000"
     state.last_card["vp:warten_auf"] = "w20000000000"
-    assert pick_card(deck, unit, state).card_id == "w20000000000"  # never the past form yet
+    # Even with the present form just shown, the past form is not offered;
+    # repeating a card beats teaching the wrong tense.
+    assert pick_card(deck, unit, state).card_id == "w20000000000"
     review = ReviewEntry(
         seq=1,
         ts=T0,
@@ -490,7 +509,24 @@ def test_pick_card_keeps_praeteritum_until_the_unit_is_in_review() -> None:
     good_twice = [review, review.model_copy(update={"seq": 2, "ts": T0 + timedelta(minutes=11)})]
     state = derive_state(good_twice, engine)
     assert state.records["vp:warten_auf"].state == "review"
-    assert pick_card(deck, unit, state).card_id == "p10000000000"
+    assert pick_card(deck, unit, state).card_id == "w20000000000"
+
+
+def test_pick_card_falls_back_when_every_card_is_praeteritum() -> None:
+    """A unit on an older deck whose only carriers are past tense stays
+    answerable rather than silently vanishing from the session."""
+    deck = _deck()
+    deck.cards_by_unit["vp:warten_auf"] = [
+        _card(
+            "p10000000000",
+            "vp:warten_auf",
+            "Er wartete auf den Bus.",
+            ["wartete", "auf"],
+            form_key="Fin|Past|3|Sing",
+        )
+    ]
+    state = derive_state([], FSRSEngine())
+    assert pick_card(deck, deck.by_id["vp:warten_auf"], state).card_id == "p10000000000"
 
 
 def test_near_synonyms_are_accepted_in_single_gap_cards_only() -> None:
@@ -875,3 +911,118 @@ def test_an_entry_type_this_client_does_not_know_is_skipped_not_fatal(tmp_path: 
 
     state = derive_state(read_entries(path), FSRSEngine())
     assert state.known == {"cn:trotzdem", "sv:aufstehen"}
+
+
+# ==============================================================================
+# 2026-10-06: the owner's feedback after three weeks of real use
+# ==============================================================================
+
+
+def test_a_request_entry_survives_being_written_and_read_back(tmp_path: Path) -> None:
+    """The JavaScript client dropped every "request" line when parsing, which
+    deleted the words the owner had added: sync replaces the local log with
+    the merge and pushes the merge back, so one parse on one device loses
+    them everywhere. Python never had the bug (``parse_entry`` validates
+    against the whole union), and this is here so it cannot acquire one."""
+    log = ReviewLog(tmp_path / "log.jsonl", now=lambda: T0)
+    unit = _added_unit()
+    log.record_request(unit_id=unit.unit_id, origin="generated", unit=unit)
+    text = (tmp_path / "log.jsonl").read_text(encoding="utf-8")
+    assert '"type":"request"' in text
+
+    back = read_entries(tmp_path / "log.jsonl")
+    assert [e.type for e in back] == ["request"]
+    assert derive_state(back, FSRSEngine()).requested == [unit.unit_id]
+
+
+def test_an_added_word_is_offered_before_the_due_queue(tmp_path: Path) -> None:
+    """The owner added words and never saw one: with a hundred cards due the
+    new-unit tier is days away, so the button's promise was false."""
+    deck = _deck()
+    log = ReviewLog(tmp_path / "log.jsonl", now=lambda: T0)
+    unit = _added_unit()
+    log.record_request(
+        unit_id=unit.unit_id, origin="generated", unit=unit, cards=[_added_card(unit)]
+    )
+    log.record_review(
+        unit_id="vp:warten_auf",
+        card_id="w20000000000",
+        rating="again",
+        outcome="wrong",
+        answers=["x"],
+        expected=["warten", "auf"],
+        elapsed_ms=1,
+        deck_version="t",
+    )
+    engine = FSRSEngine()
+    state = derive_state(read_entries(tmp_path / "log.jsonl"), engine)
+    full = deck.with_added(state)
+    later = T0 + timedelta(days=2)
+
+    assert any(
+        u.unit_id == "vp:warten_auf" for u in due_units(full, state, engine, later, timedelta(0))
+    )
+    chosen = next_unit(full, state, engine, Settings(), later)
+    assert chosen is not None and chosen.unit_id == unit.unit_id
+
+
+def test_adding_many_words_does_not_cost_the_days_reviews(tmp_path: Path) -> None:
+    log = ReviewLog(tmp_path / "log.jsonl", now=lambda: T0)
+    for index in range(9):
+        unit = _added_unit().model_copy(
+            update={
+                "unit_id": f"nn:wort{index}",
+                "lemma_key": f"wort{index}",
+                "rank": 90_000 + index,
+            }
+        )
+        log.record_request(
+            unit_id=unit.unit_id, origin="generated", unit=unit, cards=[_added_card(unit)]
+        )
+    state = derive_state(read_entries(tmp_path / "log.jsonl"), FSRSEngine())
+    full = _deck().with_added(state)
+    settings = Settings()
+    assert len(requested_to_introduce(full, state, settings, T0)) == settings.requested_per_day
+
+
+def test_one_unit_is_not_asked_for_ever_in_a_single_sitting(tmp_path: Path) -> None:
+    """Spacing alone cannot stop the loop: a unit the learner never gets
+    right stays eligible, so the sitting narrows onto it. The cap is per
+    sitting, so tomorrow it comes back."""
+    deck = _deck()
+    log = ReviewLog(tmp_path / "log.jsonl", now=lambda: T0)
+    clock = [T0]
+    log.now = lambda: clock[0]
+    for minute in (0, 2, 4):
+        clock[0] = T0 + timedelta(minutes=minute)
+        log.record_review(
+            unit_id="vp:warten_auf",
+            card_id="w20000000000",
+            rating="again",
+            outcome="wrong",
+            answers=["x", "auf"],
+            expected=["warten", "auf"],
+            elapsed_ms=1,
+            deck_version="t",
+        )
+    engine = FSRSEngine()
+    state = derive_state(read_entries(tmp_path / "log.jsonl"), engine)
+    settings = Settings()
+    now = T0 + timedelta(minutes=6)
+
+    assert asks_this_session(state, settings, now)["vp:warten_auf"] == 3
+    chosen = next_unit(deck, state, engine, settings, now)
+    assert chosen is None or chosen.unit_id != "vp:warten_auf"
+
+    tomorrow = T0 + timedelta(days=1)
+    again = next_unit(deck, state, engine, settings, tomorrow)
+    assert again is not None and again.unit_id == "vp:warten_auf"
+
+
+def test_stability_lands_a_unit_in_the_right_band() -> None:
+    assert stability_band(3.0) == "fresh"
+    assert stability_band(7.0) == "young"
+    assert stability_band(20.9) == "young"
+    assert stability_band(21.0) == "mature"
+    assert stability_band(89.0) == "mature"
+    assert stability_band(400.0) == "solid"

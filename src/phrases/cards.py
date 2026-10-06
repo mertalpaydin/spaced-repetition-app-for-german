@@ -325,6 +325,14 @@ def unsuitable_reason(occ: Occurrence, governed_preps: frozenset[str] = frozense
     """
     if occ.evidence.get("k1_sentence") == "true" or "K1" in occ.form_key:
         return "konjunktiv_i"
+    # Praeteritum, dropped outright on the owner's instruction of 2026-10-06.
+    # It was already held back until a unit reached review (the B1 rule of
+    # 2026-09-13), which only delayed it. Measured over the deck before the
+    # change: 7,442 of 68,939 glossed cards, and just 128 units lose every
+    # card, lowest rank 1802 and median rank 11,462, so nothing in the
+    # reviewed part of the deck goes card-less.
+    if occ.form_key.startswith("Fin|Past"):
+        return "praeteritum"
     if sum(occ.text.count(ch) for ch in _QUOTE_CHARS) % 2 == 1:
         return "unbalanced_quotes"
     text = occ.text

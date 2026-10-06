@@ -40,7 +40,12 @@ def test_next_answer_and_mark_round_trip(tmp_path: Path) -> None:
     stats = api.stats()
     assert stats["known"] == 1 and stats["reviews_total"] == 1 and stats["young"] == 1
     assert nxt["today"] == {"done": 0, "target": 40, "left": 40, "due": 0}
-    assert api.units()["young"][0]["unit_id"] == "vp:warten_auf"
+    # "young" on the Einheiten screen is 7 to 21 days of stability since
+    # 2026-10-06; a unit answered once sits below that, in "fresh". The
+    # statistics screen keeps the classic young/mature split at 21 days,
+    # which is why stats["young"] above is 1 and this is not.
+    assert api.units()["fresh"][0]["unit_id"] == "vp:warten_auf"
+    assert api.units()["young"] == []
     assert api.history()["items"][0]["rating"] == "good"
     tri = api.triage(10)
     # warten reviewed, trotzdem marked, und trivial; triage judges units, glossed or not

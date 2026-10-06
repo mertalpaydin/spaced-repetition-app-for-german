@@ -68,13 +68,27 @@ def test_azure_gloss_yields_a_card_whose_gaps_slice_back() -> None:
 
 def test_distinct_surface_forms_are_covered_before_repeats() -> None:
     a = _occ("Er wartet auf den Bus.", "wartet", "auf", "Fin|Pres|3|Sing")
-    b = _occ("Er wartete auf den Zug.", "wartete", "auf", "Fin|Past|3|Sing")
+    b = _occ("Wir warten auf den Zug.", "warten", "auf", "Fin|Pres|1|Plur")
     c = _occ("Sie wartet auf dich.", "wartet", "auf", "Fin|Pres|3|Sing")
     glosses = {o.text: Gloss("x " + o.text, "azure") for o in (a, b, c)}
     selection = select_cards(
         [UNIT], {UNIT.unit_id: [a, c, b]}, glosses, validate=lambda _: True, k=2
     )
-    assert {card.form_key for card in selection.cards} == {"Fin|Pres|3|Sing", "Fin|Past|3|Sing"}
+    assert {card.form_key for card in selection.cards} == {"Fin|Pres|3|Sing", "Fin|Pres|1|Plur"}
+
+
+def test_praeteritum_carriers_are_not_selected_at_all() -> None:
+    """Owner's instruction of 2026-10-06. Until then a past-tense carrier was
+    a card the client held back until the unit reached review, which only
+    delayed it; the deck no longer carries one."""
+    present = _occ("Er wartet auf den Bus.", "wartet", "auf", "Fin|Pres|3|Sing")
+    past = _occ("Er wartete auf den Zug.", "wartete", "auf", "Fin|Past|3|Sing")
+    glosses = {o.text: Gloss("x " + o.text, "azure") for o in (present, past)}
+    selection = select_cards(
+        [UNIT], {UNIT.unit_id: [present, past]}, glosses, validate=lambda _: True, k=6
+    )
+    assert [c.form_key for c in selection.cards] == ["Fin|Pres|3|Sing"]
+    assert selection.stats["praeteritum"] == 1
 
 
 def test_rejected_carriers_are_skipped_and_counted() -> None:

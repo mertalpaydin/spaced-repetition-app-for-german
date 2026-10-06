@@ -5,8 +5,22 @@ import { entriesSinceReset } from "./log.js";
 // newPool: a new unit is drawn at random from the next N by rank rather
 // than always the very next one (feedback 2026-09-19). Matches
 // src/engine/session.py Settings.
+// relearnSpacing went from 3 to 8 and maxAsksPerSession arrived on
+// 2026-10-06: at 3 a unit the learner kept getting wrong came back every
+// fourth card, and nothing capped the total, so a sitting narrowed onto a
+// handful of units. requestedPerDay is how many words added from the page
+// jump the due queue. Matches Settings in src/engine/session.py.
 export const DEFAULT_SETTINGS = { cardsPerDay: 40, newPerDay: null, learnAheadMinutes: 20, retention: 0.9, newPool: 50,
-  relearnSpacing: 3, sessionGapMinutes: 60 };
+  relearnSpacing: 8, maxAsksPerSession: 3, sessionGapMinutes: 60, requestedPerDay: 5 };
+
+// Stability bands for the Einheiten screen, in days. Matches
+// STABILITY_BANDS in src/engine/session.py.
+export const STABILITY_BANDS = [["fresh", 7], ["young", 21], ["mature", 90], ["solid", Infinity]];
+
+export function stabilityBand(stability) {
+  for (const [name, upper] of STABILITY_BANDS) if (stability < upper) return name;
+  return STABILITY_BANDS[STABILITY_BANDS.length - 1][0];
+}
 
 const dayOf = (iso) => new Date(iso).toISOString().slice(0, 10);
 
@@ -120,14 +134,57 @@ function notLast(units, last) {
 // `choose(n)` picks an index in [0, n) among the new units on offer; the
 // page passes a random one. The default picks the first, so a replay and
 // the tests stay deterministic.
+// How often each unit has already been asked in this sitting. Matches
+// asks_this_session in src/engine/session.py.
+export function asksThisSession(state, settings, now) {
+  const start = sessionStart(state.reviewTimes, now, (settings.sessionGapMinutes ?? 60) * 60000);
+  const out = {};
+  for (const [id, times] of Object.entries(state.reviewTimesByUnit || {})) {
+    out[id] = times.filter((ts) => new Date(ts) >= new Date(start)).length;
+  }
+  return out;
+}
+
+// Words the learner added from the page that have never been reviewed. They
+// jump the due queue: the learner typed the word a moment ago and the button
+// said it would be taught next, which with a hundred cards due was false
+// (owner, 2026-10-06). Matches requested_to_introduce in session.py.
+export function requestedToIntroduce(deck, state, settings, now) {
+  if (!state.requested?.length) return [];
+  const today = dayOf(new Date(now).toISOString());
+  const startedToday = state.requested.filter(
+    (id) => state.firstReview[id] && dayOf(state.firstReview[id]) === today,
+  ).length;
+  const budget = (settings.requestedPerDay ?? 5) - startedToday;
+  if (budget <= 0) return [];
+  const out = [];
+  for (const id of state.requested) {
+    const unit = deck.byId[id];
+    if (!unit || id in state.records || state.known.has(id)) continue;
+    if (!isLearnable(deck, unit, state)) continue;
+    out.push(unit);
+    if (out.length >= budget) break;
+  }
+  return out;
+}
+
 export function nextUnit(deck, state, engine, settings, now, { overLimit = false, choose = null } = {}) {
   const last = state.lastUnit;
-  const overdue = notLast(dueUnits(deck, state, engine, now, 0), last);
+  const asks = asksThisSession(state, settings, now);
+  // Spacing cannot stop a loop on its own: a unit the learner never gets
+  // right stays eligible for ever, so the sitting narrows onto it. It keeps
+  // its FSRS state and comes back tomorrow.
+  const cap = settings.maxAsksPerSession ?? 0;
+  const notExhausted = (units) => (cap <= 0 ? units : units.filter((u) => (asks[u.unit_id] || 0) < cap));
+
+  const wanted = notLast(notExhausted(requestedToIntroduce(deck, state, settings, now)), last);
+  if (wanted.length) return wanted[0];
+  const overdue = notLast(notExhausted(dueUnits(deck, state, engine, now, 0)), last);
   if (overdue.length) return overdue[0];
   // A unit mid learning step comes back on spacing, not on the clock, and
   // ahead of any new unit: there is no point introducing more while the
   // learner is still getting this one wrong (owner, 2026-09-22).
-  const pending = eligiblePendingUnits(deck, state, engine, settings, now).filter((u) => u.unit_id !== last);
+  const pending = notExhausted(eligiblePendingUnits(deck, state, engine, settings, now)).filter((u) => u.unit_id !== last);
   if (pending.length) return pending[0];
   const withinBudget = overLimit || budgetLeft(state, settings, now) > 0;
   const underCap = settings.newPerDay === null || newUnitsStartedToday(state, now) < settings.newPerDay;
@@ -142,12 +199,12 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
     }
     if (pool.length) return pool[(choose ? choose(pool.length) : 0) % pool.length];
   }
-  const ahead = dueUnits(deck, state, engine, now, settings.learnAheadMinutes * 60000).filter((u) => u.unit_id !== last);
+  const ahead = notExhausted(dueUnits(deck, state, engine, now, settings.learnAheadMinutes * 60000)).filter((u) => u.unit_id !== last);
   if (ahead.length) return ahead[0];
   // Nothing else to interleave with: show the pending unit again rather than
   // stopping. Drilling what the learner just got wrong is the only useful
   // work left, and the ten-minute wait this replaces was the complaint.
-  const looping = eligiblePendingUnits(deck, state, engine, settings, now, true);
+  const looping = notExhausted(eligiblePendingUnits(deck, state, engine, settings, now, true));
   return looping.length ? looping[0] : null;
 }
 
@@ -158,11 +215,13 @@ export function isPraeteritum(card) { return (card.form_key || "").startsWith("F
 
 export function pickCard(deck, unit, state) {
   let cards = showableCards(deck.cardsByUnit[unit.unit_id] || []);
-  const record = state.records[unit.unit_id];
-  if (!record || record.state !== "review") {
-    const easier = cards.filter((c) => !isPraeteritum(c));
-    cards = easier.length ? easier : cards;
-  }
+  // Präteritum is never shown (owner, 2026-10-06). The card stage no longer
+  // selects one, so this only matters for a deck built before that, which a
+  // client can be running from cache for weeks. The fallback keeps a unit
+  // whose only cards are Präteritum answerable on an old deck rather than
+  // letting it vanish. Matches pick_card in src/engine/session.py.
+  const easier = cards.filter((c) => !isPraeteritum(c));
+  cards = easier.length ? easier : cards;
   if (!cards.length) return null;
   if (cards.length === 1) return cards[0];
   const last = state.lastCard[unit.unit_id];
@@ -175,7 +234,8 @@ export function untriagedUnits(deck, state) {
 }
 
 export function unitsByStage(deck, state, now) {
-  const groups = { known: [], deferred: [], learning: [], young: [], mature: [] };
+  const groups = { known: [], deferred: [], learning: [] };
+  for (const [name] of STABILITY_BANDS) groups[name] = [];
   for (const id of state.known) {
     if (!deck.byId[id]) continue;
     groups[state.knownSource[id] === "defer" ? "deferred" : "known"].push([deck.byId[id], null]);
@@ -184,8 +244,7 @@ export function unitsByStage(deck, state, now) {
     const unit = deck.byId[id];
     if (!unit || state.known.has(id)) continue;
     if (r.state !== "review" || r.stability === null) groups.learning.push([unit, r.due]);
-    else if (r.stability < 21) groups.young.push([unit, r.due]);
-    else groups.mature.push([unit, r.due]);
+    else groups[stabilityBand(r.stability)].push([unit, r.due]);
   }
   for (const items of Object.values(groups)) {
     items.sort((a, b) => ((a[1] || now) < (b[1] || now) ? -1 : (a[1] || now) > (b[1] || now) ? 1 : a[0].rank - b[0].rank));

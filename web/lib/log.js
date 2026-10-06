@@ -27,6 +27,15 @@ export function mergeEntries(...logs) {
   return sortEntries(out);
 }
 
+// Every entry type this client knows. A type missing from this set is
+// DROPPED, and dropping is destructive: sync() replaces the local log with
+// the merge and pushGist writes the merge back, so one parse on one device
+// deletes the entry on all of them. That is how the words the owner added
+// were lost: "request" went into the log in a329dbd and never came here
+// (found 2026-10-06). Adding an entry type means adding it here, in the
+// same commit, with a test that round-trips one through this function.
+const KNOWN_TYPES = new Set(["review", "mark", "reset", "request"]);
+
 export function parseJsonl(text) {
   const out = [];
   for (const line of text.split("\n")) {
@@ -34,8 +43,7 @@ export function parseJsonl(text) {
     if (!s) continue;
     try {
       const e = JSON.parse(s);
-      const known = e && (e.type === "review" || e.type === "mark" || e.type === "reset");
-      if (known && e.ts && (e.type === "reset" || e.unit_id)) out.push(e);
+      if (e && KNOWN_TYPES.has(e.type) && e.ts && (e.type === "reset" || e.unit_id)) out.push(e);
     } catch (err) { /* a corrupt line never hides the rest */ }
   }
   return out;
@@ -53,6 +61,9 @@ function freshState() {
     // cards that exist only here because no exported shard holds them.
     // Matches LearnerState in src/engine/review_log.py.
     requested: [], addedUnits: {}, addedCards: {},
+    // Review times per unit, so a sitting can count how often one unit has
+    // been asked. Matches review_times_by_unit in review_log.py.
+    reviewTimesByUnit: {},
   };
 }
 
@@ -96,6 +107,7 @@ export function deriveState(entries, engine) {
     (state.ratings[e.unit_id] ||= []).push(e.rating);
     if (!(e.unit_id in state.firstReview)) state.firstReview[e.unit_id] = e.ts;
     state.reviewTimes.push(e.ts);
+    (state.reviewTimesByUnit[e.unit_id] ||= []).push(e.ts);
     if (spendsBudget(state, e.unit_id, before)) state.budgetReviewTimes.push(e.ts);
     if (state.records[e.unit_id].state === "review") delete state.retriesPending[e.unit_id];
     state.lastUnit = e.unit_id;

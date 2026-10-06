@@ -1,10 +1,13 @@
 """Grading a card's gaps and turning the result into an FSRS rating.
 
 The learner never self-rates. Every gap exact or a transliteration: good.
-Any gap a scoped typo: hard. Any gap wrong, wrongly capitalised, or
-revealed: again. The grader is the phrase-agnostic ``ScopedTypoGrader``:
-the tested morpheme is the whole token, so an edit in the last two letters
-(the ending) is never tolerated.
+Any gap a scoped typo, or the right word in the wrong form ("starken" for
+"stark"): hard. Any gap wrong, wrongly capitalised, or revealed: again.
+
+The typo grader is the phrase-agnostic ``ScopedTypoGrader``: the tested
+morpheme is the whole token, so an edit in the last two letters is never
+tolerated as a typo. That is what makes the ending its own outcome rather
+than something the typo rule could absorb.
 """
 
 from __future__ import annotations
@@ -36,14 +39,63 @@ class CardGrade:
 
 
 #: Worst outcome first, for a card: any of these on one gap decides the card.
+#: "inflection" sits with "typo": both are the right word, so both cost the
+#: learner a harder rating and not a restart.
 _SEVERITY: dict[ReviewOutcome, int] = {
-    "revealed": 5,
-    "wrong": 4,
-    "case": 3,
+    "revealed": 6,
+    "wrong": 5,
+    "case": 4,
+    "inflection": 3,
     "typo": 2,
     "translit": 1,
     "exact": 0,
 }
+
+#: The endings a German noun, adjective or determiner takes. The owner knows
+#: "stark" and still types "starken", because the ending is agreement with a
+#: noun phrase and not part of the vocabulary item; marking that "again" sent
+#: the unit back to learning step 0 and it returned every few cards, which is
+#: what "I see the same words again and again" was (owner, 2026-10-06).
+#:
+#: Deliberately not a morphology engine. Both forms must share a stem of at
+#: least ``_MIN_STEM`` characters and differ ONLY by these endings, so
+#: "starken"/"stark" matches while "Hand"/"Hund" and "geben"/"gegeben" do
+#: not. The verb endings are here too ("-t", "-te", "-st"), but only after
+#: the stem test, which a different lemma cannot pass.
+_INFLECTION_ENDINGS: frozenset[str] = frozenset(
+    {"", "e", "en", "em", "er", "es", "s", "n", "ern", "t", "te", "st", "ten", "et"}
+)
+#: Three, not four: "gut"/"gute" and "alt"/"alten" are the commonest
+#: case of all, and a four-character stem misses every short adjective.
+_MIN_STEM = 3
+
+
+def _strip_ending(word: str) -> list[tuple[str, str]]:
+    """Every (stem, ending) split of ``word`` the ending list allows."""
+    out: list[tuple[str, str]] = []
+    for ending in _INFLECTION_ENDINGS:
+        if not ending:
+            out.append((word, ""))
+        elif word.endswith(ending) and len(word) - len(ending) >= _MIN_STEM:
+            out.append((word[: -len(ending)], ending))
+    return out
+
+
+def is_inflection_of(typed: str, expected: str) -> bool:
+    """Whether ``typed`` is the same word as ``expected`` in another form.
+
+    Case-insensitive, because a wrong capital is already its own outcome and
+    judging both at once would hide one behind the other.
+    """
+    a, b = typed.strip().lower(), expected.strip().lower()
+    if not a or a == b:
+        return False
+    stems_a = {stem for stem, _ in _strip_ending(a)}
+    stems_b = {stem for stem, _ in _strip_ending(b)}
+    # A shared stem is not enough on its own: "stark" and "starken" share
+    # "stark", but so would "stark" and "starkenzzz", which never reaches
+    # here because every candidate stem came off one of the known endings.
+    return bool(stems_a & stems_b)
 
 
 def accepted_forms(card: PhraseCard, gap_index: int, alternatives: Sequence[str] = ()) -> list[str]:
@@ -84,6 +136,10 @@ def grade_gap(
         outcome = "typo"
     elif result.is_capitalization_error:
         outcome = "case"
+    elif any(
+        is_inflection_of(typed, form) for form in accepted_forms(card, gap_index, alternatives)
+    ):
+        outcome = "inflection"
     else:
         outcome = "wrong"
     return GapGrade(expected=expected, typed=typed, outcome=outcome, accepted=result.is_correct)
@@ -99,7 +155,7 @@ def grade_card(
     worst = max(gaps, key=lambda g: _SEVERITY[g.outcome])
     if worst.outcome in {"exact", "translit"}:
         rating: ReviewRating = "good"
-    elif worst.outcome == "typo":
+    elif worst.outcome in {"typo", "inflection"}:
         rating = "hard"
     else:
         rating = "again"

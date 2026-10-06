@@ -31,7 +31,15 @@ test("card grading maps outcomes to ratings and accepts a lower-case sentence op
   };
   assert.equal(gradeCard(card, ["trotzdem", "wartet", "auf"]).rating, "good");
   assert.equal(gradeCard(card, ["Trotzdem", "wertet", "auf"]).rating, "hard");
-  assert.equal(gradeCard(card, ["Trotzdem", "warte", "auf"]).rating, "again");
+  // Until 2026-10-06 a changed ending was "again", which reset the unit to
+  // learning step 0 and brought it back every few cards. The right word in
+  // the wrong form is now "hard", like a typo. The Python side asserts the
+  // same in tests/test_phase2_engine.py; the two graders must agree or the
+  // phone and the laptop rate the same answer differently.
+  assert.equal(gradeCard(card, ["Trotzdem", "warte", "auf"]).outcome, "inflection");
+  assert.equal(gradeCard(card, ["Trotzdem", "warte", "auf"]).rating, "hard");
+  // A different word is still "again".
+  assert.equal(gradeCard(card, ["Trotzdem", "suchen", "auf"]).rating, "again");
   assert.equal(gradeCard(card, [null, "wartet", "auf"]).outcome, "revealed");
   assert.equal(renderMarked(card), "[Trotzdem] [wartet] er [auf] den Bus.");
 });

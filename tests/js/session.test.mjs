@@ -8,17 +8,17 @@ import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
 import { deriveState, entryKey, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
 import { reserveLetter, withAdded } from "../../web/lib/deck.js";
-import { DEFAULT_SETTINGS, budgetLeft, budgetSpentToday, computeStats, eligiblePendingUnits, introductionOrder, nextUnit, pickCard, reviewsToday, sessionStart, unitsByStage } from "../../web/lib/session.js";
+import { DEFAULT_SETTINGS, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueUnits, eligiblePendingUnits, introductionOrder, nextUnit, pickCard, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage } from "../../web/lib/session.js";
 
 const T0 = "2026-09-01T08:00:00Z";
-const unit = (unit_id, rank, display_de, extra = {}) => ({ unit_id, kind: "verb_prep", display_de, rank, trivial: false, gloss_en: null, also_accepted: [], ...extra });
+const unit_ = (unit_id, rank, display_de, extra = {}) => ({ unit_id, kind: "verb_prep", display_de, rank, trivial: false, gloss_en: null, also_accepted: [], ...extra });
 const card = (card_id, unit_id, sentence_de, answers, form_key = "Fin|Pres") => {
   const gaps = []; let pos = 0;
   for (const a of answers) { const start = sentence_de.indexOf(a, pos); gaps.push({ start, end: start + a.length, answer: a }); pos = start + a.length; }
   return { card_id, unit_id, sentence_de, gaps, answers, form_key, gloss_en: "gloss", needs_context: false, context_de: null };
 };
 const deck = () => {
-  const units = [unit("vp:warten_auf", 1, "warten auf"), unit("cn:trotzdem", 2, "trotzdem", { kind: "connector" })];
+  const units = [unit_("vp:warten_auf", 1, "warten auf"), unit_("cn:trotzdem", 2, "trotzdem", { kind: "connector" })];
   const cardsByUnit = {
     "vp:warten_auf": [card("p1", "vp:warten_auf", "Er wartete auf den Bus.", ["wartete", "auf"], "Fin|Past|3|Sing"), card("w2", "vp:warten_auf", "Wir warten auf dich.", ["warten", "auf"])],
     "cn:trotzdem": [card("t1", "cn:trotzdem", "Trotzdem kam sie.", ["Trotzdem"], "initial")],
@@ -26,7 +26,10 @@ const deck = () => {
   return { units, byId: Object.fromEntries(units.map((u) => [u.unit_id, u])), cardsByUnit };
 };
 
-test("Präteritum cards wait until the unit is in review", () => {
+// Owner's instruction of 2026-10-06: Präteritum is never shown. It used to
+// be held back only until the unit reached review, so the learner met it
+// eventually. The Python side asserts the same in tests/test_phase2_engine.py.
+test("a Präteritum card is never shown, even once the unit is in review", () => {
   const d = deck(); const engine = createEngine();
   let state = deriveState([], engine);
   assert.equal(pickCard(d, d.byId["vp:warten_auf"], state).card_id, "w2");
@@ -35,6 +38,13 @@ test("Präteritum cards wait until the unit is in review", () => {
   const review = (seq, ts) => ({ type: "review", seq, ts, unit_id: "vp:warten_auf", card_id: "w2", rating: "good", outcome: "exact", answers: ["warten", "auf"], expected: ["warten", "auf"], elapsed_ms: 1, deck_version: "t" });
   state = deriveState([review(1, T0), review(2, "2026-09-01T08:11:00Z")], engine);
   assert.equal(state.records["vp:warten_auf"].state, "review");
+  assert.equal(pickCard(d, d.byId["vp:warten_auf"], state).card_id, "w2");
+});
+
+test("a unit whose only card is Präteritum stays answerable on an old deck", () => {
+  const d = deck();
+  d.cardsByUnit["vp:warten_auf"] = [card("p1", "vp:warten_auf", "Er wartete auf den Bus.", ["wartete", "auf"], "Fin|Past|3|Sing")];
+  const state = deriveState([], createEngine());
   assert.equal(pickCard(d, d.byId["vp:warten_auf"], state).card_id, "p1");
 });
 
@@ -231,7 +241,7 @@ test("a requested unit is introduced before any mined one", () => {
 
 test("a word the learner added is introduced before anything the corpus ranked", () => {
   const d = deck(); const engine = createEngine();
-  const added = unit("wn:hähnchen", 99999, "das Hähnchen", { kind: "noun" });
+  const added = unit_("wn:hähnchen", 99999, "das Hähnchen", { kind: "noun" });
   const entries = [makeRequest([], { unitId: "wn:hähnchen", origin: "generated", unit: added, cards: [card("h1", "wn:hähnchen", "Das Hähnchen ist fertig.", ["Hähnchen"])] }, T0)];
   const state = deriveState(entries, engine);
 
@@ -253,7 +263,7 @@ test("a reserve word carries no payload: both devices fetch the same shard", () 
 
 test("the deck wins when a written word is later mined for real", () => {
   const d = deck(); const engine = createEngine();
-  const invented = unit("vp:warten_auf", 99999, "erfunden");
+  const invented = unit_("vp:warten_auf", 99999, "erfunden");
   const state = deriveState([makeRequest([], { unitId: "vp:warten_auf", origin: "generated", unit: invented, cards: [card("x9", "vp:warten_auf", "Erfundener Satz hier.", ["Satz"])] }, T0)], engine);
   const full = withAdded(d, state);
   assert.equal(full.byId["vp:warten_auf"].display_de, "warten auf");
@@ -289,4 +299,76 @@ test("the reserve shard for a word follows from its folded first letter", () => 
   assert.equal(reserveLetter("bügeln"), "b");
   assert.equal(reserveLetter("1990er"), "_");
   assert.equal(reserveLetter(""), "_");
+});
+
+// ---------------------------------------------------------------------------
+// 2026-10-06. Each of these pins something that was wrong in practice.
+// ---------------------------------------------------------------------------
+
+test("a request entry survives parseJsonl, which is how the added words were lost", () => {
+  // The regression: parseJsonl had an allow-list of review/mark/reset, so
+  // every "request" line was dropped. sync() replaces the local log with the
+  // merge and pushGist writes the merge back, so one parse on one device
+  // deleted the owner's added words everywhere.
+  const unit = unit_("nn:hähnchen", 99999, "das Hähnchen", { kind: "noun" });
+  const entry = makeRequest([], { unitId: "nn:hähnchen", origin: "generated", unit, cards: [] }, T0);
+  const round = parseJsonl(toJsonl([entry]));
+  assert.equal(round.length, 1, "a request entry must survive a round trip");
+  assert.equal(round[0].type, "request");
+  assert.equal(round[0].unit.display_de, "das Hähnchen");
+  // and it still reaches the state after the trip
+  assert.deepEqual(deriveState(round, createEngine()).requested, ["nn:hähnchen"]);
+});
+
+test("an added word is shown before the due queue, not after it", () => {
+  // The owner added words and never saw them: with a hundred cards due, the
+  // new-unit tier is days away (2026-10-06).
+  const d = deck(); const engine = createEngine();
+  const added = unit_("nn:hähnchen", 99999, "das Hähnchen", { kind: "noun" });
+  const addedCard = card("h1", "nn:hähnchen", "Das Hähnchen ist fertig.", ["Hähnchen"]);
+  const req = makeRequest([], { unitId: "nn:hähnchen", origin: "generated", unit: added, cards: [addedCard] }, T0);
+  // warten is overdue and would otherwise win
+  const review = { type: "review", seq: 2, ts: T0, unit_id: "vp:warten_auf", card_id: "w2", rating: "again", outcome: "wrong", answers: ["x"], expected: ["warten", "auf"], elapsed_ms: 1, deck_version: "t" };
+  const state = deriveState([req, review], engine);
+  const full = withAdded(d, state);
+  const later = "2026-09-03T08:00:00Z";
+  assert.ok(dueUnits(full, state, engine, later, 0).some((u) => u.unit_id === "vp:warten_auf"));
+  assert.equal(nextUnit(full, state, engine, DEFAULT_SETTINGS, later).unit_id, "nn:hähnchen");
+});
+
+test("adding many words at once does not cost the day's reviews", () => {
+  const d = deck(); const engine = createEngine();
+  const entries = [];
+  for (let i = 0; i < 9; i++) {
+    const u = unit_(`nn:wort${i}`, 90000 + i, `das Wort ${i}`, { kind: "noun" });
+    entries.push(makeRequest(entries, { unitId: u.unit_id, origin: "generated", unit: u, cards: [card(`c${i}`, u.unit_id, `Das Wort ${i} ist da.`, ["Wort"])] }, T0));
+  }
+  const state = deriveState(entries, engine);
+  const full = withAdded(d, state);
+  assert.equal(requestedToIntroduce(full, state, DEFAULT_SETTINGS, T0).length, DEFAULT_SETTINGS.requestedPerDay);
+});
+
+test("one unit is not asked for ever in a single sitting", () => {
+  const d = deck(); const engine = createEngine();
+  const wrong = (seq, ts) => ({ type: "review", seq, ts, unit_id: "vp:warten_auf", card_id: "w2", rating: "again", outcome: "wrong", answers: ["x", "auf"], expected: ["warten", "auf"], elapsed_ms: 1, deck_version: "t" });
+  const stamps = ["2026-09-01T08:00:00Z", "2026-09-01T08:02:00Z", "2026-09-01T08:04:00Z"];
+  const state = deriveState(stamps.map((ts, i) => wrong(i + 1, ts)), engine);
+  const now = "2026-09-01T08:06:00Z";
+  assert.equal(asksThisSession(state, DEFAULT_SETTINGS, now)["vp:warten_auf"], 3);
+  // Three asks is the cap, so the next card is something else, or nothing,
+  // but never warten again.
+  const next = nextUnit(d, state, engine, DEFAULT_SETTINGS, now);
+  assert.notEqual(next?.unit_id, "vp:warten_auf");
+  // A fresh sitting the next day offers it again: the cap is per sitting.
+  const tomorrow = "2026-09-02T08:00:00Z";
+  assert.equal(nextUnit(d, state, engine, DEFAULT_SETTINGS, tomorrow).unit_id, "vp:warten_auf");
+});
+
+test("stability lands a unit in the right band", () => {
+  assert.equal(stabilityBand(3), "fresh");
+  assert.equal(stabilityBand(7), "young");
+  assert.equal(stabilityBand(20.9), "young");
+  assert.equal(stabilityBand(21), "mature");
+  assert.equal(stabilityBand(89), "mature");
+  assert.equal(stabilityBand(400), "solid");
 });

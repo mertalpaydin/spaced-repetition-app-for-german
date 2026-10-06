@@ -389,7 +389,12 @@ class ReserveIndex(BaseModel):
 #: never self-rates, the grade decides.
 ReviewRating = Literal["again", "hard", "good"]
 #: What happened to the typed answers, for the stats and for replay.
-ReviewOutcome = Literal["exact", "translit", "typo", "case", "wrong", "revealed"]
+#: "inflection" was added 2026-10-06: the right word in the wrong form
+#: ("starken" for "stark"). It rates "hard", not "again". Additive to a
+#: persisted format (rule 8); an older reader of the log sees an outcome it
+#: does not know on a review entry whose rating it does understand, and
+#: ``derive_state`` reads the rating, never the outcome.
+ReviewOutcome = Literal["exact", "translit", "typo", "inflection", "case", "wrong", "revealed"]
 
 
 class ReviewEntry(BaseModel):

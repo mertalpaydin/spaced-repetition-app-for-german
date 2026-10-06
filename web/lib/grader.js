@@ -92,7 +92,40 @@ export function gradeText(userInput, acceptedAnswers) {
 
 // -- cards (src/engine/grading.py) --------------------------------------------
 
-const SEVERITY = { revealed: 5, wrong: 4, case: 3, typo: 2, translit: 1, exact: 0 };
+// "inflection" sits with "typo": both are the right word, so both cost a
+// harder rating and not a restart. Matches _SEVERITY in src/engine/grading.py.
+const SEVERITY = { revealed: 6, wrong: 5, case: 4, inflection: 3, typo: 2, translit: 1, exact: 0 };
+
+// The endings a German noun, adjective, determiner or verb takes. The owner
+// knows "stark" and still types "starken", because the ending is agreement
+// with a noun phrase and not part of the vocabulary item; grading that
+// "again" sent the unit back to learning step 0, where it returned every few
+// cards (owner, 2026-10-06). Not a morphology engine: both forms must share
+// a stem of at least MIN_STEM characters and differ only by these endings,
+// so "starken"/"stark" matches and "Hand"/"Hund", "legen"/"liegen" and
+// "geben"/"gegeben" do not. Matches src/engine/grading.is_inflection_of.
+const INFLECTION_ENDINGS = ["", "e", "en", "em", "er", "es", "s", "n", "ern", "t", "te", "st", "ten", "et"];
+const MIN_STEM = 3;
+
+function stems(word) {
+  const out = new Set();
+  for (const ending of INFLECTION_ENDINGS) {
+    if (!ending) out.add(word);
+    else if (word.endsWith(ending) && word.length - ending.length >= MIN_STEM) {
+      out.add(word.slice(0, word.length - ending.length));
+    }
+  }
+  return out;
+}
+
+export function isInflectionOf(typed, expected) {
+  const a = (typed || "").trim().toLowerCase();
+  const b = (expected || "").trim().toLowerCase();
+  if (!a || a === b) return false;
+  const sb = stems(b);
+  for (const stem of stems(a)) if (sb.has(stem)) return true;
+  return false;
+}
 
 // `alternatives` are the unit's accepted near-synonyms ("deswegen" for
 // "deshalb"); single-gap cards only, capitalised like the answer.
@@ -121,6 +154,7 @@ export function gradeGap(card, i, typed, alternatives = []) {
   else if (r.is_correct && r.is_transliteration) outcome = "translit";
   else if (r.is_correct && r.is_scoped_typo) outcome = "typo";
   else if (r.is_capitalization_error) outcome = "case";
+  else if (acceptedForms(card, i, alternatives).some((f) => isInflectionOf(typed, f))) outcome = "inflection";
   else outcome = "wrong";
   return { expected, typed, outcome, accepted: r.is_correct };
 }
@@ -129,7 +163,9 @@ export function gradeCard(card, typed, alternatives = []) {
   if (typed.length !== card.gaps.length) throw new Error(`${card.gaps.length} gaps, ${typed.length} answers`);
   const gaps = typed.map((t, i) => gradeGap(card, i, t, alternatives));
   const worst = gaps.reduce((w, g) => (SEVERITY[g.outcome] > SEVERITY[w.outcome] ? g : w), gaps[0]);
-  const rating = worst.outcome === "exact" || worst.outcome === "translit" ? "good" : worst.outcome === "typo" ? "hard" : "again";
+  const good = worst.outcome === "exact" || worst.outcome === "translit";
+  const hard = worst.outcome === "typo" || worst.outcome === "inflection";
+  const rating = good ? "good" : hard ? "hard" : "again";
   return { gaps, outcome: worst.outcome, rating };
 }
 

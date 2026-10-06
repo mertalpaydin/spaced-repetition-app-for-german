@@ -115,6 +115,11 @@
         <label>Karten pro Tag <input id="set-cards" type="number" min="1" step="1"></label>
         <label>Neue Einheiten pro Tag (leer = unbegrenzt) <input id="set-new" type="number" min="0" step="1"></label>
         <label>Neue Einheit zufällig aus den nächsten <input id="set-pool" type="number" min="1" step="1"></label>
+        <label>Zielgenauigkeit <input id="set-retention" type="number" min="0.8" max="0.97" step="0.01"></label>
+        <p class="hint">Wie oft du eine Einheit beim Abfragen können sollst. 0,90 ist der Standard.
+          Niedriger heißt längere Abstände und weniger Wiederholungen pro Tag, dafür mehr Fehler;
+          höher heißt das Gegenteil. Ändere es einzeln und gib ihm ein paar Tage, sonst weißt du
+          nachher nicht, was gewirkt hat.</p>
         <div class="actions">
           <button id="btn-settings-save" class="primary">Speichern</button>
           <button id="btn-sync-now">Jetzt sichern</button>

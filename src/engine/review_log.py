@@ -191,6 +191,10 @@ class LearnerState:
     first_review: dict[str, datetime] = field(default_factory=dict)
     #: Every review's time, for the statistics.
     review_times: list[datetime] = field(default_factory=list)
+    #: Every review's time per unit, so a sitting can count how often one
+    #: unit has been asked. Derived from the timestamps already in the log;
+    #: no entry type and no field is added for it (CLAUDE.md 8).
+    review_times_by_unit: dict[str, list[datetime]] = field(default_factory=dict)
     #: The times that spend the day's exercise budget. The first retry of a
     #: unit that is mid learning step is left out: finishing a step is not new
     #: work. Every retry after that is back in, so a unit the learner keeps
@@ -245,6 +249,7 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
         state.ratings.setdefault(entry.unit_id, []).append(entry.rating)
         state.first_review.setdefault(entry.unit_id, entry.ts)
         state.review_times.append(entry.ts)
+        state.review_times_by_unit.setdefault(entry.unit_id, []).append(entry.ts)
         if _spends_budget(state, entry.unit_id, before):
             state.budget_review_times.append(entry.ts)
         if state.records[entry.unit_id].state == "review":
