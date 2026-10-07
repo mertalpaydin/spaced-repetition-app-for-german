@@ -45,7 +45,7 @@ from src.phrases import written_carriers as written_module
 from src.phrases.cards import GLOSS_LENGTH_RATIO
 from src.phrases.mining import WordGate, detect_words
 from src.phrases.occurrences import Occurrence, read_occurrences, write_occurrences
-from src.phrases.parse import parse_many
+from src.phrases.parse import ParsedSentence, parse_many
 
 from scripts.build_translations import (
     DEFAULT_STORE_PATH,
@@ -575,6 +575,7 @@ def _write_cards_for(args: argparse.Namespace, wanted: list[tuple[str, str]]) ->
         return carrier_validation.validate_carrier(text).accepted
 
     kept: dict[str, str] = {}
+    rows_kept: list[tuple[str, str, written_module.WrittenSentence]] = []
     per_word: dict[str, int] = {}
     rejected: dict[str, int] = {}
     for row in rows:
@@ -591,6 +592,8 @@ def _write_cards_for(args: argparse.Namespace, wanted: list[tuple[str, str]]) ->
             rejected[reason] = rejected.get(reason, 0) + 1
             continue
         kept[sentence.german] = sentence.english
+        kinds = dict(wanted)
+        rows_kept.append((lemma, kinds.get(lemma, "adjective"), sentence))
         per_word[lemma] = per_word.get(lemma, 0) + 1
     print(f"write-cards: {len(kept)} sentence(s) kept, rejected {rejected}")
     for key, _ in wanted:
@@ -613,18 +616,92 @@ def _write_cards_for(args: argparse.Namespace, wanted: list[tuple[str, str]]) ->
         dictionary=carrier_validation._load_dictionary(),  # noqa: SLF001
         cap=args.count * 4,
     )
-    texts = sorted(kept)
+    ordered = sorted(rows_kept, key=lambda row: row[2].german)
+    texts = [row[2].german for row in ordered]
     emitted: list[Occurrence] = []
-    for index, parsed in enumerate(parse_many(texts)):
-        emitted.extend(detect_words(parsed, gate, source="written", line_id=f"w{index:04d}"))
+    forced = 0
+    parsed_all = list(parse_many(texts))
+    for index, ((lemma, kind, sentence), parsed) in enumerate(
+        zip(ordered, parsed_all, strict=True)
+    ):
+        line_id = f"w{index:04d}"
+        found = [
+            occ
+            for occ in detect_words(parsed, gate, source="written", line_id=line_id)
+            if occ.unit_key == lemma
+        ]
+        if found:
+            emitted.extend(found)
+            continue
+        # Rule 1: the owner asked for this word by name. The detector only
+        # emits NOUN, VERB, ADJ and ADV and drops the adverb stoplist, so
+        # "solche" (DET), "aufgrund" (ADP) and "dazu" (stoplisted) never
+        # reached it, and he was told they could not be taught. They can:
+        # the sentence and the surface form are all a card needs. The gaps
+        # still have to line up (rule 6), which is what _forced_occurrence
+        # checks, and the gloss has already passed rule 2 above.
+        occ = _forced_occurrence(parsed, sentence, lemma, kind, line_id)
+        if occ is not None:
+            emitted.append(occ)
+            forced += 1
     write_occurrences(args.build_dir / "written_occurrences.jsonl", iter(emitted))
     by_key: dict[str, int] = {}
     for occ in emitted:
         by_key[occ.unit_key] = by_key.get(occ.unit_key, 0) + 1
     for key, _ in wanted:
-        print(f"  {key}: {by_key.get(key, 0)} occurrence(s) after the parse")
-    print(f"write-cards: {len(emitted)} occurrence(s) written; re-run --stage mine")
+        print(f"  {key}: {by_key.get(key, 0)} occurrence(s)")
+    print(
+        f"write-cards: {len(emitted)} occurrence(s) written "
+        f"({forced} past the part-of-speech gates); re-run --stage mine"
+    )
     return 0
+
+
+def _forced_occurrence(
+    parsed: ParsedSentence,
+    sentence: written_module.WrittenSentence,
+    lemma: str,
+    kind: str,
+    line_id: str,
+) -> Occurrence | None:
+    """An occurrence for a word the detector refuses to emit.
+
+    ``mining.words._word_of`` only ever emits NOUN, VERB, ADJ and ADV, and
+    drops anything on the adverb stoplist, so a determiner, a preposition or
+    a stoplisted adverb can never become a unit however good its sentence
+    is. Rule 1 says that is not a reason to refuse the owner a word he asked
+    for, so this builds the occurrence from the sentence and the surface
+    form the model gave, which is everything a card needs.
+
+    The one thing that cannot be fudged is the gap: the surface form has to
+    be a whole token of the parse, so ``answers`` slices back out of
+    ``sentence_de`` exactly (rule 6). Returns ``None`` when it does not,
+    rather than producing a card whose blank is in the wrong place.
+    """
+    surface = sentence.surface
+    for index, token in enumerate(parsed.tokens):
+        if token.text != surface:
+            continue
+        start = token.idx
+        end = start + len(token.text)
+        if sentence.german[start:end] != surface:
+            continue
+        return Occurrence(
+            kind=kind,  # type: ignore[arg-type]
+            unit_key=lemma,
+            parts=[lemma],
+            token_indices=[index],
+            spans=[(start, end)],
+            surfaces=[surface],
+            corpus_source="written",
+            line_id=line_id,
+            text=sentence.german,
+            # Distinct per surface form, so the card stage still covers
+            # different realisations of the word rather than one twice.
+            form_key=f"written|{surface.lower()}",
+            evidence={"surface": surface, "forced": "requested"},
+        )
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:
