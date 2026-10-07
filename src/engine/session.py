@@ -54,6 +54,11 @@ class Settings:
     #: Inactivity that ends a sitting. Only used to waive the spacing above
     #: for a unit still pending from an earlier one.
     session_gap: timedelta = timedelta(minutes=60)
+    #: How many other units go by before a word the learner just added is
+    #: shown. He looked the word up a moment ago, so asking it at once tests
+    #: nothing (owner, 2026-10-07). Counted in reviews logged since the
+    #: request, so closing the app does not skip the wait.
+    requested_delay: int = 10
     #: Words the learner added from the page are introduced before the due
     #: queue, this many per day. They asked for the word, so waiting behind
     #: a hundred due cards is not an answer; but a learner who adds fifty
@@ -258,6 +263,30 @@ def _not_last(units: list[PhraseUnit], last: str | None) -> list[PhraseUnit]:
     return others or units
 
 
+def recently_shown(state: LearnerState, settings: Settings, now: datetime) -> set[str]:
+    """Units answered within the last ``relearn_spacing`` reviews of this
+    sitting. Nothing is offered again until that many other units have gone
+    by, in ANY tier.
+
+    The spacing used to live in ``eligible_pending_units`` alone, so it only
+    governed the pending tier. A unit answered wrong goes to relearning with
+    its FSRS due ten minutes out, so once those ten minutes passed it came
+    back through the OVERDUE tier, which had no spacing at all, and the
+    learner met it again far sooner than the setting implied (owner,
+    2026-10-07).
+    """
+    gap = settings.relearn_spacing
+    if gap <= 0:
+        return set()
+    started = session_start(state.review_times, now, settings.session_gap)
+    in_session = [
+        unit_id
+        for ts, unit_id in zip(state.review_times, state.review_order, strict=False)
+        if ts >= started
+    ]
+    return set(in_session[-gap:])
+
+
 def asks_this_session(state: LearnerState, settings: Settings, now: datetime) -> dict[str, int]:
     """How often each unit has already been asked in this sitting."""
     start = session_start(state.review_times, now, settings.session_gap)
@@ -296,6 +325,14 @@ def requested_to_introduce(
             continue
         if not is_learnable(deck, unit, state):
             continue
+        # The learner looked this word up a moment ago, so a few other units
+        # go by before it is asked. Counted in reviews since the request
+        # rather than in time, so closing the app does not skip the wait.
+        asked_at = state.requested_at.get(unit_id)
+        if asked_at is not None:
+            since = sum(1 for ts in state.review_times if ts > asked_at)
+            if since < settings.requested_delay:
+                continue
         out.append(unit)
         if len(out) >= budget:
             break
@@ -326,6 +363,11 @@ def next_unit(
     for the tests and for anyone replaying a build."""
     last = state.last_unit
     asks = asks_this_session(state, settings, now)
+    recent = recently_shown(state, settings, now)
+
+    def spaced(units: list[PhraseUnit]) -> list[PhraseUnit]:
+        """Drop units answered in the last ``relearn_spacing`` reviews."""
+        return [u for u in units if u.unit_id not in recent]
 
     def not_exhausted(units: list[PhraseUnit]) -> list[PhraseUnit]:
         """Drop units already asked ``max_asks_per_session`` times today.
@@ -341,7 +383,9 @@ def next_unit(
     wanted = _not_last(not_exhausted(requested_to_introduce(deck, state, settings, now)), last)
     if wanted:
         return wanted[0]
-    overdue = _not_last(not_exhausted(due_units(deck, state, engine, now, timedelta(0))), last)
+    overdue = _not_last(
+        spaced(not_exhausted(due_units(deck, state, engine, now, timedelta(0)))), last
+    )
     if overdue:
         return overdue[0]
     # A unit mid learning step comes back on spacing, not on the clock, and
@@ -349,7 +393,7 @@ def next_unit(
     # learner is still getting this one wrong (owner, 2026-09-22).
     pending = [
         u
-        for u in not_exhausted(eligible_pending_units(deck, state, engine, settings, now))
+        for u in spaced(not_exhausted(eligible_pending_units(deck, state, engine, settings, now)))
         if u.unit_id != last
     ]
     if pending:
@@ -373,7 +417,7 @@ def next_unit(
     # back-to-back repeat the first learner complained about.
     ahead = [
         u
-        for u in not_exhausted(due_units(deck, state, engine, now, settings.learn_ahead))
+        for u in spaced(not_exhausted(due_units(deck, state, engine, now, settings.learn_ahead)))
         if u.unit_id != last
     ]
     if ahead:

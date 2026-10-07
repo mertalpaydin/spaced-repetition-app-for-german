@@ -195,6 +195,10 @@ class LearnerState:
     #: unit has been asked. Derived from the timestamps already in the log;
     #: no entry type and no field is added for it (CLAUDE.md 8).
     review_times_by_unit: dict[str, list[datetime]] = field(default_factory=dict)
+    #: The unit of every review, in log order and parallel to
+    #: ``review_times``, so "which units were the last N answered" is a
+    #: slice rather than a sort.
+    review_order: list[str] = field(default_factory=list)
     #: The times that spend the day's exercise budget. The first retry of a
     #: unit that is mid learning step is left out: finishing a step is not new
     #: work. Every retry after that is back in, so a unit the learner keeps
@@ -211,6 +215,10 @@ class LearnerState:
     #: except that this list is the learner's and lives in the log rather
     #: than in the artifact.
     requested: list[str] = field(default_factory=list)
+    #: When each was asked for, so the scheduler can let a few other units
+    #: go by first: the learner has just looked the word up, so asking it at
+    #: once tests nothing (owner, 2026-10-07).
+    requested_at: dict[str, datetime] = field(default_factory=dict)
     #: Units that exist only in the log: a word the reserve does not have.
     added_units: dict[str, PhraseUnit] = field(default_factory=dict)
     #: Cards written for an added unit, when no exported shard holds any.
@@ -228,6 +236,7 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
         if isinstance(entry, RequestEntry):
             if entry.unit_id not in state.requested:
                 state.requested.append(entry.unit_id)
+                state.requested_at[entry.unit_id] = entry.ts
             if entry.unit is not None:
                 state.added_units[entry.unit_id] = entry.unit
             if entry.cards:
@@ -250,6 +259,7 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
         state.first_review.setdefault(entry.unit_id, entry.ts)
         state.review_times.append(entry.ts)
         state.review_times_by_unit.setdefault(entry.unit_id, []).append(entry.ts)
+        state.review_order.append(entry.unit_id)
         if _spends_budget(state, entry.unit_id, before):
             state.budget_review_times.append(entry.ts)
         if state.records[entry.unit_id].state == "review":

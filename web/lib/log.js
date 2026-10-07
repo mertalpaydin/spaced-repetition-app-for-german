@@ -60,10 +60,14 @@ function freshState() {
     // Words the learner added from the page, oldest first, and the units and
     // cards that exist only here because no exported shard holds them.
     // Matches LearnerState in src/engine/review_log.py.
-    requested: [], addedUnits: {}, addedCards: {},
+    requested: [], requestedAt: {}, addedUnits: {}, addedCards: {},
     // Review times per unit, so a sitting can count how often one unit has
     // been asked. Matches review_times_by_unit in review_log.py.
     reviewTimesByUnit: {},
+    // The unit of every review in log order, parallel to reviewTimes, so
+    // "the last N units answered" is a slice. Matches review_order in
+    // src/engine/review_log.py.
+    reviewOrder: [],
   };
 }
 
@@ -89,7 +93,10 @@ export function deriveState(entries, engine) {
     // cannot look up for itself: a reserve word with cards carries nothing,
     // because both devices fetch the same committed shard.
     if (e.type === "request") {
-      if (!state.requested.includes(e.unit_id)) state.requested.push(e.unit_id);
+      if (!state.requested.includes(e.unit_id)) {
+        state.requested.push(e.unit_id);
+        state.requestedAt[e.unit_id] = e.ts;
+      }
       if (e.unit) state.addedUnits[e.unit_id] = e.unit;
       if (e.cards && e.cards.length) state.addedCards[e.unit_id] = e.cards;
       continue;
@@ -108,6 +115,7 @@ export function deriveState(entries, engine) {
     if (!(e.unit_id in state.firstReview)) state.firstReview[e.unit_id] = e.ts;
     state.reviewTimes.push(e.ts);
     (state.reviewTimesByUnit[e.unit_id] ||= []).push(e.ts);
+    state.reviewOrder.push(e.unit_id);
     if (spendsBudget(state, e.unit_id, before)) state.budgetReviewTimes.push(e.ts);
     if (state.records[e.unit_id].state === "review") delete state.retriesPending[e.unit_id];
     state.lastUnit = e.unit_id;

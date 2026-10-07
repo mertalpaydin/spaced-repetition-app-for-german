@@ -28,6 +28,7 @@ from src.engine.session import (
     introduction_order,
     next_unit,
     pick_card,
+    recently_shown,
     requested_to_introduce,
     reviews_today,
     session_start,
@@ -958,11 +959,22 @@ def test_an_added_word_is_offered_before_the_due_queue(tmp_path: Path) -> None:
     state = derive_state(read_entries(tmp_path / "log.jsonl"), engine)
     full = deck.with_added(state)
     later = T0 + timedelta(days=2)
+    settings = Settings()
 
     assert any(
         u.unit_id == "vp:warten_auf" for u in due_units(full, state, engine, later, timedelta(0))
     )
-    chosen = next_unit(full, state, engine, Settings(), later)
+    # Not at once: the learner looked the word up a moment ago, so
+    # ``requested_delay`` other units go by first (owner, 2026-10-07).
+    chosen = next_unit(full, state, engine, settings, later)
+    assert chosen is not None and chosen.unit_id != unit.unit_id
+
+    # Once enough other reviews have gone by it comes first, ahead of the
+    # due queue, which is the whole point.
+    for index in range(1, settings.requested_delay + 1):
+        state.review_times.append(T0 + timedelta(minutes=index))
+        state.review_order.append(f"other:{index}")
+    chosen = next_unit(full, state, engine, settings, later)
     assert chosen is not None and chosen.unit_id == unit.unit_id
 
 
@@ -981,7 +993,9 @@ def test_adding_many_words_does_not_cost_the_days_reviews(tmp_path: Path) -> Non
         )
     state = derive_state(read_entries(tmp_path / "log.jsonl"), FSRSEngine())
     full = _deck().with_added(state)
-    settings = Settings()
+    # The delay is a separate rule, tested above; this is about the per-day
+    # cap, so it is taken out of the way.
+    settings = Settings(requested_delay=0)
     assert len(requested_to_introduce(full, state, settings, T0)) == settings.requested_per_day
 
 
@@ -1017,6 +1031,43 @@ def test_one_unit_is_not_asked_for_ever_in_a_single_sitting(tmp_path: Path) -> N
     tomorrow = T0 + timedelta(days=1)
     again = next_unit(deck, state, engine, settings, tomorrow)
     assert again is not None and again.unit_id == "vp:warten_auf"
+
+
+def test_a_unit_answered_wrong_waits_for_other_units_in_every_tier(tmp_path: Path) -> None:
+    """The spacing used to be checked only in the pending tier. A unit
+    answered wrong goes to relearning with its due ten minutes out, so once
+    those passed it came back through the OVERDUE tier, which had no spacing,
+    and the learner met it again far sooner than the setting said (owner,
+    2026-10-07)."""
+    deck = _deck()
+    log = ReviewLog(tmp_path / "log.jsonl", now=lambda: T0)
+    log.record_review(
+        unit_id="vp:warten_auf",
+        card_id="w20000000000",
+        rating="again",
+        outcome="wrong",
+        answers=["x", "auf"],
+        expected=["warten", "auf"],
+        elapsed_ms=1,
+        deck_version="t",
+    )
+    engine = FSRSEngine()
+    state = derive_state(read_entries(tmp_path / "log.jsonl"), engine)
+    settings = Settings()
+    # Eleven minutes on: FSRS now calls it due, so the old code offered it.
+    later = T0 + timedelta(minutes=11)
+    assert any(
+        u.unit_id == "vp:warten_auf" for u in due_units(deck, state, engine, later, timedelta(0))
+    )
+    assert "vp:warten_auf" in recently_shown(state, settings, later)
+    chosen = next_unit(deck, state, engine, settings, later)
+    assert chosen is None or chosen.unit_id != "vp:warten_auf"
+
+    # After the spacing is paid, in other units rather than in minutes.
+    for index in range(settings.relearn_spacing):
+        state.review_times.append(T0 + timedelta(minutes=1 + index))
+        state.review_order.append(f"other:{index}")
+    assert "vp:warten_auf" not in recently_shown(state, settings, later)
 
 
 def test_stability_lands_a_unit_in_the_right_band() -> None:

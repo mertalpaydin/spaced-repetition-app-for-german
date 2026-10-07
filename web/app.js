@@ -9,7 +9,7 @@ import { gradeCard, renderMarked } from "./lib/grader.js";
 import { deriveState, entriesSinceReset, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
-  DEFAULT_SETTINGS, budgetLeft, computeStats, dueUnits, nextUnit, pickCard, reviewsToday, unitsByStage, untriagedUnits,
+  DEFAULT_SETTINGS, budgetSpentToday, computeStats, dueUnits, nextUnit, pickCard, reviewsToday, unitsByStage, untriagedUnits,
 } from "./lib/session.js";
 import { appendEntries, kv, loadSettings, readLog, replaceLog, saveSettings } from "./lib/store.js";
 import { syncLog } from "./lib/sync.js";
@@ -35,7 +35,15 @@ let reserveIndex = null;
 let engine = createEngine({ retention: settings.retention });
 let entries = [];
 let state = null;
-let overLimit = false;
+// How many cards beyond the day's target the learner has asked for. "Trotzdem
+// weiter" used to set a flag that stayed set for the rest of the session, so
+// after one press the target was never enforced again and the day ran on
+// unbounded, which read as the limit not being respected (owner, 2026-10-07).
+// Each press now buys settings.extraCards more and the panel returns.
+let grantedExtra = 0;
+// Whether the learner has said yes to new units after clearing the due
+// queue. The second panel asks once, and only ever AFTER the target panel.
+let newAllowed = false;
 
 function refresh() {
   state = deriveState(entries, engine);
@@ -150,7 +158,10 @@ document.querySelectorAll("nav button[data-view]").forEach((b) => b.addEventList
 function renderToday() {
   const t = now();
   const due = dueUnits(deck, state, engine, t, 0).length;
-  $("today").textContent = `heute ${reviewsToday(state, t)}/${settings.cardsPerDay} · fällig ${due}`;
+  // The target includes any blocks the learner has asked for, so the counter
+  // and the panel agree about what the day's allowance is.
+  const target = settings.cardsPerDay + grantedExtra;
+  $("today").textContent = `heute ${reviewsToday(state, t)}/${target} · fällig ${due}`;
 }
 
 // -- practice -----------------------------------------------------------------
@@ -204,20 +215,39 @@ function loadCard() {
   ["btn-check", "btn-reveal", "btn-defer"].forEach((id) => { $(id).hidden = false; });
   renderToday();
   const t = now();
-  let unit = nextUnit(deck, state, engine, settings, t, { overLimit, choose: pickAny });
-  if (!overLimit && budgetLeft(state, settings, t) === 0) {
-    // The day's budget is spent: stop and ask, unless the unit is mid
-    // learning step. Its due time is not consulted any more: nextUnit already
-    // decided the unit is eligible, on spacing rather than on the clock
-    // (owner, 2026-09-22).
+  const target = settings.cardsPerDay + grantedExtra;
+  const spent = budgetSpentToday(state, t);
+  const overTarget = spent >= target;
+  let unit = nextUnit(deck, state, engine, settings, t, { overLimit: newAllowed, choose: pickAny });
+  if (overTarget) {
+    // The day's allowance is spent: stop and ask, unless the unit is mid
+    // learning step. Its due time is not consulted: nextUnit already decided
+    // the unit is eligible, on spacing rather than on the clock (owner,
+    // 2026-09-22).
     const record = unit ? state.records[unit.unit_id] : null;
     const midStep = record && record.state !== "review";
     const more = unit || nextUnit(deck, state, engine, settings, t, { overLimit: true });
     if (more && !midStep) {
       const due = dueUnits(deck, state, engine, t, 0).length;
+      const done = `${spent} Karten`;
       $("limit-text").textContent = due
-        ? `Tagesziel erreicht (${settings.cardsPerDay} Karten). ${due} Einheit${due === 1 ? " ist" : "en sind"} noch fällig.`
-        : `Tagesziel erreicht (${settings.cardsPerDay} Karten). Nichts ist mehr fällig; neue Einheiten kommen morgen.`;
+        ? `Tagesziel erreicht (${done}). ${due} Einheit${due === 1 ? " ist" : "en sind"} noch fällig.`
+        : `Tagesziel erreicht (${done}). Nichts ist mehr fällig; neue Einheiten kommen morgen.`;
+      $("btn-more").textContent = `Weiter (${settings.extraCards} Karten)`;
+      showPanel("limit");
+      return;
+    }
+  }
+  // The second panel, and only after the first: the learner has passed the
+  // day's target, worked the due queue empty, and the only thing left is new
+  // units. Asked once per grant rather than silently moving on, because "no
+  // more due cards" is the natural place to stop (owner, 2026-10-07).
+  if (grantedExtra > 0 && !newAllowed && dueUnits(deck, state, engine, t, 0).length === 0) {
+    const isNew = unit && !(unit.unit_id in state.records);
+    if (!unit || isNew) {
+      $("limit-text").textContent =
+        "Alle fälligen Einheiten sind durch. Weiter mit neuen Einheiten?";
+      $("btn-more").textContent = "Neue Einheiten";
       showPanel("limit");
       return;
     }
@@ -327,7 +357,13 @@ $("btn-next").addEventListener("click", nextCard);
 $("btn-prev").addEventListener("click", showHistory);
 $("btn-prev-2").addEventListener("click", showHistory);
 $("btn-history-close").addEventListener("click", () => loadCard());
-$("btn-more").addEventListener("click", () => { overLimit = true; loadCard(); });
+$("btn-more").addEventListener("click", () => {
+  // Two meanings, one button, decided by which panel is showing: past the
+  // due queue it unlocks new units, otherwise it buys another block of cards.
+  if (grantedExtra > 0 && dueUnits(deck, state, engine, now(), 0).length === 0) newAllowed = true;
+  else grantedExtra += settings.extraCards;
+  loadCard();
+});
 // Which gap an umlaut button types into. document.activeElement is useless
 // here: pressing a button moves focus off the input before the handler runs,
 // so the old code fell through to the FIRST gap and a card with two gaps
@@ -454,6 +490,29 @@ async function addWord() {
 
   const inDeck = deck.units.filter((u) => u.lemma_key === lemma);
   const already = new Set(state.requested);
+
+  // Added before? Say where it stands rather than adding it again. Without
+  // this the "not in deck or reserve" branch below offered the word kinds a
+  // second time and wrote a second request entry for the same unit; harmless,
+  // because deriveState keeps the list unique and the model answer comes from
+  // the cache, but it told the learner nothing (owner, 2026-10-07).
+  const seen = [...already].filter((id) => {
+    const unit = deck.byId[id] || state.addedUnits[id];
+    return unit && unit.lemma_key === lemma;
+  });
+  if (seen.length) {
+    addStatus(seen.map((id) => {
+      const unit = deck.byId[id] || state.addedUnits[id];
+      const cards = (deck.cardsByUnit[id] || []).length;
+      const where = state.known.has(id)
+        ? (state.knownSource[id] === "defer" ? "zurückgestellt" : "als bekannt markiert")
+        : id in state.records ? "wird schon gelernt"
+        : cards ? "steht in der Warteschlange" : "wartet noch auf Sätze";
+      return `<p>„${escapeHtml(unit.display_de)}“ hast du schon hinzugefügt `
+        + `<span class="muted">(${where})</span>.</p>`;
+    }).join(""));
+    return;
+  }
   if (inDeck.length) {
     addStatus(inDeck.map((u) => {
       const done = already.has(u.unit_id) || u.unit_id in state.records;
@@ -622,7 +681,8 @@ $("btn-sync-now").addEventListener("click", () => sync().then(loadSettingsView).
 $("btn-reset").addEventListener("click", async () => {
   if (!confirm("Von vorne anfangen? Alle Einheiten gelten wieder als neu und die Zähler beginnen bei null. Das gilt auch auf deinen anderen Geräten.")) return;
   await record(makeReset(entries, "restart", now()));
-  overLimit = false;
+  grantedExtra = 0;
+  newAllowed = false;
   loadSettingsView();
   $("settings-sync-status").textContent = "Lernstand zurückgesetzt.";
   show("practice");

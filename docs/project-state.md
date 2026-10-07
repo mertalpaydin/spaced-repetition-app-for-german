@@ -397,6 +397,42 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   `requested_to_introduce` now puts it ahead of the due queue,
   `requested_per_day` (5) at a time.
 
+- **Every adverb in the deck was unteachable (found 2026-10-07).** Not one
+  of the 430 adverb units had a single card: "einmal", "oft", "fast",
+  "bald", "sofort", "manchmal". The word detector files both ADJ and ADV
+  tokens under the provisional kind "adjective", because the tagger calls a
+  predicative adjective an adverb, and `units._decide_word` settles which a
+  lemma mostly is. So an adverb unit is `av:oft` while every one of its
+  occurrences maps to `aj:oft`, and the card stage matched on that id and
+  found nothing. `match_to_unit` in the build script now bridges the two
+  kinds, next to the adjective-noun bridge that was already there.
+
+  It surfaced from a question about missing translations: 5.0% of the
+  non-trivial units in the top 500 had no card and every one of them was an
+  adverb. After the fix: 410 of 430 adverbs carded, 0.0% of the top 500
+  without a card, 0.2% of the top 2000.
+
+- **A second round of feedback, 2026-10-07.** A newly added word now waits
+  `requested_delay` (10) reviews before it is asked, counted in reviews
+  since the request so closing the app does not skip the wait; the learner
+  has just looked the word up, so asking it at once tests nothing. Adding a
+  word twice reports where it stands instead of silently offering the word
+  kinds again and writing a second entry.
+
+  The day's target was not being enforced: "Trotzdem weiter" set a flag that
+  stayed set for the rest of the session, so after one press the day ran on
+  unbounded. Each press now buys `extraCards` (10) more and the panel
+  returns. A second panel asks before moving on to new units, and only ever
+  after the target panel, because its condition requires the target to have
+  been passed.
+
+  And the spacing between repeats was only ever applied in the pending tier.
+  A unit answered wrong goes to relearning with its FSRS due ten minutes
+  out, so once those passed it came back through the OVERDUE tier, which had
+  no spacing at all, and the learner met it far sooner than
+  `relearn_spacing` implied. `recently_shown` now applies the gap in every
+  tier.
+
 ## What is not built
 
 - **An installable icon flow on iOS** is untested; Android and desktop

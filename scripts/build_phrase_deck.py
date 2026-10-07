@@ -646,6 +646,48 @@ def stage_requests(args: argparse.Namespace) -> int:
 # -- cards ---------------------------------------------------------------------
 
 
+#: The two kinds the word detector cannot tell apart at parse time: the
+#: tagger calls a predicative adjective an adverb ("er nimmt das ernst"), so
+#: both are emitted as "adjective" and the kind is settled per lemma in the
+#: mine stage.
+_MODIFIER_KINDS: tuple[str, ...] = ("adjective", "adverb")
+
+
+def match_to_unit(
+    occ: Occurrence, wanted_ids: frozenset[str] | set[str]
+) -> tuple[str, Occurrence] | None:
+    """The unit this occurrence belongs to and the occurrence as that unit
+    needs it, or ``None`` when no unit wants it.
+
+    Two kinds need bridging, both because the parse cannot settle them:
+
+    * an adjective-noun occurrence carrying its governing preposition is also
+      offered without it;
+    * a modifier occurrence is offered under the other modifier kind. The
+      detector files both ADJ and ADV tokens as "adjective" and
+      ``units._decide_word`` settles which a lemma mostly is, so a lemma it
+      calls an adverb has the unit id "av:oft" while every one of its
+      occurrences maps to "aj:oft". That id never matched, so not one of the
+      430 adverb units in the deck had a single card, and "einmal", "oft",
+      "fast" and "bald" were all unteachable (found 2026-10-07).
+    """
+    unit_id = unit_id_for(occ.kind, occ.unit_key)
+    if unit_id in wanted_ids:
+        return unit_id, occ
+    if occ.kind == "adj_noun" and len(occ.parts) == 3:
+        bare = without_governing_preposition(occ)
+        bare_id = unit_id_for(bare.kind, bare.unit_key)
+        return (bare_id, bare) if bare_id in wanted_ids else None
+    if occ.kind in _MODIFIER_KINDS:
+        for other in _MODIFIER_KINDS:
+            if other == occ.kind:
+                continue
+            candidate = unit_id_for(other, occ.unit_key)
+            if candidate in wanted_ids:
+                return candidate, occ.model_copy(update={"kind": other})
+    return None
+
+
 def _select_cards(args: argparse.Namespace, units: list[PhraseUnit]) -> cards_module.CardSelection:
     """Cards for ``units`` from the occurrences on disk.
 
@@ -663,11 +705,9 @@ def _select_cards(args: argparse.Namespace, units: list[PhraseUnit]) -> cards_mo
         occ = canonical_occurrence(raw, dictionary, infinitives)
         if occ is None:
             continue
-        unit_id = unit_id_for(occ.kind, occ.unit_key)
-        if unit_id not in wanted_ids and occ.kind == "adj_noun" and len(occ.parts) == 3:
-            occ = without_governing_preposition(occ)
-            unit_id = unit_id_for(occ.kind, occ.unit_key)
-        if unit_id in wanted_ids:
+        matched = match_to_unit(occ, wanted_ids)
+        if matched is not None:
+            unit_id, occ = matched
             by_unit[unit_id].append(occ)
     store = _load_store(args.store)
     glosses = {

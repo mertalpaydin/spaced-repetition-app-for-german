@@ -251,3 +251,41 @@ def test_requests_stage_says_to_mine_first_when_there_is_no_report(tmp_path: Pat
     build_dir = tmp_path / "build"
     build_dir.mkdir()
     assert main(["--stage", "requests", "--build-dir", str(build_dir)]) == 1
+
+
+def test_an_adverb_unit_claims_its_adjective_occurrences() -> None:
+    """Found 2026-10-07: not one of the 430 adverb units in the deck had a
+    single card, so "einmal", "oft", "fast" and "bald" were unteachable.
+
+    The word detector files both ADJ and ADV tokens under the provisional
+    kind "adjective" and the mine stage settles which a lemma mostly is, so
+    an adverb unit is "av:<lemma>" while all of its occurrences map to
+    "aj:<lemma>". The card stage matched on that id and found nothing.
+    """
+    from scripts.build_phrase_deck import match_to_unit
+    from src.phrases.occurrences import Occurrence
+
+    occ = Occurrence(
+        kind="adjective",
+        unit_key="oft",
+        parts=["oft"],
+        text="Ich gehe oft ins Kino.",
+        spans=[(9, 12)],
+        surfaces=["oft"],
+        token_indices=[2],
+        corpus_source="tatoeba",
+        line_id="1",
+        form_key="adv",
+    )
+    matched = match_to_unit(occ, {"av:oft"})
+    assert matched is not None, "an adverb unit must claim its adjective occurrences"
+    unit_id, out = matched
+    assert unit_id == "av:oft"
+    # Handed over as the unit's own kind, so the card it becomes carries
+    # "adverb" rather than the provisional kind.
+    assert out.kind == "adverb"
+
+    # The ordinary match still wins, and a lemma no unit wants is refused.
+    same_kind = match_to_unit(occ, {"aj:oft"})
+    assert same_kind is not None and same_kind[0] == "aj:oft"
+    assert match_to_unit(occ, {"nn:oft"}) is None

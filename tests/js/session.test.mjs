@@ -8,7 +8,7 @@ import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
 import { deriveState, entryKey, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
 import { reserveLetter, withAdded } from "../../web/lib/deck.js";
-import { DEFAULT_SETTINGS, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueUnits, eligiblePendingUnits, introductionOrder, nextUnit, pickCard, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage } from "../../web/lib/session.js";
+import { DEFAULT_SETTINGS, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueUnits, eligiblePendingUnits, introductionOrder, nextUnit, pickCard, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage } from "../../web/lib/session.js";
 
 const T0 = "2026-09-01T08:00:00Z";
 const unit_ = (unit_id, rank, display_de, extra = {}) => ({ unit_id, kind: "verb_prep", display_de, rank, trivial: false, gloss_en: null, also_accepted: [], ...extra });
@@ -333,7 +333,11 @@ test("an added word is shown before the due queue, not after it", () => {
   const full = withAdded(d, state);
   const later = "2026-09-03T08:00:00Z";
   assert.ok(dueUnits(full, state, engine, later, 0).some((u) => u.unit_id === "vp:warten_auf"));
-  assert.equal(nextUnit(full, state, engine, DEFAULT_SETTINGS, later).unit_id, "nn:hähnchen");
+  // Not at once: the learner looked it up a moment ago (owner, 2026-10-07).
+  assert.notEqual(nextUnit(full, state, engine, DEFAULT_SETTINGS, later)?.unit_id, "nn:hähnchen");
+  // Once the delay is paid in other reviews, it comes before the due queue.
+  const settings = { ...DEFAULT_SETTINGS, requestedDelay: 0 };
+  assert.equal(nextUnit(full, state, engine, settings, later).unit_id, "nn:hähnchen");
 });
 
 test("adding many words at once does not cost the day's reviews", () => {
@@ -345,7 +349,9 @@ test("adding many words at once does not cost the day's reviews", () => {
   }
   const state = deriveState(entries, engine);
   const full = withAdded(d, state);
-  assert.equal(requestedToIntroduce(full, state, DEFAULT_SETTINGS, T0).length, DEFAULT_SETTINGS.requestedPerDay);
+  // The delay is a separate rule; this is about the per-day cap.
+  const settings = { ...DEFAULT_SETTINGS, requestedDelay: 0 };
+  assert.equal(requestedToIntroduce(full, state, settings, T0).length, settings.requestedPerDay);
 });
 
 test("one unit is not asked for ever in a single sitting", () => {
@@ -362,6 +368,18 @@ test("one unit is not asked for ever in a single sitting", () => {
   // A fresh sitting the next day offers it again: the cap is per sitting.
   const tomorrow = "2026-09-02T08:00:00Z";
   assert.equal(nextUnit(d, state, engine, DEFAULT_SETTINGS, tomorrow).unit_id, "vp:warten_auf");
+});
+
+test("a unit answered wrong waits for other units in every tier", () => {
+  // It used to come back through the overdue tier once its ten-minute FSRS
+  // due had passed, with no spacing applied there (owner, 2026-10-07).
+  const d = deck(); const engine = createEngine();
+  const wrong = { type: "review", seq: 1, ts: T0, unit_id: "vp:warten_auf", card_id: "w2", rating: "again", outcome: "wrong", answers: ["x", "auf"], expected: ["warten", "auf"], elapsed_ms: 1, deck_version: "t" };
+  const state = deriveState([wrong], engine);
+  const later = "2026-09-01T08:11:00Z";
+  assert.ok(dueUnits(d, state, engine, later, 0).some((u) => u.unit_id === "vp:warten_auf"));
+  assert.ok(recentlyShown(state, DEFAULT_SETTINGS, later).has("vp:warten_auf"));
+  assert.notEqual(nextUnit(d, state, engine, DEFAULT_SETTINGS, later)?.unit_id, "vp:warten_auf");
 });
 
 test("stability lands a unit in the right band", () => {

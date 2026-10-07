@@ -11,7 +11,8 @@ import { entriesSinceReset } from "./log.js";
 // handful of units. requestedPerDay is how many words added from the page
 // jump the due queue. Matches Settings in src/engine/session.py.
 export const DEFAULT_SETTINGS = { cardsPerDay: 40, newPerDay: null, learnAheadMinutes: 20, retention: 0.9, newPool: 50,
-  relearnSpacing: 8, maxAsksPerSession: 3, sessionGapMinutes: 60, requestedPerDay: 5 };
+  relearnSpacing: 8, maxAsksPerSession: 3, sessionGapMinutes: 60, requestedPerDay: 5,
+  requestedDelay: 10, extraCards: 10 };
 
 // Stability bands for the Einheiten screen, in days. Matches
 // STABILITY_BANDS in src/engine/session.py.
@@ -134,6 +135,24 @@ function notLast(units, last) {
 // `choose(n)` picks an index in [0, n) among the new units on offer; the
 // page passes a random one. The default picks the first, so a replay and
 // the tests stay deterministic.
+// Units answered within the last relearnSpacing reviews of this sitting.
+// Nothing is offered again until that many other units have gone by, in ANY
+// tier. The spacing used to live in eligiblePendingUnits alone, so a unit
+// answered wrong came back through the OVERDUE tier once its ten-minute FSRS
+// due had passed, with no spacing at all (owner, 2026-10-07). Matches
+// recently_shown in src/engine/session.py.
+export function recentlyShown(state, settings, now) {
+  const gap = settings.relearnSpacing ?? 0;
+  if (gap <= 0) return new Set();
+  const started = new Date(sessionStart(state.reviewTimes, now, (settings.sessionGapMinutes ?? 60) * 60000));
+  const inSession = [];
+  const order = state.reviewOrder || [];
+  for (let i = 0; i < order.length; i++) {
+    if (new Date(state.reviewTimes[i]) >= started) inSession.push(order[i]);
+  }
+  return new Set(inSession.slice(-gap));
+}
+
 // How often each unit has already been asked in this sitting. Matches
 // asks_this_session in src/engine/session.py.
 export function asksThisSession(state, settings, now) {
@@ -162,6 +181,14 @@ export function requestedToIntroduce(deck, state, settings, now) {
     const unit = deck.byId[id];
     if (!unit || id in state.records || state.known.has(id)) continue;
     if (!isLearnable(deck, unit, state)) continue;
+    // The learner looked this word up a moment ago, so a few other units go
+    // by before it is asked. Counted in reviews since the request, so
+    // closing the app does not skip the wait.
+    const askedAt = state.requestedAt?.[id];
+    if (askedAt) {
+      const since = state.reviewTimes.filter((ts) => new Date(ts) > new Date(askedAt)).length;
+      if (since < (settings.requestedDelay ?? 0)) continue;
+    }
     out.push(unit);
     if (out.length >= budget) break;
   }
@@ -176,15 +203,17 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
   // its FSRS state and comes back tomorrow.
   const cap = settings.maxAsksPerSession ?? 0;
   const notExhausted = (units) => (cap <= 0 ? units : units.filter((u) => (asks[u.unit_id] || 0) < cap));
+  const recent = recentlyShown(state, settings, now);
+  const spaced = (units) => units.filter((u) => !recent.has(u.unit_id));
 
   const wanted = notLast(notExhausted(requestedToIntroduce(deck, state, settings, now)), last);
   if (wanted.length) return wanted[0];
-  const overdue = notLast(notExhausted(dueUnits(deck, state, engine, now, 0)), last);
+  const overdue = notLast(spaced(notExhausted(dueUnits(deck, state, engine, now, 0))), last);
   if (overdue.length) return overdue[0];
   // A unit mid learning step comes back on spacing, not on the clock, and
   // ahead of any new unit: there is no point introducing more while the
   // learner is still getting this one wrong (owner, 2026-09-22).
-  const pending = notExhausted(eligiblePendingUnits(deck, state, engine, settings, now)).filter((u) => u.unit_id !== last);
+  const pending = spaced(notExhausted(eligiblePendingUnits(deck, state, engine, settings, now))).filter((u) => u.unit_id !== last);
   if (pending.length) return pending[0];
   const withinBudget = overLimit || budgetLeft(state, settings, now) > 0;
   const underCap = settings.newPerDay === null || newUnitsStartedToday(state, now) < settings.newPerDay;
@@ -199,7 +228,7 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
     }
     if (pool.length) return pool[(choose ? choose(pool.length) : 0) % pool.length];
   }
-  const ahead = notExhausted(dueUnits(deck, state, engine, now, settings.learnAheadMinutes * 60000)).filter((u) => u.unit_id !== last);
+  const ahead = spaced(notExhausted(dueUnits(deck, state, engine, now, settings.learnAheadMinutes * 60000))).filter((u) => u.unit_id !== last);
   if (ahead.length) return ahead[0];
   // Nothing else to interleave with: show the pending unit again rather than
   // stopping. Drilling what the learner just got wrong is the only useful

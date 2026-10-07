@@ -235,6 +235,15 @@
   "form_key": "nicht|einmal"
  },
  {
+  "card_id": "73f3e5944a1e",
+  "unit_id": "av:recht",
+  "sentence_de": "Paris ist eine recht teure Stadt.",
+  "answers": [
+   "recht"
+  ],
+  "form_key": "adv"
+ },
+ {
   "card_id": "7d2723eeacd3",
   "unit_id": "vp:gehen_um",
   "sentence_de": "Wenn es um Süßigkeiten geht, kann ich mich einfach nicht beherrschen.",
