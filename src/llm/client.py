@@ -44,6 +44,12 @@ from src.llm.config import DEFAULT_CONFIG_PATH, load_restrict_user_content_to_pa
 Lane = Literal["free", "paid", "cache", "local"]
 QuotaType = Literal["rpm", "rpd"]
 
+#: Deadline on one HTTP request, in milliseconds. The SDK has no default: a
+#: gloss run on 2026-10-07 sat fifteen minutes on an established connection
+#: to Google having spent 1.7 seconds of CPU, and would have sat there until
+#: killed. A hung call has to fail for the retry logic to see it.
+REQUEST_TIMEOUT_MS = 10 * 60 * 1000
+
 #: How a call actually reached Google. This is NOT derivable from the lane:
 #: the paid lane runs batch for nightly/initial generation and synchronous
 #: on-demand for a ``forbid_batch=True`` pilot, and Google prices the two
@@ -798,6 +804,11 @@ class GeminiLlmClient:
         # (``src.generation.pilot.run_pilot``), with ``--batch`` (``use_batch``)
         # remaining the explicit, deliberate opt-in back into real batch mode.
         self.forbid_batch = forbid_batch
+        #: Deadline on one HTTP request, milliseconds. Ten minutes is far
+        #: longer than any prompt here needs and short enough that a hung
+        #: socket surfaces as a retryable failure in one sitting rather than
+        #: blocking the pipeline indefinitely (2026-10-07).
+        self.request_timeout_ms = REQUEST_TIMEOUT_MS
         self._clock: Callable[[], datetime] = clock or (lambda: datetime.now(UTC))
         self._sleep: Callable[[float], None] = sleep_fn or time.sleep
 
@@ -1163,7 +1174,9 @@ class GeminiLlmClient:
                             "GEMINI_FREE_API_KEY (or GEMINI_API_KEY) in the environment, "
                             "or pass free_api_key= to GeminiLlmClient."
                         )
-                    self._free_client = genai.Client(api_key=self.free_api_key)
+                    self._free_client = genai.Client(
+                        api_key=self.free_api_key, http_options=self._http_options()
+                    )
                 return self._free_client
             if lane == "paid":
                 if self._paid_client is None:
@@ -1174,9 +1187,23 @@ class GeminiLlmClient:
                             "GEMINI_PAID_API_KEY in the environment, or pass "
                             "paid_api_key= to GeminiLlmClient."
                         )
-                    self._paid_client = genai.Client(api_key=self.paid_api_key)
+                    self._paid_client = genai.Client(
+                        api_key=self.paid_api_key, http_options=self._http_options()
+                    )
                 return self._paid_client
             raise ValueError(f"_get_sdk_client has no client for lane={lane!r}")
+
+    def _http_options(self) -> genai_types.HttpOptions:
+        """Every request gets a deadline.
+
+        Without one the SDK waits on the socket for ever: on 2026-10-07 a
+        gloss run sat for fifteen minutes on an established connection to
+        Google, having burnt 1.7 seconds of CPU, and would have sat there
+        until it was killed. A hung call must fail so the retry logic above
+        can see it, because a job that never returns cannot be retried,
+        cannot be logged, and blocks the pipeline behind it.
+        """
+        return genai_types.HttpOptions(timeout=self.request_timeout_ms)
 
     def _thinking_config_for(self, model: str, purpose: str) -> genai_types.ThinkingConfig | None:
         """Thinking is keyed on ``model`` alone, not on ``purpose``: the

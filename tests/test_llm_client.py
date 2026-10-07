@@ -2635,3 +2635,20 @@ def test_can_reach_paid(
         cache_dir=".cache/llm",
     )
     assert client._can_reach_paid(lane) is expected  # type: ignore[arg-type]
+
+
+def test_every_request_carries_a_deadline() -> None:
+    """Found 2026-10-07: the SDK has no default timeout, so a gloss run sat
+    fifteen minutes on an established connection to Google having spent 1.7
+    seconds of CPU, and would have sat there until it was killed. A hung call
+    must fail so the retry logic can see it; a job that never returns cannot
+    be retried, cannot be logged, and blocks everything behind it."""
+    from src.llm.client import REQUEST_TIMEOUT_MS, GeminiLlmClient
+
+    client = GeminiLlmClient(free_api_key="k", paid_api_key="k")
+    options = client._http_options()  # noqa: SLF001
+    assert options.timeout == REQUEST_TIMEOUT_MS
+    assert client.request_timeout_ms == REQUEST_TIMEOUT_MS
+    # Minutes, not milliseconds-as-seconds: a timeout of 600 would abort
+    # every real call.
+    assert REQUEST_TIMEOUT_MS >= 60_000
