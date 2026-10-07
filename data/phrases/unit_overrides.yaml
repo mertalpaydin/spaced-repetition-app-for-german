@@ -1248,3 +1248,10 @@
 - {key: "übertragen sinn", display: "im übertragenen Sinne"}
 - {key: "überziehen mit", cefr: "B2"}
 - {key: "übrigbleiben", display: "übrig bleiben"}
+# Added 2026-10-07. The model keeps glossing these two with the German word,
+# because the spelling carries over into English and the meaning does not:
+# "das Land" is a country, not land, and "der Fall" is a case, not a fall.
+# The echo check rightly refuses it, so the English is given here by hand
+# rather than asked for again.
+- {key: land, gloss_en: country}
+- {key: fall, gloss_en: case}

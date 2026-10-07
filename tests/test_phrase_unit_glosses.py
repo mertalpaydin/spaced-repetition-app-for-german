@@ -207,3 +207,72 @@ def test_a_gloss_that_quotes_the_german_is_rejected() -> None:
     gehen_um = unit("vp:gehen_um", "gehen um", 1, kind="verb_prep", case="Akk")
     assert unit_glosses.reject_reason(gehen_um, ["to be about (es geht um)"]) == "german_leak"
     assert unit_glosses.reject_reason(gehen_um, ["to be about", "to concern"]) is None
+
+
+def test_a_cognate_gloss_is_not_an_echo() -> None:
+    """Found 2026-10-07: eleven nouns in the top 500 had no "Gesucht:" line
+    because the only correct English was rejected as german_echoed. The echo
+    check exists to catch a model that handed the German back, but for a
+    cognate the right answer and a refusal look identical, and CLAUDE.md
+    already says a cognate is not a leak."""
+    from src.phrases.unit_glosses import reject_reason
+
+    problem = PhraseUnit(
+        unit_id="nn:problem",
+        kind="noun",
+        lemma_key="problem",
+        parts=["problem"],
+        display_de="das Problem",
+        sentence_count=100,
+        rank=105,
+        source="mined",
+        card_count=6,
+    )
+    assert reject_reason(problem, ["problem"]) is None
+    assert reject_reason(problem, ["problem", "issue"]) is None
+
+    # The list is meaning, not spelling. "das Land" is a country and "der
+    # Fall" is a case, so an echo there is a wrong gloss and stays rejected.
+    land = problem.model_copy(
+        update={
+            "unit_id": "nn:land",
+            "lemma_key": "land",
+            "parts": ["land"],
+            "display_de": "das Land",
+        }
+    )
+    assert reject_reason(land, ["land"]) == "german_echoed"
+    assert reject_reason(land, ["country"]) is None
+
+    # And a single-part unit that is not a cognate is still an echo: a model
+    # handing back "aussehen" has given up, not translated.
+    aussehen = problem.model_copy(
+        update={
+            "unit_id": "sv:aussehen",
+            "kind": "separable_verb",
+            "lemma_key": "aussehen",
+            "parts": ["aussehen"],
+            "display_de": "aussehen",
+        }
+    )
+    assert reject_reason(aussehen, ["aussehen"]) == "german_echoed"
+
+    # A multi-part unit handing back one of its own parts is still an echo:
+    # it tells the learner the half they could already see.
+    warten = PhraseUnit(
+        unit_id="vp:warten_auf",
+        kind="verb_prep",
+        lemma_key="warten auf",
+        parts=["warten", "auf"],
+        display_de="warten auf",
+        sentence_count=100,
+        rank=1,
+        source="mined",
+        card_count=6,
+    )
+    assert reject_reason(warten, ["warten"]) == "german_echoed"
+    assert reject_reason(warten, ["warten auf"]) == "german_echoed"
+    assert reject_reason(warten, ["wait for"]) is None
+
+    # And a single word glossed with a German PHRASE is not a cognate either.
+    assert reject_reason(problem, ["das Problem"]) == "german_echoed"

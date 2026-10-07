@@ -416,7 +416,13 @@ def job_unit_glosses(args: argparse.Namespace) -> int:
     ]
     existing = glosses_module.load_records(args.unit_glosses)
     todo = [u for u in glosses_module.units_needing_gloss(units) if u.unit_id not in existing]
-    if args.max_rank:
+    if args.only_requested:
+        # A requested word keeps its CORPUS rank, which for a rare word is in
+        # the thousands even though the scheduler teaches it first. So
+        # --max-rank is the wrong filter for them and excluded exactly the
+        # words the owner asked for (2026-10-07).
+        todo = [u for u in todo if u.requested_order is not None]
+    elif args.max_rank:
         todo = [u for u in todo if u.rank <= args.max_rank]
     examples = glosses_module.example_sentences(cards)
     print(f"unit-glosses: {len(existing)} stored, {len(todo)} still needed")
@@ -644,7 +650,17 @@ def _write_cards_for(args: argparse.Namespace, wanted: list[tuple[str, str]]) ->
         if occ is not None:
             emitted.append(occ)
             forced += 1
-    write_occurrences(args.build_dir / "written_occurrences.jsonl", iter(emitted))
+    # Merge rather than overwrite: a run for one corrected word must not
+    # throw away the occurrences of every word written before it, which is
+    # the obvious way to lose work when retrying a single key (2026-10-07).
+    out_path = args.build_dir / "written_occurrences.jsonl"
+    rewritten = {key for key, _ in wanted}
+    if out_path.exists():
+        kept_before = [occ for occ in read_occurrences(out_path) if occ.unit_key not in rewritten]
+        if kept_before:
+            print(f"write-cards: keeping {len(kept_before)} occurrence(s) for other words")
+            emitted = kept_before + emitted
+    write_occurrences(out_path, iter(emitted))
     by_key: dict[str, int] = {}
     for occ in emitted:
         by_key[occ.unit_key] = by_key.get(occ.unit_key, 0) + 1
@@ -655,6 +671,14 @@ def _write_cards_for(args: argparse.Namespace, wanted: list[tuple[str, str]]) ->
         f"({forced} past the part-of-speech gates); re-run --stage mine"
     )
     return 0
+
+
+#: The kind the DETECTOR would emit for a requested kind. ADJ and ADV tokens
+#: are both filed as "adjective" at parse time and units._decide_word settles
+#: which a lemma mostly is, so a forced occurrence has to use the provisional
+#: kind or its stats land where nothing looks. Mirrors _REQUEST_STAT_KIND in
+#: src/phrases/units.py.
+_PROVISIONAL_KIND: dict[str, str] = {"adverb": "adjective"}
 
 
 def _forced_occurrence(
@@ -687,7 +711,13 @@ def _forced_occurrence(
         if sentence.german[start:end] != surface:
             continue
         return Occurrence(
-            kind=kind,  # type: ignore[arg-type]
+            # The PROVISIONAL kind, the one the detector would have used.
+            # ADJ and ADV are both emitted as "adjective" and
+            # units._decide_word settles which a lemma mostly is, so an
+            # occurrence emitted as "adverb" lands in a stats bucket nothing
+            # reads and the word stays missing however many sentences it has
+            # (2026-10-07: wodurch, dazu, aufgrund and wieso all did).
+            kind=_PROVISIONAL_KIND.get(kind, kind),  # type: ignore[arg-type]
             unit_key=lemma,
             parts=[lemma],
             token_indices=[index],
@@ -729,6 +759,11 @@ def main(argv: list[str] | None = None) -> int:
     u.add_argument("--max-batches", type=int, default=1000)
     u.add_argument("--max-failures", type=int, default=2)
     u.add_argument("--max-rank", type=int, default=0, help="0 means every unit")
+    u.add_argument(
+        "--only-requested",
+        action="store_true",
+        help="only units the owner asked for by hand, whatever their rank",
+    )
     w = sub.add_parser("write-cards")
     w.add_argument("--build-dir", type=Path, default=DEFAULT_BUILD_DIR)
     w.add_argument("--store", type=Path, default=DEFAULT_STORE_PATH)

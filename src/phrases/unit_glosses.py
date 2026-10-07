@@ -257,6 +257,82 @@ def parse_response(raw: str) -> dict[str, list[str]] | None:
     return out
 
 
+#: German words whose correct English is the same word. The echo check below
+#: would otherwise reject the only right answer, and did: eleven nouns in the
+#: top 500 had no "Gesucht:" line at all (2026-10-07). Each entry is a word
+#: whose spelling AND meaning carry over; "land" and "fall" are deliberately
+#: absent, because "das Land" is a country and "der Fall" is a case, so an
+#: echo there is a wrong gloss rather than a cognate. Add to this only after
+#: checking the meaning, never the spelling alone.
+COGNATE_LEMMAS: frozenset[str] = frozenset(
+    {
+        "problem",
+        "person",
+        "film",
+        "plan",
+        "chance",
+        "information",
+        "job",
+        "name",
+        "hand",
+        "international",
+        "modern",
+        "normal",
+        "total",
+        "regional",
+        "digital",
+        "global",
+        "aktiv",
+        "privat",
+        "sport",
+        "hotel",
+        "auto",
+        "radio",
+        "taxi",
+        "computer",
+        "team",
+        "baby",
+        "cafe",
+        "hobby",
+        "interview",
+        "manager",
+        "motor",
+        "museum",
+        "partner",
+        "profit",
+        "signal",
+        "sofa",
+        "tennis",
+        "test",
+        "ticket",
+        "tunnel",
+    }
+)
+
+
+def _is_cognate(unit: PhraseUnit, gloss: str) -> bool:
+    """Whether an English gloss identical to the German is simply correct.
+
+    "Problem" is "problem", "Information" is "information", "Job" is "job".
+    The echo check exists to catch a model that gave up and handed the German
+    back, but for a cognate the right answer and a refusal to answer look the
+    same, and rejecting both left eleven nouns in the top 500 with no
+    "Gesucht:" line at all: Problem, Land, Hand, Name, Fall, Person, Film,
+    Plan, Chance, Information, Job (found 2026-10-07). CLAUDE.md already says
+    a cognate is not a leak, and ``german_leak`` below is written to let them
+    through; this check was contradicting it.
+
+    A curated list and not a heuristic, because the two cannot be told apart
+    from the strings. "aussehen" glossed as "aussehen" is a model giving up,
+    and so is "das Land" glossed as "land": the German means *country*, and
+    "der Fall" means *case*, so for those the rejection was doing its job and
+    accepting the echo would have stored a wrong gloss. Only a human knows
+    which identical spellings are also identical meanings, so only the list
+    decides.
+    """
+    return _fold(unit.lemma_key) in COGNATE_LEMMAS and _fold(gloss) == _fold(unit.lemma_key)
+
+
 def reject_reason(unit: PhraseUnit, glosses: list[str]) -> str | None:
     if not glosses:
         return "empty"
@@ -264,7 +340,8 @@ def reject_reason(unit: PhraseUnit, glosses: list[str]) -> str | None:
     for g in glosses[:MAX_GLOSSES]:
         if len(g) > _MAX_GLOSS_CHARS:
             return "too_long"
-        if g.lower() == display or any(part.lower() == g.lower() for part in unit.parts):
+        echoes = g.lower() == display or any(part.lower() == g.lower() for part in unit.parts)
+        if echoes and not _is_cognate(unit, g):
             return "german_echoed"
         if any(ch in g for ch in "\n{}[]"):
             return "malformed"
