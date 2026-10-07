@@ -20,3 +20,79 @@
 # A multi-word request usually belongs in the file for its shape instead:
 # a fixed expression in idioms.yaml, a verb with its preposition in
 # verb_prep_seed.yaml, a collocation in collocation_seed.yaml.
+
+# Added 2026-10-07 from the owner's second Lingvist list.
+- {key: "beabsichtigen", kind: verb, note: "Lingvist"}
+- {key: "sich entschließen", kind: reflexive_verb, note: "Lingvist"}
+- {key: "nötig", kind: adjective, note: "Lingvist"}
+- {key: "verlangen", kind: verb, note: "Lingvist"}
+- {key: "beziehung", kind: noun, note: "Lingvist"}
+- {key: "freude", kind: noun, note: "Lingvist; the owner asked for the bare noun"}
+- {key: "gelingen", kind: verb, note: "Lingvist"}
+- {key: "ziemlich", kind: adjective, note: "Lingvist"}
+- {key: "vermutung", kind: noun, note: "Lingvist"}
+- {key: "betragen", kind: verb, note: "Lingvist; to amount to"}
+- {key: "heutzutage", kind: adverb, note: "Lingvist"}
+- {key: "festlegen", kind: separable_verb, note: "Lingvist"}
+- {key: "einführen", kind: separable_verb, note: "Lingvist"}
+- {key: "ungefähr", kind: adjective, note: "Lingvist"}
+- {key: "gleichzeitig", kind: adjective, note: "Lingvist"}
+- {key: "sogar", kind: adverb, note: "Lingvist"}
+- {key: "dagegen", kind: connector, note: "Lingvist"}
+- {key: "unterbrechen", kind: verb, note: "Lingvist"}
+- {key: "vermuten", kind: verb, note: "Lingvist"}
+- {key: "besitzer", kind: noun, note: "Lingvist"}
+- {key: "damals", kind: adverb, note: "Lingvist"}
+- {key: "zufällig", kind: adjective, note: "Lingvist"}
+- {key: "stolz", kind: adjective, note: "Lingvist"}
+- {key: "verstecken", kind: verb, note: "Lingvist"}
+- {key: "verbringen", kind: verb, note: "Lingvist"}
+- {key: "vertrauen", kind: verb, note: "Lingvist"}
+- {key: "entfernen", kind: verb, note: "Lingvist"}
+- {key: "neugierig", kind: adjective, note: "Lingvist"}
+- {key: "plötzlich", kind: adjective, note: "Lingvist"}
+- {key: "gegend", kind: noun, note: "Lingvist"}
+- {key: "lärm", kind: noun, note: "Lingvist"}
+- {key: "mut", kind: noun, note: "Lingvist"}
+- {key: "gefahr", kind: noun, note: "Lingvist"}
+- {key: "häufig", kind: adjective, note: "Lingvist"}
+- {key: "deutlich", kind: adjective, note: "Lingvist"}
+- {key: "entweder … oder", kind: two_part_connector, note: "Lingvist, listed as 'entweder'"}
+- {key: "nicht nur … sondern auch", kind: two_part_connector, note: "Lingvist, listed as 'sondern auch'"}
+- {key: "ledig", kind: adjective, note: "Lingvist; reserve, 63 corpus sentences"}
+- {key: "herauf", kind: adverb, note: "Lingvist; reserve, 51 corpus sentences"}
+- {key: "unüblich", kind: adjective, note: "Lingvist; reserve, 77 corpus sentences"}
+- {key: "undeutlich", kind: adjective, note: "Lingvist; reserve, 39 corpus sentences"}
+- {key: "sich entscheiden", kind: reflexive_verb, note: "Lingvist; 'sich entscheiden für' is seeded separately"}
+- {key: "gebrauchen", kind: verb, note: "Lingvist; 642 corpus sentences"}
+- {key: "beitragen zu", kind: verb_prep, note: "Lingvist, listed as 'Beitragen'; the bare verb is excluded as a duplicate, the corpus only uses it with zu"}
+- {key: "überlegen", kind: verb, note: "Lingvist; the verb 'to consider', not the adjective 'superior'"}
+- {key: "fortgeschritten", kind: adjective, note: "Lingvist, written 'fortgeschritte'"}
+- {key: "unverletzt", kind: adjective, note: "Lingvist, written 'unverletz'"}
+- {key: "verwandte", kind: noun, note: "Lingvist, written 'verwandten': the relative"}
+- {key: "verwandt", kind: adjective, note: "the other reading of 'verwandten': related to"}
+- {key: "vorhersagen", kind: separable_verb, note: "Lingvist, listed as 'Vorhersagen'"}
+- {key: "vorhersage", kind: noun, note: "the noun reading of 'Vorhersagen'"}
+- {key: "kenntnis", kind: noun, note: "Lingvist, written 'kenntnisse'"}
+- {key: "aufenthalt", kind: noun, note: "Lingvist, written 'aufenhalt'"}
+- {key: "beeindruckend", kind: adjective, note: "Lingvist, written 'beindruckend'"}
+- {key: "gegensatz", kind: noun, note: "Lingvist"}
+- {key: "im gegensatz zu", kind: connector, note: "Lingvist, listed as 'Gegensatz'; already a curated connector, so this only pulls it forward"}
+- {key: "verhältnis", kind: noun, note: "Lingvist; the ratio sense, owner's decision 2026-10-07"}
+- {key: "üblich", kind: adjective, note: "Lingvist; 1,663 sentences"}
+- {key: "deprimiert", kind: adjective, note: "Lingvist; only 4 corpus sentences, may stay card-less"}
+- {key: "unabsichtlich", kind: adjective, note: "Lingvist; 34 sentences"}
+- {key: "entlang", kind: adverb, note: "Lingvist; 20 sentences as a modifier"}
+- {key: "dranbleiben", kind: separable_verb, note: "Lingvist, written 'bleib dran'; owner's decision 2026-10-07"}
+- {key: "fleißig", kind: adjective, note: "Lingvist, written 'fleißiger'"}
+- {key: "häufigkeit", kind: noun, note: "Lingvist"}
+- {key: "angestellte", kind: noun, note: "Lingvist, written 'angestellten'"}
+- {key: "sichtlich", kind: adverb, note: "Lingvist"}
+- {key: "gegenüber", kind: adverb, note: "Lingvist; mostly a preposition, so watch the cards"}
+- {key: "wieso", kind: adverb, note: "Lingvist"}
+- {key: "wodurch", kind: adverb, note: "Lingvist"}
+- {key: "dazu", kind: adverb, note: "Lingvist"}
+- {key: "solche", kind: adjective, note: "Lingvist; a determiner, may be refused as a function word"}
+- {key: "diejenige", kind: adjective, note: "Lingvist; a demonstrative, may be refused"}
+- {key: "dieselbe", kind: adjective, note: "Lingvist; a demonstrative, may be refused"}
+- {key: "aufgrund", kind: adverb, note: "Lingvist; a preposition, may be refused"}

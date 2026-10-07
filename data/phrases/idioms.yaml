@@ -59,3 +59,14 @@
 - {key: sich mühe geben, pattern: ["lemma:geben", sich, mühe], max_gap: 2, display: "sich Mühe geben", cefr: B1, gloss_en: to make an effort}
 - {key: ums leben kommen, pattern: [ums, leben, "lemma:kommen"], max_gap: 1, display: "ums Leben kommen", cefr: B2, gloss_en: "to lose one's life"}
 - {key: was ist los, pattern: [was, ist, los], max_gap: 0, display: "was ist los?", cefr: A1, gloss_en: what is going on}
+# Added 2026-10-07 from the owner's second Lingvist list. The three
+# adjective + preposition entries live here because the deck has no
+# adjective-preposition kind and a fixed token pattern is what they are.
+- {key: abhängig von, pattern: [abhängig, von], max_gap: 0, display: "abhängig von + Dat", cefr: B1, gloss_en: dependent on}
+- {key: unabhängig von, pattern: [unabhängig, von], max_gap: 0, display: "unabhängig von + Dat", cefr: B1, gloss_en: independent of}
+- {key: begeistert von, pattern: [begeistert, von], max_gap: 0, display: "begeistert von + Dat", cefr: B1, gloss_en: enthusiastic about}
+- {key: soweit ich weiß, pattern: [soweit, ich, weiß], max_gap: 0, display: "soweit ich weiß", cefr: B1, gloss_en: as far as I know}
+- {key: bei gelegenheit, pattern: [bei, gelegenheit], max_gap: 0, display: "bei Gelegenheit", cefr: B2, gloss_en: "some time, when the chance arises"}
+- {key: von beginn an, pattern: [von, beginn, an], max_gap: 0, display: "von Beginn an", cefr: B1, gloss_en: from the start}
+- {key: im verhältnis zu, pattern: [im, verhältnis, zu], max_gap: 0, display: "im Verhältnis zu + Dat", cefr: B2, gloss_en: in relation to}
+- {key: selbst schuld, pattern: [selbst, schuld], max_gap: 0, display: "selbst schuld (sein)", cefr: B1, gloss_en: your own fault}

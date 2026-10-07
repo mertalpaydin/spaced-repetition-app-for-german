@@ -37,3 +37,7 @@
 - {key: "bescheid wissen", kind: noun_verb, display: "Bescheid wissen", cefr: B1, gloss_en: to be informed}
 - {key: "erfahrung sammeln", kind: noun_verb, display: "Erfahrung sammeln", cefr: B1, gloss_en: to gain experience}
 - {key: "verantwortung übernehmen", kind: noun_verb, display: "Verantwortung übernehmen", cefr: B2, gloss_en: to take responsibility}
+# Added 2026-10-07 from the owner's second Lingvist list.
+- {key: "absicht haben", kind: noun_verb, display: "die Absicht haben", cefr: B1, gloss_en: to intend}
+- {key: "ernst nehmen", kind: adj_verb, display: "ernst nehmen", cefr: B1, gloss_en: to take seriously}
+- {key: "bekannt machen", kind: adj_verb, display: "bekannt machen", cefr: B1, gloss_en: "to introduce, to make known"}

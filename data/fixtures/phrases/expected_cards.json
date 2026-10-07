@@ -133,6 +133,15 @@
   "form_key": "medial"
  },
  {
+  "card_id": "364857adaafe",
+  "unit_id": "nn:gefahr",
+  "sentence_de": "Ein in beiden Definitionen wiederkehrender Bestandteil ist das Wort „Gefahr“.",
+  "answers": [
+   "Gefahr"
+  ],
+  "form_key": "Nom|Sing"
+ },
+ {
   "card_id": "36b7ad5a363f",
   "unit_id": "id:es_gibt",
   "sentence_de": "Es gibt solche, die an Ufos glauben, und solche, die es nicht tun.",
@@ -141,6 +150,15 @@
    "gibt"
   ],
   "form_key": "es|gibt"
+ },
+ {
+  "card_id": "3bf664ff9547",
+  "unit_id": "aj:beeindruckend",
+  "sentence_de": "Er versucht mich immer davon zu überzeugen, dass seine eigenen Verse außergewöhnlich beeindruckend sind.",
+  "answers": [
+   "beeindruckend"
+  ],
+  "form_key": "adv"
  },
  {
   "card_id": "3c6394f95fa3",
@@ -197,6 +215,15 @@
   "form_key": "Dat|Plur"
  },
  {
+  "card_id": "483931ef94ec",
+  "unit_id": "aj:stolz",
+  "sentence_de": "Er ist stolz darauf, dass sein Vater ein großer Wissenschaftler ist.",
+  "answers": [
+   "stolz"
+  ],
+  "form_key": "adv"
+ },
+ {
   "card_id": "4e6aa3158a22",
   "unit_id": "id:es_gibt",
   "sentence_de": "Es gibt nichts schöneres als einen Spaziergang.",
@@ -205,6 +232,24 @@
    "gibt"
   ],
   "form_key": "es|gibt"
+ },
+ {
+  "card_id": "4fac76ca0240",
+  "unit_id": "vb:verbringen",
+  "sentence_de": "Sie verbringt jeden Sonntag mit ihrer Großmutter.",
+  "answers": [
+   "verbringt"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
+  "card_id": "51bd16188b65",
+  "unit_id": "aj:damals",
+  "sentence_de": "Damals studierte ich noch Pharmazie.",
+  "answers": [
+   "Damals"
+  ],
+  "form_key": "adv"
  },
  {
   "card_id": "5fdea2979ed1",
@@ -244,6 +289,15 @@
   "form_key": "adv"
  },
  {
+  "card_id": "7638953e9897",
+  "unit_id": "aj:deprimiert",
+  "sentence_de": "Niemand möchte mit einem Menschen zusammensein, der einen deprimierten Eindruck macht.",
+  "answers": [
+   "deprimierten"
+  ],
+  "form_key": "Acc|Sing"
+ },
+ {
   "card_id": "7d2723eeacd3",
   "unit_id": "vp:gehen_um",
   "sentence_de": "Wenn es um Süßigkeiten geht, kann ich mich einfach nicht beherrschen.",
@@ -279,6 +333,15 @@
    "sondern"
   ],
   "form_key": "medial"
+ },
+ {
+  "card_id": "89a218713d48",
+  "unit_id": "nn:freude",
+  "sentence_de": "Ihre Art, das zu tun, ist mir eine Freude.",
+  "answers": [
+   "Freude"
+  ],
+  "form_key": "Nom|Sing"
  },
  {
   "card_id": "8c5191ac98d2",
@@ -337,6 +400,16 @@
   "form_key": "medial"
  },
  {
+  "card_id": "ac2bd2b0a789",
+  "unit_id": "rv:sich_entscheiden",
+  "sentence_de": "Ich habe mich entschieden, Boston den Rücken zu kehren.",
+  "answers": [
+   "mich",
+   "entschieden"
+  ],
+  "form_key": "Part"
+ },
+ {
   "card_id": "b8dbcd9168e8",
   "unit_id": "vb:haben",
   "sentence_de": "Wir haben zurzeit sehr viel zu tun.",
@@ -344,6 +417,24 @@
    "haben"
   ],
   "form_key": "Fin|Pres|1|Plur"
+ },
+ {
+  "card_id": "c820664d9b30",
+  "unit_id": "nn:gefahr",
+  "sentence_de": "Tom stellte sich mutig der Gefahr.",
+  "answers": [
+   "Gefahr"
+  ],
+  "form_key": "Dat|Sing"
+ },
+ {
+  "card_id": "c9dceca86245",
+  "unit_id": "aj:sogar",
+  "sentence_de": "Sogar die Decke der Schatzkammer ist sehr prunkvoll.",
+  "answers": [
+   "Sogar"
+  ],
+  "form_key": "adv"
  },
  {
   "card_id": "cc336383f225",

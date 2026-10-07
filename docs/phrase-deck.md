@@ -182,6 +182,48 @@ CLAUDE.md rule 4 states the waiver and its bounds, and `web/lib/gemini.js`
 carries the cache, the per-attempt record, the RPM/RPD distinction and the
 daily ceiling that pay for it.
 
+## Words the corpus does not use at all
+
+`--stage write-cards` is the last resort for a requested word. Of the owner's
+list of 2026-10-07, six words ("Angestellte", "aufgrund", "dazu", "dieselbe",
+"solche", "wodurch") had not one corpus sentence between them, so the choice
+was to refuse those words or to write their sentences; he chose to write them.
+
+```
+uv run python scripts/build_phrase_deck.py --stage write-cards                  # says what it would do
+uv run python scripts/build_phrase_deck.py --stage write-cards --write-cards --approved-by-owner
+uv run python scripts/build_phrase_deck.py --stage mine                         # picks up the new occurrences
+```
+
+Opt-in, free lane, refused without `--approved-by-owner`, like every model
+stage here. A written sentence is stored as an ordinary gloss (source
+`gemini`, which rule 9 allows on a card) and then handed to the REAL parser
+and detectors, so its occurrence is the same shape as a mined one. Before
+that it must clear every gate a corpus sentence clears
+(`src/phrases/written_carriers.py`): the surface form must really occur in
+the sentence so the gap lines up (rule 6), the English must not quote the
+German it translates (rule 2), the gloss must pass `gloss_is_sane`, and the
+sentence must pass `carrier_validation`'s 21 rules.
+
+`web/lib/gemini.js` does the same job in the browser for a word the learner
+adds there. The two prompts and gates are deliberately alike; change one and
+change the other.
+
+### Glossing when Azure's month is closed
+
+Once Azure refuses a month on quota, `monthly_translation_topup.py` sends
+nothing at all until the month rolls over, Gemini fallback included: the
+fallback catches a batch Azure refuses mid-run, it is not a route into a
+closed month. To gloss a handful of carriers anyway, use the gloss job with
+the free lane:
+
+```
+uv run python scripts/api_jobs.py glosses --wanted <carriers file> --free-lane-only --approved-by-owner
+```
+
+Cards use six carriers per unit, so trim the carriers file first rather than
+glossing every sentence the corpus offers for a word.
+
 ## The one model stage
 
 ```

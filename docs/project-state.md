@@ -433,6 +433,31 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   `relearn_spacing` implied. `recently_shown` now applies the gap in every
   tier.
 
+- **The owner's second word list, 2026-10-07.** 84 lines, routed by shape:
+  59 single words to `requested.yaml` (37 of them already in the deck, so the
+  request only pulls them forward), nine idioms, three collocations and
+  `sich engagieren fuer` to their seed files. Seven typos corrected against
+  the corpus, two words given both readings because the list was ambiguous
+  ("verwandten" as noun and adjective, "Vorhersagen" as verb and noun).
+
+  Three decisions were the owner's, not guesses: "jemandem eine freude sein"
+  is not idiomatic so the bare noun was pulled forward instead; "Verhaeltnis"
+  was wanted in the ratio sense, not the affair sense "ein Verhaeltnis
+  haben"; and "bleib dran" is taught as the separable verb "dranbleiben"
+  rather than as a fixed imperative.
+
+  `beitragen` was refused by `exclude.yaml` as a duplicate of
+  `vp:beitragen_zu`, correctly, so the request became "beitragen zu".
+
+- **An over-broad exclusion, found 2026-10-07.** `exclude.yaml` carried "im
+  gegensatz zu" as BAD_UNIT, "citation form is miscapitalised". That was true
+  of the mined expression, but an exclusion key blocks EVERY kind with that
+  lemma, including the curated connector in `connectors.yaml`, whose display
+  was already the correct "im Gegensatz zu + Dat". So the exclusion was not
+  fixing a citation form, it was deleting the good unit along with the bad
+  one, and the phrase was taught nowhere. Worth checking whether other
+  exclusions shadow a curated key the same way.
+
 ## What is not built
 
 - **An installable icon flow on iOS** is untested; Android and desktop

@@ -9,6 +9,8 @@ Stages, each idempotent over ``data/phrases/build/``:
               sentences; run it between two mines, then mine again
     requests  corpus sentences for a requested word that has none glossed;
               run it between two mines, then translate its carriers file
+    write-cards  OPT-IN model stage: sentences for a requested word the
+              corpus does not use at all (free lane, needs approval)
     cards     pick glossed sentences per unit; list what to gloss next
     reserve   mine and card the words the frequency floor keeps out, for the
               page to activate on request; writes web/data/deck/reserve/
@@ -29,6 +31,7 @@ import sys
 import time
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 
 from src.atomic_write import write_text_atomic
@@ -47,6 +50,7 @@ from src.phrases import cards as cards_module
 from src.phrases import carrier_validation
 from src.phrases import contexts as contexts_module
 from src.phrases import unit_glosses as glosses_module
+from src.phrases import written_carriers as written_module
 from src.phrases.curated import DEFAULT_PHRASES_DIR, IdiomElement, IdiomSpec, load_curated
 from src.phrases.export import (
     DEFAULT_DECK_DIR,
@@ -76,7 +80,8 @@ from src.phrases.units import (
 )
 from src.run_lock import LockHeld, run_lock
 
-from scripts.build_translations import DEFAULT_STORE_PATH, _load_store
+from scripts.agy_jobs import write_store_with_retry
+from scripts.build_translations import DEFAULT_STORE_PATH, TranslationRecord, _load_store
 from scripts.corpus_reading import (
     SOURCE_TATOEBA,
     CorpusLine,
@@ -103,6 +108,7 @@ STAGES = (
     "mine",
     "expressions",
     "requests",
+    "write-cards",
     "cards",
     "reserve",
     "contexts",
@@ -293,7 +299,11 @@ def _occurrence_files(build_dir: Path) -> list[Path]:
     of being merged into the 2.5 GiB one.
     """
     paths = [build_dir / "occurrences.jsonl"]
-    for name in ("expression_occurrences.jsonl", "requested_occurrences.jsonl"):
+    for name in (
+        "expression_occurrences.jsonl",
+        "requested_occurrences.jsonl",
+        "written_occurrences.jsonl",
+    ):
         extra = build_dir / name
         if extra.exists():
             paths.append(extra)
@@ -640,6 +650,110 @@ def stage_requests(args: argparse.Namespace) -> int:
         f"  uv run python scripts/monthly_translation_topup.py "
         f"--carriers-file {build_dir / 'requested_carriers.txt'} --carriers-only"
     )
+    return 0
+
+
+# -- written carriers ----------------------------------------------------------
+
+
+def stage_write_cards(args: argparse.Namespace) -> int:
+    """Have a model write sentences for a requested word the corpus never uses.
+
+    Of the owner's list of 2026-10-07, six words had not one corpus sentence
+    between them, so the choice was to refuse those words or to write their
+    sentences; he chose to write them. Opt-in, free lane, and refused without
+    ``--approved-by-owner``, like every other model stage here.
+
+    The sentences are stored as ordinary glosses (source "gemini", which rule
+    9 allows on a card) and then handed to the REAL parser and detectors, so
+    their occurrences are the same shape as a mined one and the card stage
+    cannot tell the difference. Every gate a corpus sentence passes, a
+    written one passes too; see ``src/phrases/written_carriers.py``.
+    """
+    if not parser_available():
+        _log("spaCy model de_core_news_sm is not installed; run `uv sync`.")
+        return 1
+    build_dir: Path = args.build_dir
+    report_path = build_dir / "report.json"
+    if not report_path.exists():
+        _log("write-cards: no report.json; run --stage mine first")
+        return 1
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    missing = _requested_without_occurrences(report)
+    # A word the requests stage already found corpus sentences for is not
+    # this stage's business, however thin those sentences are.
+    found: set[str] = set()
+    occurrences_path = build_dir / "requested_occurrences.jsonl"
+    if occurrences_path.exists():
+        found = {occ.unit_key for occ in read_occurrences(occurrences_path)}
+    wanted = [(key, kind, key) for kind, key in missing if key not in found]
+    if not wanted:
+        _log("write-cards: every requested word has a sentence; nothing to write")
+        return 0
+    _log(f"write-cards: {len(wanted)} word(s) the corpus does not use: {[k for k, _, _ in wanted]}")
+    if not args.write_cards:
+        _log("write-cards: nothing generated (pass --write-cards to spend)")
+        return 0
+    if not args.approved_by_owner:
+        calls = min(len(wanted), args.max_write_calls)
+        _log(
+            f"write-cards: REFUSED. {calls} call(s) on {MODEL_GENERATE} (free lane, cost 0) "
+            "need --approved-by-owner and the owner's say-so in chat."
+        )
+        return 2
+    load_env_file()
+    try:
+        client = client_from_env(free_lane_only=True)
+    except FreeLaneKeyMissingError as exc:
+        _log(str(exc))
+        return 2
+    if client is None:
+        _log("write-cards: no Gemini key configured")
+        return 2
+
+    def validate(text: str) -> bool:
+        return carrier_validation.validate_carrier(text).accepted
+
+    results = written_module.write_sentences(
+        wanted,
+        client=client,
+        validate=validate,
+        approved=True,
+        max_calls=args.max_write_calls,
+    )
+    for result in results:
+        reasons = Counter(reason for _, reason in result.rejected)
+        _log(f"  {result.lemma}: {len(result.accepted)} kept, rejected {dict(reasons)}")
+    sentences = written_module.sentences_of(results)
+    if not sentences:
+        _log("write-cards: nothing usable was written")
+        return 0
+
+    store = _load_store(args.store)
+    now = datetime.now(UTC)
+    for german, english in sentences.items():
+        store[german] = TranslationRecord(
+            german=german, english=english, source="gemini", written_at=now
+        )
+    write_store_with_retry(args.store, store)
+    _log(f"write-cards: {len(sentences)} sentence(s) stored, store now {len(store):,} records")
+
+    gate = WordGate(
+        lemmas=frozenset(key for key, _, _ in wanted),
+        glossed=frozenset(sentences),
+        dictionary=carrier_validation._load_dictionary(),  # noqa: SLF001
+        cap=args.word_cap,
+        seed=args.seed,
+    )
+    texts = sorted(sentences)
+    emitted: list[Occurrence] = []
+    for index, (_text, parsed) in enumerate(zip(texts, parse_many(texts), strict=True)):
+        emitted.extend(detect_words(parsed, gate, source="written", line_id=f"w{index:04d}"))
+    write_occurrences(build_dir / "written_occurrences.jsonl", iter(emitted))
+    by_key = Counter(occ.unit_key for occ in emitted)
+    for key, _, _ in wanted:
+        _log(f"  {key}: {by_key[key]} occurrence(s) after the parse")
+    _log(f"write-cards: {len(emitted)} occurrence(s) written; re-run --stage mine")
     return 0
 
 
@@ -1045,6 +1159,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="corpus sentences a word needs to reach the reserve (the deck's floor is 100)",
     )
     parser.add_argument("--no-ngrams", action="store_true")
+    parser.add_argument("--write-cards", action="store_true")
+    parser.add_argument("--max-write-calls", type=int, default=20)
     parser.add_argument("--gloss-batch-size", type=int, default=glosses_module.DEFAULT_BATCH_SIZE)
     return parser
 
@@ -1063,6 +1179,7 @@ def main(argv: list[str] | None = None) -> int:
         "mine": stage_mine,
         "expressions": stage_expressions,
         "requests": stage_requests,
+        "write-cards": stage_write_cards,
         "cards": stage_cards,
         "reserve": stage_reserve,
         "contexts": stage_contexts,

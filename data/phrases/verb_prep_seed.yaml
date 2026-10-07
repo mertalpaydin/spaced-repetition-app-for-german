@@ -61,3 +61,5 @@
 - {verb: fürchten, prep: vor, case: Dat, reflexive: true, cefr: B1, gloss_en: to be afraid of}
 - {verb: handeln, prep: um, case: Akk, reflexive: true, cefr: B1, gloss_en: to be a matter of / to be about}
 - {verb: sehnen, prep: nach, case: Dat, reflexive: true, cefr: B2, gloss_en: to long for}
+# Added 2026-10-07 from the owner's second Lingvist list.
+- {verb: engagieren, prep: für, case: Akk, reflexive: true, cefr: B1, gloss_en: to be committed to}

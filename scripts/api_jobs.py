@@ -152,10 +152,20 @@ def job_glosses(args: argparse.Namespace) -> int:
     if not todo:
         return 0
     if not args.approved_by_owner:
-        print(f"glosses: REFUSED. {calls} call(s) on {MODEL_GENERATE} need --approved-by-owner.")
+        lane = "free lane only" if args.free_lane_only else "free lane, then paid on demand"
+        characters = sum(len(text) for text in todo)
+        print(
+            f"glosses: REFUSED. {calls} call(s) on {MODEL_GENERATE} ({lane}), "
+            f"{characters:,} characters, need --approved-by-owner."
+        )
         return 2
     load_env_file()
-    client = client_from_env()
+    # --free-lane-only is the zero-spend choice: a spent free-lane daily
+    # quota raises instead of continuing on the billed project. Added
+    # 2026-10-07, when the owner asked for the free lane explicitly because
+    # Azure's month was already closed and these glosses had to come from
+    # somewhere.
+    client = client_from_env(free_lane_only=args.free_lane_only)
     if client is None:
         print("glosses: no Gemini key configured")
         return 2
@@ -283,6 +293,11 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--batch-size", type=int, default=50)
     g.add_argument("--max-calls", type=int, default=200)
     g.add_argument("--approved-by-owner", action="store_true")
+    g.add_argument(
+        "--free-lane-only",
+        action="store_true",
+        help="refuse the paid overflow: the run stops when the free lane's daily quota is gone",
+    )
     r = sub.add_parser("review")
     r.add_argument("batch_dir", type=Path)
     r.add_argument("--max-calls", type=int, default=200)

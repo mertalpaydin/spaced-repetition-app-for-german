@@ -438,7 +438,14 @@
 - "hund fressen"  # BAD_UNIT: 'Hund fressen' is not a real collocation; every card is 'dem Hund zu fressen geben', where Hund is a
 - "hund füttern"  # NOT_A_PHRASE: Free object+verb combination.
 - "illegal migration"  # NOT_A_PHRASE: News-register topical pairing, and the cefr=A1 label is badly off for it.
-- "im gegensatz zu"  # BAD_UNIT: Citation form is miscapitalised; the noun must be "Gegensatz".
+# "im gegensatz zu" was excluded as BAD_UNIT, "citation form is
+# miscapitalised; the noun must be 'Gegensatz'". Un-excluded 2026-10-07: that
+# was true of the MINED expression, but the key excludes every kind with that
+# lemma, including the curated CONNECTOR in connectors.yaml, whose display is
+# already the correct "im Gegensatz zu + Dat". So the exclusion was not
+# fixing a citation form, it was deleting the good unit along with the bad
+# one, and the phrase was taught nowhere. The expression miner denies curated
+# keys, so the mined form cannot come back.
 - "im gegenteil"  # BAD_UNIT: Citation form is miscapitalised; the noun must be "im Gegenteil".
 - "in diesem fall"  # BAD_UNIT: Citation form is miscapitalised; the noun must be "Fall".
 - "in schwierigkeit geraten"  # BAD_UNIT: The idiom exists only in the plural, 'in Schwierigkeiten geraten'; the singular citation form is wro
