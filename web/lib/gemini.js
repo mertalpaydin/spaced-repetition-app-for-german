@@ -183,7 +183,12 @@ export async function writeCards(unit, {
   const url = `${ENDPOINT}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const body = {
     contents: [{ role: "user", parts: [{ text: promptFor(unit, count) }] }],
-    generationConfig: { responseMimeType: "application/json", temperature: 0.7 },
+    // No temperature, top_p or top_k. Google deprecated all three: since
+    // Gemini 3.6 Flash they have been pinned to defaults and had no effect
+    // on output, and upcoming models return an error for requests that set
+    // them (deprecation notice, 2026-10-07). responseMimeType stays, which
+    // is what actually makes the answer parseable.
+    generationConfig: { responseMimeType: "application/json" },
   };
 
   let lastError = null;

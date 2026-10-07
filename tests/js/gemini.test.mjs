@@ -163,3 +163,21 @@ test("an answer with nothing usable in it is not cached as success", async () =>
   await assert.rejects(writeCards(UNIT, { apiKey: "k", model: MODEL, store, now: () => T0, fetchImpl }), /nothing usable/);
   assert.equal((await store.all("geminiCache")).length, 0);
 });
+
+test("the request sends no deprecated sampling parameter", async () => {
+  // Google deprecated temperature, top_p and top_k: pinned to defaults since
+  // Gemini 3.6 Flash, and an error on upcoming models (notice, 2026-10-07).
+  // thinking_budget is the same story; this module never set one.
+  const store = fakeStore();
+  let sent = null;
+  const fetchImpl = async (_url, init) => {
+    sent = JSON.parse(init.body);
+    return answer(GOOD);
+  };
+  await writeCards(UNIT, { apiKey: "k", model: MODEL, store, now: () => T0, fetchImpl });
+  const config = sent.generationConfig || {};
+  for (const dead of ["temperature", "top_p", "topP", "top_k", "topK", "thinking_budget", "thinkingBudget"]) {
+    assert.ok(!(dead in config), `${dead} must not be sent`);
+  }
+  assert.equal(config.responseMimeType, "application/json");
+});
