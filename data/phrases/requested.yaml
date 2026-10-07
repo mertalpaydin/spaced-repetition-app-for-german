@@ -86,13 +86,13 @@
 - {key: "dranbleiben", kind: separable_verb, note: "Lingvist, written 'bleib dran'; owner's decision 2026-10-07"}
 - {key: "fleißig", kind: adjective, note: "Lingvist, written 'fleißiger'"}
 - {key: "häufigkeit", kind: noun, note: "Lingvist"}
-- {key: "angestellte", kind: noun, note: "Lingvist, written 'angestellten'"}
+- {key: "angestellter", kind: noun, note: "Lingvist, written 'angestellten'; the tagger lemmatises it to the masculine 'angestellter', which is the key the miner aggregates on"}
 - {key: "sichtlich", kind: adverb, note: "Lingvist"}
 - {key: "gegenüber", kind: adverb, note: "Lingvist; mostly a preposition, so watch the cards"}
 - {key: "wieso", kind: adverb, note: "Lingvist"}
-- {key: "wodurch", kind: adverb, note: "Lingvist"}
-- {key: "dazu", kind: adverb, note: "Lingvist"}
-- {key: "solche", kind: adjective, note: "Lingvist; a determiner, may be refused as a function word"}
-- {key: "diejenige", kind: adjective, note: "Lingvist; a demonstrative, may be refused"}
-- {key: "dieselbe", kind: adjective, note: "Lingvist; a demonstrative, may be refused"}
-- {key: "aufgrund", kind: adverb, note: "Lingvist; a preposition, may be refused"}
+- {key: "wodurch", kind: adverb, note: "Lingvist; on NON_UNIT_ADVERBS, so the detector refuses it as grammar rather than vocabulary. Kept so each build reports it"}
+- {key: "dazu", kind: adverb, note: "Lingvist; on NON_UNIT_ADVERBS, refused as grammar. Verified 2026-10-07: written sentences do not help, the refusal is structural"}
+- {key: "solche", kind: adjective, note: "Lingvist; a determiner, may be refused as a function word; a determiner (DET/PRON, lemma 'solcher'); the deck has no determiner kind. Verified 2026-10-07: written sentences do not help, the refusal is structural"}
+- {key: "diejenige", kind: adjective, note: "Lingvist; a demonstrative, may be refused; a demonstrative; the deck has no determiner kind. Verified 2026-10-07: written sentences do not help, the refusal is structural"}
+- {key: "dieselbe", kind: adjective, note: "Lingvist; a demonstrative, may be refused; a demonstrative (lemma 'derselbe'); the deck has no determiner kind. Verified 2026-10-07: written sentences do not help, the refusal is structural"}
+- {key: "aufgrund", kind: adverb, note: "Lingvist; a preposition, may be refused; a preposition (ADP); the deck has no preposition kind. Verified 2026-10-07: written sentences do not help, the refusal is structural"}
