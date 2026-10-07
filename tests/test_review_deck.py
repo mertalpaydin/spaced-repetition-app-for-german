@@ -174,3 +174,33 @@ def test_apply_merges_an_existing_override_instead_of_replacing_it(repo: Path) -
     review_deck.apply_findings(findings, round_label="t2", deck_dir=repo / "deck")
     overrides = (repo / "data/phrases/unit_overrides.yaml").read_text(encoding="utf-8")
     assert '- {key: "unit 3", case: "Dat", cefr: "B2"}' in overrides
+
+
+def test_apply_keeps_hand_written_overrides_it_did_not_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Found 2026-10-07: apply rebuilds unit_overrides.yaml from lines whose
+    key is DOUBLE QUOTED and silently deleted everything else, comments and
+    bare-key entries included. Two hand-written glosses ("das Land" is a
+    country, "der Fall" is a case) vanished after three rounds, and the only
+    symptom was the audit reporting them missing again."""
+    phrases = tmp_path / "phrases"
+    phrases.mkdir()
+    overrides = phrases / "unit_overrides.yaml"
+    overrides.write_text(
+        "# Reviewer corrections to units: case, citation form, CEFR level. Applied\n"
+        "# after the unit decision; the key is the miner's lowercase lemma key.\n"
+        "# Added by hand: the model keeps glossing these with the German word.\n"
+        "- {key: land, gloss_en: country}\n"
+        '- {key: "warten auf", case: "Akk"}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(review_deck, "PHRASES_DIR", phrases)
+    monkeypatch.setattr(review_deck, "AUDIT_DIR", tmp_path / "audit")
+
+    review_deck.merge_overrides({})
+
+    text = overrides.read_text(encoding="utf-8")
+    assert "- {key: land, gloss_en: country}" in text, "a bare key must survive the rewrite"
+    assert '- {key: "warten auf", case: "Akk"}' in text
+    assert "Added by hand" in text, "comments must survive the rewrite"

@@ -513,3 +513,40 @@ def test_a_dative_reflexive_also_blocks_a_plain_verb_card() -> None:
     )
     # "mir" without the subject it would agree with is a plain dative object
     assert unsuitable_reason(verb("Er merkt mir nichts an.", "merkt", "merken")) is None
+
+
+def _verb_occ(text: str, verb: str, form_key: str = "Fin|Pres|3|Sing") -> Occurrence:
+    """A plain-verb occurrence, which the module's own _occ cannot build: it
+    always makes a two-part verb_prep one."""
+    at = text.index(verb)
+    return Occurrence(
+        kind="verb",
+        unit_key="gehören",
+        parts=["gehören"],
+        token_indices=[1],
+        spans=[(at, at + len(verb))],
+        surfaces=[verb],
+        corpus_source="tatoeba",
+        line_id=text,
+        text=text,
+        form_key=form_key,
+    )
+
+
+def test_a_fused_preposition_marks_the_prepositional_reading() -> None:
+    """Found across the review rounds of 2026-10-07, five times. "gehören zu"
+    is a unit of its own, and the plain verb kept drawing "Wir gehören alle
+    zum selben Team": the check looked for a bare "zu" that is not there,
+    because the preposition is fused into the article."""
+    from src.phrases.cards import unsuitable_reason
+
+    fused = _verb_occ("Wir gehören alle zum selben Team.", "gehören", "Fin|Pres|1|Plur")
+    assert unsuitable_reason(fused, frozenset({"zu"})) == "prepositional_reading"
+    # The bare form was already caught, and still is.
+    bare = _verb_occ("Wir gehören zu dem Team.", "gehören", "Fin|Pres|1|Plur")
+    assert unsuitable_reason(bare, frozenset({"zu"})) == "prepositional_reading"
+    # A genuine bare-dative use is still a good card.
+    dative = _verb_occ("Dieses Fahrrad gehört ihm nicht.", "gehört")
+    assert unsuitable_reason(dative, frozenset({"zu"})) is None
+    # And a fused form the deck does not teach for this verb is not a reading.
+    assert unsuitable_reason(fused, frozenset({"an"})) is None

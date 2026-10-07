@@ -259,6 +259,54 @@ def _ids_in_batches(batch_dir: Path, pattern: str) -> set[str]:
     }
 
 
+def merge_overrides(overrides: dict[str, dict[str, str]]) -> None:
+    """Fold reviewer corrections into ``unit_overrides.yaml``.
+
+    Rewrites the file, so everything already in it has to survive. The key
+    may be quoted or bare, both valid YAML and both present, and matching
+    only the quoted form silently deleted every bare entry: two hand-written
+    glosses ("das Land" is a country, "der Fall" is a case) vanished after
+    three apply rounds, and the only symptom was the audit reporting them
+    missing again (2026-10-07). Anything this cannot parse, comments
+    included, is carried through verbatim, because a curated file rewritten
+    to only what a regex understands is a curated file losing work.
+    """
+    ov = PHRASES_DIR / "unit_overrides.yaml"
+    key_re = re.compile(r'- \{key: ("(?:[^"\\]|\\.)*"|[^,}]+)')
+    merged: dict[str, str] = {}
+    passthrough: list[str] = []
+    if ov.exists():
+        for line in ov.read_text(encoding="utf-8").splitlines():
+            m = key_re.match(line)
+            if m:
+                raw = m.group(1)
+                key = json.loads(raw) if raw.startswith('"') else raw
+                merged[_yaml_str(key)] = line
+            elif line.strip() and not line.startswith("# Reviewer corrections"):
+                passthrough.append(line)
+    for k, fields in overrides.items():
+        current = merged.get(_yaml_str(k))
+        if current:
+            for field, value in re.findall(
+                r'(case|display|cefr|gloss_en): ("(?:[^"\\]|\\.)*")', current
+            ):
+                fields.setdefault(field, json.loads(value))
+        parts = ", ".join(f"{a}: {_yaml_str(b)}" for a, b in sorted(fields.items()))
+        merged[_yaml_str(k)] = f"- {{key: {_yaml_str(k)}, {parts}}}"
+    ov.write_text(
+        "\n".join(
+            [
+                "# Reviewer corrections to units: case, citation form, CEFR level. Applied",
+                "# after the unit decision; the key is the miner's lowercase lemma key.",
+            ]
+            + passthrough
+            + [merged[k] for k in sorted(merged)]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def apply_findings(findings_dir: Path, *, round_label: str, deck_dir: Path) -> dict[str, int]:
     manifest, units, cards = load_deck(deck_dir)
     by_id = {u.unit_id: u for u in units}
@@ -339,34 +387,7 @@ def apply_findings(findings_dir: Path, *, round_label: str, deck_dir: Path) -> d
                 continue
             h.write(f"- {cid}  # {why[:110]}\n")
 
-    ov = PHRASES_DIR / "unit_overrides.yaml"
-    key_re = re.compile(r'- \{key: ("(?:[^"\\]|\\.)*")')
-    merged: dict[str, str] = {}
-    if ov.exists():
-        for line in ov.read_text(encoding="utf-8").splitlines():
-            m = key_re.match(line)
-            if m:
-                merged[m.group(1)] = line
-    for k, fields in overrides.items():
-        current = merged.get(_yaml_str(k))
-        if current:
-            for field, value in re.findall(
-                r'(case|display|cefr|gloss_en): ("(?:[^"\\]|\\.)*")', current
-            ):
-                fields.setdefault(field, json.loads(value))
-        parts = ", ".join(f"{a}: {_yaml_str(b)}" for a, b in sorted(fields.items()))
-        merged[_yaml_str(k)] = f"- {{key: {_yaml_str(k)}, {parts}}}"
-    ov.write_text(
-        "\n".join(
-            [
-                "# Reviewer corrections to units: case, citation form, CEFR level. Applied",
-                "# after the unit decision; the key is the miner's lowercase lemma key.",
-            ]
-            + [merged[k] for k in sorted(merged)]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    merge_overrides(overrides)
 
     AUDIT_DIR.mkdir(parents=True, exist_ok=True)
     with (AUDIT_DIR / f"findings-round-{round_label}.jsonl").open("w", encoding="utf-8") as h:

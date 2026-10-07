@@ -129,6 +129,17 @@ def _word_of(
     if token.pos in {"ADJ", "ADV"}:
         if token.morph.get("Degree", "Pos") != "Pos":
             return None
+        # A separable verb's particle is tagged ADV, and it is not a word of
+        # its own: "zurueck" in "gib das Buch zurueck" belongs to
+        # zurueckgeben. The verb side of this was already handled (a VERB
+        # token carrying a particle is rejected above); the particle side was
+        # not, so once adverbs became teachable on 2026-10-07 their cards
+        # started coming from exactly those sentences. The reviewer found
+        # nine in one batch of forty-eight: zurueck from zurueckgeben and
+        # zurueckweisen, zusammen from zusammenarbeiten, raus from rausgehen
+        # and rauskommen, vorbei from vorbeischauen and vorbeieilen.
+        if token.dep == "svp":
+            return None
         lemma = token.lemma.lower()
         if len(lemma) < 3 or stop_adjective(lemma) or lemma in NON_UNIT_ADVERBS:
             return None

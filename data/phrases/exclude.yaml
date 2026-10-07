@@ -2447,3 +2447,26 @@
 # Review round g2k3: units the reviewer rejected.
 # Review round s2k3: units the reviewer rejected.
 # Review round g2k4: units the reviewer rejected.
+# Review round top500a: units the reviewer rejected.
+# Review round top500b: units the reviewer rejected.
+# Review round top500c: units the reviewer rejected.
+# Added 2026-10-07. These four adverb units draw essentially every carrier
+# from a sentence where the word is a separable verb's PARTICLE, not an
+# adverb of its own: "zurueck" from zurueckgeben, zurueckwerfen and
+# zurueckkehren, "zusammen" from zusammenarbeiten, zusammenleben and
+# zusammenbleiben, "raus" from rausgehen and rauswerfen, "vorbei" from
+# vorbeischauen, vorbeieilen and vorbeiflieszen. The reviewer flagged
+# nineteen such cards across three rounds, and dropping them only promoted
+# the next particle sentence.
+#
+# mining.words._word_of now refuses a token whose dependency is svp, which
+# fixes this at the root, but that only takes effect on the next FULL parse
+# (2 to 3 hours over six corpora); the occurrences on disk predate it. Remove
+# these four lines after that parse and let the rule do the work.
+- "zurück"  # BAD_UNIT: Every carrier is a separable prefix; see the note above.
+- "zusammen"  # BAD_UNIT: Every carrier is a separable prefix; see the note above.
+- "raus"  # BAD_UNIT: Every carrier is a separable prefix; see the note above.
+- "vorbei"  # BAD_UNIT: Every carrier is a separable prefix; see the note above.
+# Review round top500d: units the reviewer rejected.
+# Review round top500e: units the reviewer rejected.
+# Review round top500f: units the reviewer rejected.

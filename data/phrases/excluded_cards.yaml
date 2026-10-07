@@ -5364,3 +5364,111 @@
 - 4da0f276d2f1  # WRONG_UNIT: Sentence has no dative object, only the accusative 'die Störung'
 - 6ae2b5230856  # WRONG_UNIT: Sentence needs the phrase 'in Kontakt treten'
 - 91ca4ab4f7df  # WRONG_UNIT: Sentence uses the fixed expression 'genau genommen', not 'es genau nehmen'
+# Review round top500a.
+- 02bd549a08f3  # WRONG_UNIT: sentence uses phrase auf einmal
+- 08805c15cc43  # WRONG_UNIT: 'dagegen' is used here as a pronominal adverb ('against it'), not as a connector ('on the other ha
+- 0af7a364a0ec  # WRONG_UNIT: lemma is hören, not gehören
+- 0bc1d4df63b9  # WRONG_UNIT: daher is separable prefix of daherkommen, not connector
+- 0f82af92cc72  # BAD_SENTENCE: offensive vulgar word kotzen
+- 1cc61920a1d6  # WRONG_UNIT: sentence uses phrase die schwarze Flagge zeigen
+- 1d1e39efa05a  # WRONG_UNIT: sentence needs phrase gehören zu
+- 20c9af26189b  # WRONG_GAPS: reflexive pronoun sich is missing from brackets
+- 249a595a4d90  # WRONG_UNIT: zusammen is separable prefix of zusammenwohnen, not adverb
+- 289188abce12  # WRONG_UNIT: 'sogar' is an adverb/particle, but the unit kind specifies 'adjective'.
+- 29f2ccbf217d  # WRONG_UNIT: sentence uses phrase leer ausgehen
+- 30dcd78a204e  # WRONG_UNIT: Sentence uses the fixed phrase 'einen Schlussstrich ziehen', not the plain verb 'ziehen'.
+- 3588a9c3c75c  # BAD_SENTENCE: mixed up idiom, should be Ochs vorm neuen Tor
+- 37dbb3b47f70  # WRONG_UNIT: vorbei is a separable prefix of vorbeikommen here, not an adverb
+- 38ab7d8684e9  # WRONG_UNIT: sentence uses accusative reflexive sich anhören (to sound), not dative sich anhören +Dat (to liste
+- 40a420443ac6  # WRONG_UNIT: raus is a separable prefix of rausschaffen here, not an adverb
+- 46ccc2732056  # BAD_GLOSS: Spazierfahrten means drives, not walks
+- 4726f029fc7f  # WRONG_UNIT: 'dagegen' is used here as a pronominal adverb ('against it'), not as a connector ('on the other ha
+- 47aa07a1bf68  # WRONG_UNIT: sentence uses phrase gelegen kommen
+- 52c4153e0cf2  # BAD_GLOSS: English gloss 'That's always on the sandwich' is a literal mistranslation of a German idiom.
+- 5341e07fc9ae  # WRONG_GAPS: reflexive pronoun dir is missing from brackets
+- 5445fa2f7847  # WRONG_UNIT: sentence uses phrase falsch liegen
+- 570ef67301ae  # WRONG_UNIT: plain verb bracketed where the sentence uses it reflexively
+- 583669378690  # WRONG_UNIT: zusammen is separable prefix of zusammenwohnen, not adverb
+- 5cc2c0a8b433  # WRONG_UNIT: vorbei is a separable prefix of vorbeigehen here, not an adverb
+- 6455759e0dcf  # WRONG_UNIT: raus is a separable prefix of rauskommen here, not an adverb
+- 650c09fbc7a4  # BAD_GLOSS: genusunabhängig means independent of gender, not enjoyment
+- 668db7969b94  # WRONG_UNIT: Sentence uses the fixed phrase 'einen Schluss ziehen', not the plain verb 'ziehen'.
+- 6b8a50e8cf4e  # WRONG_UNIT: sentence uses phrase auf der schwarzen Liste stehen
+- 7569fdb72b96  # WRONG_UNIT: sentence uses phrase es zu etwas bringen
+- 7dae9712a525  # WRONG_UNIT: zurück is separable prefix of zurückrufen, not adverb
+- 7df82cac506a  # BAD_SENTENCE: Glückspilz is a person, not a biological mushroom
+- 8660c52917bd  # WRONG_UNIT: 'sogar' is an adverb/particle, but the unit kind specifies 'adjective'.
+- 89295bd25f96  # WRONG_UNIT: seitdem is an adverb here, not a connector
+- 8ed348a99c00  # WRONG_UNIT: vorbei is a separable prefix of vorbeigehen here, not an adverb
+- 904a7071e0f3  # WRONG_UNIT: Sentence uses the separable verb 'einstellen', not the plain verb 'stellen'.
+- 915c7a7b2dbd  # WRONG_UNIT: 'sogar' is an adverb/particle, but the unit kind specifies 'adjective'.
+- 9547e21e1f85  # WRONG_UNIT: sentence uses phrase auf einmal
+- 9644a76256ef  # WRONG_UNIT: 'sogar' is an adverb/particle, but the unit kind specifies 'adjective'.
+- 994ccdd97725  # WRONG_UNIT: Word is used as an inflected adjective 'loses', but unit kind specifies 'adverb'.
+- a8a26003a255  # BAD_GLOSS: Gloss 'You can give you freedom, but you can't give it.' is a gibberish mistranslation.
+- ac3dd0dac5ff  # WRONG_UNIT: sentence uses accusative reflexive sich anhören (to sound), not dative sich anhören +Dat (to liste
+- ac8a994c94fb  # BAD_GLOSS: mit hundert Sachen means 100 km/h, not with a hundred things
+- b630ca4757c2  # WRONG_UNIT: Sentence uses the fixed phrase 'unter Druck setzen', not the plain verb 'setzen'.
+- b80352be9681  # WRONG_UNIT: 'sogar' is an adverb/particle, but the unit kind specifies 'adjective'.
+- b84f91f9ef79  # WRONG_UNIT: sentence uses phrase an Höhe verlieren
+- bcea8361a3d6  # WRONG_UNIT: los is a separable prefix of loskommen here, not an adverb
+- bea12526f5b7  # WRONG_UNIT: 'dagegen' is used here as a pronominal adverb ('against this'), not as a connector ('on the other 
+- beba5579f0f3  # BAD_SENTENCE: missing 'zu' before infinitive weiterleben or missing noun capitalization
+- bf902c3607a2  # WRONG_UNIT: bracketed word recht is an adjective, unit is noun Recht
+- c2ab69c5c936  # WRONG_GAPS: bracketed zum includes the article which is not part of the unit
+- df6831b4f849  # WRONG_UNIT: vorbei is a separable prefix of vorbeigehen here, not an adverb
+- e370f8dd36f9  # WRONG_UNIT: 'sogar' is an adverb/particle, but the unit kind specifies 'adjective'.
+- e68ac40b5b7b  # BAD_SENTENCE: unnatural sentence missing context, implies throwing a crying person
+- ec211d2aa479  # BAD_SENTENCE: nonsense literal meaning without context
+- f01ec7862988  # WRONG_UNIT: vorbei is a separable prefix of vorbeikommen here, not an adverb
+- f1e88cf8017f  # WRONG_UNIT: zurück is separable prefix of zurückgehen, not adverb
+- f44f7d92c8cd  # WRONG_UNIT: sentence uses accusative reflexive sich anhören (to sound), not dative sich anhören +Dat (to liste
+- f460851dabb5  # WRONG_UNIT: sentence uses accusative reflexive sich anhören (to sound), not dative sich anhören +Dat (to liste
+- fcf490ea5b07  # WRONG_UNIT: Sentence requires the phrase 'zu spät kommen', but display only names 'spät kommen'.
+- fed967362adb  # WRONG_UNIT: 'darum' is used here as a pronominal adverb ('for it'), not as a connector ('therefore').
+# Review round top500b.
+- 01f966219759  # WRONG_UNIT: The word 'sogar' is a particle/adverb and never an adjective.
+- 055b188b81f0  # WRONG_UNIT: The verb here is 'hören', not 'gehören'.
+- 07e3ef4bb712  # WRONG_UNIT: The word 'sogar' is a particle/adverb and never an adjective.
+- 0f5210f23b5a  # WRONG_UNIT: Here 'vorbei' is a separable prefix of 'vorbeischauen', not an independent adverb.
+- 1caa835f56d2  # WRONG_UNIT: Here 'zurück' is a separable prefix of 'zurückgeben', not an independent adverb.
+- 4a2a9c710ae6  # WRONG_UNIT: The word 'sogar' is a particle/adverb and never an adjective.
+- 4f926f7c2011  # WRONG_UNIT: Here 'loses' is used attributively as an adjective, not as an adverb.
+- 58f0c054a645  # WRONG_UNIT: Sentence uses the verb reflexively (sich etwas anhören), but the unit is plain anhören.
+- 62e97bd3d6c9  # BAD_SENTENCE: The sentence is grammatically incomplete/junk (missing location after 'in').
+- 686251543fe6  # WRONG_UNIT: The word 'sogar' is a particle/adverb and never an adjective.
+- 68991a16a8e8  # WRONG_UNIT: Here 'raus' is a separable prefix of 'rausgehen', not an independent adverb.
+- 6c87f4fd74cf  # WRONG_UNIT: Here 'raus' is a separable prefix of 'rauskommen', not an independent adverb.
+- 7734c08f3dd6  # WRONG_UNIT: Used as a pronominal adverb ('against this'), not as a connector.
+- 7e0af9bf44ef  # WRONG_UNIT: Here 'vorbei' is a separable prefix of 'vorbeischauen', not an independent adverb.
+- 7ed044e2c902  # BAD_SENTENCE: Gender mismatch: 'Das' does not match feminine ARD.
+- 896e43af47fb  # BAD_SENTENCE: Grammatically incorrect, requires 'zu' before the infinitive 'liegen'.
+- 920c6f3bd66f  # WRONG_UNIT: Here 'zusammen' is a separable prefix of 'zusammenarbeiten', not an independent adverb.
+- a5032b9c333a  # WRONG_UNIT: Here 'zusammen' is a separable prefix of 'zusammenarbeiten', not an independent adverb.
+- b50278f0178c  # WRONG_UNIT: The word 'sogar' is a particle/adverb and never an adjective.
+- b98c7283050a  # WRONG_UNIT: Sentence uses 'sich anhören' in the accusative meaning 'to sound', which doesn't match the +Dat un
+- bb97162ef577  # WRONG_UNIT: The word 'sogar' is a particle/adverb and never an adjective.
+- d31101f44735  # WRONG_UNIT: Here 'zurück' is a separable prefix of 'zurückweisen', not an independent adverb.
+- ec474e4ea0a9  # WRONG_UNIT: Used as a pronominal adverb ('against it'), not as a connector.
+- fa5ee40e47fe  # WRONG_UNIT: Here 'vorbei' is a separable prefix of 'vorbeieilen', not an independent adverb.
+# Review round top500c.
+- 17da6467eb97  # WRONG_UNIT: Sentence requires directional 'gehören auf', but display is just 'gehören'.
+- 18bf3e5f3a67  # WRONG_UNIT: Bracketed word is a separable prefix of 'rauswerfen', not the independent adverb.
+- 2769272ac8d7  # WRONG_UNIT: Bracketed word is a separable prefix of 'rauswerfen', not the independent adverb.
+- 43738677c874  # WRONG_UNIT: Bracketed word is a separable prefix of 'zusammenleben', not the independent adverb.
+- 45f8fb833da3  # WRONG_UNIT: Bracketed word is a separable prefix of 'zurückwerfen', not the independent adverb 'zurück'.
+- 59b99ad57749  # WRONG_UNIT: Bracketed word is a separable prefix of 'zusammenbleiben', not the independent adverb.
+- 5eb661442c1d  # BAD_SENTENCE: Sentence lacks context. 'jedenfalls' and 'Georges' require preceding context to be natural.
+- 7c098c276a1d  # WRONG_UNIT: Bracketed word is a separable prefix of 'zurückkehren', not the independent adverb.
+- 8c2f86e0d312  # WRONG_UNIT: Sentence requires prepositional verb 'liegen an', but display is just 'liegen'.
+- a64c9caa91af  # WRONG_UNIT: Bracketed word is a separable prefix of 'vorbeifließen', not the independent adverb.
+- b407f853c003  # WRONG_UNIT: Sentence requires directional 'gehören an', but display is just 'gehören'.
+- eb8f48424524  # WRONG_UNIT: Bracketed word is a separable prefix of 'vorbeigehen'. Sentence needs 'vorbeigehen an'.
+# Review round top500d.
+- 72503e58f82a  # BAD_SENTENCE: Grammatical error: ungezäumt Pferd instead of ungezäumtes Pferd (archaic or typo)
+- 9129f4b0f6bb  # BAD_GLOSS: Gloss is nonsensical English ('much to household')
+- d60215558c53  # WRONG_UNIT: Verb in sentence is the separable verb hochsteigen, not just steigen
+# Review round top500e.
+- 6b8737eaa399  # BAD_SENTENCE: NÖN is an obscure regional abbreviation lacking context
+# Review round top500f.
+- 6a342e142b5e  # WRONG_UNIT: Sentence uses the phrase 'gehören zu', but the unit only names 'gehören'.

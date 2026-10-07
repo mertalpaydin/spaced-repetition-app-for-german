@@ -253,3 +253,32 @@ def test_adj_verb_keeps_a_collocation_and_drops_a_bare_adverb() -> None:
     assert [occ.text[s:e] for s, e in occ.spans] == occ.surfaces
     assert not [o for o in _detect("Dann kommt er.") if o.kind == "adj_verb"]
     assert not [o for o in _detect("Hier findet man alles.") if o.kind == "adj_verb"]
+
+
+@requires_model
+def test_a_separable_particle_is_not_an_adverb_of_its_own() -> None:
+    """Found by the reviewer on 2026-10-07, nine times in forty-eight cards.
+
+    A separable verb's particle is tagged ADV, so once adverbs became
+    teachable their cards started being drawn from sentences where the word
+    is really part of the verb: "zurueck" from "zurueckgeben", "zusammen"
+    from "zusammenarbeiten", "vorbei" from "vorbeischauen". The verb side was
+    already handled; the particle side was not.
+    """
+    from src.phrases.mining.words import _word_of
+    from src.phrases.parse import parse_many
+
+    sentences = [
+        "Er gibt das Buch morgen zurück.",
+        "Wir arbeiten bei dem Projekt eng zusammen.",
+    ]
+    particles = {"zurück", "zusammen"}
+    seen = []
+    for parsed in parse_many(sentences):
+        for token in parsed.tokens:
+            if token.text in particles:
+                seen.append((token.text, token.dep, _word_of(parsed, token, None)))
+    assert seen, "the fixture must contain the particles"
+    for text, dep, decided in seen:
+        if dep == "svp":
+            assert decided is None, f"{text!r} is a particle of a separable verb, not an adverb"

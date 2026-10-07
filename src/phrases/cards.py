@@ -283,9 +283,11 @@ def _prepositional_reading(occ: Occurrence, governed: frozenset[str]) -> bool:
         return False
     after = [w.lower() for w in _WORD.findall(occ.text[occ.spans[0][1] :])[:4]]
     pronominal: set[str] = set()
+    fused: set[str] = set()
     for prep in governed:
         pronominal |= _PRONOMINAL_FORMS.get(prep, frozenset())
-    if (set(governed) | pronominal) & set(after):
+        fused |= _FUSED_PREPOSITIONS.get(prep, frozenset())
+    if (set(governed) | pronominal | fused) & set(after):
         return True
     # The pronominal form also comes before the verb, in a verb-final clause
     # or when it is fronted: "darauf achten", "darueber verfuegen", which
@@ -309,6 +311,25 @@ def _pronominal(prep: str) -> frozenset[str]:
     ask = "wor" if prep[0] in "aeiouäöü" else "wo"
     return frozenset({stem + prep, ask + prep})
 
+
+#: A governed preposition fused with its article. "gehoeren zu" is a unit of
+#: its own, and the plain verb kept drawing "Wir gehoeren alle ZUM selben
+#: Team" and "Es gehoert Kraft ZUR Treue", because the check below looked for
+#: a bare "zu" that is not there: the preposition is inside the article. The
+#: reviewer flagged these as the wrong unit five times across the rounds of
+#: 2026-10-07 and dropping the cards only promoted the next one.
+_FUSED_PREPOSITIONS: dict[str, frozenset[str]] = {
+    "an": frozenset({"am", "ans"}),
+    "auf": frozenset({"aufs"}),
+    "bei": frozenset({"beim"}),
+    "durch": frozenset({"durchs"}),
+    "für": frozenset({"fürs"}),
+    "in": frozenset({"im", "ins"}),
+    "über": frozenset({"übers"}),
+    "um": frozenset({"ums"}),
+    "von": frozenset({"vom"}),
+    "zu": frozenset({"zum", "zur"}),
+}
 
 _PRONOMINAL_FORMS: dict[str, frozenset[str]] = {
     prep: _pronominal(prep) for prep in _COMPLEMENT_PREPS

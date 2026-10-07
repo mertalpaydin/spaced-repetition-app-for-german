@@ -1,5 +1,14 @@
 # Reviewer corrections to units: case, citation form, CEFR level. Applied
 # after the unit decision; the key is the miner's lowercase lemma key.
+# after the unit decision; the key is the miner's lowercase lemma key.
+# after the unit decision; the key is the miner's lowercase lemma key.
+# after the unit decision; the key is the miner's lowercase lemma key.
+# after the unit decision; the key is the miner's lowercase lemma key.
+# Added 2026-10-07, by hand and deliberately NOT via the reviewer. The model
+# keeps glossing these two with the German word, because the spelling carries
+# into English and the meaning does not: "das Land" is a country, not land,
+# and "der Fall" is a case, not a fall. The echo check rightly refuses that,
+# so the English is given here instead of asked for again.
 - {key: "abbogen", display: "abbiegen"}
 - {key: "abdriften in", case: "Akk"}
 - {key: "abend essen", display: "zu Abend essen"}
@@ -290,6 +299,7 @@
 - {key: "fahrend zug", display: "auf einen fahrenden Zug aufspringen"}
 - {key: "fahrlässig tötung", display: "fahrlässige Tötung"}
 - {key: "fair handel", display: "fairer Handel"}
+- {key: "fall", gloss_en: "case"}
 - {key: "falle stellen", cefr: "B1"}
 - {key: "falsch ernährung", display: "falsche Ernährung"}
 - {key: "falsch fährte", cefr: "B2"}
@@ -592,6 +602,7 @@
 - {key: "künstlerisch leiter", display: "der künstlerische Leiter"}
 - {key: "künstlich koma", display: "künstliches Koma"}
 - {key: "kürzer ziehen", display: "den Kürzeren ziehen"}
+- {key: "land", gloss_en: "country"}
 - {key: "lang schwanz", display: "der lange Schwanz"}
 - {key: "lasten auf", cefr: "B2"}
 - {key: "lauf nehmen", display: "seinen Lauf nehmen"}
@@ -1248,10 +1259,3 @@
 - {key: "übertragen sinn", display: "im übertragenen Sinne"}
 - {key: "überziehen mit", cefr: "B2"}
 - {key: "übrigbleiben", display: "übrig bleiben"}
-# Added 2026-10-07. The model keeps glossing these two with the German word,
-# because the spelling carries over into English and the meaning does not:
-# "das Land" is a country, not land, and "der Fall" is a case, not a fall.
-# The echo check rightly refuses it, so the English is given here by hand
-# rather than asked for again.
-- {key: land, gloss_en: country}
-- {key: fall, gloss_en: case}
