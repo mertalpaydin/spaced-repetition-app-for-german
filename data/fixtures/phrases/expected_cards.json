@@ -491,6 +491,17 @@
   "form_key": "medial"
  },
  {
+  "card_id": "e0a07a5d2f9f",
+  "unit_id": "rv:sich_beschaeftigen_mit",
+  "sentence_de": "Ich habe mich lediglich mit dem Entwurf von Halbleitern beschäftigt.",
+  "answers": [
+   "mich",
+   "mit",
+   "beschäftigt"
+  ],
+  "form_key": "Part"
+ },
+ {
   "card_id": "f1ac0c87522f",
   "unit_id": "cn:und",
   "sentence_de": "Und doch, war es nicht ihr Aussehen, was ihn angezogen hat?",

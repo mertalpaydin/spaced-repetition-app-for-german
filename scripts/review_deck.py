@@ -133,6 +133,16 @@ def unit_line(unit: PhraseUnit) -> str:
     )
 
 
+def in_band(unit: PhraseUnit, max_rank: int) -> bool:
+    """Is this unit part of a review band that stops at ``max_rank``?
+
+    By rank, or because the owner asked for it by name: a requested unit is
+    introduced ahead of the whole mined pool, so it is met first however rare
+    the corpus says it is.
+    """
+    return unit.rank <= max_rank or unit.requested_order is not None
+
+
 def write_batches(
     out_dir: Path,
     *,
@@ -149,7 +159,11 @@ def write_batches(
 
     ``max_rank`` stops at a rank, so a deck far larger than a year of
     learning is reviewed from the top down in steps rather than in one pass
-    (owner, 2026-09-21)."""
+    (owner, 2026-09-21). A requested unit is in every band whatever its
+    corpus rank, because it is taught before the mined ones: "die Ergaenzung"
+    ranks 9746 and is met in the first week, so a band that honoured the rank
+    alone would review cards the learner sees months later while skipping
+    cards he sees tomorrow (owner, 2026-10-08)."""
     manifest, units, cards = load_deck(deck_dir)
     by_unit = {u.unit_id: u for u in units}
     reviewed_cards = set() if everything else _reviewed_ids("card")
@@ -160,11 +174,12 @@ def write_batches(
     else:
         chosen = (c for c in cards if c.card_id not in reviewed_cards)
     if max_rank is not None:
-        chosen = (c for c in chosen if by_unit[c.unit_id].rank <= max_rank)
+        bound = max_rank
+        chosen = (c for c in chosen if in_band(by_unit[c.unit_id], bound))
     new_cards = sorted(chosen, key=lambda c: (by_unit[c.unit_id].rank, c.card_id))
     new_units = [u for u in units if u.unit_id not in reviewed_units]
     if max_rank is not None:
-        new_units = [u for u in new_units if u.rank <= max_rank]
+        new_units = [u for u in new_units if in_band(u, max_rank)]
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "findings").mkdir(exist_ok=True)
     for stale in out_dir.glob("*.txt"):

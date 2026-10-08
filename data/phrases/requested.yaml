@@ -96,3 +96,22 @@
 - {key: "diejenige", kind: adjective, note: "Lingvist; a demonstrative, may be refused; a demonstrative; the deck has no determiner kind. Verified 2026-10-07: written sentences do not help, the refusal is structural"}
 - {key: "dieselbe", kind: adjective, note: "Lingvist; a demonstrative, may be refused; a demonstrative (lemma 'derselbe'); the deck has no determiner kind. Verified 2026-10-07: written sentences do not help, the refusal is structural"}
 - {key: "aufgrund", kind: adverb, note: "Lingvist; a preposition, may be refused; a preposition (ADP); the deck has no preposition kind. Verified 2026-10-07: written sentences do not help, the refusal is structural"}
+
+# Added 2026-10-08 from the owner's third Lingvist list, fourteen entries of
+# which twelve were already mined: these pull them forward out of the ranks
+# they sat at (462 to 9746) rather than teaching anything new. Only
+# "genießen" was absent from the deck altogether.
+- {key: "sich interessieren für", kind: reflexive_verb, note: "Lingvist; seeded, mined at rank 472, pulled forward"}
+- {key: "sich ärgern über", kind: reflexive_verb, note: "Lingvist; seeded, mined at rank 2669, pulled forward"}
+- {key: "sich freuen auf", kind: reflexive_verb, note: "Lingvist; seeded, mined at rank 722, pulled forward"}
+- {key: "sich freuen über", kind: reflexive_verb, note: "Lingvist; seeded, mined at rank 729, pulled forward"}
+- {key: "ergänzung", kind: noun, note: "Lingvist, listed as 'die Ergänzung'; mined at rank 9746"}
+- {key: "sich unterhalten über", kind: reflexive_verb, note: "Lingvist; seeded, mined at rank 3242, pulled forward"}
+- {key: "sich unterhalten mit", kind: reflexive_verb, note: "Lingvist; seeded, mined at rank 1069, pulled forward"}
+- {key: "sich beschäftigen mit", kind: reflexive_verb, note: "Lingvist; mined at rank 987 without a seed, pulled forward"}
+- {key: "gratulieren zu", kind: verb_prep, note: "Lingvist; mined at rank 2889 without a seed, pulled forward"}
+- {key: "arbeiten an", kind: verb_prep, note: "Lingvist; seeded, mined at rank 462, pulled forward"}
+- {key: "sich gewöhnen an", kind: reflexive_verb, note: "Lingvist; seeded, mined at rank 927, pulled forward"}
+- {key: "sich vorbereiten auf", kind: reflexive_verb, note: "Lingvist; seeded, mined at rank 1134, pulled forward"}
+- {key: "ausnahme", kind: noun, note: "Lingvist, listed as 'ausnahme'; mined at rank 2331"}
+- {key: "genießen", kind: verb, note: "Lingvist; the bare verb is NOT in the deck, only the collocations (Moment/Urlaub/Ruf genießen). This entry is what teaches it"}

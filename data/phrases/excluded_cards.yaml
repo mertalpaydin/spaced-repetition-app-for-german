@@ -5703,3 +5703,50 @@
 - 9765516960ae  # WRONG_UNIT: sentence uses phrase beschäftigt sein mit
 - a97763792f8e  # WRONG_UNIT: bereit is an adjective, display says adverb
 - edf701074c34  # WRONG_UNIT: sentence uses phrase Wert legen auf
+# Review round top1000f.
+- 02403ff363e5  # WRONG_UNIT: Sentence uses 'betrügen', not 'betragen'.
+- 0b0bc506209f  # WRONG_GAPS: The word 'eine' is part of the unit but not bracketed in the sentence.
+- 1b5aeec5cbd7  # WRONG_UNIT: Sentence needs the fixed preposition 'im Gegensatz zu'.
+- 2103e327e343  # WRONG_UNIT: Sentence needs the fixed preposition 'im Gegensatz zu'.
+- 25a7c9bd711b  # BAD_SENTENCE: contradiction: sichtlich spüren
+- 2678fe5bc7b3  # WRONG_UNIT: Sentence instantiates 'keine Entscheidungen treffen', not 'eine Entscheidung treffen'.
+- 363f08c61ff8  # BAD_SENTENCE: Nonsensical sentence / misquoted idiom.
+- 42e40be85a9d  # WRONG_UNIT: Sentence needs the fixed phrase 'Wert legen auf'.
+- 46abb263d3ac  # WRONG_UNIT: 'heutzutage' is strictly an adverb, but the unit is labeled 'adjective heutzutage'.
+- 49493f2f363b  # BAD_SENTENCE: Sentence fragment.
+- 51400a0d2f14  # BAD_GLOSS: English translates 'haben wir Aufenthalt' as verb 'do we stay', misleading about the noun gap
+- 52be04e9cfab  # WRONG_UNIT: 'heutzutage' is strictly an adverb, but the unit is labeled 'adjective heutzutage'.
+- 610472d67bcb  # BAD_SENTENCE: PZN is likely a typo for PNP, makes no sense here
+- 734a6e8b449d  # WRONG_UNIT: 'bloß' is used as a modal particle here, not the adjective meaning 'bare'.
+- 7502ffc66747  # BAD_SENTENCE: Typo 'mt' for 'mit', and uses participle as adjective rather than plain verb.
+- 806f2a64ebf6  # WRONG_UNIT: 'heutzutage' is strictly an adverb, but the unit is labeled 'adjective heutzutage'.
+- 8261250c85ea  # WRONG_UNIT: 'bloß' is used as a modal particle here, not the adjective meaning 'bare'.
+- 8bc1e8069a15  # BAD_SENTENCE: Sentence fragment.
+- a697adaf7b5c  # WRONG_UNIT: Sentence uses 'betrügen', not 'betragen'.
+- b297f437396e  # WRONG_UNIT: Sentence uses the fixed phrase 'zur Kenntnis nehmen'.
+- b550cb16835f  # WRONG_UNIT: Sentence needs the fixed preposition 'im Gegensatz zu'.
+- bcab00cae21f  # BAD_SENTENCE: Junk sentence with grammatical errors.
+- be8da584f7a9  # WRONG_UNIT: 'bereit' is an adjective here, but the unit is 'adverb bereit'.
+- ca3321e6ef42  # WRONG_UNIT: Sentence uses the fixed phrase 'sich der Kenntnis entziehen'.
+- d87eff08f32a  # WRONG_UNIT: Sentence uses the fixed phrase 'sich der Kenntnis entziehen'.
+- d90e235458dd  # WRONG_UNIT: 'bloß' is used as a modal particle here, not the adjective meaning 'bare'.
+- d9d4ae302e18  # WRONG_UNIT: Sentence uses the fixed phrase 'in Kenntnis setzen'.
+- da7d29ea5344  # WRONG_UNIT: 'heutzutage' is strictly an adverb, but the unit is labeled 'adjective heutzutage'.
+- df1947c33337  # WRONG_UNIT: Sentence uses 'hören', not 'gehören'.
+- f25c87f1557f  # WRONG_UNIT: 'heutzutage' is strictly an adverb, but the unit is labeled 'adjective heutzutage'.
+# Review round top1000g.
+- 04f09c1b92e8  # WRONG_UNIT: Sentence needs phrase 'zur Kenntnis nehmen' instead of plain noun.
+- 0ca764d5b512  # WRONG_GAPS: Unit token 'eine' is missing from the brackets.
+- 2735a16dc54e  # WRONG_UNIT: Sentence needs phrase 'zur Kenntnis nehmen' instead of plain noun.
+- 30cce5c2c3f6  # WRONG_UNIT: Sentence needs phrase 'im Gegensatz zu' instead of plain noun.
+- 3a6c94c4b715  # WRONG_UNIT: Unit specifies adjective but 'bloß' is used as a modal particle.
+- 4334b4cbcb0c  # WRONG_UNIT: Sentence uses phrase 'Wert legen auf' instead of plain verb.
+- 4708926c4230  # WRONG_UNIT: Sentence needs phrase 'im Gegensatz zu' instead of plain noun.
+- 553cbc827889  # BAD_SENTENCE: Typo in sentence: 'Ergebnisssen' has three 's'.
+- 99d2710f145a  # WRONG_UNIT: Unit specifies adjective but 'bloß' is used as a modal particle.
+- 9c9cb2b00b78  # WRONG_UNIT: Sentence needs phrase 'im Gegensatz zu' instead of plain noun.
+- a05913ed7eb1  # WRONG_UNIT: Sentence needs phrase 'in Kenntnis setzen' instead of plain noun.
+- adc137e07d8f  # WRONG_UNIT: Sentence uses 'unsere eigene' instead of 'eine', failing to fully instantiate the unit.
+- c30ed7ed86f5  # WRONG_UNIT: Sentence needs phrase 'zur Kenntnis nehmen' instead of plain noun.
+- e4fae7cdebf1  # WRONG_UNIT: Unit specifies adjective but 'bloß' is used as a modal particle.
+- f1165e1e9d91  # WRONG_UNIT: Unit specifies adverb but 'bereit' is used as a predicative adjective.

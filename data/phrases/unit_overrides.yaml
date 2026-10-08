@@ -8,6 +8,8 @@
 # after the unit decision; the key is the miner's lowercase lemma key.
 # after the unit decision; the key is the miner's lowercase lemma key.
 # after the unit decision; the key is the miner's lowercase lemma key.
+# after the unit decision; the key is the miner's lowercase lemma key.
+# after the unit decision; the key is the miner's lowercase lemma key.
 # Added 2026-10-07, by hand and deliberately NOT via the reviewer. The model
 # keeps glossing these two with the German word, because the spelling carries
 # into English and the meaning does not: "das Land" is a country, not land,
@@ -22,6 +24,20 @@
 # an adverb, not an adjective". Both are words the owner asked for, so
 # dropping the cards was not an option; the kind is corrected instead, after
 # unit_id is derived, so the id and the history are untouched.
+# Added 2026-10-08, round top1000f. Seven more of the same: the reviewer
+# returned 49 findings, every one of them "drop this unit, it is an adverb or
+# a preposition or a pronoun, not an adjective", and every one of them against
+# a word the owner asked for by name. Rule 1 settles what happens to those: the
+# word is taught, so the kind is corrected and nothing is dropped. The seven
+# are "dazu", "entlang", "gegenueber", "heutzutage", "wieso", "wodurch" and
+# "aufgrund". The last three are really prepositions or interrogatives and the
+# deck has no kind for either, so "adverb" is the nearest true thing.
+#
+# NOT corrected: "solche", "diejenige" and "dieselbe" stay adjectives. The
+# reviewer calls them demonstrative pronouns and is right, but they decline
+# like attributive adjectives ("solche Buecher"), the deck has no determiner
+# kind, and "adjective" is therefore the least wrong label rather than a
+# mistake worth an override.
 - {key: "abbogen", display: "abbiegen"}
 - {key: "abdriften in", case: "Akk"}
 - {key: "abend essen", display: "zu Abend essen"}
@@ -60,6 +76,7 @@
 - {key: "angelegenheit besprechen", cefr: "B2"}
 - {key: "angelegenheit untersuchen", cefr: "B2"}
 - {key: "angenehm duft", display: "angenehmer Duft"}
+- {key: "angestellter", display: "der Angestellte"}
 - {key: "angst hatten", display: "Angst haben"}
 - {key: "anknüpfen an", case: "Dat"}
 - {key: "anlogen", display: "anlügen"}
@@ -88,6 +105,7 @@
 - {key: "aufdringen", display: "aufdrängen"}
 - {key: "aufenthalt gestalten", cefr: "B2"}
 - {key: "aufessen", cefr: "A2"}
+- {key: "aufgrund", cefr: "B1", kind: "adverb"}
 - {key: "aufliegen auf", case: "Dat"}
 - {key: "auflockeren", display: "auflockern"}
 - {key: "aufrechthalten", display: "aufrechterhalten"}
@@ -209,6 +227,7 @@
 - {key: "datei heruntergeladen", display: "Dateien herunterladen"}
 - {key: "datum abrufen", display: "Daten abrufen"}
 - {key: "davon überzeugt", display: "davon überzeugt sein"}
+- {key: "dazu", kind: "adverb"}
 - {key: "derzeitig stand", display: "nach derzeitigem Stand"}
 - {key: "deuten auf", cefr: "B2"}
 - {key: "deutlich mehrheit", display: "deutliche Mehrheit"}
@@ -278,6 +297,7 @@
 - {key: "endlos diskussion", display: "endlose Diskussionen"}
 - {key: "entfernt verwandte", cefr: "B1"}
 - {key: "entkamen mit", display: "entkommen mit +Dat"}
+- {key: "entlang", kind: "adverb"}
 - {key: "entscheidend bedeutung", cefr: "B2"}
 - {key: "entscheidend moment", display: "entscheidender Moment"}
 - {key: "entscheidung fällen", cefr: "B2"}
@@ -387,6 +407,7 @@
 - {key: "gefälscht ausweis", cefr: "B1"}
 - {key: "gegenseitig respekt", display: "gegenseitiger Respekt"}
 - {key: "gegenseitig vertrauen", display: "gegenseitiges Vertrauen"}
+- {key: "gegenüber", kind: "adverb"}
 - {key: "gegenüberliegend seite", display: "auf der gegenüberliegenden Seite"}
 - {key: "gegenüberliegend straßenseite", display: "auf der gegenüberliegenden Straßenseite"}
 - {key: "gegenübersitzen", cefr: "B2"}
@@ -509,6 +530,7 @@
 - {key: "herz gewinnen", cefr: "B2"}
 - {key: "herziehen hinter", case: "Dat"}
 - {key: "herzlich applaus", display: "herzlicher Applaus"}
+- {key: "heutzutage", kind: "adverb"}
 - {key: "hinausgehen über", cefr: "B2"}
 - {key: "hineinreichen in", case: "Akk"}
 - {key: "hinweggekommen über", display: "hinwegkommen über +Akk"}
@@ -578,6 +600,7 @@
 - {key: "kaution bezahlen", cefr: "B2"}
 - {key: "keine sorgen machen", display: "sich keine Sorgen machen"}
 - {key: "kekse gegessen", display: "Kekse essen"}
+- {key: "kenntnis", cefr: "B1"}
 - {key: "kerze anzünden", cefr: "A2"}
 - {key: "kind stillen", cefr: "B1"}
 - {key: "klagen gegen", cefr: "B2"}
@@ -1192,6 +1215,7 @@
 - {key: "westlich welt", display: "westliche Welt"}
 - {key: "westlich zivilisation", display: "die westliche Zivilisation"}
 - {key: "wiedergeboren als", display: "wiedergeboren werden als"}
+- {key: "wieso", kind: "adverb"}
 - {key: "wild westen", cefr: "B2"}
 - {key: "wille durchsetzen", display: "seinen Willen durchsetzen"}
 - {key: "wille", cefr: "B1"}
@@ -1200,6 +1224,7 @@
 - {key: "wirtschaftswissenschaft studieren", cefr: "B1"}
 - {key: "wissenschaft", cefr: "B1"}
 - {key: "wissenschaftlich erkenntnis", display: "wissenschaftliche Erkenntnisse"}
+- {key: "wodurch", cefr: "B1", kind: "adverb"}
 - {key: "wuchsen um", display: "wachsen um +Akk"}
 - {key: "wunsch erfüllen", cefr: "B1"}
 - {key: "zahn putzen", display: "sich die Zähne putzen"}

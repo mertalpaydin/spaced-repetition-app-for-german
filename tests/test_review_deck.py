@@ -11,7 +11,7 @@ from src.contracts import GapSpan, PhraseCard, PhraseUnit
 from src.phrases.export import export_deck
 
 
-def _unit(n: int, kind: str = "verb_prep") -> PhraseUnit:
+def _unit(n: int, kind: str = "verb_prep", requested_order: int | None = None) -> PhraseUnit:
     return PhraseUnit(
         unit_id=f"vp:unit_{n}",
         kind=kind,  # type: ignore[arg-type]
@@ -23,6 +23,7 @@ def _unit(n: int, kind: str = "verb_prep") -> PhraseUnit:
         rank=n,
         source="mined",
         card_count=1,
+        requested_order=requested_order,
     )
 
 
@@ -75,6 +76,34 @@ def test_batches_skip_cards_and_units_already_reviewed(repo: Path) -> None:
     assert stats["units"] == 1
     first = (repo / "batches/cards_000.txt").read_text(encoding="utf-8")
     assert first.startswith("000000000002\tverb_prep\tunit 2 +Akk\t[Satz] 2 hier.\tgloss")
+
+
+def test_a_band_includes_a_requested_unit_from_below_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A requested unit is taught before the whole mined pool, so a band that
+    honoured the corpus rank alone would review cards the learner meets in
+    months and skip cards he meets tomorrow (owner, 2026-10-08)."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "docs/audits/phase-1-review").mkdir(parents=True)
+    units = [_unit(1), _unit(2), _unit(9746, requested_order=3)]
+    export_deck(
+        units,
+        [_card(u) for u in units],
+        tmp_path / "deck",
+        now=lambda: datetime(2026, 10, 8, tzinfo=UTC),
+    )
+
+    stats = review_deck.write_batches(
+        tmp_path / "batches",
+        deck_dir=tmp_path / "deck",
+        everything=False,
+        card_batch=10,
+        unit_batch=10,
+        max_rank=2,
+    )
+    assert stats["cards"] == 3 and stats["units"] == 3
+    assert "unit 9746" in (tmp_path / "batches/cards_000.txt").read_text(encoding="utf-8")
 
 
 def test_apply_writes_reasons_and_records_the_round(repo: Path) -> None:

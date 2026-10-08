@@ -6,12 +6,17 @@ complete card, and until 2026-10-07 nothing checked that they all had.
 
 from pathlib import Path
 
-from scripts.audit_top_units import reviewed_ids, unfinished
+from scripts.audit_top_units import band_units, reviewed_ids, unfinished
 from src.contracts import GapSpan, PhraseCard, PhraseUnit
 
 
 def _unit(
-    unit_id: str, rank: int, *, gloss: str | None = "to do", trivial: bool = False
+    unit_id: str,
+    rank: int,
+    *,
+    gloss: str | None = "to do",
+    trivial: bool = False,
+    requested_order: int | None = None,
 ) -> PhraseUnit:
     return PhraseUnit(
         unit_id=unit_id,
@@ -25,7 +30,24 @@ def _unit(
         trivial=trivial,
         source="mined",
         card_count=1,
+        requested_order=requested_order,
     )
+
+
+def test_a_requested_unit_is_in_the_band_whatever_its_rank() -> None:
+    """It is introduced ahead of the whole mined pool, so it is met first.
+
+    Auditing by corpus rank alone called the band finished while "die
+    Ergaenzung", requested by the owner and ranked 9746, sat in it with no
+    reviewed card (2026-10-08).
+    """
+    units = [
+        _unit("vb:first", 1),
+        _unit("nn:ergaenzung", 9746, requested_order=3),
+        _unit("vb:deep", 5000),
+    ]
+    band = [u.unit_id for u in band_units(units, 1)]
+    assert band == ["vb:first", "nn:ergaenzung"]
 
 
 def _card(card_id: str, unit_id: str, *, gloss: str | None = "English") -> PhraseCard:

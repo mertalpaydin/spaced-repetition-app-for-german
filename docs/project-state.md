@@ -1,4 +1,4 @@
-# Project state, 21 September 2026
+# Project state, 8 October 2026
 
 Written for the next person to work on this repository. It says what the
 project is, what is built, what is not, and what will trip you up.
@@ -458,6 +458,80 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **The dictionary is Swiss-spelled and the corpus is not (found
+  2026-10-08).** This is the largest single defect found since the pivot. The
+  word detector admits a lemma only if it is in the CEFR list or the
+  dictionary (`WordGate.wants`), and the dictionary half spells the sharp s
+  as "ss". The test was a literal string match, so every corpus lemma written
+  with "ss" spelled as "ß" was invisible: 1,061 lemmas, measured.
+
+  It was not merely a gap. Where the corpus also contained the Swiss
+  spelling, that minority became the unit, so the deck taught a spelling the
+  learner should not write, at a rank thousands of places too deep:
+
+  | unit id | before | after |
+  | --- | --- | --- |
+  | `aj:gross` | "gross", rank 4095 | "groß", rank 31 |
+  | `vb:heissen` | "heissen", rank 12186 | "heißen", rank 178 |
+  | `nn:strasse` | "die Strasse", rank 9841 | "die Straße", rank 265 |
+  | `nn:fuss` | absent | "der Fuß", rank 458 |
+  | `nn:spass` | absent | "der Spaß", rank 483 |
+  | `aj:weiss` | absent | "weiß", rank 723 |
+  | `vb:geniessen` | absent | "genießen", rank 1215 |
+  | `nn:massnahme` | absent | "die Maßnahme", rank 1500 |
+  | `nn:groesse` | absent | "die Größe", rank 1718 |
+
+  Found by chasing one word: the owner asked for "genießen", which had 2,754
+  corpus sentences and zero occurrences. `WordGate.knows` now folds the sharp
+  s one way only, so a request spelled with "ß" cannot drag in an unrelated
+  "ss" word. `unit_id_for` already folded "ß" to "ss", so the ids are
+  unchanged and no review history forked; where both spellings now collide on
+  one id, the higher-frequency one wins, which is always the correct German.
+
+  The fix needed a full parse (82 minutes) because the occurrences on disk
+  predated it. It added only 5,552 occurrences, because the gate caps
+  carriers at twelve per word per corpus: what was scarce for these words was
+  never their corpus hits, it was a detector that could see them at all.
+
+- **A review round of 84 findings, 49 of which were rule 1 violations
+  (2026-10-08).** Round top1000f returned "drop_unit" against `solche`,
+  `diejenige`, `dieselbe` (seven each), `entlang`, `aufgrund`, `dazu` (six
+  each), `wieso`, `wodurch`, `heutzutage` and `gegenueber`. Every one of those
+  is a word the owner asked for by name, and not one finding said the card
+  was broken: all of them objected to the KIND label, because the detector
+  files ADJ and ADV under one provisional kind and `_decide_word` then guesses
+  from corpus counters.
+
+  So the fix was a `kind` override on seven of them, applied after `unit_id`
+  is derived so the id and history survive, and nothing was dropped.
+  `solche`, `diejenige` and `dieselbe` were left as adjectives on purpose:
+  they are determiners, the reviewer is right, but they decline like
+  attributive adjectives and the deck has no determiner kind.
+
+  The lesson for the next band is procedural: **filter a findings directory
+  for drop_unit against requested units before applying it.** The reviewer
+  has not read CLAUDE.md and will propose this again.
+
+- **Ranks 1 to 1000 are finished (2026-10-08).** Every unit in the band has a
+  card, an English sentence, its own phrase English, and a reviewer has read
+  the unit. Five units of 972 carry one card nobody has read, promoted by the
+  last round's drops. The band ran 504, 78, 12, 9 units unreviewed, then 75
+  after the parse promoted 5,778 new cards, then 13, then 5; the defect rate
+  in the replacements went 11.2%, 19%, 24%, 54%, which is why it was stopped
+  rather than run again. A rising replacement rate means the good carriers are
+  used up, not that the deck is getting worse.
+
+- **The owner's third word list, 2026-10-08.** Fourteen entries, twelve of
+  which were already mined and sat at ranks 462 to 9915, so their
+  `requested.yaml` entries only pull them forward. `sich beschaeftigen mit`
+  (987) and `gratulieren zu` (2889) were mined with no seed. "genießen" was
+  the only one absent from the deck, for the sharp-s reason above.
+
+  The audit and the review batches were both filtering on corpus rank, which
+  meant a requested unit outside the band was reported finished while being
+  taught in the first week. `audit_top_units.band_units` and
+  `review_deck.in_band` now admit every requested unit whatever its rank.
+
 ## What is not built
 
 - **An installable icon flow on iOS** is untested; Android and desktop
@@ -483,7 +557,12 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
    two-sentence context cannot be mined, only generated.
 5. **The Windows scheduled task "LLA monthly translation" is still enabled.**
    It sends nothing until October's Azure allowance and runs the script on
-   this branch's code once the branch is checked out.
+   this branch's code once the branch is checked out. It rewrites the whole
+   store file, so it can land in the middle of a build: on 2026-10-08 it wrote
+   the store ten minutes after the cards stage had read it, and six freshly
+   translated carriers were missing from the deck until cards ran again. If a
+   gloss you just stored is not on a card, compare the store's mtime with
+   `build/cards.jsonl` before looking anywhere else.
 6. **Do not weaken a test to make it pass.** The spend ceiling, the retry
    shapes and the Tatoeba trust decision are pinned by tests whose job is to
    make you ask the owner first.

@@ -63,8 +63,21 @@ class WordGate:
     #: Mutable tally, keyed "kind:lemma:source".
     taken: Counter[str] = field(default_factory=Counter, compare=False)
 
+    def knows(self, lemma: str) -> bool:
+        """Is this a real word, reading "ss" and "ß" as one spelling?
+
+        The dictionary half of ``lemmas`` is written in the Swiss spelling,
+        so a literal membership test hid 1,061 lemmas that the corpus writes
+        with the sharp s, among them "groß" (47,744 sentences), "heißen",
+        "Straße", "Fuß", "Spaß", "weiß" and "Maßnahme". What the deck taught
+        instead was whichever Swiss-spelled minority the corpus happened to
+        contain: "gross" at rank 4095 and "die Strasse" at 9841, teaching a
+        spelling the learner should not write (measured 2026-10-08).
+        """
+        return lemma in self.lemmas or lemma.replace("ß", "ss") in self.lemmas
+
     def wants(self, kind: str, lemma: str, text: str, source: str) -> bool:
-        if lemma not in self.lemmas or text not in self.glossed:
+        if not self.knows(lemma) or text not in self.glossed:
             return False
         key = f"{kind}:{lemma}:{source}"
         if self.taken[key] >= self.cap:
@@ -85,13 +98,12 @@ def word_lemmas(sentence: ParsedSentence, gate: WordGate | None) -> Iterator[tup
     """``(kind, lemma)`` for every token of this sentence that could be a
     single-word unit. Used by ``LemmaCounts`` to count over the whole corpus
     and by the detector to emit; both must agree on what counts as a word."""
-    allowed = gate.lemmas if gate is not None else None
     for token in sentence.tokens:
         kind_lemma = _word_of(sentence, token, gate.dictionary if gate else None)
         if kind_lemma is None:
             continue
         kind, lemma = kind_lemma
-        if allowed is not None and lemma not in allowed:
+        if gate is not None and not gate.knows(lemma):
             continue
         yield kind, lemma
 

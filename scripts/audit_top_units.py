@@ -37,6 +37,25 @@ def reviewed_ids(prefix: str, audit_dir: Path = AUDIT_DIR) -> set[str]:
     return out
 
 
+def band_units(units: list[PhraseUnit], top: int) -> list[PhraseUnit]:
+    """The units a learner meets first: the top ``top`` by corpus rank, plus
+    every unit the owner asked for by name.
+
+    A requested unit is introduced ahead of the whole mined pool, so its
+    corpus rank says nothing about when it is met: "die Ergaenzung" ranks
+    9746 and arrives in the first week. Auditing by rank alone reported the
+    band finished while a requested unit sat in it with no reviewed card
+    (owner, 2026-10-08: "make sure every phase I requested from you are added
+    with the same finishing").
+    """
+    by_rank = sorted(units, key=lambda u: u.rank)
+    chosen = {u.unit_id: u for u in by_rank[:top]}
+    for unit in by_rank:
+        if unit.requested_order is not None:
+            chosen.setdefault(unit.unit_id, unit)
+    return sorted(chosen.values(), key=lambda u: u.rank)
+
+
 def unfinished(
     units: list[PhraseUnit],
     cards_by_unit: dict[str, list[PhraseCard]],
@@ -83,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     by_unit: dict[str, list[PhraseCard]] = {}
     for card in cards:
         by_unit.setdefault(card.unit_id, []).append(card)
-    band = sorted(units, key=lambda u: u.rank)[: args.top]
+    band = band_units(units, args.top)
     problems = unfinished(
         band,
         by_unit,

@@ -282,3 +282,21 @@ def test_a_separable_particle_is_not_an_adverb_of_its_own() -> None:
     for text, dep, decided in seen:
         if dep == "svp":
             assert decided is None, f"{text!r} is a particle of a separable verb, not an adverb"
+
+
+def test_word_gate_reads_the_sharp_s_and_ss_as_one_spelling() -> None:
+    """The dictionary is Swiss-spelled, the corpus is not.
+
+    Found 2026-10-08 while chasing a word the owner asked for: "genießen"
+    had 2,754 corpus sentences and no occurrences at all, because the
+    dictionary spells it "geniessen". The same mismatch hid 1,061 lemmas,
+    "groß" and "Straße" and "Fuß" among them, and what the deck taught in
+    their place was the Swiss-spelled minority: "gross" and "die Strasse".
+    """
+    gate = WordGate(lemmas=frozenset({"geniessen", "gross"}), glossed=frozenset({"x"}))
+    assert gate.knows("genießen") and gate.knows("groß")
+    assert gate.knows("geniessen") and gate.knows("gross")
+    assert not gate.knows("gniessen")
+    # the fold is one way only: a request spelled with the sharp s is not a
+    # licence to teach some other word that happens to contain "ss"
+    assert not WordGate(lemmas=frozenset({"groß"}), glossed=frozenset()).knows("gross")
