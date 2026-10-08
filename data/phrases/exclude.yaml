@@ -2460,14 +2460,14 @@
 # the next particle sentence.
 #
 # mining.words._word_of now refuses a token whose dependency is svp, which
-# fixes this at the root, but that only takes effect on the next FULL parse
-# (2 to 3 hours over six corpora); the occurrences on disk predate it. Remove
-# these four lines after that parse and let the rule do the work.
-- "zurück"  # BAD_UNIT: Every carrier is a separable prefix; see the note above.
-- "zusammen"  # BAD_UNIT: Every carrier is a separable prefix; see the note above.
-- "raus"  # BAD_UNIT: Every carrier is a separable prefix; see the note above.
-- "vorbei"  # BAD_UNIT: Every carrier is a separable prefix; see the note above.
+# fixes this at the root. The four exclusions were REMOVED on 2026-10-08
+# after the full parse (125 minutes, 4,077,158 sentences): it dropped 19,351
+# occurrences, 7,517,829 to 7,498,478, which are the particle ones these
+# four were standing in for. The rule does the work now.
 # Review round top500d: units the reviewer rejected.
 # Review round top500e: units the reviewer rejected.
 # Review round top500f: units the reviewer rejected.
 # Review round top1000a: units the reviewer rejected.
+# Review round top1000b: units the reviewer rejected.
+# Review round top1000c: units the reviewer rejected.
+# Review round top1000d: units the reviewer rejected.

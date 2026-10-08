@@ -5506,3 +5506,200 @@
 - e3ec8273cbf9  # WRONG_UNIT: Sentence requires directional 'irgendwohin', split here into 'irgendwo ... hin'.
 - e48578312698  # WRONG_UNIT: Sentence requires directional 'irgendwohin', split here into 'irgendwo ... hin'.
 - fd4eb89a6384  # WRONG_UNIT: sentence uses idiom in Tränen ausbrechen
+# Review round top1000b.
+- 004e65039f4b  # BAD_GLOSS: Gloss 'are slowly enough for me' is a bad literal translation that misses the idiom.
+- 03b7bb0d8811  # WRONG_UNIT: Phrase 'falsch liegen'
+- 046662ad1b19  # WRONG_UNIT: idiom zu Kopf steigen needs its own unit
+- 062313c5c413  # WRONG_UNIT: uebers Ohr hauen is a phrase
+- 093346b633c9  # WRONG_UNIT: archaic phrase auf Erden needs its own unit
+- 09e2b595f83e  # WRONG_UNIT: Idiom 'allein auf weiter Flur'
+- 0a593b4c03ec  # BAD_SENTENCE: typo 'dass' instead of 'das'
+- 0b2382ec6133  # BAD_GLOSS: Gloss 'makes himself an egg' literally mistranslates the idiom 'sich zum Ei machen'.
+- 0de91ad68e81  # BAD_SENTENCE: Obsolete/poetic spelling and phrasing
+- 0ebd9568b93d  # BAD_SENTENCE: Typo 'Tüt' instead of 'Tüte', and incorrect comma before the verb.
+- 0f3d21294fd4  # WRONG_UNIT: idiom hin und weg needs its own unit
+- 0f79546f380b  # BAD_SENTENCE: Obscure abbreviation c. t. (cum tempore)
+- 106fc549dc50  # BAD_SENTENCE: Typo in German sentence: Er wäre besser -> Es wäre besser
+- 16c2b2de0113  # WRONG_UNIT: The verb used is 'totschlagen' (die Zeit totschlagen), not the plain verb 'schlagen'.
+- 1782d0c57cf3  # BAD_GLOSS: Gloss 'break a leg' mistranslates the idiom 'sich kein Bein ausreißen' (to not make an effort).
+- 17911f6d9613  # WRONG_UNIT: gut dran sein is a phrase
+- 185dbe6370b5  # WRONG_UNIT: used as adverb, unit says adjective
+- 18dd3134019a  # WRONG_UNIT: 'Sorge' is verb 'sorgen', not noun 'die Sorge'
+- 1927fe125460  # WRONG_UNIT: Phrase 'von ganzem Herzen'
+- 1a247557b8c7  # BAD_SENTENCE: Archaic genitive word order, unnatural for everyday learners.
+- 1a3e005e85d2  # BAD_SENTENCE: "Mir geht es dick" is not a natural German expression.
+- 1b5f1fa739a6  # BAD_SENTENCE: Incorrect verb usage: 'leben' is correct for a region, not 'wohnen'
+- 1b807474772e  # WRONG_UNIT: used as adverb, unit says adjective
+- 1b93f73151d4  # WRONG_UNIT: hart am Wind segeln is a phrase
+- 1bc8b8034bdb  # WRONG_UNIT: mit seiner Kunst am Ende sein is a phrase
+- 1c018cc461ef  # BAD_SENTENCE: Unnatural phrasing 'ein wahres Geschäft'
+- 210c364b39f1  # BAD_SENTENCE: Unnatural sentence 'kaufen als bitten'
+- 25eb2e5a4df4  # WRONG_UNIT: 'rund' is a separable prefix of the verb 'rundlaufen' here, not an adjective.
+- 26a1e25dec77  # BAD_GLOSS: Gloss ignores 'eher', misleads about the gap.
+- 2762f42d52a3  # BAD_SENTENCE: ich bin nicht aktuell is non-standard German
+- 28258b298a1e  # BAD_SENTENCE: Literal translation of an English proverb; unnatural in German.
+- 294741428b0c  # BAD_SENTENCE: not a natural German sentence or proverb
+- 2cb2ec3bdd60  # WRONG_UNIT: im Einsatz sein is a phrase
+- 31205f06abe9  # WRONG_GAPS: unit token eine is missing from the brackets
+- 386d8b857d47  # BAD_SENTENCE: ungrammatical 'über das wachsen lassen', should be 'darüber'
+- 395e096def87  # WRONG_UNIT: phrase Wert legen auf needs its own unit
+- 3bf7b87d3255  # WRONG_UNIT: Idiom 'nicht rund laufen'
+- 3c6e23dda47a  # BAD_GLOSS: "ins Auge gehen" means "to go wrong/backfire", not "eye-catching".
+- 3d0e7fe37fde  # WRONG_UNIT: used as predicative adjective, unit says adverb
+- 3e74533def92  # BAD_GLOSS: Gloss 'How many cars' is wrong for 'Das wievielte Auto' (which asks for position/order).
+- 3f3a4c4a68c4  # WRONG_UNIT: Phrase 'recht haben' vs unit 'das Recht'
+- 400a57996a85  # WRONG_UNIT: besessen is an adjective here, not the verb
+- 433a48b55ab8  # BAD_SENTENCE: Unnatural sentence with parents being 'heavy'
+- 482c0e5e4627  # BAD_GLOSS: literal translation of idiom 'wie der Ochs am Berge stehen'
+- 49933e8166db  # WRONG_UNIT: in den Wind schlagen is a phrase
+- 4ad187cdf7c3  # WRONG_UNIT: Collocation 'hoch anrechnen'
+- 4bb904d96475  # BAD_GLOSS: 'Das hat mir noch gefehlt!' is an idiom meaning 'That's all I needed!' (ironic). The literal gloss 
+- 4bd457c34575  # BAD_SENTENCE: missing context for 'Sie' translated as 'It'
+- 4d8f2e23fbe6  # BAD_GLOSS: beach is not typically used as an intransitive verb meaning to get stranded
+- 4e7f79be2008  # BAD_SENTENCE: 'Sofern ich weiß' is unnatural/wrong, should be 'Soviel ich weiß'
+- 4ec4cebade10  # BAD_GLOSS: literal translation of idiom 'zu tief ins Glas schauen'
+- 5175cb394997  # WRONG_UNIT: Sentence uses phrase 'für alle Fälle' but unit is only 'der Fall'
+- 52107db13a8b  # BAD_SENTENCE: Missing noun for die
+- 52afece49be9  # BAD_GLOSS: Literal gloss for 'Das darf nicht wahr sein!' which means 'That can't be true!'
+- 52e52a565d0f  # WRONG_UNIT: phrase Wert legen auf needs its own unit
+- 54420fe7b869  # BAD_SENTENCE: Nonsense sentence, mixing up proverb Hunger ist der beste Koch
+- 54e12a6bd8a7  # BAD_SENTENCE: archaic phrasing 'den Rauch des Feuers wegen'
+- 593830114cc2  # BAD_SENTENCE: Obsolete dative 'e' in 'Kopfe'
+- 598dfdfa554e  # WRONG_UNIT: beschäftigt is an adjective here, unit is verb
+- 5ac28dd2eba2  # BAD_SENTENCE: Anglicism 'zu wenig zu spät', direct translation of 'too little too late'
+- 5b3a85f16311  # BAD_SENTENCE: 'große Freundin' is unnatural to mean 'great friend'; it literally means 'tall female friend'.
+- 5d44c35f9ebb  # BAD_SENTENCE: Nonsense sentence
+- 5da472e20808  # BAD_SENTENCE: Abbreviation-heavy (FCA, NLZ), lacks context.
+- 60bd93ce3993  # WRONG_UNIT: "gehört" here is the past participle of "hören" (to hear), not "gehören".
+- 617976df06ef  # BAD_SENTENCE: unnatural phrasing 'wenn nicht nie', likely a calque
+- 6548414d757a  # WRONG_UNIT: idiom unter einer Decke stecken needs its own unit
+- 67a37a21a7de  # WRONG_UNIT: bracketed word is a separable prefix of the verb zufriedenstellen, not the adjective
+- 694671838841  # WRONG_UNIT: geboten comes from gebieten, not bieten
+- 6a332c2d5298  # WRONG_UNIT: Bracketed word is substantivized adjective 'Liebe', not noun 'die Liebe'
+- 6a75ce0699d7  # WRONG_UNIT: used as adverb, unit says adjective
+- 6b807c525cce  # WRONG_UNIT: sich uebers Ohr hauen lassen is a phrase
+- 6bc87d58ae5a  # WRONG_UNIT: durch die Finger rinnen is a phrase
+- 6c02f593c9d7  # WRONG_UNIT: 'fertig' is the separable prefix of the verb 'fertigmachen' here, not an independent adjective.
+- 6d8cb86af708  # WRONG_UNIT: keinen Finger ruehren is a phrase
+- 6e596ffb86c8  # BAD_SENTENCE: Typo: should be "beschlossene Sache" (singular), not "Sachen".
+- 6f4ad551b3af  # WRONG_UNIT: Sentence uses phrase 'Ansprüche stellen' but unit is only 'stellen'
+- 7066ad0bfd0a  # WRONG_UNIT: beschäftigt is an adjective here, unit is verb
+- 7323af5778b5  # BAD_SENTENCE: Obsolete spelling 'zufrieden zu stellen' instead of 'zufriedenzustellen'
+- 73403aae7451  # WRONG_UNIT: Phrase 'Platz nehmen'
+- 789dfe31002c  # WRONG_UNIT: Idiom 'den Hut ziehen'
+- 78af4adc97b1  # WRONG_UNIT: Steine in den Weg legen is a phrase
+- 7915da211fbc  # WRONG_UNIT: Verb is beten, not bitten
+- 79f0b9ccc8f7  # BAD_GLOSS: the sentence is an idiom meaning 'that is typical of him', gloss misleads with physical resemblance
+- 7a4e80bdbd8f  # BAD_SENTENCE: The sentence is garbled and makes little sense.
+- 7e0c10d2e562  # WRONG_UNIT: 'rund' is a separable prefix of the verb 'rundlaufen' here.
+- 80ad2b961697  # WRONG_UNIT: sentence uses 'danken für' without a dative object
+- 8466a078bf3b  # WRONG_UNIT: dran sein is a phrase
+- 84832b3e6773  # BAD_SENTENCE: Unnatural 'in vier Teilen angeordnet'
+- 84c116270371  # WRONG_UNIT: dran sein is a phrase
+- 84f67c8b5d3d  # WRONG_UNIT: beschäftigt is an adjective here, unit is verb
+- 8a5084992998  # BAD_SENTENCE: unnatural phrasing 'wenn nicht nie', likely a calque
+- 8aae14495160  # WRONG_UNIT: zur Rede stellen is a phrase
+- 8b0bb3b0747c  # BAD_SENTENCE: Missing comma before um-zu clause.
+- 8bd904498b8f  # BAD_GLOSS: literal translation of idiom 'Guter Wein lobt sich selbst'
+- 8c2a2e6a314a  # BAD_GLOSS: Gloss mistranslates the modal particle 'noch' as temporal 'still'.
+- 8d3bcc02113a  # WRONG_UNIT: in Form sein is a phrase
+- 900920c9b18f  # WRONG_UNIT: zum Geburtstag gratulieren is a phrase
+- 907dd67c2331  # BAD_GLOSS: 'Junge kriegen' means 'to have offspring', but the gloss translates it as 'gets young'.
+- 9319cd6f1e6a  # WRONG_UNIT: Sentence uses idiom 'nah am Wasser gebaut'
+- 938c7dca7548  # BAD_GLOSS: the sentence is an idiom meaning 'that is not like her', gloss misleads with physical resemblance
+- 94dae558dead  # BAD_SENTENCE: "Wir stehen davon" is meaningless (likely a typo for "davor").
+- 9505bd74e830  # BAD_SENTENCE: Junk phrase 'Dankbar sein bricht kein Bein', not a real German idiom.
+- 9562b827e449  # BAD_SENTENCE: Missing context for Die ist
+- 9be4805833cb  # BAD_SENTENCE: 'als ein Lehrer' is an unnatural literal translation from English; standard German is 'als Lehre
+- 9ffbe317fd53  # BAD_GLOSS: "gossip base" is a bad literal translation of "Klatschbase".
+- a340078674f0  # BAD_GLOSS: Gloss "You have a good beating" is a poor translation of "Dir gehört eine Tracht Prügel" (You deser
+- a3747ace53db  # WRONG_UNIT: 'kaum dass' is a subordinating conjunction, not just the adverb 'kaum'.
+- a3c2b222c6c6  # WRONG_UNIT: Phrase 'sich Sorgen machen'
+- a3e60349dc1f  # BAD_SENTENCE: Missing noun after von
+- a6d33bb57cbe  # BAD_GLOSS: Poor English translation of a German proverb, misleads about meaning.
+- a95a5959cdf6  # WRONG_UNIT: beschäftigt is an adjective here, unit is verb
+- aa3548ec3f41  # WRONG_UNIT: used as adverb, unit says adjective
+- ab598aa071ef  # BAD_SENTENCE: archaic proverb 'Es ist bös blasen mit vollem Munde'
+- ad87555e5bc9  # BAD_GLOSS: Poor English translation
+- b16b90494487  # WRONG_UNIT: Phrase 'zum Teil'
+- b2eb79728d84  # WRONG_UNIT: Sentence uses phrase 'in jedem Fall'
+- b49bc18f2c2f  # BAD_SENTENCE: "und zwar nun" is highly unnatural; usually it's "und zwar jetzt".
+- b5c8b7c28a2a  # WRONG_UNIT: The verb used is the separable verb 'reinkriegen', not just 'kriegen'.
+- b6762134ce98  # BAD_GLOSS: 'sich mausig machen' means 'to get cocky/cheeky', not 'to get sick'.
+- b67c1d4aa07e  # BAD_SENTENCE: unnatural German, one would say 'Ich waere froh' or 'Ich wuerde dir gerne helfen'
+- b6c9d5730598  # WRONG_UNIT: in Schwierigkeiten stecken is a phrase
+- b6ca5c2a1752  # WRONG_UNIT: idiom von Sinnen needs its own unit
+- b8184e63258f  # WRONG_UNIT: "gehört" here is the past participle of "hören" (to hear), not "gehören".
+- bb40e6434af1  # WRONG_UNIT: used as adverb, unit says adjective
+- be88fffec4e8  # BAD_GLOSS: 'mercury' does not convey the meaning of 'Quecksilber' (lively person).
+- beba2d348fa2  # BAD_GLOSS: 'hammel' is left untranslated and makes no sense in English.
+- c06aca08b222  # WRONG_UNIT: Bracketed word 'weise' is an adjective, but the unit is the noun 'die Weise'.
+- c1dbb39c5d65  # WRONG_UNIT: idiom in der Tinte stecken needs its own unit
+- c2f12b92c291  # WRONG_UNIT: The bracketed word 'antworten' is a verb, while the unit is the noun 'die Antwort'.
+- c6a45c65c758  # WRONG_UNIT: Idiom 'auf die Straße setzen'
+- d1fb0d57ce49  # BAD_SENTENCE: Denglish use of 'Klassen' for 'lessons', should be 'Stunden'
+- d4b8d38bf98f  # WRONG_GAPS: unit token eine is missing from the brackets
+- d4cfd854fb67  # WRONG_UNIT: idiom in seiner Haut stecken needs its own unit
+- d4da8b008e44  # WRONG_UNIT: phrase sich zur Wahl stellen needs its own unit
+- d5cff87c553f  # WRONG_UNIT: Rede is the imperative verb here, not the noun
+- da1f4e644d6d  # BAD_SENTENCE: fliegen in den Blumen sounds unnatural, maybe zwischen den Blumen
+- da2aee539b40  # BAD_SENTENCE: Missing word 'ist' -> 'es ist die Wahrheit'
+- db0d7a716116  # WRONG_UNIT: wie versprochen is a fixed phrase
+- dba021b6983e  # WRONG_UNIT: "gefallen" is the past participle of "gefallen" (to please), not "fallen" (to fall).
+- de63227c6c01  # WRONG_UNIT: zum Einsatz bringen is a phrase
+- dfcc4951b820  # WRONG_UNIT: in guter Erinnerung behalten is a phrase
+- e045de8fb893  # WRONG_UNIT: Sentence uses idiom 'zur Last fallen' but unit is only 'fallen'
+- e099d369e51a  # BAD_SENTENCE: Nonsense sentence
+- e14c5b37705e  # BAD_SENTENCE: double negative Mit nichts kann man kein Haus bauen is non-standard
+- e225f86f409b  # BAD_SENTENCE: "als ein Lehrer" is an unnatural anglicism; it should be "als Lehrer".
+- e4d56090a207  # WRONG_UNIT: idiom nah am Wasser gebaut needs its own unit
+- e80deafbbd79  # BAD_SENTENCE: Missing context, unnatural phrasing
+- e8fe1cb90993  # BAD_SENTENCE: Schwarz&Roten is a typo/bad spelling
+- ea26072d5b88  # BAD_GLOSS: literal translation of idiom 'nicht die Bohne'
+- ec61e771efa2  # BAD_GLOSS: the sentence is an idiom meaning 'that is not like him', gloss misleads with physical resemblance
+- ec6700314a95  # WRONG_UNIT: 'Sorge' is verb 'sorgen', not noun 'die Sorge'
+- ecd82ae361a3  # WRONG_UNIT: Idiom 'es steht schlecht um'
+- eceecb63f283  # WRONG_UNIT: Bracketed word is the nominalized adjective 'der Weise', but unit is the noun 'die Weise' (manner)
+- f05b910f2523  # WRONG_UNIT: nahe dran sein is a phrase
+- f2e38e204552  # WRONG_UNIT: Idiom 'allein auf weiter Flur'
+- f73ad476b2d9  # WRONG_UNIT: auf frischer Tat ertappen is a phrase
+- f789736d7fea  # WRONG_UNIT: Idiom 'fleischlos glücklich'
+- f846d837cb72  # BAD_SENTENCE: Calque/junk phrase 'Dankbar sein bricht kein Bein', not a real German idiom.
+- f93e2f864a8f  # BAD_SENTENCE: 'Ein Kranker ist gut schlagen' is grammatically incorrect and nonsensical.
+- fbdb09498212  # WRONG_UNIT: Bracketed verb is 'zufriedenstellen', not 'stellen'
+- fd06aa13178a  # WRONG_UNIT: phrase Steine in den Weg legen needs its own unit
+- fd5809277c1a  # BAD_SENTENCE: contains offensive phrasing 'einen Scheißdreck'
+- fdf784ea8d8e  # WRONG_UNIT: used as adverb, unit says adjective
+# Review round top1000c.
+- 00eefbeae695  # BAD_SENTENCE: durch das schockiert is bad German
+- 0d7c2de03868  # BAD_SENTENCE: pickt auf mein Bein is unnatural
+- 12dc6f7f6910  # WRONG_GAPS: eine is part of the unit but not bracketed
+- 217d8e1a96e1  # WRONG_UNIT: bracketed word is verb sorgen, not noun die Sorge
+- 47a7acc84995  # WRONG_UNIT: sentence has die richtige Entscheidung, not eine
+- 4a87236eb7cc  # WRONG_UNIT: sentence uses idiom über den Tisch ziehen, needs a phrase
+- 501fbef88002  # WRONG_UNIT: bracketed word is from hören, not gehören
+- 50c3b8749310  # WRONG_UNIT: sentence uses phrase Wind kriegen
+- 53a1e2865a55  # BAD_SENTENCE: voll beschäftigt wie eine Biene is an unnatural translation
+- 57a707c30b8e  # WRONG_UNIT: zufrieden is part of the verb zufriedenstellen here
+- 57d5d588d811  # WRONG_UNIT: sentence uses leichtfallen, not just fallen
+- 5b21901d9d19  # WRONG_UNIT: bracketed word is from beten, not bitten
+- 70a89beb5617  # WRONG_UNIT: bracketed word is from gefallen, not fallen
+- 802b7ffa5994  # WRONG_UNIT: zufrieden is part of the verb zufriedenstellen here
+- 96ce9a837b73  # WRONG_UNIT: bracketed word is from hören, not gehören
+- a04adc0f9d32  # WRONG_UNIT: sentence uses phrase Wert legen auf
+- bdbd326d9f69  # WRONG_UNIT: bracketed word is verb sorgen, not noun die Sorge
+- d2dd80d9622c  # WRONG_UNIT: bereit is an adjective, not an adverb
+- e0718f786cd4  # BAD_SENTENCE: obsolete dative e in gap Berge
+- fc16ac6e2b2d  # WRONG_UNIT: bracketed word is from hören, not gehören
+# Review round top1000d.
+- 06f326eec80a  # WRONG_UNIT: sentence uses phrase gehören zu
+- 260f369c65b5  # WRONG_UNIT: sentence uses phrase sich Sorgen machen
+- 3072268b8a14  # WRONG_UNIT: sentence uses idiom auf den Beinen sein
+- 4dfd6a7989d6  # BAD_SENTENCE: offensive sentence
+- 53f92acc2c18  # WRONG_GAPS: article eine is part of the unit but not bracketed
+- 650f7f223b49  # WRONG_UNIT: sentence uses phrase ein Gesicht ziehen
+- 8084014eafb6  # WRONG_GAPS: article eine is part of the unit but not bracketed
+- 878ff97fb714  # WRONG_UNIT: sentence uses schwerfallen
+- 9765516960ae  # WRONG_UNIT: sentence uses phrase beschäftigt sein mit
+- a97763792f8e  # WRONG_UNIT: bereit is an adjective, display says adverb
+- edf701074c34  # WRONG_UNIT: sentence uses phrase Wert legen auf
