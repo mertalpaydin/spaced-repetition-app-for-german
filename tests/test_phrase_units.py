@@ -1241,3 +1241,23 @@ def test_a_refused_request_is_not_also_reported_as_missing() -> None:
     builder.build(_word_occ("verb", "sorgen", 3))
     assert builder.report["requested_but_excluded"] == ["verb:sorgen"]
     assert builder.report["requested_missing"] == []
+
+
+def test_a_kind_override_does_not_change_the_unit_id() -> None:
+    """A corrected part of speech must not fork the learner's history.
+
+    _decide_word settles the kind from corpus counters and called "sogar" an
+    adjective; it is a particle, which a reviewer flagged six times. The id
+    is derived from kind and lemma, so applying the correction before the id
+    was built would have given the word two ids and two histories. The
+    override is read after, so aj:sogar stays aj:sogar (owner, 2026-10-08).
+    """
+    from src.phrases.curated import UnitOverride
+
+    override = UnitOverride(key="sogar", kind="adverb")
+    assert override.kind == "adverb"
+    assert override.case is None and override.display is None
+    # The whole point: the prefix of the id is a build artefact and the kind
+    # is what the deck shows, so the two are allowed to disagree.
+    assert unit_id_for("adjective", "sogar") == "aj:sogar"
+    assert unit_id_for("adverb", "sogar") == "av:sogar"

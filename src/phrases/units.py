@@ -1833,7 +1833,14 @@ class UnitBuilder:
             units.append(
                 PhraseUnit(
                     unit_id=unit_id,
-                    kind=kind,  # type: ignore[arg-type]
+                    # The override is read AFTER unit_id is derived, on
+                    # purpose: a corrected kind must not change the id, or
+                    # the learner's history for that word forks in two. So
+                    # "sogar" keeps the id aj:sogar while being taught as the
+                    # adverb it is. The id's prefix is a build artefact; the
+                    # kind is what the deck and the reviewer see (owner's
+                    # question of 2026-10-08).
+                    kind=(override.kind if override and override.kind else kind),  # type: ignore[arg-type]
                     lemma_key=s.key,
                     parts=list(s.best_parts),
                     display_de=(override.display if override and override.display else None)

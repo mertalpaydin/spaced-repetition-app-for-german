@@ -306,6 +306,25 @@ COGNATE_LEMMAS: frozenset[str] = frozenset(
         "test",
         "ticket",
         "tunnel",
+        # Added 2026-10-08 after the rank 500 to 1000 band: every one of the
+        # thirteen glosses the echo check refused there was a true cognate.
+        # Checked for meaning and not spelling. German "Rest" is a remainder
+        # and English "rest" carries that sense; German "Bank" is also a
+        # bench, but "bank" is still a correct gloss. "Gift" is deliberately
+        # absent, because it means poison.
+        "bus",
+        "situation",
+        "bank",
+        "party",
+        "arm",
+        "patient",
+        "finger",
+        "wind",
+        "form",
+        "winter",
+        "student",
+        "park",
+        "rest",
     }
 )
 

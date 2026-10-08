@@ -704,6 +704,7 @@
 {"unit_id":"aj:interessant","display_de":"interessant","glosses":["interesting"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
 {"unit_id":"aj:interessiert","display_de":"interessiert","glosses":["interested"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:intern","display_de":"intern","glosses":["internal","internally"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"aj:international","display_de":"international","glosses":["international"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"aj:intim","display_de":"intim","glosses":["intimate"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:intuitiv","display_de":"intuitiv","glosses":["intuitive"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:irgendein","display_de":"irgendein","glosses":["any","some","some kind of"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -872,6 +873,7 @@
 {"unit_id":"aj:monatlich","display_de":"monatlich","glosses":["monthly"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:moralisch","display_de":"moralisch","glosses":["moral","ethical"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:motiviert","display_de":"motiviert","glosses":["motivated"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"aj:muede","display_de":"müde","glosses":["tired","weary","sleepy"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"aj:muehsam","display_de":"mühsam","glosses":["laborious","arduous","strenuous"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:muendlich","display_de":"mündlich","glosses":["oral","verbal"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:muesst","display_de":"müsst","glosses":["must","have to"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -906,6 +908,7 @@
 {"unit_id":"aj:noerdlich","display_de":"nördlich","glosses":["northern","north"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:noetig","display_de":"nötig","glosses":["necessary","needed"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
 {"unit_id":"aj:nordoestlich","display_de":"nordöstlich","glosses":["northeastern","northeast"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"aj:normal","display_de":"normal","glosses":["normal","regular","standard"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"aj:norwegisch","display_de":"norwegisch","glosses":["Norwegian"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:nostalgisch","display_de":"nostalgisch","glosses":["nostalgic"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:notwendig","display_de":"notwendig","glosses":["necessary","essential"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
@@ -1221,6 +1224,7 @@
 {"unit_id":"aj:unangenehm","display_de":"unangenehm","glosses":["unpleasant","uncomfortable","awkward"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:unauffaellig","display_de":"unauffällig","glosses":["inconspicuous","unobtrusive"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:unausweichlich","display_de":"unausweichlich","glosses":["unavoidable","inevitable"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"aj:unbedingt","display_de":"unbedingt","glosses":["absolute","definite","unconditional"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"aj:unbefriedigend","display_de":"unbefriedigend","glosses":["unsatisfactory","unsatisfying"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:unbegrenzt","display_de":"unbegrenzt","glosses":["unlimited","boundless"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:unbegruendet","display_de":"unbegründet","glosses":["unfounded","groundless"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -1416,6 +1420,7 @@
 {"unit_id":"aj:wachsam","display_de":"wachsam","glosses":["vigilant","watchful","alert"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:wahnsinnig","display_de":"wahnsinnig","glosses":["crazy","insane","mad"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:wahr","display_de":"wahr","glosses":["true","real"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
+{"unit_id":"aj:wahrscheinlich","display_de":"wahrscheinlich","glosses":["likely","probable"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.349834Z"}
 {"unit_id":"aj:wasserdicht","display_de":"wasserdicht","glosses":["waterproof","watertight"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:weiblich","display_de":"weiblich","glosses":["female","feminine"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:weich","display_de":"weich","glosses":["soft"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -1425,6 +1430,7 @@
 {"unit_id":"aj:weitgehend","display_de":"weitgehend","glosses":["largely","extensive","broad"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:weltberuehmt","display_de":"weltberühmt","glosses":["world-famous"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:weltweit","display_de":"weltweit","glosses":["worldwide","global"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"aj:wert","display_de":"wert","glosses":["worth","worthy"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"aj:wertlos","display_de":"wertlos","glosses":["worthless","valueless"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:wertvoll","display_de":"wertvoll","glosses":["valuable","precious"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:wesentlich","display_de":"wesentlich","glosses":["essential","fundamental","substantial"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -3605,18 +3611,23 @@
 {"unit_id":"cn:dagegen","display_de":"dagegen","glosses":["against it","on the other hand"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"cn:im_gegensatz_zu","display_de":"im gegensatz zu","glosses":["unlike","contrary to","in contrast to"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:25:47.487095Z"}
 {"unit_id":"ex:alles_in_ordnung","display_de":"alles in Ordnung","glosses":["all right","everything is fine","everything is in order"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
+{"unit_id":"ex:damen_und_herren","display_de":"Damen und Herren","glosses":["ladies and gentlemen"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"ex:den_ganzen_tag","display_de":"den ganzen Tag","glosses":["all day","all day long","the whole day"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:die_ganze_nacht","display_de":"die ganze Nacht","glosses":["all night","all night long","the whole night"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
+{"unit_id":"ex:ehrlich_gesagt","display_de":"ehrlich gesagt","glosses":["frankly","honestly"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"ex:erinnerst_du_dich","display_de":"erinnerst du dich","glosses":["do you remember","do you recall"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:ganz_schoen","display_de":"ganz schön","glosses":["quite","pretty","really"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:gestern_abend","display_de":"gestern Abend","glosses":["last night","yesterday evening"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
+{"unit_id":"ex:gute_idee","display_de":"gute Idee","glosses":["good idea"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"ex:heute_abend","display_de":"heute Abend","glosses":["tonight","this evening"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
+{"unit_id":"ex:jede_menge","display_de":"jede Menge","glosses":["lots of","a lot of","plenty of"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"ex:jeden_tag","display_de":"jeden Tag","glosses":["every day"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:letzte_nacht","display_de":"letzte Nacht","glosses":["last night"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:letzte_woche","display_de":"letzte Woche","glosses":["last week"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:letztes_jahr","display_de":"letztes Jahr","glosses":["last year"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:morgen_frueh","display_de":"morgen früh","glosses":["tomorrow morning"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:naechste_woche","display_de":"nächste Woche","glosses":["next week"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
+{"unit_id":"ex:nichts_anderes","display_de":"nichts anderes","glosses":["nothing else"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"ex:tut_mir_leid","display_de":"tut mir leid","glosses":["sorry","i'm sorry","i am sorry"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:vielen_dank","display_de":"Vielen Dank","glosses":["thank you","many thanks","thanks a lot"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:zum_ersten_mal","display_de":"zum ersten Mal","glosses":["for the first time"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
@@ -5224,6 +5235,7 @@
 {"unit_id":"nn:architektur","display_de":"die Architektur","glosses":["architecture"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:archiv","display_de":"das Archiv","glosses":["archive","records"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:areal","display_de":"das Areal","glosses":["area","premises"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:arm","display_de":"der Arm","glosses":["arm"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.930852Z"}
 {"unit_id":"nn:armband","display_de":"das Armband","glosses":["bracelet","wristband"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:armbanduhr","display_de":"die Armbanduhr","glosses":["wristwatch","watch"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:arme","display_de":"die Arme","glosses":["poor person","the poor"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -5436,6 +5448,7 @@
 {"unit_id":"nn:banane","display_de":"die Banane","glosses":["banana"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:bandbreite","display_de":"die Bandbreite","glosses":["bandwidth","range","spectrum"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:bande","display_de":"die Bande","glosses":["gang","rink board","cushion"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:bank","display_de":"die Bank","glosses":["bank"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.930852Z"}
 {"unit_id":"nn:bankkonto","display_de":"das Bankkonto","glosses":["bank account"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:bann","display_de":"der Bann","glosses":["spell","ban"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:bargeld","display_de":"das Bargeld","glosses":["cash"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -5781,6 +5794,7 @@
 {"unit_id":"nn:bundesstaat","display_de":"der Bundesstaat","glosses":["federal state","state"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:burg","display_de":"die Burg","glosses":["castle","fortress"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:bursche","display_de":"der Bursche","glosses":["fellow","lad","guy"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:bus","display_de":"der Bus","glosses":["bus"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.930852Z"}
 {"unit_id":"nn:busch","display_de":"der Busch","glosses":["bush","shrub"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:busfahrer","display_de":"der Busfahrer","glosses":["bus driver"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:bushaltestelle","display_de":"die Bushaltestelle","glosses":["bus stop"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -5803,6 +5817,7 @@
 {"unit_id":"nn:christentum","display_de":"das Christentum","glosses":["Christianity"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:chronik","display_de":"die Chronik","glosses":["chronicle","record"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:city","display_de":"die City","glosses":["city center","downtown"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:computer","display_de":"der Computer","glosses":["computer"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"nn:controller","display_de":"die Controller","glosses":["controllers"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:cousine","display_de":"die Cousine","glosses":["cousin","female cousin"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:dach","display_de":"das Dach","glosses":["roof"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
@@ -6361,6 +6376,7 @@
 {"unit_id":"nn:finanzkrise","display_de":"die Finanzkrise","glosses":["financial crisis"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:finanzminister","display_de":"der Finanzminister","glosses":["finance minister","minister of finance"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:finanzministerium","display_de":"das Finanzministerium","glosses":["Ministry of Finance","treasury"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:finger","display_de":"der Finger","glosses":["finger"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.930852Z"}
 {"unit_id":"nn:fingerabdruecke","display_de":"die Fingerabdrücke","glosses":["fingerprints"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:fingernaegel","display_de":"das Fingernägel","glosses":["fingernails"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:finsternis","display_de":"die Finsternis","glosses":["darkness","gloom"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -6410,6 +6426,7 @@
 {"unit_id":"nn:folter","display_de":"die Folter","glosses":["torture"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:fonds","display_de":"der Fonds","glosses":["fund","funds"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:forderung","display_de":"die Forderung","glosses":["demand","claim"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:form","display_de":"die Form","glosses":["form","shape"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.930852Z"}
 {"unit_id":"nn:formalitaet","display_de":"die Formalität","glosses":["formality"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:formel","display_de":"die Formel","glosses":["formula"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:formular","display_de":"das Formular","glosses":["form"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -6969,6 +6986,7 @@
 {"unit_id":"nn:hort","display_de":"der Hort","glosses":["after-school care center","haven","stronghold"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:hose","display_de":"die Hose","glosses":["pants","trousers"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:hospiz","display_de":"das Hospiz","glosses":["hospice"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:hotel","display_de":"das Hotel","glosses":["hotel"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"nn:hotelzimmer","display_de":"das Hotelzimmer","glosses":["hotel room"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:hubschrauber","display_de":"der Hubschrauber","glosses":["helicopter"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:huefte","display_de":"die Hüfte","glosses":["hip"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -8028,6 +8046,7 @@
 {"unit_id":"nn:parallele","display_de":"die Parallele","glosses":["parallel"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:parasit","display_de":"die Parasit","glosses":["parasite"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:parfum","display_de":"die Parfum","glosses":["perfume","fragrance"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:park","display_de":"der Park","glosses":["park"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.931852Z"}
 {"unit_id":"nn:parken","display_de":"das Parken","glosses":["parking"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:parkett","display_de":"das Parkett","glosses":["parquet","dance floor","trading floor"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:parkhaus","display_de":"das Parkhaus","glosses":["parking garage","multi-storey car park"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -8039,6 +8058,7 @@
 {"unit_id":"nn:partikel","display_de":"die Partikel","glosses":["particle"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:partnerin","display_de":"die Partnerin","glosses":["partner","female partner"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:partnerschaft","display_de":"die Partnerschaft","glosses":["partnership"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:party","display_de":"die Party","glosses":["party"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.930852Z"}
 {"unit_id":"nn:passagier","display_de":"der Passagier","glosses":["passenger"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:passen","display_de":"das Passen","glosses":["passing","fitting"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:passend","display_de":"der Passend","glosses":["suitable","fitting"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -8048,6 +8068,7 @@
 {"unit_id":"nn:passwort","display_de":"der Passwort","glosses":["password"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:pate","display_de":"die Pate","glosses":["godparent","godfather","sponsor"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:pater","display_de":"der Pater","glosses":["Father","priest"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:patient","display_de":"der Patient","glosses":["patient"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.930852Z"}
 {"unit_id":"nn:patientin","display_de":"die Patientin","glosses":["female patient","patient"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:patron","display_de":"die Patron","glosses":["cartridge","bullet"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:pavillon","display_de":"der Pavillon","glosses":["pavilion","gazebo"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -8362,6 +8383,7 @@
 {"unit_id":"nn:respektvoll","display_de":"der Respektvoll","glosses":["respectful person"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:ressort","display_de":"das Ressort","glosses":["department","portfolio","area of responsibility"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:ressource","display_de":"die Ressource","glosses":["resource"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:rest","display_de":"der Rest","glosses":["rest","remainder"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.931852Z"}
 {"unit_id":"nn:resultat","display_de":"das Resultat","glosses":["result","outcome"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:retter","display_de":"der Retter","glosses":["rescuer","savior"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:rettung","display_de":"die Rettung","glosses":["rescue","salvation"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -8739,6 +8761,7 @@
 {"unit_id":"nn:sinn","display_de":"der Sinn","glosses":["sense","meaning"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
 {"unit_id":"nn:sirene","display_de":"die Sirene","glosses":["siren"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:sitte","display_de":"die Sitte","glosses":["custom","tradition"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:situation","display_de":"die Situation","glosses":["situation"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.930852Z"}
 {"unit_id":"nn:sitz","display_de":"der Sitz","glosses":["seat","headquarters"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:sitzen","display_de":"das Sitzen","glosses":["sitting"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:sitzplaetze","display_de":"die Sitzplätze","glosses":["seats"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -8980,6 +9003,7 @@
 {"unit_id":"nn:stromnetz","display_de":"das Stromnetz","glosses":["power grid","electricity network"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:stromversorgung","display_de":"die Stromversorgung","glosses":["power supply","electricity supply"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:struktur","display_de":"die Struktur","glosses":["structure"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:student","display_de":"der Student","glosses":["student"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.931852Z"}
 {"unit_id":"nn:studentin","display_de":"die Studentin","glosses":["female student","student"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:studie","display_de":"die Studie","glosses":["study"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:studieren","display_de":"das Studieren","glosses":["studying"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -9772,9 +9796,11 @@
 {"unit_id":"nn:wille","display_de":"der Wille","glosses":["will","willpower"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:willen","display_de":"der Willen","glosses":["will","sake"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:willkommen","display_de":"das Willkommen","glosses":["welcome"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:wind","display_de":"der Wind","glosses":["wind"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.930852Z"}
 {"unit_id":"nn:windel","display_de":"die Windel","glosses":["diaper","nappy"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:windschutzscheibe","display_de":"die Windschutzscheibe","glosses":["windshield","windscreen"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:winkel","display_de":"der Winkel","glosses":["angle","corner"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:winter","display_de":"der Winter","glosses":["winter"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.930852Z"}
 {"unit_id":"nn:winterschlaf","display_de":"der Winterschlaf","glosses":["hibernation"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:wirbel","display_de":"der Wirbel","glosses":["stir","commotion","vertebra"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:wirbelsaeule","display_de":"die Wirbelsäule","glosses":["spine","backbone"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}

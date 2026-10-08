@@ -4,11 +4,21 @@
 # after the unit decision; the key is the miner's lowercase lemma key.
 # after the unit decision; the key is the miner's lowercase lemma key.
 # after the unit decision; the key is the miner's lowercase lemma key.
+# after the unit decision; the key is the miner's lowercase lemma key.
 # Added 2026-10-07, by hand and deliberately NOT via the reviewer. The model
 # keeps glossing these two with the German word, because the spelling carries
 # into English and the meaning does not: "das Land" is a country, not land,
 # and "der Fall" is a case, not a fall. The echo check rightly refuses that,
 # so the English is given here instead of asked for again.
+# Added 2026-10-08. _decide_word settles the kind from corpus counters and
+# called "sogar" an adjective; it is a particle, which the reviewer flagged
+# six times. The override is applied after unit_id is derived, so the id
+# stays aj:sogar and the learner's history for the word carries over.
+# Added 2026-10-08. Same cause as "sogar" above: _decide_word called it an
+# adjective and the reviewer flagged every one of its six cards as "damals is
+# an adverb, not an adjective". Both are words the owner asked for, so
+# dropping the cards was not an option; the kind is corrected instead, after
+# unit_id is derived, so the id and the history are untouched.
 - {key: "abbogen", display: "abbiegen"}
 - {key: "abdriften in", case: "Akk"}
 - {key: "abend essen", display: "zu Abend essen"}
@@ -188,6 +198,7 @@
 - {key: "chronisch schmerz", cefr: "B2"}
 - {key: "comeback feiern", cefr: "B2"}
 - {key: "daherkommen", cefr: "B2"}
+- {key: "damals", kind: "adverb"}
 - {key: "danebengehen", cefr: "B2"}
 - {key: "danken", case: "Dat"}
 - {key: "darum kümmern", display: "sich darum kümmern"}
@@ -874,6 +885,7 @@
 - {key: "sich ausgaben als", display: "sich ausgeben als"}
 - {key: "sich ausrechnen", case: "Dat"}
 - {key: "sich aussprechen", cefr: "B2"}
+- {key: "sich aussuchen", case: "Akk"}
 - {key: "sich austragen aus", cefr: "B1"}
 - {key: "sich bahnen", cefr: "B2"}
 - {key: "sich bahnten", display: "sich einen Weg bahnen"}
@@ -981,6 +993,7 @@
 - {key: "sieg holen", cefr: "B2"}
 - {key: "sinkend schiff", display: "sinkendes Schiff"}
 - {key: "sitzenbleiben auf", case: "Dat"}
+- {key: "sogar", kind: "adverb"}
 - {key: "sorge machen", display: "sich Sorgen machen"}
 - {key: "sortieren nach", cefr: "A2"}
 - {key: "sozial medium", display: "soziale Medien"}

@@ -5472,3 +5472,37 @@
 - 6b8737eaa399  # BAD_SENTENCE: NÖN is an obscure regional abbreviation lacking context
 # Review round top500f.
 - 6a342e142b5e  # WRONG_UNIT: Sentence uses the phrase 'gehören zu', but the unit only names 'gehören'.
+# Review round top1000a.
+- 0814458843be  # WRONG_UNIT: The meaning here (to exhaust/ruin) requires the separable verb 'fertigmachen', not the phrase 'fer
+- 089b648ed997  # BAD_GLOSS: 'einen Schritt zulegen' means 'to speed up', not 'to take a step forward'.
+- 0a5301433e89  # BAD_GLOSS: gloss is missing 'who' and misleads about the gaps
+- 12ee6e58cfa7  # WRONG_UNIT: sentence uses phrase nach oben
+- 1f112e0d74b7  # WRONG_UNIT: Used in the phrase 'leiden mögen/können' (to like), not the plain verb 'leiden' (to suffer).
+- 23fc0c25a997  # WRONG_GAPS: eine is missing from the brackets and sentence is plural
+- 248bdcf1d878  # BAD_SENTENCE: Unnatural literal translation of a foreign proverb.
+- 35f04597bff2  # BAD_SENTENCE: grammar error es unterscheidet sich voneinander
+- 451abd2c727c  # BAD_SENTENCE: Fragment (dependent clause without a main clause).
+- 46e8b333b60a  # WRONG_UNIT: Uses 'Auto' as a specific definite object, not the general activity 'Auto fahren'.
+- 58b0fb081c3d  # WRONG_UNIT: Uses 'Auto' modified by 'sein eigenes', not the fixed phrase 'Auto fahren'.
+- 634fa558125b  # WRONG_UNIT: 'auf' is a directional preposition here ('to the moon'), not the prepositional object of 'schießen
+- 679e9b6232d5  # WRONG_UNIT: sentence uses idiom ein Auge werfen auf
+- 67e55b81ef98  # WRONG_UNIT: Sentence requires directional 'irgendwohin', split here into 'irgendwo ... hin'.
+- 6976ff18a548  # BAD_SENTENCE: typo: grün should be capitalized Grün
+- 8506a3eaaae0  # BAD_SENTENCE: Offensive/vulgar content ('Schwanz abschneiden').
+- 94e7fab59b6a  # BAD_GLOSS: Literal translation of the idiom 'mit jemandem Pferde stehlen können', translating 'ihm' as 'it'.
+- 97640bd84136  # BAD_SENTENCE: typo: Schlag-Anfall should be Schlaganfall
+- 9898bb8ae430  # BAD_GLOSS: nonsense literal translation of medical phrase oben herum frei machen
+- 989a3c24b5dd  # WRONG_UNIT: sentence uses idiom etwas auszusetzen haben an
+- bed135c3b148  # BAD_SENTENCE: The sentence "Ich schlage ihm den Schädel ein" is violent and may be offensive or unsuitable for
+- bf11c70e06b5  # BAD_SENTENCE: Missing article ('Ein Aufstand entsteht...'), sounds unnatural without it.
+- c43211411caa  # BAD_GLOSS: Literal translation of the idiom 'die Radieschen von unten ansehen' (pushing up daisies).
+- c6eab3b8c0cb  # WRONG_UNIT: sentence uses phrase von oben bis unten
+- c92c37f415e8  # WRONG_UNIT: Sentence requires directional 'irgendwohin', split here into 'irgendwo ... hin'.
+- d372c8b6e236  # WRONG_GAPS: eine is missing from the brackets
+- d7f387d2801e  # WRONG_GAPS: eine is missing from the brackets
+- d85467e0f223  # BAD_SENTENCE: Unnatural sentence structure, likely a literal translation of "What are you doing, lighting a ma
+- d91bb446b814  # WRONG_UNIT: sentence uses phrase nach oben
+- e38126662db0  # BAD_SENTENCE: "Mindestens" is incorrectly used here for "at least"; the context requires "Wenigstens" or "Zumi
+- e3ec8273cbf9  # WRONG_UNIT: Sentence requires directional 'irgendwohin', split here into 'irgendwo ... hin'.
+- e48578312698  # WRONG_UNIT: Sentence requires directional 'irgendwohin', split here into 'irgendwo ... hin'.
+- fd4eb89a6384  # WRONG_UNIT: sentence uses idiom in Tränen ausbrechen

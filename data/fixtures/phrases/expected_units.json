@@ -337,7 +337,7 @@
  },
  {
   "unit_id": "aj:damals",
-  "kind": "adjective",
+  "kind": "adverb",
   "rank": 43,
   "sentence_count": 1,
   "case": null,
@@ -377,7 +377,7 @@
  },
  {
   "unit_id": "aj:sogar",
-  "kind": "adjective",
+  "kind": "adverb",
   "rank": 48,
   "sentence_count": 1,
   "case": null,

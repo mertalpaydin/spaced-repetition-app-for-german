@@ -142,6 +142,13 @@ class UnitOverride(BaseModel):
     display: str | None = None
     cefr: CEFR | None = None
     gloss_en: str | None = None
+    #: A corrected part of speech. ``_decide_word`` settles the kind from
+    #: corpus counters and gets it wrong for a few words: "sogar" came out
+    #: an adjective and is a particle, which a reviewer flagged six times.
+    #: Applied after ``unit_id`` is derived, so correcting the kind does not
+    #: change the id and does not fork the learner's history for that word
+    #: (owner's question of 2026-10-08).
+    kind: PhraseKind | None = None
 
     @model_validator(mode="before")
     @classmethod
