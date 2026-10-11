@@ -143,6 +143,17 @@ PARITY_CASES: list[tuple[str, list[str]]] = [
     ("Strasse", ["Straße"]),
     ("", ["auf"]),
     ("  wartet ", ["wartet"]),
+    # Adjacent transpositions, added 2026-10-11 after "Gefarh" for "Gefahr"
+    # was marked wrong. Plain Levenshtein scores a swap 2, so the
+    # distance-1 rule rejected the commonest typing slip there is, and the
+    # swap here falls inside the suffix window that the distance rule may
+    # not cross. The guards that must survive it follow: "sei"/"sie" is a
+    # swap between two real words, and both are closed-class.
+    ("Gefarh", ["Gefahr"]),
+    ("Gefhar", ["Gefahr"]),
+    ("sei", ["sie"]),
+    ("Hadn", ["Hand"]),
+    ("starken", ["starker"]),
 ]
 
 

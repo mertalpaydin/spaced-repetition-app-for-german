@@ -54,7 +54,11 @@ button.small { font: inherit; font-size: 0.85rem; padding: 0.2rem 0.6rem; border
 .sentence { font-size: 1.35rem; line-height: 1.8; margin: 0.4rem 0; }
 .muted { color: var(--muted); }
 .hint, .empty { color: var(--muted); }
-input.gap { font: inherit; font-size: 1.2rem; width: 7.5em; max-width: 45vw; padding: 0.15rem 0.4rem; border: 2px solid var(--accent); border-radius: 6px; background: var(--gap); color: var(--ink); margin: 0 0.15em; }
+/* width comes from the `size` attribute, which app.js grows with what the
+   learner types: a fixed 7.5em cut off long answers such as
+   "beeindruckender". max-width keeps a long one inside the card on a phone,
+   where it scrolls within the box rather than past the edge. */
+input.gap { font: inherit; font-size: 1.2rem; width: auto; min-width: 5em; max-width: 100%; padding: 0.15rem 0.4rem; border: 2px solid var(--accent); border-radius: 6px; background: var(--gap); color: var(--ink); margin: 0 0.15em; box-sizing: border-box; }
 input.gap.ok { border-color: var(--ok); background: var(--ok-bg); }
 input.gap.typo { border-color: var(--warn); background: var(--warn-bg); }
 input.gap.bad { border-color: var(--bad); background: var(--bad-bg); }

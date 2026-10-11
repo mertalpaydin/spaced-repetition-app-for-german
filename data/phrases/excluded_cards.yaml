@@ -5750,3 +5750,5 @@
 - c30ed7ed86f5  # WRONG_UNIT: Sentence needs phrase 'zur Kenntnis nehmen' instead of plain noun.
 - e4fae7cdebf1  # WRONG_UNIT: Unit specifies adjective but 'bloß' is used as a modal particle.
 - f1165e1e9d91  # WRONG_UNIT: Unit specifies adverb but 'bereit' is used as a predicative adjective.
+# Reported by the owner from a screenshot, 2026-10-11.
+- 14029fdd6d82  # WRONG_UNIT: "aus einer Hand" is an idiom and its English, "from a single source", contains no word for Hand; the owner answered "Quelle".

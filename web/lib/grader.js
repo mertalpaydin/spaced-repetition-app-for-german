@@ -20,6 +20,21 @@ function levenshtein(s1, s2) {
   return prev[prev.length - 1];
 }
 
+// Do a and b differ only by swapping one pair of adjacent characters? The
+// commonest typing slip there is, and plain Levenshtein scores it 2, so the
+// distance-1 rule rejected it: "Gefarh" for "Gefahr" was marked wrong on
+// 2026-10-11. It is also the one edit the suffix window must not veto, since
+// a swap cannot turn one valid German ending into another. Mirrors
+// ScopedTypoGrader._is_adjacent_transposition.
+function isAdjacentTransposition(a, b) {
+  if (a.length !== b.length || a.length < 4 || a === b) return false;
+  const differing = [];
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) differing.push(i);
+  if (differing.length !== 2) return false;
+  const [i, j] = differing;
+  return j === i + 1 && a[i] === b[j] && a[j] === b[i];
+}
+
 function commonPrefixLen(a, b) {
   let n = 0;
   while (n < a.length && n < b.length && a[n] === b[n]) n++;
@@ -75,7 +90,7 @@ export function gradeText(userInput, acceptedAnswers) {
         const it = inTokens[i], at = ansTokens[i];
         if (it === at) continue;
         if (GRAMMATICAL_MORPHEMES.has(it.toLowerCase()) || GRAMMATICAL_MORPHEMES.has(at.toLowerCase())) { morphemeError = true; break; }
-        if (levenshtein(it, at) === 1 && at.length > 3) { hasTypo = true; } else { allMatch = false; }
+        if (isAdjacentTransposition(it, at) || (levenshtein(it, at) === 1 && at.length > 3)) { hasTypo = true; } else { allMatch = false; }
       }
       if (!morphemeError && hasTypo && allMatch) return result({ is_correct: true, is_scoped_typo: true });
       continue;
@@ -83,8 +98,9 @@ export function gradeText(userInput, acceptedAnswers) {
     const li = input.toLowerCase(), la = ans.toLowerCase();
     if (isMinimalPair(li, la)) continue;
     if (GRAMMATICAL_MORPHEMES.has(la) || GRAMMATICAL_MORPHEMES.has(li)) continue;
-    if (levenshtein(input, ans) !== 1) continue;
-    if (!editOutsideSuffix(input, ans)) continue;
+    const transposed = isAdjacentTransposition(input, ans);
+    if (!transposed && levenshtein(input, ans) !== 1) continue;
+    if (!transposed && !editOutsideSuffix(input, ans)) continue;
     return result({ is_correct: true, is_scoped_typo: true });
   }
   return result({});

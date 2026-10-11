@@ -48,9 +48,9 @@
   "accepted": [
    "wartet"
   ],
-  "is_correct": false,
+  "is_correct": true,
   "is_exact": false,
-  "is_scoped_typo": false,
+  "is_scoped_typo": true,
   "is_transliteration": false,
   "is_capitalization_error": false
  },
@@ -258,9 +258,9 @@
   "accepted": [
    "aufgestanden"
   ],
-  "is_correct": false,
+  "is_correct": true,
   "is_exact": false,
-  "is_scoped_typo": false,
+  "is_scoped_typo": true,
   "is_transliteration": false,
   "is_capitalization_error": false
  },
@@ -315,6 +315,61 @@
   ],
   "is_correct": true,
   "is_exact": true,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "Gefarh",
+  "accepted": [
+   "Gefahr"
+  ],
+  "is_correct": true,
+  "is_exact": false,
+  "is_scoped_typo": true,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "Gefhar",
+  "accepted": [
+   "Gefahr"
+  ],
+  "is_correct": true,
+  "is_exact": false,
+  "is_scoped_typo": true,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "sei",
+  "accepted": [
+   "sie"
+  ],
+  "is_correct": false,
+  "is_exact": false,
+  "is_scoped_typo": false,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "Hadn",
+  "accepted": [
+   "Hand"
+  ],
+  "is_correct": true,
+  "is_exact": false,
+  "is_scoped_typo": true,
+  "is_transliteration": false,
+  "is_capitalization_error": false
+ },
+ {
+  "typed": "starken",
+  "accepted": [
+   "starker"
+  ],
+  "is_correct": false,
+  "is_exact": false,
   "is_scoped_typo": false,
   "is_transliteration": false,
   "is_capitalization_error": false

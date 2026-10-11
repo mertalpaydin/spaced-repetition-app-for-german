@@ -184,6 +184,14 @@ function renderSentence(card) {
     input.autocomplete = "off";
     input.spellcheck = false;
     input.enterKeyHint = i === card.gaps.length - 1 ? "done" : "next";
+    // The box grows with what the LEARNER has typed, never with the answer:
+    // sizing it to the answer would print the word's length on the card,
+    // which rule 3 forbids as surely as printing the word. Every gap
+    // therefore starts the same width whatever it hides, and only widens
+    // once the typing needs the room ("beeindruckender" did not fit at the
+    // old fixed 7.5em; owner, 2026-10-11).
+    fitGap(input);
+    input.addEventListener("input", () => fitGap(input));
     input.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
         ev.preventDefault();
@@ -195,6 +203,15 @@ function renderSentence(card) {
     last = g.end;
   });
   el.append(card.sentence_de.slice(last));
+}
+
+//: Characters a gap is wide before anything is typed. Every gap on the card
+//: is this wide, so the width says nothing about the answer.
+const GAP_MIN_CHARS = 9;
+
+function fitGap(input, text = null) {
+  const content = text === null ? input.value : text;
+  input.size = Math.max(GAP_MIN_CHARS, content.length + 1);
 }
 
 function showPanel(which) {
@@ -290,6 +307,7 @@ async function check(reveal = false) {
   result.gaps.forEach((g, i) => {
     const inp = inputs[i];
     inp.value = g.expected;
+    fitGap(inp);
     inp.readOnly = true;
     inp.classList.add(g.accepted ? (g.outcome === "typo" ? "typo" : "ok") : "bad");
   });

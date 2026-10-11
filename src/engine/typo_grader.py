@@ -189,6 +189,27 @@ class ScopedTypoGrader:
         return previous_row[-1]
 
     @staticmethod
+    def _is_adjacent_transposition(a: str, b: str) -> bool:
+        """Do a and b differ only by swapping one pair of adjacent characters?
+
+        The commonest typing slip there is, and plain Levenshtein scores it 2,
+        so the distance-1 rule rejected it: the owner typed "Gefarh" for
+        "Gefahr" on 2026-10-11 and was marked wrong. It is also the one edit
+        that the suffix window must NOT veto. That window exists because an
+        edit in the last two characters may be a real inflection ("starken"
+        for "starker"), but a swap cannot turn one valid German ending into
+        another: "Gefarh" is not a word at all. The closed-class and
+        minimal-pair guards still run first, so "sie" for "sei" is untouched.
+        """
+        if len(a) != len(b) or len(a) < 4 or a == b:
+            return False
+        differing = [i for i, (ca, cb) in enumerate(zip(a, b, strict=True)) if ca != cb]
+        if len(differing) != 2:
+            return False
+        i, j = differing
+        return j == i + 1 and a[i] == b[j] and a[j] == b[i]
+
+    @staticmethod
     def _common_prefix_len(a: str, b: str) -> int:
         """Return the length of the longest common prefix of a and b."""
         n = 0
@@ -361,7 +382,9 @@ class ScopedTypoGrader:
                         # Morpheme tokens must be exact
                         has_morpheme_error = True
                         break
-                    elif cls._levenshtein_distance(in_tok, ans_tok) == 1 and len(ans_tok) > 3:
+                    elif cls._is_adjacent_transposition(in_tok, ans_tok) or (
+                        cls._levenshtein_distance(in_tok, ans_tok) == 1 and len(ans_tok) > 3
+                    ):
                         has_typo = True
                         token_matches.append(True)
                     else:
@@ -391,16 +414,17 @@ class ScopedTypoGrader:
                 # Closed-class grammatical morphemes cannot have typos
                 continue
 
-            dist = cls._levenshtein_distance(clean_input, ans)
-            if dist != 1:
+            transposed = cls._is_adjacent_transposition(clean_input, ans)
+            if not transposed and cls._levenshtein_distance(clean_input, ans) != 1:
                 continue
 
             # Single-token answer: the whole token is the candidate morpheme.
             # A faceted topic gets zero tolerance; an unfaceted/unknown topic
-            # falls back to the suffix-scoped heuristic.
+            # falls back to the suffix-scoped heuristic. A transposition skips
+            # the suffix window for the reason given on the predicate.
             if cls._is_faceted_topic(topic_id, morph_spec_lookup):
                 continue
-            if not cls._edit_outside_suffix(clean_input, ans):
+            if not transposed and not cls._edit_outside_suffix(clean_input, ans):
                 continue
 
             return TypoGradeResult(

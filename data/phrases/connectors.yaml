@@ -8,11 +8,20 @@
 #   trivial                    known from week one; never a card by default
 #   first / second             the two parts of a two_part_connector
 #
+# The four contrast adverbs form two pairs, and the glosses are kept DISJOINT
+# on purpose (owner, 2026-10-11: "I do not understand jedoch and dennoch, I
+# always mixed them up"). "jedoch" and "allerdings" mark a contrast and accept
+# each other; "dennoch" and "trotzdem" mark a concession and accept each
+# other; but no card accepts across the two pairs, so the only thing telling
+# the learner which pair is wanted is the English. Both pairs used to list
+# "yet", the one word that does not distinguish them, which made a card such
+# as "and yet I know them" unanswerable by anything but luck.
+#
 # Adverbial connectors (position 0 or after the verb).
 - {key: trotzdem, kind: connector, forms: [trotzdem], pos: [ADV], cefr: B1, gloss_en: nevertheless / all the same / anyway, needs_context_when_initial: true, also_accepted: [dennoch]}
-- {key: dennoch, kind: connector, forms: [dennoch], pos: [ADV], cefr: B2, gloss_en: nonetheless / still / yet, needs_context_when_initial: true, also_accepted: [trotzdem]}
+- {key: dennoch, kind: connector, forms: [dennoch], pos: [ADV], cefr: B2, gloss_en: nonetheless / even so (despite that), needs_context_when_initial: true, also_accepted: [trotzdem]}
 - {key: allerdings, kind: connector, forms: [allerdings], pos: [ADV], cefr: B1, gloss_en: however / though / admittedly, needs_context_when_initial: true, also_accepted: [jedoch]}
-- {key: jedoch, kind: connector, forms: [jedoch], pos: [ADV, CCONJ], cefr: B1, gloss_en: however / but / yet, needs_context_when_initial: true, also_accepted: [allerdings]}
+- {key: jedoch, kind: connector, forms: [jedoch], pos: [ADV, CCONJ], cefr: B1, gloss_en: however / but (in contrast), needs_context_when_initial: true, also_accepted: [allerdings]}
 - {key: deshalb, kind: connector, forms: [deshalb], pos: [ADV], cefr: A2, gloss_en: therefore / that is why / so, needs_context_when_initial: true, also_accepted: [deswegen, daher, darum]}
 - {key: deswegen, kind: connector, forms: [deswegen], pos: [ADV], cefr: B1, gloss_en: that is why / because of that, needs_context_when_initial: true, also_accepted: [deshalb, daher, darum]}
 - {key: daher, kind: connector, forms: [daher], pos: [ADV], cefr: B1, gloss_en: hence / therefore / that is why, needs_context_when_initial: true, also_accepted: [deshalb, deswegen, darum]}
