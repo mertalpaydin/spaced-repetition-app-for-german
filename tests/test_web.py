@@ -88,6 +88,34 @@ def test_every_log_entry_type_survives_the_pages_parser() -> None:
     assert listed == declared, f"log.js {sorted(listed)} vs LogEntry {sorted(declared)}"
 
 
+def test_the_page_assigns_only_to_names_it_declares() -> None:
+    """Catch a rename that missed a use site.
+
+    app.js is an ES module, so it is strict, so assigning to an undeclared
+    name is a ReferenceError at RUN time, not a syntax error: `node --check`
+    passes and the page dies on load. On 2026-10-21 `pushedCount` was renamed
+    to `pushedKeys` and one assignment in boot() was missed, which took the
+    app down with "Deck konnte nicht geladen werden: pushedCount is not
+    defined" on every device. Nothing in the suite looked at app.js at all,
+    because the node tests cover lib/ and the page needs a DOM.
+
+    This reads the module's own declarations and flags a plain `name = ...`
+    statement whose name is never declared. It is deliberately narrow: only
+    indented single-identifier assignments, which is the shape the bug had.
+    """
+    text = (WEB / "app.js").read_text(encoding="utf-8")
+    declared = set(re.findall(r"\b(?:let|const|var|function|class)\s+([A-Za-z_$][\w$]*)", text))
+    for block in re.findall(r"import\s+\{([^}]*)\}", text):
+        declared.update(name.strip().split(" as ")[-1] for name in block.split(","))
+    declared.update(re.findall(r"\bcatch\s*\(\s*([A-Za-z_$][\w$]*)", text))
+    declared.update(re.findall(r"\bfor\s*\(\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)", text))
+    # Assignment statements at the start of a line, excluding property,
+    # comparison, arrow and default-argument forms.
+    assigned = set(re.findall(r"^[ \t]+([A-Za-z_$][\w$]*)\s*=(?!=|>)", text, re.M))
+    undeclared = {name for name in assigned - declared if not hasattr(__builtins__, name)}
+    assert not undeclared, f"app.js assigns to undeclared name(s): {sorted(undeclared)}"
+
+
 def test_service_worker_precaches_every_shell_file() -> None:
     sw = (WEB / "sw.js").read_text(encoding="utf-8")
     listed = set(re.findall(r'"\./([^"]+)"', sw.split("let deckCache")[0]))

@@ -809,9 +809,9 @@ async function boot() {
     [baseDeck, entries] = await Promise.all([loadDeck("./data/deck"), readLog()]);
     deck = baseDeck;
     // Assume what is already on disk reached the gist; the boot sync below
-    // corrects this within a second either way. Starting at zero would
-    // greet the learner with "1158 ungesichert" on every load.
-    pushedCount = entries.length;
+    // corrects this within a second either way. Starting empty would greet
+    // the learner with "1158 ungesichert" on every load.
+    pushedKeys = new Set(entries.map(entryKey));
   } catch (err) {
     $("deck-info").textContent = `Deck konnte nicht geladen werden: ${err.message}`;
     return;
