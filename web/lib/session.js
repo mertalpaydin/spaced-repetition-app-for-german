@@ -14,6 +14,10 @@ export const DEFAULT_SETTINGS = { cardsPerDay: 40, newPerDay: null, learnAheadMi
   relearnSpacing: 8, maxAsksPerSession: 3, sessionGapMinutes: 60, requestedPerDay: 5,
   requestedDelay: 10, extraCards: 10 };
 
+// How far down the introduction order one "Später" pushes a unit. Matches
+// POSTPONE_STEP in src/contracts.py.
+export const POSTPONE_STEP = 50;
+
 // Stability bands for the Einheiten screen, in days. Matches
 // STABILITY_BANDS in src/engine/session.py.
 export const STABILITY_BANDS = [["fresh", 7], ["young", 21], ["mature", 90], ["solid", Infinity]];
@@ -117,13 +121,17 @@ export function eligiblePendingUnits(deck, state, engine, settings, now, ignoreS
 // src/engine/session.py; both suites pin the two against each other.
 export function introductionOrder(deck, state = null) {
   const added = new Map((state?.requested || []).map((id, i) => [id, i]));
+  const postponed = state?.postponed || {};
+  // Each press of "Später" costs a unit POSTPONE_STEP places. Matches
+  // introduction_order in src/engine/session.py.
+  const push = (u) => POSTPONE_STEP * (postponed[u.unit_id] || 0);
   return [...deck.units].sort((a, b) => {
     const aa = added.has(a.unit_id) ? added.get(a.unit_id) : Infinity;
     const ba = added.has(b.unit_id) ? added.get(b.unit_id) : Infinity;
     if (aa !== ba) return aa - ba;
-    const ao = a.requested_order ?? Infinity;
-    const bo = b.requested_order ?? Infinity;
-    return ao - bo || a.rank - b.rank;
+    const ao = a.requested_order === null || a.requested_order === undefined ? Infinity : a.requested_order + push(a);
+    const bo = b.requested_order === null || b.requested_order === undefined ? Infinity : b.requested_order + push(b);
+    return ao - bo || (a.rank + push(a)) - (b.rank + push(b));
   });
 }
 

@@ -34,7 +34,13 @@ export function mergeEntries(...logs) {
 // were lost: "request" went into the log in a329dbd and never came here
 // (found 2026-10-06). Adding an entry type means adding it here, in the
 // same commit, with a test that round-trips one through this function.
-const KNOWN_TYPES = new Set(["review", "mark", "reset", "request"]);
+// EVERY type the log can carry must be listed here. parseJsonl drops what it
+// does not recognise, and sync() then writes the filtered log back to the
+// gist, so a type missing from this set is deleted from the learner's history
+// on the next sync. That is exactly how the words added before 2026-10-06
+// were lost ("request" was not in the set). Matches LogEntry in
+// src/contracts.py; add to both.
+const KNOWN_TYPES = new Set(["review", "mark", "reset", "request", "issue"]);
 
 export function parseJsonl(text) {
   const out = [];
@@ -55,7 +61,7 @@ export function toJsonl(entries) {
 
 function freshState() {
   return {
-    records: {}, known: new Set(), knownSource: {}, triaged: new Set(), lastCard: {}, ratings: {},
+    records: {}, known: new Set(), knownSource: {}, triaged: new Set(), postponed: {}, lastCard: {}, ratings: {},
     firstReview: {}, reviewTimes: [], budgetReviewTimes: [], retriesPending: {}, lastUnit: null,
     // Words the learner added from the page, oldest first, and the units and
     // cards that exist only here because no exported shard holds them.
@@ -101,8 +107,14 @@ export function deriveState(entries, engine) {
       if (e.cards && e.cards.length) state.addedCards[e.unit_id] = e.cards;
       continue;
     }
+    // A report about a card, not a fact about the learner: carried by the
+    // log so it reaches the laptop, replayed into nothing.
+    if (e.type === "issue") continue;
     if (e.type === "mark") {
       state.triaged.add(e.unit_id);
+      // "Später" moves a unit down the introduction order, it does not skip
+      // it. Matches derive_state in src/engine/review_log.py.
+      if (e.source === "postpone") state.postponed[e.unit_id] = (state.postponed[e.unit_id] || 0) + 1;
       if (e.known) { state.known.add(e.unit_id); state.knownSource[e.unit_id] = e.source; }
       else { state.known.delete(e.unit_id); delete state.knownSource[e.unit_id]; }
       continue;
@@ -147,6 +159,13 @@ export function makeReset(entries, note, now) {
 
 export function makeMark(entries, unitId, known, source, now) {
   return { type: "mark", seq: nextSeq(entries), ts: new Date(now).toISOString(), unit_id: unitId, known, source };
+}
+
+export function makeIssue(entries, { unitId, cardId, note = "", deckVersion = "" }, now) {
+  return {
+    type: "issue", seq: nextSeq(entries), ts: new Date(now).toISOString(),
+    unit_id: unitId, card_id: cardId, note, deck_version: deckVersion,
+  };
 }
 
 export function makeRequest(entries, { unitId, origin, unit = null, cards = [] }, now) {

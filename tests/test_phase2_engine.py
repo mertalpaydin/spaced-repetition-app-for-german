@@ -8,6 +8,7 @@ from src.cli.train import Client
 from src.contracts import (
     DeckManifest,
     GapSpan,
+    IssueEntry,
     MarkEntry,
     PhraseCard,
     PhraseUnit,
@@ -804,6 +805,56 @@ def test_a_requested_unit_is_introduced_before_any_mined_one() -> None:
         _card("a20000000000", "sv:aufstehen", "Er steht früh auf.", ["steht", "auf"])
     ]
     assert next_unit(deck, state, engine, Settings(), T0).unit_id == "sv:aufstehen"
+
+
+def test_postpone_moves_a_unit_down_the_order_and_never_skips_it() -> None:
+    """ "Später" costs POSTPONE_STEP places per press and nothing else.
+
+    Until 2026-10-20 it wrote known=True, which dropped the unit for good:
+    the same effect as "Kannte ich schon" under a label promising the
+    opposite (owner: "what does the 'später' button do?"). The twin in
+    tests/js/session.test.mjs pins the same answer.
+    """
+    deck = _deck()
+    engine = FSRSEngine()
+    first = introduction_order(deck)[0]
+
+    state = derive_state(
+        [MarkEntry(seq=1, ts=T0, unit_id=first.unit_id, known=False, source="postpone")], engine
+    )
+    assert state.postponed == {first.unit_id: 1}
+    # it is NOT skipped: a postponed unit is still learnable, still counted
+    assert first.unit_id not in state.known
+    moved = [u.unit_id for u in introduction_order(deck, state)]
+    assert moved[0] != first.unit_id
+    # and it sorts by rank + 50, so against a four-unit fixture it goes last
+    assert moved[-1] == first.unit_id
+
+    # pressing it twice costs a hundred places, not fifty
+    twice = derive_state(
+        [
+            MarkEntry(seq=1, ts=T0, unit_id=first.unit_id, known=False, source="postpone"),
+            MarkEntry(seq=2, ts=T0, unit_id=first.unit_id, known=False, source="postpone"),
+        ],
+        engine,
+    )
+    assert twice.postponed == {first.unit_id: 2}
+
+
+def test_an_issue_entry_replays_into_nothing() -> None:
+    """A report about a card is not a fact about the learner.
+
+    It rides the log so it reaches the laptop, and derive_state must ignore
+    it rather than treat it as a review or crash on it.
+    """
+    engine = FSRSEngine()
+    issue = IssueEntry(
+        seq=1, ts=T0, unit_id="vp:warten_auf", card_id="a10000000000", note="gap is wrong"
+    )
+    state = derive_state([issue], engine)
+    assert state.records == {} and not state.known and not state.triaged
+    # and it survives a round trip through the log's own adapter
+    assert IssueEntry.model_validate_json(issue.model_dump_json()) == issue
 
 
 # ==============================================================================

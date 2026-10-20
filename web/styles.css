@@ -72,6 +72,9 @@ input.gap.bad { border-color: var(--bad); background: var(--bad-bg); }
 .feedback.hard { background: var(--warn-bg); }
 .feedback.again { background: var(--bad-bg); }
 .feedback .unit { font-weight: 600; margin-top: 0.4rem; }
+.feedback .rank { margin-top: 0.25rem; font-size: 0.85rem; }
+.issue { margin-top: 0.6rem; }
+.issue textarea { width: 100%; font: inherit; font-size: 0.95rem; padding: 0.4rem 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--gap); color: var(--ink); box-sizing: border-box; }
 .feedback mark { background: var(--warn-bg); color: inherit; padding: 0 0.15em; border-radius: 3px; }
 table { border-collapse: collapse; width: 100%; }
 td { padding: 0.25rem 0.4rem; vertical-align: top; }

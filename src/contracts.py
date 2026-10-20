@@ -420,9 +420,18 @@ class ReviewEntry(BaseModel):
 class MarkEntry(BaseModel):
     """The learner marked a unit known (``known=True``, skipped by the
     scheduler) or unmarked it. ``source`` says where: the one-time triage, or
-    the "Kannte ich schon" button in practice, or "Später" (``defer``), which
-    parks a unit the learner finds too hard for now; ``known=False`` from any
-    source brings it back."""
+    the "Kannte ich schon" button in practice; ``known=False`` from any source
+    brings a unit back.
+
+    ``postpone`` is the odd one out, and it always carries ``known=False``: it
+    does not skip the unit, it pushes it ``POSTPONE_STEP`` places down the
+    introduction order and leaves it there. It is what "Später" should always
+    have meant. Until 2026-10-20 that button wrote ``source="defer"`` with
+    ``known=True``, which marked the unit known and dropped it for good,
+    exactly like "Kannte ich schon" but under a label promising the opposite
+    (owner: "what does the 'später' button do?"). ``defer`` is still read, so
+    the old lines in the log keep replaying as they always did.
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -431,7 +440,31 @@ class MarkEntry(BaseModel):
     ts: datetime
     unit_id: str
     known: bool
-    source: Literal["triage", "practice", "defer"]
+    source: Literal["triage", "practice", "defer", "postpone"]
+
+
+class IssueEntry(BaseModel):
+    """The learner pressed "Problem melden" on a card.
+
+    It rides the review log for the same reason a request does: the log is
+    the one thing that already syncs off the phone, so a report written on
+    the sofa reaches the laptop without the learner having to screenshot the
+    card and describe it later (owner, 2026-10-20). It changes no state;
+    ``derive_state`` skips it. ``scripts/read_issues.py`` prints these
+    against the deck.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: Literal["issue"] = "issue"
+    seq: int = Field(ge=1)
+    ts: datetime
+    unit_id: str
+    card_id: str
+    #: Free text from the learner. Empty is fine: the card alone is often
+    #: enough to see what is wrong with it.
+    note: str = ""
+    deck_version: str = ""
 
 
 class ResetEntry(BaseModel):
@@ -491,4 +524,10 @@ class RequestEntry(BaseModel):
     cards: list[PhraseCard] = Field(default_factory=list)
 
 
-LogEntry = ReviewEntry | MarkEntry | ResetEntry | RequestEntry
+LogEntry = ReviewEntry | MarkEntry | ResetEntry | RequestEntry | IssueEntry
+
+#: How far down the introduction order one "Später" pushes a unit. Fifty is
+#: the owner's number (2026-10-20): far enough that the unit is out of the
+#: way for a week or so at ten new units a day, near enough that it is not a
+#: disguised deletion, which is what the button used to do.
+POSTPONE_STEP = 50

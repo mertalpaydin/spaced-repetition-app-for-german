@@ -18,6 +18,7 @@ from pathlib import Path
 from pydantic import TypeAdapter, ValidationError
 
 from src.contracts import (
+    IssueEntry,
     LogEntry,
     MarkEntry,
     PhraseCard,
@@ -183,6 +184,10 @@ class LearnerState:
     known_source: dict[str, str] = field(default_factory=dict)
     #: Units the learner has passed judgement on in triage, known or not.
     triaged: set[str] = field(default_factory=set)
+    #: How many times "Später" has pushed each unit down the introduction
+    #: order. Each press costs it ``POSTPONE_STEP`` places, so pressing twice
+    #: moves it a hundred; it is never skipped, only moved.
+    postponed: dict[str, int] = field(default_factory=dict)
     #: The card shown last per unit, so the next review rotates.
     last_card: dict[str, str] = field(default_factory=dict)
     #: Ratings per unit in log order, for the stats.
@@ -242,8 +247,15 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
             if entry.cards:
                 state.added_cards[entry.unit_id] = list(entry.cards)
             continue
+        if isinstance(entry, IssueEntry):
+            # A report about a card, not a fact about the learner: it is
+            # carried by the log so it reaches the laptop, and changes
+            # nothing that is replayed.
+            continue
         if isinstance(entry, MarkEntry):
             state.triaged.add(entry.unit_id)
+            if entry.source == "postpone":
+                state.postponed[entry.unit_id] = state.postponed.get(entry.unit_id, 0) + 1
             if entry.known:
                 state.known.add(entry.unit_id)
                 state.known_source[entry.unit_id] = entry.source

@@ -458,6 +458,36 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **The review log gained two entry types, 2026-10-20** (rule 9: additive,
+  defaulted, flagged here). `IssueEntry` carries a "Problem melden" report
+  from a card, and `MarkEntry.source` gained `"postpone"`. Old logs replay
+  unchanged, and `"defer"` is still read so the lines already written keep
+  their old meaning.
+
+  The test that should have existed since September exists now:
+  `KNOWN_TYPES` in `web/lib/log.js` must equal the `LogEntry` union.
+  `parseJsonl` drops a line whose type it does not know and `sync()` writes
+  the filtered log back to the gist, so a type added on one side only is
+  DELETED from the learner's history on the next sync. That is exactly how
+  the added words were lost before 2026-10-06, and nothing was guarding it.
+
+- **"Später" was a delete, found 2026-10-20** (owner: "what does the 'später'
+  button do?"). It wrote `known=True`, which marked the unit known and
+  dropped it for good, identical to "Kannte ich schon" apart from the label
+  in the log, under a word that promises the opposite. It now writes
+  `known=False, source="postpone"` and the unit sorts at `rank +
+  POSTPONE_STEP` per press, so it moves and is never skipped.
+
+- **The sync status could say "gesichert" while an answer had never been
+  pushed (found 2026-10-20).** `unpushed()` was `entries.length -
+  pushedCount`, and a count cancels out: with 100 local and 102 remote, one
+  answer given during the `await` leaves 101 local against a merge of 102, so
+  the arithmetic reads zero. Nothing was lost locally, but the entry sat
+  there until some later sync happened to run, and a tab closed first made
+  that the next session (owner: "logging to git is still a problem once in a
+  while"). It is a set of entry keys now, which cannot cancel, plus five
+  retries with backoff so one flaky request no longer strands the log.
+
 - **The dictionary is Swiss-spelled and the corpus is not (found
   2026-10-08).** This is the largest single defect found since the pivot. The
   word detector admits a lemma only if it is in the CEFR list or the

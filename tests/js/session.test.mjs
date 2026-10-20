@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 
 import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
-import { deriveState, entryKey, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
+import { deriveState, entryKey, makeIssue, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
 import { reserveLetter, withAdded } from "../../web/lib/deck.js";
 import { DEFAULT_SETTINGS, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueUnits, eligiblePendingUnits, introductionOrder, nextUnit, pickCard, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage } from "../../web/lib/session.js";
 
@@ -389,4 +389,37 @@ test("stability lands a unit in the right band", () => {
   assert.equal(stabilityBand(21), "mature");
   assert.equal(stabilityBand(89), "mature");
   assert.equal(stabilityBand(400), "solid");
+});
+
+test("postpone moves a unit down the order and never skips it", () => {
+  // Twin of test_postpone_moves_a_unit_down_the_order_and_never_skips_it in
+  // tests/test_phase2_engine.py. "Später" costs POSTPONE_STEP places per
+  // press; it used to write known=true and drop the unit for good.
+  const d = deck();
+  const engine = createEngine(DEFAULT_SETTINGS.retention);
+  const first = introductionOrder(d)[0].unit_id;
+  const mark = { type: "mark", seq: 1, ts: T0, unit_id: first, known: false, source: "postpone" };
+  const state = deriveState([mark], engine);
+
+  assert.deepEqual(state.postponed, { [first]: 1 });
+  assert.ok(!state.known.has(first), "a postponed unit is not known");
+  const moved = introductionOrder(d, state).map((u) => u.unit_id);
+  assert.notEqual(moved[0], first);
+  assert.equal(moved[moved.length - 1], first);
+
+  const twice = deriveState([mark, { ...mark, seq: 2 }], engine);
+  assert.deepEqual(twice.postponed, { [first]: 2 });
+});
+
+test("an issue entry survives the parser and replays into nothing", () => {
+  // The type must be in KNOWN_TYPES or sync() deletes it from the gist, the
+  // way the added words were lost before 2026-10-06.
+  const engine = createEngine(DEFAULT_SETTINGS.retention);
+  const issue = makeIssue([], { unitId: "vp:warten_auf", cardId: "w2", note: "gap is wrong", deckVersion: "t" }, T0);
+  const line = toJsonl([issue]);
+  assert.deepEqual(parseJsonl(line), [issue], "parseJsonl must not drop an issue");
+  const state = deriveState([issue], engine);
+  assert.deepEqual(state.records, {});
+  assert.equal(state.known.size, 0);
+  assert.equal(state.triaged.size, 0);
 });

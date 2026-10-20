@@ -77,6 +77,14 @@
 - {key: "angelegenheit untersuchen", cefr: "B2"}
 - {key: "angenehm duft", display: "angenehmer Duft"}
 - {key: "angestellter", display: "der Angestellte"}
+# Added 2026-10-20, owner's check. "sich anhören" was glossed "to sound",
+# which is a real meaning of the words but matches NONE of its six carriers:
+# every one of them is "sich (Dat) etwas anhören", to listen to something,
+# and the English of each says "listen". The "to sound" reading is the
+# accusative one with no object ("das hört sich komisch an"), and the deck
+# already teaches it properly under jv:komisch_anhoeren and its siblings. So
+# the gloss was not merely loose, it named the other construction.
+- {key: "sich anhören", gloss_en: "to listen to (something)"}
 - {key: "angst hatten", display: "Angst haben"}
 - {key: "anknüpfen an", case: "Dat"}
 - {key: "anlogen", display: "anlügen"}

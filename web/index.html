@@ -41,10 +41,21 @@
           <button id="btn-prev" title="letzte Antworten">◀</button>
           <button id="btn-check" class="primary">Prüfen</button>
           <button id="btn-reveal">Zeigen</button>
-          <button id="btn-defer" title="zu schwer für jetzt; unter Einheiten wieder aufnehmen">Später</button>
-          <button id="btn-known" hidden>Kannte ich schon</button>
+          <button id="btn-defer" title="50 Plätze nach hinten schieben; die Einheit bleibt im Deck" hidden>Später</button>
+          <button id="btn-known" title="nie wieder zeigen" hidden>Kannte ich schon</button>
           <button id="btn-next" class="primary" hidden>Weiter ▶</button>
         </div>
+        <div class="actions">
+          <button id="btn-issue" title="Problem mit dieser Übung melden" hidden>Problem melden</button>
+        </div>
+        <div id="issue-form" class="issue" hidden>
+          <textarea id="issue-note" rows="3" placeholder="Was stimmt nicht? (darf leer bleiben)"></textarea>
+          <div class="actions">
+            <button id="btn-issue-send" class="primary">Senden</button>
+            <button id="btn-issue-cancel">Abbrechen</button>
+          </div>
+        </div>
+        <p id="issue-sent" class="line hint" hidden>Problem gemeldet, danke.</p>
         <div class="umlauts">
           <button data-ch="ä">ä</button><button data-ch="ö">ö</button><button data-ch="ü">ü</button><button data-ch="ß">ß</button>
         </div>

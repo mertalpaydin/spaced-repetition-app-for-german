@@ -15,9 +15,10 @@ import shutil
 import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import get_args
 
 import pytest
-from src.contracts import MarkEntry, ReviewEntry
+from src.contracts import LogEntry, MarkEntry, ReviewEntry
 from src.engine.fsrs import FSRSEngine, FSRSRecord
 from src.engine.review_log import derive_state
 from src.engine.typo_grader import SUFFIX_TOLERANCE_WINDOW, ScopedTypoGrader
@@ -64,6 +65,27 @@ def test_only_the_two_allowed_modules_talk_to_the_network() -> None:
         text = path.read_text(encoding="utf-8")
         hosts = set(re.findall(r"https?://([\w.-]+)", text))
         assert hosts == NETWORK_MODULES.get(path.name, set()), (path, hosts)
+
+
+def test_every_log_entry_type_survives_the_pages_parser() -> None:
+    """``KNOWN_TYPES`` in log.js must list every member of ``LogEntry``.
+
+    ``parseJsonl`` drops a line whose type it does not recognise, and
+    ``sync()`` then writes the filtered log back to the gist, so a type
+    missing from that set is deleted from the learner's history on the next
+    sync. That is precisely how the words added before 2026-10-06 were lost:
+    "request" had been added to the Python union and not to the page's. This
+    test is the thing that was missing, so adding a type to one side without
+    the other now fails here rather than in the owner's log.
+    """
+    text = (WEB / "lib" / "log.js").read_text(encoding="utf-8")
+    match = re.search(r"KNOWN_TYPES = new Set\(\[(.*?)\]\)", text, re.S)
+    assert match is not None, "KNOWN_TYPES not found in log.js"
+    listed = set(re.findall(r'"([^"]+)"', match.group(1)))
+    declared = {
+        get_args(member.model_fields["type"].annotation)[0] for member in get_args(LogEntry)
+    }
+    assert listed == declared, f"log.js {sorted(listed)} vs LogEntry {sorted(declared)}"
 
 
 def test_service_worker_precaches_every_shell_file() -> None:

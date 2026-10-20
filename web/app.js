@@ -6,10 +6,10 @@
 import { loadDeck, loadReserveIndex, lookupReserve, withAdded } from "./lib/deck.js";
 import { createEngine } from "./lib/engine.js";
 import { gradeCard, renderMarked } from "./lib/grader.js";
-import { deriveState, entriesSinceReset, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
+import { deriveState, entriesSinceReset, entryKey, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
-  DEFAULT_SETTINGS, budgetSpentToday, computeStats, dueUnits, nextUnit, pickCard, reviewsToday, unitsByStage, untriagedUnits,
+  DEFAULT_SETTINGS, POSTPONE_STEP, budgetSpentToday, computeStats, dueUnits, nextUnit, pickCard, reviewsToday, unitsByStage, untriagedUnits,
 } from "./lib/session.js";
 import { appendEntries, kv, loadSettings, readLog, replaceLog, saveSettings } from "./lib/store.js";
 import { syncLog } from "./lib/sync.js";
@@ -98,9 +98,22 @@ function scheduleSync() {
 // the owner reloaded the page repeatedly to force a sync he could not see
 // the state of (2026-10-06). Nothing was ever lost locally; appendEntries
 // awaits the IndexedDB write before record() returns.
-let pushedCount = 0;
+// Which entries have reached the gist, BY KEY. It was a count until
+// 2026-10-20, and a count lies whenever the pull and the local log change in
+// the same breath: with 100 local entries and 102 remote, one answer given
+// during the await leaves 101 local and a merge of 102, so
+// `entries.length - pushedCount` is zero and the status line says "gesichert"
+// while the newest answer has never left the phone. It was not lost, but it
+// sat there until the next sync happened to run, and a tab closed first made
+// that the next session (owner: "logging to git is still a problem once in a
+// while"). A set cannot be fooled this way.
+let pushedKeys = new Set();
 
-function unpushed() { return Math.max(0, entries.length - pushedCount); }
+function unpushed() {
+  let n = 0;
+  for (const e of entries) if (!pushedKeys.has(entryKey(e))) n++;
+  return n;
+}
 
 // A tab going away is the last chance to push. visibilitychange fires on
 // mobile where pagehide and beforeunload do not, so both are wired; the
@@ -116,26 +129,43 @@ document.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("pagehide", flushBeforeUnload);
 
-async function sync() {
+//: Backoff before each retry of a failed sync, in ms. Five tries over about
+//: two minutes, then it waits for the next answer or the next visit.
+const SYNC_RETRY_DELAYS = [3000, 8000, 20000, 45000, 60000];
+
+async function sync(retries = 0) {
   if (!settings.token) { setSyncStatus("lokal", "off"); return; }
   if (syncing) { scheduleSync(); return; }
   syncing = true;
   setSyncStatus("sync…", "busy");
   try {
+    const before = entries;
     const r = await syncLog(settings, entries);
     if (settings.gistId) saveSettings(settings);
-    if (r.pulled > 0) { entries = r.merged; await replaceLog(entries); refresh(); }
+    if (r.pulled > 0) { entries = mergeEntries(r.merged, entries); await replaceLog(entries); refresh(); }
     // Everything that was in the merge is now in the gist, pushed by this
-    // call or already there.
-    pushedCount = r.merged.length;
+    // call or already there. Anything recorded WHILE it ran is not, and is
+    // deliberately absent from the set, so unpushed() still counts it and
+    // the retry below picks it up.
+    pushedKeys = new Set(r.merged.map(entryKey));
     const at = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-    setSyncStatus(`gesichert ${at}`, "ok");
+    if (entries !== before && unpushed()) { setSyncStatus(`${unpushed()} ungesichert`, "busy"); scheduleSync(); }
+    else setSyncStatus(`gesichert ${at}`, "ok");
     return r;
   } catch (err) {
     const pending = unpushed() ? ` (${unpushed()} ungesichert)` : "";
     setSyncStatus(
       (navigator.onLine ? `nicht gesichert: ${err.message}` : "offline, später") + pending, "bad",
     );
+    // One flaky request used to strand the log until the next answer
+    // happened to schedule another sync, and if the app was closed first
+    // that meant the next session. Back off and try again a few times
+    // instead; the merge is idempotent, so a retry can only help.
+    if (unpushed() && retries < SYNC_RETRY_DELAYS.length) {
+      const wait = SYNC_RETRY_DELAYS[retries];
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => sync(retries + 1).catch(() => {}), wait);
+    }
     throw err;
   } finally {
     syncing = false;
@@ -228,8 +258,10 @@ function loadCard() {
   // "Kannte ich schon" belongs after the answer, not before it: offered
   // beforehand it asks the learner to judge a unit they have not been shown
   // (owner, 2026-09-21).
-  $("btn-known").hidden = true;
-  ["btn-check", "btn-reveal", "btn-defer"].forEach((id) => { $(id).hidden = false; });
+  ["btn-known", "btn-defer", "btn-issue"].forEach((id) => { $(id).hidden = true; });
+  $("issue-form").hidden = true;
+  $("issue-sent").hidden = true;
+  ["btn-check", "btn-reveal"].forEach((id) => { $(id).hidden = false; });
   renderToday();
   const t = now();
   const target = settings.cardsPerDay + grantedExtra;
@@ -319,13 +351,22 @@ async function check(reveal = false) {
   const synonym = result.gaps.filter((g) => g.accepted && g.typed.toLowerCase() !== g.expected.toLowerCase()
     && g.outcome !== "typo").map((g) => `${g.typed} gilt auch; im Satz: ${g.expected}`).join(", ");
   const u = unitPayload(unit);
+  // The rank goes here and nowhere earlier: it is how common the phrase is,
+  // which before the answer would narrow down what the phrase can be
+  // (owner, 2026-10-20: "after the answer is revealed so that no hint").
+  const moved = (state.postponed || {})[unit.unit_id] || 0;
+  const rank = `Rang ${u.rank.toLocaleString("de-DE")}` +
+    (moved ? ` (+${moved * POSTPONE_STEP} aufgeschoben)` : "") +
+    (u.cefr ? ` · ${escapeHtml(u.cefr)}` : "");
   fb.innerHTML = `<div>${verdict}${wrong ? ": " + escapeHtml(wrong) : ""}${synonym ? " (" + escapeHtml(synonym) + ")" : ""}</div>` +
     `<div class="unit">${escapeHtml(u.display)}` +
-    (u.gloss ? ` <span class="muted">= ${escapeHtml(u.gloss)}</span>` : "") + `</div>`;
+    (u.gloss ? ` <span class="muted">= ${escapeHtml(u.gloss)}</span>` : "") + `</div>` +
+    `<div class="rank muted">${rank}</div>`;
   fb.hidden = false;
-  ["btn-check", "btn-reveal", "btn-defer"].forEach((id) => { $(id).hidden = true; });
-  $("btn-known").hidden = false;
-  $("btn-next").hidden = false;
+  ["btn-check", "btn-reveal"].forEach((id) => { $(id).hidden = true; });
+  // "Später" and "Kannte ich schon" both belong AFTER the answer: the
+  // learner cannot judge a unit they have not been shown.
+  ["btn-known", "btn-defer", "btn-next", "btn-issue"].forEach((id) => { $(id).hidden = false; });
   $("btn-next").focus();
   renderToday();
 }
@@ -336,10 +377,32 @@ async function markKnown() {
   loadCard();
 }
 
+// "Später" pushes the unit POSTPONE_STEP places down the introduction order
+// and nothing else. Until 2026-10-20 it wrote known=true, which dropped the
+// unit for good: the same thing as "Kannte ich schon", under a label that
+// promised the opposite.
 async function defer() {
   if (!current) return;
-  await record(makeMark(entries, current.unit.unit_id, true, "defer", now()));
+  await record(makeMark(entries, current.unit.unit_id, false, "postpone", now()));
   loadCard();
+}
+
+function openIssue() {
+  $("issue-form").hidden = false;
+  $("btn-issue").hidden = true;
+  $("issue-note").value = "";
+  $("issue-note").focus();
+}
+
+async function sendIssue() {
+  if (!current) return;
+  await record(makeIssue(entries, {
+    unitId: current.unit.unit_id, cardId: current.card.card_id,
+    note: $("issue-note").value.trim(), deckVersion: deck.manifest.deck_version,
+  }, now()));
+  $("issue-form").hidden = true;
+  $("issue-sent").hidden = false;
+  setTimeout(() => { $("issue-sent").hidden = true; }, 2500);
 }
 
 async function relearn(unitId) {
@@ -371,6 +434,12 @@ $("btn-check").addEventListener("click", () => check(false));
 $("btn-reveal").addEventListener("click", () => check(true));
 $("btn-known").addEventListener("click", markKnown);
 $("btn-defer").addEventListener("click", defer);
+$("btn-issue").addEventListener("click", openIssue);
+$("btn-issue-send").addEventListener("click", sendIssue);
+$("btn-issue-cancel").addEventListener("click", () => {
+  $("issue-form").hidden = true;
+  $("btn-issue").hidden = false;
+});
 $("btn-next").addEventListener("click", nextCard);
 $("btn-prev").addEventListener("click", showHistory);
 $("btn-prev-2").addEventListener("click", showHistory);

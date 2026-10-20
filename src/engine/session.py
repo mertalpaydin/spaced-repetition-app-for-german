@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from src.contracts import DeckManifest, PhraseCard, PhraseUnit
+from src.contracts import POSTPONE_STEP, DeckManifest, PhraseCard, PhraseUnit
 from src.engine.fsrs import FSRSEngine
 from src.engine.review_log import LearnerState
 from src.phrases.export import DEFAULT_DECK_DIR, load_deck
@@ -245,14 +245,15 @@ def introduction_order(deck: Deck, state: LearnerState | None = None) -> list[Ph
     against each other by tests in both suites.
     """
     added = {unit_id: position for position, unit_id in enumerate(state.requested)} if state else {}
+    postponed = state.postponed if state else {}
     return sorted(
         deck.units,
         key=lambda u: (
             u.unit_id not in added,
             added.get(u.unit_id, 0),
             u.requested_order is None,
-            u.requested_order or 0,
-            u.rank,
+            (u.requested_order or 0) + POSTPONE_STEP * postponed.get(u.unit_id, 0),
+            u.rank + POSTPONE_STEP * postponed.get(u.unit_id, 0),
         ),
     )
 
