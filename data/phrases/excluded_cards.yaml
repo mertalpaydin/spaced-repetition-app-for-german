@@ -5774,3 +5774,7 @@
 - 163b25ced237  # WRONG_UNIT: "begriffen" is part of the fixed idiom "in etwas begriffen sein", not a form of the verb "begreife
 - 9ad30c71e154  # WRONG_UNIT: "außer" is a preposition in the fixed phrase "außer Atem", not an adverb.
 - cf572211c39a  # BAD_SENTENCE: "zu einem Treffen herauf rufen" is an unnatural literal translation of "call up to a meeting" wi
+# Review round parse1021.
+- 2d02664e96c6  # WRONG_UNIT: Here 'außer' is a preposition governing the dative ('außer einem Glas Wasser'), not an adverb.
+- 979bd81e2b87  # BAD_SENTENCE: Archaic, unnatural sentence in which 'eben' is also left untranslated in the gloss.
+- cdaf1909c0fd  # BAD_GLOSS: The modal particle 'eben' is untranslated while 'not just' translates 'nicht nur', misleading about

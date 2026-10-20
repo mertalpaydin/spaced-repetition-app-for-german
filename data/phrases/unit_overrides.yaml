@@ -12,6 +12,7 @@
 # after the unit decision; the key is the miner's lowercase lemma key.
 # after the unit decision; the key is the miner's lowercase lemma key.
 # after the unit decision; the key is the miner's lowercase lemma key.
+# after the unit decision; the key is the miner's lowercase lemma key.
 # Added 2026-10-07, by hand and deliberately NOT via the reviewer. The model
 # keeps glossing these two with the German word, because the spelling carries
 # into English and the meaning does not: "das Land" is a country, not land,
@@ -98,7 +99,7 @@
 - {key: "anschauen", cefr: "A2"}
 - {key: "anschreiben", cefr: "B2"}
 - {key: "ansprache halten", cefr: "B2"}
-- {key: "anstatt", cefr: "B1"}
+- {key: "anstatt", cefr: "B1", kind: "adverb"}
 - {key: "anstoß geben", cefr: "B2"}
 - {key: "anteil verkaufen", cefr: "B1"}
 - {key: "antrag stellen", cefr: "B1"}
@@ -1062,7 +1063,7 @@
 - {key: "stark schneefall", display: "starker Schneefall"}
 - {key: "starkmachen", display: "sich starkmachen"}
 - {key: "statement abgeben", cefr: "B2"}
-- {key: "statt", cefr: "B1"}
+- {key: "statt", cefr: "B1", kind: "adverb"}
 - {key: "stattgeben", cefr: "B2"}
 - {key: "stecker ziehen", cefr: "B2"}
 - {key: "stehn auf", display: "stehen auf +Akk"}
