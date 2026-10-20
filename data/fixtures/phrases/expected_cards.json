@@ -270,6 +270,15 @@
   "form_key": "initial"
  },
  {
+  "card_id": "66bfbcd97b2c",
+  "unit_id": "aj:wohl",
+  "sentence_de": "Tom besitzt sehr wohl ein Superhirn.",
+  "answers": [
+   "wohl"
+  ],
+  "form_key": "adv"
+ },
+ {
   "card_id": "705becddf573",
   "unit_id": "id:nicht_einmal",
   "sentence_de": "Tom fing an zu schluchzen, als er den Prüfungsbogen vor sich sah und nicht einmal die Aufgaben verstand.",

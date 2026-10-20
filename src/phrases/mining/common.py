@@ -58,7 +58,12 @@ NON_UNIT_ADVERBS: frozenset[str] = frozenset(
         "mal",
         "man",
         "halt",
-        "eben",
+        # "eben" was here until 2026-10-20, when the owner asked for it by
+        # name. Rule 1: the stoplist is a heuristic for choosing what to
+        # teach when nobody has said, and it yields to a request. It is a
+        # modal particle in "das ist eben so", which is what the list was
+        # written to keep out, but it is also "gerade eben", just now, and
+        # the learner is the one who decides that it is worth a card.
         "etwa",
         "her",
         "hin",

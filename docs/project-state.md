@@ -587,12 +587,20 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
    two-sentence context cannot be mined, only generated.
 5. **The Windows scheduled task "LLA monthly translation" is still enabled.**
    It sends nothing until October's Azure allowance and runs the script on
-   this branch's code once the branch is checked out. It rewrites the whole
-   store file, so it can land in the middle of a build: on 2026-10-08 it wrote
-   the store ten minutes after the cards stage had read it, and six freshly
-   translated carriers were missing from the deck until cards ran again. If a
-   gloss you just stored is not on a card, compare the store's mtime with
-   `build/cards.jsonl` before looking anywhere else.
+   this branch's code once the branch is checked out.
+
+   An earlier version of this note blamed it for a "scheduling collision"
+   that never happened, and the correction is worth keeping because the
+   mistake is easy to repeat. On 2026-10-08 and again on 2026-10-11 the cards
+   stage looked as though it had silently done nothing: it printed its first
+   log line and `build/cards.jsonl` kept an old timestamp. The stage was fine.
+   The agent had piped it through PowerShell's `Select-Object -First`, which
+   stops reading as soon as it has its match and returns, so the shell moved
+   on, printed an elapsed time and checked the file WHILE python was still
+   running. Do not pipe a long build through `Select-Object -First`; run it
+   plainly and read the artifacts afterwards. `src/run_lock.py` is what
+   actually protects a build from a second one, and it works: the second
+   attempt exits 3 and names the pid holding the lock.
 6. **Do not weaken a test to make it pass.** The spend ceiling, the retry
    shapes and the Tatoeba trust decision are pinned by tests whose job is to
    make you ask the owner first.

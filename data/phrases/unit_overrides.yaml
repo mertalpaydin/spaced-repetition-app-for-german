@@ -10,6 +10,8 @@
 # after the unit decision; the key is the miner's lowercase lemma key.
 # after the unit decision; the key is the miner's lowercase lemma key.
 # after the unit decision; the key is the miner's lowercase lemma key.
+# after the unit decision; the key is the miner's lowercase lemma key.
+# after the unit decision; the key is the miner's lowercase lemma key.
 # Added 2026-10-07, by hand and deliberately NOT via the reviewer. The model
 # keeps glossing these two with the German word, because the spelling carries
 # into English and the meaning does not: "das Land" is a country, not land,
@@ -38,6 +40,13 @@
 # like attributive adjectives ("solche Buecher"), the deck has no determiner
 # kind, and "adjective" is therefore the least wrong label rather than a
 # mistake worth an override.
+# Added 2026-10-20, owner's check. "sich anhören" was glossed "to sound",
+# which is a real meaning of the words but matches NONE of its six carriers:
+# every one of them is "sich (Dat) etwas anhören", to listen to something,
+# and the English of each says "listen". The "to sound" reading is the
+# accusative one with no object ("das hört sich komisch an"), and the deck
+# already teaches it properly under jv:komisch_anhoeren and its siblings. So
+# the gloss was not merely loose, it named the other construction.
 - {key: "abbogen", display: "abbiegen"}
 - {key: "abdriften in", case: "Akk"}
 - {key: "abend essen", display: "zu Abend essen"}
@@ -69,6 +78,7 @@
 - {key: "amtierend präsident", display: "der amtierende Präsident"}
 - {key: "an seiden faden", cefr: "B2"}
 - {key: "anbinden an", case: "Akk"}
+- {key: "anders als", cefr: "A2"}
 - {key: "andocken an", case: "Akk"}
 - {key: "anerkennen als", cefr: "B2"}
 - {key: "anerkennen", cefr: "B2"}
@@ -77,14 +87,6 @@
 - {key: "angelegenheit untersuchen", cefr: "B2"}
 - {key: "angenehm duft", display: "angenehmer Duft"}
 - {key: "angestellter", display: "der Angestellte"}
-# Added 2026-10-20, owner's check. "sich anhören" was glossed "to sound",
-# which is a real meaning of the words but matches NONE of its six carriers:
-# every one of them is "sich (Dat) etwas anhören", to listen to something,
-# and the English of each says "listen". The "to sound" reading is the
-# accusative one with no object ("das hört sich komisch an"), and the deck
-# already teaches it properly under jv:komisch_anhoeren and its siblings. So
-# the gloss was not merely loose, it named the other construction.
-- {key: "sich anhören", gloss_en: "to listen to (something)"}
 - {key: "angst hatten", display: "Angst haben"}
 - {key: "anknüpfen an", case: "Dat"}
 - {key: "anlogen", display: "anlügen"}
@@ -96,6 +98,7 @@
 - {key: "anschauen", cefr: "A2"}
 - {key: "anschreiben", cefr: "B2"}
 - {key: "ansprache halten", cefr: "B2"}
+- {key: "anstatt", cefr: "B1"}
 - {key: "anstoß geben", cefr: "B2"}
 - {key: "anteil verkaufen", cefr: "B1"}
 - {key: "antrag stellen", cefr: "B1"}
@@ -128,11 +131,13 @@
 - {key: "auge werfen", display: "ein Auge werfen auf +Akk"}
 - {key: "auge zudrücken", display: "ein Auge zudrücken"}
 - {key: "augenblick dauern", display: "einen Augenblick dauern"}
+- {key: "aus versehen", display: "aus Versehen"}
 - {key: "ausarten zu", display: "ausarten in +Akk"}
 - {key: "ausbeißen", display: "sich die Zähne ausbeißen an +Dat"}
 - {key: "ausfüllten", display: "ausfüllen"}
 - {key: "ausgabe decken", cefr: "B1"}
 - {key: "ausgekommen mit", display: "auskommen mit +Dat"}
+- {key: "ausgerechnet", kind: "adverb"}
 - {key: "ausgestoßen bei", display: "ausstoßen bei +Dat"}
 - {key: "ausländisch akzent", display: "mit ausländischem Akzent"}
 - {key: "ausländisch firma", cefr: "B1"}
@@ -153,6 +158,7 @@
 - {key: "ausweisen", cefr: "B2"}
 - {key: "auswirken", display: "sich auswirken"}
 - {key: "außer kontrolle geraten", cefr: "B2"}
+- {key: "außer", kind: "adverb"}
 - {key: "außergewöhnlich fähigkeit", display: "außergewöhnliche Fähigkeiten"}
 - {key: "bar münze", display: "für bare Münze nehmen"}
 - {key: "beachtung finden", cefr: "B2"}
@@ -174,6 +180,7 @@
 - {key: "bekanntgeben", display: "bekannt geben"}
 - {key: "belasten durch", display: "belasten mit +Dat"}
 - {key: "beraten über", cefr: "B2"}
+- {key: "berater", cefr: "B1"}
 - {key: "berg versetzen", display: "Berge versetzen"}
 - {key: "beruhen auf", case: "Dat"}
 - {key: "bescheid wussten", display: "Bescheid wissen"}
@@ -230,6 +237,7 @@
 - {key: "damals", kind: "adverb"}
 - {key: "danebengehen", cefr: "B2"}
 - {key: "danken", case: "Dat"}
+- {key: "daraufhin", kind: "adverb"}
 - {key: "darum kümmern", display: "sich darum kümmern"}
 - {key: "dastehen als", display: "dastehen als +Nom"}
 - {key: "datei heruntergeladen", display: "Dateien herunterladen"}
@@ -269,6 +277,7 @@
 - {key: "durchzudringen zu", display: "durchdringen zu +Dat"}
 - {key: "dünn eis", display: "auf dünnem Eis"}
 - {key: "dürsten nach", cefr: "B2"}
+- {key: "eben", kind: "adverb"}
 - {key: "echt leder", display: "echtes Leder"}
 - {key: "ehrenamtlich engagement", display: "ehrenamtliches Engagement"}
 - {key: "ehrlich haut", cefr: "B2"}
@@ -410,6 +419,7 @@
 - {key: "gedanke lesen", display: "Gedanken lesen"}
 - {key: "gedanke machen", display: "sich Gedanken machen"}
 - {key: "gedeckt tisch", cefr: "B2"}
+- {key: "geeignet", cefr: "B1"}
 - {key: "gefahr laufen", cefr: "B2"}
 - {key: "gefallen finden", cefr: "B2"}
 - {key: "gefälscht ausweis", cefr: "B1"}
@@ -521,6 +531,7 @@
 - {key: "herankommen", cefr: "B2"}
 - {key: "heranrücken", cefr: "B2"}
 - {key: "heranziehen", cefr: "B2"}
+- {key: "herauf", kind: "adverb"}
 - {key: "herausforderung stellen", display: "sich einer Herausforderung stellen"}
 - {key: "herausgehen aus", case: "Dat"}
 - {key: "herausgerissen aus", display: "herausreissen aus +Dat"}
@@ -735,6 +746,7 @@
 - {key: "nachschaun", display: "nachschauen"}
 - {key: "nachstehen", cefr: "B2"}
 - {key: "nachstellen", cefr: "B2"}
+- {key: "nachweis", cefr: "B2"}
 - {key: "nachweisen", cefr: "B2"}
 - {key: "nachzeichnen", cefr: "B2"}
 - {key: "nachziehen", cefr: "B2"}
@@ -906,7 +918,9 @@
 - {key: "sich aneignen", case: "Dat"}
 - {key: "sich anfreunden mit", cefr: "A2"}
 - {key: "sich angucken", case: "Akk"}
+- {key: "sich anhören", gloss_en: "to listen to (something)"}
 - {key: "sich anmassen", display: "sich anmaßen"}
+- {key: "sich anmelden für", case: "Akk"}
 - {key: "sich anmerken", display: "sich etwas anmerken lassen"}
 - {key: "sich annäheren", display: "sich annähern an +Akk"}
 - {key: "sich ansahen", display: "sich ansehen"}
@@ -924,6 +938,7 @@
 - {key: "sich bahnen", cefr: "B2"}
 - {key: "sich bahnten", display: "sich einen Weg bahnen"}
 - {key: "sich beraten mit", cefr: "B2"}
+- {key: "sich beschweren bei", case: "Dat"}
 - {key: "sich besprechen mit", cefr: "B2"}
 - {key: "sich bewähren", cefr: "B2"}
 - {key: "sich bissen auf", display: "sich beißen auf +Akk"}
@@ -1047,6 +1062,7 @@
 - {key: "stark schneefall", display: "starker Schneefall"}
 - {key: "starkmachen", display: "sich starkmachen"}
 - {key: "statement abgeben", cefr: "B2"}
+- {key: "statt", cefr: "B1"}
 - {key: "stattgeben", cefr: "B2"}
 - {key: "stecker ziehen", cefr: "B2"}
 - {key: "stehn auf", display: "stehen auf +Akk"}
@@ -1166,6 +1182,7 @@
 - {key: "vertrauen schenken", display: "Vertrauen schenken"}
 - {key: "vertrauen", case: "Dat"}
 - {key: "verursacht schaden", display: "der verursachte Schaden"}
+- {key: "verwendung", cefr: "B1"}
 - {key: "verzeihen", case: "Dat"}
 - {key: "vielfältig weise", display: "auf vielfältige Weise"}
 - {key: "vokabel lernen", display: "Vokabeln lernen"}
@@ -1177,6 +1194,7 @@
 - {key: "voll terminkalender", display: "ein voller Terminkalender"}
 - {key: "voll wucht", display: "mit voller Wucht"}
 - {key: "voll zug", cefr: "B2"}
+- {key: "von mir aus", cefr: "A2"}
 - {key: "voneinanderunterscheiden", display: "sich voneinander unterscheiden"}
 - {key: "vor laufend kamera", cefr: "B2"}
 - {key: "vor sich geht", display: "vor sich gehen"}
@@ -1233,6 +1251,7 @@
 - {key: "wissenschaft", cefr: "B1"}
 - {key: "wissenschaftlich erkenntnis", display: "wissenschaftliche Erkenntnisse"}
 - {key: "wodurch", cefr: "B1", kind: "adverb"}
+- {key: "wohl", kind: "adverb"}
 - {key: "wuchsen um", display: "wachsen um +Akk"}
 - {key: "wunsch erfüllen", cefr: "B1"}
 - {key: "zahn putzen", display: "sich die Zähne putzen"}
@@ -1306,5 +1325,6 @@
 - {key: "überhöht geschwindigkeit", display: "mit überhöhter Geschwindigkeit"}
 - {key: "übersetzen", cefr: "A2"}
 - {key: "übertragen sinn", display: "im übertragenen Sinne"}
+- {key: "überzeugen von", case: "Dat"}
 - {key: "überziehen mit", cefr: "B2"}
 - {key: "übrigbleiben", display: "übrig bleiben"}

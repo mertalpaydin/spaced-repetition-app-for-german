@@ -5752,3 +5752,25 @@
 - f1165e1e9d91  # WRONG_UNIT: Unit specifies adverb but 'bereit' is used as a predicative adjective.
 # Reported by the owner from a screenshot, 2026-10-11.
 - 14029fdd6d82  # WRONG_UNIT: "aus einer Hand" is an idiom and its English, "from a single source", contains no word for Hand; the owner answered "Quelle".
+# Review round req1020.
+- 06472e3e8a9d  # WRONG_UNIT: Bracketed 'statt' in 'an meiner Statt' is the archaic noun 'Statt' in a fixed idiom, not 'statt'.
+- 12a721431bc1  # BAD_SENTENCE: Grammar error: 'gegenüber' governs the dative ('niemandem'), not the accusative ('niemanden').
+- 14baf1cf93ec  # WRONG_UNIT: Bracketed 'statt' is the separable prefix of 'stattfinden', and the sentence is truncated after 'v
+- 1763d5a4341c  # BAD_SENTENCE: Missing direct object after 'ergänzen Sie im Betreff' due to a stripped placeholder.
+- 20f35440d2de  # BAD_GLOSS: The English gloss omits the meaning of the gapped focus particle 'ausgerechnet' ('of all people').
+- 29a62ca2708b  # BAD_GLOSS: The gloss translates the idiom 'Das ist ja wohl die Höhe!' literally into nonsense English and misl
+- 50f6768baea6  # WRONG_UNIT: The sentence means 'human shield' ('der Schild'/'der Schutzschild'), not 'das Schild' (sign), and 
+- 52381b426fb7  # BAD_GLOSS: The English gloss omits the meaning of the gapped focus particle 'ausgerechnet' ('of all teams').
+- 75caec6793a4  # BAD_SENTENCE: Unnatural archaic sentence ('in Apparaten' for flying machines) that makes poor learner material
+- 88ed041b8ce5  # BAD_SENTENCE: The sentence has an ungrammatical genitive plural form 'Wortstämmen' instead of 'Wortstämme'.
+- 8db808329cc9  # BAD_SENTENCE: Contextless archaic quote ('mit dem Rade') describing medieval execution by breaking on the whee
+- b72864360426  # WRONG_UNIT: Sentence requires the fixed idiom 'außer Betrieb' ('out of order'), which the display 'außer' does
+- bf3be4eedc84  # BAD_SENTENCE: The sentence lacks context for 'derjenige' and uses awkward V2 word order after initial 'Bloß'.
+- c140759364eb  # BAD_SENTENCE: The sentence is missing a noun inside the empty quotation marks ('Ein ""').
+- c6f76984baac  # BAD_SENTENCE: The formal imperative pronoun 'Sie' is misspelled in lowercase ('Vermeiden sie').
+- d407aaa9c597  # WRONG_UNIT: The bracketed word is the past participle of the verb 'begeistern' in the perfect tense, not the a
+- fbcdde0b53c9  # WRONG_UNIT: The bracketed word is part of the fixed construction 'im Entstehen begriffen sein' rather than the
+# Review round req1020b.
+- 163b25ced237  # WRONG_UNIT: "begriffen" is part of the fixed idiom "in etwas begriffen sein", not a form of the verb "begreife
+- 9ad30c71e154  # WRONG_UNIT: "außer" is a preposition in the fixed phrase "außer Atem", not an adverb.
+- cf572211c39a  # BAD_SENTENCE: "zu einem Treffen herauf rufen" is an unnatural literal translation of "call up to a meeting" wi

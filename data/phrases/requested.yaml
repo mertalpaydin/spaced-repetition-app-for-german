@@ -115,3 +115,75 @@
 - {key: "sich vorbereiten auf", kind: reflexive_verb, note: "Lingvist; seeded, mined at rank 1134, pulled forward"}
 - {key: "ausnahme", kind: noun, note: "Lingvist, listed as 'ausnahme'; mined at rank 2331"}
 - {key: "genießen", kind: verb, note: "Lingvist; the bare verb is NOT in the deck, only the collocations (Moment/Urlaub/Ruf genießen). This entry is what teaches it"}
+
+# Added 2026-10-20 from the owner's fourth list, 68 entries. Fifty-eight were
+# already mined and these only pull them forward; the rest are new. Four
+# spellings were his and settled by him: "aus verstehen" is "aus Versehen",
+# "geeignen" is the adjective "geeignet", "begriffen" is the verb
+# "begreifen", and "sich beschweren zu" became BOTH "bei" (to a person) and
+# "ueber" (about a thing), his decision.
+- {key: "andererseits", kind: adverb, note: "Lingvist 4"}
+- {key: "daraufhin", kind: adverb, note: "Lingvist 4"}
+- {key: "statt", kind: adverb, note: "Lingvist 4; a preposition, and the deck has no preposition kind, so adverb is the nearest true label"}
+- {key: "außer", kind: adverb, note: "Lingvist 4; a preposition and conjunction, see 'statt'"}
+- {key: "anstatt", kind: adverb, note: "Lingvist 4; a preposition, see 'statt'"}
+- {key: "anders als", kind: idiom, note: "Lingvist 4; seeded in idioms.yaml"}
+- {key: "verantwortung", kind: noun, note: "Lingvist 4"}
+- {key: "wohl", kind: adverb, note: "Lingvist 4; a modal particle, taught because he asked for it"}
+- {key: "vermeiden", kind: verb, note: "Lingvist 4"}
+- {key: "sonst", kind: connector, note: "Lingvist 4; already a curated connector, this only pulls it forward"}
+- {key: "ausgerechnet", kind: adverb, note: "Lingvist 4"}
+- {key: "entdecken", kind: verb, note: "Lingvist 4"}
+- {key: "träumen von", kind: verb_prep, note: "Lingvist 4; seeded, pulled forward"}
+- {key: "fragen nach", kind: verb_prep, note: "Lingvist 4; seeded, pulled forward"}
+- {key: "teilnehmen an", kind: verb_prep, note: "Lingvist 4; seeded, pulled forward"}
+- {key: "sich anmelden für", kind: reflexive_verb, note: "Lingvist 4; new seed in verb_prep_seed.yaml"}
+- {key: "sich beschweren über", kind: reflexive_verb, note: "Lingvist 4; seeded, pulled forward"}
+- {key: "sich beschweren bei", kind: reflexive_verb, note: "Lingvist 4; new seed, the owner asked for both prepositions"}
+- {key: "gemütlich", kind: adjective, note: "Lingvist 4"}
+- {key: "selbstbewusst", kind: adjective, note: "Lingvist 4"}
+- {key: "überzeugen von", kind: verb_prep, note: "Lingvist 4; new seed in verb_prep_seed.yaml"}
+- {key: "überzeugen", kind: verb, note: "Lingvist 4; the bare verb as well as the prepositional unit"}
+- {key: "geeignet", kind: adjective, note: "Lingvist 4, written 'geeignen'; the owner chose the adjective"}
+- {key: "beobachten", kind: verb, note: "Lingvist 4"}
+- {key: "eben", kind: adverb, note: "Lingvist 4; was on NON_UNIT_ADVERBS until he asked for it, rule 1"}
+- {key: "quasi", kind: adverb, note: "Lingvist 4"}
+- {key: "ereignis", kind: noun, note: "Lingvist 4"}
+- {key: "verwendung", kind: noun, note: "Lingvist 4"}
+- {key: "verwenden", kind: verb, note: "Lingvist 4; listed twice, once per block"}
+- {key: "von mir aus", kind: idiom, note: "Lingvist 4; seeded in idioms.yaml"}
+- {key: "aus versehen", kind: idiom, note: "Lingvist 4, written 'aus verstehen'; his decision"}
+- {key: "betrieb", kind: noun, note: "Lingvist 4"}
+- {key: "gesperrt", kind: adjective, note: "Lingvist 4, written 'Gesspert'"}
+- {key: "umsteigen", kind: separable_verb, note: "Lingvist 4"}
+- {key: "aussteigen", kind: separable_verb, note: "Lingvist 4"}
+- {key: "fehlen", kind: verb, note: "Lingvist 4, written 'Fehlen'; the verb, not the nominalisation"}
+- {key: "nachweis", kind: noun, note: "Lingvist 4"}
+- {key: "berater", kind: noun, note: "Lingvist 4"}
+- {key: "geduldig", kind: adjective, note: "Lingvist 4"}
+- {key: "vorteil", kind: noun, note: "Lingvist 4"}
+- {key: "tatsächlich", kind: adjective, note: "Lingvist 4"}
+- {key: "bedingung", kind: noun, note: "Lingvist 4"}
+- {key: "beweisen", kind: verb, note: "Lingvist 4"}
+- {key: "selbstvertrauen", kind: noun, note: "Lingvist 4"}
+- {key: "bestätigen", kind: verb, note: "Lingvist 4"}
+- {key: "bestätigt", kind: adjective, note: "Lingvist 4; he listed the participle as well as the verb"}
+- {key: "auffällig", kind: adjective, note: "Lingvist 4"}
+- {key: "schild", kind: noun, note: "Lingvist 4; das Schild is the sign, der Schild the shield"}
+- {key: "anzeige", kind: noun, note: "Lingvist 4"}
+- {key: "bisher", kind: adverb, note: "Lingvist 4"}
+- {key: "begreifen", kind: verb, note: "Lingvist 4, written 'begriffen'; the owner chose the verb"}
+- {key: "mitglied", kind: noun, note: "Lingvist 4"}
+- {key: "ähnlich", kind: adjective, note: "Lingvist 4"}
+- {key: "berühmt", kind: adjective, note: "Lingvist 4"}
+- {key: "ehrgeiz", kind: noun, note: "Lingvist 4"}
+- {key: "seltsam", kind: adjective, note: "Lingvist 4"}
+- {key: "verwirrung", kind: noun, note: "Lingvist 4, written 'vervirrung'"}
+- {key: "begeistert", kind: adjective, note: "Lingvist 4, written 'begeisttert'"}
+- {key: "enttäuscht", kind: adjective, note: "Lingvist 4"}
+- {key: "fröhlich", kind: adjective, note: "Lingvist 4"}
+- {key: "zugleich", kind: adverb, note: "Lingvist 4"}
+- {key: "einzig", kind: adjective, note: "Lingvist 4, written 'einzige'; the deck had only the nominalisation"}
+- {key: "erholung", kind: noun, note: "Lingvist 4"}
+- {key: "unbedingt", kind: adjective, note: "Lingvist 4"}
+- {key: "stattdessen", kind: connector, note: "Lingvist 4; already a curated connector, this only pulls it forward"}

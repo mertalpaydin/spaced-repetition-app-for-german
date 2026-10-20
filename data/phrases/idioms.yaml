@@ -70,3 +70,7 @@
 - {key: von beginn an, pattern: [von, beginn, an], max_gap: 0, display: "von Beginn an", cefr: B1, gloss_en: from the start}
 - {key: im verhältnis zu, pattern: [im, verhältnis, zu], max_gap: 0, display: "im Verhältnis zu + Dat", cefr: B2, gloss_en: in relation to}
 - {key: selbst schuld, pattern: [selbst, schuld], max_gap: 0, display: "selbst schuld (sein)", cefr: B1, gloss_en: your own fault}
+# Added 2026-10-20 from the owner's fourth list.
+- {key: von mir aus, pattern: [von, mir, aus], max_gap: 0, display: "von mir aus", cefr: B1, gloss_en: "fine by me, as far as I am concerned"}
+- {key: aus versehen, pattern: [aus, versehen], max_gap: 0, display: "aus Versehen", cefr: B1, gloss_en: "by accident, unintentionally"}
+- {key: anders als, pattern: [anders, als], max_gap: 0, display: "anders als", cefr: A2, gloss_en: "unlike, differently from"}

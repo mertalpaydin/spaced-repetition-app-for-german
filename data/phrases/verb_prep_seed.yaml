@@ -63,3 +63,7 @@
 - {verb: sehnen, prep: nach, case: Dat, reflexive: true, cefr: B2, gloss_en: to long for}
 # Added 2026-10-07 from the owner's second Lingvist list.
 - {verb: engagieren, prep: für, case: Akk, reflexive: true, cefr: B1, gloss_en: to be committed to}
+# Added 2026-10-20 from the owner's fourth list.
+- {verb: anmelden, prep: für, case: Akk, reflexive: true, cefr: B1, gloss_en: to register for / to sign up for}
+- {verb: überzeugen, prep: von, case: Dat, cefr: B1, gloss_en: to convince of}
+- {verb: beschweren, prep: bei, case: Dat, reflexive: true, cefr: B1, gloss_en: to complain to (a person)}

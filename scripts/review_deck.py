@@ -453,7 +453,13 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--unit-batch", type=int, default=700)
     g = sub.add_parser("gemini")
     g.add_argument("batch_dir", type=Path)
-    g.add_argument("--model", default="gemini-3.1-pro-high")
+    # Google retired "gemini-3.1-pro-high" from agy's catalogue some time
+    # before 2026-10-20, and agy answers an unknown model with status ERROR
+    # and an empty response, which the runner reports as "no findings file".
+    # A whole review round therefore looks like three empty batches rather
+    # than a configuration error. If that happens again, run `agy models`:
+    # the id has changed, not the quota.
+    g.add_argument("--model", default="gemini-4-argon-high")
     g.add_argument("--timeout", default="15m")
     g.add_argument("--workers", type=int, default=3)
     a = sub.add_parser("apply")
