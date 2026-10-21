@@ -188,6 +188,10 @@ class LearnerState:
     #: order. Each press costs it ``POSTPONE_STEP`` places, so pressing twice
     #: moves it a hundred; it is never skipped, only moved.
     postponed: dict[str, int] = field(default_factory=dict)
+    #: When each was last postponed. For ``POSTPONE_QUIET_HOURS`` after that
+    #: the scheduler leaves it alone in every tier, which is what the button
+    #: promises; the rank push alone governs introduction only.
+    postponed_at: dict[str, datetime] = field(default_factory=dict)
     #: The card shown last per unit, so the next review rotates.
     last_card: dict[str, str] = field(default_factory=dict)
     #: Ratings per unit in log order, for the stats.
@@ -256,6 +260,7 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
             state.triaged.add(entry.unit_id)
             if entry.source == "postpone":
                 state.postponed[entry.unit_id] = state.postponed.get(entry.unit_id, 0) + 1
+                state.postponed_at[entry.unit_id] = entry.ts
             if entry.known:
                 state.known.add(entry.unit_id)
                 state.known_source[entry.unit_id] = entry.source

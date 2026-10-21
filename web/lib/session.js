@@ -18,6 +18,19 @@ export const DEFAULT_SETTINGS = { cardsPerDay: 40, newPerDay: null, learnAheadMi
 // POSTPONE_STEP in src/contracts.py.
 export const POSTPONE_STEP = 50;
 
+// How long a postponed unit is left alone in EVERY tier. The rank push
+// governs which new units are introduced; a unit already in learning came
+// straight back through due and pending, so "Spaeter" on a card just
+// answered wrong returned it within minutes (owner, 2026-10-21). Matches
+// POSTPONE_QUIET_HOURS in src/contracts.py.
+export const POSTPONE_QUIET_MS = 20 * 3600 * 1000;
+
+// Matches is_resting in src/engine/session.py.
+export function isResting(state, unitId, now) {
+  const at = (state.postponedAt || {})[unitId];
+  return at !== undefined && new Date(now).getTime() - new Date(at).getTime() < POSTPONE_QUIET_MS;
+}
+
 // Stability bands for the Einheiten screen, in days. Matches
 // STABILITY_BANDS in src/engine/session.py.
 export const STABILITY_BANDS = [["fresh", 7], ["young", 21], ["mature", 90], ["solid", Infinity]];
@@ -68,6 +81,7 @@ export function dueUnits(deck, state, engine, now, horizonMs) {
   for (const [unitId, record] of Object.entries(state.records)) {
     const unit = deck.byId[unitId];
     if (!unit || state.known.has(unitId) || new Date(record.due).getTime() > limit) continue;
+    if (isResting(state, unitId, now)) continue;
     due.push([engine.retrievability(record, now), unit.rank, unit]);
   }
   due.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -101,6 +115,9 @@ export function eligiblePendingUnits(deck, state, engine, settings, now, ignoreS
   for (const [unitId, record] of Object.entries(state.records)) {
     const unit = deck.byId[unitId];
     if (!unit || state.known.has(unitId) || record.state === "review") continue;
+    // A postponed unit rests even here, where nextUnit's last resort would
+    // otherwise hand it straight back.
+    if (isResting(state, unitId, now)) continue;
     const last = record.last_review ? new Date(record.last_review).getTime() : null;
     if (!ignoreSpacing && last !== null && last >= started) {
       const since = state.reviewTimes.filter((ts) => new Date(ts).getTime() > last).length;

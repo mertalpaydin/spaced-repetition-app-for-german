@@ -15,7 +15,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from src.contracts import POSTPONE_STEP, DeckManifest, PhraseCard, PhraseUnit
+from src.contracts import (
+    POSTPONE_QUIET_HOURS,
+    POSTPONE_STEP,
+    DeckManifest,
+    PhraseCard,
+    PhraseUnit,
+)
 from src.engine.fsrs import FSRSEngine
 from src.engine.review_log import LearnerState
 from src.phrases.export import DEFAULT_DECK_DIR, load_deck
@@ -155,6 +161,20 @@ def budget_left(state: LearnerState, settings: Settings, now: datetime) -> int:
     return max(settings.cards_per_day - budget_spent_today(state, now), 0)
 
 
+def is_resting(state: LearnerState, unit_id: str, now: datetime) -> bool:
+    """Was this unit postponed recently enough to be left alone?
+
+    "Später" used to push a unit down the introduction order and nothing
+    else, which governs NEW units only. A unit already in learning therefore
+    came straight back through the due and pending tiers, so pressing it on a
+    card just answered wrong returned that card within minutes: the opposite
+    of what the word means (owner, 2026-10-21). Matches ``isResting`` in
+    ``web/lib/session.js``.
+    """
+    at = state.postponed_at.get(unit_id)
+    return at is not None and now - at < timedelta(hours=POSTPONE_QUIET_HOURS)
+
+
 def due_units(
     deck: Deck, state: LearnerState, engine: FSRSEngine, now: datetime, horizon: timedelta
 ) -> list[PhraseUnit]:
@@ -165,6 +185,8 @@ def due_units(
     for unit_id, record in state.records.items():
         unit = by_id.get(unit_id)
         if unit is None or unit_id in state.known or record.due > now + horizon:
+            continue
+        if is_resting(state, unit_id, now):
             continue
         due.append((engine.get_retrievability(record, now), unit.rank, unit))
     due.sort(key=lambda item: (item[0], item[1]))
@@ -215,6 +237,10 @@ def eligible_pending_units(
     for unit_id, record in state.records.items():
         unit = by_id.get(unit_id)
         if unit is None or unit_id in state.known or record.state == "review":
+            continue
+        # A postponed unit rests even here, where the last resort of
+        # next_unit would otherwise hand it straight back.
+        if is_resting(state, unit_id, now):
             continue
         last = record.last_review
         if not ignore_spacing and last is not None and last >= started:

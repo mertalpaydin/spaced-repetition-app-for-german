@@ -6,7 +6,7 @@
 import { loadDeck, loadReserveIndex, lookupReserve, withAdded } from "./lib/deck.js";
 import { createEngine } from "./lib/engine.js";
 import { gradeCard, renderMarked } from "./lib/grader.js";
-import { deriveState, entriesSinceReset, entryKey, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
+import { deriveState, entriesSinceReset, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
   DEFAULT_SETTINGS, POSTPONE_STEP, budgetSpentToday, computeStats, dueUnits, nextUnit, pickCard, reviewsToday, unitsByStage, untriagedUnits,
@@ -87,6 +87,12 @@ function setSyncStatus(text, cls = "") {
   if (el) el.textContent = text;
 }
 
+//: The shortest gap between two syncs, whatever asks for one. GitHub allows
+//: 5000 API calls an hour and a sync costs one or two, so a loop at the 1500
+//: ms debounce exhausts that in about two hours. It did, on 2026-10-21.
+const MIN_SYNC_INTERVAL_MS = 10000;
+let lastSyncAt = 0;
+
 function scheduleSync() {
   clearTimeout(syncTimer);
   syncTimer = setTimeout(() => sync().catch(() => {}), 1500);
@@ -98,22 +104,23 @@ function scheduleSync() {
 // the owner reloaded the page repeatedly to force a sync he could not see
 // the state of (2026-10-06). Nothing was ever lost locally; appendEntries
 // awaits the IndexedDB write before record() returns.
-// Which entries have reached the gist, BY KEY. It was a count until
-// 2026-10-20, and a count lies whenever the pull and the local log change in
-// the same breath: with 100 local entries and 102 remote, one answer given
-// during the await leaves 101 local and a merge of 102, so
-// `entries.length - pushedCount` is zero and the status line says "gesichert"
-// while the newest answer has never left the phone. It was not lost, but it
-// sat there until the next sync happened to run, and a tab closed first made
-// that the next session (owner: "logging to git is still a problem once in a
-// while"). A set cannot be fooled this way.
-let pushedKeys = new Set();
+// How many entries have never reached the gist, as a COUNT, which is what it
+// was before 2026-10-20 and is again.
+//
+// It was briefly a Set of entryKey, to fix a status line that could say
+// "gesichert" while an answer had not been pushed. That was a real but minor
+// bug, and the cure was far worse: entryKey is `type|unit_id|ts` with no seq,
+// so two entries written in the same millisecond for the same unit collapse
+// into one key while staying two in the array, and unpushed() could then
+// never reach zero. A branch that re-scheduled a sync whenever unpushed() was
+// positive therefore fired every 1500 ms for ever, which cost the owner a
+// GitHub 403 and an unusable app on 2026-10-21. A count cannot do that.
+//
+// If the "gesichert" lie is worth fixing again, give the log a genuinely
+// unique key first (seq is right there) and prove the loop cannot restart.
+let pushedCount = 0;
 
-function unpushed() {
-  let n = 0;
-  for (const e of entries) if (!pushedKeys.has(entryKey(e))) n++;
-  return n;
-}
+function unpushed() { return Math.max(0, entries.length - pushedCount); }
 
 // A tab going away is the last chance to push. visibilitychange fires on
 // mobile where pagehide and beforeunload do not, so both are wired; the
@@ -129,43 +136,37 @@ document.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("pagehide", flushBeforeUnload);
 
-//: Backoff before each retry of a failed sync, in ms. Five tries over about
-//: two minutes, then it waits for the next answer or the next visit.
-const SYNC_RETRY_DELAYS = [3000, 8000, 20000, 45000, 60000];
-
-async function sync(retries = 0) {
+async function sync() {
   if (!settings.token) { setSyncStatus("lokal", "off"); return; }
   if (syncing) { scheduleSync(); return; }
+  // A floor no code path can get under. Every sync is a GitHub GET and
+  // usually a PATCH, and the API allows 5000 an hour; at the 1500 ms debounce
+  // alone a loop reaches that in two hours. Nothing in this app needs to sync
+  // more than once every few seconds, so refuse to.
+  const since = Date.now() - lastSyncAt;
+  if (since < MIN_SYNC_INTERVAL_MS) {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => sync().catch(() => {}), MIN_SYNC_INTERVAL_MS - since);
+    return;
+  }
   syncing = true;
+  lastSyncAt = Date.now();
   setSyncStatus("sync…", "busy");
   try {
-    const before = entries;
     const r = await syncLog(settings, entries);
     if (settings.gistId) saveSettings(settings);
-    if (r.pulled > 0) { entries = mergeEntries(r.merged, entries); await replaceLog(entries); refresh(); }
+    if (r.pulled > 0) { entries = r.merged; await replaceLog(entries); refresh(); }
     // Everything that was in the merge is now in the gist, pushed by this
-    // call or already there. Anything recorded WHILE it ran is not, and is
-    // deliberately absent from the set, so unpushed() still counts it and
-    // the retry below picks it up.
-    pushedKeys = new Set(r.merged.map(entryKey));
+    // call or already there.
+    pushedCount = r.merged.length;
     const at = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-    if (entries !== before && unpushed()) { setSyncStatus(`${unpushed()} ungesichert`, "busy"); scheduleSync(); }
-    else setSyncStatus(`gesichert ${at}`, "ok");
+    setSyncStatus(`gesichert ${at}`, "ok");
     return r;
   } catch (err) {
     const pending = unpushed() ? ` (${unpushed()} ungesichert)` : "";
     setSyncStatus(
       (navigator.onLine ? `nicht gesichert: ${err.message}` : "offline, später") + pending, "bad",
     );
-    // One flaky request used to strand the log until the next answer
-    // happened to schedule another sync, and if the app was closed first
-    // that meant the next session. Back off and try again a few times
-    // instead; the merge is idempotent, so a retry can only help.
-    if (unpushed() && retries < SYNC_RETRY_DELAYS.length) {
-      const wait = SYNC_RETRY_DELAYS[retries];
-      clearTimeout(syncTimer);
-      syncTimer = setTimeout(() => sync(retries + 1).catch(() => {}), wait);
-    }
     throw err;
   } finally {
     syncing = false;
@@ -258,10 +259,13 @@ function loadCard() {
   // "Kannte ich schon" belongs after the answer, not before it: offered
   // beforehand it asks the learner to judge a unit they have not been shown
   // (owner, 2026-09-21).
-  ["btn-known", "btn-defer", "btn-issue"].forEach((id) => { $(id).hidden = true; });
+  ["btn-known", "btn-never", "btn-issue"].forEach((id) => { $(id).hidden = true; });
   $("issue-form").hidden = true;
   $("issue-sent").hidden = true;
-  ["btn-check", "btn-reveal"].forEach((id) => { $(id).hidden = false; });
+  // "Später" is offered BEFORE the answer too: the learner may simply not
+  // want this unit now, and making him answer it first to say so is the
+  // thing he was complaining about (owner, 2026-10-21).
+  ["btn-check", "btn-reveal", "btn-defer"].forEach((id) => { $(id).hidden = false; });
   renderToday();
   const t = now();
   const target = settings.cardsPerDay + grantedExtra;
@@ -366,7 +370,7 @@ async function check(reveal = false) {
   ["btn-check", "btn-reveal"].forEach((id) => { $(id).hidden = true; });
   // "Später" and "Kannte ich schon" both belong AFTER the answer: the
   // learner cannot judge a unit they have not been shown.
-  ["btn-known", "btn-defer", "btn-next", "btn-issue"].forEach((id) => { $(id).hidden = false; });
+  ["btn-known", "btn-never", "btn-defer", "btn-next", "btn-issue"].forEach((id) => { $(id).hidden = false; });
   $("btn-next").focus();
   renderToday();
 }
@@ -374,6 +378,15 @@ async function check(reveal = false) {
 async function markKnown() {
   if (!current) return;
   await record(makeMark(entries, current.unit.unit_id, true, "practice", now()));
+  loadCard();
+}
+
+// Same effect on the scheduler as "Kannte ich schon", recorded apart: "I
+// knew this already" and "do not teach me this" are different judgements
+// and the owner wants to tell them apart later (2026-10-21).
+async function markNever() {
+  if (!current) return;
+  await record(makeMark(entries, current.unit.unit_id, true, "never", now()));
   loadCard();
 }
 
@@ -434,6 +447,7 @@ $("btn-check").addEventListener("click", () => check(false));
 $("btn-reveal").addEventListener("click", () => check(true));
 $("btn-known").addEventListener("click", markKnown);
 $("btn-defer").addEventListener("click", defer);
+$("btn-never").addEventListener("click", markNever);
 $("btn-issue").addEventListener("click", openIssue);
 $("btn-issue-send").addEventListener("click", sendIssue);
 $("btn-issue-cancel").addEventListener("click", () => {
@@ -811,7 +825,7 @@ async function boot() {
     // Assume what is already on disk reached the gist; the boot sync below
     // corrects this within a second either way. Starting empty would greet
     // the learner with "1158 ungesichert" on every load.
-    pushedKeys = new Set(entries.map(entryKey));
+    pushedCount = entries.length;
   } catch (err) {
     $("deck-info").textContent = `Deck konnte nicht geladen werden: ${err.message}`;
     return;

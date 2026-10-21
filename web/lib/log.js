@@ -61,7 +61,7 @@ export function toJsonl(entries) {
 
 function freshState() {
   return {
-    records: {}, known: new Set(), knownSource: {}, triaged: new Set(), postponed: {}, lastCard: {}, ratings: {},
+    records: {}, known: new Set(), knownSource: {}, triaged: new Set(), postponed: {}, postponedAt: {}, lastCard: {}, ratings: {},
     firstReview: {}, reviewTimes: [], budgetReviewTimes: [], retriesPending: {}, lastUnit: null,
     // Words the learner added from the page, oldest first, and the units and
     // cards that exist only here because no exported shard holds them.
@@ -114,7 +114,7 @@ export function deriveState(entries, engine) {
       state.triaged.add(e.unit_id);
       // "Später" moves a unit down the introduction order, it does not skip
       // it. Matches derive_state in src/engine/review_log.py.
-      if (e.source === "postpone") state.postponed[e.unit_id] = (state.postponed[e.unit_id] || 0) + 1;
+      if (e.source === "postpone") { state.postponed[e.unit_id] = (state.postponed[e.unit_id] || 0) + 1; state.postponedAt[e.unit_id] = e.ts; }
       if (e.known) { state.known.add(e.unit_id); state.knownSource[e.unit_id] = e.source; }
       else { state.known.delete(e.unit_id); delete state.knownSource[e.unit_id]; }
       continue;

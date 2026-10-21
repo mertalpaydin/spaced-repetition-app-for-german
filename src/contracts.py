@@ -423,6 +423,11 @@ class MarkEntry(BaseModel):
     the "Kannte ich schon" button in practice; ``known=False`` from any source
     brings a unit back.
 
+    ``never`` is "Nie wieder zeigen": the same effect on the scheduler as
+    ``practice`` (``known=True``, skipped) but recorded apart, because "I knew
+    this already" and "do not teach me this" are different judgements and the
+    owner wants to tell them apart later (2026-10-21).
+
     ``postpone`` is the odd one out, and it always carries ``known=False``: it
     does not skip the unit, it pushes it ``POSTPONE_STEP`` places down the
     introduction order and leaves it there. It is what "Später" should always
@@ -440,7 +445,7 @@ class MarkEntry(BaseModel):
     ts: datetime
     unit_id: str
     known: bool
-    source: Literal["triage", "practice", "defer", "postpone"]
+    source: Literal["triage", "practice", "defer", "postpone", "never"]
 
 
 class IssueEntry(BaseModel):
@@ -531,3 +536,12 @@ LogEntry = ReviewEntry | MarkEntry | ResetEntry | RequestEntry | IssueEntry
 #: way for a week or so at ten new units a day, near enough that it is not a
 #: disguised deletion, which is what the button used to do.
 POSTPONE_STEP = 50
+
+#: How long a postponed unit is left alone, whatever the scheduler thinks.
+#: The rank push only governs which NEW units are introduced, so a unit
+#: already in learning came straight back through the due and pending tiers,
+#: and pressing "Später" on a card just answered wrong brought it round again
+#: within minutes, which is the opposite of what the button says (owner,
+#: 2026-10-21). Twenty hours means "not again today" without claiming a
+#: calendar day the log does not have.
+POSTPONE_QUIET_HOURS = 20

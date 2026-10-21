@@ -27,6 +27,7 @@ from src.engine.session import (
     due_units,
     eligible_pending_units,
     introduction_order,
+    is_resting,
     next_unit,
     pick_card,
     recently_shown,
@@ -839,6 +840,61 @@ def test_postpone_moves_a_unit_down_the_order_and_never_skips_it() -> None:
         engine,
     )
     assert twice.postponed == {first.unit_id: 2}
+
+
+def test_postpone_takes_a_failed_unit_out_of_the_session() -> None:
+    """ "Später" on a card just answered wrong must not hand it back.
+
+    The rank push governs which NEW units are introduced, so until
+    2026-10-21 a unit already in learning came straight back through the due
+    and pending tiers, minutes later, which is the opposite of what the
+    button says (owner: "units where Spater button clicked and answer is
+    empty or false, re appear for repeat").
+    """
+    deck = _deck()
+    engine = FSRSEngine()
+    unit_id = "vp:warten_auf"
+    wrong = ReviewEntry(
+        seq=1,
+        ts=T0,
+        unit_id=unit_id,
+        card_id="a10000000000",
+        rating="again",
+        outcome="wrong",
+        answers=["x", "auf"],
+        expected=["warten", "auf"],
+        elapsed_ms=1,
+        deck_version="t",
+    )
+    later = T0 + timedelta(minutes=11)
+
+    # without the postpone it comes back, which is the behaviour being fixed
+    state = derive_state([wrong], engine)
+    assert any(u.unit_id == unit_id for u in due_units(deck, state, engine, later, timedelta(0)))
+
+    postponed = derive_state(
+        [wrong, MarkEntry(seq=2, ts=T0, unit_id=unit_id, known=False, source="postpone")], engine
+    )
+    assert is_resting(postponed, unit_id, later)
+    still_due = due_units(deck, postponed, engine, later, timedelta(0))
+    assert not [u for u in still_due if u.unit_id == unit_id]
+    pending = eligible_pending_units(
+        deck, postponed, engine, Settings(), later, ignore_spacing=True
+    )
+    assert not [u for u in pending if u.unit_id == unit_id]
+    # and it is not gone: the rest expires
+    assert not is_resting(postponed, unit_id, T0 + timedelta(hours=21))
+
+
+def test_never_is_known_recorded_apart_from_practice() -> None:
+    """ "Nicht mehr lernen" skips the unit like "Kannte ich schon" does, but
+    the log says which button it was (owner, 2026-10-21)."""
+    engine = FSRSEngine()
+    state = derive_state(
+        [MarkEntry(seq=1, ts=T0, unit_id="vp:warten_auf", known=True, source="never")], engine
+    )
+    assert "vp:warten_auf" in state.known
+    assert state.known_source["vp:warten_auf"] == "never"
 
 
 def test_an_issue_entry_replays_into_nothing() -> None:

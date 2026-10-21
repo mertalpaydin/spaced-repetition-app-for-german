@@ -8,7 +8,7 @@ import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
 import { deriveState, entryKey, makeIssue, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
 import { reserveLetter, withAdded } from "../../web/lib/deck.js";
-import { DEFAULT_SETTINGS, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueUnits, eligiblePendingUnits, introductionOrder, nextUnit, pickCard, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage } from "../../web/lib/session.js";
+import { DEFAULT_SETTINGS, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueUnits, eligiblePendingUnits, introductionOrder, isResting, nextUnit, pickCard, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage } from "../../web/lib/session.js";
 
 const T0 = "2026-09-01T08:00:00Z";
 const unit_ = (unit_id, rank, display_de, extra = {}) => ({ unit_id, kind: "verb_prep", display_de, rank, trivial: false, gloss_en: null, also_accepted: [], ...extra });
@@ -422,4 +422,32 @@ test("an issue entry survives the parser and replays into nothing", () => {
   assert.deepEqual(state.records, {});
   assert.equal(state.known.size, 0);
   assert.equal(state.triaged.size, 0);
+});
+
+test("postpone takes a failed unit out of the session", () => {
+  // Twin of test_postpone_takes_a_failed_unit_out_of_the_session in
+  // tests/test_phase2_engine.py. The rank push governs new units only, so a
+  // unit already in learning used to come straight back.
+  const d = deck();
+  const engine = createEngine(DEFAULT_SETTINGS.retention);
+  const unitId = "vp:warten_auf";
+  const wrong = { type: "review", seq: 1, ts: T0, unit_id: unitId, card_id: "w2", rating: "again", outcome: "wrong", answers: ["x", "auf"], expected: ["warten", "auf"], elapsed_ms: 1, deck_version: "t" };
+  const later = "2026-09-01T08:11:00Z";
+
+  const plain = deriveState([wrong], engine);
+  assert.ok(dueUnits(d, plain, engine, later, 0).some((u) => u.unit_id === unitId));
+
+  const mark = { type: "mark", seq: 2, ts: T0, unit_id: unitId, known: false, source: "postpone" };
+  const state = deriveState([wrong, mark], engine);
+  assert.ok(isResting(state, unitId, later));
+  assert.ok(!dueUnits(d, state, engine, later, 0).some((u) => u.unit_id === unitId));
+  assert.ok(!eligiblePendingUnits(d, state, engine, DEFAULT_SETTINGS, later, true).some((u) => u.unit_id === unitId));
+  assert.ok(!isResting(state, unitId, "2026-09-02T05:01:00Z"), "the rest expires");
+});
+
+test("never marks a unit known and says which button it was", () => {
+  const engine = createEngine(DEFAULT_SETTINGS.retention);
+  const state = deriveState([{ type: "mark", seq: 1, ts: T0, unit_id: "vp:warten_auf", known: true, source: "never" }], engine);
+  assert.ok(state.known.has("vp:warten_auf"));
+  assert.equal(state.knownSource["vp:warten_auf"], "never");
 });
