@@ -2,8 +2,9 @@
 // has something the remote lacks, create the gist on first use.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
-import { RATE_LIMIT_FLOOR, resetRateLimitState, syncLog } from "../../web/lib/sync.js";
+import { syncLog } from "../../web/lib/sync.js";
 import { toJsonl } from "../../web/lib/log.js";
 
 function fakeGithub(initialContent) {
@@ -76,88 +77,16 @@ test("without a token the log stays local", async () => {
   assert.equal(r.merged.length, 1);
 });
 
-// -- rate limiting, added 2026-10-21 ------------------------------------------
-
-function fakeGithubV2(initialContent, { etag = '"v1"', limit = 5000 } = {}) {
-  const calls = [];
-  let content = initialContent;
-  let tag = etag;
-  let remaining = limit;
-  const reset = Math.floor(Date.now() / 1000) + 3600;
-  const hdrs = (extra = {}) => ({
-    get: (k) => ({ etag: tag, "x-ratelimit-remaining": String(remaining), "x-ratelimit-reset": String(reset), ...extra }[k.toLowerCase()] ?? null),
-  });
-  globalThis.fetch = async (url, init = {}) => {
-    const method = init.method || "GET";
-    calls.push(`${method} ${url}`);
-    remaining -= 1;
-    if (remaining < 0) {
-      remaining = 0;
-      return { ok: false, status: 403, headers: hdrs(), json: async () => ({ message: "API rate limit exceeded" }) };
-    }
-    if (method === "GET") {
-      if (init.headers["If-None-Match"] === tag) {
-        remaining += 1; // a 304 is free, which is the whole point
-        return { ok: false, status: 304, headers: hdrs(), json: async () => ({}) };
-      }
-      return { ok: true, status: 200, headers: hdrs(), json: async () => ({ files: { "review_log.jsonl": { content, truncated: false } } }) };
-    }
-    if (method === "PATCH") {
-      content = JSON.parse(init.body).files["review_log.jsonl"].content;
-      tag = `"v${Number(tag.replace(/\D/g, "")) + 1}"`;
-      return { ok: true, status: 200, headers: hdrs(), json: async () => ({}) };
-    }
-    throw new Error(`unexpected ${method} ${url}`);
-  };
-  return { calls, get remaining() { return remaining; }, get content() { return content; } };
-}
-
-test("an unchanged gist answers 304, which GitHub does not charge for", async () => {
-  resetRateLimitState();
-  const remote = [e(1, "u1", "2026-09-01T08:00:00Z")];
-  const gh = fakeGithubV2(toJsonl(remote));
-  const settings = { token: "tok", gistId: "g1" };
-
-  const first = await syncLog(settings, remote);
-  assert.equal(first.pulled, 0);
-  const afterFirst = gh.remaining;
-
-  // nothing changed on either side: the second sync is conditional and free
-  const second = await syncLog(settings, remote);
-  assert.equal(second.merged.length, 1);
-  assert.equal(gh.remaining, afterFirst, "a 304 must not cost an API call");
-  assert.ok(gh.calls.length > 1, "it still asked");
-});
-
-test("a push refreshes the etag so the next pull is still conditional", async () => {
-  resetRateLimitState();
-  const gh = fakeGithubV2(toJsonl([e(1, "u1", "2026-09-01T08:00:00Z")]));
-  const settings = { token: "tok", gistId: "g1" };
-  const local = [e(1, "u1", "2026-09-01T08:00:00Z"), e(2, "u2", "2026-09-02T08:00:00Z")];
-  const r = await syncLog(settings, local);
-  assert.equal(r.pushed, 1);
-  const after = gh.remaining;
-  await syncLog(settings, local);
-  assert.equal(gh.remaining, after, "the pull after a push is conditional too");
-});
-
-test("a rate limit parks sync until the reset instead of hammering it", async () => {
-  resetRateLimitState();
-  const gh = fakeGithubV2(toJsonl([]), { limit: 0 });
-  const settings = { token: "tok", gistId: "g1" };
-  await assert.rejects(() => syncLog(settings, [e(1, "u1", "2026-09-01T08:00:00Z")]), /Limit erreicht/);
-  const spent = gh.calls.length;
-  // the next attempt does not reach the network at all
-  await assert.rejects(() => syncLog(settings, [e(1, "u1", "2026-09-01T08:00:00Z")]), /Limit erreicht/);
-  assert.equal(gh.calls.length, spent, "no further requests while parked");
-});
-
-test("sync stops on its own before the allowance runs out", async () => {
-  resetRateLimitState();
-  const gh = fakeGithubV2(toJsonl([]), { limit: RATE_LIMIT_FLOOR });
-  const settings = { token: "tok", gistId: "g1" };
-  await syncLog(settings, []);
-  const spent = gh.calls.length;
-  await assert.rejects(() => syncLog(settings, []), /Limit erreicht/);
-  assert.equal(gh.calls.length, spent, "it refuses rather than spending the last of it");
+test("sync never refuses on its own: only the server can say no", () => {
+  // Added 2026-10-21. A client-side rate-limit guard parsed GitHub's headers
+  // and parked sync for an hour when it read "0 remaining". Number(null) is
+  // 0 and Number.isFinite(0) is true, so a response whose header the browser
+  // had not exposed, which is any cross-origin 304, looked exactly like an
+  // exhausted allowance. The owner lost an evening's syncing to it. The
+  // module must therefore contain no self-imposed block at all: whether a
+  // request may proceed is GitHub's answer to that request, nothing else.
+  const src = readFileSync(new URL("../../web/lib/sync.js", import.meta.url), "utf8");
+  for (const forbidden of ["x-ratelimit", "blockedUntil", "RATE_LIMIT_FLOOR", "rateLimited("]) {
+    assert.ok(!src.includes(forbidden), `sync.js must not decide limits for itself: ${forbidden}`);
+  }
 });

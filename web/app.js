@@ -164,15 +164,20 @@ async function sync() {
     return r;
   } catch (err) {
     const pending = unpushed() ? ` (${unpushed()} ungesichert)` : "";
-    // A rate limit is not a failure to report in GitHub's own words, which
-    // are three lines of terms of service. Say when it comes back and stop
-    // asking until then; the log is safe on disk meanwhile.
-    if (err.name === "RateLimitedError") setSyncStatus(err.message + pending, "bad");
-    else {
-      setSyncStatus(
-        (navigator.onLine ? `nicht gesichert: ${err.message}` : "offline, später") + pending, "bad",
-      );
-    }
+    // GitHub's own rate-limit text is three lines of terms of service, so
+    // say the short version. This reads the message GitHub actually sent and
+    // never decides for itself that the limit is reached: deciding that from
+    // a header the browser had not exposed is what blocked an entire evening
+    // of practice on 2026-10-21.
+    const limited = /rate limit/i.test(err.message || "");
+    setSyncStatus(
+      (!navigator.onLine
+        ? "offline, später"
+        : limited
+          ? "GitHub-Limit erreicht, später erneut"
+          : `nicht gesichert: ${err.message}`) + pending,
+      "bad",
+    );
     throw err;
   } finally {
     syncing = false;
