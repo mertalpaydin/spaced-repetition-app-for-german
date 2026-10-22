@@ -8,7 +8,7 @@ import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
 import { deriveState, entryKey, makeIssue, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
 import { reserveLetter, withAdded } from "../../web/lib/deck.js";
-import { DEFAULT_SETTINGS, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueUnits, eligiblePendingUnits, introductionOrder, isResting, nextUnit, pickCard, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage } from "../../web/lib/session.js";
+import { DEFAULT_SETTINGS, POSTPONE_STEP, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueUnits, eligiblePendingUnits, introductionOrder, isPostponed, nextUnit, pickCard, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage } from "../../web/lib/session.js";
 
 const T0 = "2026-09-01T08:00:00Z";
 const unit_ = (unit_id, rank, display_de, extra = {}) => ({ unit_id, kind: "verb_prep", display_de, rank, trivial: false, gloss_en: null, also_accepted: [], ...extra });
@@ -391,24 +391,42 @@ test("stability lands a unit in the right band", () => {
   assert.equal(stabilityBand(400), "solid");
 });
 
-test("postpone moves a unit down the order and never skips it", () => {
-  // Twin of test_postpone_moves_a_unit_down_the_order_and_never_skips_it in
-  // tests/test_phase2_engine.py. "Später" costs POSTPONE_STEP places per
-  // press; it used to write known=true and drop the unit for good.
+const review_ = (seq, unitId, minutes, rating = "good") => ({
+  type: "review", seq, ts: new Date(Date.parse(T0) + minutes * 60000).toISOString(), unit_id: unitId,
+  card_id: String(seq).padStart(12, "0"), rating, outcome: rating === "good" ? "exact" : "wrong",
+  answers: ["x"], expected: ["x"], elapsed_ms: 1, deck_version: "t",
+});
+
+test("postpone takes the unit out of learning for fifty units", () => {
+  // Twin of test_postpone_takes_the_unit_out_of_learning_for_fifty_units in
+  // tests/test_phase2_engine.py. "Später": no longer lernend, back as a NEW
+  // unit after POSTPONE_STEP others. "geschehen" and "auftauchen" came back
+  // as learning cards the morning after the owner postponed them, 2026-10-22.
   const d = deck();
   const engine = createEngine(DEFAULT_SETTINGS.retention);
-  const first = introductionOrder(d)[0].unit_id;
-  const mark = { type: "mark", seq: 1, ts: T0, unit_id: first, known: false, source: "postpone" };
-  const state = deriveState([mark], engine);
+  const unitId = "vp:warten_auf";
+  const seen = [review_(1, unitId, 0, "again"), review_(2, unitId, 15)];
+  const press = { type: "mark", seq: 3, ts: new Date(Date.parse(T0) + 16 * 60000).toISOString(), unit_id: unitId, known: false, source: "postpone" };
 
-  assert.deepEqual(state.postponed, { [first]: 1 });
-  assert.ok(!state.known.has(first), "a postponed unit is not known");
-  const moved = introductionOrder(d, state).map((u) => u.unit_id);
-  assert.notEqual(moved[0], first);
-  assert.equal(moved[moved.length - 1], first);
+  assert.ok(unitId in deriveState(seen, engine).records, "in learning before the press");
 
-  const twice = deriveState([mark, { ...mark, seq: 2 }], engine);
-  assert.deepEqual(twice.postponed, { [first]: 2 });
+  const state = deriveState([...seen, press], engine);
+  assert.ok(!(unitId in state.records), "no longer lernend");
+  assert.ok(!state.known.has(unitId), "postponed, not deleted");
+  for (const when of ["2026-09-01T19:00:00Z", "2026-09-08T08:00:00Z"]) {
+    assert.ok(!dueUnits(d, state, engine, when, 0).some((u) => u.unit_id === unitId));
+    assert.ok(!eligiblePendingUnits(d, state, engine, DEFAULT_SETTINGS, when, true).some((u) => u.unit_id === unitId));
+    const nxt = nextUnit(d, state, engine, DEFAULT_SETTINGS, when);
+    assert.ok(nxt === null || nxt.unit_id !== unitId);
+  }
+  assert.ok(isPostponed(state, unitId));
+
+  const others = Array.from({ length: POSTPONE_STEP }, (_, i) => review_(10 + i, `vb:other_${i}`, 20 + i));
+  assert.ok(isPostponed(deriveState([...seen, press, ...others.slice(0, -1)], engine), unitId), "49 is not enough");
+  const back = deriveState([...seen, press, ...others], engine);
+  assert.ok(!isPostponed(back, unitId), "fifty more and it is new again");
+  assert.ok(!(unitId in back.records), "new, not resurrected as learning");
+  assert.deepEqual(back.postponed, { [unitId]: 1 });
 });
 
 test("an issue entry survives the parser and replays into nothing", () => {
@@ -424,25 +442,19 @@ test("an issue entry survives the parser and replays into nothing", () => {
   assert.equal(state.triaged.size, 0);
 });
 
-test("postpone takes a failed unit out of the session", () => {
-  // Twin of test_postpone_takes_a_failed_unit_out_of_the_session in
-  // tests/test_phase2_engine.py. The rank push governs new units only, so a
-  // unit already in learning used to come straight back.
-  const d = deck();
+
+test("answering a postponed unit does not put it back into learning", () => {
+  // Twin of test_answering_a_postponed_unit_does_not_put_it_back_into_learning.
+  // The owner's log, 2026-10-22: postponed at night, shown by the old build in
+  // the morning, answered. The answer must not make it "lernend" again.
   const engine = createEngine(DEFAULT_SETTINGS.retention);
-  const unitId = "vp:warten_auf";
-  const wrong = { type: "review", seq: 1, ts: T0, unit_id: unitId, card_id: "w2", rating: "again", outcome: "wrong", answers: ["x", "auf"], expected: ["warten", "auf"], elapsed_ms: 1, deck_version: "t" };
-  const later = "2026-09-01T08:11:00Z";
-
-  const plain = deriveState([wrong], engine);
-  assert.ok(dueUnits(d, plain, engine, later, 0).some((u) => u.unit_id === unitId));
-
-  const mark = { type: "mark", seq: 2, ts: T0, unit_id: unitId, known: false, source: "postpone" };
-  const state = deriveState([wrong, mark], engine);
-  assert.ok(isResting(state, unitId, later));
-  assert.ok(!dueUnits(d, state, engine, later, 0).some((u) => u.unit_id === unitId));
-  assert.ok(!eligiblePendingUnits(d, state, engine, DEFAULT_SETTINGS, later, true).some((u) => u.unit_id === unitId));
-  assert.ok(!isResting(state, unitId, "2026-09-02T05:01:00Z"), "the rest expires");
+  const unitId = "vb:geschehen";
+  const night = { type: "mark", seq: 3, ts: new Date(Date.parse(T0) + 16 * 60000).toISOString(), unit_id: unitId, known: false, source: "postpone" };
+  const morning = review_(4, unitId, 11 * 60);
+  const state = deriveState([review_(1, unitId, 0, "again"), review_(2, unitId, 15), night, morning], engine);
+  assert.ok(!(unitId in state.records), "still out of learning");
+  assert.ok(isPostponed(state, unitId));
+  assert.ok(state.reviewTimes.includes(morning.ts), "the answer still counts as work done");
 });
 
 test("never marks a unit known and says which button it was", () => {

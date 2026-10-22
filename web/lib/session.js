@@ -1,6 +1,8 @@
 // The scheduler and stats, matching src/engine/session.py and stats.py.
 
-import { entriesSinceReset } from "./log.js";
+import { POSTPONE_STEP, entriesSinceReset } from "./log.js";
+
+export { POSTPONE_STEP };
 
 // newPool: a new unit is drawn at random from the next N by rank rather
 // than always the very next one (feedback 2026-09-19). Matches
@@ -14,21 +16,13 @@ export const DEFAULT_SETTINGS = { cardsPerDay: 40, newPerDay: null, learnAheadMi
   relearnSpacing: 8, maxAsksPerSession: 3, sessionGapMinutes: 60, requestedPerDay: 5,
   requestedDelay: 10, extraCards: 10 };
 
-// How far down the introduction order one "Später" pushes a unit. Matches
-// POSTPONE_STEP in src/contracts.py.
-export const POSTPONE_STEP = 50;
-
-// How long a postponed unit is left alone in EVERY tier. The rank push
-// governs which new units are introduced; a unit already in learning came
-// straight back through due and pending, so "Spaeter" on a card just
-// answered wrong returned it within minutes (owner, 2026-10-21). Matches
-// POSTPONE_QUIET_HOURS in src/contracts.py.
-export const POSTPONE_QUIET_MS = 20 * 3600 * 1000;
-
-// Matches is_resting in src/engine/session.py.
-export function isResting(state, unitId, now) {
-  const at = (state.postponedAt || {})[unitId];
-  return at !== undefined && new Date(now).getTime() - new Date(at).getTime() < POSTPONE_QUIET_MS;
+// Is this unit still waiting out a "Später"? It has no learning record (the
+// replay drops it), so it can only return as a NEW unit, and only once
+// POSTPONE_STEP more units have been started. Matches is_postponed in
+// src/engine/session.py.
+export function isPostponed(state, unitId) {
+  const until = (state.postponedUntil || {})[unitId];
+  return until !== undefined && Object.keys(state.firstReview || {}).length < until;
 }
 
 // Stability bands for the Einheiten screen, in days. Matches
@@ -49,7 +43,8 @@ export function showableCards(cards) {
 }
 
 export function isLearnable(deck, unit, state) {
-  return !unit.trivial && !state.known.has(unit.unit_id) && showableCards(deck.cardsByUnit[unit.unit_id] || []).length > 0;
+  return !unit.trivial && !state.known.has(unit.unit_id) && !isPostponed(state, unit.unit_id)
+    && showableCards(deck.cardsByUnit[unit.unit_id] || []).length > 0;
 }
 
 export function reviewsToday(state, now) {
@@ -81,7 +76,6 @@ export function dueUnits(deck, state, engine, now, horizonMs) {
   for (const [unitId, record] of Object.entries(state.records)) {
     const unit = deck.byId[unitId];
     if (!unit || state.known.has(unitId) || new Date(record.due).getTime() > limit) continue;
-    if (isResting(state, unitId, now)) continue;
     due.push([engine.retrievability(record, now), unit.rank, unit]);
   }
   due.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -115,9 +109,6 @@ export function eligiblePendingUnits(deck, state, engine, settings, now, ignoreS
   for (const [unitId, record] of Object.entries(state.records)) {
     const unit = deck.byId[unitId];
     if (!unit || state.known.has(unitId) || record.state === "review") continue;
-    // A postponed unit rests even here, where nextUnit's last resort would
-    // otherwise hand it straight back.
-    if (isResting(state, unitId, now)) continue;
     const last = record.last_review ? new Date(record.last_review).getTime() : null;
     if (!ignoreSpacing && last !== null && last >= started) {
       const since = state.reviewTimes.filter((ts) => new Date(ts).getTime() > last).length;
@@ -138,17 +129,13 @@ export function eligiblePendingUnits(deck, state, engine, settings, now, ignoreS
 // src/engine/session.py; both suites pin the two against each other.
 export function introductionOrder(deck, state = null) {
   const added = new Map((state?.requested || []).map((id, i) => [id, i]));
-  const postponed = state?.postponed || {};
-  // Each press of "Später" costs a unit POSTPONE_STEP places. Matches
-  // introduction_order in src/engine/session.py.
-  const push = (u) => POSTPONE_STEP * (postponed[u.unit_id] || 0);
   return [...deck.units].sort((a, b) => {
     const aa = added.has(a.unit_id) ? added.get(a.unit_id) : Infinity;
     const ba = added.has(b.unit_id) ? added.get(b.unit_id) : Infinity;
     if (aa !== ba) return aa - ba;
-    const ao = a.requested_order === null || a.requested_order === undefined ? Infinity : a.requested_order + push(a);
-    const bo = b.requested_order === null || b.requested_order === undefined ? Infinity : b.requested_order + push(b);
-    return ao - bo || (a.rank + push(a)) - (b.rank + push(b));
+    const ao = a.requested_order ?? Infinity;
+    const bo = b.requested_order ?? Infinity;
+    return ao - bo || a.rank - b.rank;
   });
 }
 

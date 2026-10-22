@@ -16,8 +16,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from src.contracts import (
-    POSTPONE_QUIET_HOURS,
-    POSTPONE_STEP,
     DeckManifest,
     PhraseCard,
     PhraseUnit,
@@ -131,6 +129,7 @@ def is_learnable(deck: Deck, unit: PhraseUnit, state: LearnerState) -> bool:
     return (
         not unit.trivial
         and unit.unit_id not in state.known
+        and not is_postponed(state, unit.unit_id)
         and bool(showable_cards(deck.cards_by_unit.get(unit.unit_id, [])))
     )
 
@@ -161,18 +160,21 @@ def budget_left(state: LearnerState, settings: Settings, now: datetime) -> int:
     return max(settings.cards_per_day - budget_spent_today(state, now), 0)
 
 
-def is_resting(state: LearnerState, unit_id: str, now: datetime) -> bool:
-    """Was this unit postponed recently enough to be left alone?
+def introduced_count(state: LearnerState) -> int:
+    """How many distinct units the learner has ever started."""
+    return len(state.first_review)
 
-    "Später" used to push a unit down the introduction order and nothing
-    else, which governs NEW units only. A unit already in learning therefore
-    came straight back through the due and pending tiers, so pressing it on a
-    card just answered wrong returned that card within minutes: the opposite
-    of what the word means (owner, 2026-10-21). Matches ``isResting`` in
+
+def is_postponed(state: LearnerState, unit_id: str) -> bool:
+    """Is this unit still waiting out a "Später"?
+
+    A postponed unit has no learning record (``derive_state`` drops it), so
+    it can only come back as a NEW unit, and only once ``POSTPONE_STEP`` more
+    units have been started after the press. Matches ``isPostponed`` in
     ``web/lib/session.js``.
     """
-    at = state.postponed_at.get(unit_id)
-    return at is not None and now - at < timedelta(hours=POSTPONE_QUIET_HOURS)
+    until = state.postponed_until.get(unit_id)
+    return until is not None and introduced_count(state) < until
 
 
 def due_units(
@@ -185,8 +187,6 @@ def due_units(
     for unit_id, record in state.records.items():
         unit = by_id.get(unit_id)
         if unit is None or unit_id in state.known or record.due > now + horizon:
-            continue
-        if is_resting(state, unit_id, now):
             continue
         due.append((engine.get_retrievability(record, now), unit.rank, unit))
     due.sort(key=lambda item: (item[0], item[1]))
@@ -238,10 +238,6 @@ def eligible_pending_units(
         unit = by_id.get(unit_id)
         if unit is None or unit_id in state.known or record.state == "review":
             continue
-        # A postponed unit rests even here, where the last resort of
-        # next_unit would otherwise hand it straight back.
-        if is_resting(state, unit_id, now):
-            continue
         last = record.last_review
         if not ignore_spacing and last is not None and last >= started:
             since = sum(1 for ts in state.review_times if ts > last)
@@ -271,15 +267,14 @@ def introduction_order(deck: Deck, state: LearnerState | None = None) -> list[Ph
     against each other by tests in both suites.
     """
     added = {unit_id: position for position, unit_id in enumerate(state.requested)} if state else {}
-    postponed = state.postponed if state else {}
     return sorted(
         deck.units,
         key=lambda u: (
             u.unit_id not in added,
             added.get(u.unit_id, 0),
             u.requested_order is None,
-            (u.requested_order or 0) + POSTPONE_STEP * postponed.get(u.unit_id, 0),
-            u.rank + POSTPONE_STEP * postponed.get(u.unit_id, 0),
+            u.requested_order or 0,
+            u.rank,
         ),
     )
 

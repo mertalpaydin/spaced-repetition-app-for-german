@@ -531,17 +531,16 @@ class RequestEntry(BaseModel):
 
 LogEntry = ReviewEntry | MarkEntry | ResetEntry | RequestEntry | IssueEntry
 
-#: How far down the introduction order one "Später" pushes a unit. Fifty is
-#: the owner's number (2026-10-20): far enough that the unit is out of the
-#: way for a week or so at ten new units a day, near enough that it is not a
-#: disguised deletion, which is what the button used to do.
+#: How many more units must be started before a postponed one comes back.
+#: Fifty is the owner's number (2026-10-20): "ship that phrase like 50 in
+#: the ranking". "Später" drops the unit's learning record, so it is no
+#: longer "lernend", and it returns as a NEW unit after fifty others, which
+#: at ten a day is about a week.
+#:
+#: Two earlier versions got this wrong. The first wrote known=True and
+#: deleted the unit for good. The second pushed it fifty places down the
+#: introduction order but kept its learning record, and later hid it for
+#: twenty hours; either way a unit already in learning came back through the
+#: due queue as a learning card, the owner's "geschehen" and "auftauchen" on
+#: 2026-10-22 among them.
 POSTPONE_STEP = 50
-
-#: How long a postponed unit is left alone, whatever the scheduler thinks.
-#: The rank push only governs which NEW units are introduced, so a unit
-#: already in learning came straight back through the due and pending tiers,
-#: and pressing "Später" on a card just answered wrong brought it round again
-#: within minutes, which is the opposite of what the button says (owner,
-#: 2026-10-21). Twenty hours means "not again today" without claiming a
-#: calendar day the log does not have.
-POSTPONE_QUIET_HOURS = 20

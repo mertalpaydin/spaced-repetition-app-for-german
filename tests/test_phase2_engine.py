@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from src.cli.train import Client
 from src.contracts import (
+    POSTPONE_STEP,
     DeckManifest,
     GapSpan,
     IssueEntry,
@@ -27,7 +28,7 @@ from src.engine.session import (
     due_units,
     eligible_pending_units,
     introduction_order,
-    is_resting,
+    is_postponed,
     next_unit,
     pick_card,
     recently_shown,
@@ -808,82 +809,91 @@ def test_a_requested_unit_is_introduced_before_any_mined_one() -> None:
     assert next_unit(deck, state, engine, Settings(), T0).unit_id == "sv:aufstehen"
 
 
-def test_postpone_moves_a_unit_down_the_order_and_never_skips_it() -> None:
-    """ "Später" costs POSTPONE_STEP places per press and nothing else.
-
-    Until 2026-10-20 it wrote known=True, which dropped the unit for good:
-    the same effect as "Kannte ich schon" under a label promising the
-    opposite (owner: "what does the 'später' button do?"). The twin in
-    tests/js/session.test.mjs pins the same answer.
-    """
-    deck = _deck()
-    engine = FSRSEngine()
-    first = introduction_order(deck)[0]
-
-    state = derive_state(
-        [MarkEntry(seq=1, ts=T0, unit_id=first.unit_id, known=False, source="postpone")], engine
+def _minutes_review(seq: int, unit_id: str, minutes: int, rating: str = "good") -> ReviewEntry:
+    return ReviewEntry(
+        seq=seq,
+        ts=T0 + timedelta(minutes=minutes),
+        unit_id=unit_id,
+        card_id=f"{seq:012d}",
+        rating=rating,  # type: ignore[arg-type]
+        outcome="exact" if rating == "good" else "wrong",
+        answers=["x"],
+        expected=["x"],
+        elapsed_ms=1,
+        deck_version="t",
     )
-    assert state.postponed == {first.unit_id: 1}
-    # it is NOT skipped: a postponed unit is still learnable, still counted
-    assert first.unit_id not in state.known
-    moved = [u.unit_id for u in introduction_order(deck, state)]
-    assert moved[0] != first.unit_id
-    # and it sorts by rank + 50, so against a four-unit fixture it goes last
-    assert moved[-1] == first.unit_id
-
-    # pressing it twice costs a hundred places, not fifty
-    twice = derive_state(
-        [
-            MarkEntry(seq=1, ts=T0, unit_id=first.unit_id, known=False, source="postpone"),
-            MarkEntry(seq=2, ts=T0, unit_id=first.unit_id, known=False, source="postpone"),
-        ],
-        engine,
-    )
-    assert twice.postponed == {first.unit_id: 2}
 
 
-def test_postpone_takes_a_failed_unit_out_of_the_session() -> None:
-    """ "Später" on a card just answered wrong must not hand it back.
+def test_postpone_takes_the_unit_out_of_learning_for_fifty_units() -> None:
+    """ "Später": no longer lernend, back as a NEW unit after fifty others.
 
-    The rank push governs which NEW units are introduced, so until
-    2026-10-21 a unit already in learning came straight back through the due
-    and pending tiers, minutes later, which is the opposite of what the
-    button says (owner: "units where Spater button clicked and answer is
-    empty or false, re appear for repeat").
+    Three versions before this one got it wrong, each in a way the owner
+    found in use. The first wrote known=True and deleted the unit for good.
+    The second pushed it fifty places down the introduction order but kept
+    its learning record, so a unit already in learning came straight back
+    through the due queue. The third hid it for twenty hours and then let it
+    come back the same way: "geschehen" and "auftauchen" were the first two
+    cards on the morning of 2026-10-22, both postponed the night before. The
+    twin in tests/js/session.test.mjs pins the same answers.
     """
     deck = _deck()
     engine = FSRSEngine()
     unit_id = "vp:warten_auf"
-    wrong = ReviewEntry(
-        seq=1,
-        ts=T0,
-        unit_id=unit_id,
-        card_id="a10000000000",
-        rating="again",
-        outcome="wrong",
-        answers=["x", "auf"],
-        expected=["warten", "auf"],
-        elapsed_ms=1,
-        deck_version="t",
+    seen = [_minutes_review(1, unit_id, 0, "again"), _minutes_review(2, unit_id, 15, "good")]
+    press = MarkEntry(
+        seq=3, ts=T0 + timedelta(minutes=16), unit_id=unit_id, known=False, source="postpone"
     )
-    later = T0 + timedelta(minutes=11)
 
-    # without the postpone it comes back, which is the behaviour being fixed
-    state = derive_state([wrong], engine)
-    assert any(u.unit_id == unit_id for u in due_units(deck, state, engine, later, timedelta(0)))
+    # before the press it is in learning and comes back on its own
+    before = derive_state(seen, engine)
+    assert unit_id in before.records
 
-    postponed = derive_state(
-        [wrong, MarkEntry(seq=2, ts=T0, unit_id=unit_id, known=False, source="postpone")], engine
+    state = derive_state([*seen, press], engine)
+    # out of learning: no record, so not due, not pending, not "lernend"
+    assert unit_id not in state.records
+    assert unit_id not in state.known, "postponed, not deleted"
+    morning = T0 + timedelta(hours=11)
+    week = T0 + timedelta(days=7)
+    for when in (morning, week):
+        assert unit_id not in {
+            u.unit_id for u in due_units(deck, state, engine, when, timedelta(0))
+        }
+        pending = eligible_pending_units(deck, state, engine, Settings(), when, ignore_spacing=True)
+        assert unit_id not in {u.unit_id for u in pending}
+        nxt = next_unit(deck, state, engine, Settings(), when)
+        assert nxt is None or nxt.unit_id != unit_id
+    assert is_postponed(state, unit_id)
+
+    # one unit short of fifty more started, it is still waiting ...
+    others = [_minutes_review(10 + i, f"vb:other_{i}", 20 + i) for i in range(POSTPONE_STEP)]
+    almost = derive_state([*seen, press, *others[:-1]], engine)
+    assert is_postponed(almost, unit_id)
+    # ... and at fifty it is a new unit again, not resurrected as learning
+    back = derive_state([*seen, press, *others], engine)
+    assert not is_postponed(back, unit_id)
+    assert unit_id not in back.records
+    assert back.postponed == {unit_id: 1}
+
+
+def test_answering_a_postponed_unit_does_not_put_it_back_into_learning() -> None:
+    """The owner's actual log, 2026-10-22: "geschehen" postponed at night,
+    shown again by the old build in the morning, and answered. Replayed by
+    this build, the answer must not rebuild the learning record, or the word
+    stays "lernend" despite the press. The twin in tests/js pins the same."""
+    engine = FSRSEngine()
+    unit_id = "vb:geschehen"
+    night = MarkEntry(
+        seq=3, ts=T0 + timedelta(minutes=16), unit_id=unit_id, known=False, source="postpone"
     )
-    assert is_resting(postponed, unit_id, later)
-    still_due = due_units(deck, postponed, engine, later, timedelta(0))
-    assert not [u for u in still_due if u.unit_id == unit_id]
-    pending = eligible_pending_units(
-        deck, postponed, engine, Settings(), later, ignore_spacing=True
+    morning = _minutes_review(4, unit_id, 11 * 60, "good")
+    state = derive_state(
+        [_minutes_review(1, unit_id, 0, "again"), _minutes_review(2, unit_id, 15), night, morning],
+        engine,
     )
-    assert not [u for u in pending if u.unit_id == unit_id]
-    # and it is not gone: the rest expires
-    assert not is_resting(postponed, unit_id, T0 + timedelta(hours=21))
+    assert unit_id not in state.records
+    assert is_postponed(state, unit_id)
+    # the answer still counts as work done that day
+    assert morning.ts in state.review_times
 
 
 def test_never_is_known_recorded_apart_from_practice() -> None:

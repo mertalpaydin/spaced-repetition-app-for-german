@@ -9,7 +9,7 @@ import { gradeCard, renderMarked } from "./lib/grader.js";
 import { deriveState, entriesSinceReset, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
-  DEFAULT_SETTINGS, POSTPONE_STEP, budgetSpentToday, computeStats, dueUnits, nextUnit, pickCard, reviewsToday, unitsByStage, untriagedUnits,
+  DEFAULT_SETTINGS, budgetSpentToday, computeStats, dueUnits, nextUnit, pickCard, reviewsToday, unitsByStage, untriagedUnits,
 } from "./lib/session.js";
 import { appendEntries, kv, loadSettings, readLog, replaceLog, saveSettings } from "./lib/store.js";
 import { syncLog } from "./lib/sync.js";
@@ -371,7 +371,7 @@ async function check(reveal = false) {
   // (owner, 2026-10-20: "after the answer is revealed so that no hint").
   const moved = (state.postponed || {})[unit.unit_id] || 0;
   const rank = `Rang ${u.rank.toLocaleString("de-DE")}` +
-    (moved ? ` (+${moved * POSTPONE_STEP} aufgeschoben)` : "") +
+    (moved ? ` (${moved}× aufgeschoben)` : "") +
     (u.cefr ? ` · ${escapeHtml(u.cefr)}` : "");
   fb.innerHTML = `<div>${verdict}${wrong ? ": " + escapeHtml(wrong) : ""}${synonym ? " (" + escapeHtml(synonym) + ")" : ""}</div>` +
     `<div class="unit">${escapeHtml(u.display)}` +
@@ -401,10 +401,10 @@ async function markNever() {
   loadCard();
 }
 
-// "Später" pushes the unit POSTPONE_STEP places down the introduction order
-// and nothing else. Until 2026-10-20 it wrote known=true, which dropped the
-// unit for good: the same thing as "Kannte ich schon", under a label that
-// promised the opposite.
+// "Später" takes the unit out of learning (the replay drops its record) and
+// brings it back as a NEW unit after POSTPONE_STEP others have been started.
+// See POSTPONE_STEP in src/contracts.py for the three versions that got it
+// wrong before this one.
 async function defer() {
   if (!current) return;
   await record(makeMark(entries, current.unit.unit_id, false, "postpone", now()));

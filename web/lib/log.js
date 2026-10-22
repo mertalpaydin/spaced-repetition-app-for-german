@@ -4,6 +4,12 @@
 
 import { newRecord } from "./engine.js";
 
+// How many more units must be started before a postponed one comes back.
+// Lives here rather than in session.js because the replay needs it and
+// session.js already imports this module. Matches POSTPONE_STEP in
+// src/contracts.py.
+export const POSTPONE_STEP = 50;
+
 // A reset carries no unit, so the empty string stands in for one; the
 // Python side builds the same key (src/engine/review_log.entry_key).
 export function entryKey(e) { return `${e.type}|${e.unit_id || ""}|${e.ts}`; }
@@ -61,7 +67,7 @@ export function toJsonl(entries) {
 
 function freshState() {
   return {
-    records: {}, known: new Set(), knownSource: {}, triaged: new Set(), postponed: {}, postponedAt: {}, lastCard: {}, ratings: {},
+    records: {}, known: new Set(), knownSource: {}, triaged: new Set(), postponed: {}, postponedUntil: {}, lastCard: {}, ratings: {},
     firstReview: {}, reviewTimes: [], budgetReviewTimes: [], retriesPending: {}, lastUnit: null,
     // Words the learner added from the page, oldest first, and the units and
     // cards that exist only here because no exported shard holds them.
@@ -114,9 +120,31 @@ export function deriveState(entries, engine) {
       state.triaged.add(e.unit_id);
       // "Später" moves a unit down the introduction order, it does not skip
       // it. Matches derive_state in src/engine/review_log.py.
-      if (e.source === "postpone") { state.postponed[e.unit_id] = (state.postponed[e.unit_id] || 0) + 1; state.postponedAt[e.unit_id] = e.ts; }
+      // "Später" takes the unit OUT of learning: its record goes, so it is no
+      // longer due, pending or "lernend", and it comes back only as a new
+      // unit once POSTPONE_STEP more have been started. Matches derive_state
+      // in src/engine/review_log.py.
+      if (e.source === "postpone") {
+        state.postponed[e.unit_id] = (state.postponed[e.unit_id] || 0) + 1;
+        state.postponedUntil[e.unit_id] = Object.keys(state.firstReview).length + POSTPONE_STEP;
+        delete state.records[e.unit_id];
+        delete state.retriesPending[e.unit_id];
+      }
       if (e.known) { state.known.add(e.unit_id); state.knownSource[e.unit_id] = e.source; }
       else { state.known.delete(e.unit_id); delete state.knownSource[e.unit_id]; }
+      continue;
+    }
+    // A review of a unit still postponed can only come from a build before
+    // 2026-10-22, which showed postponed units. It counts as work done, but it
+    // does not put the unit back into learning. Matches derive_state in
+    // src/engine/review_log.py.
+    const until = state.postponedUntil[e.unit_id];
+    if (until !== undefined && Object.keys(state.firstReview).length < until) {
+      state.reviewTimes.push(e.ts);
+      (state.reviewTimesByUnit[e.unit_id] ||= []).push(e.ts);
+      state.reviewOrder.push(e.unit_id);
+      state.budgetReviewTimes.push(e.ts);
+      state.lastUnit = e.unit_id;
       continue;
     }
     const before = state.records[e.unit_id];

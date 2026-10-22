@@ -18,6 +18,7 @@ from pathlib import Path
 from pydantic import TypeAdapter, ValidationError
 
 from src.contracts import (
+    POSTPONE_STEP,
     IssueEntry,
     LogEntry,
     MarkEntry,
@@ -188,10 +189,10 @@ class LearnerState:
     #: order. Each press costs it ``POSTPONE_STEP`` places, so pressing twice
     #: moves it a hundred; it is never skipped, only moved.
     postponed: dict[str, int] = field(default_factory=dict)
-    #: When each was last postponed. For ``POSTPONE_QUIET_HOURS`` after that
-    #: the scheduler leaves it alone in every tier, which is what the button
-    #: promises; the rank push alone governs introduction only.
-    postponed_at: dict[str, datetime] = field(default_factory=dict)
+    #: For each postponed unit, how many units must have been started before
+    #: it may be introduced again: the count at the press plus
+    #: ``POSTPONE_STEP``. Its learning record is dropped at the press.
+    postponed_until: dict[str, int] = field(default_factory=dict)
     #: The card shown last per unit, so the next review rotates.
     last_card: dict[str, str] = field(default_factory=dict)
     #: Ratings per unit in log order, for the stats.
@@ -259,14 +260,36 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
         if isinstance(entry, MarkEntry):
             state.triaged.add(entry.unit_id)
             if entry.source == "postpone":
+                # "Später" takes the unit OUT of learning: its record goes,
+                # so it is no longer due, pending or "lernend", and it can
+                # only come back as a new unit once POSTPONE_STEP more units
+                # have been started. Until 2026-10-22 the record was kept
+                # and the unit merely hidden for twenty hours, after which it
+                # returned as a learning card, which is what the owner had
+                # asked it not to do.
                 state.postponed[entry.unit_id] = state.postponed.get(entry.unit_id, 0) + 1
-                state.postponed_at[entry.unit_id] = entry.ts
+                state.postponed_until[entry.unit_id] = len(state.first_review) + POSTPONE_STEP
+                state.records.pop(entry.unit_id, None)
+                state.retries_pending.pop(entry.unit_id, None)
             if entry.known:
                 state.known.add(entry.unit_id)
                 state.known_source[entry.unit_id] = entry.source
             else:
                 state.known.discard(entry.unit_id)
                 state.known_source.pop(entry.unit_id, None)
+            continue
+        until = state.postponed_until.get(entry.unit_id)
+        if until is not None and len(state.first_review) < until:
+            # The unit is postponed and its fifty units have not gone by, so
+            # the scheduler would never have shown it: this review can only
+            # come from a build before 2026-10-22, which still did. It was
+            # real work and counts as such, but it does not put the unit
+            # back into learning, because the learner had asked for it out.
+            state.review_times.append(entry.ts)
+            state.review_times_by_unit.setdefault(entry.unit_id, []).append(entry.ts)
+            state.review_order.append(entry.unit_id)
+            state.budget_review_times.append(entry.ts)
+            state.last_unit = entry.unit_id
             continue
         before = state.records.get(entry.unit_id)
         record = before or FSRSRecord(card_id=entry.unit_id, due=entry.ts)
