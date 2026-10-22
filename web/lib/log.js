@@ -131,7 +131,13 @@ export function deriveState(entries, engine) {
         delete state.retriesPending[e.unit_id];
       }
       if (e.known) { state.known.add(e.unit_id); state.knownSource[e.unit_id] = e.source; }
-      else { state.known.delete(e.unit_id); delete state.knownSource[e.unit_id]; }
+      else {
+        state.known.delete(e.unit_id);
+        delete state.knownSource[e.unit_id];
+        // "Wieder lernen" brings a unit back from a postponement too. Matches
+        // derive_state in src/engine/review_log.py.
+        if (e.source !== "postpone") delete state.postponedUntil[e.unit_id];
+      }
       continue;
     }
     // A review of a unit still postponed can only come from a build before

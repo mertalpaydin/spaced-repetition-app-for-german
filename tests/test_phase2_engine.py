@@ -18,7 +18,14 @@ from src.contracts import (
 )
 from src.engine.fsrs import FSRSEngine
 from src.engine.grading import grade_card, render_marked, render_with_gaps
-from src.engine.review_log import ReviewLog, derive_state, entry_key, merge_entries, read_entries
+from src.engine.review_log import (
+    LearnerState,
+    ReviewLog,
+    derive_state,
+    entry_key,
+    merge_entries,
+    read_entries,
+)
 from src.engine.session import (
     Deck,
     Settings,
@@ -37,6 +44,7 @@ from src.engine.session import (
     session_start,
     showable_cards,
     stability_band,
+    units_by_stage,
 )
 from src.engine.stats import compute_stats
 
@@ -894,6 +902,59 @@ def test_answering_a_postponed_unit_does_not_put_it_back_into_learning() -> None
     assert is_postponed(state, unit_id)
     # the answer still counts as work done that day
     assert morning.ts in state.review_times
+
+
+def test_postpone_leaves_every_status_and_wieder_lernen_brings_it_back() -> None:
+    """The owner, 2026-10-22: "it should also leave frisch or any other
+    statuses". A postponed unit is listed under Später and nowhere else, and
+    "Wieder lernen" ends the postponement early, which it could not before."""
+    deck = _deck()
+    engine = FSRSEngine()
+    unit_id = "vp:warten_auf"
+
+    def where(state: LearnerState) -> list[str]:
+        groups = units_by_stage(deck, state, T0 + timedelta(days=30))
+        return [name for name, items in groups.items() if unit_id in {u.unit_id for u, _ in items}]
+
+    # answer it right until FSRS graduates it out of Lernend into a band
+    seen: list[ReviewEntry] = []
+    for step in range(10):
+        seen.append(_minutes_review(step + 1, unit_id, step * 60 * 24))
+        if derive_state(seen, engine).records[unit_id].state == "review":
+            break
+    before = derive_state(seen, engine)
+    assert where(before) not in ([], ["learning"]), where(before)
+
+    last = seen[-1].ts
+    press = MarkEntry(
+        seq=20, ts=last + timedelta(minutes=1), unit_id=unit_id, known=False, source="postpone"
+    )
+    postponed = derive_state([*seen, press], engine)
+    assert where(postponed) == ["deferred"]
+
+    back = MarkEntry(
+        seq=21, ts=last + timedelta(minutes=2), unit_id=unit_id, known=False, source="practice"
+    )
+    relearnt = derive_state([*seen, press, back], engine)
+    assert not is_postponed(relearnt, unit_id)
+    assert where(relearnt) == []  # a new unit again, in no list until it is answered
+
+
+def test_never_is_listed_apart_from_known() -> None:
+    """ "Nicht mehr lernen" and "Kannte ich schon" are different judgements,
+    so the Einheiten screen keeps them in different lists."""
+    deck = _deck()
+    engine = FSRSEngine()
+    state = derive_state(
+        [
+            MarkEntry(seq=1, ts=T0, unit_id="vp:warten_auf", known=True, source="never"),
+            MarkEntry(seq=2, ts=T0, unit_id="cn:trotzdem", known=True, source="practice"),
+        ],
+        engine,
+    )
+    groups = units_by_stage(deck, state, T0)
+    assert [u.unit_id for u, _ in groups["never"]] == ["vp:warten_auf"]
+    assert [u.unit_id for u, _ in groups["known"]] == ["cn:trotzdem"]
 
 
 def test_never_is_known_recorded_apart_from_practice() -> None:

@@ -457,6 +457,45 @@ test("answering a postponed unit does not put it back into learning", () => {
   assert.ok(state.reviewTimes.includes(morning.ts), "the answer still counts as work done");
 });
 
+test("postpone leaves every status and Wieder lernen brings it back", () => {
+  // Twin of test_postpone_leaves_every_status_and_wieder_lernen_brings_it_back.
+  // Owner, 2026-10-22: "it should also leave frisch or any other statuses".
+  const d = deck();
+  const engine = createEngine(DEFAULT_SETTINGS.retention);
+  const unitId = "vp:warten_auf";
+  const where = (state) => Object.entries(unitsByStage(d, state, "2026-10-01T08:00:00Z"))
+    .filter(([, items]) => items.some(([u]) => u.unit_id === unitId)).map(([name]) => name);
+
+  const seen = [];
+  for (let step = 0; step < 10; step++) {
+    seen.push(review_(step + 1, unitId, step * 60 * 24));
+    if (deriveState(seen, engine).records[unitId].state === "review") break;
+  }
+  const before = where(deriveState(seen, engine));
+  assert.ok(before.length === 1 && before[0] !== "learning", `in a stability band first: ${before}`);
+
+  const last = Date.parse(seen[seen.length - 1].ts);
+  const press = { type: "mark", seq: 20, ts: new Date(last + 60000).toISOString(), unit_id: unitId, known: false, source: "postpone" };
+  assert.deepEqual(where(deriveState([...seen, press], engine)), ["deferred"]);
+
+  const back = { type: "mark", seq: 21, ts: new Date(last + 120000).toISOString(), unit_id: unitId, known: false, source: "practice" };
+  const relearnt = deriveState([...seen, press, back], engine);
+  assert.ok(!isPostponed(relearnt, unitId), "Wieder lernen ends the postponement");
+  assert.deepEqual(where(relearnt), []);
+});
+
+test("Nicht mehr lernen is listed apart from Kannte ich schon", () => {
+  const d = deck();
+  const engine = createEngine(DEFAULT_SETTINGS.retention);
+  const state = deriveState([
+    { type: "mark", seq: 1, ts: T0, unit_id: "vp:warten_auf", known: true, source: "never" },
+    { type: "mark", seq: 2, ts: T0, unit_id: "cn:trotzdem", known: true, source: "practice" },
+  ], engine);
+  const g = unitsByStage(d, state, T0);
+  assert.deepEqual(g.never.map(([u]) => u.unit_id), ["vp:warten_auf"]);
+  assert.deepEqual(g.known.map(([u]) => u.unit_id), ["cn:trotzdem"]);
+});
+
 test("never marks a unit known and says which button it was", () => {
   const engine = createEngine(DEFAULT_SETTINGS.retention);
   const state = deriveState([{ type: "mark", seq: 1, ts: T0, unit_id: "vp:warten_auf", known: true, source: "never" }], engine);

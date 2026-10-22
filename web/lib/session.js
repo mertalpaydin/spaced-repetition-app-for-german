@@ -275,11 +275,19 @@ export function untriagedUnits(deck, state) {
 }
 
 export function unitsByStage(deck, state, now) {
-  const groups = { known: [], deferred: [], learning: [] };
+  // "deferred" holds what Später set aside (a unit waiting out its
+  // postponement has no record, so it would otherwise be in no group) and a
+  // pre-2026-10-20 "defer" mark; "never" is "Nicht mehr lernen", listed apart
+  // from "Kannte ich schon". Matches units_by_stage in src/engine/session.py.
+  const groups = { known: [], never: [], deferred: [], learning: [] };
   for (const [name] of STABILITY_BANDS) groups[name] = [];
   for (const id of state.known) {
     if (!deck.byId[id]) continue;
-    groups[state.knownSource[id] === "defer" ? "deferred" : "known"].push([deck.byId[id], null]);
+    const source = state.knownSource[id];
+    groups[source === "defer" ? "deferred" : source === "never" ? "never" : "known"].push([deck.byId[id], null]);
+  }
+  for (const id of Object.keys(state.postponedUntil || {})) {
+    if (deck.byId[id] && !state.known.has(id) && isPostponed(state, id)) groups.deferred.push([deck.byId[id], null]);
   }
   for (const [id, r] of Object.entries(state.records)) {
     const unit = deck.byId[id];

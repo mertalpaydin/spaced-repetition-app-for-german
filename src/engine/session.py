@@ -478,12 +478,20 @@ def stability_band(stability: float) -> str:
 def units_by_stage(
     deck: Deck, state: LearnerState, now: datetime
 ) -> dict[str, list[tuple[PhraseUnit, datetime | None]]]:
-    """Every unit the log knows, grouped: known, deferred, learning, then one
-    group per stability band; each with its next due time (``None`` for known
-    and deferred)."""
+    """Every unit the log knows, grouped: known, never, deferred, learning,
+    then one group per stability band; each with its next due time (``None``
+    for known, never and deferred).
+
+    ``deferred`` holds what "Später" set aside: a unit still waiting out its
+    postponement, which has no learning record and so would otherwise be in
+    no group at all, and a pre-2026-10-20 ``defer`` mark. ``never`` is "Nicht
+    mehr lernen", listed apart from "Kannte ich schon" because the owner
+    asked for the two to be told apart (2026-10-21). Every group but the
+    learning ones offers "Wieder lernen"."""
     by_id = deck.by_id
     groups: dict[str, list[tuple[PhraseUnit, datetime | None]]] = {
         "known": [],
+        "never": [],
         "deferred": [],
         "learning": [],
     }
@@ -491,8 +499,12 @@ def units_by_stage(
         groups[name] = []
     for unit_id in state.known:
         if unit_id in by_id:
-            stage = "deferred" if state.known_source.get(unit_id) == "defer" else "known"
+            source = state.known_source.get(unit_id)
+            stage = {"defer": "deferred", "never": "never"}.get(source or "", "known")
             groups[stage].append((by_id[unit_id], None))
+    for unit_id in state.postponed_until:
+        if unit_id in by_id and unit_id not in state.known and is_postponed(state, unit_id):
+            groups["deferred"].append((by_id[unit_id], None))
     for unit_id, record in state.records.items():
         unit = by_id.get(unit_id)
         if unit is None or unit_id in state.known:

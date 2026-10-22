@@ -277,6 +277,12 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
             else:
                 state.known.discard(entry.unit_id)
                 state.known_source.pop(entry.unit_id, None)
+                # "Wieder lernen" brings a unit back from wherever it was set
+                # aside, a postponement included; until 2026-10-22 it cleared
+                # only the known flag, so a postponed unit could not be
+                # brought back early.
+                if entry.source != "postpone":
+                    state.postponed_until.pop(entry.unit_id, None)
             continue
         until = state.postponed_until.get(entry.unit_id)
         if until is not None and len(state.first_review) < until:

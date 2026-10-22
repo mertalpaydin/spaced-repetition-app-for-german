@@ -379,8 +379,9 @@ async function check(reveal = false) {
     `<div class="rank muted">${rank}</div>`;
   fb.hidden = false;
   ["btn-check", "btn-reveal"].forEach((id) => { $(id).hidden = true; });
-  // "Später" and "Kannte ich schon" both belong AFTER the answer: the
-  // learner cannot judge a unit they have not been shown.
+  // "Kannte ich schon" and "Nicht mehr lernen" belong after the answer: the
+  // learner cannot judge a unit they have not been shown. "Später" is offered
+  // before it too, and stays offered here.
   ["btn-known", "btn-never", "btn-defer", "btn-next", "btn-issue"].forEach((id) => { $(id).hidden = false; });
   $("btn-next").focus();
   renderToday();
@@ -572,8 +573,9 @@ function loadUnits() {
     section("Jung (7 bis 21 Tage)", g.young, true) +
     section("Reif (21 bis 90 Tage)", g.mature, true) +
     section("Fest (über 90 Tage)", g.solid, true) +
-    section("Zurückgestellt", g.deferred, false, true) +
-    section("Bekannt", g.known, false, true);
+    section("Später (kommt nach 50 neuen Einheiten wieder)", g.deferred, false, true) +
+    section("Kannte ich schon", g.known, false, true) +
+    section("Nicht mehr lernen", g.never, false, true);
   $("units").querySelectorAll("button[data-relearn]").forEach((b) => b.addEventListener("click", () => relearn(b.dataset.relearn)));
 }
 
@@ -801,15 +803,25 @@ $("btn-reset").addEventListener("click", async () => {
 });
 $("btn-sync").addEventListener("click", () => sync().catch(() => {}));
 
+// The log goes out as a FILE. It used to go to the clipboard only, and a log
+// of a few hundred kilobytes does not survive being pasted: the copy the
+// owner sent on 2026-10-21 had lost every newline and stopped 54 KB in, in
+// the middle of an entry, so it could not show whether anything was missing.
+// A file is complete or it is not there. The clipboard copy is kept as well,
+// for a quick look, and the entry count is printed so the file can be checked.
 $("btn-export").addEventListener("click", async () => {
   const text = toJsonl(entries);
-  try {
-    await navigator.clipboard.writeText(text);
-    $("settings-sync-status").textContent = `${entries.length} Einträge in die Zwischenablage kopiert.`;
-  } catch (e) {
-    $("set-export").value = text;
-    $("set-export").hidden = false;
-  }
+  const name = `review_log_${new Date().toISOString().slice(0, 10)}.jsonl`;
+  const url = URL.createObjectURL(new Blob([text], { type: "application/x-ndjson" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  try { await navigator.clipboard.writeText(text); } catch (e) { /* the file is what matters */ }
+  $("settings-sync-status").textContent = `${entries.length} Einträge gespeichert als ${name}.`;
 });
 
 $("set-import").addEventListener("change", async (ev) => {

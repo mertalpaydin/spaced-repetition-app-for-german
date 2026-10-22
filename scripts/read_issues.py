@@ -28,17 +28,34 @@ def read_issues(log_path: Path) -> list[IssueEntry]:
     a line that is not an issue is skipped rather than parsed.
     """
     out: list[IssueEntry] = []
-    for line in log_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        try:
-            raw = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(raw, dict) and raw.get("type") == "issue":
+    for raw in _objects(log_path.read_text(encoding="utf-8")):
+        if raw.get("type") == "issue":
             out.append(IssueEntry.model_validate(raw))
     return sorted(out, key=lambda e: (e.ts, e.seq))
+
+
+def _objects(text: str) -> list[dict[str, object]]:
+    """Every JSON object in ``text``, whether or not it kept its newlines.
+
+    A log pasted through a phone's clipboard arrives with every newline gone,
+    which the owner's copy of 2026-10-21 did. Reading it line by line saw one
+    unparseable line and reported "no reports", silently; a streaming decoder
+    reads the same objects either way. A truncated last object is skipped.
+    """
+    decoder = json.JSONDecoder()
+    out: list[dict[str, object]] = []
+    pos = 0
+    while True:
+        start = text.find("{", pos)
+        if start == -1:
+            return out
+        try:
+            obj, pos = decoder.raw_decode(text, start)
+        except json.JSONDecodeError:
+            pos = start + 1
+            continue
+        if isinstance(obj, dict):
+            out.append(obj)
 
 
 def describe(

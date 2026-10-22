@@ -116,6 +116,18 @@ def test_the_page_assigns_only_to_names_it_declares() -> None:
     assert not undeclared, f"app.js assigns to undeclared name(s): {sorted(undeclared)}"
 
 
+def test_every_button_on_the_page_has_a_click_handler() -> None:
+    """A button that exists and does nothing is a defect a unit test of the
+    engine cannot see. Checked 2026-10-22 when the owner asked whether the
+    buttons all work as intended; all 22 were wired, and this keeps it so."""
+    html = (WEB / "index.html").read_text(encoding="utf-8")
+    js = (WEB / "app.js").read_text(encoding="utf-8")
+    ids = re.findall(r'<button[^>]*\bid="([^"]+)"', html)
+    assert ids, "no buttons found in index.html"
+    unwired = [i for i in ids if f'$("{i}").addEventListener(' not in js]
+    assert not unwired, f"buttons with no handler: {unwired}"
+
+
 def test_service_worker_precaches_every_shell_file() -> None:
     sw = (WEB / "sw.js").read_text(encoding="utf-8")
     listed = set(re.findall(r'"\./([^"]+)"', sw.split("let deckCache")[0]))
