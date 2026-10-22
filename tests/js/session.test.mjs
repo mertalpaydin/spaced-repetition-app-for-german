@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 
 import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
-import { deriveState, entryKey, makeIssue, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
+import { deriveState, entryKey, makeCorrection, makeIssue, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
 import { reserveLetter, withAdded } from "../../web/lib/deck.js";
 import { DEFAULT_SETTINGS, POSTPONE_STEP, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueUnits, eligiblePendingUnits, introductionOrder, isPostponed, nextUnit, pickCard, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage } from "../../web/lib/session.js";
 
@@ -501,4 +501,18 @@ test("never marks a unit known and says which button it was", () => {
   const state = deriveState([{ type: "mark", seq: 1, ts: T0, unit_id: "vp:warten_auf", known: true, source: "never" }], engine);
   assert.ok(state.known.has("vp:warten_auf"));
   assert.equal(state.knownSource["vp:warten_auf"], "never");
+});
+
+test("a correction replays the review as a pass", () => {
+  // Twin of test_a_correction_replays_the_review_as_a_pass. The correction
+  // type must also be in KNOWN_TYPES, or sync would delete it from the gist.
+  const engine = createEngine(DEFAULT_SETTINGS.retention);
+  const wrong = review_(1, "vp:warten_auf", 0, "again");
+  const fix = makeCorrection([wrong], { unitId: "vp:warten_auf", reviewTs: wrong.ts, rating: "hard" }, "2026-09-01T08:00:05Z");
+  assert.deepEqual(parseJsonl(toJsonl([fix])), [fix], "parseJsonl must keep a correction");
+  const failed = deriveState([wrong], engine);
+  const passed = deriveState([wrong, fix], engine);
+  assert.deepEqual(failed.ratings["vp:warten_auf"], ["again"]);
+  assert.deepEqual(passed.ratings["vp:warten_auf"], ["hard"]);
+  assert.ok(Date.parse(passed.records["vp:warten_auf"].due) > Date.parse(failed.records["vp:warten_auf"].due));
 });

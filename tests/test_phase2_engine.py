@@ -7,6 +7,7 @@ import pytest
 from src.cli.train import Client
 from src.contracts import (
     POSTPONE_STEP,
+    CorrectionEntry,
     DeckManifest,
     GapSpan,
     IssueEntry,
@@ -17,7 +18,13 @@ from src.contracts import (
     ReviewEntry,
 )
 from src.engine.fsrs import FSRSEngine
-from src.engine.grading import grade_card, render_marked, render_with_gaps
+from src.engine.grading import (
+    grade_card,
+    is_inflection_of,
+    is_verb_form_of,
+    render_marked,
+    render_with_gaps,
+)
 from src.engine.review_log import (
     LearnerState,
     ReviewLog,
@@ -162,20 +169,54 @@ def test_grade_card_maps_outcomes_to_ratings() -> None:
     assert grade_card(card, ["wartet", "auf"]).rating == "good"
     assert grade_card(card, ["wartet", "auf"]).outcome == "exact"
     assert grade_card(card, ["wertet", "auf"]).rating == "hard"
-    # Until 2026-10-06 a changed ending was "again", which sent the unit back
-    # to learning step 0; the owner knew the words and was being shown them
-    # every few cards because of it. The right word in the wrong form is now
-    # "hard", like a typo: it costs an interval, not a restart.
-    assert grade_card(card, ["warte", "auf"]).outcome == "inflection"
-    assert grade_card(card, ["warte", "auf"]).rating == "hard"
-    # A different word is still "again", which is what keeps the change from
-    # being a blanket softening of the grader.
+    # A VERB in the wrong person or tense is the learner's call. From
+    # 2026-10-06 it passed automatically as "inflection"; on 2026-10-22 the
+    # owner called that too loose ("accepts any verb person: fix") and asked
+    # for a button instead. So it fails, and is a near miss, which is what
+    # puts "Als richtig werten" on the screen.
+    assert grade_card(card, ["warte", "auf"]).outcome == "wrong"
+    assert grade_card(card, ["warte", "auf"]).rating == "again"
+    assert grade_card(card, ["warte", "auf"]).near_miss
+    # A different word is still "again" and is NOT a near miss, which is what
+    # keeps the button from turning a guess into a pass.
     assert grade_card(card, ["suchen", "auf"]).outcome == "wrong"
     assert grade_card(card, ["suchen", "auf"]).rating == "again"
+    assert not grade_card(card, ["suchen", "auf"]).near_miss
     assert grade_card(card, [None, "auf"]).outcome == "revealed"
+    assert not grade_card(card, [None, "auf"]).near_miss
     assert grade_card(card, ["Wartet", "auf"]).outcome == "case"
+    assert grade_card(card, ["Wartet", "auf"]).near_miss
     with pytest.raises(ValueError):
         grade_card(card, ["wartet"])
+
+
+def test_declension_still_passes_and_now_sees_an_umlaut_plural() -> None:
+    """A noun or adjective ending stays an automatic "hard" (owner,
+    2026-10-06); 2026-10-22 adds the umlauted plural it used to miss, while
+    two words that differ ONLY by an umlaut stay two different words."""
+    hand = _card("h10000000000", "nn:hand", "Er hat zwei Hände.", ["Hände"], form_key="Acc|Plur")
+    assert grade_card(hand, ["Hand"]).outcome == "inflection"
+    assert grade_card(hand, ["Hand"]).rating == "hard"
+    assert is_inflection_of("Hände", "Hand") and is_inflection_of("Häuser", "Haus")
+    assert not is_inflection_of("schon", "schön")
+    assert not is_inflection_of("hatte", "hätte")
+
+
+def test_verb_forms_the_owner_named_are_near_misses() -> None:
+    """ "I miss the zu, or realise the sentence is in Perfekt" (2026-10-22)."""
+    assert is_verb_form_of("macht", "gemacht")  # Präsens for the Perfekt participle
+    assert is_verb_form_of("aufgemacht", "aufmachen")
+    assert is_verb_form_of("anrufen", "anzurufen")  # the missed zu
+    assert is_verb_form_of("wartet", "warten")
+    assert not is_verb_form_of("suchen", "warten")
+    zu = _card(
+        "z10000000000",
+        "vb:versuchen",
+        "Er versucht zu schlafen.",
+        ["zu", "schlafen"],
+        form_key="Inf",
+    )
+    assert grade_card(zu, ["", "schlafen"]).near_miss
 
 
 def test_sentence_initial_gap_accepts_lower_case_and_umlaut_transliteration() -> None:
@@ -955,6 +996,26 @@ def test_never_is_listed_apart_from_known() -> None:
     groups = units_by_stage(deck, state, T0)
     assert [u.unit_id for u, _ in groups["never"]] == ["vp:warten_auf"]
     assert [u.unit_id for u, _ in groups["known"]] == ["cn:trotzdem"]
+
+
+def test_a_correction_replays_the_review_as_a_pass() -> None:
+    """ "Als richtig werten" leaves the graded review in the log and adds a
+    correction; replay must schedule as if it had passed. The twin in
+    tests/js pins the same."""
+    engine = FSRSEngine()
+    wrong = _minutes_review(1, "vp:warten_auf", 0, "again")
+    fix = CorrectionEntry(
+        seq=2,
+        ts=wrong.ts + timedelta(seconds=5),
+        unit_id="vp:warten_auf",
+        review_ts=wrong.ts,
+        rating="hard",
+    )
+    failed = derive_state([wrong], engine)
+    passed = derive_state([wrong, fix], engine)
+    assert failed.ratings["vp:warten_auf"] == ["again"]
+    assert passed.ratings["vp:warten_auf"] == ["hard"]
+    assert passed.records["vp:warten_auf"].due > failed.records["vp:warten_auf"].due
 
 
 def test_never_is_known_recorded_apart_from_practice() -> None:

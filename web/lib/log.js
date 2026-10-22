@@ -46,7 +46,7 @@ export function mergeEntries(...logs) {
 // on the next sync. That is exactly how the words added before 2026-10-06
 // were lost ("request" was not in the set). Matches LogEntry in
 // src/contracts.py; add to both.
-const KNOWN_TYPES = new Set(["review", "mark", "reset", "request", "issue"]);
+const KNOWN_TYPES = new Set(["review", "mark", "reset", "request", "issue", "correction"]);
 
 export function parseJsonl(text) {
   const out = [];
@@ -98,7 +98,13 @@ function spendsBudget(state, unitId, before) {
 
 export function deriveState(entries, engine) {
   let state = freshState();
+  // "Als richtig werten" amends a review already in the log: gather the
+  // corrections first and replay that review with the corrected rating.
+  // Matches derive_state in src/engine/review_log.py.
+  const corrected = new Map();
+  for (const e of entries) if (e.type === "correction") corrected.set(`${e.unit_id}|${e.review_ts}`, e.rating);
   for (const e of sortEntries(entries)) {
+    if (e.type === "correction") continue;
     // A restart: everything before it is history, the replay starts over.
     if (e.type === "reset") { state = freshState(); continue; }
     // A word the learner added. The payload is only what the other device
@@ -153,11 +159,12 @@ export function deriveState(entries, engine) {
       state.lastUnit = e.unit_id;
       continue;
     }
+    const rating = corrected.get(`${e.unit_id}|${e.ts}`) || e.rating;
     const before = state.records[e.unit_id];
     const record = before || newRecord(e.unit_id, e.ts);
-    state.records[e.unit_id] = engine.schedule(record, e.rating, e.ts);
+    state.records[e.unit_id] = engine.schedule(record, rating, e.ts);
     state.lastCard[e.unit_id] = e.card_id;
-    (state.ratings[e.unit_id] ||= []).push(e.rating);
+    (state.ratings[e.unit_id] ||= []).push(rating);
     if (!(e.unit_id in state.firstReview)) state.firstReview[e.unit_id] = e.ts;
     state.reviewTimes.push(e.ts);
     (state.reviewTimesByUnit[e.unit_id] ||= []).push(e.ts);
@@ -199,6 +206,15 @@ export function makeIssue(entries, { unitId, cardId, note = "", deckVersion = ""
   return {
     type: "issue", seq: nextSeq(entries), ts: new Date(now).toISOString(),
     unit_id: unitId, card_id: cardId, note, deck_version: deckVersion,
+  };
+}
+
+// "Als richtig werten": the review stays as graded, this re-rates it on
+// replay. Matches CorrectionEntry in src/contracts.py.
+export function makeCorrection(entries, { unitId, reviewTs, rating = "hard" }, now) {
+  return {
+    type: "correction", seq: nextSeq(entries), ts: new Date(now).toISOString(),
+    unit_id: unitId, review_ts: reviewTs, rating,
   };
 }
 

@@ -6,7 +6,7 @@
 import { loadDeck, loadReserveIndex, lookupReserve, withAdded } from "./lib/deck.js";
 import { createEngine } from "./lib/engine.js";
 import { gradeCard, renderMarked } from "./lib/grader.js";
-import { deriveState, entriesSinceReset, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
+import { deriveState, entriesSinceReset, makeCorrection, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
   DEFAULT_SETTINGS, budgetSpentToday, computeStats, dueUnits, nextUnit, pickCard, reviewsToday, unitsByStage, untriagedUnits,
@@ -211,6 +211,9 @@ function renderToday() {
 let current = null;   // {unit, card}
 let startedAt = 0;
 let answered = false;
+// The review just written, when it was a near miss: the one review that
+// "Als richtig werten" may amend. Cleared on the next card.
+let lastReview = null;
 
 function renderSentence(card) {
   const el = $("sentence");
@@ -270,7 +273,8 @@ function loadCard() {
   // "Kannte ich schon" belongs after the answer, not before it: offered
   // beforehand it asks the learner to judge a unit they have not been shown
   // (owner, 2026-09-21).
-  ["btn-known", "btn-never", "btn-issue"].forEach((id) => { $(id).hidden = true; });
+  ["btn-known", "btn-never", "btn-issue", "btn-accept"].forEach((id) => { $(id).hidden = true; });
+  lastReview = null;
   $("issue-form").hidden = true;
   $("issue-sent").hidden = true;
   // "Später" is offered BEFORE the answer too: the learner may simply not
@@ -345,11 +349,13 @@ async function check(reveal = false) {
   const typed = typedValues(reveal);
   const { card, unit } = current;
   const result = gradeCard(card, typed, unit.also_accepted || []);
-  await record(makeReview(entries, {
+  const review = makeReview(entries, {
     unit_id: unit.unit_id, card_id: card.card_id, rating: result.rating, outcome: result.outcome,
     answers: result.gaps.map((g) => g.typed), expected: result.gaps.map((g) => g.expected),
     elapsed_ms: Math.max(0, Math.round(performance.now() - startedAt)), deck_version: deck.manifest.deck_version,
-  }, now()));
+  }, now());
+  await record(review);
+  lastReview = result.nearMiss ? review : null;
   const inputs = $("sentence").querySelectorAll("input.gap");
   result.gaps.forEach((g, i) => {
     const inp = inputs[i];
@@ -383,7 +389,27 @@ async function check(reveal = false) {
   // learner cannot judge a unit they have not been shown. "Später" is offered
   // before it too, and stays offered here.
   ["btn-known", "btn-never", "btn-defer", "btn-next", "btn-issue"].forEach((id) => { $(id).hidden = false; });
+  // Offered only when the grader saw the right word in the wrong form.
+  $("btn-accept").hidden = !lastReview;
   $("btn-next").focus();
+  renderToday();
+}
+
+// "Als richtig werten": the learner had the right word in the wrong form and
+// says so. The graded review stays in the log as it was; a correction is
+// appended and replay rates that review "hard", a pass that is not a
+// perfect answer, the same as a typo (owner, 2026-10-22).
+async function acceptAsCorrect() {
+  if (!lastReview) return;
+  const review = lastReview;
+  lastReview = null;
+  await record(makeCorrection(entries, { unitId: review.unit_id, reviewTs: review.ts, rating: "hard" }, now()));
+  $("btn-accept").hidden = true;
+  const fb = $("feedback");
+  fb.className = "feedback hard";
+  const verdict = fb.querySelector("div");
+  if (verdict) verdict.textContent = "Als richtig gewertet";
+  $("sentence").querySelectorAll("input.gap.bad").forEach((inp) => { inp.classList.remove("bad"); inp.classList.add("typo"); });
   renderToday();
 }
 
@@ -460,6 +486,7 @@ $("btn-reveal").addEventListener("click", () => check(true));
 $("btn-known").addEventListener("click", markKnown);
 $("btn-defer").addEventListener("click", defer);
 $("btn-never").addEventListener("click", markNever);
+$("btn-accept").addEventListener("click", acceptAsCorrect);
 $("btn-issue").addEventListener("click", openIssue);
 $("btn-issue-send").addEventListener("click", sendIssue);
 $("btn-issue-cancel").addEventListener("click", () => {

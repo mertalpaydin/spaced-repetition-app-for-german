@@ -529,7 +529,27 @@ class RequestEntry(BaseModel):
     cards: list[PhraseCard] = Field(default_factory=list)
 
 
-LogEntry = ReviewEntry | MarkEntry | ResetEntry | RequestEntry | IssueEntry
+class CorrectionEntry(BaseModel):
+    """The learner pressed "Als richtig werten" on a card the grader failed.
+
+    Offered only for a near miss, the right word in the wrong form (owner,
+    2026-10-22). The review it amends stays in the log as graded; replay uses
+    ``rating`` in its place. It names the review by ``unit_id`` and
+    ``review_ts`` rather than by seq, because seq is per device and two
+    devices' logs are merged.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: Literal["correction"] = "correction"
+    seq: int = Field(ge=1)
+    ts: datetime
+    unit_id: str
+    review_ts: datetime
+    rating: ReviewRating
+
+
+LogEntry = ReviewEntry | MarkEntry | ResetEntry | RequestEntry | IssueEntry | CorrectionEntry
 
 #: How many more units must be started before a postponed one comes back.
 #: Fifty is the owner's number (2026-10-20): "ship that phrase like 50 in

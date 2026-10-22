@@ -19,6 +19,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from src.contracts import (
     POSTPONE_STEP,
+    CorrectionEntry,
     IssueEntry,
     LogEntry,
     MarkEntry,
@@ -239,7 +240,16 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
     """Replay the log. Deterministic: same entries, same engine parameters,
     same state, on any machine."""
     state = LearnerState()
+    entries = list(entries)
+    # "Als richtig werten" amends a review that is already in the log, so the
+    # corrections are gathered first and the review is replayed with the
+    # corrected rating, as if it had been graded that way.
+    corrected = {
+        (e.unit_id, e.review_ts): e.rating for e in entries if isinstance(e, CorrectionEntry)
+    }
     for entry in sorted(entries, key=lambda e: (e.ts, e.seq)):
+        if isinstance(entry, CorrectionEntry):
+            continue
         if isinstance(entry, ResetEntry):
             state = LearnerState()
             continue
@@ -297,11 +307,12 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
             state.budget_review_times.append(entry.ts)
             state.last_unit = entry.unit_id
             continue
+        rating = corrected.get((entry.unit_id, entry.ts), entry.rating)
         before = state.records.get(entry.unit_id)
         record = before or FSRSRecord(card_id=entry.unit_id, due=entry.ts)
-        state.records[entry.unit_id] = engine.schedule_review(record, entry.rating, now=entry.ts)
+        state.records[entry.unit_id] = engine.schedule_review(record, rating, now=entry.ts)
         state.last_card[entry.unit_id] = entry.card_id
-        state.ratings.setdefault(entry.unit_id, []).append(entry.rating)
+        state.ratings.setdefault(entry.unit_id, []).append(rating)
         state.first_review.setdefault(entry.unit_id, entry.ts)
         state.review_times.append(entry.ts)
         state.review_times_by_unit.setdefault(entry.unit_id, []).append(entry.ts)

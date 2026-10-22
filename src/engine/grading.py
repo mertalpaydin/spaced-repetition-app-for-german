@@ -25,6 +25,10 @@ class GapGrade:
     typed: str
     outcome: ReviewOutcome
     accepted: bool
+    #: The right word in a form the grader will not pass on its own: a verb
+    #: in the wrong tense or person, a wrong capital, a missed "zu". The
+    #: learner may count it as right with "Als richtig werten".
+    near: bool = False
 
 
 @dataclass(frozen=True)
@@ -36,6 +40,21 @@ class CardGrade:
     @property
     def correct(self) -> bool:
         return self.rating != "again"
+
+    @property
+    def near_miss(self) -> bool:
+        """Failed, but only on gaps where the learner had the right word.
+
+        This is when "Als richtig werten" is offered (owner, 2026-10-22: "I
+        miss the zu, or the sentence is in Perfekt, or a capital on a name;
+        I should be able to click if I recognised the word"). Never for a
+        wrong word and never for a revealed card, so the button cannot turn
+        a guess into a pass.
+        """
+        if self.correct:
+            return False
+        failed = [g for g in self.gaps if not g.accepted and g.outcome != "inflection"]
+        return bool(failed) and all(g.near for g in failed)
 
 
 #: Worst outcome first, for a card: any of these on one gap decides the card.
@@ -90,12 +109,94 @@ def is_inflection_of(typed: str, expected: str) -> bool:
     a, b = typed.strip().lower(), expected.strip().lower()
     if not a or a == b:
         return False
-    stems_a = {stem for stem, _ in _strip_ending(a)}
-    stems_b = {stem for stem, _ in _strip_ending(b)}
+    # Two words that differ ONLY by an umlaut are different words, not two
+    # forms of one: "schon"/"schön", "hatte"/"hätte", "konnte"/"könnte".
+    if _fold_umlauts(a) == _fold_umlauts(b):
+        return False
+    # Umlauts are folded inside the stem, so a plural that umlauts its stem
+    # is still the same word: "Hände"/"Hand", "Häuser"/"Haus". Until
+    # 2026-10-22 they were compared as written and "Hände" was graded wrong.
+    stems_a = {_fold_umlauts(stem) for stem, _ in _strip_ending(a)}
+    stems_b = {_fold_umlauts(stem) for stem, _ in _strip_ending(b)}
     # A shared stem is not enough on its own: "stark" and "starken" share
     # "stark", but so would "stark" and "starkenzzz", which never reaches
     # here because every candidate stem came off one of the known endings.
     return bool(stems_a & stems_b)
+
+
+def _fold_umlauts(word: str) -> str:
+    return word.replace("ä", "a").replace("ö", "o").replace("ü", "u").replace("ß", "ss")
+
+
+#: Separable particles that sit in front of the "ge" of a participle
+#: ("aufgemacht") or the "zu" of an infinitive ("anzurufen").
+_PARTICLES = (
+    "zurück",
+    "zusammen",
+    "weiter",
+    "vorbei",
+    "heraus",
+    "herein",
+    "hinaus",
+    "hinein",
+    "nach",
+    "fort",
+    "weg",
+    "los",
+    "auf",
+    "aus",
+    "ein",
+    "mit",
+    "vor",
+    "zu",
+    "ab",
+    "an",
+    "um",
+    "hin",
+    "her",
+    "da",
+    "dar",
+    "durch",
+)
+
+
+def _without_infix(word: str, infix: str) -> str | None:
+    """``word`` with a participle "ge" or an infinitive "zu" taken out, at
+    the start or right after a separable particle; None if it has none."""
+    if word.startswith(infix) and len(word) > len(infix) + 2:
+        return word[len(infix) :]
+    for particle in _PARTICLES:
+        rest = word[len(particle) :]
+        if word.startswith(particle) and rest.startswith(infix) and len(rest) > len(infix) + 2:
+            return particle + rest[len(infix) :]
+    return None
+
+
+def is_verb_form_of(typed: str, expected: str) -> bool:
+    """Whether ``typed`` is the same verb as ``expected`` in another form.
+
+    The ending test above, plus the two things a verb adds: the "ge" of the
+    participle, so "macht" is the verb of "gemacht" (the owner: "I realise
+    the sentence is in Perfekt"), and the "zu" of the infinitive, so
+    "anrufen" is the verb of "anzurufen" ("I miss the zu"). Strong verbs
+    that change their stem ("ging", "gegangen") are beyond a test without a
+    lexicon and are left to the grader's plain "wrong".
+    """
+    a, b = typed.strip().lower(), expected.strip().lower()
+    if not a or a == b:
+        return False
+    if is_inflection_of(a, b):
+        return True
+    for infix in ("ge", "zu"):
+        for x, y in ((a, b), (b, a)):
+            stripped = _without_infix(y, infix)
+            if stripped is not None and (stripped == x or is_inflection_of(x, stripped)):
+                return True
+    return False
+
+
+#: A form key naming a verb form: the card's tested word is a verb.
+_VERBAL_FORMS = ("Fin", "Part", "Inf")
 
 
 def accepted_forms(card: PhraseCard, gap_index: int, alternatives: Sequence[str] = ()) -> list[str]:
@@ -125,9 +226,10 @@ def grade_gap(
     expected = card.gaps[gap_index].answer
     if typed is None:
         return GapGrade(expected=expected, typed="", outcome="revealed", accepted=False)
-    result = ScopedTypoGrader.grade(
-        typed, accepted_forms(card, gap_index, alternatives), topic_id=None
-    )
+    forms = accepted_forms(card, gap_index, alternatives)
+    result = ScopedTypoGrader.grade(typed, forms, topic_id=None)
+    verbal = card.form_key.split("|", 1)[0] in _VERBAL_FORMS
+    near = False
     if result.is_correct and result.is_exact:
         outcome: ReviewOutcome = "exact"
     elif result.is_correct and result.is_transliteration:
@@ -135,14 +237,22 @@ def grade_gap(
     elif result.is_correct and result.is_scoped_typo:
         outcome = "typo"
     elif result.is_capitalization_error:
-        outcome = "case"
-    elif any(
-        is_inflection_of(typed, form) for form in accepted_forms(card, gap_index, alternatives)
-    ):
+        outcome, near = "case", True
+    elif verbal and any(is_verb_form_of(typed, form) for form in forms):
+        # A verb in the wrong tense or person is the learner's call, not an
+        # automatic pass: until 2026-10-22 "wartet" for "warten" was accepted
+        # as an ending slip, which the owner called too loose. It fails, and
+        # "Als richtig werten" is offered.
+        outcome, near = "wrong", True
+    elif not verbal and any(is_inflection_of(typed, form) for form in forms):
         outcome = "inflection"
+    elif expected.lower() == "zu" and typed.strip().lower() in {"", "zu"}:
+        outcome, near = "wrong", True
     else:
         outcome = "wrong"
-    return GapGrade(expected=expected, typed=typed, outcome=outcome, accepted=result.is_correct)
+    return GapGrade(
+        expected=expected, typed=typed, outcome=outcome, accepted=result.is_correct, near=near
+    )
 
 
 def grade_card(

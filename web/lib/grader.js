@@ -134,14 +134,55 @@ function stems(word) {
   return out;
 }
 
+const foldUmlauts = (w) => w.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u").replace(/ß/g, "ss");
+
+// Umlauts are folded inside the stem, so "Hände"/"Hand" and "Häuser"/"Haus"
+// match; two words that differ ONLY by an umlaut ("schon"/"schön",
+// "hatte"/"hätte") stay two words. Matches is_inflection_of in
+// src/engine/grading.py.
 export function isInflectionOf(typed, expected) {
   const a = (typed || "").trim().toLowerCase();
   const b = (expected || "").trim().toLowerCase();
   if (!a || a === b) return false;
-  const sb = stems(b);
-  for (const stem of stems(a)) if (sb.has(stem)) return true;
+  if (foldUmlauts(a) === foldUmlauts(b)) return false;
+  const sb = new Set([...stems(b)].map(foldUmlauts));
+  for (const stem of stems(a)) if (sb.has(foldUmlauts(stem))) return true;
   return false;
 }
+
+const PARTICLES = ["zurück", "zusammen", "weiter", "vorbei", "heraus", "herein", "hinaus", "hinein",
+  "nach", "fort", "weg", "los", "auf", "aus", "ein", "mit", "vor", "zu", "ab", "an",
+  "um", "hin", "her", "da", "dar", "durch"];
+
+function withoutInfix(word, infix) {
+  if (word.startsWith(infix) && word.length > infix.length + 2) return word.slice(infix.length);
+  for (const particle of PARTICLES) {
+    const rest = word.slice(particle.length);
+    if (word.startsWith(particle) && rest.startsWith(infix) && rest.length > infix.length + 2) {
+      return particle + rest.slice(infix.length);
+    }
+  }
+  return null;
+}
+
+// The same verb in another form: an ending, the participle's "ge" ("macht"
+// for "gemacht"), or the infinitive's "zu" ("anrufen" for "anzurufen").
+// Matches is_verb_form_of in src/engine/grading.py.
+export function isVerbFormOf(typed, expected) {
+  const a = (typed || "").trim().toLowerCase();
+  const b = (expected || "").trim().toLowerCase();
+  if (!a || a === b) return false;
+  if (isInflectionOf(a, b)) return true;
+  for (const infix of ["ge", "zu"]) {
+    for (const [x, y] of [[a, b], [b, a]]) {
+      const stripped = withoutInfix(y, infix);
+      if (stripped !== null && (stripped === x || isInflectionOf(x, stripped))) return true;
+    }
+  }
+  return false;
+}
+
+const VERBAL_FORMS = new Set(["Fin", "Part", "Inf"]);
 
 // `alternatives` are the unit's accepted near-synonyms ("deswegen" for
 // "deshalb"); single-gap cards only, capitalised like the answer.
@@ -164,15 +205,22 @@ export function acceptedForms(card, i, alternatives = []) {
 export function gradeGap(card, i, typed, alternatives = []) {
   const expected = card.gaps[i].answer;
   if (typed === null || typed === undefined) return { expected, typed: "", outcome: "revealed", accepted: false };
-  const r = gradeText(typed, acceptedForms(card, i, alternatives));
-  let outcome;
+  const forms = acceptedForms(card, i, alternatives);
+  const r = gradeText(typed, forms);
+  const verbal = VERBAL_FORMS.has((card.form_key || "").split("|")[0]);
+  let outcome, near = false;
   if (r.is_correct && r.is_exact) outcome = "exact";
   else if (r.is_correct && r.is_transliteration) outcome = "translit";
   else if (r.is_correct && r.is_scoped_typo) outcome = "typo";
-  else if (r.is_capitalization_error) outcome = "case";
-  else if (acceptedForms(card, i, alternatives).some((f) => isInflectionOf(typed, f))) outcome = "inflection";
+  else if (r.is_capitalization_error) { outcome = "case"; near = true; }
+  // A verb in the wrong tense or person fails and is offered "Als richtig
+  // werten"; a noun or adjective ending still passes on its own. Matches
+  // grade_gap in src/engine/grading.py.
+  else if (verbal && forms.some((f) => isVerbFormOf(typed, f))) { outcome = "wrong"; near = true; }
+  else if (!verbal && forms.some((f) => isInflectionOf(typed, f))) outcome = "inflection";
+  else if (expected.toLowerCase() === "zu" && ["", "zu"].includes(typed.trim().toLowerCase())) { outcome = "wrong"; near = true; }
   else outcome = "wrong";
-  return { expected, typed, outcome, accepted: r.is_correct };
+  return { expected, typed, outcome, accepted: r.is_correct, near };
 }
 
 export function gradeCard(card, typed, alternatives = []) {
@@ -182,7 +230,12 @@ export function gradeCard(card, typed, alternatives = []) {
   const good = worst.outcome === "exact" || worst.outcome === "translit";
   const hard = worst.outcome === "typo" || worst.outcome === "inflection";
   const rating = good ? "good" : hard ? "hard" : "again";
-  return { gaps, outcome: worst.outcome, rating };
+  // Failed only on gaps where the learner had the right word: this is when
+  // "Als richtig werten" is offered. Never for a wrong word or a revealed
+  // card. Matches CardGrade.near_miss in src/engine/grading.py.
+  const failed = gaps.filter((g) => !g.accepted && g.outcome !== "inflection");
+  const nearMiss = rating === "again" && failed.length > 0 && failed.every((g) => g.near);
+  return { gaps, outcome: worst.outcome, rating, nearMiss };
 }
 
 export function renderMarked(card, left = "[", right = "]") {
