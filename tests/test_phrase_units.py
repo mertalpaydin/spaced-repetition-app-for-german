@@ -835,6 +835,29 @@ def test_a_word_the_tagger_never_calls_an_adjective_is_filed_as_an_adverb() -> N
     assert kept["schnell"].kind == "adjective"
 
 
+def test_a_deployed_id_survives_a_change_in_the_counts() -> None:
+    """ "quasi" was av:quasi and became aj:quasi on 2026-10-20, because the
+    adjective-or-adverb decision follows corpus counts and those moved when
+    "eben" left the adverb stoplist. A new id cuts a word off from the
+    learner's history, so an id the deployed deck already has wins."""
+    counts = _word_counts()
+    counts.adjectives.update({"endlich": 0})
+    counts.adverbs.update({"endlich": 300})
+    counts.word_by_source["adjective:endlich"] = Counter({"tatoeba": 300})
+
+    # the counts say adverb, which is what it is without a deployed deck ...
+    fresh = _builder(counts)
+    fresh.t = Thresholds(word_min_count=50)
+    assert "av:endlich" in {u.unit_id for u in fresh.build(_word_occ("adjective", "endlich", 2))}
+
+    # ... but a deck that already teaches it as aj:endlich keeps that id
+    pinned = _builder(counts)
+    pinned.t = Thresholds(word_min_count=50)
+    pinned.previous_ids = frozenset({"aj:endlich"})
+    ids = {u.unit_id for u in pinned.build(_word_occ("adjective", "endlich", 2))}
+    assert "aj:endlich" in ids and "av:endlich" not in ids
+
+
 def test_a_collocation_forces_its_components_to_be_units() -> None:
     """Kaffee, trinken and Kaffee trinken are three units (owner, 2026-09-20).
     The components are kept even under the word threshold."""

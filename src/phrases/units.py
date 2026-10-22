@@ -1032,8 +1032,17 @@ class UnitBuilder:
         vocabulary: VocabularyStore | None = None,
         frequency_ranks: dict[str, int] | None = None,
         dictionary: frozenset[str] | None = None,
+        previous_ids: frozenset[str] = frozenset(),
     ) -> None:
         self.counts = counts
+        #: Unit ids of the deck already deployed. A word's id is its kind plus
+        #: its lemma, and the adjective/adverb half of the kind is settled
+        #: from corpus counts, so any build that moved those counts could
+        #: re-id a word and cut it off from the learner's history: "quasi"
+        #: went from av:quasi to aj:quasi on 2026-10-20 when "eben" came off
+        #: the adverb stoplist. An id that exists stays the id; the label
+        #: can still be corrected by a kind override, which never touches it.
+        self.previous_ids = previous_ids
         self._verb_counts_normalised: dict[str, int] | None = None
         self.curated = curated
         self.t = thresholds or Thresholds()
@@ -1281,7 +1290,7 @@ class UnitBuilder:
             return _Decision(False, "function_word")
         kind = s.kind
         if kind == "adjective":
-            kind = self._modifier_kind(lemma)
+            kind = self._pinned_modifier_kind(lemma) or self._modifier_kind(lemma)
         # Settle the kind first, then ask whether the word is a citation
         # form: "wert" is a predicative adjective that the conjugation test
         # would otherwise throw away, while "glaubst", "warst" and "lass"
@@ -1304,6 +1313,12 @@ class UnitBuilder:
             # none to reject (review, 2026-09-21).
             return _Decision(False, "also_separable")
         return _Decision(True, cefr=self._cefr_for(lemma), score=float(s.count), kind=kind)
+
+    def _pinned_modifier_kind(self, lemma: str) -> str | None:
+        """The adjective-or-adverb kind this word had in the deployed deck,
+        when it had exactly one, so its id survives a change in the counts."""
+        was = [k for k in ("adjective", "adverb") if unit_id_for(k, lemma) in self.previous_ids]
+        return was[0] if len(was) == 1 else None
 
     def _dominated_by_the_verb(self, lemma: str) -> bool:
         """A modifier that is really the infinitive of a common verb.

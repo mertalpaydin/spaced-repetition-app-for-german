@@ -336,6 +336,265 @@ _PRONOMINAL_FORMS: dict[str, frozenset[str]] = {
 }
 
 
+#: Verbs that form the perfect with "sein". A participle of one of these after
+#: "ist" is an ordinary perfect ("er ist gekommen"); a participle of any other
+#: verb after "ist" is a Zustandspassiv, a state described by an adjective
+#: ("er ist verheiratet", "das Fenster ist geöffnet"), and a card that blanks
+#: it as the verb teaches the wrong thing. The list errs generous: a sein
+#: verb missing from it loses a perfect-tense card, which another carrier
+#: replaces, while a haben verb wrongly on it is merely the old behaviour.
+_SEIN_PERFECT: frozenset[str] = frozenset(
+    {
+        "sein",
+        "werden",
+        "bleiben",
+        "gehen",
+        "kommen",
+        "fahren",
+        "laufen",
+        "fliegen",
+        "reisen",
+        "rennen",
+        "schwimmen",
+        "springen",
+        "steigen",
+        "fallen",
+        "sinken",
+        "sterben",
+        "wachsen",
+        "wandern",
+        "segeln",
+        "ziehen",
+        "folgen",
+        "begegnen",
+        "geschehen",
+        "passieren",
+        "gelingen",
+        "misslingen",
+        "erscheinen",
+        "verschwinden",
+        "entstehen",
+        "entkommen",
+        "gelangen",
+        "geraten",
+        "gleiten",
+        "kriechen",
+        "rutschen",
+        "schleichen",
+        "stolpern",
+        "stürzen",
+        "eilen",
+        "flüchten",
+        "fliehen",
+        "reiten",
+        "klettern",
+        "krabbeln",
+        "joggen",
+        "rudern",
+        "schreiten",
+        "treten",
+        "weichen",
+        "erwachen",
+        "ertrinken",
+        "erfrieren",
+        "verhungern",
+        "explodieren",
+        "platzen",
+        "schmelzen",
+        "frieren",
+        "verderben",
+        "verblühen",
+        "verfallen",
+        "zerbrechen",
+        "zerfallen",
+        "verreisen",
+        "landen",
+        "starten",
+        "umkehren",
+        "ausweichen",
+        "einschlafen",
+        "aufwachen",
+        "aufwachsen",
+        "aufstehen",
+        "auftauchen",
+        "vorkommen",
+        "zustoßen",
+        "zurückkehren",
+        "abreisen",
+        "aufbrechen",
+        "ausbrechen",
+        "einbrechen",
+        "umziehen",
+        "ausziehen",
+        "einziehen",
+        "verunglücken",
+        "scheitern",
+        "vergehen",
+        "erkranken",
+        "erblinden",
+        "ergrauen",
+        "verstummen",
+        "genesen",
+        "gedeihen",
+        # found by measuring the rule on the deck, 2026-10-22: each of these
+        # was being read as a state when it is an ordinary sein perfect
+        "zusammenbrechen",
+        "konvertieren",
+        "verstreichen",
+        "dringen",
+        "vordringen",
+        "eindringen",
+        "aufsitzen",
+        "brechen",
+        "zerspringen",
+        "zerplatzen",
+        "verrinnen",
+        "entfliehen",
+        "entweichen",
+        "entgleisen",
+        "entschlafen",
+        "abbrennen",
+        "verbrennen",
+        "ausfallen",
+        "erlöschen",
+        "verlöschen",
+        "verwelken",
+        "verdunsten",
+        "verdampfen",
+        "gefrieren",
+        "auftreten",
+        "eintreten",
+        "beitreten",
+        "abtreten",
+    }
+)
+#: Separable particles: a verb made of one of these and a sein verb is a sein
+#: verb ("ankommen", "aussteigen"). An inseparable prefix often is not:
+#: "bekommen" and "verstehen" take "haben".
+_SEPARABLE_PARTICLES = (
+    "zurück",
+    "voraus",
+    "vorbei",
+    "weiter",
+    "zusammen",
+    "hinunter",
+    "herunter",
+    "hinauf",
+    "herauf",
+    "hinaus",
+    "heraus",
+    "hinein",
+    "herein",
+    "runter",
+    "rauf",
+    "raus",
+    "rein",
+    "nach",
+    "fort",
+    "weg",
+    "los",
+    "auf",
+    "aus",
+    "ein",
+    "mit",
+    "vor",
+    "zu",
+    "ab",
+    "an",
+    "um",
+    "hin",
+    "her",
+    "da",
+    "dazu",
+    "durch",
+    "über",
+    "unter",
+)
+_SEIN_FORMS = frozenset(
+    {
+        "bin",
+        "bist",
+        "ist",
+        "sind",
+        "seid",
+        "war",
+        "warst",
+        "waren",
+        "wart",
+        "wäre",
+        "wärst",
+        "wären",
+        "wärt",
+        "sei",
+        "seist",
+        "seien",
+        "gewesen",
+    }
+)
+_OTHER_AUX = frozenset(
+    {
+        "habe",
+        "hast",
+        "hat",
+        "haben",
+        "habt",
+        "hatte",
+        "hattest",
+        "hatten",
+        "hattet",
+        "hätte",
+        "hättest",
+        "hätten",
+        "hättet",
+        "werde",
+        "wirst",
+        "wird",
+        "werden",
+        "werdet",
+        "wurde",
+        "wurdest",
+        "wurden",
+        "wurdet",
+        "würde",
+        "würdest",
+        "würden",
+        "würdet",
+        "worden",
+        "geworden",
+    }
+)
+_ZUSTANDSPASSIV_KINDS = frozenset({"verb", "separable_verb", "verb_prep", "reflexive_verb"})
+
+
+def _forms_perfect_with_sein(lemma: str) -> bool:
+    if lemma in _SEIN_PERFECT:
+        return True
+    for particle in _SEPARABLE_PARTICLES:
+        if lemma.startswith(particle) and lemma[len(particle) :] in _SEIN_PERFECT:
+            return True
+    return False
+
+
+def is_zustandspassiv(occ: Occurrence) -> bool:
+    """A participle after "sein" that is a state, not a perfect.
+
+    "ist verheiratet", "ist beteiligt", "ist getrennt": both reviewers found
+    cards blanking these as the verb at ranks 1000 to 2000, and "beteiligen"
+    and "sich verheiraten" were excluded by hand for want of a rule. The
+    test the TODO feared, a participle after "ist", also matches "er ist
+    gekommen"; the verb's perfect auxiliary is what tells them apart, and a
+    sentence that also has a form of "haben" or "werden" is left alone
+    because which participle belongs to which auxiliary is then unclear.
+    """
+    if not occ.form_key.startswith("Part"):
+        return False
+    words = set(_WORD.findall(occ.text.lower()))
+    if not words & _SEIN_FORMS or words & _OTHER_AUX:
+        return False
+    lemma = occ.unit_key.lower().removeprefix("sich ").split()[0]
+    return not _forms_perfect_with_sein(lemma)
+
+
 def unsuitable_reason(occ: Occurrence, governed_preps: frozenset[str] = frozenset()) -> str | None:
     """Sentence-level reasons a correct occurrence still makes a bad card.
 
@@ -371,6 +630,8 @@ def unsuitable_reason(occ: Occurrence, governed_preps: frozenset[str] = frozense
         return "reflexive_reading"
     if occ.kind == "verb" and _prepositional_reading(occ, governed_preps):
         return "prepositional_reading"
+    if occ.kind in _ZUSTANDSPASSIV_KINDS and is_zustandspassiv(occ):
+        return "zustandspassiv"
     first = _WORD.findall(occ.text.lower())[:1]
     if first and first[0] in _SUBORDINATORS and "," not in occ.text:
         return "subordinate_fragment"

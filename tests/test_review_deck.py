@@ -163,6 +163,7 @@ def test_apply_writes_reasons_and_records_the_round(repo: Path) -> None:
         "drop_units": 1,
         "drop_cards": 1,
         "overrides": 1,
+        "held_back_rule_1": 0,
         "unresolved": 0,
     }
     exclude = (repo / "data/phrases/exclude.yaml").read_text(encoding="utf-8")
@@ -233,3 +234,135 @@ def test_apply_keeps_hand_written_overrides_it_did_not_write(
     assert "- {key: land, gloss_en: country}" in text, "a bare key must survive the rewrite"
     assert '- {key: "warten auf", case: "Akk"}' in text
     assert "Added by hand" in text, "comments must survive the rewrite"
+
+
+def test_merge_keeps_every_field_of_an_entry_it_updates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Found 2026-10-20: "statt" carried kind: adverb, a review round applied
+    fix_cefr:B1, and the entry came back as cefr alone. The merge read the
+    existing fields through a whitelist, (case|display|cefr|gloss_en), and
+    kind was not on it, so the correction made an hour earlier was dropped
+    and the word went back to being taught as an adjective."""
+    phrases = tmp_path / "phrases"
+    phrases.mkdir()
+    overrides = phrases / "unit_overrides.yaml"
+    overrides.write_text(
+        '- {key: "statt", kind: "adverb"}\n'
+        '- {key: "ewig leben", display: "ewiges Leben", kind: "adj_noun"}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(review_deck, "PHRASES_DIR", phrases)
+
+    review_deck.merge_overrides({"statt": {"cefr": "B1"}, "ewig leben": {"cefr": "B2"}})
+
+    text = overrides.read_text(encoding="utf-8")
+    assert '- {key: "statt", cefr: "B1", kind: "adverb"}' in text
+    assert '- {key: "ewig leben", cefr: "B2", display: "ewiges Leben", kind: "adj_noun"}' in text
+    # and a field the round DOES set still wins over the old value
+    review_deck.merge_overrides({"statt": {"cefr": "B2"}})
+    assert 'cefr: "B2", kind: "adverb"' in overrides.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("note", "expected"),
+    [
+        # real reviewer notes, rounds top1000f and req1020b
+        ("dazu is a pronominal adverb, not an adjective", (True, "adverb")),
+        (
+            "'heutzutage' is strictly an adverb, but the unit is labeled 'adjective'",
+            (True, "adverb"),
+        ),
+        ("aufgrund is a preposition, not an adjective", (True, "adverb")),
+        ("wieso is an interrogative adverb, not an adjective", (True, "adverb")),
+        ("solche is a demonstrative pronoun, not an adjective", (True, None)),
+        ("Unit specifies adjective but 'bloß' is used as a modal particle.", (True, "adverb")),
+        ('"daraufhin" is a pronominal adverb, not an adjective.', (True, "adverb")),
+        (
+            "Unit specifies adverb but 'bereit' is used as a predicative adjective.",
+            (True, "adjective"),
+        ),
+        # round words1022b: the card is a normal use of the requested word
+        (
+            "In 'dir gegenüber', 'gegenüber' is a postposition governing the dative pronoun "
+            "'dir', not an adverb.",
+            (True, "adverb"),
+        ),
+        # ... but a construction the word sits inside IS about the card
+        (
+            "Here 'wohl' is part of the reflexive verb phrase 'sich wohl fühlen', "
+            "not the modal adverb 'wohl'.",
+            (False, None),
+        ),
+        # about the card, not the label: the word is inside a longer unit
+        (
+            "'außer' is a preposition in the fixed phrase 'außer Atem', not an adverb.",
+            (False, None),
+        ),
+        ("Typo in sentence: 'Ergebnisssen' has three 's'.", (False, None)),
+    ],
+)
+def test_kind_complaint_tells_a_label_problem_from_a_card_problem(
+    note: str, expected: tuple[bool, str | None]
+) -> None:
+    assert review_deck.kind_complaint(note) == expected
+
+
+def test_apply_never_drops_a_requested_unit_and_corrects_its_kind(repo: Path) -> None:
+    """Rule 1, enforced where the drops happen. Until 2026-10-22 it lived in a
+    scratch script, so a round applied without that script could delete the
+    owner's words; round top1000f proposed deleting forty-nine of them."""
+    units = [_unit(1), _unit(2, requested_order=1)]
+    export_deck(
+        units,
+        [_card(u) for u in units],
+        repo / "deck",
+        now=lambda: datetime(2026, 10, 22, tzinfo=UTC),
+    )
+    findings = repo / "batches" / "findings"
+    findings.mkdir(parents=True)
+    (findings / "cards_000.jsonl").write_text(
+        json.dumps(
+            {
+                "card_id": "000000000002",
+                "unit": "unit 2",
+                "category": "WRONG_UNIT",
+                "action": "drop_card",
+                "note": "unit is a pronominal adverb, not an adjective",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (findings / "units_00.jsonl").write_text(
+        "".join(
+            json.dumps(r) + "\n"
+            for r in [
+                {
+                    "unit_id": "vp:unit_2",
+                    "category": "BAD_UNIT",
+                    "action": "drop_unit",
+                    "note": "x",
+                },
+                {
+                    "unit_id": "vp:unit_1",
+                    "category": "BAD_UNIT",
+                    "action": "drop_unit",
+                    "note": "x",
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+    stats = review_deck.apply_findings(findings, round_label="t", deck_dir=repo / "deck")
+
+    exclude = (repo / "data/phrases/exclude.yaml").read_text(encoding="utf-8")
+    assert '"unit 1"' in exclude or "unit 1" in exclude, "a mined unit can still be dropped"
+    assert "unit 2" not in exclude, "a requested unit is never dropped"
+    assert "000000000002" not in (repo / "data/phrases/excluded_cards.yaml").read_text(
+        encoding="utf-8"
+    ), "a kind complaint is not a reason to drop the card"
+    assert 'kind: "adverb"' in (repo / "data/phrases/unit_overrides.yaml").read_text(
+        encoding="utf-8"
+    ), "the kind complaint becomes a kind correction"
+    assert stats["held_back_rule_1"] == 2

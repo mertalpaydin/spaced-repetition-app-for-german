@@ -471,10 +471,11 @@ def job_unit_glosses(args: argparse.Namespace) -> int:
                 if unit is None or not glosses:
                     rejected["unparseable"] = rejected.get("unparseable", 0) + 1
                     continue
-                reason = glosses_module.reject_reason(unit, glosses)
+                reason = glosses_module.gloss_reject_reason(unit, glosses)
                 if reason is not None:
                     rejected[reason] = rejected.get(reason, 0) + 1
                     continue
+                glosses = glosses_module.normalized_glosses(unit, glosses)
                 produced[unit.unit_id] = UnitGlossRecord(
                     unit_id=unit.unit_id,
                     display_de=unit.display_de,

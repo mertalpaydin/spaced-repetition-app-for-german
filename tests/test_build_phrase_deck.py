@@ -62,7 +62,9 @@ def test_build_over_the_sample_corpus_matches_the_golden_outputs(tmp_path: Path)
         )
         == 0
     )
-    assert main(["--stage", "mine", *common]) == 0
+    # --out points mine at this test's own (empty) deck, so the ids it pins
+    # come from nothing rather than from whatever deck is committed.
+    assert main(["--stage", "mine", "--out", str(out_dir), *common]) == 0
     assert main(["--stage", "cards", *store, *common]) == 0
     assert main(["--stage", "export", "--out", str(out_dir), *common]) == 0
     assert main(["--check", "--out", str(out_dir)]) == 0
@@ -234,6 +236,57 @@ def test_requests_stage_finds_carriers_for_a_word_with_no_glossed_sentence(
     assert "sorgen" not in out
     # A key the corpus does not use at all is named, not silently missing.
     assert "knuspern" in out and "NOT IN THE CORPUS" in out
+
+
+@requires_model
+def test_a_second_requests_run_for_other_words_keeps_the_first_runs_carriers(
+    tmp_path: Path,
+) -> None:
+    """Found 2026-10-22: "Häufigkeit" and "sichtlich", requested on 10-07,
+    had disappeared from the deck. The stage looks only for the words missing
+    NOW, and it wrote only this run's occurrences, so re-running it on
+    2026-10-20 for other words deleted the carriers it had found for them."""
+    build_dir = tmp_path / "build"
+    build_dir.mkdir()
+    corpus = tmp_path / "corpus.tsv"
+    corpus.write_text(
+        "1\tdeu\tDas Hähnchen im Ofen ist endlich fertig.\n"
+        "2\tdeu\tDer kleine Hund schläft den ganzen Tag im Garten.\n",
+        encoding="utf-8",
+    )
+    args = [
+        "--stage",
+        "requests",
+        "--tatoeba",
+        str(corpus),
+        "--skip-leipzig",
+        "--no-default-extras",
+        "--build-dir",
+        str(build_dir),
+        "--phrases-dir",
+        "data/phrases",
+    ]
+
+    def keys() -> set[str]:
+        path = build_dir / "requested_occurrences.jsonl"
+        return {
+            json.loads(line)["unit_key"]
+            for line in path.read_text(encoding="utf-8").split("\n")
+            if line
+        }
+
+    def missing(*words: str) -> None:
+        (build_dir / "report.json").write_text(
+            json.dumps({"requested_missing": list(words)}), encoding="utf-8"
+        )
+
+    missing("noun:hähnchen")
+    assert main(args) == 0
+    assert keys() == {"hähnchen"}
+
+    missing("noun:hund")
+    assert main(args) == 0
+    assert keys() == {"hähnchen", "hund"}, "the first run's word must survive the second"
 
 
 def test_requests_stage_is_idempotent_once_the_requests_have_occurrences(tmp_path: Path) -> None:

@@ -24,6 +24,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import yaml
 from src.contracts import PhraseCard, PhraseUnit
 from src.phrases.export import DEFAULT_DECK_DIR, load_deck
 
@@ -302,10 +303,18 @@ def merge_overrides(overrides: dict[str, dict[str, str]]) -> None:
     for k, fields in overrides.items():
         current = merged.get(_yaml_str(k))
         if current:
-            for field, value in re.findall(
-                r'(case|display|cefr|gloss_en): ("(?:[^"\\]|\\.)*")', current
-            ):
-                fields.setdefault(field, json.loads(value))
+            # Every field of the existing entry survives unless this round
+            # sets it. It was a whitelist, (case|display|cefr|gloss_en), so
+            # a field added later was dropped by the next apply: "statt" and
+            # "anstatt" lost their kind to a CEFR fix on 2026-10-20 and went
+            # back to being taught as adjectives. Parsing the line as the
+            # YAML it is cannot fall behind the fields the model has.
+            parsed = yaml.safe_load(current)
+            existing = parsed[0] if isinstance(parsed, list) and parsed else {}
+            if isinstance(existing, dict):
+                for field, value in existing.items():
+                    if field != "key" and value is not None:
+                        fields.setdefault(str(field), str(value))
         parts = ", ".join(f"{a}: {_yaml_str(b)}" for a, b in sorted(fields.items()))
         merged[_yaml_str(k)] = f"- {{key: {_yaml_str(k)}, {parts}}}"
     ov.write_text(
@@ -320,6 +329,64 @@ def merge_overrides(overrides: dict[str, dict[str, str]]) -> None:
         + "\n",
         encoding="utf-8",
     )
+
+
+#: A reviewer note objecting to the unit's KIND, not to the card: "dazu is a
+#: pronominal adverb, not an adjective". The reviewer files these as
+#: drop_unit and as drop_card alike, and either way the card is fine and the
+#: label is wrong.
+_TRUE_KIND = re.compile(
+    r"\b(?:is|as)\s+(?:strictly\s+)?(?:a|an)\s+(?:[\w/-]+\s+){0,3}?"
+    r"(adverb|adjective|preposition|postposition|pronoun|particle|conjunction|determiner|interrogative)\b",
+    re.I,
+)
+#: The label the reviewer says is wrong, in the three phrasings it uses:
+#: "not an adjective", "the unit is labeled 'adjective'", "Unit specifies
+#: adjective but ...".
+_LABEL_KIND = re.compile(
+    r"\bnot\s+(?:a|an|the)\s+(?:[\w-]+\s+)?(adjective|adverb|noun|verb)\b"
+    r"|\blabell?ed\s+'?(adjective|adverb|noun|verb)'?"
+    r"|\bspecifies\s+(adjective|adverb|noun|verb)\b",
+    re.I,
+)
+#: A note that names a longer unit the word belongs to IS about the card:
+#: "außer is a preposition in the fixed phrase 'außer Atem'".
+_ABOUT_THE_CARD = re.compile(
+    r"fixed (?:phrase|idiom|expression)|\bidiom\b|part of|construction", re.I
+)
+#: The deck has no preposition, particle or interrogative kind, so those
+#: words are taught as adverbs, the nearest true label ("aufgrund", "wieso").
+#: Pronouns and determiners are left as adjectives on purpose: they decline
+#: like attributive adjectives ("solche Buecher"), decided 2026-10-08.
+_KIND_FOR = {
+    "adverb": "adverb",
+    "particle": "adverb",
+    "preposition": "adverb",
+    "postposition": "adverb",
+    "interrogative": "adverb",
+    "conjunction": "adverb",
+    "adjective": "adjective",
+}
+
+
+def kind_complaint(note: str) -> tuple[bool, str | None]:
+    """Is ``note`` about the unit's kind, and if so which kind to give it?
+
+    Returns (False, None) for a note about the card itself; (True, kind)
+    when the label should become ``kind``; (True, None) when it is a kind
+    complaint the deck deliberately does not act on (pronoun, determiner).
+    """
+    if _ABOUT_THE_CARD.search(note):
+        return False, None
+    true = _TRUE_KIND.search(note)
+    label = _LABEL_KIND.search(note)
+    if true is None or label is None:
+        return False, None
+    labelled = next(g for g in label.groups() if g).lower()
+    real = true.group(1).lower()
+    if real == labelled:
+        return False, None
+    return True, _KIND_FOR.get(real)
 
 
 def apply_findings(findings_dir: Path, *, round_label: str, deck_dir: Path) -> dict[str, int]:
@@ -352,11 +419,37 @@ def apply_findings(findings_dir: Path, *, round_label: str, deck_dir: Path) -> d
     drop_cards: dict[str, str] = {}
     overrides: dict[str, dict[str, str]] = collections.defaultdict(dict)
     unresolved = 0
+    # Rule 1: a unit the owner asked for by name is never dropped, and a
+    # complaint about its kind corrects the kind instead of deleting cards.
+    # This lived in a scratch script until 2026-10-22, so a round applied
+    # without it could delete his words; it belongs where the drops happen.
+    requested = {u.lemma_key for u in units if u.requested_order is not None}
+    held: list[dict[str, str]] = []
+
+    def protect(r: dict[str, str], keys: set[str], drops: bool) -> bool:
+        """True when the finding is held back rather than applied."""
+        if not keys & requested:
+            return False
+        is_kind, kind = kind_complaint(str(r.get("note", "")))
+        if is_kind:
+            if kind is not None:
+                for k in keys & requested:
+                    overrides[k]["kind"] = kind
+            held.append(r)
+            return True
+        if drops:
+            held.append(r)
+            return True
+        return False
+
     for r in card_rows:
         card = card_by_id.get(r["card_id"])
         unit_keys = {by_id[card.unit_id].lemma_key} if card else keys_for(r["unit"])
         reason = f"{r['category']}: {r['note']}"
-        if r["category"] == "BAD_UNIT" or r["action"] == "drop_unit":
+        unit_drop = r["category"] == "BAD_UNIT" or r["action"] == "drop_unit"
+        if (unit_drop or r["action"] == "drop_card") and protect(r, unit_keys, unit_drop):
+            continue
+        if unit_drop:
             unresolved += not unit_keys
             for k in unit_keys:
                 drop_units.setdefault(k, reason)
@@ -374,7 +467,10 @@ def apply_findings(findings_dir: Path, *, round_label: str, deck_dir: Path) -> d
             continue
         k, act = unit.lemma_key, r["action"]
         reason = f"{r['category']}: {r['note']}"
-        if act == "drop_unit" or r["category"] in {"NOT_A_PHRASE", "DUPLICATE"}:
+        unit_drop = act == "drop_unit" or r["category"] in {"NOT_A_PHRASE", "DUPLICATE"}
+        if unit_drop and protect(r, {k}, True):
+            continue
+        if unit_drop:
             drop_units.setdefault(k, reason)
         elif act.startswith(("fix_case:", "fix_display:", "fix_cefr:")):
             field, _, value = act.partition(":")
@@ -423,12 +519,17 @@ def apply_findings(findings_dir: Path, *, round_label: str, deck_dir: Path) -> d
         (AUDIT_DIR / f"reviewed-unit-ids-round-{round_label}.txt").write_text(
             "".join(u + "\n" for u in sorted(reviewed_units)), encoding="utf-8"
         )
+    if held:
+        (AUDIT_DIR / f"held-back-round-{round_label}.jsonl").write_text(
+            "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in held), encoding="utf-8"
+        )
     return {
         "card_findings": len(card_rows),
         "unit_findings": len(unit_rows),
         "drop_units": len(new_drops),
         "drop_cards": len(drop_cards),
         "overrides": len(overrides),
+        "held_back_rule_1": len(held),
         "unresolved": unresolved,
     }
 

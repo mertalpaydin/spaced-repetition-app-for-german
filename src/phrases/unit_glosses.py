@@ -352,6 +352,63 @@ def _is_cognate(unit: PhraseUnit, gloss: str) -> bool:
     return _fold(unit.lemma_key) in COGNATE_LEMMAS and _fold(gloss) == _fold(unit.lemma_key)
 
 
+#: Kinds whose citation form is an infinitive, so their English is one too.
+VERB_KINDS: frozenset[str] = frozenset(
+    {"verb", "separable_verb", "reflexive_verb", "verb_prep", "noun_verb", "adj_verb"}
+)
+
+_MODAL_LEAD = re.compile(r"^(must|has to|have to|had to|needs to|need to)\s+(.+)$", re.I)
+_NOT_TO = re.compile(r"^not to\s+(.+)$", re.I)
+
+
+def normalize_verb_gloss(gloss: str) -> str:
+    """One English equivalent of a verb phrase, as an infinitive with "to".
+
+    The prompt has asked for "to" since September and the model often left it
+    off: "enjoy", "take part in", "must go". The owner reads the Gesucht line
+    before answering and a bare "decide" did not say it was a verb; one verb
+    misled him every time it came up (2026-10-22). So it is enforced here
+    rather than asked for. "must" has no infinitive, so a modal lead becomes
+    "to have to"; "not to X" becomes "to not X" so the line still starts
+    with "to".
+    """
+    text = gloss.strip()
+    if text.lower().startswith("to "):
+        return text
+    negated = _NOT_TO.match(text)
+    if negated:
+        return f"to not {negated.group(1)}"
+    modal = _MODAL_LEAD.match(text)
+    if modal:
+        return f"to have to {modal.group(2)}"
+    return f"to {text}"
+
+
+def normalized_glosses(unit: PhraseUnit, glosses: list[str]) -> list[str]:
+    """``glosses`` with every verb-phrase equivalent given its "to", and any
+    two that become the same ("must go", "has to go") kept once."""
+    if unit.kind not in VERB_KINDS:
+        return glosses
+    out: list[str] = []
+    for gloss in glosses:
+        normal = normalize_verb_gloss(gloss)
+        if normal.lower() not in {g.lower() for g in out}:
+            out.append(normal)
+    return out
+
+
+def gloss_reject_reason(unit: PhraseUnit, glosses: list[str]) -> str | None:
+    """Why a model's glosses are refused, checked BEFORE and AFTER the "to".
+
+    Before, because a model that hands back the German ("aussehen") is
+    refusing to answer, and once normalised to "to aussehen" it no longer
+    looks like an echo: the first version of the normaliser accepted exactly
+    that, which would have printed the answer on the card. After, because
+    the added "to" can push a gloss over the length limit.
+    """
+    return reject_reason(unit, glosses) or reject_reason(unit, normalized_glosses(unit, glosses))
+
+
 def reject_reason(unit: PhraseUnit, glosses: list[str]) -> str | None:
     if not glosses:
         return "empty"
@@ -431,8 +488,8 @@ def generate_unit_glosses(
             elif glosses is None:
                 reason, kept = "missing", []
             else:
-                reason = reject_reason(unit, glosses)
-                kept = glosses[:MAX_GLOSSES] if reason is None else []
+                reason = gloss_reject_reason(unit, glosses)
+                kept = normalized_glosses(unit, glosses)[:MAX_GLOSSES] if reason is None else []
             produced.append(
                 UnitGlossRecord(
                     unit_id=unit.unit_id,

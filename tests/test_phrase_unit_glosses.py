@@ -276,3 +276,44 @@ def test_a_cognate_gloss_is_not_an_echo() -> None:
 
     # And a single word glossed with a German PHRASE is not a cognate either.
     assert reject_reason(problem, ["das Problem"]) == "german_echoed"
+
+
+# -- every verb gloss starts with "to", added 2026-10-22 ------------------------
+
+
+def test_normalize_verb_gloss_gives_every_verb_its_to() -> None:
+    """The prompt asked for "to" from the start and the model often left it off.
+    The owner: "all verb phrase translations should start with 'to'. there is
+    one verb I cannot remember and the translation misleads me every time"."""
+    n = unit_glosses.normalize_verb_gloss
+    assert n("enjoy") == "to enjoy"
+    assert n("take part in") == "to take part in"
+    assert n("to wait for") == "to wait for"
+    assert n("To wait for") == "To wait for"
+    # "must" has no infinitive, so a modal lead becomes "to have to"
+    assert n("must go") == "to have to go"
+    assert n("has to go") == "to have to go"
+    assert n("needs to happen") == "to have to happen"
+    # and a negation keeps "to" first
+    assert n("not to lift a finger") == "to not lift a finger"
+
+
+def test_normalized_glosses_touch_only_verb_kinds_and_drop_duplicates() -> None:
+    verb = unit("jv:muss_gehen", "muss gehen", 1, kind="adj_verb")
+    noun = unit("nn:hand", "Hand", 2, kind="noun")
+    assert unit_glosses.normalized_glosses(verb, ["must go", "has to go"]) == ["to have to go"]
+    assert unit_glosses.normalized_glosses(noun, ["hand"]) == ["hand"]
+
+
+def test_every_verb_gloss_in_the_committed_deck_starts_with_to() -> None:
+    """Pinned against what is actually deployed, so the rule cannot drift."""
+    import json
+
+    deck = json.loads(Path("web/data/deck/units.json").read_text(encoding="utf-8"))
+    offenders = []
+    for u in deck["units"]:
+        if u["kind"] not in unit_glosses.VERB_KINDS or u.get("trivial") or not u.get("gloss_en"):
+            continue
+        if not all(a.strip().lower().startswith("to ") for a in u["gloss_en"].split("/")):
+            offenders.append(f"{u['unit_id']}: {u['gloss_en']}")
+    assert not offenders, f"{len(offenders)} verb gloss(es) without 'to': {offenders[:10]}"

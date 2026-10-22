@@ -1,10 +1,17 @@
 """Card selection: the trust rule, form diversity, the cap, wanted carriers,
 and the gap-slicing invariant."""
 
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from src.contracts import GapSpan, PhraseCard, PhraseUnit
-from src.phrases.cards import Gloss, card_id_for, select_cards, with_card_counts
+from src.phrases.cards import (
+    Gloss,
+    card_id_for,
+    is_zustandspassiv,
+    select_cards,
+    with_card_counts,
+)
 from src.phrases.occurrences import Occurrence
 
 UNIT = PhraseUnit(
@@ -550,3 +557,65 @@ def test_a_fused_preposition_marks_the_prepositional_reading() -> None:
     assert unsuitable_reason(dative, frozenset({"zu"})) is None
     # And a fused form the deck does not teach for this verb is not a reading.
     assert unsuitable_reason(fused, frozenset({"an"})) is None
+
+
+def _participle(text: str, kind: str, key: str, surface: str) -> Occurrence:
+    start = text.index(surface)
+    return Occurrence(
+        kind=kind,  # type: ignore[arg-type]
+        unit_key=key,
+        parts=key.split(),
+        token_indices=[1],
+        spans=[(start, start + len(surface))],
+        surfaces=[surface],
+        corpus_source="tatoeba",
+        line_id=text,
+        text=text,
+        form_key="Part",
+    )
+
+
+@pytest.mark.parametrize(
+    ("text", "kind", "key", "surface", "expected"),
+    [
+        # a state, not the verb: the cards the reviewers flagged
+        (
+            "Ist Maria glücklich mit Tom verheiratet?",
+            "reflexive_verb",
+            "sich verheiraten",
+            "verheiratet",
+            True,
+        ),
+        ("Die Tür ist fest verschlossen.", "verb", "verschließen", "verschlossen", True),
+        ("Rauchen hier ist streng verboten.", "verb", "verbieten", "verboten", True),
+        ("Tom ist von Marys Unschuld überzeugt.", "verb_prep", "überzeugen von", "überzeugt", True),
+        # an ordinary perfect with sein: kept
+        ("Er ist gestern gekommen.", "verb", "kommen", "gekommen", False),
+        ("Der Zug ist pünktlich angekommen.", "separable_verb", "ankommen", "angekommen", False),
+        (
+            "Der Verkehr ist zusammengebrochen.",
+            "separable_verb",
+            "zusammenbrechen",
+            "zusammengebrochen",
+            False,
+        ),
+        # an inseparable prefix is not a sein verb just because its base is
+        (
+            "Er ist mit dem Ergebnis zufrieden, das er bekommen hat.",
+            "verb",
+            "bekommen",
+            "bekommen",
+            False,
+        ),
+        # haben in the sentence: which participle belongs to which is unclear
+        ("Sie hat ihn geheiratet und ist glücklich.", "verb", "heiraten", "geheiratet", False),
+    ],
+)
+def test_zustandspassiv_tells_a_state_from_a_sein_perfect(
+    text: str, kind: str, key: str, surface: str, expected: bool
+) -> None:
+    """ "ist verheiratet" is a state, an adjective, and a card blanking it as
+    the verb teaches the wrong thing; "ist gekommen" is a perfect. Measured
+    on the deck 2026-10-22: 708 of 5,068 participle cards, nearly all real
+    states, after six sein verbs found in the sample were added to the list."""
+    assert is_zustandspassiv(_participle(text, kind, key, surface)) is expected

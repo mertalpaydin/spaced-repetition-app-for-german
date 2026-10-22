@@ -315,6 +315,23 @@ def _read_all_occurrences(build_dir: Path) -> Iterable[Occurrence]:
         yield from read_occurrences(path)
 
 
+def _deployed_ids(args: argparse.Namespace) -> frozenset[str]:
+    """Unit ids of the deck at ``--out``, the one the learner is using.
+
+    The miner keeps them so a word does not change id between builds; see
+    ``UnitBuilder.previous_ids``. A missing or unreadable deck pins nothing,
+    which is the right answer for a first build and for the golden test.
+    """
+    exported = Path(args.out) / "units.json"
+    if not exported.exists():
+        return frozenset()
+    try:
+        payload = json.loads(exported.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return frozenset()
+    return frozenset(str(u["unit_id"]) for u in payload.get("units", []) if "unit_id" in u)
+
+
 def stage_mine(args: argparse.Namespace) -> int:
     build_dir: Path = args.build_dir
     occurrences_path = build_dir / "occurrences.jsonl"
@@ -324,7 +341,9 @@ def stage_mine(args: argparse.Namespace) -> int:
     counts = LemmaCounts.from_dict(
         json.loads((build_dir / "lemma_counts.json").read_text(encoding="utf-8"))
     )
-    builder = UnitBuilder(counts, load_curated(args.phrases_dir), Thresholds())
+    builder = UnitBuilder(
+        counts, load_curated(args.phrases_dir), Thresholds(), previous_ids=_deployed_ids(args)
+    )
     units = builder.build(_read_all_occurrences(build_dir))
     _write_models(build_dir / "units.jsonl", units)
     write_text_atomic(
@@ -632,7 +651,23 @@ def stage_requests(args: argparse.Namespace) -> int:
         for occ in detect_words(parsed, gate, source=line.source, line_id=line.line_id):
             found.append(occ)
             used[line.text] = line
-    write_occurrences(build_dir / "requested_occurrences.jsonl", iter(found))
+    # MERGE with what earlier runs found, never replace it. This stage only
+    # looks for the words missing NOW, so a word an earlier run found is not
+    # among them, and writing only this run's occurrences deleted its
+    # carriers: "Häufigkeit" and "sichtlich", requested 2026-10-07 and found
+    # by that day's run, vanished from the deck when the stage ran again on
+    # 2026-10-20 for other words. The write-cards stage had the same bug and
+    # the same fix (merge-not-overwrite of written_occurrences.jsonl).
+    out_path = build_dir / "requested_occurrences.jsonl"
+    this_run = {key for _, key in wanted_keys}
+    kept = (
+        [occ for occ in read_occurrences(out_path) if occ.unit_key not in this_run]
+        if out_path.exists()
+        else []
+    )
+    write_occurrences(out_path, iter([*kept, *found]))
+    if kept:
+        _log(f"requests: kept {len(kept):,} occurrence(s) found for other words by earlier runs")
     carriers = sorted(used.values(), key=lambda line: (line.source, line.line_id))
     write_text_atomic(
         build_dir / "requested_carriers.txt",
