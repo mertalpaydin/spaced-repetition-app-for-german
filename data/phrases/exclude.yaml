@@ -2476,3 +2476,16 @@
 # Review round req1020: units the reviewer rejected.
 # Review round req1020b: units the reviewer rejected.
 # Review round parse1021: units the reviewer rejected.
+# 2026-10-22: units filed as verbs that are finite forms or participles of a
+# verb the deck already teaches. Found when every verb gloss was made to start
+# with "to" and these could not, because they are not infinitives.
+- "würden"  # finite form of werden, not a unit of its own
+- "hatten"  # finite form of haben, not a unit of its own
+- "wären"  # finite form of sein, not a unit of its own
+- "genau wussten"  # finite form of wissen with an adverb, not a unit
+- "gut fänden"  # finite subjunctive of finden with an adverb, not a unit
+- "befohlen"  # participle of befehlen, which is taught as the verb
+- "hochgeladen"  # participle of hochladen, which is taught as the verb
+- "runtergefallen"  # participle of runterfallen, which is taught as the verb
+# Review round words1022: units the reviewer rejected.
+# Review round words1022b: units the reviewer rejected.

@@ -5778,3 +5778,14 @@
 - 2d02664e96c6  # WRONG_UNIT: Here 'außer' is a preposition governing the dative ('außer einem Glas Wasser'), not an adverb.
 - 979bd81e2b87  # BAD_SENTENCE: Archaic, unnatural sentence in which 'eben' is also left untranslated in the gloss.
 - cdaf1909c0fd  # BAD_GLOSS: The modal particle 'eben' is untranslated while 'not just' translates 'nicht nur', misleading about
+# Review round words1022.
+- 3b833fbd4ae5  # BAD_SENTENCE: The sentence depends on missing prior context ('Danach werden diese...').
+- 9d820719d747  # WRONG_UNIT: In 'wäre er überrascht', 'überrascht' is a predicative adjective with 'sein' rather than the verb 
+- d2ea4f5333bf  # WRONG_UNIT: Here 'eben' is an untranslated modal particle in a context-dependent sentence rather than the adve
+- ef355591fd83  # BAD_SENTENCE: Unnatural meta-sentence lacking context ('dieser Minderheit, meinen Satz abzulehnen').
+# Review round words1022b.
+- 1ba2b7bacb6e  # WRONG_UNIT: Here 'wohl' is part of the reflexive verb phrase 'sich wohl fühlen' ('feel comfortable'), not the 
+- 445bad552b1f  # BAD_SENTENCE: The sentence is an exclamative clause fragment with a spelling error ('Das' instead of 'Dass').
+- b0fa7885ad58  # WRONG_UNIT: Here 'wohl' is a predicative adjective in the archaic construction 'jemandem ist wohl' ('to feel w
+- e6d7f354a3b1  # WRONG_UNIT: Here 'verbunden' is a lexicalized predicative adjective with 'bleiben' ('verbunden bleiben'), not 
+- f2d1b2f158d9  # BAD_SENTENCE: The sentence starts with 'Doch der', referring to an unspecified masculine noun from missing pri

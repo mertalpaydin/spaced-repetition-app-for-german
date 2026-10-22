@@ -187,3 +187,14 @@
 - {key: "erholung", kind: noun, note: "Lingvist 4"}
 - {key: "unbedingt", kind: adjective, note: "Lingvist 4"}
 - {key: "stattdessen", kind: connector, note: "Lingvist 4; already a curated connector, this only pulls it forward"}
+
+# Added 2026-10-22 from the owner's fifth list. All seven were already
+# mined, at ranks 652 to 10,685; these pull them forward. Two spellings
+# corrected: "gultig" is "gültig", "notwengig" is "notwendig".
+- {key: "ersetzen", kind: verb, note: "Lingvist 5"}
+- {key: "verhalten", kind: noun, note: "Lingvist 5, written 'Verhalten': das Verhalten"}
+- {key: "sich verhalten", kind: reflexive_verb, note: "Lingvist 5"}
+- {key: "sammeln", kind: verb, note: "Lingvist 5; the verb, not the nominalisation"}
+- {key: "gültig", kind: adjective, note: "Lingvist 5, written 'gultig'"}
+- {key: "notwendig", kind: adjective, note: "Lingvist 5, written 'notwengig'"}
+- {key: "aufforderung", kind: noun, note: "Lingvist 5"}

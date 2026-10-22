@@ -13,6 +13,8 @@
 # after the unit decision; the key is the miner's lowercase lemma key.
 # after the unit decision; the key is the miner's lowercase lemma key.
 # after the unit decision; the key is the miner's lowercase lemma key.
+# after the unit decision; the key is the miner's lowercase lemma key.
+# after the unit decision; the key is the miner's lowercase lemma key.
 # Added 2026-10-07, by hand and deliberately NOT via the reviewer. The model
 # keeps glossing these two with the German word, because the spelling carries
 # into English and the meaning does not: "das Land" is a country, not land,
@@ -266,6 +268,7 @@
 - {key: "dringend bitte", cefr: "B1"}
 - {key: "dringend fall", display: "in dringenden Fällen"}
 - {key: "drohen", case: "Dat"}
+- {key: "drüben", kind: "adverb"}
 - {key: "dunkel anzug", display: "ein dunkler Anzug"}
 - {key: "dunkel ecke", display: "dunkle Ecken"}
 - {key: "dunkel gasse", display: "eine dunkle Gasse"}
@@ -339,10 +342,11 @@
 - {key: "erneuerbar energiequelle", display: "erneuerbare Energiequellen"}
 - {key: "ernsthaft schwierigkeit", display: "ernsthafte Schwierigkeiten"}
 - {key: "erschrocken über", display: "erschrecken über +Akk"}
+- {key: "erwachsen", kind: "adjective"}
 - {key: "erzählten von", display: "erzählen von +Dat"}
 - {key: "europäisch land", display: "europäische Länder"}
 - {key: "europäisch parlament", display: "das Europäische Parlament"}
-- {key: "ewig leben", display: "ewiges Leben"}
+- {key: "ewig leben", display: "ewiges Leben", kind: "adj_noun"}
 - {key: "ewig liebe", display: "ewige Liebe"}
 - {key: "exakt wissenschaft", display: "eine exakte Wissenschaft"}
 - {key: "fach unterrichten", cefr: "B1"}
@@ -546,7 +550,7 @@
 - {key: "herumliegen", cefr: "B1"}
 - {key: "herumtragen mit", display: "sich herumtragen mit +Dat"}
 - {key: "hervorstichen", display: "hervorstechen"}
-- {key: "herz begehren", display: "was das Herz begehrt"}
+- {key: "herz begehren", display: "was das Herz begehrt", kind: "idiom"}
 - {key: "herz gewinnen", cefr: "B2"}
 - {key: "herziehen hinter", case: "Dat"}
 - {key: "herzlich applaus", display: "herzlicher Applaus"}
@@ -686,7 +690,7 @@
 - {key: "leid klagen", display: "jemandem sein Leid klagen"}
 - {key: "lektüre empfehlen", cefr: "B2"}
 - {key: "lerne kennen", display: "kennenlernen"}
-- {key: "letzt beißen", display: "den Letzten beißen die Hunde"}
+- {key: "letzt beißen", display: "den Letzten beißen die Hunde", kind: "idiom"}
 - {key: "letztes jahr", cefr: "A1"}
 - {key: "leuchtend stern", display: "leuchtende Sterne"}
 - {key: "leute ausstehen", display: "jemanden nicht ausstehen können"}
@@ -704,6 +708,7 @@
 - {key: "luft", cefr: "A2"}
 - {key: "lustig machen", display: "sich lustig machen ueber +Akk"}
 - {key: "ländlich gebiet", display: "ländliche Gebiete"}
+- {key: "längst vergessen", kind: "expression"}
 - {key: "löffel abgeben", cefr: "B2"}
 - {key: "lücke schließen", cefr: "B2"}
 - {key: "machtwort sprechen", cefr: "B2", display: "ein Machtwort sprechen"}
@@ -896,6 +901,7 @@
 - {key: "schwerwiegend problem", cefr: "B2"}
 - {key: "schön gruß", display: "Schöne Grüße"}
 - {key: "schüchtern junge", display: "schüchterner Junge"}
+- {key: "schüchtern", kind: "adjective"}
 - {key: "sechsstellig bereich", cefr: "B2"}
 - {key: "sechster klasse", display: "die sechste Klasse"}
 - {key: "sechster stock", display: "der sechste Stock"}
@@ -1058,6 +1064,7 @@
 - {key: "staatlich programm", display: "staatliches Programm"}
 - {key: "stahlen aus", display: "stehlen aus +Dat"}
 - {key: "stange kosten", display: "eine Stange Geld kosten"}
+- {key: "stark befahren", kind: "expression"}
 - {key: "stark persönlichkeit", display: "starke Persönlichkeiten"}
 - {key: "stark regen", display: "starker Regen"}
 - {key: "stark schneefall", display: "starker Schneefall"}
@@ -1113,6 +1120,7 @@
 - {key: "treffen vereinbaren", cefr: "B1"}
 - {key: "trennung bekanntgeben", cefr: "B2"}
 - {key: "treppe runtergefallen", display: "die Treppe runterfallen"}
+- {key: "treu ergeben", kind: "expression"}
 - {key: "treue geschworen", display: "Treue schwören"}
 - {key: "trocken hust", display: "trockener Husten"}
 - {key: "trocken tücher", display: "in trockenen Tüchern"}
@@ -1133,6 +1141,8 @@
 - {key: "ungeboren kind", display: "das ungeborene Kind"}
 - {key: "ungeklärt grund", display: "ungeklärte Gründe"}
 - {key: "ungeklärt ursache", display: "aus ungeklärter Ursache"}
+- {key: "ungern", kind: "adverb"}
+- {key: "ungeschlagen", kind: "adjective"}
 - {key: "ungewöhnlich verhalten", display: "ungewöhnliches Verhalten"}
 - {key: "unmittelbar gefahr", display: "eine unmittelbare Gefahr"}
 - {key: "unmittelbar nähe", display: "in unmittelbarer Nähe"}
@@ -1229,6 +1239,7 @@
 - {key: "weile nachdenken", display: "eine Weile nachdenken"}
 - {key: "weile warten", display: "eine Weile warten"}
 - {key: "weit ferne", display: "in weiter Ferne"}
+- {key: "weit fortgeschritten", kind: "expression"}
 - {key: "weit teil", display: "in weiten Teilen"}
 - {key: "weiterbringen", cefr: "B2"}
 - {key: "weiterfahren", cefr: "A2"}
@@ -1238,6 +1249,7 @@
 - {key: "welle schlagen", cefr: "B2"}
 - {key: "wende schaffen", cefr: "B2"}
 - {key: "wert legen", display: "Wert legen auf +Akk"}
+- {key: "wert lesen", kind: "expression"}
 - {key: "wert liegen", display: "Wert legen auf +Akk"}
 - {key: "westlich welt", display: "westliche Welt"}
 - {key: "westlich zivilisation", display: "die westliche Zivilisation"}

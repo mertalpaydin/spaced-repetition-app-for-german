@@ -458,6 +458,18 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **The review log gained a third entry type, 2026-10-22** (rule 9: additive,
+  flagged here). `CorrectionEntry` is "Als richtig werten": the graded review
+  stays as written and replay rates it `hard` in its place, keyed by
+  `unit_id` and `review_ts` because seq is per device. The button is offered
+  only for a near miss, the right word in the wrong form (a verb in another
+  tense or person, a wrong capital, a missed "zu"), and since the same day a
+  verb in the wrong form no longer passes on its own; declension still does,
+  now including umlauted plurals ("Hände" for "Hand"). `MarkEntry.source`
+  also gained `"never"` ("Nicht mehr lernen"), and "Später" now drops the
+  unit's learning record on replay rather than hiding it for a while, so the
+  existing postpone marks in a log took effect on the next load.
+
 - **The review log gained two entry types, 2026-10-20** (rule 9: additive,
   defaulted, flagged here). `IssueEntry` carries a "Problem melden" report
   from a card, and `MarkEntry.source` gained `"postpone"`. Old logs replay
