@@ -9,7 +9,7 @@ import { gradeCard, renderMarked } from "./lib/grader.js";
 import { deriveState, entriesSinceReset, makeCorrection, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
-  DEFAULT_SETTINGS, budgetSpentToday, computeStats, dueUnits, nextUnit, pickCard, reviewsToday, unitsByStage, untriagedUnits,
+  DEFAULT_SETTINGS, computeStats, dueUnits, pickCard, practiceStep, pressMore, reviewsToday, unitsByStage, untriagedUnits,
 } from "./lib/session.js";
 import { appendEntries, kv, loadSettings, readLog, replaceLog, saveSettings } from "./lib/store.js";
 import { syncLog } from "./lib/sync.js";
@@ -44,6 +44,9 @@ let grantedExtra = 0;
 // Whether the learner has said yes to new units after clearing the due
 // queue. The second panel asks once, and only ever AFTER the target panel.
 let newAllowed = false;
+// Which stop panel is on screen ("target" or "new"), so its button does what
+// the panel asked.
+let limitPanel = null;
 
 function refresh() {
   state = deriveState(entries, engine);
@@ -282,44 +285,25 @@ function loadCard() {
   // thing he was complaining about (owner, 2026-10-21).
   ["btn-check", "btn-reveal", "btn-defer"].forEach((id) => { $(id).hidden = false; });
   renderToday();
-  const t = now();
-  const target = settings.cardsPerDay + grantedExtra;
-  const spent = budgetSpentToday(state, t);
-  const overTarget = spent >= target;
-  let unit = nextUnit(deck, state, engine, settings, t, { overLimit: newAllowed, choose: pickAny });
-  if (overTarget) {
-    // The day's allowance is spent: stop and ask, unless the unit is mid
-    // learning step. Its due time is not consulted: nextUnit already decided
-    // the unit is eligible, on spacing rather than on the clock (owner,
-    // 2026-09-22).
-    const record = unit ? state.records[unit.unit_id] : null;
-    const midStep = record && record.state !== "review";
-    const more = unit || nextUnit(deck, state, engine, settings, t, { overLimit: true });
-    if (more && !midStep) {
-      const due = dueUnits(deck, state, engine, t, 0).length;
-      const done = `${spent} Karten`;
-      $("limit-text").textContent = due
-        ? `Tagesziel erreicht (${done}). ${due} Einheit${due === 1 ? " ist" : "en sind"} noch fällig.`
-        : `Tagesziel erreicht (${done}). Nichts ist mehr fällig; neue Einheiten kommen morgen.`;
-      $("btn-more").textContent = `Weiter (${settings.extraCards} Karten)`;
-      showPanel("limit");
-      return;
-    }
+  const step = practiceStep(deck, state, engine, settings, now(), { grantedExtra, newAllowed, choose: pickAny });
+  limitPanel = step.panel;
+  if (step.panel === "target") {
+    const done = `${step.spent} Karten`;
+    $("limit-text").textContent = step.due
+      ? `Tagesziel erreicht (${done}). ${step.due} Einheit${step.due === 1 ? " ist" : "en sind"} noch fällig.`
+      : `Tagesziel erreicht (${done}). Nichts ist mehr fällig; neue Einheiten kommen morgen.`;
+    $("btn-more").textContent = `Weiter (${settings.extraCards} Karten)`;
+    showPanel("limit");
+    return;
   }
-  // The second panel, and only after the first: the learner has passed the
-  // day's target, worked the due queue empty, and the only thing left is new
-  // units. Asked once per grant rather than silently moving on, because "no
-  // more due cards" is the natural place to stop (owner, 2026-10-07).
-  if (grantedExtra > 0 && !newAllowed && dueUnits(deck, state, engine, t, 0).length === 0) {
-    const isNew = unit && !(unit.unit_id in state.records);
-    if (!unit || isNew) {
-      $("limit-text").textContent =
-        "Alle fälligen Einheiten sind durch. Weiter mit neuen Einheiten?";
-      $("btn-more").textContent = "Neue Einheiten";
-      showPanel("limit");
-      return;
-    }
+  if (step.panel === "new") {
+    $("limit-text").textContent =
+      "Alle fälligen Einheiten sind durch. Weiter mit neuen Einheiten?";
+    $("btn-more").textContent = "Neue Einheiten";
+    showPanel("limit");
+    return;
   }
+  const unit = step.unit || null;
   const card = unit ? pickCard(deck, unit, state) : null;
   if (!unit || !card) { showPanel("empty"); return; }
   current = { unit, card };
@@ -498,10 +482,9 @@ $("btn-prev").addEventListener("click", showHistory);
 $("btn-prev-2").addEventListener("click", showHistory);
 $("btn-history-close").addEventListener("click", () => loadCard());
 $("btn-more").addEventListener("click", () => {
-  // Two meanings, one button, decided by which panel is showing: past the
-  // due queue it unlocks new units, otherwise it buys another block of cards.
-  if (grantedExtra > 0 && dueUnits(deck, state, engine, now(), 0).length === 0) newAllowed = true;
-  else grantedExtra += settings.extraCards;
+  // Two meanings, one button, decided by the panel it was pressed on; see
+  // pressMore in lib/session.js for why it is not recomputed here.
+  ({ grantedExtra, newAllowed } = pressMore(limitPanel, { grantedExtra, newAllowed }, settings.extraCards));
   loadCard();
 });
 // Which gap an umlaut button types into. document.activeElement is useless

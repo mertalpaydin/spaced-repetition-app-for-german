@@ -8,7 +8,7 @@ import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
 import { deriveState, entryKey, makeCorrection, makeIssue, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
 import { reserveLetter, withAdded } from "../../web/lib/deck.js";
-import { DEFAULT_SETTINGS, POSTPONE_STEP, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueUnits, eligiblePendingUnits, introductionOrder, isPostponed, nextUnit, pickCard, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage } from "../../web/lib/session.js";
+import { DEFAULT_SETTINGS, POSTPONE_STEP, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueUnits, eligiblePendingUnits, introductionOrder, isPostponed, nextUnit, pickCard, practiceStep, pressMore, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage } from "../../web/lib/session.js";
 
 const T0 = "2026-09-01T08:00:00Z";
 const unit_ = (unit_id, rank, display_de, extra = {}) => ({ unit_id, kind: "verb_prep", display_de, rank, trivial: false, gloss_en: null, also_accepted: [], ...extra });
@@ -501,6 +501,35 @@ test("never marks a unit known and says which button it was", () => {
   const state = deriveState([{ type: "mark", seq: 1, ts: T0, unit_id: "vp:warten_auf", known: true, source: "never" }], engine);
   assert.ok(state.known.has("vp:warten_auf"));
   assert.equal(state.knownSource["vp:warten_auf"], "never");
+});
+
+test("every press of Weiter at the day's target moves on", () => {
+  // Found 2026-10-23: the button chose its meaning from the state, not from
+  // the panel on screen. At the target a second time with nothing due it
+  // allowed new units instead of granting cards, the learner was still over
+  // the target, and the same panel came straight back, every press.
+  const d = deck(); const engine = createEngine();
+  d.units.push(unit_("vb:gehen", 3, "gehen"));
+  d.byId["vb:gehen"] = d.units[2];
+  d.cardsByUnit["vb:gehen"] = [card("g1", "vb:gehen", "Wir gehen heim.", ["gehen"])];
+  const settings = { ...DEFAULT_SETTINGS, cardsPerDay: 2, extraCards: 2 };
+  const state = deriveState([
+    rev(1, T0, "vp:warten_auf", "good"), rev(2, "2026-09-01T08:01:00Z", "cn:trotzdem", "good"),
+    rev(3, "2026-09-01T08:11:00Z", "vp:warten_auf", "good"), rev(4, "2026-09-01T08:12:00Z", "cn:trotzdem", "good"),
+  ], engine);
+  const later = "2026-09-01T09:00:00Z";
+  assert.equal(dueUnits(d, state, engine, later, 0).length, 0, "nothing is due");
+
+  let grant = { grantedExtra: 0, newAllowed: false };
+  const panels = [];
+  for (let press = 0; press < 4; press += 1) {
+    const step = practiceStep(d, state, engine, settings, later, grant);
+    panels.push(step.panel);
+    if (step.panel === "card") break;
+    grant = pressMore(step.panel, grant, settings.extraCards);
+  }
+  assert.deepEqual(panels, ["target", "target", "new", "card"]);
+  assert.equal(grant.grantedExtra, 4, "both target presses granted a block");
 });
 
 test("a correction replays the review as a pass", () => {

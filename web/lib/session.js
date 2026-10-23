@@ -249,6 +249,43 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
   return looping.length ? looping[0] : null;
 }
 
+// What the practice screen shows next: a card, "empty", or one of the two
+// panels that stop and ask. "target": the day's allowance is spent. "new":
+// past the target, the due queue is worked empty and only new units are
+// left. grantedExtra and newAllowed are the learner's answers to those two
+// panels so far this session.
+export function practiceStep(deck, state, engine, settings, now, { grantedExtra = 0, newAllowed = false, choose = null } = {}) {
+  const spent = budgetSpentToday(state, now);
+  const unit = nextUnit(deck, state, engine, settings, now, { overLimit: newAllowed, choose });
+  if (spent >= settings.cardsPerDay + grantedExtra) {
+    // Stop and ask, unless the unit is mid learning step. Its due time is not
+    // consulted: nextUnit already decided the unit is eligible, on spacing
+    // rather than on the clock (owner, 2026-09-22).
+    const record = unit ? state.records[unit.unit_id] : null;
+    const midStep = record && record.state !== "review";
+    const more = unit || nextUnit(deck, state, engine, settings, now, { overLimit: true });
+    if (more && !midStep) return { panel: "target", spent, due: dueUnits(deck, state, engine, now, 0).length };
+  }
+  // The second panel, and only after the first: asked once per grant rather
+  // than silently moving on, because "no more due cards" is the natural place
+  // to stop (owner, 2026-10-07).
+  if (grantedExtra > 0 && !newAllowed && dueUnits(deck, state, engine, now, 0).length === 0) {
+    if (!unit || !(unit.unit_id in state.records)) return { panel: "new" };
+  }
+  return unit ? { panel: "card", unit } : { panel: "empty" };
+}
+
+// The learner's "Weiter" on a stop panel. What it means is decided by the
+// panel they pressed it on, never recomputed from the state: recomputed, a
+// second press at the target with nothing due allowed new units instead of
+// granting cards, the learner stayed over the target, and the same panel
+// came straight back on every press (owner, 2026-10-23).
+export function pressMore(panel, { grantedExtra, newAllowed }, extraCards) {
+  return panel === "new"
+    ? { grantedExtra, newAllowed: true }
+    : { grantedExtra: grantedExtra + extraCards, newAllowed };
+}
+
 // A finite past-tense form in the gaps: Präteritum is a B1 form, so a unit
 // still being learnt is shown in the present, the perfect and the infinitive
 // first (feedback 2026-09-13). Matches src/engine/session.py.
