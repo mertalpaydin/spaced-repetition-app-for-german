@@ -25,6 +25,10 @@ from src.phrases.export import DEFAULT_DECK_DIR, load_deck
 
 AUDIT_DIR = Path("docs/audits/phase-1-review")
 
+#: Fewer cards with English than this and a unit is one sentence asked again
+#: and again: the page shows nothing else (owner, 2026-10-22).
+MIN_SHOWABLE = 3
+
 
 def reviewed_ids(prefix: str, audit_dir: Path = AUDIT_DIR) -> set[str]:
     """Ids a reviewer has actually read, from the round ledgers."""
@@ -66,6 +70,7 @@ def unfinished(
     out: dict[str, list[PhraseUnit]] = {
         "no_card": [],
         "no_sentence_translation": [],
+        "few_sentence_translations": [],
         "no_phrase_translation": [],
         "unreviewed_cards": [],
         "unreviewed_unit": [],
@@ -80,6 +85,12 @@ def unfinished(
         glossed = [c for c in cards if c.gloss_en is not None]
         if not glossed:
             out["no_sentence_translation"].append(unit)
+        elif len(glossed) < MIN_SHOWABLE:
+            # The page shows only cards with English, so a unit with six
+            # cards and one translation is one exercise asked again and
+            # again. The audit passed both "vorhersagen" (1 of 3) and "sich
+            # anmelden fuer" (1 of 6) because it only asked for at least one.
+            out["few_sentence_translations"].append(unit)
         if unit.gloss_en is None:
             out["no_phrase_translation"].append(unit)
         if any(c.card_id not in reviewed_cards for c in glossed):
@@ -115,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     labels = {
         "no_card": "no card at all",
         "no_sentence_translation": "cards but no English for the sentence",
+        "few_sentence_translations": f"fewer than {MIN_SHOWABLE} cards with English",
         "no_phrase_translation": "no English for the phrase itself (Gesucht:)",
         "unreviewed_cards": "cards no reviewer has read",
         "unreviewed_unit": "unit no reviewer has read",

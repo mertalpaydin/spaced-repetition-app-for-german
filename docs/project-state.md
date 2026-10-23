@@ -574,6 +574,27 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   taught in the first week. `audit_top_units.band_units` and
   `review_deck.in_band` now admit every requested unit whatever its rank.
 
+- **A unit with one translated card is not finished, 2026-10-22.** The page
+  shows only cards with English. "sich anmelden fuer" had six cards and one
+  translation, so the owner met one sentence every time, and the audit passed
+  it because it asked for at least one translated card ("vorhersagen", 1 of 3,
+  got through the same way). `audit_top_units` now reports a unit with fewer
+  than `MIN_SHOWABLE` (3) cards with English. Eleven band units were thin: six
+  had untranslated carriers waiting (25 translated through agy), five had no
+  more corpus sentences (agy wrote 27, two dropped on reading). The review
+  round `thin1022` read all 74 cards of those units and dropped two corpus
+  cards ("wohl", "gegenueber"), which left "gegenueber" at two, so agy wrote
+  six more; two were the particle of a separable verb (gegenueberstehen,
+  gegenuebersitzen) and were dropped on reading. Round `thin1023` read the
+  rest; its four "postposition, not the adverb" complaints were held back
+  under rule 1, and its one gloss note ("babble" for "ausplappern") was
+  overruled by hand, because the gloss gets "wohl" right. The band now has
+  none.
+
+  The same apply round showed `merge_overrides` writing the second line of
+  the `unit_overrides.yaml` header again on every run; seventeen copies had
+  piled up. Fixed, with a test.
+
 ## What is not built
 
 - **An installable icon flow on iOS** is untested; Android and desktop

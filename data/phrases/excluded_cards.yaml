@@ -5789,3 +5789,14 @@
 - b0fa7885ad58  # WRONG_UNIT: Here 'wohl' is a predicative adjective in the archaic construction 'jemandem ist wohl' ('to feel w
 - e6d7f354a3b1  # WRONG_UNIT: Here 'verbunden' is a lexicalized predicative adjective with 'bleiben' ('verbunden bleiben'), not 
 - f2d1b2f158d9  # BAD_SENTENCE: The sentence starts with 'Doch der', referring to an unspecified masculine noun from missing pri
+# 2026-10-22, written sentences read before use: "findet ... statt" is the
+# particle of stattfinden, and "den verwandten Lehrer" is not natural German.
+- 8d226ebd06de  # WRONG_UNIT: 'statt' is the separable particle of 'stattfinden'
+- 876c00b5102d  # BAD_SENTENCE: 'the related teacher' is unidiomatic
+# Review round thin1022.
+- 4e683068d992  # WRONG_UNIT: Instantiates the separable verb 'gegenüberstehen' or pronominal adverb 'demgegenüber' in a context
+- b90a80661ef1  # BAD_SENTENCE: Archaic fixed expression 'sich wohl gehaben' with 'immerdar', and the gloss 'Have a good time' m
+# 2026-10-23, written sentences for "gegenueber" read before use: both are
+# the particle of a separable verb, the defect the reviewer flagged above.
+- e12c51bbae22  # WRONG_UNIT: "stehst ... gegenueber" is gegenueberstehen
+- b52a5c288d0d  # WRONG_UNIT: "sitzt ... gegenueber" is gegenuebersitzen

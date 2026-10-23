@@ -91,6 +91,19 @@ def test_each_missing_finishing_is_reported_separately() -> None:
     assert found["unreviewed_unit"] == []
 
 
+def test_a_unit_with_one_translated_card_of_six_is_reported() -> None:
+    """The page shows only cards with English. "sich anmelden fuer" had six
+    cards and one translation, so the owner saw one sentence every time, and
+    the audit passed it because it only asked for at least one (2026-10-22)."""
+    unit = _unit("rv:sich_anmelden_fuer", 1)
+    cards = [_card("a" * 12, unit.unit_id)] + [
+        _card(f"{i}" * 12, unit.unit_id, gloss=None) for i in range(1, 6)
+    ]
+    found = unfinished([unit], {unit.unit_id: cards}, {"a" * 12}, {unit.unit_id})
+    assert [u.unit_id for u in found["few_sentence_translations"]] == ["rv:sich_anmelden_fuer"]
+    assert found["no_sentence_translation"] == []
+
+
 def test_a_unit_with_no_card_is_not_also_reported_as_unreviewed() -> None:
     """One problem per unit at the top: a card-less unit has nothing to
     review, and listing it under both would double-count the work."""
