@@ -289,6 +289,10 @@ def merge_overrides(overrides: dict[str, dict[str, str]]) -> None:
     """
     ov = PHRASES_DIR / "unit_overrides.yaml"
     key_re = re.compile(r'- \{key: ("(?:[^"\\]|\\.)*"|[^,}]+)')
+    header = [
+        "# Reviewer corrections to units: case, citation form, CEFR level. Applied",
+        "# after the unit decision; the key is the miner's lowercase lemma key.",
+    ]
     merged: dict[str, str] = {}
     passthrough: list[str] = []
     if ov.exists():
@@ -298,7 +302,10 @@ def merge_overrides(overrides: dict[str, dict[str, str]]) -> None:
                 raw = m.group(1)
                 key = json.loads(raw) if raw.startswith('"') else raw
                 merged[_yaml_str(key)] = line
-            elif line.strip() and not line.startswith("# Reviewer corrections"):
+            # Both header lines, not only the first: the second was carried
+            # through as a comment and written again under a new header, and
+            # seventeen copies piled up (2026-10-22).
+            elif line.strip() and line not in header:
                 passthrough.append(line)
     for k, fields in overrides.items():
         current = merged.get(_yaml_str(k))
@@ -318,15 +325,7 @@ def merge_overrides(overrides: dict[str, dict[str, str]]) -> None:
         parts = ", ".join(f"{a}: {_yaml_str(b)}" for a, b in sorted(fields.items()))
         merged[_yaml_str(k)] = f"- {{key: {_yaml_str(k)}, {parts}}}"
     ov.write_text(
-        "\n".join(
-            [
-                "# Reviewer corrections to units: case, citation form, CEFR level. Applied",
-                "# after the unit decision; the key is the miner's lowercase lemma key.",
-            ]
-            + passthrough
-            + [merged[k] for k in sorted(merged)]
-        )
-        + "\n",
+        "\n".join(header + passthrough + [merged[k] for k in sorted(merged)]) + "\n",
         encoding="utf-8",
     )
 

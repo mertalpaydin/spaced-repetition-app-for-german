@@ -236,6 +236,25 @@ def test_apply_keeps_hand_written_overrides_it_did_not_write(
     assert "Added by hand" in text, "comments must survive the rewrite"
 
 
+def test_merge_overrides_run_twice_writes_the_header_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Found 2026-10-22: the header is two lines and only the first was
+    recognised, so the second was carried through as a hand-written comment
+    and written again under a fresh header. Seventeen copies had piled up."""
+    phrases = tmp_path / "phrases"
+    phrases.mkdir()
+    overrides = phrases / "unit_overrides.yaml"
+    overrides.write_text("- {key: land, gloss_en: country}\n", encoding="utf-8")
+    monkeypatch.setattr(review_deck, "PHRASES_DIR", phrases)
+
+    review_deck.merge_overrides({})
+    review_deck.merge_overrides({})
+
+    text = overrides.read_text(encoding="utf-8")
+    assert text.count("the miner's lowercase lemma key") == 1
+
+
 def test_merge_keeps_every_field_of_an_entry_it_updates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
