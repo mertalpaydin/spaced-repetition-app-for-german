@@ -115,6 +115,11 @@ export function deriveState(entries, engine) {
         state.requested.push(e.unit_id);
         state.requestedAt[e.unit_id] = e.ts;
       }
+      // Asking for a word brings it back from "Kannte ich schon", "Nicht mehr
+      // lernen" or "Später"; a later mark still wins. Matches derive_state.
+      state.known.delete(e.unit_id);
+      delete state.knownSource[e.unit_id];
+      delete state.postponedUntil[e.unit_id];
       if (e.unit) state.addedUnits[e.unit_id] = e.unit;
       if (e.cards && e.cards.length) state.addedCards[e.unit_id] = e.cards;
       continue;

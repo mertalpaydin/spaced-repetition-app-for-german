@@ -545,3 +545,19 @@ test("a correction replays the review as a pass", () => {
   assert.deepEqual(passed.ratings["vp:warten_auf"], ["hard"]);
   assert.ok(Date.parse(passed.records["vp:warten_auf"].due) > Date.parse(failed.records["vp:warten_auf"].due));
 });
+
+test("a request after a mark brings the unit back", () => {
+  // Twin of test_derive_state_request_after_a_mark_brings_the_unit_back.
+  const engine = createEngine();
+  for (const source of ["practice", "triage", "never", "postpone"]) {
+    const known = source !== "postpone";
+    const mark = { type: "mark", seq: 1, ts: T0, unit_id: "vp:warten_auf", known, source };
+    const request = { type: "request", seq: 2, ts: "2026-09-01T08:01:00Z", unit_id: "vp:warten_auf", origin: "deck" };
+    const state = deriveState([mark, request], engine);
+    assert.ok(!state.known.has("vp:warten_auf"), source);
+    assert.ok(!("vp:warten_auf" in state.postponedUntil), source);
+    const again = { ...mark, seq: 3, ts: "2026-09-01T08:02:00Z" };
+    const later = deriveState([mark, request, again], engine);
+    assert.ok(later.known.has("vp:warten_auf") || "vp:warten_auf" in later.postponedUntil, source);
+  }
+});

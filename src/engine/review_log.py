@@ -257,6 +257,14 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
             if entry.unit_id not in state.requested:
                 state.requested.append(entry.unit_id)
                 state.requested_at[entry.unit_id] = entry.ts
+            # Asking for a word brings it back from wherever it was set aside:
+            # "Kannte ich schon", "Nicht mehr lernen", "Später". Until
+            # 2026-10-24 the page offered "Als Nächstes lernen" for such a
+            # word, wrote the request, and the scheduler skipped it, so the
+            # button did nothing. A mark made after the request still wins.
+            state.known.discard(entry.unit_id)
+            state.known_source.pop(entry.unit_id, None)
+            state.postponed_until.pop(entry.unit_id, None)
             if entry.unit is not None:
                 state.added_units[entry.unit_id] = entry.unit
             if entry.cards:

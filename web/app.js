@@ -9,7 +9,7 @@ import { gradeCard, renderMarked, rivalTyped, unitForms } from "./lib/grader.js"
 import { deriveState, entriesSinceReset, makeCorrection, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
-  DEFAULT_SETTINGS, computeStats, dueUnits, pickCard, practiceStep, pressMore, reviewsToday, unitsByStage, untriagedUnits,
+  DEFAULT_SETTINGS, computeStats, dueUnits, isPostponed, pickCard, practiceStep, pressMore, reviewsToday, unitsByStage, untriagedUnits,
 } from "./lib/session.js";
 import { appendEntries, kv, loadSettings, readLog, replaceLog, saveSettings } from "./lib/store.js";
 import { syncLog } from "./lib/sync.js";
@@ -631,6 +631,20 @@ function unitIdFor(kind, lemma) { return `${KIND_PREFIX[kind]}:${lemma}`; }
 
 function addStatus(html) { $("add-result").innerHTML = html; }
 
+// Why a word is not being taught, when a button set it aside; "" otherwise.
+function setAside(unitId) {
+  if (state.known.has(unitId)) {
+    const source = state.knownSource[unitId];
+    return source === "never" ? "nicht mehr lernen" : source === "defer" ? "zurückgestellt" : "als bekannt markiert";
+  }
+  return isPostponed(state, unitId) ? "auf später verschoben" : "";
+}
+
+// A request lifts the mark (deriveState), so asking again is the way back.
+function backButton(unitId) {
+  return `<button class="small" data-front="${escapeHtml(unitId)}">Wieder lernen</button>`;
+}
+
 async function addWord() {
   const typed = $("add-word").value.trim();
   const lemma = typed.toLowerCase();
@@ -653,21 +667,26 @@ async function addWord() {
     addStatus(seen.map((id) => {
       const unit = deck.byId[id] || state.addedUnits[id];
       const cards = (deck.cardsByUnit[id] || []).length;
-      const where = state.known.has(id)
-        ? (state.knownSource[id] === "defer" ? "zurückgestellt" : "als bekannt markiert")
-        : id in state.records ? "wird schon gelernt"
-        : cards ? "steht in der Warteschlange" : "wartet noch auf Sätze";
+      const aside = setAside(id);
+      const where = aside || (id in state.records ? "wird schon gelernt"
+        : cards ? "steht in der Warteschlange" : "wartet noch auf Sätze");
       return `<p>„${escapeHtml(unit.display_de)}“ hast du schon hinzugefügt `
-        + `<span class="muted">(${where})</span>.</p>`;
+        + `<span class="muted">(${where})</span>` + (aside && deck.byId[id] ? ` ${backButton(id)}` : "") + ".</p>";
     }).join(""));
+    wireAddButtons();
     return;
   }
   if (inDeck.length) {
     addStatus(inDeck.map((u) => {
-      const done = already.has(u.unit_id) || u.unit_id in state.records;
+      // A word set aside by a button comes back on request; one being
+      // learned is left exactly as it is (owner's question, 2026-10-24).
+      const aside = setAside(u.unit_id);
+      const learning = !aside && u.unit_id in state.records;
       return `<p>${escapeHtml(u.display_de)} <span class="muted">(${KIND_LABEL[u.kind] || u.kind}, schon im Deck)</span> ` +
-        (done ? '<span class="muted">wird bereits gelernt</span>'
-              : `<button class="small" data-front="${escapeHtml(u.unit_id)}">Als Nächstes lernen</button>`) + "</p>";
+        (aside ? `<span class="muted">${aside}</span> ${backButton(u.unit_id)}`
+          : learning ? '<span class="muted">wird bereits gelernt</span>'
+          : already.has(u.unit_id) ? '<span class="muted">steht in der Warteschlange</span>'
+          : `<button class="small" data-front="${escapeHtml(u.unit_id)}">Als Nächstes lernen</button>`) + "</p>";
     }).join(""));
     wireAddButtons();
     return;

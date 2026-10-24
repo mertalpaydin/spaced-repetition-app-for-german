@@ -1352,3 +1352,30 @@ def test_stability_lands_a_unit_in_the_right_band() -> None:
     assert stability_band(21.0) == "mature"
     assert stability_band(89.0) == "mature"
     assert stability_band(400.0) == "solid"
+
+
+@pytest.mark.parametrize("source", ["practice", "triage", "never", "postpone"])
+def test_derive_state_request_after_a_mark_brings_the_unit_back(source: str) -> None:
+    """Found 2026-10-24, answering the owner's "what happens when we add a
+    word that is already being learned": for a word marked "Kannte ich
+    schon", "Nicht mehr lernen" or "Später", the page offered "Als Nächstes
+    lernen" and wrote the request, and the scheduler skipped the unit, so
+    the button did nothing. Twin of the same test in tests/js/session.test.mjs."""
+    from src.contracts import RequestEntry
+
+    engine = FSRSEngine()
+    known = source != "postpone"
+    mark = MarkEntry(seq=1, ts=T0, unit_id="vp:warten_auf", known=known, source=source)  # type: ignore[arg-type]
+    request = RequestEntry(
+        seq=2, ts=T0 + timedelta(minutes=1), unit_id="vp:warten_auf", origin="deck"
+    )
+    state = derive_state([mark, request], engine)
+    assert "vp:warten_auf" not in state.known
+    assert "vp:warten_auf" not in state.postponed_until
+    assert state.requested == ["vp:warten_auf"]
+    # a mark made after the request still wins
+    again = MarkEntry(
+        seq=3, ts=T0 + timedelta(minutes=2), unit_id="vp:warten_auf", known=known, source=source
+    )  # type: ignore[arg-type]
+    later = derive_state([mark, request, again], engine)
+    assert ("vp:warten_auf" in later.known) or ("vp:warten_auf" in later.postponed_until)
