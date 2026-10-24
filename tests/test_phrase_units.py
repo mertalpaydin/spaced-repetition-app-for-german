@@ -1284,3 +1284,27 @@ def test_a_kind_override_does_not_change_the_unit_id() -> None:
     # is what the deck shows, so the two are allowed to disagree.
     assert unit_id_for("adjective", "sogar") == "aj:sogar"
     assert unit_id_for("adverb", "sogar") == "av:sogar"
+
+
+def test_unit_override_only_kind_leaves_the_other_kind_alone() -> None:
+    """ "deutsch" is the adjective and the noun under one lemma key. The noun's
+    article fix ("das Deutsch", the reviewer, 2026-10-24) must not rename the
+    adjective, which a key-only override would have done."""
+    from src.phrases.curated import UnitOverride
+
+    counts = _word_counts()
+    counts.nouns.update({"deutsch": 300})
+    counts.adjectives.update({"deutsch": 300})
+    counts.word_by_source["noun:deutsch"] = Counter({"tatoeba": 300})
+    counts.word_by_source["adjective:deutsch"] = Counter({"tatoeba": 300})
+    curated = CuratedLists(
+        requested=[
+            RequestedUnit(key="deutsch", kind="noun"),
+            RequestedUnit(key="deutsch", kind="adjective"),
+        ],
+        overrides=[UnitOverride(key="deutsch", display="das Deutsch", only_kind="noun")],
+    )
+    occurrences = _word_occ("noun", "deutsch", 3) + _word_occ("adjective", "deutsch", 3)
+    units = {u.kind: u for u in _builder(counts, curated).build(occurrences)}
+    assert units["noun"].display_de == "das Deutsch"
+    assert units["adjective"].display_de != "das Deutsch"

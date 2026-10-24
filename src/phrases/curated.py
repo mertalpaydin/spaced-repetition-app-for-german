@@ -149,6 +149,10 @@ class UnitOverride(BaseModel):
     #: change the id and does not fork the learner's history for that word
     #: (owner's question of 2026-10-08).
     kind: PhraseKind | None = None
+    #: Apply only to the unit mined as this kind. A lemma key can name two
+    #: units: "deutsch" is the adjective and the noun, and the noun's fix to
+    #: "das Deutsch" must not rename the adjective (2026-10-24).
+    only_kind: PhraseKind | None = None
 
     @model_validator(mode="before")
     @classmethod

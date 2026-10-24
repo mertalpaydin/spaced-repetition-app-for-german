@@ -1845,6 +1845,8 @@ class UnitBuilder:
             seen_ids.add(unit_id)
             trivial, reason = self._trivial(s, d)
             override = self.overrides.get(s.key)
+            if override and override.only_kind and override.only_kind != kind:
+                override = None
             units.append(
                 PhraseUnit(
                     unit_id=unit_id,
