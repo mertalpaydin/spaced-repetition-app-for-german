@@ -38,10 +38,10 @@
 - {key: zumindest, kind: connector, forms: [zumindest], pos: [ADV], cefr: B1, gloss_en: at least, needs_context_when_initial: true}
 - {key: schließlich, kind: connector, forms: [schließlich], pos: [ADV], cefr: B1, gloss_en: finally / after all / eventually, needs_context_when_initial: true}
 - {key: stattdessen, kind: connector, forms: [stattdessen], pos: [ADV], cefr: B1, gloss_en: instead, needs_context_when_initial: true}
-- {key: danach, kind: connector, forms: [danach], pos: [ADV], cefr: A2, gloss_en: afterwards / then / after that, needs_context_when_initial: true}
+- {key: danach, kind: connector, forms: [danach], pos: [ADV], cefr: A2, gloss_en: afterwards / after that, needs_context_when_initial: true}
 - {key: vorher, kind: connector, forms: [vorher], pos: [ADV], cefr: A2, gloss_en: beforehand, needs_context_when_initial: true}
 - {key: zuerst, kind: connector, forms: [zuerst], pos: [ADV], cefr: A2, gloss_en: first, needs_context_when_initial: false}
-- {key: zunächst, kind: connector, forms: [zunächst], pos: [ADV], cefr: B1, gloss_en: first / at first / for now, needs_context_when_initial: false}
+- {key: zunächst, kind: connector, forms: [zunächst], pos: [ADV], cefr: B1, gloss_en: at first / initially / first (of all), needs_context_when_initial: false}
 - {key: inzwischen, kind: connector, forms: [inzwischen], pos: [ADV], cefr: B1, gloss_en: meanwhile / by now / in the meantime, needs_context_when_initial: true}
 - {key: mittlerweile, kind: connector, forms: [mittlerweile], pos: [ADV], cefr: B1, gloss_en: by now / meanwhile, needs_context_when_initial: true}
 - {key: übrigens, kind: connector, forms: [übrigens], pos: [ADV], cefr: B1, gloss_en: by the way, needs_context_when_initial: true}
