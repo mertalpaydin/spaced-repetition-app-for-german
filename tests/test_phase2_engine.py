@@ -219,6 +219,42 @@ def test_verb_forms_the_owner_named_are_near_misses() -> None:
     assert grade_card(zu, ["", "schlafen"]).near_miss
 
 
+def test_grade_card_fused_preposition_or_sharp_s_is_a_near_miss() -> None:
+    """The owner's three reports of 2026-10-23/24, each "no consider this
+    right button": "zum" for "zu", "vom" for "von", "Nachweiß" for
+    "Nachweis". The right word, a fused article or an s the wrong shape. It
+    fails, and the learner decides."""
+    fuehren = _card(
+        "f10000000000",
+        "vp:fuehren_zu",
+        "Ich versuche alles, aber es führt zu nichts.",
+        ["führt", "zu"],
+        form_key="Fin|Pres|3|Sing",
+    )
+    assert grade_card(fuehren, ["führt", "zum"]).rating == "again"
+    assert grade_card(fuehren, ["führt", "zum"]).near_miss
+    erzaehlen = _card(
+        "e10000000000",
+        "vp:erzaehlen_von",
+        "Ich begann, von unseren Abenteuern zu erzählen.",
+        ["von", "erzählen"],
+        form_key="Inf",
+    )
+    assert grade_card(erzaehlen, ["vom", "erzählen"]).near_miss
+    nachweis = _card(
+        "n10000000000",
+        "nn:nachweis",
+        "Alle erhalten unter Nachweis ihres Wohnsitzes einen Rabatt.",
+        ["Nachweis"],
+        form_key="Dat|Sing",
+    )
+    assert grade_card(nachweis, ["Nachweiß"]).rating == "again"
+    assert grade_card(nachweis, ["Nachweiß"]).near_miss
+    # A different preposition is a different word, not a near miss.
+    assert not grade_card(fuehren, ["führt", "von"]).near_miss
+    assert not grade_card(erzaehlen, ["über", "erzählen"]).near_miss
+
+
 def test_sentence_initial_gap_accepts_lower_case_and_umlaut_transliteration() -> None:
     card = _card("t10000000000", "cn:trotzdem", "Trotzdem kam sie.", ["Trotzdem"])
     assert grade_card(card, ["trotzdem"]).rating == "good"

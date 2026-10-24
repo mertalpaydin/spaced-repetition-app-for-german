@@ -64,3 +64,21 @@ test("declension still passes, now with umlaut plurals, and verb forms are near 
     { start: 12, end: 14, answer: "zu", token_index: 2 }, { start: 15, end: 23, answer: "schlafen", token_index: 3 }] };
   assert.ok(gradeCard(zu, ["", "schlafen"]).nearMiss, "a missed zu is a near miss");
 });
+
+test("a fused preposition or a sharp s is a near miss", () => {
+  // Twin of test_grade_card_fused_preposition_or_sharp_s_is_a_near_miss: the
+  // owner's three reports of 2026-10-23/24.
+  const fuehren = { sentence_de: "Ich versuche alles, aber es führt zu nichts.", form_key: "Fin|Pres|3|Sing", gaps: [
+    { start: 28, end: 33, answer: "führt", token_index: 5 }, { start: 34, end: 36, answer: "zu", token_index: 6 }] };
+  assert.equal(gradeCard(fuehren, ["führt", "zum"]).rating, "again");
+  assert.ok(gradeCard(fuehren, ["führt", "zum"]).nearMiss);
+  const erzaehlen = { sentence_de: "Ich begann, von unseren Abenteuern zu erzählen.", form_key: "Inf", gaps: [
+    { start: 12, end: 15, answer: "von", token_index: 3 }, { start: 38, end: 46, answer: "erzählen", token_index: 7 }] };
+  assert.ok(gradeCard(erzaehlen, ["vom", "erzählen"]).nearMiss);
+  const nachweis = { sentence_de: "Alle erhalten unter Nachweis ihres Wohnsitzes einen Rabatt.", form_key: "Dat|Sing", gaps: [
+    { start: 20, end: 28, answer: "Nachweis", token_index: 3 }] };
+  assert.equal(gradeCard(nachweis, ["Nachweiß"]).rating, "again");
+  assert.ok(gradeCard(nachweis, ["Nachweiß"]).nearMiss);
+  assert.ok(!gradeCard(fuehren, ["führt", "von"]).nearMiss, "a different preposition is a different word");
+  assert.ok(!gradeCard(erzaehlen, ["über", "erzählen"]).nearMiss);
+});

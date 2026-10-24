@@ -182,6 +182,29 @@ export function isVerbFormOf(typed, expected) {
   return false;
 }
 
+// A preposition fused with its article, to the bare preposition. Matches
+// _FUSED_PREPOSITIONS in src/engine/grading.py.
+const FUSED_PREPOSITIONS = { zum: "zu", zur: "zu", vom: "von", am: "an", ans: "an", im: "in", ins: "in",
+  beim: "bei", aufs: "auf", ums: "um", durchs: "durch", "fürs": "für", "übers": "über", unters: "unter",
+  unterm: "unter", vors: "vor", vorm: "vor", hinters: "hinter", hinterm: "hinter" };
+
+// "zum"/"zu", "zum"/"zur", "vom"/"von". Matches is_fused_preposition_of.
+export function isFusedPrepositionOf(typed, expected) {
+  const a = (typed || "").trim().toLowerCase();
+  const b = (expected || "").trim().toLowerCase();
+  if (!a || a === b) return false;
+  return (FUSED_PREPOSITIONS[a] || a) === (FUSED_PREPOSITIONS[b] || b) && (a in FUSED_PREPOSITIONS || b in FUSED_PREPOSITIONS);
+}
+
+// "Nachweiß" for "Nachweis". Matches is_sharp_s_slip.
+export function isSharpSSlip(typed, expected) {
+  const a = (typed || "").trim().toLowerCase();
+  const b = (expected || "").trim().toLowerCase();
+  if (!a || a === b || !(a + b).includes("ß")) return false;
+  const fold = (w) => w.replace(/ß/g, "s").replace(/ss/g, "s");
+  return fold(a) === fold(b);
+}
+
 const VERBAL_FORMS = new Set(["Fin", "Part", "Inf"]);
 
 // `alternatives` are the unit's accepted near-synonyms ("deswegen" for
@@ -219,6 +242,7 @@ export function gradeGap(card, i, typed, alternatives = []) {
   else if (verbal && forms.some((f) => isVerbFormOf(typed, f))) { outcome = "wrong"; near = true; }
   else if (!verbal && forms.some((f) => isInflectionOf(typed, f))) outcome = "inflection";
   else if (expected.toLowerCase() === "zu" && ["", "zu"].includes(typed.trim().toLowerCase())) { outcome = "wrong"; near = true; }
+  else if (forms.some((f) => isFusedPrepositionOf(typed, f) || isSharpSSlip(typed, f))) { outcome = "wrong"; near = true; }
   else outcome = "wrong";
   return { expected, typed, outcome, accepted: r.is_correct, near };
 }

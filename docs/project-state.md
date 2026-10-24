@@ -463,7 +463,9 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   stays as written and replay rates it `hard` in its place, keyed by
   `unit_id` and `review_ts` because seq is per device. The button is offered
   only for a near miss, the right word in the wrong form (a verb in another
-  tense or person, a wrong capital, a missed "zu"), and since the same day a
+  tense or person, a wrong capital, a missed "zu"; from 2026-10-24 also a
+  fused preposition, "zum" for "zu" or "vom" for "von", and an s written as
+  ß, "Nachweiß" for "Nachweis", both from the owner's reports), and since the same day a
   verb in the wrong form no longer passes on its own; declension still does,
   now including umlauted plurals ("Hände" for "Hand"). `MarkEntry.source`
   also gained `"never"` ("Nicht mehr lernen"), and "Später" now drops the

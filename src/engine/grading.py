@@ -195,6 +195,57 @@ def is_verb_form_of(typed: str, expected: str) -> bool:
     return False
 
 
+#: A preposition fused with its article, to the bare preposition. "zum" for
+#: "zu" and "vom" for "von" are the right word with the article folded in,
+#: which the owner reported twice in two days (2026-10-23/24).
+_FUSED_PREPOSITIONS: dict[str, str] = {
+    "zum": "zu",
+    "zur": "zu",
+    "vom": "von",
+    "am": "an",
+    "ans": "an",
+    "im": "in",
+    "ins": "in",
+    "beim": "bei",
+    "aufs": "auf",
+    "ums": "um",
+    "durchs": "durch",
+    "fürs": "für",
+    "übers": "über",
+    "unters": "unter",
+    "unterm": "unter",
+    "vors": "vor",
+    "vorm": "vor",
+    "hinters": "hinter",
+    "hinterm": "hinter",
+}
+
+
+def is_fused_preposition_of(typed: str, expected: str) -> bool:
+    """Whether ``typed`` and ``expected`` are one preposition, with or without
+    a fused article: "zum"/"zu", "zum"/"zur", "vom"/"von"."""
+    a, b = typed.strip().lower(), expected.strip().lower()
+    if not a or a == b:
+        return False
+    base_a, base_b = _FUSED_PREPOSITIONS.get(a, a), _FUSED_PREPOSITIONS.get(b, b)
+    return base_a == base_b and (a in _FUSED_PREPOSITIONS or b in _FUSED_PREPOSITIONS)
+
+
+def is_sharp_s_slip(typed: str, expected: str) -> bool:
+    """Whether the two differ only in how an s is written: "Nachweiß" for
+    "Nachweis", "Strasse" for "Straße" already passes as a transliteration.
+    The typo rule cannot forgive it, because the edit sits in the last two
+    letters, where an ending would be."""
+    a, b = typed.strip().lower(), expected.strip().lower()
+    if not a or a == b or "ß" not in a + b:
+        return False
+
+    def fold(w: str) -> str:
+        return w.replace("ß", "s").replace("ss", "s")
+
+    return fold(a) == fold(b)
+
+
 #: A form key naming a verb form: the card's tested word is a verb.
 _VERBAL_FORMS = ("Fin", "Part", "Inf")
 
@@ -247,6 +298,8 @@ def grade_gap(
     elif not verbal and any(is_inflection_of(typed, form) for form in forms):
         outcome = "inflection"
     elif expected.lower() == "zu" and typed.strip().lower() in {"", "zu"}:
+        outcome, near = "wrong", True
+    elif any(is_fused_preposition_of(typed, f) or is_sharp_s_slip(typed, f) for f in forms):
         outcome, near = "wrong", True
     else:
         outcome = "wrong"
