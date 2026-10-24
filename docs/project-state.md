@@ -458,6 +458,15 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **Ranks 1001 to 1500 read, 2026-10-24.** Three review rounds (882, 77 and
+  14 cards; 136 cards and 3 units dropped, 9 findings overruled on reading),
+  30 missing unit hints written (12 of them cognates by hand: agy's echo
+  check refuses "restaurant" for "das Restaurant"), 16 carriers translated.
+  Two reviewer drops were article errors, "das Fluss" and "der Deutsch",
+  fixed by display instead; the second needed `only_kind` on the override,
+  because "deutsch" is also the adjective. Stopped with six replacement cards
+  unread, see TODO.
+
 - **The deck's units gained `rivals`, 2026-10-24** (rule 9: additive,
   defaulted to an empty list, flagged here). Two things for words that are
   easy to mix up, after the owner's log showed 245 pairs he had confused and

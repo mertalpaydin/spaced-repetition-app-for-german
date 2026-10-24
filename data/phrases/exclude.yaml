@@ -2493,3 +2493,9 @@
 # Review round thin1023: units the reviewer rejected.
 # 2026-10-24, the owner from the app: "Not a phrase - sich erinnern an is already in deck".
 - "erinnerst du dich"  # DUPLICATE: a conjugated form of rv:sich_erinnern_an
+# Review round r1500: units the reviewer rejected.
+- "scheiße"  # BAD_UNIT: Vulgar profanity 'die Scheiße' is not an appropriate learning unit for A1-B2 learners.
+- "umgehen"  # WRONG_CASE: Separable 'umgehen' does not take a bare '+Dat' object; this meaning requires 'umgehen mit +Dat'.
+- "verheiraten"  # BAD_UNIT: Modern A1-B2 German uses 'heiraten' (get married) and 'verheiratet' (married) rather than formal/dat
+# Review round r1500b: units the reviewer rejected.
+# Review round r1500c: units the reviewer rejected.

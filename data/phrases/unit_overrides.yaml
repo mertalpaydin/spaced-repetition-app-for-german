@@ -237,6 +237,7 @@
 - {key: "deutlich mehrheit", display: "deutliche Mehrheit"}
 - {key: "deutlich wort", display: "mit deutlichen Worten"}
 - {key: "deutsch kanzler", display: "der deutsche Kanzler"}
+- {key: "deutsch", display: "das Deutsch", only_kind: "noun"}
 - {key: "deutschsprachig raum", cefr: "B2"}
 - {key: "dicht nebel", display: "dichter Nebel"}
 - {key: "dienen als", display: "dienen als"}
@@ -366,6 +367,7 @@
 - {key: "fliegen über", case: "Akk"}
 - {key: "fliegend untertasse", cefr: "B2"}
 - {key: "flug streichen", cefr: "B1"}
+- {key: "fluss", display: "der Fluss"}
 - {key: "flüchtig blick", cefr: "B2"}
 - {key: "forderung stellen", cefr: "B2"}
 - {key: "formen zu", cefr: "B2"}

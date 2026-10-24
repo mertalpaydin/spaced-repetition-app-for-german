@@ -875,6 +875,7 @@
 {"unit_id":"aj:minderjaehrig","display_de":"minderjährig","glosses":["underage","minor"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:mittlerer","display_de":"mittlerer","glosses":["middle","medium","average"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:mobil","display_de":"mobil","glosses":["mobile","active"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"aj:modern","display_de":"modern","glosses":["modern"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"aj:modisch","display_de":"modisch","glosses":["fashionable","stylish"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:moeglich","display_de":"möglich","glosses":["possible"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
 {"unit_id":"aj:momentan","display_de":"momentan","glosses":["current","momentary"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -1164,6 +1165,7 @@
 {"unit_id":"aj:suedlich","display_de":"südlich","glosses":["southern","south"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:suedoestlich","display_de":"südöstlich","glosses":["southeastern","southeast"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:suedwestlich","display_de":"südwestlich","glosses":["southwestern","southwest"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"aj:suess","display_de":"süß","glosses":["cute","sweet"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"aj:symbolisch","display_de":"symbolisch","glosses":["symbolic","token"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:sympathisch","display_de":"sympathisch","glosses":["likeable","pleasant"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:synthetisch","display_de":"synthetisch","glosses":["synthetic"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -1187,6 +1189,7 @@
 {"unit_id":"aj:tierisch","display_de":"tierisch","glosses":["animal","brutal","terrific"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:toedlich","display_de":"tödlich","glosses":["deadly","fatal","lethal"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:toll","display_de":"toll","glosses":["great","terrific","fantastic"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
+{"unit_id":"aj:total","display_de":"total","glosses":["total","complete"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"aj:tote","display_de":"tote","glosses":["dead"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:toxisch","display_de":"toxisch","glosses":["toxic"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:traditionell","display_de":"traditionell","glosses":["traditional"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -1432,6 +1435,7 @@
 {"unit_id":"aj:wahnsinnig","display_de":"wahnsinnig","glosses":["crazy","insane","mad"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:wahr","display_de":"wahr","glosses":["true"],"accepted":true,"reject_reason":null,"model":"agy gemini-3.8-flash-high, reviewed by hand against the cards","prompt_version":1,"generated_at":"2026-10-24T08:33:33.417815Z"}
 {"unit_id":"aj:wahrscheinlich","display_de":"wahrscheinlich","glosses":["likely","probable"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.349834Z"}
+{"unit_id":"aj:warm","display_de":"warm","glosses":["warm"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"aj:wasserdicht","display_de":"wasserdicht","glosses":["waterproof","watertight"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:weiblich","display_de":"weiblich","glosses":["female","feminine"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:weich","display_de":"weich","glosses":["soft"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -3603,6 +3607,7 @@
 {"unit_id":"av:zugrunde","display_de":"zugrunde","glosses":["to ruin","as a basis"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"av:zugute","display_de":"zugute","glosses":["to the benefit of","in favor of"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"av:zuhause","display_de":"zuhause","glosses":["at home"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"av:zuletzt","display_de":"zuletzt","glosses":["last","lastly","most recently"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"av:zumal","display_de":"zumal","glosses":["especially as","particularly since"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"av:zumeist","display_de":"zumeist","glosses":["mostly","predominantly"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"av:zumute","display_de":"zumute","glosses":["in the mood","feeling"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -3627,26 +3632,34 @@
 {"unit_id":"cn:sonst","display_de":"sonst","glosses":["else","or else","otherwise"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-20T13:07:36.262074Z"}
 {"unit_id":"cn:stattdessen","display_de":"stattdessen","glosses":["instead","instead of that","in place of that"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-20T13:07:36.262074Z"}
 {"unit_id":"ex:alles_in_ordnung","display_de":"alles in Ordnung","glosses":["all right","everything is fine","everything is in order"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
+{"unit_id":"ex:am_naechsten_tag","display_de":"am nächsten Tag","glosses":["the next day"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
+{"unit_id":"ex:art_und_weise","display_de":"Art und Weise","glosses":["way","manner"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"ex:damen_und_herren","display_de":"Damen und Herren","glosses":["ladies and gentlemen"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"ex:den_ganzen_tag","display_de":"den ganzen Tag","glosses":["all day","all day long","the whole day"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:die_ganze_nacht","display_de":"die ganze Nacht","glosses":["all night","all night long","the whole night"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
+{"unit_id":"ex:dort_drueben","display_de":"dort drüben","glosses":["over there"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"ex:ehrlich_gesagt","display_de":"ehrlich gesagt","glosses":["frankly","honestly"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"ex:erinnerst_du_dich","display_de":"erinnerst du dich","glosses":["do you remember","do you recall"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
+{"unit_id":"ex:frueher_oder_spaeter","display_de":"früher oder später","glosses":["sooner or later"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"ex:ganz_schoen","display_de":"ganz schön","glosses":["quite","pretty","really"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:gestern_abend","display_de":"gestern Abend","glosses":["last night","yesterday evening"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:gute_idee","display_de":"gute Idee","glosses":["good idea"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"ex:heute_abend","display_de":"heute Abend","glosses":["tonight","this evening"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
+{"unit_id":"ex:ich_bin_mir_sicher","display_de":"ich bin mir sicher","glosses":["I'm sure","I am sure"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"ex:jede_menge","display_de":"jede Menge","glosses":["lots of","a lot of","plenty of"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"ex:jeden_tag","display_de":"jeden Tag","glosses":["every day"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
+{"unit_id":"ex:keine_andere_wahl","display_de":"keine andere Wahl","glosses":["no other choice","no other option"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"ex:letzte_nacht","display_de":"letzte Nacht","glosses":["last night"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:letzte_woche","display_de":"letzte Woche","glosses":["last week"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:letztes_jahr","display_de":"letztes Jahr","glosses":["last year"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:morgen_frueh","display_de":"morgen früh","glosses":["tomorrow morning"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:naechste_woche","display_de":"nächste Woche","glosses":["next week"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
+{"unit_id":"ex:naechstes_jahr","display_de":"nächstes Jahr","glosses":["next year"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"ex:nichts_anderes","display_de":"nichts anderes","glosses":["nothing else"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:16:48.350940Z"}
 {"unit_id":"ex:tut_mir_leid","display_de":"tut mir leid","glosses":["sorry","i'm sorry","i am sorry"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:vielen_dank","display_de":"Vielen Dank","glosses":["thank you","many thanks","thanks a lot"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
 {"unit_id":"ex:zum_ersten_mal","display_de":"zum ersten Mal","glosses":["for the first time"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T16:06:06.365455Z"}
+{"unit_id":"ex:zum_letzten_mal","display_de":"zum letzten Mal","glosses":["last time","for the last time"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"id:anders_als","display_de":"anders als","glosses":["unlike","other than","different from"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-20T13:07:36.262074Z"}
 {"unit_id":"id:aus_versehen","display_de":"aus versehen","glosses":["by mistake","by accident","accidentally"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-20T13:07:36.262074Z"}
 {"unit_id":"id:von_mir_aus","display_de":"von mir aus","glosses":["fine by me","for all I care","as far as I'm concerned"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-20T13:07:36.262074Z"}
@@ -5231,6 +5244,7 @@
 {"unit_id":"nn:appell","display_de":"der Appell","glosses":["appeal","plea"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:appetit","display_de":"der Appetit","glosses":["appetite"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:applaus","display_de":"der Applaus","glosses":["applause","clapping"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:april","display_de":"der April","glosses":["April"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"nn:araber","display_de":"der Araber","glosses":["Arab","Arabian horse"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:arabisch","display_de":"das Arabisch","glosses":["Arabic"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:arbeiten","display_de":"das Arbeiten","glosses":["working","work"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -5461,6 +5475,7 @@
 {"unit_id":"nn:bahnsteig","display_de":"der Bahnsteig","glosses":["platform","railway platform"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:balken","display_de":"der Balken","glosses":["beam","bar"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:balkon","display_de":"der Balkon","glosses":["balcony"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:ball","display_de":"der Ball","glosses":["ball"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"nn:ballen","display_de":"der Ballen","glosses":["bale","ball of the foot","dabber"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:ballett","display_de":"das Ballett","glosses":["ballet"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:ballon","display_de":"der Ballon","glosses":["balloon"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -6788,6 +6803,7 @@
 {"unit_id":"nn:grille","display_de":"die Grille","glosses":["cricket","whim"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:grippe","display_de":"die Grippe","glosses":["flu","influenza"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:groll","display_de":"das Groll","glosses":["grudge","resentment"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:grossvater","display_de":"der Großvater","glosses":["grandfather","grandpa"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"nn:grube","display_de":"die Grube","glosses":["pit","trench","mine"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:gruen","display_de":"das Grün","glosses":["green","greenery"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:gruender","display_de":"der Gründer","glosses":["founder"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -7089,6 +7105,7 @@
 {"unit_id":"nn:interessiert","display_de":"die Interessiert","glosses":["interested person","prospective buyer"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:interessierte","display_de":"die Interessierte","glosses":["interested person","interested party"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:internat","display_de":"das Internat","glosses":["boarding school"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:internet","display_de":"das Internet","glosses":["internet"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"nn:internetseite","display_de":"die Internetseite","glosses":["website","web page"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:inventar","display_de":"das Inventar","glosses":["inventory"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:investieren","display_de":"das Investieren","glosses":["investing","investment"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -7689,6 +7706,7 @@
 {"unit_id":"nn:malen","display_de":"das Malen","glosses":["painting","drawing"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:maler","display_de":"der Maler","glosses":["painter","artist"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:malerei","display_de":"die Malerei","glosses":["painting"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:mama","display_de":"die Mama","glosses":["mum","mom"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"nn:mandant","display_de":"der Mandant","glosses":["client"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:mandat","display_de":"das Mandat","glosses":["mandate","seat"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:mandel","display_de":"der Mandel","glosses":["almond","tonsil"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -7712,6 +7730,7 @@
 {"unit_id":"nn:maske","display_de":"die Maske","glosses":["mask"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:massaker","display_de":"das Massaker","glosses":["massacre","slaughter"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:masse","display_de":"die Masse","glosses":["mass","crowd"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:massnahme","display_de":"die Maßnahme","glosses":["measure","action"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"nn:massnahmen","display_de":"die Massnahmen","glosses":["measures","actions"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:masterplan","display_de":"der Masterplan","glosses":["master plan"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:materie","display_de":"die Materie","glosses":["matter","subject matter"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -8076,6 +8095,7 @@
 {"unit_id":"nn:partei","display_de":"die Partei","glosses":["political party","party"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
 {"unit_id":"nn:partie","display_de":"die Partie","glosses":["match","game","round"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:partikel","display_de":"die Partikel","glosses":["particle"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:partner","display_de":"der Partner","glosses":["partner"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"nn:partnerin","display_de":"die Partnerin","glosses":["partner","female partner"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:partnerschaft","display_de":"die Partnerschaft","glosses":["partnership"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:party","display_de":"die Party","glosses":["party"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.930852Z"}
@@ -8091,6 +8111,7 @@
 {"unit_id":"nn:patient","display_de":"der Patient","glosses":["patient"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.930852Z"}
 {"unit_id":"nn:patientin","display_de":"die Patientin","glosses":["female patient","patient"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:patron","display_de":"die Patron","glosses":["cartridge","bullet"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:pause","display_de":"die Pause","glosses":["break","pause"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"nn:pavillon","display_de":"der Pavillon","glosses":["pavilion","gazebo"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:pech","display_de":"das Pech","glosses":["bad luck","pitch"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:pelz","display_de":"der Pelz","glosses":["fur"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -8145,6 +8166,7 @@
 {"unit_id":"nn:plakat","display_de":"das Plakat","glosses":["poster","placard"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:plan","display_de":"der Plan","glosses":["plan"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T17:40:44.699680Z"}
 {"unit_id":"nn:plane","display_de":"die Plane","glosses":["tarp","tarpaulin"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:planet","display_de":"der Planet","glosses":["planet"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"nn:planung","display_de":"die Planung","glosses":["planning"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:plastik","display_de":"die Plastik","glosses":["plastic","sculpture"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:platte","display_de":"die Platte","glosses":["plate","platter","record"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -8358,6 +8380,7 @@
 {"unit_id":"nn:regie","display_de":"die Regie","glosses":["direction","directing","control"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:regieren","display_de":"das Regieren","glosses":["governing","ruling"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:regierung","display_de":"die Regierung","glosses":["government"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
+{"unit_id":"nn:region","display_de":"die Region","glosses":["region","area"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"nn:regisseur","display_de":"der Regisseur","glosses":["director"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:regisseurin","display_de":"die Regisseurin","glosses":["director","female director"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:registrierung","display_de":"die Registrierung","glosses":["registration"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -8404,6 +8427,7 @@
 {"unit_id":"nn:ressort","display_de":"das Ressort","glosses":["department","portfolio","area of responsibility"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:ressource","display_de":"die Ressource","glosses":["resource"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:rest","display_de":"der Rest","glosses":["rest","remainder"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-08T06:18:34.931852Z"}
+{"unit_id":"nn:restaurant","display_de":"das Restaurant","glosses":["restaurant"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"nn:resultat","display_de":"das Resultat","glosses":["result","outcome"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:retter","display_de":"der Retter","glosses":["rescuer","savior"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:rettung","display_de":"die Rettung","glosses":["rescue","salvation"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -9062,6 +9086,7 @@
 {"unit_id":"nn:synagoge","display_de":"der Synagoge","glosses":["synagogue"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:synergie","display_de":"die Synergie","glosses":["synergy"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:syrer","display_de":"der Syrer","glosses":["Syrian"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:system","display_de":"das System","glosses":["system"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"nn:szenario","display_de":"das Szenario","glosses":["scenario"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:szene","display_de":"die Szene","glosses":["scene"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:tabak","display_de":"der Tabak","glosses":["tobacco"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -9141,9 +9166,11 @@
 {"unit_id":"nn:territorium","display_de":"das Territorium","glosses":["territory"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:terroranschlag","display_de":"der Terroranschlag","glosses":["terrorist attack","terror attack"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:terrorismus","display_de":"der Terrorismus","glosses":["terrorism"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:test","display_de":"der Test","glosses":["test","exam"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"nn:testen","display_de":"das Testen","glosses":["testing"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:testergebnis","display_de":"das Testergebnis","glosses":["test result"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:teufel","display_de":"der Teufel","glosses":["devil"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
+{"unit_id":"nn:text","display_de":"der Text","glosses":["text"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"nn:theaterstueck","display_de":"das Theaterstück","glosses":["play","theater piece"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:theke","display_de":"die Theke","glosses":["counter","bar"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:thema","display_de":"das Thema","glosses":["topic","subject","theme"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
@@ -9572,6 +9599,7 @@
 {"unit_id":"nn:verzicht","display_de":"der Verzicht","glosses":["renunciation","waiver","doing without"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:verzoegerung","display_de":"die Verzögerung","glosses":["delay"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:verzweiflung","display_de":"die Verzweiflung","glosses":["despair","desperation"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:video","display_de":"das Video","glosses":["video"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-10-24","prompt_version":1,"generated_at":"2026-10-24T11:05:55.230624Z"}
 {"unit_id":"nn:videospiel","display_de":"das Videospiel","glosses":["video game"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:vieh","display_de":"das Vieh","glosses":["cattle","livestock"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:vielfalt","display_de":"die Vielfalt","glosses":["diversity","variety"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -15578,6 +15606,7 @@
 {"unit_id":"vb:erringen","display_de":"erringen","glosses":["to achieve","to win","to gain"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"vb:erschaffen","display_de":"erschaffen","glosses":["to create"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"vb:erscheinen","display_de":"erscheinen","glosses":["to appear","to show up"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
+{"unit_id":"vb:erschiessen","display_de":"erschießen","glosses":["to shoot dead"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"vb:erschlagen","display_de":"erschlagen","glosses":["to strike dead","to slay"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"vb:erschrecken","display_de":"erschrecken","glosses":["to frighten","to scare","to be startled"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"vb:erschuettern","display_de":"erschüttern","glosses":["to shake","to shock","to shatter"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -16124,6 +16153,7 @@
 {"unit_id":"vb:schicken","display_de":"schicken","glosses":["to send"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
 {"unit_id":"vb:schieben","display_de":"schieben","glosses":["to push","to shove"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"vb:schiefgehen","display_de":"schiefgehen","glosses":["to go wrong"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"vb:schiessen","display_de":"schießen","glosses":["to shoot"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"vb:schildern","display_de":"schildern","glosses":["to describe","to portray","to depict"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"vb:schimpfen","display_de":"schimpfen","glosses":["to scold","to rant","to complain"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"vb:schlafen","display_de":"schlafen","glosses":["to sleep"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}

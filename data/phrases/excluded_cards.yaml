@@ -5800,3 +5800,134 @@
 # the particle of a separable verb, the defect the reviewer flagged above.
 - e12c51bbae22  # WRONG_UNIT: "stehst ... gegenueber" is gegenueberstehen
 - b52a5c288d0d  # WRONG_UNIT: "sitzt ... gegenueber" is gegenuebersitzen
+# Review round r1500.
+- 06f8a779e8ee  # BAD_SENTENCE: Unidiomatic collocation 'sein Verhalten wechseln' where natural German uses 'sein Verhalten ände
+- 09bb022da685  # WRONG_UNIT: Sentence needs the idiom 'in Angriff nehmen' ('to tackle'), which plain 'der Angriff' does not nam
+- 0e5dd390137d  # BAD_SENTENCE: Archaic poetic exclamation fragment lacking a main clause, not natural modern German.
+- 0fb934cbf493  # BAD_SENTENCE: News snippet lacks context ('dort', '«Compact»-Leute') and uses Swiss guillemets.
+- 1091f0bf2197  # BAD_GLOSS: Ungrammatical gloss ends with 'becoming one' for 'es [= klug] zu werden' ('becoming so').
+- 12ed138a5261  # BAD_GLOSS: Gloss 'I can see it in his nose' mistranslates the idiom 'jemandem etwas an der Nase ansehen' (tell
+- 1a9b5cdf1cf4  # BAD_SENTENCE: Topicalized 'Die' and article-less 'Union' depend on missing sports-news context.
+- 1c32b17083d2  # WRONG_UNIT: Bracketed 'sich' belongs to 'sich erbieten', and 'leihen' here means non-reflexive 'lend'.
+- 1d03d3ad5b31  # WRONG_UNIT: Bracketed 'lieber' is the adverb 'rather/had better' (comparative of 'gern'), not the adjective 'l
+- 1e6a23f658f6  # BAD_SENTENCE: Dangling pronouns 'Sie' and 'es' with 'allerdings' lack context for polysemous 'aufführen'.
+- 216ee53c5702  # WRONG_UNIT: Sentence uses non-reflexive 'seine Zähne putzen' instead of 'sich die Zähne putzen'.
+- 23892d82e806  # BAD_SENTENCE: Anaphoric 'Dabei handelte es sich' lacks prior context to explain who 'these' refers to.
+- 25cdb62f59bb  # WRONG_UNIT: The bracketed token 'frühstücken' is a verb, not the noun 'das Frühstück'.
+- 2a37d33ab70e  # BAD_GLOSS: The gloss literally mistranslates the idiom 'aus dem letzten Loch pfeifen' ('to be on one's last le
+- 2a5a220791bd  # BAD_SENTENCE: Archaic proverb using obsolete 'Zeichen tun' ('work miracles'), paired with a nonsensical litera
+- 362db449e142  # BAD_SENTENCE: Ungrammatical sentence missing the noun phrase after 'aus'.
+- 365a9ee71399  # BAD_SENTENCE: Unnatural French calque ('Doktor der Universität von Bordeaux'); German uses 'Doktor' with a dis
+- 382a10282b3f  # BAD_SENTENCE: The predicate 'ist teilweise ein Indianer' is an unnatural English calque and uses a sensitive d
+- 392968df86c9  # BAD_GLOSS: In German, 'gegen etw. schießen' is a figurative idiom meaning to rail against or criticize, not li
+- 44308e31bf83  # BAD_GLOSS: Gloss mistranslates 'Boomer-Soli' (solidarity surcharge on boomers) as nonsensical 'boomer solos'.
+- 44d5c19e3f12  # BAD_SENTENCE: Dangling 'sie' and 'dabei' lack context, and 'oftmals ... nie' is contradictory.
+- 46a05c0dc35c  # BAD_SENTENCE: Ungrammatical comma before coordinating 'noch' and unnatural blend of 'nie ... oder' with 'weder
+- 4a29fb5d0fd7  # BAD_SENTENCE: Archaic inversion ('Es fordert dies...') and missing context for 'dies' make this unnatural mode
+- 4c8f9b60c860  # BAD_SENTENCE: Unnatural calque syntax ('ist unmöglich zu behaupten' for 'kann man unmöglich behaupten'), and g
+- 50f3521ed240  # WRONG_UNIT: Bracketed 'System' is an English word inside the proper name 'System Change Camp', not German 'das
+- 5135814169d6  # BAD_SENTENCE: Orphan dialogue reply lacks context for feminine 'sie' referring to an unstated inanimate noun (
+- 53c7bf304a3b  # BAD_SENTENCE: Caption fragment lacking a main-clause verb and context.
+- 57a9ce3530e3  # WRONG_UNIT: Bracketed 'verdammt' is an adverbial intensifier modifying 'schlau', not the verb 'verdammen'.
+- 5b76b2686a27  # BAD_SENTENCE: Ungrammatical comma separates the fronted phrase 'In diesem Moment' from the V2 verb 'umarmte'.
+- 5fc040ad903a  # BAD_SENTENCE: Lacks context for comparative 'mehr' and unnaturally pairs 'aufregen' ('upset') with 'Sieg'.
+- 62d3e604b41b  # BAD_SENTENCE: Ungrammatical Anglicism: 'betrachten' in the sense of 'consider' requires 'als' ('als unter sein
+- 635d3420ecae  # BAD_GLOSS: Gloss literally mistranslates the idiom 'jmdm. auf den Schlips treten' ('offend sb.'), which is als
+- 63e4f26e8a6d  # WRONG_UNIT: Bracketed 'wenige' is an inflected adjective/determiner of lemma 'wenig', not the adverb 'weniger'
+- 645bde4567f2  # WRONG_UNIT: Bracketed 'links' is part of the idiom 'mit links' ('effortlessly', also mistranslated as 'with hi
+- 66a07d78668d  # WRONG_UNIT: The sentence uses the fixed idiom 'auf links' ('inside out'), which the single-word unit 'links' d
+- 6a34d2bbf1c5  # BAD_GLOSS: Gloss mistranslates 'Schicksalsgenossen' (fellow sufferers/companions in fate) as nonsensical 'fell
+- 6c62e9f14890  # BAD_GLOSS: German 'patzige' means cheeky, snappy, or insolent, not 'slapdash' (careless).
+- 701250f6a2d6  # BAD_GLOSS: German 'bei der Arbeit stören' means disturbing someone while working, not 'disturb my work'.
+- 72adfc8697c0  # BAD_SENTENCE: 'An Abend' is ungrammatical and should be 'Am Abend'.
+- 74010aa119dc  # BAD_SENTENCE: Unquoted embedding of the proverb 'Eile mit Weile', paired with a nonsensical literal gloss ('ha
+- 756d92d4e5dd  # BAD_SENTENCE: Stray comma corrupts 'an sich selbst zuletzt' and produces the nonsensical gloss 'even last'.
+- 76b66351568c  # BAD_GLOSS: Gloss mistranslates the pun on 'Wunden verbinden' (bandage wounds) as 'connects wounds'.
+- 778fb0ac3710  # BAD_GLOSS: The gloss literally mistranslates the idiom 'hinten runterfallen' ('to be overlooked/left out').
+- 7aa0ac174d27  # WRONG_UNIT: Sentence uses the prepositional phrase 'rechnen mit +Dat' ('count on'), which plain 'rechnen' does
+- 7c49c3468ae3  # BAD_SENTENCE: Telegraphic phrasing omits the mandatory article before the singular countable noun 'Termin'.
+- 7d073f9f3d57  # WRONG_UNIT: Sentence uses the prepositional phrase 'rechnen auf +Akk' ('count on'), which plain 'rechnen' does
+- 806dc6cd8cc4  # BAD_GLOSS: The gloss mistranslates 'Dadurch' as subject 'This' and treats subject 'Nierenversagen' as the obje
+- 816510492aa3  # BAD_SENTENCE: This news snippet lacks context for 'Boasberg' and the dangling plural demonstrative 'diese'.
+- 84583dae5164  # WRONG_UNIT: Sentence uses the separable verb 'durchdrehen', not 'drehen'.
+- 87adca00a6b1  # BAD_SENTENCE: Sentence fragment lacking a main-clause verb and context.
+- 8b7692840fdf  # BAD_GLOSS: The gloss mistranslates 'Einmal' ('someday') as clause-initial 'Once', creating an English fragment
+- 8eee9a3f7bb7  # BAD_GLOSS: Without a feminine inanimate antecedent in context, 'Sie' translates as 'She' rather than 'It'.
+- 92d2aa882eaf  # BAD_SENTENCE: This is telegraphic newspaper-headline syntax omitting mandatory articles before 'Kabinett' and 
+- 9542d6ba456a  # BAD_GLOSS: 'That's impossible to say' means 'impossible to tell' and cues 'sagen' rather than 'behaupten' (cla
+- 98177d8665d0  # BAD_SENTENCE: Missing context because feminine pronoun 'sie' ('it') refers to an unmentioned inanimate noun.
+- 9d5dc2baa6c8  # BAD_SENTENCE: Obscure archaic proverb junk with unnatural syntax and opaque meaning in modern German.
+- a1e325cd06f6  # BAD_SENTENCE: Anaphoric subject 'Die' refers to a missing antecedent from a previous sentence.
+- a23535b3107d  # BAD_SENTENCE: Elliptical 'mit den gängigsten' is missing its noun from a preceding sentence.
+- a47ea18310bd  # BAD_SENTENCE: Unidiomatic German: 'build bridges' is 'Brücken bauen' (not 'Brücken machen') and 'should' requi
+- a51773e58815  # BAD_SENTENCE: Capitalization error: formal 'your' with 'Sie' requires 'Ihre Mitarbeiter', as lowercase 'ihre' 
+- a66aada003bf  # BAD_SENTENCE: Ungrammatical preposition contamination: 'trennen' requires 'vom Sieg', not 'zum Sieg'.
+- ab2f580e5e5c  # BAD_SENTENCE: Unidiomatic use of bare 'Hochzeit' ('wedding') for 'Ehe/Heirat' ('marriage'), mirrored in the un
+- adec7b35f3e0  # BAD_GLOSS: 'ebenso enden' means 'end in the same way/likewise', whereas 'end as well' means 'also end' and cue
+- b1061321fe0c  # BAD_SENTENCE: Unnatural German ('Mir geht es dick' is not idiomatic standard German for feeling fat).
+- b247bea1fc56  # BAD_GLOSS: Mangled gloss translates 'verbinden' as 'connect it' instead of 'bandage him' after bloodletting.
+- b28c39de09b1  # WRONG_UNIT: The sentence uses the fixed idiom 'auf links' ('inside out'), which the single-word unit 'links' d
+- b6d5928d9023  # BAD_SENTENCE: 'den Spott für alle bilden' is unnatural German, and the gloss 'is the mockery' misleads learner
+- b736792a7a72  # BAD_SENTENCE: Missing context: bare anaphoric 'diese' lacks an antecedent noun, leaving number and verb sense 
+- b8f4344fa4bf  # WRONG_UNIT: Bracketed 'wenige' is an inflected adjective/determiner of lemma 'wenig', not the adverb 'weniger'
+- b991cab12309  # BAD_SENTENCE: Obscure archaic proverb junk with a nonsensical mistranslation ('is certainly possible' for 'geh
+- bcb163ac3cd1  # BAD_GLOSS: Gloss 'I have seen the fact' mistranslates 'eingesehen' (acknowledged/accepted) and misleads toward
+- be40c5dff833  # WRONG_UNIT: Sentence uses transitive 'sehen' with adverbial 'ähnlich' (view similarly), not 'ähnlich sehen +Da
+- bf4a7dcf76be  # BAD_SENTENCE: Contains graphic sexual violence ('vergewaltigt' / 'raped'), inappropriate for learner exercises
+- c3917a69b8ac  # BAD_GLOSS: Gloss 'You can give you freedom, but you can't give it' is nonsensical and mistranslates 'einem las
+- cc2047c935cd  # BAD_SENTENCE: Corrupted text 'viele aktuelle es werden' has a mangled or missing plural noun.
+- cfb5f7bed7b9  # BAD_SENTENCE: The sentence misuses the conjunction 'dass' instead of the relative pronoun 'das' after 'ein Ges
+- d08565d9feb7  # BAD_GLOSS: The gloss uses broken English ('won't take you hard') instead of translating 'anstrengen'.
+- d37f9e8b098e  # WRONG_UNIT: After 'sprechen', 'Japanisch' is a capitalized language noun rather than the adjective 'japanisch'
+- d3b754614862  # BAD_SENTENCE: Webpage heading and slogan fragment ('Produkte – Hier bestimme ich mit!'), not a natural self-co
+- d4e2a79d0b17  # WRONG_UNIT: Sentence requires the fixed idiom 'jmdm. in den Weg treten' ('get in sb.'s way'), which plain 'tre
+- d7cb5e34076d  # BAD_SENTENCE: Typo in German: '40 jähriger' is missing the mandatory hyphen ('40-jähriger').
+- d9a74a556bbb  # WRONG_UNIT: Bracketed 'Zweifel' is the imperative of the verb 'zweifeln', not the noun 'der Zweifel'.
+- dcb5c5d24c8c  # BAD_GLOSS: The gloss mistranslates 'Gänge zu besorgen' ('errands to run') as 'get various courses'.
+- e08a50a49218  # BAD_SENTENCE: Spoken interview snippet lacks context for 'das' and awkwardly compares it directly to people ('
+- e0c4767f71ed  # BAD_SENTENCE: Derogatory insult ('Schweinigel') is inappropriate for a learner exercise.
+- e1937ce26cc4  # BAD_SENTENCE: Orphan dialogue reply lacks context for masculine 'er' referring to an unstated inanimate noun (
+- e461847376ca  # WRONG_UNIT: Bracketed 'geraten' is the past participle of 'raten' (to advise), not the verb 'geraten'.
+- e633607f7ea9  # BAD_GLOSS: Gloss omits 'with each other', leaving '[miteinander]' uncued since 'Wir kommen richtig gut aus' al
+- e67bf14b9866  # WRONG_UNIT: Sentence requires the light-verb phrase 'in Kraft treten' ('come into force'), which plain 'treten
+- e9860f2c9dac  # BAD_SENTENCE: Telegraphic news headline omits required articles ('Die Koalition ... eine Bürgergeld-Reform').
+- eb0ea69d8ea3  # BAD_SENTENCE: Unnatural placement of 'nicht' without contrastive context; neutral negation requires 'Er hat se
+- ec122f7892b0  # BAD_GLOSS: Gloss mistranslates the German exclamative modal particle 'aber' as adversative 'But'.
+- ec57a710fd28  # BAD_SENTENCE: Unidiomatic Anglicism 'sicher damit' in the postfield instead of natural 'da/dessen absolut sich
+- ed99878717d8  # BAD_GLOSS: 'die Richtschnur vorgeben' means 'dictate/set the guiding principle', whereas 'give me the guidelin
+- edd0bf186d62  # WRONG_UNIT: 'grade zu' is an obsolete spelling of 'geradezu' (straight ahead) with 'gehen', not 'zugehen', and
+- ee8d58d14b45  # BAD_SENTENCE: Mentions rape ('vergewaltigt'), which is offensive content unsuitable for language-learning exer
+- ef9f21e2027b  # BAD_GLOSS: Gloss mistranslates personal 'sie' (she) as 'it' in 'Which party is it from?'.
+- f018d282cae4  # BAD_GLOSS: The gloss uses present tense ('drink') for past-tense 'trankt' ('drank').
+- f179d53149e6  # BAD_SENTENCE: Grammatical gender error: feminine 'Eine Stadt' requires 'ihrem Umland', not 'seinem Umland'.
+- f1811e8e72e4  # BAD_SENTENCE: The pronoun 'er' (glossed as 'it') and 'dann' rely on a missing masculine noun in prior context.
+- f27d67fd4d51  # WRONG_UNIT: Bracketed 'Toren' is the plural of 'der Tor' (fool), not 'das Tor' (gate).
+- f436072d65d1  # BAD_GLOSS: The gloss mistranslates 'Sie' ('she') as 'it' and renders a derogatory idiom literally.
+- f60e9e7fc86b  # WRONG_UNIT: Sentence uses the passive of transitive 'jdn. auf etw. stoßen' rather than intransitive 'stoßen au
+- fa4966561af7  # WRONG_UNIT: Sentence requires the light-verb phrase 'in Kontakt treten' ('get in touch'), which plain 'treten'
+- fb70597400cf  # WRONG_UNIT: Sentence uses feminine 'die See' (sea), not masculine 'der See' (lake).
+# Review round r1500b.
+- 10d02945d3f1  # WRONG_UNIT: The sentence uses the fixed phrase 'in Erscheinung treten' (to appear), which the single-word disp
+- 268cc28f78aa  # BAD_SENTENCE: The sentence is not self-contained, relying on missing prior context for 'Danach' and the demons
+- 27d4bcb8413d  # WRONG_UNIT: The sentence requires the fixed phrase 'in Kraft treten' (not plain 'treten') and lacks context fo
+- 3af06ca95696  # BAD_SENTENCE: The clause 'Scheinkorrelationen als Kausalitäten zu glauben' is ungrammatical German ('glauben' 
+- 5780662713ec  # BAD_SENTENCE: Broken sentence missing a noun after 'der' and lacking context for 'Der muss sein'.
+- 783f009d0543  # WRONG_UNIT: The sentence uses the fixed phrase 'in Kontakt treten' (to get in touch), which the single-word di
+- 7e7362f5aef3  # WRONG_UNIT: Sentence uses the fixed idiom 'nach hinten losgehen' (to backfire), not standalone 'hinten'.
+- 8322d801f73a  # WRONG_UNIT: Bracketed 'wenige' is an inflected attributive form of 'wenig' (little), not the adverb 'weniger' 
+- 86cf279544ea  # BAD_SENTENCE: This is a context-dependent news-caption snippet ('Sinwar – er wird...') rather than a self-cont
+- 93e58810d852  # BAD_GLOSS: Literal 'hangover mood in the party' is unidiomatic for 'Katerstimmung' and misleads learners towar
+- 9eebabba15fd  # WRONG_UNIT: The sentence requires the fixed phrase 'in Kraft treten' (not plain 'treten') and lacks context fo
+- a60492d82d2b  # WRONG_UNIT: Here 'lieber' is the comparative of the adverb 'gern', not a form of the adjective 'lieb'.
+- b3132bdd1987  # BAD_SENTENCE: Scraped tabloid sentence about a real political killing with '(†31)' junk and unanchored 'Er'.
+- cdeec78b1043  # BAD_SENTENCE: The inverted continuation 'Ebenso ausgeschieden sind...' depends on missing prior context about 
+- d264a7afb9b7  # BAD_GLOSS: The gloss mistranslates 'oben vorn, rechts und links je ein Horn' as four horn positions rather tha
+- ea21c489d0bc  # WRONG_UNIT: Here 'sehen' with 'ähnlich wie' means viewing a matter similarly, not the dative idiom 'ähnlich se
+# Review round r1500c.
+- 3f97bfa3feca  # BAD_SENTENCE: Dangling 'Danach' lacks context and uses a non-standard reflexive impersonal passive ('wird sich
+- 7f4512e67a67  # BAD_SENTENCE: Ungrammatical negation ('kann nicht Französisch sprechen und ich ebenso' instead of 'kein Franzö
+- a75d23b55019  # WRONG_UNIT: The sentence uses the fixed phrase 'in Kraft treten' ('come into force'), which the plain verb dis
+- b053b0174824  # WRONG_UNIT: The sentence uses the idiom 'auf den Plan treten' ('enter the scene'), which the plain verb displa
+- e9fd32a7fbc5  # WRONG_UNIT: The bracketed word 'wenige' is an inflected determiner/adjective form of 'wenig', not the adverb '
+- f54fc1f1cbdb  # WRONG_UNIT: The sentence uses the idiom 'nach hinten losgehen' ('to backfire'), which the single-word display 
+- fbae13faca65  # BAD_SENTENCE: Dangling rebuttal starting with 'Aber' lacks context and uses the often-derogatory slang 'Amis' 
