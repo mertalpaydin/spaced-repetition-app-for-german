@@ -289,6 +289,56 @@ def test_a_second_requests_run_for_other_words_keeps_the_first_runs_carriers(
     assert keys() == {"hähnchen", "hund"}, "the first run's word must survive the second"
 
 
+@requires_model
+def test_requests_stage_finds_carriers_for_a_requested_idiom(tmp_path: Path) -> None:
+    """The owner asked for "sich sicher sein" (2026-10-24). An idiom is matched
+    at parse time, which the requests stage never re-ran, so a curated idiom
+    added after the parse could not find a sentence without a full re-parse
+    of hours. The stage now matches requested idioms by their own pattern."""
+    build_dir = tmp_path / "build"
+    build_dir.mkdir()
+    phrases = tmp_path / "phrases"
+    phrases.mkdir()
+    (phrases / "idioms.yaml").write_text(
+        "- {key: sich sicher sein, pattern: [bin, mir, sicher], max_gap: 3}\n"
+        "- {key: sich sicher sein, pattern: [bist, dir, sicher], max_gap: 3}\n",
+        encoding="utf-8",
+    )
+    corpus = tmp_path / "corpus.tsv"
+    corpus.write_text(
+        "1\tdeu\tIch bin mir sicher, dass er morgen kommt.\n"
+        "2\tdeu\tBist du dir da wirklich ganz sicher?\n"
+        # "sicher" without the reflexive is the plain adjective, not the idiom
+        "3\tdeu\tDas ist sicher eine sehr gute Idee.\n",
+        encoding="utf-8",
+    )
+    # What mine really reports: a curated idiom with no hit is still built, as
+    # a zero-sentence unit, so it is never among the requested_missing.
+    (build_dir / "report.json").write_text(
+        json.dumps({"requested_missing": [], "zero_hit_curated": ["sich sicher sein"]}),
+        encoding="utf-8",
+    )
+    (phrases / "requested.yaml").write_text(
+        "- {key: sich sicher sein, kind: idiom}\n", encoding="utf-8"
+    )
+    args = ["--stage", "requests", "--tatoeba", str(corpus), "--skip-leipzig"]
+    args += ["--no-default-extras", "--build-dir", str(build_dir), "--phrases-dir", str(phrases)]
+    assert main(args) == 0
+    occurrences = [
+        json.loads(line)
+        for line in (build_dir / "requested_occurrences.jsonl")
+        .read_text(encoding="utf-8")
+        .split("\n")
+        if line
+    ]
+    assert [(o["kind"], o["unit_key"], o["line_id"]) for o in occurrences] == [
+        ("idiom", "sich sicher sein", "1"),
+        ("idiom", "sich sicher sein", "2"),
+    ]
+    carriers = (build_dir / "requested_carriers.txt").read_text(encoding="utf-8").splitlines()
+    assert len(carriers) == 2
+
+
 def test_requests_stage_is_idempotent_once_the_requests_have_occurrences(tmp_path: Path) -> None:
     """A second run sees the first run's keys as present and must not blank
     the file that made them present."""

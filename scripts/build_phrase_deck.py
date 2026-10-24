@@ -588,6 +588,16 @@ def stage_requests(args: argparse.Namespace) -> int:
         return 1
     report = json.loads(report_path.read_text(encoding="utf-8"))
     wanted_keys = _requested_without_occurrences(report)
+    curated = load_curated(args.phrases_dir)
+    # A curated idiom with no hit is still built, as a zero-sentence unit, so
+    # mine never lists it among the missing; a requested one is as missing as
+    # a word with no sentence ("sich sicher sein", 2026-10-24).
+    zero_hit = report.get("zero_hit_curated")
+    zero_hit_keys = {str(k) for k in zero_hit} if isinstance(zero_hit, list) else set()
+    for request in curated.requested:
+        entry = (request.kind, request.key)
+        if request.kind == "idiom" and request.key in zero_hit_keys and entry not in wanted_keys:
+            wanted_keys.append(entry)
     if not wanted_keys:
         # Nothing is rewritten in this case, deliberately: a second run of
         # this stage sees the keys of the first as present, and blanking the
@@ -596,47 +606,66 @@ def stage_requests(args: argparse.Namespace) -> int:
         return 0
     _log(f"requests: {len(wanted_keys)} request(s) with no occurrence: {wanted_keys}")
 
-    stems_by_key = {key: _request_stems(key) for _, key in wanted_keys}
-    pattern = re.compile(
-        r"\b(?:"
-        + "|".join(re.escape(stem) for stem in sorted(set().union(*stems_by_key.values())))
-        + r")",
-        re.IGNORECASE,
-    )
+    # A requested idiom is matched by its own curated pattern, not by a stem:
+    # idioms are found at parse time, and a curated idiom added after the
+    # parse ("sich sicher sein", owner, 2026-10-24) otherwise had no way to a
+    # sentence short of re-parsing the corpus for hours.
+    idiom_specs: dict[str, list[IdiomSpec]] = defaultdict(list)
+    for spec in curated.idioms:
+        idiom_specs[spec.key].append(spec)
+    idiom_keys = {key for kind, key in wanted_keys if kind == "idiom" and key in idiom_specs}
+    stems_by_key = {key: _request_stems(key) for _, key in wanted_keys if key not in idiom_keys}
+    # Every surface word of a pattern has to be in the sentence, for one of
+    # the key's patterns at least; lemma elements are left to the matcher.
+    surfaces_by_key = {
+        key: [
+            [
+                re.compile(rf"\b{re.escape(e.surface)}\b", re.IGNORECASE)
+                for e in spec.pattern
+                if e.surface
+            ]
+            for spec in idiom_specs[key]
+        ]
+        for key in idiom_keys
+    }
+
+    def requested_in(text: str) -> str | None:
+        lowered = text.lower()
+        for key, stems in stems_by_key.items():
+            if any(re.search(rf"\b{re.escape(s)}", lowered) for s in stems):
+                return key
+        for key, patterns in surfaces_by_key.items():
+            if any(all(p.search(text) for p in required) for required in patterns):
+                return key
+        return None
+
     lines = corpora_from_args(args)
     ordered = sorted(lines.values(), key=lambda line: (line.source, line.line_id))
     _log(f"requests: scanning {len(ordered):,} sentences")
     taken: Counter[str] = Counter()
     candidates: list[CorpusLine] = []
+    hits: list[str] = []
     for line in ordered:
-        if not pattern.search(line.text):
+        hit = requested_in(line.text)
+        if hit is None:
             continue
         # The same parser-free shape checks the translation job uses, so a
         # sentence queued here is one the pipeline could accept later.
         if carrier_validation._sentence_shape_reason(line.text) is not None:  # noqa: SLF001
-            continue
-        hit = next(
-            (
-                key
-                for key, stems in stems_by_key.items()
-                if any(s in line.text.lower() for s in stems)
-            ),
-            None,
-        )
-        if hit is None:
             continue
         bucket = f"{hit}:{line.source}"
         if taken[bucket] >= args.word_cap:
             continue
         taken[bucket] += 1
         candidates.append(line)
+        hits.append(hit)
     _log(f"requests: {len(candidates):,} candidate sentence(s) to parse")
     if not candidates:
         _log("requests: no corpus sentence matched any request")
         return 0
 
     gate = WordGate(
-        lemmas=frozenset(key for _, key in wanted_keys),
+        lemmas=frozenset(stems_by_key),
         # The point of this stage: these sentences count as carriers even
         # though nobody has translated them yet.
         glossed=frozenset(line.text for line in candidates),
@@ -646,10 +675,14 @@ def stage_requests(args: argparse.Namespace) -> int:
     )
     found: list[Occurrence] = []
     used: dict[str, CorpusLine] = {}
-    for line, parsed in zip(
-        candidates, parse_many(entry.text for entry in candidates), strict=True
+    for line, hit, parsed in zip(
+        candidates, hits, parse_many(entry.text for entry in candidates), strict=True
     ):
-        for occ in detect_words(parsed, gate, source=line.source, line_id=line.line_id):
+        if hit in idiom_keys:
+            occs = detect_idioms(parsed, idiom_specs[hit], source=line.source, line_id=line.line_id)
+        else:
+            occs = detect_words(parsed, gate, source=line.source, line_id=line.line_id)
+        for occ in occs:
             found.append(occ)
             used[line.text] = line
     # MERGE with what earlier runs found, never replace it. This stage only
