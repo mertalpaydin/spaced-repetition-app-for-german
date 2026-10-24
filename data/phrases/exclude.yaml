@@ -2491,3 +2491,5 @@
 # Review round words1022b: units the reviewer rejected.
 # Review round thin1022: units the reviewer rejected.
 # Review round thin1023: units the reviewer rejected.
+# 2026-10-24, the owner from the app: "Not a phrase - sich erinnern an is already in deck".
+- "erinnerst du dich"  # DUPLICATE: a conjugated form of rv:sich_erinnern_an
