@@ -67,3 +67,17 @@ def test_a_request_must_be_written_as_the_miner_writes_a_lemma(tmp_path: Path) -
 
 def test_no_request_list_is_not_an_error(tmp_path: Path) -> None:
     assert load_curated(tmp_path).requested == []
+
+
+def test_load_curated_synonym_in_two_groups_is_refused(tmp_path: Path) -> None:
+    """A key in two groups would accept words the two groups never agreed on."""
+    (tmp_path / "synonyms.yaml").write_text(
+        "- [statt, anstatt]\n- [statt, stattdessen]\n", encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="two groups"):
+        load_curated(tmp_path)
+
+
+def test_load_curated_committed_synonyms_load() -> None:
+    groups = load_curated().synonyms
+    assert ["statt", "anstatt"] in groups

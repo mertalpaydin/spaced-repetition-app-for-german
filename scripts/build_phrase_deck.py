@@ -49,6 +49,7 @@ from src.llm.env import FreeLaneKeyMissingError, client_from_env, load_env_file
 from src.phrases import cards as cards_module
 from src.phrases import carrier_validation
 from src.phrases import contexts as contexts_module
+from src.phrases import rivals as rivals_module
 from src.phrases import unit_glosses as glosses_module
 from src.phrases import written_carriers as written_module
 from src.phrases.curated import DEFAULT_PHRASES_DIR, IdiomElement, IdiomSpec, load_curated
@@ -1117,6 +1118,9 @@ def stage_export(args: argparse.Namespace) -> int:
     cards = contexts_module.apply_contexts(cards, contexts_module.load_records(args.contexts))
     units = cards_module.with_card_counts(units, cards)
     units = glosses_module.apply_unit_glosses(units, glosses_module.load_records(args.unit_glosses))
+    # After the glosses, which the rivals are found from.
+    units = rivals_module.apply_synonyms(units, load_curated(args.phrases_dir).synonyms)
+    units = rivals_module.assign_rivals(units)
     corpus: dict[str, int] = {}
     stats_path = build_dir / "parse_stats.json"
     if stats_path.exists():

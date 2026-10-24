@@ -146,8 +146,15 @@ class PhraseUnit(BaseModel):
     #: opt-in gloss run adds them.
     gloss_en: str | None = None
     #: Near-synonyms accepted in this unit's gaps and rated as correct
-    #: ("deswegen" for "deshalb"): curated, single-token connectors only.
+    #: ("deswegen" for "deshalb"): curated, single-token words only, from
+    #: connectors.yaml and synonyms.yaml.
     also_accepted: list[str] = Field(default_factory=list)
+    #: Other units whose English overlaps this one's, in the same word class
+    #: (src/phrases/rivals.py). A form of one typed into this unit's gap is
+    #: the right idea and the wrong word: the learner is told another word is
+    #: wanted and tries again, nothing recorded (owner, 2026-10-24). Additive
+    #: field, 2026-10-24.
+    rivals: list[str] = Field(default_factory=list)
     #: Distinct corpus sentences containing the unit, all corpora together.
     sentence_count: int = Field(ge=0)
     count_by_source: dict[str, int] = Field(default_factory=dict)

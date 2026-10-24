@@ -12,10 +12,10 @@ than something the typo rule could absorb.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 
-from src.contracts import PhraseCard, ReviewOutcome, ReviewRating
+from src.contracts import PhraseCard, PhraseUnit, ReviewOutcome, ReviewRating
 from src.engine.typo_grader import ScopedTypoGrader
 
 
@@ -323,6 +323,54 @@ def grade_card(
     else:
         rating = "again"
     return CardGrade(gaps=gaps, outcome=worst.outcome, rating=rating)
+
+
+#: Too short or too common to say which unit the learner meant.
+_NOT_A_RIVAL_FORM: frozenset[str] = frozenset(
+    {
+        "sich", "mich", "dich", "uns", "euch", "mir", "dir", "ihm", "ihr", "es", "der", "die",
+        "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "nicht", "und",
+        "aber", "oder", "auch", "noch", "schon", "mit", "von", "aus", "auf", "für", "über",
+        "unter", "nach", "bei", "vor", "zum", "zur", "vom", "beim",
+    }
+)  # fmt: skip
+
+
+def unit_forms(unit: PhraseUnit, cards: Iterable[PhraseCard]) -> frozenset[str]:
+    """Every word a learner could type for ``unit``: its cards' answers and
+    its citation parts, lower-cased. What "the learner typed this unit"
+    means, for ``rival_typed``."""
+    words = {w.lower() for w in unit.parts}
+    for card in cards:
+        words.update(a.lower() for a in card.answers)
+    return frozenset(w for w in words if len(w) >= 3 and w not in _NOT_A_RIVAL_FORM)
+
+
+def rival_typed(
+    unit: PhraseUnit, grade: CardGrade, forms_of: Callable[[str], frozenset[str]]
+) -> str | None:
+    """The rival unit the learner typed into a failed gap, or None.
+
+    A rival shares the unit's English (``PhraseUnit.rivals``), so typing it
+    is the right idea and the wrong word: "kriegen" for "bekommen",
+    "zurückkommen" for "zurückkehren". The page says another word is wanted
+    and lets the learner try again, nothing recorded (owner, 2026-10-24).
+    A word that is also one of the unit's own forms is not a rival: that
+    is the unit, graded as it is.
+    """
+    if grade.correct or not unit.rivals:
+        return None
+    own = forms_of(unit.unit_id)
+    for gap in grade.gaps:
+        if gap.outcome != "wrong" or gap.near:
+            continue
+        typed = gap.typed.strip().lower()
+        if typed in own or typed in _NOT_A_RIVAL_FORM or len(typed) < 3:
+            continue
+        for rival in unit.rivals:
+            if typed in forms_of(rival):
+                return rival
+    return None
 
 
 def render_with_gaps(card: PhraseCard, placeholder: str = "___") -> str:

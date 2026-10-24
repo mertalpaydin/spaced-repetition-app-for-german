@@ -1,0 +1,15 @@
+# Words that mean the same and fit the same slot: either is right in the
+# other's gap, and the page says "X gilt auch; im Satz: Y". One group per
+# line, lemma keys as the miner keys them (lowercase). Applied at export.
+#
+# Only words a reader would swap without a second thought. Near synonyms
+# that do not always fit ("zuerst" and "zunächst", "sonst" and "ansonsten",
+# "bekommen" and "kriegen") are rivals instead, found mechanically in
+# src/phrases/rivals.py: typing one earns another try, not a pass.
+# Started 2026-10-24 (owner: "check units that are interchangeable or easy
+# to mix like statt vs anstatt").
+- [statt, anstatt]
+- [bisher, bislang]
+- [inzwischen, mittlerweile]
+- [schrecklich, furchtbar]
+- [ungefähr, circa]

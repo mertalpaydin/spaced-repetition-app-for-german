@@ -458,6 +458,20 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **The deck's units gained `rivals`, 2026-10-24** (rule 9: additive,
+  defaulted to an empty list, flagged here). Two things for words that are
+  easy to mix up, after the owner's log showed 245 pairs he had confused and
+  a scan found 806 more pairs ahead sharing their English. `rivals` is found
+  mechanically at export (`src/phrases/rivals.py`): units of one word class
+  sharing an English sense, about different words. Typing a rival's form
+  ("kriegt" for "bekommt") is the right idea and the wrong word: the page says
+  another word is wanted and lets him try again, nothing recorded, once per
+  rival per card. The note names only what he typed, never the answer
+  (rule 3). And `data/phrases/synonyms.yaml` lists words that are simply the
+  same word in the same slot (statt and anstatt, bisher and bislang); those
+  accept each other through `also_accepted`, also at export. Both are
+  computed from the glosses, so a gloss change can add or remove a rival.
+
 - **The review log gained a third entry type, 2026-10-22** (rule 9: additive,
   flagged here). `CorrectionEntry` is "Als richtig werten": the graded review
   stays as written and replay rates it `hard` in its place, keyed by

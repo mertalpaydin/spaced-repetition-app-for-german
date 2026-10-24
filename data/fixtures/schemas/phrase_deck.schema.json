@@ -504,6 +504,13 @@
             "default": null,
             "title": "Requested Order"
           },
+          "rivals": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rivals",
+            "type": "array"
+          },
           "sentence_count": {
             "minimum": 0,
             "title": "Sentence Count",
@@ -918,6 +925,13 @@
             "default": null,
             "title": "Requested Order"
           },
+          "rivals": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rivals",
+            "type": "array"
+          },
           "sentence_count": {
             "minimum": 0,
             "title": "Sentence Count",
@@ -1143,6 +1157,13 @@
             ],
             "default": null,
             "title": "Requested Order"
+          },
+          "rivals": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rivals",
+            "type": "array"
           },
           "sentence_count": {
             "minimum": 0,

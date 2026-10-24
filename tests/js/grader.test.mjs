@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import { gradeCard, gradeText, isInflectionOf, isVerbFormOf, renderMarked } from "../../web/lib/grader.js";
+import { gradeCard, gradeText, isInflectionOf, isVerbFormOf, renderMarked, rivalTyped, unitForms } from "../../web/lib/grader.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const cases = JSON.parse(readFileSync(join(here, "..", "..", "data", "fixtures", "grading", "grader_parity.json"), "utf-8"));
@@ -81,4 +81,27 @@ test("a fused preposition or a sharp s is a near miss", () => {
   assert.ok(gradeCard(nachweis, ["Nachweiß"]).nearMiss);
   assert.ok(!gradeCard(fuehren, ["führt", "von"]).nearMiss, "a different preposition is a different word");
   assert.ok(!gradeCard(erzaehlen, ["über", "erzählen"]).nearMiss);
+});
+
+test("kriegen typed for bekommen is a rival, and earns another try", () => {
+  // Twin of test_rival_typed_kriegen_for_bekommen_is_a_rival in
+  // tests/test_phrase_rivals.py (owner, 2026-10-24).
+  const card = (unit_id, sentence_de, answer) => {
+    const start = sentence_de.indexOf(answer);
+    return { unit_id, sentence_de, form_key: "Fin|Pres|3|Sing", answers: [answer], gaps: [{ start, end: start + answer.length, answer, token_index: 0 }] };
+  };
+  const units = {
+    "vb:bekommen": { unit_id: "vb:bekommen", parts: ["bekommen"], rivals: ["vb:kriegen"] },
+    "vb:kriegen": { unit_id: "vb:kriegen", parts: ["kriegen"], rivals: [] },
+  };
+  const cards = { "vb:bekommen": [card("vb:bekommen", "Er bekommt ein Buch.", "bekommt")], "vb:kriegen": [card("vb:kriegen", "Er kriegt ein Buch.", "kriegt")] };
+  const formsOf = (id) => unitForms(units[id], cards[id]);
+  const c = cards["vb:bekommen"][0];
+  const bekommen = units["vb:bekommen"];
+  assert.equal(rivalTyped(bekommen, gradeCard(c, ["kriegt"]), formsOf), "vb:kriegen");
+  assert.equal(rivalTyped(bekommen, gradeCard(c, ["kriegen"]), formsOf), "vb:kriegen");
+  assert.equal(rivalTyped(bekommen, gradeCard(c, ["kauft"]), formsOf), null);
+  assert.equal(rivalTyped(bekommen, gradeCard(c, ["bekommt"]), formsOf), null);
+  assert.equal(rivalTyped(bekommen, gradeCard(c, [null]), formsOf), null);
+  assert.equal(rivalTyped(bekommen, gradeCard(c, ["bekommen"]), formsOf), null);
 });

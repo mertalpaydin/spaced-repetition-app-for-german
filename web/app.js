@@ -5,7 +5,7 @@
 
 import { loadDeck, loadReserveIndex, lookupReserve, withAdded } from "./lib/deck.js";
 import { createEngine } from "./lib/engine.js";
-import { gradeCard, renderMarked } from "./lib/grader.js";
+import { gradeCard, renderMarked, rivalTyped, unitForms } from "./lib/grader.js";
 import { deriveState, entriesSinceReset, makeCorrection, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
@@ -272,6 +272,7 @@ function showPanel(which) {
 function loadCard() {
   answered = false;
   $("feedback").hidden = true;
+  $("retry-note").hidden = true;
   $("btn-next").hidden = true;
   // "Kannte ich schon" belongs after the answer, not before it: offered
   // beforehand it asks the learner to judge a unit they have not been shown
@@ -306,7 +307,7 @@ function loadCard() {
   const unit = step.unit || null;
   const card = unit ? pickCard(deck, unit, state) : null;
   if (!unit || !card) { showPanel("empty"); return; }
-  current = { unit, card };
+  current = { unit, card, triedRivals: new Set() };
   showPanel("card");
   $("context-de").textContent = card.context_de || "";
   $("context-de").hidden = !card.context_de;
@@ -327,12 +328,36 @@ function typedValues(reveal) {
   return Array.from($("sentence").querySelectorAll("input.gap")).map((inp) => reveal ? null : inp.value);
 }
 
+// Every word a unit's cards and citation use, for "Anderes Wort gesucht".
+// Built on first use per unit; the deck does not change under a session.
+const formsCache = new Map();
+function formsOf(unitId) {
+  if (!formsCache.has(unitId)) formsCache.set(unitId, unitForms(deck.byId[unitId] || { parts: [] }, deck.cardsByUnit[unitId]));
+  return formsCache.get(unitId);
+}
+
 async function check(reveal = false) {
   if (!current || answered) return;
-  answered = true;
   const typed = typedValues(reveal);
   const { card, unit } = current;
   const result = gradeCard(card, typed, unit.also_accepted || []);
+  // A word that means the same as the asked one: the right idea, the wrong
+  // word. Said so and tried again, nothing recorded, once per such word
+  // (owner, 2026-10-24). The note names only what the learner typed, never
+  // the answer, so it gives nothing away (rule 3).
+  const rival = reveal ? null : rivalTyped(unit, result, formsOf);
+  if (rival && !current.triedRivals.has(rival)) {
+    current.triedRivals.add(rival);
+    const gap = result.gaps.find((g) => g.outcome === "wrong" && formsOf(rival).has(g.typed.trim().toLowerCase()));
+    $("retry-note").textContent = `„${gap ? gap.typed.trim() : ""}“ ist ein anderes Wort mit ähnlicher Bedeutung. Gesucht ist ein anderes, noch ein Versuch.`;
+    $("retry-note").hidden = false;
+    const inputs = $("sentence").querySelectorAll("input.gap");
+    const at = gap ? result.gaps.indexOf(gap) : 0;
+    if (inputs[at]) { inputs[at].focus(); inputs[at].select(); }
+    return;
+  }
+  answered = true;
+  $("retry-note").hidden = true;
   const review = makeReview(entries, {
     unit_id: unit.unit_id, card_id: card.card_id, rating: result.rating, outcome: result.outcome,
     answers: result.gaps.map((g) => g.typed), expected: result.gaps.map((g) => g.expected),

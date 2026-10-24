@@ -180,6 +180,8 @@ class CuratedLists(BaseModel):
     overrides: list[UnitOverride] = Field(default_factory=list)
     #: Words the owner asked for, in the order he wants them taught.
     requested: list[RequestedUnit] = Field(default_factory=list)
+    #: Groups of lemma keys that accept each other (synonyms.yaml).
+    synonyms: list[list[str]] = Field(default_factory=list)
 
 
 def _load_yaml_list(path: Path) -> list[object]:
@@ -260,6 +262,7 @@ def load_curated(phrases_dir: Path = DEFAULT_PHRASES_DIR) -> CuratedLists:
     if len(keys) != len(set(keys)):
         raise ValueError("duplicate connector keys in connectors.yaml")
     _check_requested(requested)
+    synonyms = _check_synonyms(_load_yaml_list(phrases_dir / "synonyms.yaml"))
     return CuratedLists(
         connectors=connectors,
         idioms=idioms,
@@ -270,4 +273,26 @@ def load_curated(phrases_dir: Path = DEFAULT_PHRASES_DIR) -> CuratedLists:
         excluded_cards=excluded_cards,
         overrides=overrides,
         requested=requested,
+        synonyms=synonyms,
     )
+
+
+def _check_synonyms(raw: list[object]) -> list[list[str]]:
+    """Each group two or more lowercase keys, and no key in two groups: a key
+    in two groups would accept words the two lists never agreed on."""
+    groups: list[list[str]] = []
+    seen: set[str] = set()
+    for entry in raw:
+        if not isinstance(entry, list) or len(entry) < 2:
+            raise ValueError(
+                f"synonyms.yaml: each entry is a list of two or more keys, got {entry!r}"
+            )
+        group = [str(k) for k in entry]
+        for key in group:
+            if key != key.strip().lower() or not key:
+                raise ValueError(f"synonyms.yaml: {key!r} must be a lowercase lemma key")
+            if key in seen:
+                raise ValueError(f"synonyms.yaml: {key!r} is in two groups")
+            seen.add(key)
+        groups.append(group)
+    return groups

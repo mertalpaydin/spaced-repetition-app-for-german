@@ -247,6 +247,34 @@ export function gradeGap(card, i, typed, alternatives = []) {
   return { expected, typed, outcome, accepted: r.is_correct, near };
 }
 
+// Too short or too common to say which unit the learner meant. Matches
+// _NOT_A_RIVAL_FORM in src/engine/grading.py.
+const NOT_A_RIVAL_FORM = new Set(["sich", "mich", "dich", "uns", "euch", "mir", "dir", "ihm", "ihr", "es",
+  "der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "nicht", "und",
+  "aber", "oder", "auch", "noch", "schon", "mit", "von", "aus", "auf", "für", "über", "unter", "nach",
+  "bei", "vor", "zum", "zur", "vom", "beim"]);
+
+// Every word a learner could type for a unit. Matches unit_forms.
+export function unitForms(unit, cards) {
+  const words = new Set((unit.parts || []).map((w) => w.toLowerCase()));
+  for (const card of cards || []) for (const a of card.answers) words.add(a.toLowerCase());
+  return new Set([...words].filter((w) => w.length >= 3 && !NOT_A_RIVAL_FORM.has(w)));
+}
+
+// The rival unit the learner typed into a failed gap, or null: the right
+// idea and the wrong word, which earns another try. Matches rival_typed.
+export function rivalTyped(unit, grade, formsOf) {
+  if (grade.rating !== "again" || !(unit.rivals || []).length) return null;
+  const own = formsOf(unit.unit_id);
+  for (const gap of grade.gaps) {
+    if (gap.outcome !== "wrong" || gap.near) continue;
+    const typed = gap.typed.trim().toLowerCase();
+    if (own.has(typed) || NOT_A_RIVAL_FORM.has(typed) || typed.length < 3) continue;
+    for (const rival of unit.rivals) if (formsOf(rival).has(typed)) return rival;
+  }
+  return null;
+}
+
 export function gradeCard(card, typed, alternatives = []) {
   if (typed.length !== card.gaps.length) throw new Error(`${card.gaps.length} gaps, ${typed.length} answers`);
   const gaps = typed.map((t, i) => gradeGap(card, i, t, alternatives));
