@@ -1,5 +1,6 @@
 """Unified Gemini LLM client with cost accounting, budget ceilings, and two-lane execution."""
 
+import json
 import os
 import threading
 import time
@@ -16,6 +17,10 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import google.genai as genai
 from google.genai import errors as genai_errors
 from google.genai import types as genai_types
+
+# The Interactions API's errors live in the SDK's generated client, which
+# google-genai 2.18 exposes only under this private path.
+from google.genai._gaos import errors as interactions_errors
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from src.contracts import (
@@ -55,6 +60,11 @@ REQUEST_TIMEOUT_MS = 10 * 60 * 1000
 #: on-demand for a ``forbid_batch=True`` pilot, and Google prices the two
 #: differently (batch is half price, on-demand is not).
 TransportMode = Literal["sync", "batch"]
+#: Which endpoint the synchronous lane posts to. ``"interactions"`` is the
+#: Interactions API (``/v1beta/interactions``), which Google's notice of
+#: 2026-10-07 calls GA. The paid lane's Batch API has no Interactions
+#: equivalent in google-genai 2.18 and stays on generateContent either way.
+SyncApi = Literal["generate_content", "interactions"]
 
 #: What a cost-log row records for its mode. Adds ``"cache"`` to
 #: ``TransportMode`` because a cache hit reached no transport at all, so
@@ -750,7 +760,9 @@ class GeminiLlmClient:
         forbid_batch: bool = False,
         detach_batch: bool = False,
         batch_job_store_path: Path | str | None = None,
+        sync_api: SyncApi = "generate_content",
     ) -> None:
+        self.sync_api: SyncApi = sync_api
         self.free_api_key = (
             free_api_key or os.getenv("GEMINI_FREE_API_KEY") or os.getenv("GEMINI_API_KEY")
         )
@@ -1303,6 +1315,14 @@ class GeminiLlmClient:
         structured detail is missing.
         """
         details = exc.details if isinstance(exc.details, dict) else {}
+        return self._classify_quota_details(details, exc.message or str(exc), raw=exc)
+
+    def _classify_quota_details(
+        self, details: dict[str, Any], message: str, *, raw: object
+    ) -> QuotaType:
+        """The classification itself, on Google's error envelope. Shared by
+        generateContent's ``ClientError`` and the Interactions API's
+        ``GenAiError``, which carries the same envelope as its JSON body."""
         error_body = details.get("error", details) if isinstance(details, dict) else {}
         quota_ids: list[str] = []
         if isinstance(error_body, dict):
@@ -1324,7 +1344,7 @@ class GeminiLlmClient:
 
         # No structured quota metric found -- fall back to the free-text
         # message, still preferring explicit words over a guess.
-        message = (exc.message or str(exc)).lower()
+        message = message.lower()
         if "per day" in message or "daily" in message:
             return "rpd"
         if "per minute" in message or "rate" in message:
@@ -1337,7 +1357,7 @@ class GeminiLlmClient:
         # expensive mistake to make on a guess.
         warnings.warn(
             "Could not classify a Gemini 429 as RPM or RPD from structured or "
-            f"free-text error content; defaulting to RPM. Raw error: {exc}",
+            f"free-text error content; defaulting to RPM. Raw error: {raw}",
             stacklevel=2,
         )
         return "rpm"
@@ -1354,6 +1374,9 @@ class GeminiLlmClient:
         back to ``RPM_BACKOFF_SECONDS``.
         """
         details = exc.details if isinstance(exc.details, dict) else {}
+        return self._retry_delay_from_details(details)
+
+    def _retry_delay_from_details(self, details: dict[str, Any]) -> float | None:
         error_body = details.get("error", details) if isinstance(details, dict) else {}
         if not isinstance(error_body, dict):
             return None
@@ -1538,6 +1561,10 @@ class GeminiLlmClient:
         config: genai_types.GenerateContentConfig,
         purpose: str,
     ) -> tuple[str, TokenUsage]:
+        if self.sync_api == "interactions":
+            return self._call_interactions(
+                client, model=model, prompt=prompt, config=config, purpose=purpose
+            )
         try:
             response = client.models.generate_content(model=model, contents=prompt, config=config)
         except genai_errors.ServerError as exc:
@@ -1553,6 +1580,101 @@ class GeminiLlmClient:
                 f"Gemini API rejected the request for model {model!r} (purpose={purpose!r}): {exc}"
             ) from exc
         return self._extract_response(response, prompt=prompt, purpose=purpose)
+
+    def _call_interactions(
+        self,
+        client: genai.Client,
+        *,
+        model: str,
+        prompt: str,
+        config: genai_types.GenerateContentConfig,
+        purpose: str,
+    ) -> tuple[str, TokenUsage]:
+        """One synchronous call through the Interactions API.
+
+        The only part of ``config`` this client ever sets is the thinking
+        level, which the Interactions API takes as ``generation_config``. Its
+        errors are not the generateContent ones: ``GenAiError`` with an HTTP
+        status and Google's usual error envelope as the JSON body, so the 429
+        is read from that body into the same RPM-or-RPD decision.
+        """
+        generation_config: dict[str, str] = {}
+        thinking = config.thinking_config
+        if thinking is not None and thinking.thinking_level is not None:
+            generation_config["thinking_level"] = str(thinking.thinking_level.value).lower()
+        extra = {"generation_config": generation_config} if generation_config else {}
+        # The SDK's overloads are typed for its agent endpoints; the model
+        # call is the generic body form, which mypy cannot pick from a dict.
+        create: Callable[..., Any] = client.interactions.create
+        try:
+            interaction = create(model=model, input=prompt, **extra)
+        except interactions_errors.GenAiError as exc:
+            body = exc.body or ""
+            try:
+                parsed = json.loads(body) if body else {}
+            except json.JSONDecodeError:
+                parsed = {}
+            details = parsed if isinstance(parsed, dict) else {}
+            if exc.status_code >= 500:
+                raise ServerUnavailableError(body or str(exc)) from exc
+            if exc.status_code == 429:
+                raise QuotaExceededError(
+                    self._classify_quota_details(details, f"{exc} {body}", raw=body),
+                    body or str(exc),
+                    retry_delay_seconds=self._retry_delay_from_details(details),
+                ) from exc
+            raise ModelRejectedError(
+                f"Gemini API rejected the request for model {model!r} "
+                f"(purpose={purpose!r}): {body or exc}"
+            ) from exc
+        except interactions_errors.NoResponseError as exc:
+            raise ServerUnavailableError(str(exc)) from exc
+        return self._extract_interaction(interaction, prompt=prompt, purpose=purpose)
+
+    def _extract_interaction(
+        self, interaction: Any, *, prompt: str, purpose: str
+    ) -> tuple[str, TokenUsage]:
+        """``_extract_response`` for an ``Interaction``: thought tokens bill
+        as output, so they are added to the completion count here exactly as
+        they are there."""
+        text = getattr(interaction, "output_text", None) or ""
+        usage = getattr(interaction, "usage", None)
+        model_version = getattr(interaction, "model", None)
+        if (
+            usage is not None
+            and usage.total_input_tokens is not None
+            and usage.total_output_tokens is not None
+        ):
+            thoughts_tokens = usage.total_thought_tokens or 0
+            token_usage = TokenUsage(
+                prompt_tokens=usage.total_input_tokens,
+                completion_tokens=usage.total_output_tokens + thoughts_tokens,
+                thoughts_tokens=thoughts_tokens,
+                cached_content_tokens=usage.total_cached_tokens or 0,
+                tool_use_prompt_tokens=usage.total_tool_use_tokens or 0,
+                total_tokens=usage.total_tokens,
+                model_version=model_version,
+            )
+            self._warn_on_token_checksum_mismatch(
+                usage=token_usage,
+                accounted_tokens=(
+                    token_usage.prompt_tokens
+                    + token_usage.completion_tokens
+                    + token_usage.tool_use_prompt_tokens
+                ),
+                purpose=purpose,
+            )
+            return text, token_usage
+        warnings.warn(
+            "Interactions response had no usable usage; falling back to a "
+            "word-count token estimate for cost logging.",
+            stacklevel=2,
+        )
+        return text, TokenUsage(
+            prompt_tokens=len(prompt.split()) * 2,
+            completion_tokens=len(text.split()) * 2,
+            model_version=model_version,
+        )
 
     def _poll_batch_job(
         self, client: genai.Client, job: genai_types.BatchJob

@@ -2652,3 +2652,136 @@ def test_every_request_carries_a_deadline() -> None:
     # Minutes, not milliseconds-as-seconds: a timeout of 600 would abort
     # every real call.
     assert REQUEST_TIMEOUT_MS >= 60_000
+
+
+# ----------------------------------------------------------------------
+# The Interactions API (Google's notice of 2026-10-07: GA, the successor of
+# generateContent for the synchronous lane). Opt-in through ``sync_api``.
+# ----------------------------------------------------------------------
+
+
+class _FakeInteractions:
+    """Fake ``client.interactions``: records every ``create`` call."""
+
+    def __init__(self, response: object | None = None, error: Exception | None = None) -> None:
+        self._response = response
+        self._error = error
+        self.calls: list[dict[str, Any]] = []
+
+    def create(self, **body: Any) -> object:
+        self.calls.append(body)
+        if self._error is not None:
+            raise self._error
+        return self._response
+
+
+def _fake_interaction(text: str, *, inp: int, out: int, thought: int, total: int) -> object:
+    from types import SimpleNamespace
+
+    usage = SimpleNamespace(
+        total_input_tokens=inp,
+        total_output_tokens=out,
+        total_thought_tokens=thought,
+        total_cached_tokens=None,
+        total_tool_use_tokens=None,
+        total_tokens=total,
+    )
+    return SimpleNamespace(output_text=text, usage=usage, model=MODEL_GENERATE)
+
+
+def _interactions_error(status: int, payload: dict[str, Any]) -> Exception:
+    import httpx
+    from google.genai._gaos.errors.genaierror import GenAiError
+
+    body = json.dumps(payload)
+    return GenAiError("error", httpx.Response(status, text=body), body)
+
+
+def test_sync_call_with_interactions_api_posts_to_interactions(tmp_path: Path) -> None:
+    """``sync_api="interactions"`` sends the prompt as ``input`` and the
+    thinking level in ``generation_config``, never touches generateContent,
+    and bills thought tokens as output, as the old path does."""
+    log_file = tmp_path / "cost_log.jsonl"
+    client = GeminiLlmClient(
+        cost_log_path=log_file,
+        cache_dir=tmp_path / "cache",
+        free_api_key="fake-free-key",
+        sync_api="interactions",
+    )
+    fake_sdk = _FakeSdkClient()
+    fake_sdk.interactions = _FakeInteractions(  # type: ignore[attr-defined]
+        _fake_interaction("Guten Tag!", inp=8, out=4, thought=3, total=15)
+    )
+    client._get_sdk_client = lambda lane: fake_sdk  # type: ignore[method-assign]
+
+    assert client.generate("Sag Guten Tag", purpose="unit_test", use_cache=False) == "Guten Tag!"
+    (call,) = fake_sdk.interactions.calls  # type: ignore[attr-defined]
+    assert call["model"] == MODEL_GENERATE
+    assert call["input"] == "Sag Guten Tag"
+    assert call["generation_config"] == {"thinking_level": THINKING_FLASH_LITE.lower()}
+    assert fake_sdk.models.calls == []
+    row = json.loads(log_file.read_text(encoding="utf-8").splitlines()[-1])
+    assert row["lane"] == "free"
+    assert row["prompt_tokens"] == 8
+    assert row["completion_tokens"] == 7
+
+
+@pytest.mark.parametrize(
+    ("quota_id", "expected"),
+    [("GenerateRequestsPerDayPerProjectPerModel-FreeTier", "rpd"), ("RequestsPerMinute", "rpm")],
+)
+def test_interactions_429_is_classified_like_generate_content(
+    tmp_path: Path, quota_id: str, expected: str
+) -> None:
+    """The RPM and RPD 429s must still be told apart: one backs off, the other
+    closes the free lane until the Pacific-midnight reset (CLAUDE.md 9)."""
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "c.jsonl", cache_dir=tmp_path / "cache", sync_api="interactions"
+    )
+    payload = {
+        "error": {
+            "code": 429,
+            "status": "RESOURCE_EXHAUSTED",
+            "message": "Resource has been exhausted.",
+            "details": [
+                {
+                    "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+                    "violations": [{"quotaId": quota_id}],
+                },
+                {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "48s"},
+            ],
+        }
+    }
+    fake_sdk = _FakeSdkClient()
+    fake_sdk.interactions = _FakeInteractions(error=_interactions_error(429, payload))  # type: ignore[attr-defined]
+    with pytest.raises(QuotaExceededError) as caught:
+        client._call_sync(
+            fake_sdk,  # type: ignore[arg-type]
+            model=MODEL_GENERATE,
+            prompt="x",
+            config=genai_types.GenerateContentConfig(),
+            purpose="unit_test",
+        )
+    assert caught.value.quota_type == expected
+    assert caught.value.retry_delay_seconds == 48.0
+
+
+def test_interactions_5xx_is_server_unavailable_and_4xx_names_the_model(tmp_path: Path) -> None:
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "c.jsonl", cache_dir=tmp_path / "cache", sync_api="interactions"
+    )
+    for status, expected in ((503, ServerUnavailableError), (400, ModelRejectedError)):
+        fake_sdk = _FakeSdkClient()
+        fake_sdk.interactions = _FakeInteractions(  # type: ignore[attr-defined]
+            error=_interactions_error(status, {"error": {"code": status, "message": "no"}})
+        )
+        with pytest.raises(expected) as caught:
+            client._call_sync(
+                fake_sdk,  # type: ignore[arg-type]
+                model=MODEL_GENERATE,
+                prompt="x",
+                config=genai_types.GenerateContentConfig(),
+                purpose="unit_test",
+            )
+        if expected is ModelRejectedError:
+            assert MODEL_GENERATE in str(caught.value)
