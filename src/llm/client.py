@@ -1214,7 +1214,20 @@ class GeminiLlmClient:
         until it was killed. A hung call must fail so the retry logic above
         can see it, because a job that never returns cannot be retried,
         cannot be logged, and blocks the pipeline behind it.
+
+        On the Interactions API the SDK also retries by itself, three times on
+        408, 409, 429 and 5xx when nothing says otherwise (google-genai 2.18,
+        ``_gaos.google_genai._translate_retry_config``). Every retry is a
+        request Google counts against RPM and RPD that this client never sees,
+        so it writes no cost row and an RPD 429 is retried instead of closing
+        the lane. Retries are this client's job, so the SDK gets none
+        (found while reviewing the first live call, 2026-10-24).
         """
+        if self.sync_api == "interactions":
+            return genai_types.HttpOptions(
+                timeout=self.request_timeout_ms,
+                retry_options=genai_types.HttpRetryOptions(attempts=0),
+            )
         return genai_types.HttpOptions(timeout=self.request_timeout_ms)
 
     def _thinking_config_for(self, model: str, purpose: str) -> genai_types.ThinkingConfig | None:

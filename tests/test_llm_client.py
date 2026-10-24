@@ -2785,3 +2785,18 @@ def test_interactions_5xx_is_server_unavailable_and_4xx_names_the_model(tmp_path
             )
         if expected is ModelRejectedError:
             assert MODEL_GENERATE in str(caught.value)
+
+
+def test_interactions_client_gives_the_sdk_no_retries_of_its_own(tmp_path: Path) -> None:
+    """The SDK's Interactions client retries 429 and 5xx three times unless
+    told otherwise. Those requests count against RPM and RPD, write no cost
+    row, and would retry an RPD 429 instead of closing the lane."""
+    from google.genai._gaos.google_genai import _translate_retry_config
+
+    client = GeminiLlmClient(
+        cost_log_path=tmp_path / "c.jsonl", cache_dir=tmp_path / "cache", sync_api="interactions"
+    )
+    assert _translate_retry_config(client._http_options()).max_retries == 0
+    # the default path is left exactly as it was
+    plain = GeminiLlmClient(cost_log_path=tmp_path / "d.jsonl", cache_dir=tmp_path / "cache")
+    assert plain._http_options().retry_options is None
