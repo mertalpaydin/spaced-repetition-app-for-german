@@ -702,7 +702,14 @@ def _forced_occurrence(
     be a whole token of the parse, so ``answers`` slices back out of
     ``sentence_de`` exactly (rule 6). Returns ``None`` when it does not,
     rather than producing a card whose blank is in the wrong place.
+
+    A phrase has a surface of several words ("bin ... gegen" for "gegen
+    sein", owner, 2026-10-24). Each word must then be a whole token, in the
+    sentence's order, with anything between them; every word is a gap.
     """
+    words = [w for w in sentence.surface.replace("…", " ").replace("...", " ").split() if w]
+    if len(words) > 1:
+        return _forced_phrase_occurrence(parsed, sentence, words, lemma, kind, line_id)
     surface = sentence.surface
     for index, token in enumerate(parsed.tokens):
         if token.text != surface:
@@ -733,6 +740,46 @@ def _forced_occurrence(
             evidence={"surface": surface, "forced": "requested"},
         )
     return None
+
+
+def _forced_phrase_occurrence(
+    parsed: ParsedSentence,
+    sentence: written_module.WrittenSentence,
+    words: list[str],
+    lemma: str,
+    kind: str,
+    line_id: str,
+) -> Occurrence | None:
+    """``_forced_occurrence`` for a surface of several words."""
+    indices: list[int] = []
+    position = 0
+    for word in words:
+        hit = next(
+            (i for i in range(position, len(parsed.tokens)) if parsed.tokens[i].text == word),
+            None,
+        )
+        if hit is None:
+            return None
+        indices.append(hit)
+        position = hit + 1
+    spans = [
+        (parsed.tokens[i].idx, parsed.tokens[i].idx + len(parsed.tokens[i].text)) for i in indices
+    ]
+    if any(sentence.german[s:e] != w for (s, e), w in zip(spans, words, strict=True)):
+        return None
+    return Occurrence(
+        kind=_PROVISIONAL_KIND.get(kind, kind),  # type: ignore[arg-type]
+        unit_key=lemma,
+        parts=[lemma],
+        token_indices=indices,
+        spans=spans,
+        surfaces=list(words),
+        corpus_source="written",
+        line_id=line_id,
+        text=sentence.german,
+        form_key="written|" + "|".join(w.lower() for w in words),
+        evidence={"surface": " ".join(words), "forced": "requested"},
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

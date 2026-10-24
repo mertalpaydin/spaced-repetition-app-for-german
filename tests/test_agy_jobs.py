@@ -116,3 +116,26 @@ def test_tatoeba_only_glosses_are_glossed_again(monkeypatch, tmp_path: Path) -> 
     assert agy_jobs.job_glosses(args) == 0
     assert seen == [["Er wartet."]]
     assert store["Er wartet."].source == "gemini"
+
+
+def test_forced_occurrence_multi_word_surface_gaps_every_word() -> None:
+    """The owner asked for "gegen sein" (2026-10-24). The forced occurrence
+    took a single token only, so a phrase whose surface is "bin ... gegen"
+    could never become a card. Each word of the surface must still be a
+    whole token of the parse, in order, so the gaps line up (rule 6)."""
+    import pytest
+    from src.phrases import parse
+    from src.phrases import written_carriers as written_module
+
+    if not parse.parser_available():
+        pytest.skip("de_core_news_sm is not installed")
+    text = "Ich bin absolut gegen diesen Plan."
+    (parsed,) = list(parse.parse_many([text]))
+    sentence = written_module.WrittenSentence(german=text, english="x", surface="bin ... gegen")
+    occ = agy_jobs._forced_occurrence(parsed, sentence, "gegen sein", "idiom", "w0001")
+    assert occ is not None
+    assert [text[s:e] for s, e in occ.spans] == ["bin", "gegen"]
+    assert occ.surfaces == ["bin", "gegen"]
+    # a word that is not a whole token, or out of order, gives no occurrence
+    wrong = written_module.WrittenSentence(german=text, english="x", surface="gegen bin")
+    assert agy_jobs._forced_occurrence(parsed, wrong, "gegen sein", "idiom", "w0002") is None
