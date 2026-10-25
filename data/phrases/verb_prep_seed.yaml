@@ -67,3 +67,12 @@
 - {verb: anmelden, prep: für, case: Akk, reflexive: true, cefr: B1, gloss_en: to register for / to sign up for}
 - {verb: überzeugen, prep: von, case: Dat, cefr: B1, gloss_en: to convince of}
 - {verb: beschweren, prep: bei, case: Dat, reflexive: true, cefr: B1, gloss_en: to complain to (a person)}
+# owner 2026-10-24, verb + preposition list: the eight the corpus counts had not made units.
+- {verb: anfangen, prep: mit, case: Dat, cefr: A2, gloss_en: to start with}
+- {verb: aufhören, prep: mit, case: Dat, cefr: A2, gloss_en: to quit / to give up (doing)}
+- {verb: bedanken, prep: bei, case: Dat, reflexive: true, cefr: A2, gloss_en: to thank (someone)}
+- {verb: ausgeben, prep: für, case: Akk, cefr: A2, gloss_en: to spend on}
+- {verb: beginnen, prep: mit, case: Dat, cefr: A2, gloss_en: to begin with}
+- {verb: erkennen, prep: an, case: Dat, cefr: B1, gloss_en: to recognise by}
+- {verb: schützen, prep: vor, case: Dat, reflexive: true, cefr: B1, gloss_en: to protect oneself from}
+- {verb: verstehen, prep: von, case: Dat, cefr: B1, gloss_en: to know about (be an expert in)}

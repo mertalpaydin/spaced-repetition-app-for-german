@@ -5931,3 +5931,26 @@
 - e9fd32a7fbc5  # WRONG_UNIT: The bracketed word 'wenige' is an inflected determiner/adjective form of 'wenig', not the adverb '
 - f54fc1f1cbdb  # WRONG_UNIT: The sentence uses the idiom 'nach hinten losgehen' ('to backfire'), which the single-word display 
 - fbae13faca65  # BAD_SENTENCE: Dangling rebuttal starting with 'Aber' lacks context and uses the often-derogatory slang 'Amis' 
+# 2026-10-24, written sentences for "für sein" read before use.
+- 77979a0697c3  # BAD_SENTENCE: 'an das Meer' for 'ans Meer', and the reading is shaky
+# 2026-10-24, the owner's verb + preposition list, read before use: another sense of the verb.
+- 6487db4d1fbe  # WRONG_UNIT: 'mit etwas anfangen' is 'to do with', not 'to start with'
+- 6a3de2dbf514  # WRONG_UNIT: 'was fangen sie an mit' is 'what do they do with'
+- 972ca34ce4da  # WRONG_UNIT: 'an dem' is a relative pronoun, not erkennen an
+- 8a780b54f871  # WRONG_UNIT: 'fürs Erste' is 'for now', not ausgeben für
+- 0f08fee6b9fa  # WRONG_UNIT: 'nichts von dem verstehen, was' is 'of what', not verstehen von
+- 3450713917e7  # WRONG_UNIT: 'nichts mit sich anzufangen wissen' is 'to do with oneself'
+- f4ee9f91a0ad  # WRONG_UNIT: 'nichts von dem verstehen, was' is 'of what', not verstehen von
+# Review round new1024.
+- 0102bae59245  # BAD_SENTENCE: Starts with 'Zusätzlich' and presupposes an unstated prior action, so it lacks standalone contex
+- ca091d7b33b1  # BAD_GLOSS: Gloss mistranslates idiomatic 'langsam' ('about time/soon') as 'slowly' and 'Lernen' as 'learning' 
+- fc14198518d6  # BAD_GLOSS: Gloss mistranslates idiomatic 'mal so langsam' ('soon/before long') as 'slowly'.
+# Review round new1024b.
+- 714fef38248e  # WRONG_UNIT: Sentence uses the fixed phrase 'in Kraft treten' ('come into force'), not plain 'treten'.
+- 97900e28b4e6  # WRONG_UNIT: Sentence uses the idiom 'etwas mit +Dat anfangen' ('do with') rather than plain 'anfangen' ('start
+- aa090f67f416  # WRONG_UNIT: Bracketed 'wenige' is an inflected attributive form of 'wenig', not the adverb 'weniger'.
+- ba261290c9b8  # WRONG_UNIT: Sentence uses the fixed phrase 'in Verbindung treten' ('connect with'), not plain 'treten'.
+- e11eb7dfdf49  # BAD_SENTENCE: Dangling 'Ebenso' ('likewise') and 'die Spielorte' depend on missing prior context.
+# Review round last1025.
+- 77f124c43c5e  # WRONG_UNIT: Bracketed 'wenige' is an inflected attributive form of 'wenig', not the adverb 'weniger'.
+- b83b3eb30972  # WRONG_UNIT: The sentence uses the fixed phrase 'in Kontakt treten' rather than standalone 'treten'.

@@ -2499,3 +2499,8 @@
 - "verheiraten"  # BAD_UNIT: Modern A1-B2 German uses 'heiraten' (get married) and 'verheiratet' (married) rather than formal/dat
 # Review round r1500b: units the reviewer rejected.
 # Review round r1500c: units the reviewer rejected.
+# 2026-10-24: the conjugated form; "sich sicher sein" is taught as an idiom.
+- "ich bin mir sicher"  # DUPLICATE: a conjugated form of id:sich_sicher_sein
+# Review round new1024: units the reviewer rejected.
+# Review round new1024b: units the reviewer rejected.
+# Review round last1025: units the reviewer rejected.

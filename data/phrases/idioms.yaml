@@ -74,3 +74,27 @@
 - {key: von mir aus, pattern: [von, mir, aus], max_gap: 0, display: "von mir aus", cefr: B1, gloss_en: "fine by me, as far as I am concerned"}
 - {key: aus versehen, pattern: [aus, versehen], max_gap: 0, display: "aus Versehen", cefr: B1, gloss_en: "by accident, unintentionally"}
 - {key: anders als, pattern: [anders, als], max_gap: 0, display: "anders als", cefr: A2, gloss_en: "unlike, differently from"}
+# 2026-10-24, owner: "is there a version of ich bin mir sicher in the deck? like
+# sich sicher sein + dat". One pattern per form of sein and its reflexive
+# pronoun, by surface: the parser does not lemmatise a sentence-initial
+# "Bist" or "Seid", and "Bist du dir sicher?" is the commonest form. No
+# infinitive pattern: its gap budget let "sein" match the possessive.
+- {key: sich sicher sein, pattern: [bin, mir, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [war, mir, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [wäre, mir, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [bist, dir, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [warst, dir, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [wärst, dir, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [ist, sich, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [sind, sich, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [war, sich, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [waren, sich, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [wäre, sich, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [wären, sich, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [sei, sich, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [sind, uns, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [waren, uns, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [wären, uns, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [seid, euch, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [wart, euch, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+- {key: sich sicher sein, pattern: [wärt, euch, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}

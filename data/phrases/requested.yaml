@@ -198,3 +198,31 @@
 - {key: "gültig", kind: adjective, note: "Lingvist 5, written 'gultig'"}
 - {key: "notwendig", kind: adjective, note: "Lingvist 5, written 'notwengig'"}
 - {key: "aufforderung", kind: noun, note: "Lingvist 5"}
+- {key: "sich sicher sein", kind: idiom, note: "owner 2026-10-24, replaces the conjugated ich bin mir sicher"}
+- {key: "abhängen von", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "achten auf", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "anfangen mit", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "aufhören mit", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "aufpassen auf", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "sich bedanken bei", kind: reflexive_verb, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "sich bedanken für", kind: reflexive_verb, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "ausgeben für", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "beginnen mit", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "sich bewerben um", kind: reflexive_verb, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "sich entscheiden für", kind: reflexive_verb, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "sich entschuldigen für", kind: reflexive_verb, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "erkennen an", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "halten von", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "hoffen auf", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "leiden an", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "leiden unter", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "rechnen mit", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "schützen vor", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "sich schützen vor", kind: reflexive_verb, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "gegen sein", kind: idiom, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "für sein", kind: idiom, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "sich streiten mit", kind: reflexive_verb, note: "owner 2026-10-24, verb + preposition list; 'streiten mit' in the list"}
+- {key: "streiten über", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "sich verlassen auf", kind: reflexive_verb, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "verstehen von", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "zweifeln an", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}

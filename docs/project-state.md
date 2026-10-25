@@ -458,6 +458,30 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **A request lifts a mark, 2026-10-24** (replay semantics, not format: no
+  new field, flagged here because old logs replay differently). A request
+  entry clears "Kannte ich schon", "Nicht mehr lernen" and "Später" for its
+  unit; a mark made after the request still wins. Before, the page offered
+  "Als Nächstes lernen" for a marked word, wrote the request, and the
+  scheduler skipped the unit. None of the owner's requests to date was for a
+  marked word, so his state is unchanged. A word already being learned is
+  left exactly as it is.
+
+- **A requested unit keeps its case, 2026-10-24.** The mine stage replaced a
+  requested unit's decision with a bare accept, so every requested
+  verb + preposition seed lost its "+ Akk"/"+ Dat" (thirteen in the deck,
+  "sich freuen auf" among them). The decision now stands, only the accept is
+  forced; the kind still comes from the detector, because it is in the id.
+
+- **The owner's verb + preposition list, 2026-10-24.** 27 phrases; 17 were
+  in the deck and are now requested, 8 needed seeds (the corpus counts had
+  not made them units), and "für etwas sein" / "gegen etwas sein" have no
+  parse at all (the parser never pairs sein with a preposition, and "Das ist
+  für dich" would swamp a pattern), so agy wrote their sentences and the
+  forced occurrence learned multi-word surfaces. "sich sicher sein" is a
+  curated idiom matched by the requests stage, which can now match idioms;
+  the conjugated "ich bin mir sicher" is excluded.
+
 - **Ranks 1001 to 1500 read, 2026-10-24.** Three review rounds (882, 77 and
   14 cards; 136 cards and 3 units dropped, 9 findings overruled on reading),
   30 missing unit hints written (12 of them cognates by hand: agy's echo

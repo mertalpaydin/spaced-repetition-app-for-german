@@ -403,6 +403,7 @@
 - {key: "fünfter etage", display: "die fünfte Etage"}
 - {key: "fünfter rad", display: "das fünfte Rad am Wagen"}
 - {key: "für bar münze", cefr: "B2"}
+- {key: "für sein", cefr: "A2", display: "für etwas sein (dafür sein)", gloss_en: "to be in favour of / to be for"}
 - {key: "ganze betrachten", display: "das Ganze betrachten"}
 - {key: "gebaut umwelt", cefr: "B2"}
 - {key: "gebrauch machen", cefr: "B2"}
@@ -415,6 +416,7 @@
 - {key: "gefahr laufen", cefr: "B2"}
 - {key: "gefallen finden", cefr: "B2"}
 - {key: "gefälscht ausweis", cefr: "B1"}
+- {key: "gegen sein", cefr: "A2", display: "gegen etwas sein (dagegen sein)", gloss_en: "to be against / to oppose"}
 - {key: "gegenseitig respekt", display: "gegenseitiger Respekt"}
 - {key: "gegenseitig vertrauen", display: "gegenseitiges Vertrauen"}
 - {key: "gegenüber", kind: "adverb"}
@@ -1173,6 +1175,7 @@
 - {key: "verschon mit", display: "verschonen mit +Dat"}
 - {key: "versetzen in", case: "Akk"}
 - {key: "versinken in", case: "Dat"}
+- {key: "verstehen von", display: "etwas verstehen von +Dat"}
 - {key: "verstorben präsident", display: "der verstorbene Präsident"}
 - {key: "verstorben vater", display: "verstorbener Vater"}
 - {key: "vertrauen aufbauen", display: "Vertrauen aufbauen"}
