@@ -1793,14 +1793,7 @@ class UnitBuilder:
                 self.report["rejected"][f"{s.kind}:excluded"] += 1
                 excluded_stats.append(s)
                 continue
-            if (s.kind, s.key) in self.requested_order:
-                # The owner asked for this one by name: it clears the
-                # frequency floor and every kind rule, which is the whole
-                # point of the list. Checked once here rather than taught to
-                # each of the eight decision methods.
-                decision = _Decision(True, score=float(s.count))
-                self.report["requested"].append(f"{s.kind}:{s.key}")
-            elif s.kind in WORD_KINDS:
+            if s.kind in WORD_KINDS:
                 decision = self._decide_word(s)
             elif s.kind == "verb_prep":
                 decision = self._decide_verb_prep(s, stats)
@@ -1816,6 +1809,26 @@ class UnitBuilder:
                 decision = self._decide_expression(s)
             else:
                 decision = self._decide_curated(s)
+            if (s.kind, s.key) in self.requested_order:
+                # The owner asked for this one by name: it clears the
+                # frequency floor, every kind rule and the trivial flag, which
+                # is the whole point of the list. What the decision settled
+                # stays: until 2026-10-24 a request replaced it with a bare
+                # accept, so a requested "abhängen von" lost the "+ Dat" its
+                # seed gives it. The kind stays the detector's, as it always
+                # has for a request, because it is part of the unit id and a
+                # changed id forks the learner's history.
+                decision = _Decision(
+                    True,
+                    score=float(s.count),
+                    case=decision.case,
+                    cefr=decision.cefr,
+                    gloss_en=decision.gloss_en,
+                    display=decision.display,
+                    source=decision.source,
+                    also_accepted=decision.also_accepted,
+                )
+                self.report["requested"].append(f"{s.kind}:{s.key}")
             if not decision.accept:
                 self.report["rejected"][f"{s.kind}:{decision.reason}"] += 1
                 continue

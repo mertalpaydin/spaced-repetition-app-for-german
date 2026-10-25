@@ -1308,3 +1308,21 @@ def test_unit_override_only_kind_leaves_the_other_kind_alone() -> None:
     units = {u.kind: u for u in _builder(counts, curated).build(occurrences)}
     assert units["noun"].display_de == "das Deutsch"
     assert units["adjective"].display_de != "das Deutsch"
+
+
+def test_unit_builder_requested_seed_keeps_its_case() -> None:
+    """Found 2026-10-24 by the golden test: a request replaced the decision
+    with a bare accept, so a requested "abhängen von" lost the "+ Dat" its
+    seed gives it, and thirteen requested seeds in the deck had lost theirs."""
+    from src.phrases.curated import VerbPrepSeed
+
+    curated = CuratedLists(
+        verb_prep_seeds=[
+            VerbPrepSeed(verb="abhängen", prep="von", case="Dat", gloss_en="to depend on")
+        ],
+        requested=[RequestedUnit(key="abhängen von", kind="verb_prep")],
+    )
+    units = {u.lemma_key: u for u in _builder(_word_counts(), curated).build([])}
+    assert units["abhängen von"].case == "Dat"
+    assert units["abhängen von"].gloss_en == "to depend on"
+    assert units["abhängen von"].requested_order is not None

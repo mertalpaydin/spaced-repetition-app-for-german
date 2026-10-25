@@ -644,7 +644,7 @@
   "kind": "verb_prep",
   "rank": 81,
   "sentence_count": 0,
-  "case": null,
+  "case": "Dat",
   "trivial": false
  },
  {
@@ -700,7 +700,7 @@
   "kind": "verb_prep",
   "rank": 88,
   "sentence_count": 0,
-  "case": null,
+  "case": "Dat",
   "trivial": false
  },
  {
@@ -828,7 +828,7 @@
   "kind": "verb_prep",
   "rank": 104,
   "sentence_count": 0,
-  "case": null,
+  "case": "Dat",
   "trivial": false
  },
  {
@@ -836,7 +836,7 @@
   "kind": "verb_prep",
   "rank": 105,
   "sentence_count": 0,
-  "case": null,
+  "case": "Dat",
   "trivial": false
  },
  {
@@ -892,7 +892,7 @@
   "kind": "reflexive_verb",
   "rank": 112,
   "sentence_count": 0,
-  "case": null,
+  "case": "Akk",
   "trivial": false
  },
  {
@@ -940,7 +940,7 @@
   "kind": "reflexive_verb",
   "rank": 118,
   "sentence_count": 0,
-  "case": null,
+  "case": "Akk",
   "trivial": false
  },
  {
@@ -948,7 +948,7 @@
   "kind": "reflexive_verb",
   "rank": 119,
   "sentence_count": 0,
-  "case": null,
+  "case": "Akk",
   "trivial": false
  },
  {
@@ -964,7 +964,7 @@
   "kind": "reflexive_verb",
   "rank": 121,
   "sentence_count": 0,
-  "case": null,
+  "case": "Akk",
   "trivial": false
  },
  {
@@ -980,7 +980,7 @@
   "kind": "reflexive_verb",
   "rank": 123,
   "sentence_count": 0,
-  "case": null,
+  "case": "Akk",
   "trivial": false
  },
  {
@@ -1028,7 +1028,7 @@
   "kind": "reflexive_verb",
   "rank": 129,
   "sentence_count": 0,
-  "case": null,
+  "case": "Dat",
   "trivial": false
  },
  {
@@ -1036,7 +1036,7 @@
   "kind": "reflexive_verb",
   "rank": 130,
   "sentence_count": 0,
-  "case": null,
+  "case": "Akk",
   "trivial": false
  },
  {
@@ -1060,7 +1060,7 @@
   "kind": "reflexive_verb",
   "rank": 133,
   "sentence_count": 0,
-  "case": null,
+  "case": "Akk",
   "trivial": false
  },
  {
@@ -1076,7 +1076,7 @@
   "kind": "reflexive_verb",
   "rank": 135,
   "sentence_count": 0,
-  "case": null,
+  "case": "Akk",
   "trivial": false
  },
  {
