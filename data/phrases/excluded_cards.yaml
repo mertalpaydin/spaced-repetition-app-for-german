@@ -5954,3 +5954,45 @@
 # Review round last1025.
 - 77f124c43c5e  # WRONG_UNIT: Bracketed 'wenige' is an inflected attributive form of 'wenig', not the adverb 'weniger'.
 - b83b3eb30972  # WRONG_UNIT: The sentence uses the fixed phrase 'in Kontakt treten' rather than standalone 'treten'.
+# 2026-10-28, the owner's reports and his added words, read by hand.
+- cb6db6b61991  # BAD_SENTENCE: odd, the owner reported it
+- 94e5c5923e03  # BAD_SENTENCE: verbless infinitive question, the owner found it strange
+- 397fe6eab392  # BAD_GLOSS: 'klare Ansage' is a clear message, not a clear announcement
+- 487425b194e8  # BAD_GLOSS: 'klare Ansage' is a clear message, not a clear announcement
+- 8ca4360e4683  # BAD_GLOSS: 'klare Ansage' is a clear message, not a clear announcement
+- ec2df623e1b7  # BAD_GLOSS: 'klare Ansage' is a clear message, not a clear announcement
+- efb0ec0b3ff1  # BAD_GLOSS: 'klare Ansage' is a clear message, not a clear announcement
+- 8d6d37a9304b  # BAD_SENTENCE: 'mit Ansage' is 'predictably'
+- 2d46bb7efe31  # BAD_GLOSS: 'zwei Paar Schuhe' is 'two different things'
+- 8a62973c4eb7  # BAD_SENTENCE: 'in beruflichen Tätigkeiten'
+- 299f9e8898c6  # WRONG_UNIT: 'die Tafeln' are food banks here, glossed 'boards'
+- 363182d96040  # BAD_GLOSS: 'The proven was supplemented with the new' is not English
+- 56f2226f1058  # BAD_SENTENCE: odd
+- 890c1cd41b2f  # BAD_SENTENCE: 'dieser ... Damen', 'sodaß', no question mark
+- 8ceb1c671112  # BAD_SENTENCE: talk about the phrase, not use of it
+- c117f8e15ad2  # BAD_SENTENCE: 'c. t.' is university jargon, left untranslated
+- 52b3cf1ed62e  # BAD_GLOSS: 'Herr' glossed 'Lord'
+- afbbafe283c9  # PRAETERITUM: written 'durchsagtest'; a written card escapes the form-key filter
+- 2c50b8a23d8f  # WRONG_UNIT: 'damit umgehst' is umgehen mit, not umgehen (to get around)
+- 0452e1a20397  # WRONG_UNIT: 'die Tafel Berlin' is the food bank, not a board
+- 9b231e6d9b22  # BAD_SENTENCE: words missing ('zwischen dem meldet sich'), gloss invents them
+- 1ebcdfee840e  # BAD_GLOSS: 'durch die Blume zu verstehen geben' is to hint, glossed 'made it clear'
+- 91445c92ceb2  # BAD_GLOSS: 'Katastrophe mit Ansage' (a disaster waiting to happen) glossed word for word
+- d7a60eaa6909  # BAD_GLOSS: 'eine Ansage raushauen' is to make a bold statement, glossed 'announcement'
+- 698c6cd1e5e6  # BAD_GLOSS: 'will be possible to visit it up close' is not English
+- 1f5eeb250f7d  # WRONG_UNIT: 'ein Brandstifter umgeht' is umgehen (to be on the loose), not to get around
+- 85e4ddce10a7  # WRONG_UNIT: 'kein Galan im Kopf umgeht' is umgehen (to haunt), not to get around
+- 330d60dc2802  # WRONG_UNIT: 'die Grippe, die umgeht' is umgehen (to go around), not to get around
+- 66b855ce82fb  # WRONG_UNIT: 'was umgeht in Volkes Mund' is umgehen (to circulate), not to get around
+# Review round r1028.
+- 821f496da929  # BAD_SENTENCE: Direct question ends with a period instead of a question mark.
+- 8c8b5ebf06f4  # BAD_SENTENCE: Sentence is written in non-standard dialect ('Des tat mir nu ... taugn').
+- fa3e0d967fbe  # BAD_SENTENCE: Wordplay: Umgangsformen in the same sentence gives the stem of umgangen away, and its English re
+# Review round r1028b.
+- 43c40f1f7291  # BAD_SENTENCE: Dangling anaphoric 'Jetzt ... dies' lacks context, and journalistic 'man' is awkwardly glossed a
+- 473ce0631c1d  # WRONG_UNIT: The bracketed word is part of the fixed idiom 'mehr oder weniger' rather than the standalone adver
+- bdccd3e88332  # BAD_SENTENCE: Out-of-context technical reference 'Der kleine Speicher' is ambiguous in isolation and yields th
+# Review round r1028c.
+- cea1ee37511f  # BAD_SENTENCE: Typo: OpnenDNS for OpenDNS.
+- f298fad0083f  # WRONG_UNIT: Part of the fixed expression mehr oder weniger, not the adverb on its own.
+# Review round r1028d.

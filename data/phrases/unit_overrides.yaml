@@ -284,6 +284,7 @@
 - {key: "einheit bilden", cefr: "B2"}
 - {key: "einpackten", display: "einpacken"}
 - {key: "einrissen", display: "einreißen"}
+- {key: "eins", display: "die Eins", only_kind: "noun"}
 - {key: "einsam insel", display: "eine einsame Insel"}
 - {key: "einschlafen", cefr: "A2"}
 - {key: "einschlichen", display: "sich einschleichen"}
@@ -302,6 +303,7 @@
 - {key: "ende nähern", display: "sich dem Ende nähern"}
 - {key: "ende zuneigen", display: "sich dem Ende zuneigen"}
 - {key: "endlos diskussion", display: "endlose Diskussionen"}
+- {key: "ente", display: "die Ente", only_kind: "noun"}
 - {key: "entfernt verwandte", cefr: "B1"}
 - {key: "entkamen mit", display: "entkommen mit +Dat"}
 - {key: "entlang", kind: "adverb"}
@@ -404,6 +406,7 @@
 - {key: "fünfter rad", display: "das fünfte Rad am Wagen"}
 - {key: "für bar münze", cefr: "B2"}
 - {key: "für sein", cefr: "A2", display: "für etwas sein (dafür sein)", gloss_en: "to be in favour of / to be for"}
+- {key: "gabel", display: "die Gabel", only_kind: "noun"}
 - {key: "ganze betrachten", display: "das Ganze betrachten"}
 - {key: "gebaut umwelt", cefr: "B2"}
 - {key: "gebrauch machen", cefr: "B2"}
@@ -428,6 +431,7 @@
 - {key: "gehangen an", display: "hängen an +Dat"}
 - {key: "gehör finden", cefr: "B2"}
 - {key: "gehör schenken", cefr: "B2"}
+- {key: "geige", display: "die Geige", only_kind: "noun"}
 - {key: "geistig eigentum", display: "geistiges Eigentum"}
 - {key: "gekocht ei", cefr: "A2"}
 - {key: "gekommen auf", display: "kommen auf +Akk"}
@@ -565,6 +569,7 @@
 - {key: "hut ziehen", cefr: "B2"}
 - {key: "hängen an", case: "Dat"}
 - {key: "hätte nie gedacht", display: "ich hätte nie gedacht"}
+- {key: "imbiss", display: "der Imbiss", only_kind: "noun"}
 - {key: "in aussicht stellen", cefr: "B2"}
 - {key: "in betracht kommen", cefr: "B2"}
 - {key: "in betracht ziehen", cefr: "B2"}
@@ -643,6 +648,7 @@
 - {key: "kritik üben", cefr: "B2"}
 - {key: "kritisieren", cefr: "B1"}
 - {key: "kräftig applaus", display: "kräftiger Applaus"}
+- {key: "krähe", display: "die Krähe", only_kind: "noun"}
 - {key: "kuchen", display: "der Kuchen"}
 - {key: "kugel einfangen", display: "sich eine Kugel einfangen"}
 - {key: "kunst beherrschen", cefr: "B2"}
@@ -811,6 +817,7 @@
 - {key: "rauchen abgewöhnen", display: "sich das Rauchen abgewöhnen"}
 - {key: "rauchen aufgeben", display: "das Rauchen aufgeben"}
 - {key: "raum betraten", display: "Raum betreten"}
+- {key: "raupe", display: "die Raupe", only_kind: "noun"}
 - {key: "rauszukommen aus", case: "Dat", display: "rauskommen aus +Dat"}
 - {key: "rechenschaft ablegen", cefr: "B2"}
 - {key: "rechnen mit", cefr: "B1"}
@@ -1085,6 +1092,7 @@
 - {key: "stufen als", display: "einstufen als"}
 - {key: "ständig beobachtung", display: "unter ständiger Beobachtung"}
 - {key: "südlich richtung", display: "in südlicher Richtung"}
+- {key: "tafel", display: "die Tafel", only_kind: "noun"}
 - {key: "tappen in", case: "Akk"}
 - {key: "tasche durchsuchten", display: "Taschen durchsuchen"}
 - {key: "tat gestehen", cefr: "B2"}
@@ -1315,6 +1323,7 @@
 - {key: "zuständig behörde", cefr: "B2"}
 - {key: "zuständig stelle", cefr: "B2"}
 - {key: "zwanzigster jahrhundert", display: "im zwanzigsten Jahrhundert"}
+- {key: "zwilling", display: "der Zwilling", only_kind: "noun"}
 - {key: "zwischenmenschlich beziehung", display: "zwischenmenschliche Beziehungen"}
 - {key: "ähnlich sehen", case: "Dat"}
 - {key: "ältest sohn", display: "der älteste Sohn"}

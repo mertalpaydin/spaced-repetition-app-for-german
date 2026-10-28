@@ -226,3 +226,6 @@
 - {key: "sich verlassen auf", kind: reflexive_verb, note: "owner 2026-10-24, verb + preposition list"}
 - {key: "verstehen von", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
 - {key: "zweifeln an", kind: verb_prep, note: "owner 2026-10-24, verb + preposition list"}
+- {key: "maßnahme", kind: noun, note: "owner 2026-10-28"}
+- {key: "umgehen mit", kind: verb_prep, note: "owner 2026-10-28, umgehen: to deal with"}
+- {key: "etwas umgehen", kind: idiom, note: "owner 2026-10-28, umgehen: to avoid / to get around"}

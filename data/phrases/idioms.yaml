@@ -98,3 +98,15 @@
 - {key: sich sicher sein, pattern: [seid, euch, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
 - {key: sich sicher sein, pattern: [wart, euch, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
 - {key: sich sicher sein, pattern: [wärt, euch, sicher], max_gap: 3, display: "sich (Dat) sicher sein (, dass …)", cefr: B1, gloss_en: to be sure / to be certain}
+# 2026-10-28, owner: "umgehen", both senses. "umgehen mit" (to deal with) is
+# its own unit; this is the inseparable umgehen (to get around). Only
+# "umgangen" is its alone (the separable participle is "umgegangen"). The
+# infinitive is shared, and so are the finite forms once a clause puts the
+# verb last ("wie du damit umgehst"), so those patterns refuse a sentence
+# with "mit" in it. The intransitive umgehen ("eine Grippe, die umgeht") is
+# excluded card by card in excluded_cards.yaml.
+- {key: etwas umgehen, pattern: [umgeht], max_gap: 0, unless: [mit, damit, womit, miteinander], display: "etwas umgehen (umgéhen)", cefr: B2, gloss_en: to avoid / to get around / to bypass}
+- {key: etwas umgehen, pattern: [umgehe], max_gap: 0, unless: [mit, damit, womit, miteinander], display: "etwas umgehen (umgéhen)", cefr: B2, gloss_en: to avoid / to get around / to bypass}
+- {key: etwas umgehen, pattern: [umgehst], max_gap: 0, unless: [mit, damit, womit, miteinander], display: "etwas umgehen (umgéhen)", cefr: B2, gloss_en: to avoid / to get around / to bypass}
+- {key: etwas umgehen, pattern: [umgangen], max_gap: 0, display: "etwas umgehen (umgéhen)", cefr: B2, gloss_en: to avoid / to get around / to bypass}
+- {key: etwas umgehen, pattern: [umgehen], max_gap: 0, unless: [mit, damit, womit, miteinander], display: "etwas umgehen (umgéhen)", cefr: B2, gloss_en: to avoid / to get around / to bypass}
