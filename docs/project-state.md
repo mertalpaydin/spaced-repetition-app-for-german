@@ -458,6 +458,37 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **The owner's reports and words of 2026-10-28.** Nine "Problem melden"
+  reports from his log of 2026-10-25 to 27, the words he had added from the
+  page, and two new words.
+
+  Grading, in both engines: a preposition one letter from the expected one
+  ("vom" or "von" for "vor") and a person noun in its feminine form
+  ("beraterinen" for "Berater") are near misses; a rival typed in another
+  ending or with one letter slipped ("bekannte" for "berühmte",
+  "Verhältnise" for "Beziehung") now gets its retry. A noun gap written
+  lowercase ("die verhandlung") is a corpus typo and no card
+  (`lowercase_noun`, 337 carriers).
+
+  Words: "Maßnahme" was mined at rank 1500 and is now requested. "umgehen"
+  has both senses, as he chose: "umgehen mit" (to deal with, rank 489) is
+  requested, and "etwas umgehen" (to get around) is a new curated idiom the
+  requests stage matched over the corpus. A verb-final clause fuses the
+  separable "umgehen mit" into "umgehst", the other verb's form, so idiom
+  patterns gained `unless` words that rule a sentence out ("mit", "damit",
+  "womit", "miteinander"); the intransitive umgehen ("eine Grippe, die
+  umgeht") is excluded card by card. Its pattern for "zu umgehen" put the
+  "zu" in the gap, which no other verb does; it matches "umgehen" alone now.
+
+  The page-added words all had cards, and reading them dropped 37 (wrong
+  sense, broken sentences, glosses that miss an idiom: "durch die Blume",
+  "Katastrophe mit Ansage", "eine Ansage raushauen"). "die Tafel" was cited
+  "der Tafel"; a scan of the stored sentences for an indefinite article that
+  contradicts the cited one found eight more ("das Ente", "die Imbiss",
+  "die Zwilling", ...), all fixed by display override. Nouns the scan cannot
+  see are a TODO. Ranks 1 to 1500 audit at zero on every line again,
+  `treten` and `weniger` included.
+
 - **A request lifts a mark, 2026-10-24** (replay semantics, not format: no
   new field, flagged here because old logs replay differently). A request
   entry clears "Kannte ich schon", "Nicht mehr lernen" and "Später" for its
