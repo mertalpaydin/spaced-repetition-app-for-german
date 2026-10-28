@@ -619,3 +619,31 @@ def test_zustandspassiv_tells_a_state_from_a_sein_perfect(
     on the deck 2026-10-22: 708 of 5,068 participle cards, nearly all real
     states, after six sein verbs found in the sample were added to the list."""
     assert is_zustandspassiv(_participle(text, kind, key, surface)) is expected
+
+
+def test_unsuitable_reason_lowercase_noun_gap_is_a_corpus_typo() -> None:
+    """The owner's report of 2026-10-27: "Wir kommen um eine [verhandlung]
+    nicht herum." He typed "Verhandlung", rightly, and was marked wrong for
+    the capital. A German noun is capitalised, so a lowercase noun in the
+    gap is the source's typo, and the card is not one."""
+    from src.phrases.cards import unsuitable_reason
+
+    def noun(text: str, surface: str) -> Occurrence:
+        start = text.index(surface)
+        return Occurrence(
+            kind="noun",
+            unit_key="verhandlung",
+            parts=["verhandlung"],
+            token_indices=[3],
+            spans=[(start, start + len(surface))],
+            surfaces=[surface],
+            corpus_source="tatoeba",
+            line_id=text,
+            text=text,
+            form_key="Acc|Sing",
+        )
+
+    typo = noun("Wir kommen um eine verhandlung nicht herum.", "verhandlung")
+    assert unsuitable_reason(typo) == "lowercase_noun"
+    right = noun("Wir kommen um eine Verhandlung nicht herum.", "Verhandlung")
+    assert unsuitable_reason(right) is None

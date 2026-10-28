@@ -626,6 +626,11 @@ def unsuitable_reason(occ: Occurrence, governed_preps: frozenset[str] = frozense
         return "old_spelling"
     if _BROKEN_HYPHEN.search(text) and "e-mail" not in text.lower():
         return "broken_hyphen"
+    # A German noun is capitalised, so a lowercase one in the gap is the
+    # source's typo: "um eine verhandlung nicht herum" marked the owner's
+    # correct "Verhandlung" wrong for its capital (2026-10-27).
+    if occ.kind == "noun" and any(s[:1].islower() for s in occ.surfaces):
+        return "lowercase_noun"
     if occ.kind in {"separable_verb", "verb"} and _reflexive_next_to_verb(occ):
         return "reflexive_reading"
     if occ.kind == "verb" and _prepositional_reading(occ, governed_preps):
