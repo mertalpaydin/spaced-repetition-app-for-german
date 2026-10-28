@@ -105,3 +105,45 @@ test("kriegen typed for bekommen is a rival, and earns another try", () => {
   assert.equal(rivalTyped(bekommen, gradeCard(c, [null]), formsOf), null);
   assert.equal(rivalTyped(bekommen, gradeCard(c, ["bekommen"]), formsOf), null);
 });
+
+test("a preposition slip or a feminine form is a near miss", () => {
+  // Twin of test_grade_card_preposition_slip_and_feminine_form_are_near_misses.
+  const card = (sentence_de, answers, form_key) => {
+    let pos = 0;
+    const gaps = answers.map((a, i) => { const start = sentence_de.indexOf(a, pos); pos = start + a.length; return { start, end: pos, answer: a, token_index: i }; });
+    return { sentence_de, gaps, answers, form_key };
+  };
+  const schuetzen = card("Wir schützen Sie vor Kälte!", ["schützen", "vor"], "Fin|Pres");
+  assert.ok(gradeCard(schuetzen, ["schützen", "vom"]).nearMiss);
+  assert.ok(gradeCard(schuetzen, ["schützen", "von"]).nearMiss);
+  assert.ok(!gradeCard(schuetzen, ["schützen", "für"]).nearMiss);
+  const berater = card("Berater entbinden nicht von Verantwortung.", ["Berater"], "Nom|Plur");
+  assert.ok(gradeCard(berater, ["beraterinen"]).nearMiss);
+  assert.ok(gradeCard(berater, ["Beraterinnen"]).nearMiss);
+  assert.ok(!gradeCard(berater, ["Lehrer"]).nearMiss);
+});
+
+test("a rival in another ending or with a letter slipped earns the retry", () => {
+  // Twin of test_rival_typed_accepts_an_inflected_form_or_a_one_letter_slip.
+  const card = (unit_id, sentence_de, answer) => {
+    const start = sentence_de.indexOf(answer);
+    return { unit_id, sentence_de, form_key: "Nom|Sing", answers: [answer], gaps: [{ start, end: start + answer.length, answer, token_index: 0 }] };
+  };
+  const units = {
+    "aj:beruehmt": { unit_id: "aj:beruehmt", parts: ["berühmt"], rivals: ["aj:bekannt"] },
+    "aj:bekannt": { unit_id: "aj:bekannt", parts: ["bekannt"], rivals: [] },
+    "nn:beziehung": { unit_id: "nn:beziehung", parts: ["beziehung"], rivals: ["nn:verhaeltnis"] },
+    "nn:verhaeltnis": { unit_id: "nn:verhaeltnis", parts: ["verhältnis"], rivals: [] },
+  };
+  const cards = {
+    "aj:beruehmt": [card("aj:beruehmt", "Sie war eine berühmte Frau.", "berühmte")],
+    "aj:bekannt": [card("aj:bekannt", "Das ist bekannt.", "bekannt")],
+    "nn:beziehung": [card("nn:beziehung", "Die Beziehung hält.", "Beziehung")],
+    "nn:verhaeltnis": [card("nn:verhaeltnis", "Die Verhältnisse sind gut.", "Verhältnisse")],
+  };
+  const formsOf = (id) => unitForms(units[id], cards[id]);
+  assert.equal(rivalTyped(units["aj:beruehmt"], gradeCard(cards["aj:beruehmt"][0], ["bekannte"]), formsOf), "aj:bekannt");
+  const bez = cards["nn:beziehung"][0];
+  assert.equal(rivalTyped(units["nn:beziehung"], gradeCard(bez, ["Verhältnise"]), formsOf), "nn:verhaeltnis");
+  assert.equal(rivalTyped(units["nn:beziehung"], gradeCard(bez, ["Beziehnug"]), formsOf), null);
+});

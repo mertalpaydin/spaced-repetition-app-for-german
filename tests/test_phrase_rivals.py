@@ -111,3 +111,34 @@ def test_rival_typed_kriegen_for_bekommen_is_a_rival() -> None:
     assert rival_typed(bekommen, grade_card(card, [None]), forms_of) is None
     # the unit's own form in another shape is graded as itself, not a rival
     assert rival_typed(bekommen, grade_card(card, ["bekommen"]), forms_of) is None
+
+
+def test_rival_typed_accepts_an_inflected_form_or_a_one_letter_slip() -> None:
+    """The owner typed "bekannte" for "berühmte" and "Verhältnise" for
+    "Beziehung" (2026-10-26/27). Both are rivals, and the retry did not
+    come, because only a rival's exact card forms counted."""
+    beruehmt = _unit("aj:beruehmt", "adjective", "berühmt", "famous", 2, rivals=["aj:bekannt"])
+    bekannt = _unit("aj:bekannt", "adjective", "bekannt", "known / famous", 1)
+    beziehung = _unit(
+        "nn:beziehung", "noun", "beziehung", "relationship", 3, rivals=["nn:verhaeltnis"]
+    )
+    verhaeltnis = _unit("nn:verhaeltnis", "noun", "verhältnis", "relationship", 4)
+    cards = {
+        "aj:beruehmt": [_card("r" * 12, "aj:beruehmt", "Sie war eine berühmte Frau.", "berühmte")],
+        "aj:bekannt": [_card("k" * 12, "aj:bekannt", "Das ist bekannt.", "bekannt")],
+        "nn:beziehung": [_card("z" * 12, "nn:beziehung", "Die Beziehung hält.", "Beziehung")],
+        "nn:verhaeltnis": [
+            _card("v" * 12, "nn:verhaeltnis", "Die Verhältnisse sind gut.", "Verhältnisse")
+        ],
+    }
+    units = {u.unit_id: u for u in (beruehmt, bekannt, beziehung, verhaeltnis)}
+
+    def forms_of(unit_id: str) -> frozenset[str]:
+        return unit_forms(units[unit_id], cards[unit_id])
+
+    card = cards["aj:beruehmt"][0]
+    assert rival_typed(beruehmt, grade_card(card, ["bekannte"]), forms_of) == "aj:bekannt"
+    card = cards["nn:beziehung"][0]
+    assert rival_typed(beziehung, grade_card(card, ["Verhältnise"]), forms_of) == "nn:verhaeltnis"
+    # a slip of the asked word itself is the asked word, not a rival
+    assert rival_typed(beziehung, grade_card(card, ["Beziehnug"]), forms_of) is None

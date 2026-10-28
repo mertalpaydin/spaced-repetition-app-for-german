@@ -1379,3 +1379,26 @@ def test_derive_state_request_after_a_mark_brings_the_unit_back(source: str) -> 
     )  # type: ignore[arg-type]
     later = derive_state([mark, request, again], engine)
     assert ("vp:warten_auf" in later.known) or ("vp:warten_auf" in later.postponed_until)
+
+
+def test_grade_card_preposition_slip_and_feminine_form_are_near_misses() -> None:
+    """The owner's reports of 2026-10-25/26, "no consider this right button":
+    "vom" and "von" typed for "vor" in "schützen vor", and "beraterinen"
+    for "Berater". The right word with a one-letter preposition slip, or in
+    its feminine form; it fails, and the learner decides."""
+    schuetzen = _card(
+        "s20000000000", "vp:schuetzen_vor", "Wir schützen Sie vor Kälte!", ["schützen", "vor"]
+    )
+    assert grade_card(schuetzen, ["schützen", "vom"]).near_miss
+    assert grade_card(schuetzen, ["schützen", "von"]).near_miss
+    assert not grade_card(schuetzen, ["schützen", "für"]).near_miss
+    berater = _card(
+        "b20000000000",
+        "nn:berater",
+        "Berater entbinden nicht von Verantwortung.",
+        ["Berater"],
+        form_key="Nom|Plur",
+    )
+    assert grade_card(berater, ["beraterinen"]).near_miss
+    assert grade_card(berater, ["Beraterinnen"]).near_miss
+    assert not grade_card(berater, ["Lehrer"]).near_miss

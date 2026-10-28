@@ -246,6 +246,42 @@ def is_sharp_s_slip(typed: str, expected: str) -> bool:
     return fold(a) == fold(b)
 
 
+#: Prepositions, for a one-letter slip between two of them. The fused forms
+#: are in ``_FUSED_PREPOSITIONS``.
+_PREPOSITIONS: frozenset[str] = frozenset(
+    {
+        "an", "auf", "aus", "bei", "bis", "durch", "für", "gegen", "hinter", "in", "mit",
+        "nach", "neben", "ohne", "seit", "über", "um", "unter", "von", "vor", "zu",
+        "zwischen",
+    }
+)  # fmt: skip
+
+
+def is_preposition_slip(typed: str, expected: str) -> bool:
+    """Whether ``typed`` is a preposition one letter away from the expected
+    one: "von" or "vom" for "vor" (the owner's reports of 2026-10-25/26).
+    The learner may have known the phrase and slipped, or not: it is his
+    call, which is what a near miss is for."""
+    a, b = typed.strip().lower(), expected.strip().lower()
+    known = _PREPOSITIONS | set(_FUSED_PREPOSITIONS)
+    if a == b or a not in known or b not in known:
+        return False
+    return ScopedTypoGrader._levenshtein_distance(a, b) == 1
+
+
+#: The feminine endings of a person noun, "innen" as typed with one n too.
+_FEMININE_ENDINGS = ("innen", "inen", "in")
+
+
+def is_feminine_form_of(typed: str, expected: str) -> bool:
+    """Whether one is the other with a feminine ending: "Beraterinnen" for
+    "Berater" (2026-10-26). The English "consultants" does not say which."""
+    a, b = _fold_umlauts(typed.strip().lower()), _fold_umlauts(expected.strip().lower())
+    if not a or a == b:
+        return False
+    return any(a == b + end or b == a + end for end in _FEMININE_ENDINGS)
+
+
 #: A form key naming a verb form: the card's tested word is a verb.
 _VERBAL_FORMS = ("Fin", "Part", "Inf")
 
@@ -299,7 +335,13 @@ def grade_gap(
         outcome = "inflection"
     elif expected.lower() == "zu" and typed.strip().lower() in {"", "zu"}:
         outcome, near = "wrong", True
-    elif any(is_fused_preposition_of(typed, f) or is_sharp_s_slip(typed, f) for f in forms):
+    elif any(
+        is_fused_preposition_of(typed, f)
+        or is_sharp_s_slip(typed, f)
+        or is_preposition_slip(typed, f)
+        or is_feminine_form_of(typed, f)
+        for f in forms
+    ):
         outcome, near = "wrong", True
     else:
         outcome = "wrong"
@@ -365,12 +407,26 @@ def rival_typed(
         if gap.outcome != "wrong" or gap.near:
             continue
         typed = gap.typed.strip().lower()
-        if typed in own or typed in _NOT_A_RIVAL_FORM or len(typed) < 3:
+        if typed in _NOT_A_RIVAL_FORM or len(typed) < 3 or _close_to(typed, own):
             continue
         for rival in unit.rivals:
-            if typed in forms_of(rival):
+            if _close_to(typed, forms_of(rival)):
                 return rival
     return None
+
+
+def _close_to(typed: str, forms: frozenset[str]) -> bool:
+    """``typed`` is one of ``forms``, or one in another ending, or one with a
+    letter slipped. Only exact card forms counted until 2026-10-27, so the
+    owner's "bekannte" for "berühmte" and "Verhältnise" for "Beziehung" got
+    no retry although both are rivals."""
+    if typed in forms:
+        return True
+    return any(
+        is_inflection_of(typed, f)
+        or (len(f) >= 5 and ScopedTypoGrader._levenshtein_distance(typed, f) == 1)
+        for f in forms
+    )
 
 
 def render_with_gaps(card: PhraseCard, placeholder: str = "___") -> str:

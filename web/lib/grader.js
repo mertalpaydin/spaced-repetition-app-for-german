@@ -205,6 +205,28 @@ export function isSharpSSlip(typed, expected) {
   return fold(a) === fold(b);
 }
 
+// "von" or "vom" for "vor". Matches is_preposition_slip.
+const PREPOSITIONS = new Set(["an", "auf", "aus", "bei", "bis", "durch", "für", "gegen", "hinter", "in", "mit",
+  "nach", "neben", "ohne", "seit", "über", "um", "unter", "von", "vor", "zu", "zwischen"]);
+
+export function isPrepositionSlip(typed, expected) {
+  const a = (typed || "").trim().toLowerCase();
+  const b = (expected || "").trim().toLowerCase();
+  const known = (w) => PREPOSITIONS.has(w) || w in FUSED_PREPOSITIONS;
+  if (a === b || !known(a) || !known(b)) return false;
+  return levenshtein(a, b) === 1;
+}
+
+// "Beraterinnen" for "Berater". Matches is_feminine_form_of.
+const FEMININE_ENDINGS = ["innen", "inen", "in"];
+
+export function isFeminineFormOf(typed, expected) {
+  const a = foldUmlauts((typed || "").trim().toLowerCase());
+  const b = foldUmlauts((expected || "").trim().toLowerCase());
+  if (!a || a === b) return false;
+  return FEMININE_ENDINGS.some((end) => a === b + end || b === a + end);
+}
+
 const VERBAL_FORMS = new Set(["Fin", "Part", "Inf"]);
 
 // `alternatives` are the unit's accepted near-synonyms ("deswegen" for
@@ -242,7 +264,8 @@ export function gradeGap(card, i, typed, alternatives = []) {
   else if (verbal && forms.some((f) => isVerbFormOf(typed, f))) { outcome = "wrong"; near = true; }
   else if (!verbal && forms.some((f) => isInflectionOf(typed, f))) outcome = "inflection";
   else if (expected.toLowerCase() === "zu" && ["", "zu"].includes(typed.trim().toLowerCase())) { outcome = "wrong"; near = true; }
-  else if (forms.some((f) => isFusedPrepositionOf(typed, f) || isSharpSSlip(typed, f))) { outcome = "wrong"; near = true; }
+  else if (forms.some((f) => isFusedPrepositionOf(typed, f) || isSharpSSlip(typed, f)
+    || isPrepositionSlip(typed, f) || isFeminineFormOf(typed, f))) { outcome = "wrong"; near = true; }
   else outcome = "wrong";
   return { expected, typed, outcome, accepted: r.is_correct, near };
 }
@@ -269,10 +292,20 @@ export function rivalTyped(unit, grade, formsOf) {
   for (const gap of grade.gaps) {
     if (gap.outcome !== "wrong" || gap.near) continue;
     const typed = gap.typed.trim().toLowerCase();
-    if (own.has(typed) || NOT_A_RIVAL_FORM.has(typed) || typed.length < 3) continue;
-    for (const rival of unit.rivals) if (formsOf(rival).has(typed)) return rival;
+    if (NOT_A_RIVAL_FORM.has(typed) || typed.length < 3 || closeTo(typed, own)) continue;
+    for (const rival of unit.rivals) if (closeTo(typed, formsOf(rival))) return rival;
   }
   return null;
+}
+
+// One of the forms, in another ending, or with a letter slipped. Matches
+// _close_to in src/engine/grading.py.
+function closeTo(typed, forms) {
+  if (forms.has(typed)) return true;
+  for (const f of forms) {
+    if (isInflectionOf(typed, f) || (f.length >= 5 && levenshtein(typed, f) === 1)) return true;
+  }
+  return false;
 }
 
 export function gradeCard(card, typed, alternatives = []) {
