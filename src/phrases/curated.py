@@ -69,6 +69,10 @@ class IdiomSpec(BaseModel):
     pattern: list[IdiomElement] = Field(min_length=1)
     #: Tokens allowed between consecutive elements.
     max_gap: int = 0
+    #: A sentence holding any of these words (whole tokens, any case) is no
+    #: match: a verb-final clause fuses "umgehen mit" into "umgehst", the
+    #: form of "etwas umgehen", and only the "mit" tells them apart.
+    unless: list[str] = Field(default_factory=list)
     cefr: CEFR | None = None
     gloss_en: str | None = None
     display: str | None = None

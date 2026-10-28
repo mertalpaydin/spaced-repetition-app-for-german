@@ -105,6 +105,29 @@ def test_idiom_matches_with_a_gap() -> None:
 
 
 @requires_model
+def test_detect_idioms_sentence_with_an_unless_word_is_no_match() -> None:
+    """A verb-final clause fuses separable "umgehen mit" (to deal with) into
+    "umgehst", the very form of "etwas umgehen" (to get around): "wie du mit
+    mir umgehst" was twice picked as a card for the second (2026-10-28).
+    Only the "mit" tells them apart."""
+    from src.phrases.curated import IdiomElement, IdiomSpec
+    from src.phrases.mining import detect_idioms
+
+    spec = IdiomSpec(
+        key="etwas umgehen", pattern=[IdiomElement(surface="umgehst")], unless=["mit", "damit"]
+    )
+
+    def found(text: str) -> bool:
+        sentence = parse.parse_one(text)
+        assert sentence is not None
+        return bool(detect_idioms(sentence, [spec], source="tatoeba", line_id="1"))
+
+    assert found("Warum umgehst du die Regel?")
+    assert not found("Es gefällt mir sehr, wie du mit mir umgehst.")
+    assert not found("Es kommt darauf an, wie du damit umgehst.")
+
+
+@requires_model
 def test_noun_verb_finds_the_object_and_its_participle() -> None:
     occ = _one("Wir haben eine Entscheidung getroffen.", "noun_verb", "entscheidung treffen")
     assert occ.surfaces == ["Entscheidung", "getroffen"]

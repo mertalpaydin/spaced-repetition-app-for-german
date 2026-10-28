@@ -203,7 +203,10 @@ def detect_idioms(
     casing, or the deck would cite "auf jeden fall".
     """
     found: list[Occurrence] = []
+    words = {t.lower for t in sentence.tokens}
     for spec in specs:
+        if spec.unless and not words.isdisjoint(w.lower() for w in spec.unless):
+            continue
         first = spec.pattern[0]
         for start, token in enumerate(sentence.tokens):
             if not _element_matches(token, first.surface, first.lemma):
