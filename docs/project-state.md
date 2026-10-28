@@ -644,6 +644,36 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   the `unit_overrides.yaml` header again on every run; seventeen copies had
   piled up. Fixed, with a test.
 
+- **A rebuild after a small fix takes minutes, not two hours, 2026-10-28.**
+  The owner asked why every small fix took so long. Measured on that day's
+  rebuild: `mine` 35 to 43 minutes, `requests` 18, `cards` 36, and a word
+  request runs mine twice, so over two hours of build before anything was
+  translated. Four causes, four fixes, each checked byte for byte against
+  the old code on the real build (units, report, cards, wanted carriers,
+  card stats, requested occurrences and carriers all identical):
+
+  - `_decide_reflexive` scanned every unit for each bare reflexive verb to
+    see whether a prepositional one had taken it over, a quadratic loop
+    worth about 25 of mine's minutes. It looks the extensions up in an
+    index now.
+  - mine and cards both reread, revalidated and recanonicalised all 7.5M
+    occurrences of the parse file, about 15 minutes each. The result of that
+    pass is now cached in `build/cache/`, keyed on the file and on the code
+    that canonicalises; see "The build caches" in `docs/phrase-deck.md`.
+    Rebuilding the cache takes about 14 minutes and happens only after a
+    parse or a change to that code.
+  - cards validated 82k carriers with spaCy on every run. Verdicts are kept
+    by sentence, keyed on the validator's code and model.
+  - requests ran up to forty uncompiled regex searches on each of the 4.1M
+    corpus sentences; one compiled alternation now rejects almost all of
+    them first. 18 minutes to 4.
+
+  Warm, mine takes about a minute and cards about two and a half. The cache
+  is a pickle and a TSV in the gitignored build directory, written and read
+  by `src/phrases/build_cache.py` alone; nothing persisted or shared changed
+  format. `match_to_unit` moved from the build script into
+  `src/phrases/units.py`, beside the tagger that has to agree with it.
+
 ## What is not built
 
 - **An installable icon flow on iOS** is untested; Android and desktop

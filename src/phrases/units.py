@@ -757,6 +757,61 @@ def without_governing_preposition(occ: Occurrence) -> Occurrence:
     )
 
 
+#: The two kinds the word detector cannot tell apart at parse time: the
+#: tagger calls a predicative adjective an adverb ("er nimmt das ernst"), so
+#: both are emitted as "adjective" and the kind is settled per lemma in the
+#: mine stage.
+_MODIFIER_KINDS: tuple[str, ...] = ("adjective", "adverb")
+
+
+def match_to_unit(
+    occ: Occurrence, wanted_ids: frozenset[str] | set[str]
+) -> tuple[str, Occurrence] | None:
+    """The unit this occurrence belongs to and the occurrence as that unit
+    needs it, or ``None`` when no unit wants it.
+
+    Two kinds need bridging, both because the parse cannot settle them:
+
+    * an adjective-noun occurrence carrying its governing preposition is also
+      offered without it;
+    * a modifier occurrence is offered under the other modifier kind. The
+      detector files both ADJ and ADV tokens as "adjective" and
+      ``units._decide_word`` settles which a lemma mostly is, so a lemma it
+      calls an adverb has the unit id "av:oft" while every one of its
+      occurrences maps to "aj:oft". That id never matched, so not one of the
+      430 adverb units in the deck had a single card, and "einmal", "oft",
+      "fast" and "bald" were all unteachable (found 2026-10-07).
+    """
+    unit_id = unit_id_for(occ.kind, occ.unit_key)
+    if unit_id in wanted_ids:
+        return unit_id, occ
+    if occ.kind == "adj_noun" and len(occ.parts) == 3:
+        bare = without_governing_preposition(occ)
+        bare_id = unit_id_for(bare.kind, bare.unit_key)
+        return (bare_id, bare) if bare_id in wanted_ids else None
+    if occ.kind in _MODIFIER_KINDS:
+        for other in _MODIFIER_KINDS:
+            if other == occ.kind:
+                continue
+            candidate = unit_id_for(other, occ.unit_key)
+            if candidate in wanted_ids:
+                return candidate, occ.model_copy(update={"kind": other})
+    return None
+
+
+def candidate_unit_ids(occ: Occurrence) -> list[str]:
+    """Every unit id ``match_to_unit`` can return for ``occ``, whatever is
+    wanted. The build cache tags each occurrence with these, so the cards
+    stage parses only the lines some wanted unit can use."""
+    ids = [unit_id_for(occ.kind, occ.unit_key)]
+    if occ.kind == "adj_noun" and len(occ.parts) == 3:
+        bare = without_governing_preposition(occ)
+        ids.append(unit_id_for(bare.kind, bare.unit_key))
+    elif occ.kind in _MODIFIER_KINDS:
+        ids += [unit_id_for(other, occ.unit_key) for other in _MODIFIER_KINDS if other != occ.kind]
+    return ids
+
+
 def canonical_occurrence(
     occ: Occurrence,
     dictionary: frozenset[str] | None,
@@ -916,17 +971,47 @@ def _settle_prepositional(stats: dict[tuple[str, str], UnitStats], share: float)
             del stats[ident]
 
 
+def _reflexive_extensions(
+    stats: Mapping[tuple[str, str], UnitStats],
+) -> dict[str, list[tuple[str, UnitStats]]]:
+    """Reflexive units under every word prefix of their key, so "sich freuen
+    auf" is found under "sich freuen ". The bare unit's takeover check looks
+    its extensions up here; it used to scan every unit for each bare one,
+    which was 25 of the miner's 43 minutes (measured 2026-10-28)."""
+    index: dict[str, list[tuple[str, UnitStats]]] = defaultdict(list)
+    for (kind, key), stat in stats.items():
+        if kind != "reflexive_verb":
+            continue
+        for i, char in enumerate(key):
+            if char == " ":
+                index[key[: i + 1]].append((key, stat))
+    return dict(index)
+
+
 def aggregate(
     occurrences: Iterable[Occurrence],
     dictionary: frozenset[str] | None = None,
     infinitives: Mapping[str, object] | None = None,
+    stats: dict[tuple[str, str], UnitStats] | None = None,
 ) -> dict[tuple[str, str], UnitStats]:
-    stats: dict[tuple[str, str], UnitStats] = {}
-    for raw in occurrences:
-        canonical = canonical_occurrence(raw, dictionary, infinitives)
-        if canonical is None:
-            continue
-        occ = canonical
+    """Tally raw occurrences per unit, canonicalising each first.
+
+    ``stats`` continues an earlier tally in place: folding B into the tally
+    of A gives exactly the tally of A then B, which is what lets the build
+    cache the parse file's tally and add the small files on top.
+    """
+    canonical = (canonical_occurrence(raw, dictionary, infinitives) for raw in occurrences)
+    return aggregate_canonical((occ for occ in canonical if occ is not None), stats)
+
+
+def aggregate_canonical(
+    occurrences: Iterable[Occurrence],
+    stats: dict[tuple[str, str], UnitStats] | None = None,
+) -> dict[tuple[str, str], UnitStats]:
+    """``aggregate`` for occurrences that are already canonical."""
+    if stats is None:
+        stats = {}
+    for occ in occurrences:
         entry = stats.get((occ.kind, occ.unit_key))
         if entry is None:
             entry = UnitStats(kind=occ.kind, key=occ.unit_key)
@@ -1051,6 +1136,8 @@ class UnitBuilder:
             frequency_ranks if frequency_ranks is not None else self.vocabulary._frequency_ranks
         )
         self._reflexive_counts: dict[str, int] = {}
+        #: ``_reflexive_extensions`` of the stats being built, set by ``build``.
+        self._reflexive_extensions: dict[str, list[tuple[str, UnitStats]]] | None = None
         self._separable_keys: set[str] = set()
         self.prep_counts = _base_prep_counts(counts)
         self.vp_seeds = {s.key: s for s in curated.verb_prep_seeds}
@@ -1196,8 +1283,11 @@ class UnitBuilder:
                 return _Decision(False, "prep_share")
             return _Decision(True, case=prep_case, cefr=self._cefr_for(verb), score=float(s.count))
         # Bare ``sich V``: dropped when a prepositional unit took it over.
-        for (kind, key), other in stats.items():
-            if kind == "reflexive_verb" and key.startswith(f"sich {verb} ") and other.count:
+        extensions = self._reflexive_extensions
+        if extensions is None:
+            extensions = _reflexive_extensions(stats)
+        for key, other in extensions.get(f"sich {verb} ", ()):
+            if other.count:
                 if key in self.vp_seeds or (
                     other.count >= self.t.min_count
                     and other.count / s.count >= self.t.reflexive_prep_share
@@ -1757,7 +1847,12 @@ class UnitBuilder:
                 self.report["zero_hit_curated"].append(colloc.key)
 
     def build(self, occurrences: Iterable[Occurrence]) -> list[PhraseUnit]:
-        stats = aggregate(occurrences, self.dictionary, self.vocabulary.vocab)
+        return self.build_from_stats(aggregate(occurrences, self.dictionary, self.vocabulary.vocab))
+
+    def build_from_stats(self, stats: dict[tuple[str, str], UnitStats]) -> list[PhraseUnit]:
+        """``build`` from a tally ``aggregate`` made with this builder's
+        dictionary and infinitives. The tally is consumed: it is edited in
+        place."""
         _settle_prepositional(stats, self.t.prep_share)
         self._ensure_curated_present(stats)
         self._apply_corpus_counts(stats)
@@ -1772,6 +1867,7 @@ class UnitBuilder:
             for (kind, key), stat in stats.items()
             if kind == "reflexive_verb"
         }
+        self._reflexive_extensions = _reflexive_extensions(stats)
         accepted: dict[tuple[str, str], tuple[UnitStats, _Decision]] = {}
         excluded_stats: list[UnitStats] = []
         # Phrases first, so the words a collocation needs are known before the

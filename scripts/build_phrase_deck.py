@@ -25,12 +25,14 @@ Stages, each idempotent over ``data/phrases/build/``:
 """
 
 import argparse
+import importlib.metadata
+import itertools
 import json
 import re
 import sys
 import time
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -47,11 +49,12 @@ from src.contracts import (
 from src.lexicon.vocabulary import VocabularyStore, _load_frequency_ranks
 from src.llm.env import FreeLaneKeyMissingError, client_from_env, load_env_file
 from src.phrases import cards as cards_module
-from src.phrases import carrier_validation
+from src.phrases import carrier_validation, verb_government
 from src.phrases import contexts as contexts_module
 from src.phrases import rivals as rivals_module
 from src.phrases import unit_glosses as glosses_module
 from src.phrases import written_carriers as written_module
+from src.phrases.build_cache import ParseCache, Stats, VerdictCache, parse_cache_key, verdict_key
 from src.phrases.curated import DEFAULT_PHRASES_DIR, IdiomElement, IdiomSpec, load_curated
 from src.phrases.export import (
     DEFAULT_DECK_DIR,
@@ -75,9 +78,10 @@ from src.phrases.units import (
     DEFAULT_VOCAB_PATH,
     Thresholds,
     UnitBuilder,
+    aggregate,
+    candidate_unit_ids,
     canonical_occurrence,
-    unit_id_for,
-    without_governing_preposition,
+    match_to_unit,
 )
 from src.run_lock import LockHeld, run_lock
 
@@ -316,6 +320,44 @@ def _read_all_occurrences(build_dir: Path) -> Iterable[Occurrence]:
         yield from read_occurrences(path)
 
 
+def _read_targeted_occurrences(build_dir: Path) -> Iterable[Occurrence]:
+    """The small files of the targeted stages, without the parse file."""
+    for path in _occurrence_files(build_dir)[1:]:
+        yield from read_occurrences(path)
+
+
+def _parse_cache(
+    build_dir: Path,
+    dictionary: frozenset[str] | None,
+    infinitives: Mapping[str, object],
+    stage: str,
+) -> tuple[ParseCache, Stats | None]:
+    """The cache of the pass over ``occurrences.jsonl``, made current.
+
+    Returns the tally when this call had to rebuild it, ``None`` when the
+    cache on disk was already current (load it with ``load_stats``).
+    """
+    cache = ParseCache(build_dir / "cache")
+    key = parse_cache_key(
+        build_dir / "occurrences.jsonl",
+        [
+            DEFAULT_VOCAB_PATH,
+            carrier_validation._DICTIONARY_PATH,  # noqa: SLF001
+            verb_government.DEFAULT_LEXICON_PATH,
+            VocabularyStore.DEFAULT_FREQUENCY_RANKS_PATH,
+        ],
+    )
+    if cache.is_current(key):
+        return cache, None
+    _log(f"{stage}: the parse file or the code that reads it changed; rereading it (~20 min)")
+    started = time.monotonic()
+    stats = cache.rebuild(
+        build_dir / "occurrences.jsonl", key, dictionary, infinitives, candidate_unit_ids
+    )
+    _log(f"{stage}: cached the parse file in {(time.monotonic() - started) / 60:.1f} min")
+    return cache, stats
+
+
 def _deployed_ids(args: argparse.Namespace) -> frozenset[str]:
     """Unit ids of the deck at ``--out``, the one the learner is using.
 
@@ -345,7 +387,16 @@ def stage_mine(args: argparse.Namespace) -> int:
     builder = UnitBuilder(
         counts, load_curated(args.phrases_dir), Thresholds(), previous_ids=_deployed_ids(args)
     )
-    units = builder.build(_read_all_occurrences(build_dir))
+    infinitives = builder.vocabulary.vocab
+    cache, stats = _parse_cache(build_dir, builder.dictionary, infinitives, "mine")
+    if stats is None:
+        stats = cache.load_stats()
+    # The parse file comes first, as in one pass over every file, so the
+    # tally is the same tally.
+    stats = aggregate(
+        _read_targeted_occurrences(build_dir), builder.dictionary, infinitives, stats=stats
+    )
+    units = builder.build_from_stats(stats)
     _write_models(build_dir / "units.jsonl", units)
     write_text_atomic(
         build_dir / "report.json", json.dumps(builder.report, indent=2, ensure_ascii=False)
@@ -629,14 +680,32 @@ def stage_requests(args: argparse.Namespace) -> int:
         for key in idiom_keys
     }
 
+    # One compiled alternation per kind of request, asked first: a sentence
+    # none of them matches (nearly all four million) is done with in one
+    # search instead of one per stem and pattern, which took 18 minutes
+    # (2026-10-28). A sentence that passes goes through the loops below
+    # unchanged, so the key it is filed under is the same.
+    all_stems = [s for key_stems in stems_by_key.values() for s in key_stems]
+    stem_filter = (
+        re.compile("|".join(rf"\b{re.escape(s)}" for s in all_stems)) if all_stems else None
+    )
+    patterns = [required for key_patterns in surfaces_by_key.values() for required in key_patterns]
+    surface_filter = (
+        re.compile("|".join(p.pattern for required in patterns for p in required), re.IGNORECASE)
+        if patterns and all(patterns)
+        else None
+    )
+
     def requested_in(text: str) -> str | None:
         lowered = text.lower()
-        for key, stems in stems_by_key.items():
-            if any(re.search(rf"\b{re.escape(s)}", lowered) for s in stems):
-                return key
-        for key, patterns in surfaces_by_key.items():
-            if any(all(p.search(text) for p in required) for required in patterns):
-                return key
+        if stem_filter is not None and stem_filter.search(lowered):
+            for key, stems in stems_by_key.items():
+                if any(re.search(rf"\b{re.escape(s)}", lowered) for s in stems):
+                    return key
+        if patterns and (surface_filter is None or surface_filter.search(text)):
+            for key, patterns_of_key in surfaces_by_key.items():
+                if any(all(p.search(text) for p in required) for required in patterns_of_key):
+                    return key
         return None
 
     lines = corpora_from_args(args)
@@ -829,46 +898,17 @@ def stage_write_cards(args: argparse.Namespace) -> int:
 # -- cards ---------------------------------------------------------------------
 
 
-#: The two kinds the word detector cannot tell apart at parse time: the
-#: tagger calls a predicative adjective an adverb ("er nimmt das ernst"), so
-#: both are emitted as "adjective" and the kind is settled per lemma in the
-#: mine stage.
-_MODIFIER_KINDS: tuple[str, ...] = ("adjective", "adverb")
-
-
-def match_to_unit(
-    occ: Occurrence, wanted_ids: frozenset[str] | set[str]
-) -> tuple[str, Occurrence] | None:
-    """The unit this occurrence belongs to and the occurrence as that unit
-    needs it, or ``None`` when no unit wants it.
-
-    Two kinds need bridging, both because the parse cannot settle them:
-
-    * an adjective-noun occurrence carrying its governing preposition is also
-      offered without it;
-    * a modifier occurrence is offered under the other modifier kind. The
-      detector files both ADJ and ADV tokens as "adjective" and
-      ``units._decide_word`` settles which a lemma mostly is, so a lemma it
-      calls an adverb has the unit id "av:oft" while every one of its
-      occurrences maps to "aj:oft". That id never matched, so not one of the
-      430 adverb units in the deck had a single card, and "einmal", "oft",
-      "fast" and "bald" were all unteachable (found 2026-10-07).
-    """
-    unit_id = unit_id_for(occ.kind, occ.unit_key)
-    if unit_id in wanted_ids:
-        return unit_id, occ
-    if occ.kind == "adj_noun" and len(occ.parts) == 3:
-        bare = without_governing_preposition(occ)
-        bare_id = unit_id_for(bare.kind, bare.unit_key)
-        return (bare_id, bare) if bare_id in wanted_ids else None
-    if occ.kind in _MODIFIER_KINDS:
-        for other in _MODIFIER_KINDS:
-            if other == occ.kind:
-                continue
-            candidate = unit_id_for(other, occ.unit_key)
-            if candidate in wanted_ids:
-                return candidate, occ.model_copy(update={"kind": other})
-    return None
+def _verdict_cache(build_dir: Path) -> VerdictCache | None:
+    """Carrier verdicts kept between runs, or ``None`` without a model to
+    key them on (the validator then rejects everything, and that must
+    never be remembered)."""
+    nlp = carrier_validation._load_model()  # noqa: SLF001
+    if nlp is None:
+        return None
+    spacy_version = importlib.metadata.version("spacy")
+    model = f"spacy {spacy_version} {nlp.meta.get('name')} {nlp.meta.get('version')}"
+    key = verdict_key(model, [carrier_validation._DICTIONARY_PATH])  # noqa: SLF001
+    return VerdictCache(build_dir / "cache" / "carrier_verdicts.json", key)
 
 
 def _select_cards(args: argparse.Namespace, units: list[PhraseUnit]) -> cards_module.CardSelection:
@@ -884,8 +924,15 @@ def _select_cards(args: argparse.Namespace, units: list[PhraseUnit]) -> cards_mo
     by_unit: dict[str, list[Occurrence]] = defaultdict(list)
     dictionary = carrier_validation._load_dictionary()  # noqa: SLF001
     infinitives = VocabularyStore.load(DEFAULT_VOCAB_PATH).vocab
-    for raw in _read_all_occurrences(build_dir):
-        occ = canonical_occurrence(raw, dictionary, infinitives)
+    cache, _ = _parse_cache(build_dir, dictionary, infinitives, "cards")
+    # The parse file's lines come from the cache, canonical already and
+    # only those a wanted unit can use; the targeted files are small and
+    # read as they are. Same order as one pass over every file.
+    targeted = (
+        canonical_occurrence(raw, dictionary, infinitives)
+        for raw in _read_targeted_occurrences(build_dir)
+    )
+    for occ in itertools.chain(cache.canonical_for(wanted_ids), targeted):
         if occ is None:
             continue
         matched = match_to_unit(occ, wanted_ids)
@@ -902,16 +949,21 @@ def _select_cards(args: argparse.Namespace, units: list[PhraseUnit]) -> cards_mo
     def validate(text: str) -> bool:
         return carrier_validation.validate_carrier(text).accepted
 
+    verdicts = _verdict_cache(build_dir)
     curated = load_curated(args.phrases_dir)
-    return cards_module.select_cards(
+    selection = cards_module.select_cards(
         units,
         by_unit,
         glosses,
-        validate=validate,
+        validate=verdicts.wrap(validate) if verdicts is not None else validate,
         k=args.k,
         max_validations=args.max_validations,
         excluded_card_ids=frozenset(curated.excluded_cards),
     )
+    if verdicts is not None:
+        verdicts.save()
+        _log(f"cards: {verdicts.added:,} sentence(s) validated, the rest known from earlier runs")
+    return selection
 
 
 def stage_cards(args: argparse.Namespace) -> int:

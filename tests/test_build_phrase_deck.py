@@ -74,6 +74,17 @@ def test_build_over_the_sample_corpus_matches_the_golden_outputs(tmp_path: Path)
     assert _units_summary(build_dir / "units.jsonl") == expected_units
     assert _cards_summary(build_dir / "cards.jsonl") == expected_cards
 
+    # A rerun reads the parse file from the build cache and the verdicts
+    # from the verdict cache, and must write the very same bytes.
+    first_units = (build_dir / "units.jsonl").read_bytes()
+    first_cards = (build_dir / "cards.jsonl").read_bytes()
+    assert (build_dir / "cache" / "parse_key.json").exists()
+    assert (build_dir / "cache" / "carrier_verdicts.json").exists()
+    assert main(["--stage", "mine", "--out", str(out_dir), *common]) == 0
+    assert main(["--stage", "cards", *store, *common]) == 0
+    assert (build_dir / "units.jsonl").read_bytes() == first_units
+    assert (build_dir / "cards.jsonl").read_bytes() == first_cards
+
 
 def test_missing_corpus_file_is_an_error_not_a_smaller_deck(tmp_path: Path) -> None:
     from scripts.build_phrase_deck import read_corpora

@@ -45,8 +45,8 @@ Subtitle lines become cards only when the sentence validator passes them.
 
 ```
 uv run python scripts/build_phrase_deck.py --stage parse     # 2-3 h: spaCy over six corpora, 4.1M sentences
-uv run python scripts/build_phrase_deck.py --stage mine      # seconds: build/units.jsonl, build/report.json
-uv run python scripts/build_phrase_deck.py --stage cards     # minutes: build/cards.jsonl, wanted_carriers.txt
+uv run python scripts/build_phrase_deck.py --stage mine      # ~1 min (~15 when the cache rebuilds): build/units.jsonl, build/report.json
+uv run python scripts/build_phrase_deck.py --stage cards     # ~3 min: build/cards.jsonl, wanted_carriers.txt
 uv run python scripts/build_phrase_deck.py --stage reserve   # ~40 min: web/data/deck/reserve/, the words below the floor
 uv run python scripts/build_phrase_deck.py --stage export    # seconds: web/data/deck/, the JSON schema fixture
 uv run python scripts/build_phrase_deck.py --stage all       # the four above, never contexts
@@ -56,6 +56,33 @@ uv run python scripts/build_phrase_deck.py --check           # validate web/data
 Every stage is deterministic and idempotent over `build/`; re-run `mine`
 after editing a curated list without re-parsing. A lock file in `build/`
 stops two builds from overlapping.
+
+### The build caches
+
+`mine` and `cards` both need every occurrence the parse wrote, canonicalised.
+That pass over the 3 GB `occurrences.jsonl` cost about 15 minutes in each
+stage on every run, so a one-line fix to `requested.yaml` cost over an hour of
+build (2026-10-28). It now runs once and is kept in `build/cache/`:
+
+- `parse_stats.pickle`, the miner's tally of the parse file, and
+  `parse_canonical.tsv`, its canonical occurrences, each tagged with the unit
+  ids it can serve, so `cards` parses only the lines its units can use.
+  `parse_key.json` records what they were made from: the parse file's size
+  and timestamp, the vocabulary, dictionary, frequency and government files,
+  and a digest of the code that canonicalises (`src/phrases/units.py`
+  without `UnitBuilder`, and every `src` module it imports). When any of
+  those changes, the next `mine` or `cards` says so and rebuilds the cache
+  (about 15 minutes). A change to a curated list or to a decision in
+  `UnitBuilder` does not.
+- `carrier_verdicts.json`, the carrier validator's verdict per sentence,
+  keyed on the validator's code, the spaCy model and the dictionary. A rerun
+  validates only the sentences it has not seen.
+
+The small occurrence files of the targeted stages (requests, expressions,
+written cards) are always read fresh, after the parse file, exactly as one
+pass over every file would read them. A cache never changes the output: a
+rerun from it writes the same bytes as a cold run, which the golden test
+checks. To force a cold run, delete `build/cache/`.
 
 ### Words the owner asks for
 
