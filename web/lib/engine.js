@@ -1,6 +1,8 @@
 // The FSRS engine, a direct port of the py-fsrs 6 scheduler as configured in
-// src/engine/fsrs.py: default FSRS-6 parameters, retention 0.9, one learning
-// step of ten minutes, one relearning step of ten minutes, no fuzz. Records
+// src/engine/fsrs.py: FSRS-6 parameters fitted to the owner's log
+// (2026-11-04, see FITTED_PARAMETERS there), retention 0.9 unless the
+// settings say otherwise, one learning step of ten minutes, one relearning
+// step of ten minutes, no fuzz. Records
 // have the same JSON shape as the Python FSRSRecord so a log replays to the
 // identical state on both sides (tests/js/replay.test.mjs pins it against a
 // Python fixture).
@@ -10,9 +12,11 @@
 // whole 24-hour spans and ts-fsrs in calendar days, and ts-fsrs enforces an
 // ordering between the hard, good and easy intervals that py-fsrs does not.
 
-export const DEFAULT_PARAMETERS = [
-  0.212, 1.2931, 2.3065, 8.2956, 6.4133, 0.8334, 3.0194, 0.001, 1.8722, 0.1666, 0.796,
-  1.4835, 0.0614, 0.2629, 1.6483, 0.6014, 1.8729, 0.5425, 0.0912, 0.0658, 0.1542,
+// The same list as FITTED_PARAMETERS in src/engine/fsrs.py; tests/test_web.py
+// compares the two.
+export const PARAMETERS = [
+  0.001, 1.401, 1.8218, 8.2956, 6.6737, 0.5955, 3.1616, 0.0141, 1.6477, 0.2489, 0.5817,
+  1.5568, 0.0186, 0.3231, 1.8636, 0.5635, 1.8729, 0.4623, 0.0613, 0.2446, 0.1,
 ];
 
 const STABILITY_MIN = 0.001;
@@ -41,7 +45,7 @@ function roundHalfEven(x) {
 }
 
 export function createEngine({
-  retention = 0.9, learningStepsMin = [10], relearningStepsMin = [10], maximumInterval = 36500, w = DEFAULT_PARAMETERS,
+  retention = 0.9, learningStepsMin = [10], relearningStepsMin = [10], maximumInterval = 36500, w = PARAMETERS,
 } = {}) {
   const decay = -w[20];
   const factor = Math.pow(0.9, 1 / decay) - 1;

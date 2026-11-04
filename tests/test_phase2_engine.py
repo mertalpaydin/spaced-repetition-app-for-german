@@ -164,6 +164,22 @@ def _deck() -> Deck:
 # -- grading -------------------------------------------------------------------
 
 
+def test_fsrs_engine_new_unit_right_twice_returns_in_five_days() -> None:
+    """Fitted to the owner's log on 2026-11-04. With the library defaults a
+    new unit answered right twice came back after 11 days, predicted at
+    95% recall, and he recalled 66% of those; at the second to fourth
+    review of a unit he recalled 63-74% where 83-90% was predicted."""
+    from src.engine.fsrs import FSRSRecord
+
+    engine = FSRSEngine()
+    t = datetime(2026, 11, 5, 8, tzinfo=UTC)
+    record = engine.schedule_review(FSRSRecord(card_id="u", due=t), "good", now=t)
+    record = engine.schedule_review(record, "good", now=record.due)
+    assert record.state == "review"
+    assert record.last_review is not None
+    assert round((record.due - record.last_review).total_seconds() / 86400) == 5
+
+
 def test_grade_card_maps_outcomes_to_ratings() -> None:
     card = _card("w10000000000", "vp:warten_auf", "Er wartet auf den Bus.", ["wartet", "auf"])
     assert grade_card(card, ["wartet", "auf"]).rating == "good"

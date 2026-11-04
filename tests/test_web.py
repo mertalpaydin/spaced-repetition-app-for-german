@@ -311,6 +311,19 @@ def render_replay_fixture() -> str:
     return json.dumps(fixture, indent=1, sort_keys=True) + "\n"
 
 
+def test_engine_js_parameters_equal_the_python_engine_parameters() -> None:
+    """The fitted parameters live in two files; the replay fixture would only
+    catch a drift through its seeded learner, so the lists are compared too."""
+    from src.engine.fsrs import FITTED_PARAMETERS
+
+    source = (WEB / "lib" / "engine.js").read_text(encoding="utf-8")
+    found = re.search(r"export const PARAMETERS = \[([^\]]*)\]", source)
+    assert found, "engine.js has no PARAMETERS array"
+    js = [float(x) for x in found.group(1).replace("\n", " ").split(",") if x.strip()]
+    assert js == list(FITTED_PARAMETERS)
+    assert tuple(FSRSEngine().scheduler.parameters) == FITTED_PARAMETERS
+
+
 GENERATED = {
     TABLES: render_grader_tables,
     PARITY: render_parity_cases,

@@ -28,8 +28,24 @@ class FSRSRecord(BaseModel):
     last_review: datetime | None = None
 
 
+#: FSRS-6 parameters fitted to the owner's review log on 2026-11-04 (4,397
+#: reviews since the reset of 2026-09-21, ``fsrs`` 6.3.2's optimizer, run
+#: in a throwaway environment because it needs torch). Fitted on the reviews
+#: before 2026-10-21, they predicted the two weeks after better than the
+#: library defaults (log loss 0.456 to 0.446, binned calibration error 7.6 to
+#: 5.3 points). The defaults assumed a new unit was held for days: one
+#: answered right twice came back after 11 days at a predicted 95% recall,
+#: and he recalled 66% of those. These say 5. ``web/lib/engine.js`` holds the
+#: same list (``tests/test_web.py`` compares them). Refit when the log has
+#: grown by a few thousand reviews.
+FITTED_PARAMETERS: tuple[float, ...] = (
+    0.001, 1.401, 1.8218, 8.2956, 6.6737, 0.5955, 3.1616, 0.0141, 1.6477, 0.2489, 0.5817,
+    1.5568, 0.0186, 0.3231, 1.8636, 0.5635, 1.8729, 0.4623, 0.0613, 0.2446, 0.1,
+)  # fmt: skip
+
+
 class FSRSEngine:
-    """Provides card scheduling and review processing using FSRS-4.5."""
+    """Card scheduling and review processing with FSRS-6 (py-fsrs 6)."""
 
     RATING_MAP = {
         "again": Rating.Again,
@@ -65,21 +81,13 @@ class FSRSEngine:
         learning_steps: Sequence[timedelta] | None = None,
     ) -> None:
         steps = tuple(learning_steps) if learning_steps is not None else self.DEFAULT_LEARNING_STEPS
-        if w is not None:
-            self.scheduler = Scheduler(
-                parameters=tuple(w),
-                desired_retention=request_retention,
-                maximum_interval=maximum_interval,
-                learning_steps=steps,
-                enable_fuzzing=False,
-            )
-        else:
-            self.scheduler = Scheduler(
-                desired_retention=request_retention,
-                maximum_interval=maximum_interval,
-                learning_steps=steps,
-                enable_fuzzing=False,
-            )
+        self.scheduler = Scheduler(
+            parameters=tuple(w) if w is not None else FITTED_PARAMETERS,
+            desired_retention=request_retention,
+            maximum_interval=maximum_interval,
+            learning_steps=steps,
+            enable_fuzzing=False,
+        )
 
     def record_to_fsrs_card(self, record: FSRSRecord) -> Card:
         """Convert a serializable FSRSRecord to an fsrs.Card instance."""
