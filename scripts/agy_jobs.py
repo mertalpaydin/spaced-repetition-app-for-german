@@ -37,10 +37,12 @@ from src.contracts import (
     PhraseCard,
     PhraseUnit,
     UnitGlossRecord,
+    VerbFormsRecord,
 )
 from src.phrases import carrier_validation
 from src.phrases import contexts as contexts_module
 from src.phrases import unit_glosses as glosses_module
+from src.phrases import verb_forms as verb_forms_module
 from src.phrases import written_carriers as written_module
 from src.phrases.cards import GLOSS_LENGTH_RATIO
 from src.phrases.mining import WordGate, detect_words
@@ -496,6 +498,131 @@ def job_unit_glosses(args: argparse.Namespace) -> int:
     return 0
 
 
+# -- verb forms ----------------------------------------------------------------
+
+VERB_FORMS_PROMPT = (
+    "Use exactly two tools: read the file {inp}, then write the file {out}. Do not run shell "
+    "commands and do not read any other file. {inp} holds one JSON object per line: id (a "
+    "German verb in the infinitive) and separable (true for a separable verb). For each line "
+    "give the forms for er/sie/es: the Praeteritum, the auxiliary of the Perfekt ('hat' or "
+    "'ist'), and the Partizip II. Rules: spelling after the 1996 reform ('musste', never "
+    "'mußte'); a separable verb's Praeteritum has the particle after the verb ('stand auf') "
+    "and its Partizip II has it in front ('aufgestanden'); give a second form only where both "
+    "are standard, the usual one first ('sendete', 'sandte'; 'hat' and 'ist' for 'fahren'); "
+    "en is the English a dictionary gives, as 'to ...', at most three renderings joined with "
+    "' / ', with no German in it at all, because the learner sees it before answering. If id "
+    "is not a German verb infinitive, set skip to true. Write {out} as JSON lines with exactly "
+    'these fields: {{"id": "...", "en": "...", "praeteritum": ["..."], "hilfsverb": ["..."], '
+    '"partizip": ["..."], "skip": false}}, one line per input line, nothing else. Then reply '
+    "with only the number of lines written."
+)
+
+
+def _string_list(raw: object) -> list[str]:
+    return [str(x).strip() for x in raw if str(x).strip()] if isinstance(raw, list) else []
+
+
+def verb_forms_record(
+    row: dict[str, object], infinitive: str, separable: bool, unit: PhraseUnit | None, model: str
+) -> VerbFormsRecord:
+    """One agent row as a record, accepted or with the reason it is not."""
+    gloss = str(row.get("en") or "").strip() or None
+    auxiliary = [a for a in _string_list(row.get("hilfsverb")) if a in {"hat", "ist"}]
+    record = VerbFormsRecord(
+        infinitive=infinitive,
+        gloss_en=gloss,
+        praeteritum=_string_list(row.get("praeteritum")),
+        auxiliary=auxiliary,  # type: ignore[arg-type]
+        partizip=_string_list(row.get("partizip")),
+        accepted=True,
+        model=model,
+        generated_at=datetime.now(UTC),
+    )
+    reason = "not_a_verb" if row.get("skip") is True else None
+    reason = reason or verb_forms_module.check_record(record, separable)
+    if reason is None and gloss:
+        # The drill shows the infinitive, so the leak to fear is an ANSWER:
+        # a past form in the English ("to get up (stand auf)").
+        leak = verb_forms_module.answer_in_gloss(record)
+        if leak is None and unit is not None:
+            leak = glosses_module.german_leak(gloss, unit)
+        reason = f"gloss_leaks:{leak}" if leak else None
+    if reason is not None:
+        record = record.model_copy(update={"accepted": False, "reject_reason": reason})
+    return record
+
+
+def job_verb_forms(args: argparse.Namespace) -> int:
+    """The past forms of the deck's verbs, for the drill. Every row is checked
+    by ``src/phrases/verb_forms.py`` before it is stored as accepted."""
+    units = [
+        u
+        for u in _read_models(args.build_dir / "units.jsonl", PhraseUnit)
+        if isinstance(u, PhraseUnit)
+    ]
+    existing = verb_forms_module.load_records(args.verb_forms)
+    done = (
+        set(existing) | set(verb_forms_module.load_records(args.skip_done_in))
+        if args.skip_done_in
+        else set(existing)
+    )
+    todo = [v for v in verb_forms_module.drill_verbs(units) if v[0] not in done]
+    if args.slice:
+        # "i/n": every n-th verb from the i-th, so n agents can run side by
+        # side, each into its own file, merged afterwards.
+        index, count = (int(x) for x in args.slice.split("/"))
+        todo = todo[index::count]
+    print(f"verb-forms: {len(existing)} stored, {len(todo)} still needed")
+    produced: dict[str, VerbFormsRecord] = {}
+    failures = 0
+    batches_done = 0
+    try:
+        for start in range(0, len(todo), args.batch_size):
+            if batches_done >= args.max_batches:
+                break
+            batch = todo[start : start + args.batch_size]
+            workspace = Path(tempfile.mkdtemp(prefix="agy_verbforms_"))
+            (workspace / "input.jsonl").write_text(
+                "".join(
+                    json.dumps({"id": inf, "separable": sep}, ensure_ascii=False) + "\n"
+                    for inf, sep, _ in batch
+                ),
+                encoding="utf-8",
+            )
+            prompt = VERB_FORMS_PROMPT.format(inp="input.jsonl", out="output.jsonl")
+            result = run_agent(workspace, prompt, model=args.model, timeout=args.timeout)
+            rows = read_jsonl(workspace / "output.jsonl")
+            if not rows:
+                failures += 1
+                print(f"  batch {batches_done}: no output ({result.status}); {failures} failure(s)")
+                if failures >= args.max_failures:
+                    print("verb-forms: stopping, the agent produced nothing twice")
+                    break
+                continue
+            by_id = {inf: (inf, sep, unit) for inf, sep, unit in batch}
+            rejected: dict[str, int] = {}
+            for row in rows:
+                entry = by_id.get(str(row.get("id", "")))
+                if entry is None:
+                    rejected["unknown_id"] = rejected.get("unknown_id", 0) + 1
+                    continue
+                record = verb_forms_record(row, entry[0], entry[1], entry[2], args.model)
+                produced[record.infinitive] = record
+                if not record.accepted:
+                    key = str(record.reject_reason).split(":")[0]
+                    rejected[key] = rejected.get(key, 0) + 1
+            batches_done += 1
+            kept = sum(1 for r in rows if produced.get(str(r.get("id", "")), None) is not None)
+            print(f"  batch {batches_done}: {kept} stored, rejected {rejected}")
+            # Saved after every batch: a long job interrupted keeps its work.
+            verb_forms_module.save_records({**existing, **produced}.values(), args.verb_forms)
+    finally:
+        if produced:
+            verb_forms_module.save_records({**existing, **produced}.values(), args.verb_forms)
+    print(f"verb-forms: {len(produced)} new record(s) -> {args.verb_forms}")
+    return 0
+
+
 # -- written carriers ----------------------------------------------------------
 
 WRITE_CARDS_PROMPT = (
@@ -825,6 +952,16 @@ def main(argv: list[str] | None = None) -> int:
         metavar="LEMMA:KIND",
         help="write for these words instead of reading the mine report; repeatable",
     )
+    f = sub.add_parser("verb-forms")
+    f.add_argument("--build-dir", type=Path, default=DEFAULT_BUILD_DIR)
+    f.add_argument("--verb-forms", type=Path, default=verb_forms_module.DEFAULT_VERB_FORMS_PATH)
+    f.add_argument("--model", default=DEFAULT_MODEL)
+    f.add_argument("--timeout", default="15m")
+    f.add_argument("--batch-size", type=int, default=100)
+    f.add_argument("--max-batches", type=int, default=1000)
+    f.add_argument("--max-failures", type=int, default=2)
+    f.add_argument("--slice", default="", help="i/n: this agent's share of the verbs")
+    f.add_argument("--skip-done-in", type=Path, default=None, help="a store whose verbs are done")
     args = parser.parse_args(argv)
     if not AGY.exists():
         print(f"agy not found at {AGY}")
@@ -834,6 +971,7 @@ def main(argv: list[str] | None = None) -> int:
         "glosses": job_glosses,
         "unit-glosses": job_unit_glosses,
         "write-cards": job_write_cards,
+        "verb-forms": job_verb_forms,
     }
     return jobs[args.job](args)
 

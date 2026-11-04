@@ -7,7 +7,8 @@ import { loadDeck, loadReserveIndex, lookupReserve, withAdded } from "./lib/deck
 import { createEngine } from "./lib/engine.js";
 import { gradeCard, renderMarked, rivalTyped, unitForms } from "./lib/grader.js";
 import { isCloseEnough, letterDiff } from "./lib/letterdiff.js";
-import { deriveState, entriesSinceReset, makeCorrection, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
+import { deriveState, entriesForMode, entriesSinceReset, makeCorrection, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
+import { gradeVerb, loadVerbs, verbDeck } from "./lib/verbs.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
   DEFAULT_SETTINGS, computeStats, dueUnits, isPostponed, pickCard, practiceStep, pressMore, reviewsToday, unitsByStage, untriagedUnits,
@@ -40,7 +41,10 @@ function diffHtml(typed, expected) {
 
 // -- state --------------------------------------------------------------------
 
-const settings = { ...DEFAULT_SETTINGS, token: "", gistId: "", autoSync: true, geminiKey: "", ...loadSettings() };
+// The verb drill's own daily allowance and new-verb cap; it schedules apart
+// from the sentence deck (see the verbs section below).
+const VERB_DEFAULTS = { verbCardsPerDay: 20, verbNewPerDay: 5 };
+const settings = { ...DEFAULT_SETTINGS, ...VERB_DEFAULTS, token: "", gistId: "", autoSync: true, geminiKey: "", ...loadSettings() };
 // The deck as exported, and the deck the rest of the page sees: the second
 // is the first plus whatever the learner added from this screen. Kept apart
 // so a new request entry only has to refold, never refetch.
@@ -63,8 +67,16 @@ let newAllowed = false;
 // the panel asked.
 let limitPanel = null;
 
+// The verb drill: its deck (null when the deck has no verbs.json) and the
+// replay of its own entries. One log for both, two replays: replayed
+// together, a verb review would spend the sentence deck's budget, count as
+// one of its new units and space its cards.
+let verbs = null;
+let verbState = null;
+
 function refresh() {
-  state = deriveState(entries, engine);
+  state = deriveState(entriesForMode(entries, "deck"), engine);
+  verbState = deriveState(entriesForMode(entries, "verbs"), engine);
   if (baseDeck) deck = withAdded(baseDeck, state);
 }
 
@@ -208,6 +220,7 @@ function show(view) {
   document.querySelectorAll(".view").forEach((v) => { v.hidden = v.id !== `view-${view}`; });
   document.querySelectorAll("nav button[data-view]").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
   if (view === "practice") loadCard();
+  if (view === "verbs") loadVerb();
   if (view === "triage") loadTriage();
   if (view === "units") loadUnits();
   if (view === "stats") loadStats();
@@ -494,7 +507,7 @@ async function relearn(unitId) {
 function nextCard() { loadCard(); }
 
 function showHistory() {
-  const reviews = entriesSinceReset(entries).filter((e) => e.type === "review").slice(-20).reverse();
+  const reviews = entriesSinceReset(entriesForMode(entries, "deck")).filter((e) => e.type === "review").slice(-20).reverse();
   const list = $("history-list");
   list.innerHTML = reviews.map((e) => {
     const card = deck.cardById[e.card_id];
@@ -593,6 +606,132 @@ document.addEventListener("keydown", (ev) => {
   if (ev.key === "1") triageAnswer(true);
   if (ev.key === "2") triageAnswer(false);
 });
+
+// -- verbs --------------------------------------------------------------------
+// The Perfekt/Präteritum drill (owner, 2026-11-04): a verb and its English,
+// and the learner types the Präteritum and the Perfekt for er/sie/es. The
+// same scheduler as the sentence deck, over the drill's own deck and replay,
+// with its own allowance; the same grader and the same letter marks.
+
+const VERB_INPUTS = ["verb-praet", "verb-aux", "verb-part"];
+let currentVerb = null;
+let verbAnswered = false;
+let verbStartedAt = 0;
+let verbExtra = 0;
+let verbNewAllowed = false;
+let verbPanel = null;
+
+function verbSettings() {
+  return {
+    ...settings, cardsPerDay: settings.verbCardsPerDay, newPerDay: settings.verbNewPerDay,
+    newPool: 10, requestedPerDay: 0,
+  };
+}
+
+function loadVerb() {
+  ["verb-card", "verb-limit", "verb-empty"].forEach((id) => { $(id).hidden = true; });
+  if (!verbs || !verbs.units.length) {
+    $("verb-empty").textContent = "Dieses Deck hat noch keine Verben.";
+    $("verb-empty").hidden = false;
+    return;
+  }
+  const step = practiceStep(verbs, verbState, engine, verbSettings(), now(),
+    { grantedExtra: verbExtra, newAllowed: verbNewAllowed, choose: pickAny });
+  verbPanel = step.panel;
+  if (step.panel === "target" || step.panel === "new") {
+    $("verb-limit-text").textContent = step.panel === "target"
+      ? `Tagesziel für Verben erreicht (${step.spent}). Fällig: ${step.due}.`
+      : "Keine fälligen Verben mehr. Neue anfangen?";
+    $("verb-limit").hidden = false;
+    return;
+  }
+  if (step.panel === "empty") {
+    $("verb-empty").textContent = "Keine Verben fällig und keine neuen.";
+    $("verb-empty").hidden = false;
+    return;
+  }
+  currentVerb = step.unit;
+  verbAnswered = false;
+  verbStartedAt = performance.now();
+  $("verb-inf").textContent = currentVerb.infinitive;
+  $("verb-gloss").textContent = currentVerb.gloss_en;
+  for (const id of VERB_INPUTS) {
+    const inp = $(id);
+    inp.value = "";
+    inp.readOnly = false;
+    inp.className = id === "verb-aux" ? "gap aux" : "gap";
+  }
+  $("verb-feedback").hidden = true;
+  ["btn-verb-check", "btn-verb-reveal"].forEach((id) => { $(id).hidden = false; });
+  ["btn-verb-known", "btn-verb-next"].forEach((id) => { $(id).hidden = true; });
+  $("verb-card").hidden = false;
+  $("verb-praet").focus();
+}
+
+async function checkVerb(reveal = false) {
+  if (!currentVerb || verbAnswered) return;
+  verbAnswered = true;
+  const unit = currentVerb;
+  const typed = reveal
+    ? { praeteritum: null, auxiliary: null, partizip: null }
+    : { praeteritum: $("verb-praet").value, auxiliary: $("verb-aux").value, partizip: $("verb-part").value };
+  const result = gradeVerb(unit, typed);
+  await record(makeReview(entries, {
+    unit_id: unit.unit_id, card_id: unit.unit_id, rating: result.rating, outcome: result.outcome,
+    answers: result.gaps.map((g) => g.typed), expected: result.gaps.map((g) => g.expected),
+    elapsed_ms: Math.max(0, Math.round(performance.now() - verbStartedAt)), deck_version: verbs.manifest.deck_version,
+  }, now()));
+  result.gaps.forEach((g, i) => {
+    const inp = $(VERB_INPUTS[i]);
+    inp.value = g.expected;
+    inp.readOnly = true;
+    inp.classList.add(g.outcome === "exact" ? "ok" : g.outcome === "typo" ? "typo" : "bad");
+  });
+  // Each slip marked letter by letter where it is a near spelling, as on the
+  // sentence cards; a wrong auxiliary is named, not diffed.
+  const notes = result.gaps.filter((g) => g.outcome !== "exact" && g.outcome !== "revealed").map((g) => {
+    if (g.field === "auxiliary") return `Hilfsverb: ${escapeHtml(g.expected)}`;
+    const t = g.typed.trim().replace(/\s+/g, " ").toLowerCase();
+    return isCloseEnough(t, g.expected)
+      ? `<span class="diff">${diffHtml(t, g.expected)}</span>`
+      : escapeHtml(`${g.typed.trim() || "(leer)"} → ${g.expected}`);
+  }).join(", ");
+  const verdict = { good: "Richtig", hard: "Richtig, mit Tippfehler", again: reveal ? "Gezeigt" : "Falsch" }[result.rating];
+  const perfekt = `${unit.auxiliary.join("/")} ${unit.partizip.join(" / ")}`;
+  const fb = $("verb-feedback");
+  fb.className = `feedback ${result.rating}`;
+  fb.innerHTML = `<div><span class="verdict">${verdict}</span>${notes ? ": " + notes : ""}</div>`
+    + `<div class="unit">${escapeHtml(unit.infinitive)}: er ${escapeHtml(unit.praeteritum.join(" / "))}, er ${escapeHtml(perfekt)}</div>`
+    + `<div class="rank muted">${unit.weak ? "regelmäßig" : "unregelmäßig"}</div>`;
+  fb.hidden = false;
+  ["btn-verb-check", "btn-verb-reveal"].forEach((id) => { $(id).hidden = true; });
+  ["btn-verb-known", "btn-verb-next"].forEach((id) => { $(id).hidden = false; });
+  $("btn-verb-next").focus();
+}
+
+async function markVerbKnown() {
+  if (!currentVerb) return;
+  await record(makeMark(entries, currentVerb.unit_id, true, "practice", now()));
+  loadVerb();
+}
+
+$("btn-verb-check").addEventListener("click", () => checkVerb(false));
+$("btn-verb-reveal").addEventListener("click", () => checkVerb(true));
+$("btn-verb-next").addEventListener("click", () => loadVerb());
+$("btn-verb-known").addEventListener("click", () => markVerbKnown());
+$("btn-verb-more").addEventListener("click", () => {
+  ({ grantedExtra: verbExtra, newAllowed: verbNewAllowed } = pressMore(
+    verbPanel, { grantedExtra: verbExtra, newAllowed: verbNewAllowed }, settings.extraCards));
+  loadVerb();
+});
+// Enter moves to the next field and checks on the last; after the answer it
+// goes on to the next verb.
+VERB_INPUTS.forEach((id, i) => $(id).addEventListener("keydown", (ev) => {
+  if (ev.key !== "Enter") return;
+  ev.preventDefault();
+  if (verbAnswered) { loadVerb(); return; }
+  if (i < VERB_INPUTS.length - 1) $(VERB_INPUTS[i + 1]).focus(); else checkVerb(false);
+}));
 
 // -- units --------------------------------------------------------------------
 
@@ -818,7 +957,7 @@ $("add-word").addEventListener("keydown", (ev) => { if (ev.key === "Enter") addW
 // -- stats --------------------------------------------------------------------
 
 function loadStats() {
-  const s = computeStats(deck, state, entries, engine, now());
+  const s = computeStats(deck, state, entriesForMode(entries, "deck"), engine, now());
   const rows = [
     ["bekannt", s.known], ["lernend", s.learning], ["jung", s.young], ["reif", s.mature],
     ["fällig jetzt", s.due_now], ["neu verfügbar", s.new_remaining],
@@ -842,6 +981,8 @@ function loadSettingsView() {
   $("set-new").value = settings.newPerDay === null ? "" : settings.newPerDay;
   $("set-pool").value = settings.newPool;
   $("set-retention").value = settings.retention;
+  $("set-verb-cards").value = settings.verbCardsPerDay;
+  $("set-verb-new").value = settings.verbNewPerDay;
   $("set-autosync").checked = !!settings.autoSync;
   $("set-log-info").textContent = `${entries.length} Einträge im Log auf diesem Gerät.`;
 }
@@ -853,6 +994,8 @@ $("btn-settings-save").addEventListener("click", () => {
   const n = $("set-new").value.trim();
   settings.newPerDay = n === "" ? null : Math.max(0, parseInt(n, 10) || 0);
   settings.newPool = Math.max(1, parseInt($("set-pool").value, 10) || DEFAULT_SETTINGS.newPool);
+  settings.verbCardsPerDay = Math.max(1, parseInt($("set-verb-cards").value, 10) || VERB_DEFAULTS.verbCardsPerDay);
+  settings.verbNewPerDay = Math.max(0, parseInt($("set-verb-new").value, 10) || 0);
   const ret = parseFloat($("set-retention").value);
   settings.retention = Number.isFinite(ret) ? Math.min(0.97, Math.max(0.8, ret)) : DEFAULT_SETTINGS.retention;
   engine = createEngine({ retention: settings.retention });
@@ -931,6 +1074,11 @@ async function boot() {
   // The reserve is optional: a deck built before it existed simply has none,
   // and the add-word screen says so instead of the page failing to load.
   loadReserveIndex("./data/deck/reserve").then((index) => { reserveIndex = index; }).catch(() => {});
+  // The verb drill is optional the same way: a deck without verbs.json says
+  // so on the Verben screen.
+  loadVerbs(baseDeck.manifest, "./data/deck")
+    .then((index) => { verbs = index ? verbDeck(index, baseDeck.manifest.verbs_version || "") : null; })
+    .catch(() => {});
   try { localStorage.setItem("phrasen.deckVersion", deck.manifest.deck_version); } catch (e) { /* ignore */ }
   refresh();
   const m = deck.manifest;

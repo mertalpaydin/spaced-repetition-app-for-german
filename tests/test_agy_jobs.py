@@ -139,3 +139,33 @@ def test_forced_occurrence_multi_word_surface_gaps_every_word() -> None:
     # a word that is not a whole token, or out of order, gives no occurrence
     wrong = written_module.WrittenSentence(german=text, english="x", surface="gegen bin")
     assert agy_jobs._forced_occurrence(parsed, wrong, "gegen sein", "idiom", "w0002") is None
+
+
+def test_verb_forms_record_accepts_a_good_row_and_says_why_it_refuses_others() -> None:
+    from src.contracts import PhraseUnit
+
+    unit = PhraseUnit.model_validate(
+        {
+            "unit_id": "sv:aufstehen", "kind": "separable_verb", "lemma_key": "aufstehen",
+            "parts": ["aufstehen"], "display_de": "aufstehen", "sentence_count": 10, "rank": 90,
+            "source": "mined", "card_count": 1,
+        }
+    )  # fmt: skip
+    good = {"id": "aufstehen", "en": "to get up", "praeteritum": ["stand auf"],
+            "hilfsverb": ["ist"], "partizip": ["aufgestanden"], "skip": False}  # fmt: skip
+    record = agy_jobs.verb_forms_record(good, "aufstehen", True, unit, "m")
+    assert record.accepted and record.auxiliary == ["ist"] and record.gloss_en == "to get up"
+
+    skipped = agy_jobs.verb_forms_record({**good, "skip": True}, "aufstehen", True, unit, "m")
+    assert not skipped.accepted and skipped.reject_reason == "not_a_verb"
+    fused = agy_jobs.verb_forms_record(
+        {**good, "praeteritum": ["aufstand"]}, "aufstehen", True, unit, "m"
+    )
+    assert fused.reject_reason == "particle_not_after_the_verb"
+    # an auxiliary that is neither "hat" nor "ist" is dropped, leaving none
+    odd = agy_jobs.verb_forms_record({**good, "hilfsverb": ["wird"]}, "aufstehen", True, unit, "m")
+    assert odd.reject_reason == "missing_form"
+    leak = agy_jobs.verb_forms_record(
+        {**good, "en": "to get up (stand auf)"}, "aufstehen", True, unit, "m"
+    )
+    assert not leak.accepted and str(leak.reject_reason).startswith("gloss_leaks")

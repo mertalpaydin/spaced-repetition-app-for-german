@@ -65,6 +65,11 @@ input.gap.ok { border-color: var(--ok); background: var(--ok-bg); }
 /* a typo is a pass that is not perfect: neutral gray, not a warning colour (owner, 2026-11-04) */
 input.gap.typo { border-color: var(--near); background: var(--near-bg); }
 input.gap.bad { border-color: var(--bad); background: var(--bad-bg); }
+/* the verb drill: one line per tense, the auxiliary in a short box */
+.verb-forms { display: grid; gap: 0.7rem; margin: 0.9rem 0 0.4rem; }
+.verb-forms label { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 1.1rem; }
+.verb-label { font-weight: 600; min-width: 6.5em; }
+input.gap.aux { min-width: 3.2em; }
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
 .actions button, .umlauts button { font: inherit; padding: 0.55rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--ink); }
 .actions button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }

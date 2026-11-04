@@ -21,12 +21,17 @@ from src.contracts import (
     ReserveShard,
     ShardInfo,
     UnitsIndex,
+    VerbCard,
+    VerbsIndex,
 )
 from src.phrases.unit_glosses import german_leak
+from src.phrases.verb_forms import verbs_version
 
 DEFAULT_DECK_DIR = Path("web/data/deck")
 DEFAULT_SCHEMA_PATH = Path("data/fixtures/schemas/phrase_deck.schema.json")
 DEFAULT_RESERVE_DIR = DEFAULT_DECK_DIR / "reserve"
+#: The verb drill's file, beside the deck (owner, 2026-11-04).
+VERBS_FILE = "verbs.json"
 
 
 def _dump(model: BaseModel) -> str:
@@ -53,8 +58,17 @@ def export_deck(
     shard_size: int = 200,
     corpus: dict[str, int] | None = None,
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
+    verbs: list[VerbCard] | None = None,
 ) -> DeckManifest:
     units = sorted(units, key=lambda u: u.rank)
+    verbs_fields: dict[str, Any] = {}
+    if verbs:
+        write_text_atomic(out_dir / VERBS_FILE, _dump(VerbsIndex(verbs=verbs)))
+        verbs_fields = {
+            "verbs_file": VERBS_FILE,
+            "verbs_version": verbs_version(verbs),
+            "verb_count": len(verbs),
+        }
     cards_by_unit: dict[str, list[PhraseCard]] = defaultdict(list)
     for card in sorted(cards, key=lambda c: c.card_id):
         cards_by_unit[card.unit_id].append(card)
@@ -102,6 +116,7 @@ def export_deck(
         kinds=dict(Counter(u.kind for u in units)),
         units_file="units.json",
         shards=shards,
+        **verbs_fields,
     )
     write_text_atomic(out_dir / "manifest.json", _dump(manifest))
     return manifest
@@ -197,6 +212,7 @@ def deck_schema() -> dict[str, Any]:
         "shard": DeckShard.model_json_schema(),
         "reserve_index": ReserveIndex.model_json_schema(),
         "reserve_shard": ReserveShard.model_json_schema(),
+        "verbs": VerbsIndex.model_json_schema(),
     }
 
 
@@ -229,4 +245,20 @@ def check_deck(deck_dir: Path = DEFAULT_DECK_DIR) -> list[str]:
         leak = german_leak(unit.gloss_en, unit)
         if leak is not None:
             problems.append(f"unit {unit.unit_id} gloss gives the German away: {leak!r}")
+    if manifest.verbs_file:
+        try:
+            verbs = VerbsIndex.model_validate_json(
+                (deck_dir / manifest.verbs_file).read_text("utf-8")
+            ).verbs
+        except (OSError, ValueError) as exc:
+            return [*problems, f"verbs do not load: {exc}"]
+        if manifest.verb_count != len(verbs):
+            problems.append(f"manifest says {manifest.verb_count} verbs, found {len(verbs)}")
+        if manifest.verbs_version != verbs_version(verbs):
+            problems.append("manifest verbs_version does not match the verbs")
+        ids = [v.unit_id for v in verbs]
+        if len(set(ids)) != len(ids) or not all(i.startswith("pf:") for i in ids):
+            problems.append("verb ids must be unique and start with pf:")
+        if set(ids) & unit_ids:
+            problems.append("a verb id collides with a deck unit id")
     return problems

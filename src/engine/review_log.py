@@ -14,6 +14,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -65,6 +66,25 @@ def entries_since_reset(entries: Iterable[LogEntry]) -> list[LogEntry]:
         if isinstance(ordered[index], ResetEntry):
             return ordered[index + 1 :]
     return ordered
+
+
+#: The verb drill's units (owner, 2026-11-04) share the log under this
+#: prefix; see ``entries_for_mode``. ``src/phrases/verb_forms.py`` makes them.
+DRILL_PREFIX = "pf:"
+
+
+def entries_for_mode(entries: Iterable[LogEntry], mode: Literal["deck", "verbs"]) -> list[LogEntry]:
+    """The entries one mode replays. Both modes write to one log, synced as
+    one, but each schedules on its own: replayed together, a verb review
+    would spend the sentence deck's daily budget, count as one of its new
+    units and space its cards. A reset carries no unit and belongs to both.
+    The page does the same (``entriesForMode`` in ``web/lib/log.js``)."""
+    out: list[LogEntry] = []
+    for entry in entries:
+        unit_id = getattr(entry, "unit_id", None)
+        if unit_id is None or unit_id.startswith(DRILL_PREFIX) == (mode == "verbs"):
+            out.append(entry)
+    return out
 
 
 def entry_key(entry: LogEntry) -> tuple[str, str, datetime]:

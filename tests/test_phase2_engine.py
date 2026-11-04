@@ -164,6 +164,31 @@ def _deck() -> Deck:
 # -- grading -------------------------------------------------------------------
 
 
+def test_entries_for_mode_verb_drill_reviews_stay_out_of_the_deck() -> None:
+    """The verb drill writes to the same log under "pf:" ids. Replayed
+    together, its reviews would spend the sentence deck's daily budget, count
+    as its new units and space its cards (owner, 2026-11-04)."""
+    from src.engine.review_log import entries_for_mode
+
+    t = datetime(2026, 11, 5, 8, tzinfo=UTC)
+
+    def review(seq: int, unit_id: str) -> ReviewEntry:
+        return ReviewEntry(
+            seq=seq, ts=t + timedelta(minutes=seq), unit_id=unit_id, card_id="c" * 12,
+            rating="good", outcome="exact", answers=["x"], expected=["x"], elapsed_ms=1,
+            deck_version="v",
+        )  # fmt: skip
+
+    reset = ResetEntry(seq=9, ts=t)
+    entries = [reset, review(1, "vb:gehen"), review(2, "pf:gehen"), review(3, "nn:haus")]
+    deck = entries_for_mode(entries, "deck")
+    verbs = entries_for_mode(entries, "verbs")
+    assert [getattr(e, "unit_id", "") for e in deck] == ["", "vb:gehen", "nn:haus"]
+    assert [getattr(e, "unit_id", "") for e in verbs] == ["", "pf:gehen"]
+    state = derive_state(deck, FSRSEngine())
+    assert "pf:gehen" not in state.records and len(state.review_times) == 2
+
+
 def test_fsrs_engine_new_unit_right_twice_returns_in_five_days() -> None:
     """Fitted to the owner's log on 2026-11-04. With the library defaults a
     new unit answered right twice came back after 11 days, predicted at

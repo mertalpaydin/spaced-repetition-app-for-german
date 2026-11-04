@@ -180,6 +180,40 @@ accept that it stays card-less.
   `manifest.json`, `units.json` and `shards/band_NNN.json` (200 units each,
   ranked). `deck_version` is a content hash.
 
+## The verb drill
+
+The page's "Verben" screen asks a verb and its English and wants the
+Präteritum and the Perfekt for er/sie/es ("ging", "ist gegangen"); owner,
+2026-11-04. Its verbs are the deck's plain and separable verbs, one per
+infinitive in deck rank order, with "sein" and "tun" in front because the
+deck does not carry them as verb units. Reflexive verbs wait for a second
+version.
+
+The forms live in `data/phrases/verb_forms.jsonl` (committed, keyed by the
+infinitive) and are drafted by agy:
+
+```
+uv run python scripts/agy_jobs.py verb-forms                 # only the verbs not yet stored
+uv run python scripts/agy_jobs.py verb-forms --slice 0/3 --verb-forms <file> --skip-done-in data/phrases/verb_forms.jsonl
+```
+
+`--slice` lets several agents run side by side into files of their own, to
+be merged into the store afterwards. Every row is checked by
+`src/phrases/verb_forms.py` before it counts: a separable verb's particle
+after the verb in the Präteritum and in front in the participle, an
+auxiliary of "hat" or "ist", no answer in the English. `doubtful` lists the
+forms the real-word dictionary does not know; read those before an export,
+because "gehte" and "gegeht" look regular and are wrong.
+
+`--stage export` writes `web/data/deck/verbs.json` and names it in the
+manifest with a hash of its own (`verbs_version`), which the page puts in the
+file's URL so the service worker never serves a stale one. The drill's units
+are `pf:` ids in the same review log; each mode replays only its own entries
+(`entries_for_mode` in `src/engine/review_log.py`, `entriesForMode` in
+`web/lib/log.js`), so a verb review never spends the sentence deck's daily
+budget. Its allowance is "Verben pro Tag" and "Neue Verben pro Tag" in the
+settings.
+
 ## The reserve, and the page's add-a-word button
 
 `--stage reserve` mines and cards the words the deck's frequency floor keeps

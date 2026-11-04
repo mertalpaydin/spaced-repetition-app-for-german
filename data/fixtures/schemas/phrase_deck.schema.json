@@ -117,6 +117,36 @@
       "units_file": {
         "title": "Units File",
         "type": "string"
+      },
+      "verb_count": {
+        "default": 0,
+        "minimum": 0,
+        "title": "Verb Count",
+        "type": "integer"
+      },
+      "verbs_file": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Verbs File"
+      },
+      "verbs_version": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Verbs Version"
       }
     },
     "required": [
@@ -1237,6 +1267,109 @@
       "units"
     ],
     "title": "UnitsIndex",
+    "type": "object"
+  },
+  "verbs": {
+    "$defs": {
+      "VerbCard": {
+        "additionalProperties": false,
+        "description": "One verb as the drill asks it: the infinitive and its English, then\nPr\u00e4teritum and Perfekt for er/sie/es. Every list holds the accepted\nanswers, the usual one first.",
+        "properties": {
+          "auxiliary": {
+            "items": {
+              "enum": [
+                "hat",
+                "ist"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Auxiliary",
+            "type": "array"
+          },
+          "gloss_en": {
+            "title": "Gloss En",
+            "type": "string"
+          },
+          "infinitive": {
+            "title": "Infinitive",
+            "type": "string"
+          },
+          "partizip": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Partizip",
+            "type": "array"
+          },
+          "praeteritum": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Praeteritum",
+            "type": "array"
+          },
+          "rank": {
+            "minimum": 1,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "source_unit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source Unit Id"
+          },
+          "unit_id": {
+            "title": "Unit Id",
+            "type": "string"
+          },
+          "weak": {
+            "title": "Weak",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "unit_id",
+          "infinitive",
+          "gloss_en",
+          "rank",
+          "praeteritum",
+          "auxiliary",
+          "partizip",
+          "weak"
+        ],
+        "title": "VerbCard",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "schema_version": {
+        "default": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      },
+      "verbs": {
+        "items": {
+          "$ref": "#/$defs/VerbCard"
+        },
+        "title": "Verbs",
+        "type": "array"
+      }
+    },
+    "required": [
+      "verbs"
+    ],
+    "title": "VerbsIndex",
     "type": "object"
   }
 }

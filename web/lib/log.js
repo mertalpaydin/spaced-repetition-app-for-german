@@ -199,6 +199,17 @@ export function entriesSinceReset(entries) {
   return ordered;
 }
 
+// The verb drill's units share the log under this prefix (owner,
+// 2026-11-04). Each mode replays only its own entries, so a verb review
+// never spends the sentence deck's budget, counts as one of its new units or
+// spaces its cards. A reset carries no unit and belongs to both. Matches
+// entries_for_mode in src/engine/review_log.py.
+export const DRILL_PREFIX = "pf:";
+
+export function entriesForMode(entries, mode) {
+  return entries.filter((e) => !e.unit_id || e.unit_id.startsWith(DRILL_PREFIX) === (mode === "verbs"));
+}
+
 export function makeReset(entries, note, now) {
   return { type: "reset", seq: nextSeq(entries), ts: new Date(now).toISOString(), note };
 }

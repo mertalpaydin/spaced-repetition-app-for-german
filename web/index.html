@@ -19,6 +19,7 @@
     </div>
     <nav>
       <button data-view="practice" class="active">Üben</button>
+      <button data-view="verbs">Verben</button>
       <button data-view="triage">Sortieren</button>
       <button data-view="units">Einheiten</button>
       <button data-view="stats">Statistik</button>
@@ -78,6 +79,35 @@
       </div>
     </section>
 
+    <section id="view-verbs" class="view" hidden>
+      <div id="verb-card" class="card" hidden>
+        <p class="line sentence"><span id="verb-inf"></span></p>
+        <p id="verb-gloss" class="line gloss"></p>
+        <div class="verb-forms">
+          <label><span class="verb-label">Präteritum</span> <span class="muted">er/sie/es</span>
+            <input id="verb-praet" class="gap" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" size="12"></label>
+          <label><span class="verb-label">Perfekt</span> <span class="muted">er/sie/es</span>
+            <input id="verb-aux" class="gap aux" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" size="4">
+            <input id="verb-part" class="gap" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" size="14"></label>
+        </div>
+        <div id="verb-feedback" class="feedback" hidden></div>
+        <div class="actions">
+          <button id="btn-verb-check" class="primary">Prüfen</button>
+          <button id="btn-verb-reveal">Zeigen</button>
+          <button id="btn-verb-known" title="diese Formen kann ich schon" hidden>Kannte ich schon</button>
+          <button id="btn-verb-next" class="primary" hidden>Weiter ▶</button>
+        </div>
+        <div class="umlauts">
+          <button data-ch="ä">ä</button><button data-ch="ö">ö</button><button data-ch="ü">ü</button><button data-ch="ß">ß</button>
+        </div>
+      </div>
+      <div id="verb-limit" class="card" hidden>
+        <p id="verb-limit-text">Tagesziel für Verben erreicht.</p>
+        <div class="actions"><button id="btn-verb-more" class="primary">Trotzdem weiter</button></div>
+      </div>
+      <p id="verb-empty" class="empty" hidden>Keine Verben fällig und keine neuen.</p>
+    </section>
+
     <section id="view-triage" class="view" hidden>
       <p class="hint">Kennst du die Phrase? Sortiere die häufigsten Einheiten einmal durch.</p>
       <div id="triage-card" class="card" hidden>
@@ -129,6 +159,8 @@
         <label>Karten pro Tag <input id="set-cards" type="number" min="1" step="1"></label>
         <label>Neue Einheiten pro Tag (leer = unbegrenzt) <input id="set-new" type="number" min="0" step="1"></label>
         <label>Neue Einheit zufällig aus den nächsten <input id="set-pool" type="number" min="1" step="1"></label>
+        <label>Verben pro Tag <input id="set-verb-cards" type="number" min="1" step="1"></label>
+        <label>Neue Verben pro Tag <input id="set-verb-new" type="number" min="0" step="1"></label>
         <label>Zielgenauigkeit <input id="set-retention" type="number" min="0.8" max="0.97" step="0.01"></label>
         <p class="hint">Wie oft du eine Einheit beim Abfragen können sollst. 0,90 ist der Standard.
           Niedriger heißt längere Abstände und weniger Wiederholungen pro Tag, dafür mehr Fehler;

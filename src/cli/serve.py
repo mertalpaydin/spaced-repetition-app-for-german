@@ -26,7 +26,7 @@ from typing import Any
 from src.contracts import PhraseCard, PhraseUnit, ReviewEntry
 from src.engine.fsrs import FSRSEngine
 from src.engine.grading import grade_card, render_marked
-from src.engine.review_log import DEFAULT_LOG_PATH, ReviewLog, derive_state
+from src.engine.review_log import DEFAULT_LOG_PATH, ReviewLog, derive_state, entries_for_mode
 from src.engine.session import (
     Deck,
     Settings,
@@ -117,7 +117,7 @@ class Api:
         ``limit_reached`` is returned instead of a card; the page asks the
         learner and calls again with ``over_limit``."""
         with self.lock:
-            state = derive_state(self.log.entries, self.engine)
+            state = derive_state(entries_for_mode(self.log.entries, "deck"), self.engine)
             now = self.now()
             today = self._today(state, now)
             unit = next_unit(
@@ -154,7 +154,7 @@ class Api:
     def units(self) -> dict[str, Any]:
         """Every unit the log knows, by stage, with its next due time."""
         with self.lock:
-            state = derive_state(self.log.entries, self.engine)
+            state = derive_state(entries_for_mode(self.log.entries, "deck"), self.engine)
             now = self.now()
             groups = units_by_stage(self.deck, state, now)
         return {
@@ -233,14 +233,20 @@ class Api:
 
     def triage(self, batch: int) -> dict[str, Any]:
         with self.lock:
-            state = derive_state(self.log.entries, self.engine)
+            state = derive_state(entries_for_mode(self.log.entries, "deck"), self.engine)
             units = untriaged_units(self.deck, state)[: max(1, min(batch, 200))]
         return {"units": [_unit_payload(u) for u in units], "remaining": len(units)}
 
     def stats(self) -> dict[str, Any]:
         with self.lock:
-            state = derive_state(self.log.entries, self.engine)
-            s = compute_stats(self.deck, state, self.log.entries, self.engine, self.now())
+            state = derive_state(entries_for_mode(self.log.entries, "deck"), self.engine)
+            s = compute_stats(
+                self.deck,
+                state,
+                entries_for_mode(self.log.entries, "deck"),
+                self.engine,
+                self.now(),
+            )
         return {
             "known": s.known,
             "learning": s.learning,

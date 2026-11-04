@@ -53,6 +53,7 @@ from src.phrases import carrier_validation, verb_government
 from src.phrases import contexts as contexts_module
 from src.phrases import rivals as rivals_module
 from src.phrases import unit_glosses as glosses_module
+from src.phrases import verb_forms as verb_forms_module
 from src.phrases import written_carriers as written_module
 from src.phrases.build_cache import ParseCache, Stats, VerdictCache, parse_cache_key, verdict_key
 from src.phrases.curated import DEFAULT_PHRASES_DIR, IdiomElement, IdiomSpec, load_curated
@@ -1233,11 +1234,15 @@ def stage_export(args: argparse.Namespace) -> int:
     stats_path = build_dir / "parse_stats.json"
     if stats_path.exists():
         corpus = dict(json.loads(stats_path.read_text(encoding="utf-8")).get("by_source", {}))
-    manifest = export_deck(units, cards, args.out, shard_size=args.shard_size, corpus=corpus)
+    verbs = verb_forms_module.verb_cards(units, verb_forms_module.load_records(args.verb_forms))
+    manifest = export_deck(
+        units, cards, args.out, shard_size=args.shard_size, corpus=corpus, verbs=verbs
+    )
     write_schema()
     _log(
         f"export: {manifest.unit_count:,} units, {manifest.card_count:,} cards, "
-        f"{len(manifest.shards)} shards, version {manifest.deck_version} -> {args.out}"
+        f"{len(manifest.shards)} shards, {manifest.verb_count:,} verbs, "
+        f"version {manifest.deck_version} -> {args.out}"
     )
     return 0
 
@@ -1273,6 +1278,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--phrases-dir", type=Path, default=DEFAULT_PHRASES_DIR)
     parser.add_argument("--store", type=Path, default=DEFAULT_STORE_PATH)
     parser.add_argument("--contexts", type=Path, default=contexts_module.DEFAULT_CONTEXTS_PATH)
+    parser.add_argument(
+        "--verb-forms", type=Path, default=verb_forms_module.DEFAULT_VERB_FORMS_PATH
+    )
     parser.add_argument("--out", type=Path, default=DEFAULT_DECK_DIR)
     parser.add_argument("--shard-size", type=int, default=200)
     parser.add_argument("--k", type=int, default=6, help="cards per unit")

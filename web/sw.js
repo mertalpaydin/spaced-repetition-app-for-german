@@ -3,7 +3,7 @@
 // the page reports, so a new deck build replaces the old shards and an old
 // one never lingers. Everything else (the GitHub API) goes to the network.
 
-const APP_VERSION = "3b.27";
+const APP_VERSION = "3b.28";
 const SHELL_CACHE = `app-${APP_VERSION}`;
 const SHELL = [
   "./",
@@ -23,6 +23,7 @@ const SHELL = [
   "./lib/session.js",
   "./lib/store.js",
   "./lib/sync.js",
+  "./lib/verbs.js",
 ];
 
 let deckCache = null;   // "deck-<version>", set by the page after it read the manifest

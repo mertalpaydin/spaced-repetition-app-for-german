@@ -26,6 +26,7 @@ from src.engine.review_log import (
     LearnerState,
     ReviewLog,
     derive_state,
+    entries_for_mode,
     entry_key,
     merge_entries,
     read_entries,
@@ -64,7 +65,7 @@ class Client:
         self.engine = FSRSEngine(request_retention=self.settings.retention)
 
     def state(self) -> LearnerState:
-        return derive_state(self.log.entries, self.engine)
+        return derive_state(entries_for_mode(self.log.entries, "deck"), self.engine)
 
     # -- triage ---------------------------------------------------------------
 
@@ -186,7 +187,9 @@ class Client:
 
     def stats(self) -> int:
         state = self.state()
-        s = compute_stats(self.deck, state, self.log.entries, self.engine, self.now())
+        s = compute_stats(
+            self.deck, state, entries_for_mode(self.log.entries, "deck"), self.engine, self.now()
+        )
         lines = [
             f"bekannt {s.known}  lernend {s.learning}  jung {s.young}  reif {s.mature}",
             f"fällig jetzt {s.due_now}  neu verfügbar {s.new_remaining}",

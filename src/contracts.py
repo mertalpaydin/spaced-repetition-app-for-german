@@ -325,6 +325,68 @@ class DeckManifest(BaseModel):
     #: does not have. Carried here because model ids live in this file and
     #: nowhere else (CLAUDE.md section 9), and the page cannot import it.
     model_generate: str = MODEL_GENERATE
+    #: The verb-forms drill (owner, 2026-11-04): its file and a content hash
+    #: of it. Additive and defaulted (rule 9). The hash is its own because the
+    #: page caches deck files by URL and deck_version covers units and cards
+    #: only; the page asks for ``verbs_file?v=<verbs_version>``.
+    verbs_file: str | None = None
+    verbs_version: str | None = None
+    verb_count: int = Field(default=0, ge=0)
+
+
+#: What the drill asks for the Perfekt: the auxiliary, as the learner types it.
+Auxiliary = Literal["hat", "ist"]
+
+
+class VerbFormsRecord(BaseModel):
+    """One row of ``data/phrases/verb_forms.jsonl``: the past forms of one
+    verb, or a rejection with why. Drafted by agy, checked by
+    ``src/phrases/verb_forms.py``; keyed by the infinitive, because the deck
+    can carry the same verb under two kinds."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    infinitive: str
+    #: The English shown before the answer, used when the deck unit has none.
+    gloss_en: str | None = None
+    #: Third person singular, the usual form first; a separable verb's
+    #: particle comes after it ("stand auf").
+    praeteritum: list[str] = Field(default_factory=list)
+    auxiliary: list[Auxiliary] = Field(default_factory=list)
+    partizip: list[str] = Field(default_factory=list)
+    accepted: bool
+    reject_reason: str | None = None
+    model: str
+    generated_at: datetime
+
+
+class VerbCard(BaseModel):
+    """One verb as the drill asks it: the infinitive and its English, then
+    Präteritum and Perfekt for er/sie/es. Every list holds the accepted
+    answers, the usual one first."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    #: "pf:" and the infinitive's slug: its own FSRS unit, kept apart from the
+    #: deck's units in the review log by that prefix.
+    unit_id: str
+    infinitive: str
+    gloss_en: str
+    #: The deck rank of the verb it comes from: the drill's order.
+    rank: int = Field(ge=1)
+    source_unit_id: str | None = None
+    praeteritum: list[str] = Field(min_length=1)
+    auxiliary: list[Auxiliary] = Field(min_length=1)
+    partizip: list[str] = Field(min_length=1)
+    #: The forms are what the weak-verb rule gives, so they can be worked out.
+    weak: bool
+
+
+class VerbsIndex(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: int = DECK_SCHEMA_VERSION
+    verbs: list[VerbCard]
 
 
 class UnitsIndex(BaseModel):
