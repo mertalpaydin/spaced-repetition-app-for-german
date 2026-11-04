@@ -56,6 +56,16 @@ from src.llm.translation_ledger import (
 CARRIER_CHARS = 10
 
 
+@pytest.fixture(autouse=True)
+def _no_real_wanted_carriers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``main`` defaults ``--carriers-file`` to the build's real
+    ``wanted_carriers.txt``. A test that does not name one must not read the
+    operator's: since pass 0 adds the wanted lines the corpus lacks
+    (2026-11-04), two tests saw 6,244 extra carriers on the owner's machine
+    and none in CI. Tests that want a file pass ``--carriers-file``."""
+    monkeypatch.setattr(topup, "DEFAULT_WANTED_CARRIERS_PATH", tmp_path / "no_wanted.txt")
+
+
 def _sentence(index: int) -> str:
     text = f"Satz {index:04d}."
     assert len(text) == CARRIER_CHARS
@@ -1286,6 +1296,43 @@ def test_main_wires_the_wanted_carriers_into_pass_zero(
     # And the validity filter is wired too: the rejected carrier never ships.
     assert invalid_calls
     assert _sentence(0) not in translator.translated
+
+
+def test_main_wanted_carrier_from_an_unread_corpus_is_still_pass_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The deck draws cards from six corpora and this job reads two. Pass 0
+    only marked corpus lines as wanted, so a wanted sentence from the other
+    four was never sent: the 2026-11-01 run glossed 750 of the deck's 7,244
+    and could never reach the other 6,492. Those are now read from the file."""
+    carriers = _carriers(40)
+    outside = "Diesen Satz liest der Job aus keinem seiner Korpora."
+    wanted = [outside, _sentence(23)]
+    carriers_path = tmp_path / "wanted_carriers.txt"
+    carriers_path.write_text(
+        f"opensubtitles_2018\t7\t{outside}\ntatoeba\t23\t{_sentence(23)}\n", encoding="utf-8"
+    )
+    translator = FakeTranslator()
+    monkeypatch.setattr(topup, "load_env_file", lambda: None)
+    monkeypatch.setattr(topup, "client_from_env", lambda **kwargs: None)
+    monkeypatch.setattr(topup, "_read_corpora", lambda args: dict(carriers))
+    monkeypatch.setattr(topup, "translator_from_env", lambda client: (translator, "azure_only"))
+    monkeypatch.setattr(topup, "_carrier_is_usable", lambda text: True)
+
+    argv = ["--store", str(tmp_path / "de_en.jsonl"), "--ledger", str(tmp_path / "ledger.json")]
+    argv += ["--report-file", str(tmp_path / "report.json"), "--carriers-file", str(carriers_path)]
+    assert main([*argv, "--monthly-budget", "100000", "--batch-size", "2"]) == 0
+    assert set(translator.calls[0]) == set(wanted)
+
+
+def test_with_wanted_carriers_adds_only_what_the_corpus_lacks() -> None:
+    corpus = {"aaa": _line("aaa")}
+    wanted = [CorpusLine(line_id="1", text="aaa", source="x"), CorpusLine("2", "bbb", "y")]
+    merged, added = topup.with_wanted_carriers(corpus, wanted)
+    assert added == 1
+    assert merged["aaa"] is corpus["aaa"], "a corpus line keeps its own source and id"
+    assert merged["bbb"].source == "y"
+    assert "bbb" not in corpus, "the input is not modified"
 
 
 def test_carriers_only_translates_the_file_and_never_the_corpus(

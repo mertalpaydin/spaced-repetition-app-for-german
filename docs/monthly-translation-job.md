@@ -250,6 +250,15 @@ Add these inside the `.cmd` file, after `scripts.monthly_translation_topup`:
 
 ## 8. What this job will and will not do
 
+It translates the phrase deck's own untranslated card sentences first
+(`data/phrases/build/wanted_carriers.txt`, "pass 0"), then the corpus at
+large. Until 2026-11-04 pass 0 only covered wanted sentences that were also
+in the two corpora this job reads (Tatoeba and the Leipzig sample), while
+the deck draws cards from six: the November run glossed 750 of the deck's
+7,244 and could never reach the other 6,492. The wanted sentences from the
+other corpora are now read from the file itself, and the run says how many
+with "N of them from corpora this job does not read, added".
+
 It replaces every Tatoeba gloss in the store with a machine translation,
 because Tatoeba's own translations are not trusted (see `TODO.md`, "Do not
 change these without asking the owner": a hand audit of 430 accepted exercises

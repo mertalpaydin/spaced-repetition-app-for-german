@@ -329,6 +329,27 @@ def load_exercise_carrier_lines(carriers_path: Path) -> list[CorpusLine]:
     return lines
 
 
+def with_wanted_carriers(
+    carriers: dict[str, CorpusLine], wanted: list[CorpusLine]
+) -> tuple[dict[str, CorpusLine], int]:
+    """``carriers`` plus every wanted line whose text it does not hold.
+
+    The deck draws its cards from six corpora; this job reads two. Pass 0
+    marks corpus lines that the deck wants, so a wanted sentence from the
+    other four was never sent at all: the 2026-11-01 run glossed 750 of the
+    deck's 7,244 untranslated card sentences and could never reach the other
+    6,492. A line the corpus already holds keeps its own source and id.
+    Returns the merged mapping and how many lines were added.
+    """
+    merged = dict(carriers)
+    added = 0
+    for line in wanted:
+        if line.text not in merged:
+            merged[line.text] = line
+            added += 1
+    return merged, added
+
+
 @dataclass(frozen=True)
 class PrioritisedCarriers:
     """The corpus split into this job's passes, each already in order."""
@@ -980,6 +1001,11 @@ def main(argv: list[str] | None = None) -> int:
     exercise_carriers, pass_zero_notes = load_exercise_carriers(
         None if args.no_priority_carriers else Path(args.carriers_file),
     )
+    if exercise_carriers and not args.carriers_only:
+        carriers, added = with_wanted_carriers(
+            carriers, load_exercise_carrier_lines(Path(args.carriers_file))
+        )
+        pass_zero_notes.append(f"{added} of them from corpora this job does not read, added")
     print("\n  Pass 0, carriers that are or will be exercises:")
     for note in pass_zero_notes:
         print(f"    {note}")
