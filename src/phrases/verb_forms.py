@@ -256,10 +256,14 @@ def form_requests(units: Iterable[PhraseUnit]) -> list[tuple[str, bool, PhraseUn
     units = list(units)
     verbs = drill_verbs(units)
     have = {inf for inf, _, _ in verbs}
+
+    def separable(base: str) -> bool:
+        # "vor"+"stellen", but not "ein"+"igen": the rest must be a verb
+        particle, rest = split_particle(base)
+        return bool(particle) and rest in have
+
     extra = [
-        (base, bool(split_particle(base)[0]), None)
-        for base, _ in drill_reflexives(units)
-        if base not in have
+        (base, separable(base), None) for base, _ in drill_reflexives(units) if base not in have
     ]
     return verbs + extra
 

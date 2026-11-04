@@ -164,7 +164,17 @@ def test_reflexive_verbs_derive_their_forms_from_the_base_verb() -> None:
         "vorstellen": _record("vorstellen", ["stellte vor"], ["hat"], ["vorgestellt"]),
         "verlaufen": _record("verlaufen", ["verlief"], ["ist"], ["verlaufen"]),
     }
-    assert form_requests([reflexive, vorstellen, verlaufen])[-3:] == [
+    stellen = reflexive.model_copy(
+        update={
+            "unit_id": "vb:stellen",
+            "kind": "verb",
+            "lemma_key": "stellen",
+            "parts": ["stellen"],
+            "display_de": "stellen",
+            "rank": 50,
+        }
+    )
+    assert form_requests([reflexive, vorstellen, verlaufen, stellen])[-3:] == [
         ("setzen", False, None), ("vorstellen", True, None), ("verlaufen", False, None),
     ]  # fmt: skip
     cards = {c.unit_id: c for c in verb_cards([reflexive, vorstellen, verlaufen], records)}
