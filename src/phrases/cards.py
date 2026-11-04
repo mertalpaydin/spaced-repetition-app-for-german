@@ -698,12 +698,20 @@ def select_cards(
     k_trivial: int = 2,
     max_validations: int | None = None,
     excluded_card_ids: frozenset[str] = frozenset(),
+    kept_card_ids: frozenset[str] = frozenset(),
 ) -> CardSelection:
     """``occurrences_by_unit`` maps ``unit_id`` to that unit's occurrences.
     ``glosses`` maps sentence text to its stored gloss (any source; the trust
     rule is applied here). ``validate`` is the carrier validator, injected.
     ``max_validations`` bounds the validator calls; past it, remaining units
-    get no cards this run and the stats say so."""
+    get no cards this run and the stats say so.
+
+    ``kept_card_ids`` are the cards the learner already sees, from the
+    deployed deck. Each is chosen before any other candidate, so a sentence
+    that gains English later fills an empty or hidden slot instead of
+    displacing a card a reviewer has read: the November glosses would have
+    swapped 363 of them in the top band (2026-11-04). A kept card still has
+    to pass every rule below, and it is only kept while it has English."""
     # What the deck teaches as a verb plus preposition, per verb lemma, so a
     # plain-verb card never shows the prepositional unit instead.
     governed: dict[str, frozenset[str]] = {}
@@ -761,26 +769,37 @@ def select_cards(
 
         chosen: list[PhraseCard] = []
         taken_forms: set[str] = set()
-        remaining = candidates
+        kept: list[tuple[Occurrence, Gloss | None]] = []
+        fresh: list[tuple[Occurrence, Gloss | None]] = []
+        for pair in candidates:
+            deployed = card_id_for(unit.unit_id, pair[0].text) in kept_card_ids
+            (kept if deployed and pair[1] is not None else fresh).append(pair)
         budget_hit = False
-        while remaining and len(chosen) < cap:
-            remaining.sort(
-                key=lambda pair: _score(
-                    pair[0], taken_forms=taken_forms, glossed=pair[1] is not None
+        for remaining in (kept, fresh):
+            while remaining and len(chosen) < cap:
+                remaining.sort(
+                    key=lambda pair: _score(
+                        pair[0], taken_forms=taken_forms, glossed=pair[1] is not None
+                    )
                 )
-            )
-            occ, gloss = remaining.pop(0)
-            verdict = is_valid(occ.text)
-            if verdict is None:
-                budget_hit = True
+                occ, gloss = remaining.pop(0)
+                verdict = is_valid(occ.text)
+                if verdict is None:
+                    budget_hit = True
+                    break
+                if not verdict:
+                    stats["carrier_rejected"] += 1
+                    continue
+                chosen.append(_to_card(unit, occ, gloss))
+                taken_forms.add(occ.form_key)
+                if remaining is kept:
+                    stats["kept_from_deck"] += 1
+                if gloss is None:
+                    wanted.append(
+                        WantedCarrier(unit.unit_id, occ.corpus_source, occ.line_id, occ.text)
+                    )
+            if budget_hit:
                 break
-            if not verdict:
-                stats["carrier_rejected"] += 1
-                continue
-            chosen.append(_to_card(unit, occ, gloss))
-            taken_forms.add(occ.form_key)
-            if gloss is None:
-                wanted.append(WantedCarrier(unit.unit_id, occ.corpus_source, occ.line_id, occ.text))
         if budget_hit:
             stats["units_past_validation_budget"] += 1
         cards.extend(chosen)

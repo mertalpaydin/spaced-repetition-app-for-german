@@ -63,6 +63,59 @@ def test_a_glossed_sentence_beats_an_unglossed_twin_of_the_same_form() -> None:
     assert selection.wanted == []
 
 
+def test_select_cards_deployed_card_keeps_its_place_over_a_newly_glossed_one() -> None:
+    """The November glosses (2026-11-04) would have swapped 363 shown, reviewed
+    top-band cards for unread ones, only because a shorter sentence had
+    gained English. A card the learner already sees keeps its slot."""
+    kept = _occ("Er wartet schon seit Stunden geduldig auf den Bus.", "wartet", "auf")
+    short = _occ("Er wartet auf den Zug.", "wartet", "auf")
+    glosses = {
+        kept.text: Gloss("He has been waiting patiently for the bus for hours.", "azure"),
+        short.text: Gloss("He waits for the train.", "azure"),
+    }
+    occs = {UNIT.unit_id: [kept, short]}
+    fresh = select_cards([UNIT], occs, glosses, validate=lambda _: True, k=1)
+    assert fresh.cards[0].sentence_de == short.text, "without a deck, the short one wins"
+
+    deployed = frozenset({card_id_for(UNIT.unit_id, kept.text)})
+    stable = select_cards(
+        [UNIT], occs, glosses, validate=lambda _: True, k=1, kept_card_ids=deployed
+    )
+    assert stable.cards[0].sentence_de == kept.text
+    assert stable.stats["kept_from_deck"] == 1
+
+
+def test_select_cards_deployed_card_still_meets_every_rule() -> None:
+    """Keeping is a preference, not an exemption: a deployed card that lost
+    its English, fails validation or was excluded by a review is not kept."""
+    kept = _occ("Er wartet schon seit Stunden geduldig auf den Bus.", "wartet", "auf")
+    other = _occ("Er wartet auf den Zug.", "wartet", "auf")
+    glosses = {other.text: Gloss("He waits for the train.", "azure")}
+    deployed = frozenset({card_id_for(UNIT.unit_id, kept.text)})
+    occs = {UNIT.unit_id: [kept, other]}
+    no_english = select_cards(
+        [UNIT], occs, glosses, validate=lambda _: True, k=1, kept_card_ids=deployed
+    )
+    assert no_english.cards[0].sentence_de == other.text
+
+    glosses[kept.text] = Gloss("He has been waiting patiently for the bus for hours.", "azure")
+    invalid = select_cards(
+        [UNIT], occs, glosses, validate=lambda t: t != kept.text, k=1, kept_card_ids=deployed
+    )
+    assert invalid.cards[0].sentence_de == other.text
+
+    excluded = select_cards(
+        [UNIT],
+        occs,
+        glosses,
+        validate=lambda _: True,
+        k=1,
+        kept_card_ids=deployed,
+        excluded_card_ids=deployed,
+    )
+    assert excluded.cards[0].sentence_de == other.text
+
+
 def test_azure_gloss_yields_a_card_whose_gaps_slice_back() -> None:
     occ = _occ("Er wartet auf den Bus.", "wartet", "auf")
     glosses = {occ.text: Gloss("He waits for the bus.", "azure")}

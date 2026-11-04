@@ -168,6 +168,14 @@ accept that it stays card-less.
   Azure or Gemini gloss is exported with `gloss_en: null` and is not shown
   until glossed. Writes `wanted_carriers.txt`: every chosen sentence still
   without a gloss, for the monthly Azure job.
+
+  **A card the deck at `--out` already shows keeps its place** (2026-11-04).
+  Its cards with English are chosen first, still subject to every rule above
+  and to the excluded list, and a sentence that gains English later fills
+  only an empty or hidden slot. Without this, a month of new glosses swapped
+  shown, reviewed cards for unread ones because a shorter sentence had become
+  eligible: 363 in the top 1500 after the November run. `--fresh-cards`
+  chooses every card afresh, ignoring the deck.
 - **export** joins accepted contexts, sets `card_count`, and writes
   `manifest.json`, `units.json` and `shards/band_NNN.json` (200 units each,
   ranked). `deck_version` is a content hash.

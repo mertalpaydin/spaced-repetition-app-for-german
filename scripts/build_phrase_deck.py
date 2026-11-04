@@ -61,6 +61,7 @@ from src.phrases.export import (
     check_deck,
     export_deck,
     export_reserve,
+    load_deck,
     write_schema,
 )
 from src.phrases.mining import (
@@ -911,7 +912,26 @@ def _verdict_cache(build_dir: Path) -> VerdictCache | None:
     return VerdictCache(build_dir / "cache" / "carrier_verdicts.json", key)
 
 
-def _select_cards(args: argparse.Namespace, units: list[PhraseUnit]) -> cards_module.CardSelection:
+def _deployed_card_ids(args: argparse.Namespace) -> frozenset[str]:
+    """Card ids of the deck at ``--out`` that the learner sees (they have
+    English), which ``select_cards`` keeps in place; see its docstring. A
+    missing or unreadable deck keeps nothing, which is the right answer for
+    a first build and for the golden test, and ``--fresh-cards`` asks for a
+    selection that ignores the deck on purpose."""
+    if args.fresh_cards:
+        return frozenset()
+    try:
+        _, _, cards = load_deck(Path(args.out))
+    except (OSError, ValueError):
+        return frozenset()
+    return frozenset(c.card_id for c in cards if c.gloss_en is not None)
+
+
+def _select_cards(
+    args: argparse.Namespace,
+    units: list[PhraseUnit],
+    kept_card_ids: frozenset[str] = frozenset(),
+) -> cards_module.CardSelection:
     """Cards for ``units`` from the occurrences on disk.
 
     Shared by the deck and the reserve, which differ only in which units
@@ -959,6 +979,7 @@ def _select_cards(args: argparse.Namespace, units: list[PhraseUnit]) -> cards_mo
         k=args.k,
         max_validations=args.max_validations,
         excluded_card_ids=frozenset(curated.excluded_cards),
+        kept_card_ids=kept_card_ids,
     )
     if verdicts is not None:
         verdicts.save()
@@ -975,7 +996,9 @@ def stage_cards(args: argparse.Namespace) -> int:
     if not parser_available():
         _log("cards: spaCy model missing; carrier validation cannot run")
         return 1
-    selection = _select_cards(args, _read_units(units_path))
+    kept = _deployed_card_ids(args)
+    _log(f"cards: {len(kept):,} card(s) of the deck at {args.out} keep their place")
+    selection = _select_cards(args, _read_units(units_path), kept)
     _write_models(build_dir / "cards.jsonl", selection.cards)
     write_text_atomic(
         build_dir / "wanted_carriers.txt",
@@ -1253,6 +1276,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--out", type=Path, default=DEFAULT_DECK_DIR)
     parser.add_argument("--shard-size", type=int, default=200)
     parser.add_argument("--k", type=int, default=6, help="cards per unit")
+    parser.add_argument(
+        "--fresh-cards",
+        action="store_true",
+        help="choose every card afresh instead of keeping the cards the deck at --out shows",
+    )
     parser.add_argument(
         "--max-validations",
         type=int,

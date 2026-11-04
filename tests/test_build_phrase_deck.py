@@ -62,10 +62,11 @@ def test_build_over_the_sample_corpus_matches_the_golden_outputs(tmp_path: Path)
         )
         == 0
     )
-    # --out points mine at this test's own (empty) deck, so the ids it pins
-    # come from nothing rather than from whatever deck is committed.
+    # --out points mine and cards at this test's own (empty) deck, so the ids
+    # mine pins and the cards that keep their place come from nothing rather
+    # than from whatever deck is committed.
     assert main(["--stage", "mine", "--out", str(out_dir), *common]) == 0
-    assert main(["--stage", "cards", *store, *common]) == 0
+    assert main(["--stage", "cards", "--out", str(out_dir), *store, *common]) == 0
     assert main(["--stage", "export", "--out", str(out_dir), *common]) == 0
     assert main(["--check", "--out", str(out_dir)]) == 0
 
@@ -81,7 +82,7 @@ def test_build_over_the_sample_corpus_matches_the_golden_outputs(tmp_path: Path)
     assert (build_dir / "cache" / "parse_key.json").exists()
     assert (build_dir / "cache" / "carrier_verdicts.json").exists()
     assert main(["--stage", "mine", "--out", str(out_dir), *common]) == 0
-    assert main(["--stage", "cards", *store, *common]) == 0
+    assert main(["--stage", "cards", "--out", str(out_dir), *store, *common]) == 0
     assert (build_dir / "units.jsonl").read_bytes() == first_units
     assert (build_dir / "cards.jsonl").read_bytes() == first_cards
 
