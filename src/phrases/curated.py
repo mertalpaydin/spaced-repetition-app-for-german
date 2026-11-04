@@ -190,6 +190,9 @@ class CuratedLists(BaseModel):
     requested: list[RequestedUnit] = Field(default_factory=list)
     #: Groups of lemma keys that accept each other (synonyms.yaml).
     synonyms: list[list[str]] = Field(default_factory=list)
+    #: Groups of words easy to mix up that the English alone does not pair
+    #: (rivals.yaml): each earns a retry in the others' gaps.
+    rivals: list[list[str]] = Field(default_factory=list)
 
 
 def _load_yaml_list(path: Path) -> list[object]:
@@ -271,6 +274,7 @@ def load_curated(phrases_dir: Path = DEFAULT_PHRASES_DIR) -> CuratedLists:
         raise ValueError("duplicate connector keys in connectors.yaml")
     _check_requested(requested)
     synonyms = _check_synonyms(_load_yaml_list(phrases_dir / "synonyms.yaml"))
+    rivals = _check_groups(_load_yaml_list(phrases_dir / "rivals.yaml"), "rivals.yaml")
     return CuratedLists(
         connectors=connectors,
         idioms=idioms,
@@ -282,7 +286,24 @@ def load_curated(phrases_dir: Path = DEFAULT_PHRASES_DIR) -> CuratedLists:
         overrides=overrides,
         requested=requested,
         synonyms=synonyms,
+        rivals=rivals,
     )
+
+
+def _check_groups(raw: list[object], name: str) -> list[list[str]]:
+    """Each group two or more lowercase keys. Unlike synonyms, a key may be in
+    two groups: "sprechen" is a rival of "sich unterhalten" and of "reden"
+    without those two being each other's."""
+    groups: list[list[str]] = []
+    for entry in raw:
+        if not isinstance(entry, list) or len(entry) < 2:
+            raise ValueError(f"{name}: each entry is a list of two or more keys, got {entry!r}")
+        group = [str(k) for k in entry]
+        for key in group:
+            if key != key.strip().lower() or not key:
+                raise ValueError(f"{name}: {key!r} must be a lowercase lemma key or word")
+        groups.append(group)
+    return groups
 
 
 def _check_synonyms(raw: list[object]) -> list[list[str]]:

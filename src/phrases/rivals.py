@@ -121,6 +121,43 @@ def assign_rivals(units: Sequence[PhraseUnit]) -> list[PhraseUnit]:
     return out
 
 
+def apply_curated_rivals(
+    units: Iterable[PhraseUnit], groups: Sequence[Sequence[str]]
+) -> list[PhraseUnit]:
+    """Each unit in a curated group gets the group's other members as
+    rivals: the unit when the deck has one by that lemma key, the bare word
+    when it has not ("wegen" for "aufgrund"). After ``assign_rivals``, which
+    would otherwise overwrite them. The owner's reports of 2026-10-28 to
+    11-03 named pairs the English cannot find: "Umgebung" for "Gegend",
+    "sprechen" for "sich unterhalten", "dagegen" for "gegenüber"."""
+    units = list(units)
+    by_key: dict[str, list[str]] = defaultdict(list)
+    for unit in units:
+        by_key[unit.lemma_key].append(unit.unit_id)
+    extra_ids: dict[str, set[str]] = defaultdict(set)
+    extra_words: dict[str, set[str]] = defaultdict(set)
+    for group in groups:
+        for key in group:
+            for own in by_key.get(key, []):
+                for other in group:
+                    if other == key:
+                        continue
+                    if by_key.get(other):
+                        extra_ids[own].update(by_key[other])
+                    else:
+                        extra_words[own].add(other)
+    out: list[PhraseUnit] = []
+    for unit in units:
+        ids = sorted(extra_ids.get(unit.unit_id, set()) - set(unit.rivals) - {unit.unit_id})
+        words = sorted(extra_words.get(unit.unit_id, set()) - set(unit.rival_words))
+        if ids or words:
+            unit = unit.model_copy(
+                update={"rivals": [*unit.rivals, *ids], "rival_words": [*unit.rival_words, *words]}
+            )
+        out.append(unit)
+    return out
+
+
 def apply_synonyms(
     units: Iterable[PhraseUnit], groups: Sequence[Sequence[str]]
 ) -> list[PhraseUnit]:

@@ -155,6 +155,10 @@ class PhraseUnit(BaseModel):
     #: wanted and tries again, nothing recorded (owner, 2026-10-24). Additive
     #: field, 2026-10-24.
     rivals: list[str] = Field(default_factory=list)
+    #: Rival words the deck has no unit for ("wegen" beside "aufgrund"),
+    #: from data/phrases/rivals.yaml; typing one earns the same retry.
+    #: Additive field, 2026-11-04.
+    rival_words: list[str] = Field(default_factory=list)
     #: Distinct corpus sentences containing the unit, all corpora together.
     sentence_count: int = Field(ge=0)
     count_by_source: dict[str, int] = Field(default_factory=dict)

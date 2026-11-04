@@ -97,6 +97,17 @@ test("a -nis plural is an ending slip, a letter slipped in the ending is a near 
   assert.ok(!gradeCard(vertrauen, ["glaube"]).nearMiss, "another word is no slip");
 });
 
+test("a rival word the deck has no unit for earns the retry", () => {
+  // Twin of test_rival_typed_a_rival_word_outside_the_deck_earns_the_retry.
+  const sentence = "Wir blieben aufgrund des Regens zu Hause.";
+  const start = sentence.indexOf("aufgrund");
+  const card = { sentence_de: sentence, form_key: "", answers: ["aufgrund"], gaps: [{ start, end: start + 8, answer: "aufgrund", token_index: 2 }] };
+  const unit = { unit_id: "aj:aufgrund", parts: ["aufgrund"], rivals: [], rival_words: ["wegen"] };
+  const formsOf = (id) => (id === unit.unit_id ? unitForms(unit, [card]) : new Set([id]));
+  assert.equal(rivalTyped(unit, gradeCard(card, ["wegen"]), formsOf), "wegen");
+  assert.equal(rivalTyped(unit, gradeCard(card, ["trotz"]), formsOf), null);
+});
+
 test("kriegen typed for bekommen is a rival, and earns another try", () => {
   // Twin of test_rival_typed_kriegen_for_bekommen_is_a_rival in
   // tests/test_phrase_rivals.py (owner, 2026-10-24).

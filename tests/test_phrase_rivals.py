@@ -3,7 +3,7 @@ the same word (owner, 2026-10-24)."""
 
 from src.contracts import GapSpan, PhraseCard, PhraseUnit
 from src.engine.grading import grade_card, rival_typed, unit_forms
-from src.phrases.rivals import apply_synonyms, assign_rivals, senses
+from src.phrases.rivals import apply_curated_rivals, apply_synonyms, assign_rivals, senses
 
 
 def _unit(
@@ -111,6 +111,34 @@ def test_rival_typed_kriegen_for_bekommen_is_a_rival() -> None:
     assert rival_typed(bekommen, grade_card(card, [None]), forms_of) is None
     # the unit's own form in another shape is graded as itself, not a rival
     assert rival_typed(bekommen, grade_card(card, ["bekommen"]), forms_of) is None
+
+
+def test_apply_curated_rivals_pairs_units_and_words_the_deck_lacks() -> None:
+    """The owner's reports of 2026-10-28 to 11-03: "Umgebung" for "Gegend"
+    share no English sense, "wegen" for "aufgrund" has no unit at all."""
+    units = [
+        _unit("nn:gegend", "noun", "gegend", "area / region", 1),
+        _unit("nn:umgebung", "noun", "umgebung", "surroundings", 2),
+        _unit("aj:aufgrund", "adverb", "aufgrund", "due to", 3),
+    ]
+    out = {
+        u.unit_id: u
+        for u in apply_curated_rivals(units, [["gegend", "umgebung"], ["aufgrund", "wegen"]])
+    }
+    assert out["nn:gegend"].rivals == ["nn:umgebung"]
+    assert out["nn:umgebung"].rivals == ["nn:gegend"]
+    assert out["aj:aufgrund"].rival_words == ["wegen"] and out["aj:aufgrund"].rivals == []
+
+
+def test_rival_typed_a_rival_word_outside_the_deck_earns_the_retry() -> None:
+    aufgrund = _unit("aj:aufgrund", "adverb", "aufgrund", "due to", 3, rival_words=["wegen"])
+    card = _card("a" * 12, "aj:aufgrund", "Wir blieben aufgrund des Regens zu Hause.", "aufgrund")
+
+    def forms_of(unit_id: str) -> frozenset[str]:
+        return unit_forms(aufgrund, [card]) if unit_id == aufgrund.unit_id else frozenset()
+
+    assert rival_typed(aufgrund, grade_card(card, ["wegen"]), forms_of) == "wegen"
+    assert rival_typed(aufgrund, grade_card(card, ["trotz"]), forms_of) is None
 
 
 def test_rival_typed_accepts_an_inflected_form_or_a_one_letter_slip() -> None:

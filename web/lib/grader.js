@@ -303,20 +303,23 @@ export function unitForms(unit, cards) {
 // The rival unit the learner typed into a failed gap, or null: the right
 // idea and the wrong word, which earns another try. Matches rival_typed.
 export function rivalTyped(unit, grade, formsOf) {
-  if (grade.rating !== "again" || !(unit.rivals || []).length) return null;
+  const words = unit.rival_words || [];
+  if (grade.rating !== "again" || !((unit.rivals || []).length || words.length)) return null;
   const own = formsOf(unit.unit_id);
   for (const gap of grade.gaps) {
     if (gap.outcome !== "wrong" || gap.near) continue;
     const typed = gap.typed.trim().toLowerCase();
     if (NOT_A_RIVAL_FORM.has(typed) || typed.length < 3 || closeTo(typed, own)) continue;
-    for (const rival of unit.rivals) if (closeTo(typed, formsOf(rival))) return rival;
+    for (const rival of unit.rivals || []) if (closeTo(typed, formsOf(rival))) return rival;
+    // A rival the deck has no unit for (rivals.yaml, 2026-11-04): the word itself.
+    for (const word of words) if (closeTo(typed, new Set([word]))) return word;
   }
   return null;
 }
 
 // One of the forms, in another ending, or with a letter slipped. Matches
 // _close_to in src/engine/grading.py.
-function closeTo(typed, forms) {
+export function closeTo(typed, forms) {
   if (forms.has(typed)) return true;
   for (const f of forms) {
     if (isInflectionOf(typed, f) || (f.length >= 5 && levenshtein(typed, f) === 1)) return true;

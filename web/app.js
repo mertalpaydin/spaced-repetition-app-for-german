@@ -5,7 +5,7 @@
 
 import { loadDeck, loadReserveIndex, lookupReserve, withAdded } from "./lib/deck.js";
 import { createEngine } from "./lib/engine.js";
-import { gradeCard, renderMarked, rivalTyped, unitForms } from "./lib/grader.js";
+import { closeTo, gradeCard, renderMarked, rivalTyped, unitForms } from "./lib/grader.js";
 import { isCloseEnough, letterDiff } from "./lib/letterdiff.js";
 import { deriveState, entriesForMode, entriesSinceReset, makeCorrection, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import { gradeVerb, loadVerbs, verbDeck } from "./lib/verbs.js";
@@ -360,7 +360,9 @@ function typedValues(reveal) {
 // Built on first use per unit; the deck does not change under a session.
 const formsCache = new Map();
 function formsOf(unitId) {
-  if (!formsCache.has(unitId)) formsCache.set(unitId, unitForms(deck.byId[unitId] || { parts: [] }, deck.cardsByUnit[unitId]));
+  // A rival word the deck has no unit for (rivals.yaml) is its own only form.
+  if (!deck.byId[unitId]) return new Set([unitId.toLowerCase()]);
+  if (!formsCache.has(unitId)) formsCache.set(unitId, unitForms(deck.byId[unitId], deck.cardsByUnit[unitId]));
   return formsCache.get(unitId);
 }
 
@@ -376,7 +378,8 @@ async function check(reveal = false) {
   const rival = reveal ? null : rivalTyped(unit, result, formsOf);
   if (rival && !current.triedRivals.has(rival)) {
     current.triedRivals.add(rival);
-    const gap = result.gaps.find((g) => g.outcome === "wrong" && formsOf(rival).has(g.typed.trim().toLowerCase()));
+    // Tolerant, as rivalTyped is: "bekannte" for the rival "bekannt" too.
+    const gap = result.gaps.find((g) => g.outcome === "wrong" && closeTo(g.typed.trim().toLowerCase(), formsOf(rival)));
     $("retry-note").textContent = `„${gap ? gap.typed.trim() : ""}“ ist ein anderes Wort mit ähnlicher Bedeutung. Gesucht ist ein anderes, noch ein Versuch.`;
     $("retry-note").hidden = false;
     const inputs = $("sentence").querySelectorAll("input.gap");

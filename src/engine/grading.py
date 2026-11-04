@@ -420,7 +420,7 @@ def rival_typed(
     A word that is also one of the unit's own forms is not a rival: that
     is the unit, graded as it is.
     """
-    if grade.correct or not unit.rivals:
+    if grade.correct or not (unit.rivals or unit.rival_words):
         return None
     own = forms_of(unit.unit_id)
     for gap in grade.gaps:
@@ -432,6 +432,10 @@ def rival_typed(
         for rival in unit.rivals:
             if _close_to(typed, forms_of(rival)):
                 return rival
+        # A rival the deck has no unit for (rivals.yaml, 2026-11-04): the word.
+        for word in unit.rival_words:
+            if _close_to(typed, frozenset({word})):
+                return word
     return None
 
 
