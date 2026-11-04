@@ -140,11 +140,27 @@ const foldUmlauts = (w) => w.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü
 // match; two words that differ ONLY by an umlaut ("schon"/"schön",
 // "hatte"/"hätte") stay two words. Matches is_inflection_of in
 // src/engine/grading.py.
+// One letter added, dropped, changed or two swapped, inside the ending
+// where the typo grader does not count it: "vertraure" for "vertraue"
+// (2026-10-30). A near miss, the learner decides. Matches
+// is_one_letter_slip in src/engine/grading.py.
+export function isOneLetterSlip(typed, expected) {
+  const a = (typed || "").trim().toLowerCase();
+  const b = (expected || "").trim().toLowerCase();
+  if (a === b || b.length < 4) return false;
+  if (levenshtein(a, b) === 1) return true;
+  return a.length === b.length && isAdjacentTransposition(a, b);
+}
+
 export function isInflectionOf(typed, expected) {
   const a = (typed || "").trim().toLowerCase();
   const b = (expected || "").trim().toLowerCase();
   if (!a || a === b) return false;
   if (foldUmlauts(a) === foldUmlauts(b)) return false;
+  // A noun in -nis doubles its s in the plural: "Kenntnisse" (2026-10-30).
+  for (const [short, long] of [[a, b], [b, a]]) {
+    if (short.endsWith("nis") && (long === `${short}se` || long === `${short}sen`)) return true;
+  }
   const sb = new Set([...stems(b)].map(foldUmlauts));
   for (const stem of stems(a)) if (sb.has(foldUmlauts(stem))) return true;
   return false;
@@ -265,7 +281,7 @@ export function gradeGap(card, i, typed, alternatives = []) {
   else if (!verbal && forms.some((f) => isInflectionOf(typed, f))) outcome = "inflection";
   else if (expected.toLowerCase() === "zu" && ["", "zu"].includes(typed.trim().toLowerCase())) { outcome = "wrong"; near = true; }
   else if (forms.some((f) => isFusedPrepositionOf(typed, f) || isSharpSSlip(typed, f)
-    || isPrepositionSlip(typed, f) || isFeminineFormOf(typed, f))) { outcome = "wrong"; near = true; }
+    || isPrepositionSlip(typed, f) || isFeminineFormOf(typed, f) || isOneLetterSlip(typed, f))) { outcome = "wrong"; near = true; }
   else outcome = "wrong";
   return { expected, typed, outcome, accepted: r.is_correct, near };
 }

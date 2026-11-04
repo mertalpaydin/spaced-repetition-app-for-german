@@ -83,6 +83,20 @@ test("a fused preposition or a sharp s is a near miss", () => {
   assert.ok(!gradeCard(erzaehlen, ["über", "erzählen"]).nearMiss);
 });
 
+test("a -nis plural is an ending slip, a letter slipped in the ending is a near miss", () => {
+  // Twin of test_grade_card_nis_plural_and_a_slipped_letter_in_the_ending
+  // (owner's reports of 2026-10-30).
+  const kenntnis = { sentence_de: "Der Rat nahm dies zur Kenntnis.", form_key: "Dat|Sing", gaps: [
+    { start: 22, end: 30, answer: "Kenntnis", token_index: 5 }] };
+  assert.equal(gradeCard(kenntnis, ["Kenntnisse"]).rating, "hard");
+  assert.equal(gradeCard(kenntnis, ["Kenntnisse"]).gaps[0].outcome, "inflection");
+  const vertrauen = { sentence_de: "Du bist die Person, der ich vertraue.", form_key: "Fin|Pres|1|Sing", gaps: [
+    { start: 28, end: 36, answer: "vertraue", token_index: 6 }] };
+  assert.equal(gradeCard(vertrauen, ["vertraure"]).rating, "again");
+  assert.ok(gradeCard(vertrauen, ["vertraure"]).nearMiss);
+  assert.ok(!gradeCard(vertrauen, ["glaube"]).nearMiss, "another word is no slip");
+});
+
 test("kriegen typed for bekommen is a rival, and earns another try", () => {
   // Twin of test_rival_typed_kriegen_for_bekommen_is_a_rival in
   // tests/test_phrase_rivals.py (owner, 2026-10-24).

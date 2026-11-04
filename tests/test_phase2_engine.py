@@ -260,6 +260,28 @@ def test_verb_forms_the_owner_named_are_near_misses() -> None:
     assert grade_card(zu, ["", "schlafen"]).near_miss
 
 
+def test_grade_card_nis_plural_and_a_slipped_letter_in_the_ending() -> None:
+    """The owner's reports of 2026-10-30. "Kenntnisse" for "Kenntnis" is the
+    same noun in the plural, which passes as an ending slip like every other
+    declension, but the -nis plural doubles its s and was not known.
+    "vertraure" for "vertraue" is one letter slipped inside the ending,
+    where the typo grader does not look: it fails, and the learner may
+    count it."""
+    kenntnis = _card(
+        "k10000000000", "nn:kenntnis", "Der Rat nahm dies zur Kenntnis.", ["Kenntnis"],
+        form_key="Dat|Sing",
+    )  # fmt: skip
+    grade = grade_card(kenntnis, ["Kenntnisse"])
+    assert grade.rating == "hard" and grade.gaps[0].outcome == "inflection"
+    vertrauen = _card(
+        "v10000000000", "vb:vertrauen", "Du bist die Person, der ich vertraue.", ["vertraue"],
+        form_key="Fin|Pres|1|Sing",
+    )  # fmt: skip
+    assert grade_card(vertrauen, ["vertraure"]).rating == "again"
+    assert grade_card(vertrauen, ["vertraure"]).near_miss
+    assert not grade_card(vertrauen, ["glaube"]).near_miss
+
+
 def test_grade_card_fused_preposition_or_sharp_s_is_a_near_miss() -> None:
     """The owner's three reports of 2026-10-23/24, each "no consider this
     right button": "zum" for "zu", "vom" for "von", "Nachweiß" for

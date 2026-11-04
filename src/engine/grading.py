@@ -113,6 +113,11 @@ def is_inflection_of(typed: str, expected: str) -> bool:
     # forms of one: "schon"/"schön", "hatte"/"hätte", "konnte"/"könnte".
     if _fold_umlauts(a) == _fold_umlauts(b):
         return False
+    # A noun in -nis doubles its s in the plural, which no ending in the list
+    # describes: "Kenntnisse" for "Kenntnis" (owner, 2026-10-30).
+    for short, long in ((a, b), (b, a)):
+        if short.endswith("nis") and long in {short + "se", short + "sen"}:
+            return True
     # Umlauts are folded inside the stem, so a plural that umlauts its stem
     # is still the same word: "Hände"/"Hand", "Häuser"/"Haus". Until
     # 2026-10-22 they were compared as written and "Hände" was graded wrong.
@@ -269,6 +274,20 @@ def is_preposition_slip(typed: str, expected: str) -> bool:
     return ScopedTypoGrader._levenshtein_distance(a, b) == 1
 
 
+def is_one_letter_slip(typed: str, expected: str) -> bool:
+    """Whether ``typed`` is ``expected`` with one letter added, dropped,
+    changed or two swapped, where the typo grader does not count it: inside
+    the ending, which it reads as grammar. "vertraure" for "vertraue"
+    (owner, 2026-10-30). A slip in an ending can also be a real wrong form,
+    so it is a near miss: it fails, and the learner decides."""
+    a, b = typed.strip().lower(), expected.strip().lower()
+    if a == b or len(b) < 4:
+        return False
+    if ScopedTypoGrader._levenshtein_distance(a, b) == 1:
+        return True
+    return len(a) == len(b) and ScopedTypoGrader._is_adjacent_transposition(a, b)
+
+
 #: The feminine endings of a person noun, "innen" as typed with one n too.
 _FEMININE_ENDINGS = ("innen", "inen", "in")
 
@@ -340,6 +359,7 @@ def grade_gap(
         or is_sharp_s_slip(typed, f)
         or is_preposition_slip(typed, f)
         or is_feminine_form_of(typed, f)
+        or is_one_letter_slip(typed, f)
         for f in forms
     ):
         outcome, near = "wrong", True
