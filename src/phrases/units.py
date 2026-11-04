@@ -1109,6 +1109,18 @@ class _Decision:
 
 
 class UnitBuilder:
+    #: How much a single word's CEFR level moves it in the ranking, as a
+    #: factor on its frequency. Owner, 2026-11-04: "der Kerl" ranked 566 on
+    #: film dialogue while "der Bus", "kalt" and "das Wetter" waited behind
+    #: it, and 1,019 A1 words ranked below 2000. A word on no list counts as
+    #: B2 (see ``_unit_cefr``). Measured on the deck that day: Kerl 566 ->
+    #: 1068, töten 215 -> 436, Bus 560 -> 486; A1 among the first 1000 single
+    #: words 453 -> 521, B2 64 -> 24. Words only: phrases have their own share
+    #: of the ranking and mostly no level of their own. ``per_million`` is left
+    #: as measured. A class attribute, not a module constant, so a change here
+    #: does not invalidate the build cache (``src/phrases/build_cache.py``).
+    CEFR_RANK_PULL = {"A1": 1.6, "A2": 1.25, "B1": 1.0, "B2": 0.75}
+
     def __init__(
         self,
         counts: LemmaCounts,
@@ -1939,8 +1951,25 @@ class UnitBuilder:
             stat = item[1][0]
             return (-self._per_million(stat), -stat.count, _KIND_ORDER[stat.kind], stat.key)
 
+        def word_key(
+            item: tuple[tuple[str, str], tuple[UnitStats, _Decision]],
+        ) -> tuple[float, int, int, str]:
+            """``frequency_key`` with the word's CEFR level as a factor; see
+            ``CEFR_RANK_PULL``. The level is the one the learner is shown."""
+            stat, decision = item[1]
+            override = self.overrides.get(stat.key)
+            kind = decision.kind or stat.kind
+            if override and override.only_kind and override.only_kind != kind:
+                override = None
+            level = (override.cefr if override and override.cefr else None) or self._unit_cefr(
+                stat, decision
+            )
+            pull = self.CEFR_RANK_PULL.get(level or "B2", self.CEFR_RANK_PULL["B2"])
+            score = self._per_million(stat) * pull
+            return (-score, -stat.count, _KIND_ORDER[stat.kind], stat.key)
+
         rows = list(accepted.items())
-        words = sorted((r for r in rows if r[1][0].kind in WORD_KINDS), key=frequency_key)
+        words = sorted((r for r in rows if r[1][0].kind in WORD_KINDS), key=word_key)
         phrases = sorted((r for r in rows if r[1][0].kind not in WORD_KINDS), key=frequency_key)
         ordered = interleave_by_share(words, phrases, self.t.word_share)
         units: list[PhraseUnit] = []

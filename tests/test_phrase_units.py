@@ -786,6 +786,37 @@ def _word_counts(**kw: object) -> LemmaCounts:
     return counts
 
 
+def test_rank_word_cefr_pull_puts_a1_before_a_more_frequent_unlisted_word() -> None:
+    """ "der Kerl" (no list, so B2) ranked 566 on film dialogue while "der Bus"
+    and "kalt" waited behind it (owner, 2026-11-04). Among single words an A1
+    word counts 1.6 times its frequency and a B2 or unlisted one 0.75 times,
+    so it takes a word more than twice as frequent to stay ahead."""
+
+    def ranked(kerl: int) -> list[str]:
+        counts = _word_counts()
+        counts.nouns.update({"frage": 400, "kerl": kerl})
+        counts.word_by_source["noun:frage"] = Counter({"tatoeba": 400})
+        counts.word_by_source["noun:kerl"] = Counter({"tatoeba": kerl})
+        builder = _builder(counts)
+        builder.t = Thresholds(word_min_count=50)
+        builder.vocabulary.vocab["frage"] = "A1"
+        units = builder.build(_word_occ("noun", "frage", 2) + _word_occ("noun", "kerl", 2))
+        return [u.lemma_key for u in sorted(units, key=lambda u: u.rank) if u.kind == "noun"]
+
+    assert ranked(500) == ["frage", "kerl"]
+    assert ranked(900) == ["kerl", "frage"]
+
+
+def test_rank_word_cefr_pull_leaves_per_million_as_measured() -> None:
+    counts = _word_counts()
+    counts.sentences_by_source = Counter({"tatoeba": 10_000})
+    builder = _builder(counts)
+    builder.t = Thresholds(word_min_count=50)
+    builder.vocabulary.vocab["frage"] = "A1"
+    unit = builder.build(_word_occ("noun", "frage", 2))[0]
+    assert unit.per_million == pytest.approx(500 / 10_000 * 1e6)
+
+
 def test_interleave_by_share_mixes_two_rankings_in_proportion() -> None:
     from src.phrases.units import interleave_by_share
 

@@ -112,20 +112,20 @@
   "trivial": false
  },
  {
-  "unit_id": "nn:gefahr",
-  "kind": "noun",
+  "unit_id": "vb:nehmen",
+  "kind": "verb",
   "rank": 15,
   "sentence_count": 2,
   "case": null,
-  "trivial": false
+  "trivial": true
  },
  {
-  "unit_id": "vb:nehmen",
+  "unit_id": "vb:treffen",
   "kind": "verb",
   "rank": 16,
   "sentence_count": 2,
   "case": null,
-  "trivial": true
+  "trivial": false
  },
  {
   "unit_id": "vp:halten_fuer",
@@ -136,7 +136,7 @@
   "trivial": false
  },
  {
-  "unit_id": "vb:treffen",
+  "unit_id": "vb:verbringen",
   "kind": "verb",
   "rank": 18,
   "sentence_count": 2,
@@ -152,16 +152,16 @@
   "trivial": true
  },
  {
-  "unit_id": "vb:verbringen",
-  "kind": "verb",
+  "unit_id": "aj:wohl",
+  "kind": "adverb",
   "rank": 20,
   "sentence_count": 2,
   "case": null,
   "trivial": false
  },
  {
-  "unit_id": "aj:wohl",
-  "kind": "adverb",
+  "unit_id": "nn:gefahr",
+  "kind": "noun",
   "rank": 21,
   "sentence_count": 2,
   "case": null,
@@ -176,12 +176,12 @@
   "trivial": false
  },
  {
-  "unit_id": "nn:angst",
+  "unit_id": "nn:bescheid",
   "kind": "noun",
   "rank": 23,
   "sentence_count": 1,
   "case": null,
-  "trivial": true
+  "trivial": false
  },
  {
   "unit_id": "vp:gehen_um",
@@ -192,7 +192,7 @@
   "trivial": false
  },
  {
-  "unit_id": "nn:ausdruck",
+  "unit_id": "nn:ende",
   "kind": "noun",
   "rank": 25,
   "sentence_count": 1,
@@ -200,7 +200,7 @@
   "trivial": false
  },
  {
-  "unit_id": "nn:bescheid",
+  "unit_id": "nn:fehler",
   "kind": "noun",
   "rank": 26,
   "sentence_count": 1,
@@ -216,7 +216,7 @@
   "trivial": false
  },
  {
-  "unit_id": "nn:ende",
+  "unit_id": "nn:frage",
   "kind": "noun",
   "rank": 28,
   "sentence_count": 1,
@@ -232,16 +232,16 @@
   "trivial": false
  },
  {
-  "unit_id": "nn:ereignis",
-  "kind": "noun",
+  "unit_id": "vb:bringen",
+  "kind": "verb",
   "rank": 30,
   "sentence_count": 1,
   "case": null,
-  "trivial": false
+  "trivial": true
  },
  {
-  "unit_id": "nn:fehler",
-  "kind": "noun",
+  "unit_id": "vb:spielen",
+  "kind": "verb",
   "rank": 31,
   "sentence_count": 1,
   "case": null,
@@ -256,8 +256,8 @@
   "trivial": false
  },
  {
-  "unit_id": "nn:frage",
-  "kind": "noun",
+  "unit_id": "vb:stellen",
+  "kind": "verb",
   "rank": 33,
   "sentence_count": 1,
   "case": null,
@@ -272,12 +272,12 @@
   "trivial": false
  },
  {
-  "unit_id": "nn:freude",
+  "unit_id": "nn:angst",
   "kind": "noun",
   "rank": 35,
   "sentence_count": 1,
   "case": null,
-  "trivial": false
+  "trivial": true
  },
  {
   "unit_id": "nn:vorteil",
@@ -296,12 +296,12 @@
   "trivial": false
  },
  {
-  "unit_id": "vb:bringen",
-  "kind": "verb",
+  "unit_id": "aj:damals",
+  "kind": "adverb",
   "rank": 38,
   "sentence_count": 1,
   "case": null,
-  "trivial": true
+  "trivial": false
  },
  {
   "unit_id": "rv:sich_merken",
@@ -312,20 +312,20 @@
   "trivial": false
  },
  {
-  "unit_id": "vb:spielen",
-  "kind": "verb",
+  "unit_id": "aj:notwendig",
+  "kind": "adjective",
   "rank": 40,
   "sentence_count": 1,
   "case": null,
   "trivial": false
  },
  {
-  "unit_id": "vb:stellen",
-  "kind": "verb",
+  "unit_id": "av:recht",
+  "kind": "adverb",
   "rank": 41,
   "sentence_count": 1,
   "case": null,
-  "trivial": false
+  "trivial": true
  },
  {
   "unit_id": "nv:antwort_geben",
@@ -336,8 +336,8 @@
   "trivial": false
  },
  {
-  "unit_id": "vb:vermuten",
-  "kind": "verb",
+  "unit_id": "aj:sogar",
+  "kind": "adverb",
   "rank": 43,
   "sentence_count": 1,
   "case": null,
@@ -352,16 +352,16 @@
   "trivial": false
  },
  {
-  "unit_id": "vb:ueberlegen",
-  "kind": "verb",
+  "unit_id": "nn:ausdruck",
+  "kind": "noun",
   "rank": 45,
   "sentence_count": 1,
   "case": null,
   "trivial": false
  },
  {
-  "unit_id": "vb:ueberzeugen",
-  "kind": "verb",
+  "unit_id": "nn:ereignis",
+  "kind": "noun",
   "rank": 46,
   "sentence_count": 1,
   "case": null,
@@ -376,8 +376,8 @@
   "trivial": true
  },
  {
-  "unit_id": "aj:beeindruckend",
-  "kind": "adjective",
+  "unit_id": "nn:freude",
+  "kind": "noun",
   "rank": 48,
   "sentence_count": 1,
   "case": null,
@@ -392,16 +392,16 @@
   "trivial": true
  },
  {
-  "unit_id": "aj:bisher",
-  "kind": "adjective",
+  "unit_id": "vb:vermuten",
+  "kind": "verb",
   "rank": 50,
   "sentence_count": 1,
   "case": null,
   "trivial": false
  },
  {
-  "unit_id": "aj:damals",
-  "kind": "adverb",
+  "unit_id": "vb:ueberlegen",
+  "kind": "verb",
   "rank": 51,
   "sentence_count": 1,
   "case": null,
@@ -416,8 +416,8 @@
   "trivial": false
  },
  {
-  "unit_id": "aj:deprimiert",
-  "kind": "adjective",
+  "unit_id": "vb:ueberzeugen",
+  "kind": "verb",
   "rank": 53,
   "sentence_count": 1,
   "case": null,
@@ -432,7 +432,7 @@
   "trivial": true
  },
  {
-  "unit_id": "aj:notwendig",
+  "unit_id": "aj:bisher",
   "kind": "adjective",
   "rank": 55,
   "sentence_count": 1,
@@ -440,12 +440,12 @@
   "trivial": false
  },
  {
-  "unit_id": "av:recht",
-  "kind": "adverb",
+  "unit_id": "aj:stolz",
+  "kind": "adjective",
   "rank": 56,
   "sentence_count": 1,
   "case": null,
-  "trivial": true
+  "trivial": false
  },
  {
   "unit_id": "cn:danach",
@@ -456,8 +456,8 @@
   "trivial": false
  },
  {
-  "unit_id": "aj:sogar",
-  "kind": "adverb",
+  "unit_id": "aj:beeindruckend",
+  "kind": "adjective",
   "rank": 58,
   "sentence_count": 1,
   "case": null,
@@ -472,7 +472,7 @@
   "trivial": true
  },
  {
-  "unit_id": "aj:stolz",
+  "unit_id": "aj:deprimiert",
   "kind": "adjective",
   "rank": 60,
   "sentence_count": 1,
