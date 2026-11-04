@@ -688,6 +688,35 @@ def _to_card(unit: PhraseUnit, occ: Occurrence, gloss: Gloss | None) -> PhraseCa
     )
 
 
+#: Articles that can stand only before a masculine or feminine singular.
+_NOT_NEUTER_ARTICLES: frozenset[str] = frozenset(
+    {"einen", "keinen", "meinen", "deinen", "seinen", "ihren", "unseren", "eine", "keine", "einer"}
+)
+
+
+def unit_sense_reason(unit: PhraseUnit, occ: Occurrence) -> str | None:
+    """Why a noun card's gap is not the noun the unit teaches, or None.
+
+    Two shapes, both from round rank1104 (2026-11-04): "Rings um das Dorf"
+    is the adverb "rings", capitalised at the start of the sentence and
+    filed under "der Ring"; and a neuter noun made from an adjective ("das
+    Neue", "das Gute") after "einen" or "eine" is the person ("einen Neuen in
+    der Klasse"), another word with another gender. Narrow on purpose: a
+    general article check finds the article of a neighbouring noun as often
+    as this one's ("eine Frau mittleren Alters")."""
+    if unit.kind != "noun" or not occ.surfaces:
+        return None
+    surface = occ.surfaces[0]
+    after = occ.text[occ.spans[0][1] :].lstrip()
+    if surface.lower() == "rings" and after.lower().startswith("um "):
+        return "adverb_rings"
+    if unit.display_de.startswith("das ") and unit.display_de.endswith("e"):
+        before = re.findall(r"\w+", occ.text[: occ.spans[0][0]])
+        if before and before[-1].lower() in _NOT_NEUTER_ARTICLES:
+            return "nominal_gender"
+    return None
+
+
 def _verb_of(unit: PhraseUnit) -> str:
     """The infinitive of a unit's verb, or "" for a unit with none."""
     if unit.kind in {"verb", "separable_verb"}:
@@ -781,6 +810,10 @@ def select_cards(
             reason = unsuitable_reason(group[0], governed.get(unit.lemma_key, frozenset()))
             if reason is not None:
                 stats[reason] += 1
+                continue
+            sense = unit_sense_reason(unit, group[0])
+            if sense is not None:
+                stats[sense] += 1
                 continue
             past = (praeteritum_forms or {}).get(_verb_of(unit), frozenset())
             if past and any(s.lower() in past for s in group[0].surfaces):

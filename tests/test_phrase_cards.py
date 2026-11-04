@@ -92,6 +92,41 @@ def test_select_cards_praeteritum_the_tagger_missed_is_caught_by_the_verb_forms(
     assert caught.cards == [] and caught.stats["praeteritum_by_form"] == 1
 
 
+def _noun_occ(text: str, surface: str, key: str) -> Occurrence:
+    start = text.index(surface)
+    return Occurrence(
+        kind="noun", unit_key=key, parts=[key], token_indices=[0],
+        spans=[(start, start + len(surface))], surfaces=[surface], corpus_source="tatoeba",
+        line_id=text, text=text, form_key="Acc|Sing",
+    )  # fmt: skip
+
+
+def _noun_unit(unit_id: str, key: str, display: str) -> PhraseUnit:
+    return UNIT.model_copy(
+        update={"unit_id": unit_id, "kind": "noun", "lemma_key": key, "parts": [key],
+                "display_de": display}
+    )  # fmt: skip
+
+
+def test_select_cards_noun_gap_the_sentence_does_not_mean() -> None:
+    """Two reports of 2026-11-04 round rank1104: "Rings um das Dorf" is the
+    adverb "rings", capitalised at the start, filed under "der Ring"; and
+    "einen Neuen in der Klasse" is "der Neue", a new person, filed under "das
+    Neue". A neuter noun made from an adjective cannot follow "einen"."""
+    ring = _noun_unit("nn:ring", "ring", "der Ring")
+    neue = _noun_unit("nn:neue", "neue", "das Neue")
+    rings = _noun_occ("Rings um das Dorf stand eine Mühle.", "Rings", "ring")
+    a_ring = _noun_occ("Er schenkte ihr einen Ring.", "Ring", "ring")
+    einen_neuen = _noun_occ("Wir haben einen Neuen in der Klasse.", "Neuen", "neue")
+    etwas_neues = _noun_occ("Wir sollten uns etwas Neues überlegen.", "Neues", "neue")
+    texts = [o.text for o in (rings, a_ring, einen_neuen, etwas_neues)]
+    glosses = {t: Gloss("English.", "azure") for t in texts}
+    occs = {"nn:ring": [rings, a_ring], "nn:neue": [einen_neuen, etwas_neues]}
+    selection = select_cards([ring, neue], occs, glosses, validate=lambda _: True)
+    assert sorted(c.sentence_de for c in selection.cards) == sorted([a_ring.text, etwas_neues.text])
+    assert selection.stats["adverb_rings"] == 1 and selection.stats["nominal_gender"] == 1
+
+
 def test_select_cards_deployed_card_keeps_its_place_over_a_newly_glossed_one() -> None:
     """The November glosses (2026-11-04) would have swapped 363 shown, reviewed
     top-band cards for unread ones, only because a shorter sentence had
