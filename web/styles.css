@@ -7,6 +7,7 @@
   --accent-ink: #ffffff;
   --ok-bg: #e9f7ef; --ok: #157347;
   --warn-bg: #fdf3e1; --warn: #b7791f;
+  --near-bg: #eceef1; --near: #6b7280;
   --bad-bg: #fbe9e7; --bad: #b42318;
   --gap: #eef4fa;
   --border: #cbd5e1;
@@ -21,6 +22,7 @@
   --accent-ink: #0f1419;
   --ok-bg: #143d2a; --ok: #7fd3a1;
   --warn-bg: #3e2f0f; --warn: #f0c060;
+  --near-bg: #2a2f36; --near: #9aa3ad;
   --bad-bg: #4a1d19; --bad: #f28b82;
   --gap: #232a33;
   --border: #3a434f;
@@ -31,7 +33,7 @@
     --bg: #121417; --card: #1c2026; --ink: #e6e8eb; --muted: #9aa3ad;
     --accent: #5aa2d6; --accent-ink: #0f1419;
     --ok-bg: #143d2a; --ok: #7fd3a1; --warn-bg: #3e2f0f; --warn: #f0c060;
-    --bad-bg: #4a1d19; --bad: #f28b82; --gap: #232a33; --border: #3a434f; --shadow: rgba(0,0,0,0.5);
+    --near-bg: #2a2f36; --near: #9aa3ad; --bad-bg: #4a1d19; --bad: #f28b82; --gap: #232a33; --border: #3a434f; --shadow: rgba(0,0,0,0.5);
   }
 }
 * { box-sizing: border-box; }
@@ -60,7 +62,8 @@ button.small { font: inherit; font-size: 0.85rem; padding: 0.2rem 0.6rem; border
    where it scrolls within the box rather than past the edge. */
 input.gap { font: inherit; font-size: 1.2rem; width: auto; min-width: 5em; max-width: 100%; padding: 0.15rem 0.4rem; border: 2px solid var(--accent); border-radius: 6px; background: var(--gap); color: var(--ink); margin: 0 0.15em; box-sizing: border-box; }
 input.gap.ok { border-color: var(--ok); background: var(--ok-bg); }
-input.gap.typo { border-color: var(--warn); background: var(--warn-bg); }
+/* a typo is a pass that is not perfect: neutral gray, not a warning colour (owner, 2026-11-04) */
+input.gap.typo { border-color: var(--near); background: var(--near-bg); }
 input.gap.bad { border-color: var(--bad); background: var(--bad-bg); }
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
 .actions button, .umlauts button { font: inherit; padding: 0.55rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--ink); }
@@ -69,12 +72,18 @@ input.gap.bad { border-color: var(--bad); background: var(--bad-bg); }
 .umlauts button { padding: 0.4rem 0.8rem; font-size: 1.1rem; }
 .feedback { margin-top: 1rem; padding: 0.8rem; border-radius: 8px; background: var(--gap); }
 .feedback.good { background: var(--ok-bg); }
-.feedback.hard { background: var(--warn-bg); }
+.feedback.hard { background: var(--near-bg); }
 .feedback.again { background: var(--bad-bg); }
 .feedback .unit { font-weight: 600; margin-top: 0.4rem; }
 .feedback .rank { margin-top: 0.25rem; font-size: 0.85rem; }
 .issue { margin-top: 0.6rem; }
 .issue textarea { width: 100%; font: inherit; font-size: 0.95rem; padding: 0.4rem 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--gap); color: var(--ink); box-sizing: border-box; }
+/* letter marks in a near spelling; see diffHtml in app.js */
+.diff { font-weight: 600; letter-spacing: 0.03em; }
+.diff ins, .diff del, .diff .swap { padding: 0 1px; border-radius: 3px; background: rgba(127, 127, 127, 0.28); }
+.diff ins { color: var(--ok); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.diff del { color: var(--bad); text-decoration: line-through; text-decoration-thickness: 2px; }
+.diff .swap { color: var(--warn); text-decoration: underline wavy; text-underline-offset: 3px; }
 .feedback mark { background: var(--warn-bg); color: inherit; padding: 0 0.15em; border-radius: 3px; }
 table { border-collapse: collapse; width: 100%; }
 td { padding: 0.25rem 0.4rem; vertical-align: top; }
@@ -84,7 +93,7 @@ ol#history-list { padding-left: 1.2rem; }
 ol#history-list li { margin: 0.4rem 0; }
 .tag { display: inline-block; padding: 0 0.4em; border-radius: 4px; font-size: 0.85rem; margin-right: 0.3em; }
 .tag.good { background: var(--ok-bg); color: var(--ok); }
-.tag.hard { background: var(--warn-bg); color: var(--warn); }
+.tag.hard { background: var(--near-bg); color: var(--near); }
 .tag.again { background: var(--bad-bg); color: var(--bad); }
 footer { text-align: center; padding: 1rem; font-size: 0.85rem; }
 @media (max-width: 480px) {

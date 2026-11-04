@@ -6,6 +6,7 @@
 import { loadDeck, loadReserveIndex, lookupReserve, withAdded } from "./lib/deck.js";
 import { createEngine } from "./lib/engine.js";
 import { gradeCard, renderMarked, rivalTyped, unitForms } from "./lib/grader.js";
+import { isCloseEnough, letterDiff } from "./lib/letterdiff.js";
 import { deriveState, entriesSinceReset, makeCorrection, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
@@ -21,6 +22,20 @@ const pickAny = (n) => Math.floor(Math.random() * n);
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// The wanted word with the learner's slips marked in it: a missing letter
+// underlined, an extra one struck through, a wrong one struck and followed
+// by the right one, a swapped pair marked as such. Underline and strike, not
+// colour alone, so it reads without colour too.
+function diffHtml(typed, expected) {
+  return letterDiff(typed, expected).map((s) => {
+    if (s.op === "same") return escapeHtml(s.expected);
+    if (s.op === "missing") return `<ins title="fehlt">${escapeHtml(s.expected)}</ins>`;
+    if (s.op === "extra") return `<del title="zu viel">${escapeHtml(s.typed)}</del>`;
+    if (s.op === "wrong") return `<del title="getippt">${escapeHtml(s.typed)}</del><ins title="richtig">${escapeHtml(s.expected)}</ins>`;
+    return `<span class="swap" title="vertauscht: ${escapeHtml(s.typed)}">${escapeHtml(s.expected)}</span>`;
+  }).join("");
 }
 
 // -- state --------------------------------------------------------------------
@@ -376,8 +391,13 @@ async function check(reveal = false) {
   const fb = $("feedback");
   fb.className = `feedback ${result.rating}`;
   const verdict = { good: "Richtig", hard: "Richtig, mit Tippfehler", again: "Falsch" }[result.rating];
+  // A near spelling is shown as one word marked letter by letter; another
+  // word, or a revealed gap, as "typed → wanted" (owner, 2026-11-04).
   const wrong = result.gaps.filter((g) => !g.accepted || g.outcome === "typo")
-    .map((g) => `${g.typed || "(gezeigt)"} → ${g.expected}`).join(", ");
+    .map((g) => (isCloseEnough(g.typed, g.expected)
+      ? `<span class="diff">${diffHtml(g.typed, g.expected)}</span>`
+      : escapeHtml(`${g.typed || "(gezeigt)"} → ${g.expected}`)))
+    .join(", ");
   const synonym = result.gaps.filter((g) => g.accepted && g.typed.toLowerCase() !== g.expected.toLowerCase()
     && g.outcome !== "typo").map((g) => `${g.typed} gilt auch; im Satz: ${g.expected}`).join(", ");
   const u = unitPayload(unit);
@@ -388,7 +408,7 @@ async function check(reveal = false) {
   const rank = `Rang ${u.rank.toLocaleString("de-DE")}` +
     (moved ? ` (${moved}× aufgeschoben)` : "") +
     (u.cefr ? ` · ${escapeHtml(u.cefr)}` : "");
-  fb.innerHTML = `<div>${verdict}${wrong ? ": " + escapeHtml(wrong) : ""}${synonym ? " (" + escapeHtml(synonym) + ")" : ""}</div>` +
+  fb.innerHTML = `<div><span class="verdict">${verdict}</span>${wrong ? ": " + wrong : ""}${synonym ? " (" + escapeHtml(synonym) + ")" : ""}</div>` +
     `<div class="unit">${escapeHtml(u.display)}` +
     (u.gloss ? ` <span class="muted">= ${escapeHtml(u.gloss)}</span>` : "") + `</div>` +
     `<div class="rank muted">${rank}</div>`;
@@ -416,7 +436,8 @@ async function acceptAsCorrect() {
   $("btn-accept").hidden = true;
   const fb = $("feedback");
   fb.className = "feedback hard";
-  const verdict = fb.querySelector("div");
+  // Only the verdict changes; the letter marks stay readable.
+  const verdict = fb.querySelector(".verdict");
   if (verdict) verdict.textContent = "Als richtig gewertet";
   $("sentence").querySelectorAll("input.gap.bad").forEach((inp) => { inp.classList.remove("bad"); inp.classList.add("typo"); });
   renderToday();

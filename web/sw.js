@@ -3,7 +3,7 @@
 // the page reports, so a new deck build replaces the old shards and an old
 // one never lingers. Everything else (the GitHub API) goes to the network.
 
-const APP_VERSION = "3b.26";
+const APP_VERSION = "3b.27";
 const SHELL_CACHE = `app-${APP_VERSION}`;
 const SHELL = [
   "./",
@@ -18,6 +18,7 @@ const SHELL = [
   "./lib/grader-tables.js",
   "./lib/gemini.js",
   "./lib/grader.js",
+  "./lib/letterdiff.js",
   "./lib/log.js",
   "./lib/session.js",
   "./lib/store.js",
