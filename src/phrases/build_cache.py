@@ -54,31 +54,81 @@ def _module_path(name: str) -> Path | None:
     return Path(spec.origin)
 
 
-def _src_imports(tree: ast.Module) -> set[str]:
-    """The ``src`` modules a module imports, resolved to module names."""
+def _src_imports(tree: ast.Module, package: str = "src", used: set[str] | None = None) -> set[str]:
+    """The ``package`` modules a module imports, resolved to module names.
+    With ``used``, only the imports whose local name is in it."""
     found: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            found.update(a.name for a in node.names if a.name.split(".")[0] == "src")
-        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-            if node.module.split(".")[0] != "src":
-                continue
-            found.add(node.module)
-            # "from src.phrases import paradigms" imports a module, not a name
             for alias in node.names:
+                local = alias.asname or alias.name.split(".")[0]
+                if alias.name.split(".")[0] == package and (used is None or local in used):
+                    found.add(alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            if node.module.split(".")[0] != package:
+                continue
+            for alias in node.names:
+                if used is not None and (alias.asname or alias.name) not in used:
+                    continue
+                # "from src.phrases import paradigms" imports a module, not a name
                 child = f"{node.module}.{alias.name}"
-                if _module_path(child) is not None:
-                    found.add(child)
+                found.add(child if _module_path(child) is not None else node.module)
     return found
 
 
-def source_fingerprint(root: str, *, skip_classes: frozenset[str] = frozenset()) -> str:
-    """A digest of ``root`` and every ``src`` module it imports, transitively.
+class _UsedNames(ast.NodeVisitor):
+    """The names a module's code reads, imports and type annotations
+    aside: an annotation changes no value the cache holds, and
+    ``LemmaCounts`` in one was enough to tie the cache to every detector."""
+
+    def __init__(self) -> None:
+        self.names: set[str] = set()
+
+    def visit_Name(self, node: ast.Name) -> None:
+        self.names.add(node.id)
+
+    def visit_Import(self, node: ast.Import) -> None:
+        pass
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        pass
+
+    def visit_arg(self, node: ast.arg) -> None:
+        pass  # the argument's annotation only
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        for child in [
+            *node.decorator_list,
+            *node.args.defaults,
+            *node.args.kw_defaults,
+            *node.body,
+        ]:
+            if child is not None:
+                self.visit(child)
+
+    visit_AsyncFunctionDef = visit_FunctionDef  # type: ignore[assignment]
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        self.visit(node.target)
+        if node.value is not None:
+            self.visit(node.value)
+
+
+def source_fingerprint(
+    root: str, *, skip_classes: frozenset[str] = frozenset(), package: str = "src"
+) -> str:
+    """A digest of ``root`` and the ``package`` modules its code depends on,
+    transitively.
 
     Taken over the syntax tree, so a comment or a reflowed line changes
     nothing. ``skip_classes`` leaves top-level classes of ``root`` out: the
     miner's decisions live in ``UnitBuilder`` and change weekly, while the
-    canonicalisation the cache holds does not depend on them.
+    canonicalisation the cache holds does not depend on them. For ``root``,
+    only the imports the remaining code reads are followed (2026-11-04):
+    following all of them tied the cache to the curated lists and every
+    detector, which only ``UnitBuilder`` uses, so a fix to a list or a
+    detector cost a 14-minute rebuild for nothing. Every other module is
+    followed whole, which errs towards rebuilding.
     """
     if _module_path(root) is None:
         # Never a digest of nothing: it would match every other nothing.
@@ -94,16 +144,31 @@ def source_fingerprint(root: str, *, skip_classes: frozenset[str] = frozenset())
         if path is None:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
+        used: set[str] | None = None
         if name == root and skip_classes:
             tree.body = [
                 node
                 for node in tree.body
                 if not (isinstance(node, ast.ClassDef) and node.name in skip_classes)
             ]
+            reader = _UsedNames()
+            reader.visit(tree)
+            used = reader.names
+            # The imports themselves stay out of the digest: an import only
+            # the skipped class uses is not this code's business.
+            tree.body = [n for n in tree.body if not isinstance(n, ast.Import | ast.ImportFrom)]
         digest.update(name.encode())
         digest.update(ast.dump(tree).encode())
-        pending.extend(sorted(_src_imports(tree) - seen))
+        pending.extend(
+            sorted(_src_imports(tree if used is None else _imports_of(path), package, used) - seen)
+        )
     return digest.hexdigest()
+
+
+def _imports_of(path: Path) -> ast.Module:
+    """The module again, for its import statements (stripped from the
+    digested tree above)."""
+    return ast.parse(path.read_text(encoding="utf-8"))
 
 
 def file_digest(path: Path) -> str:

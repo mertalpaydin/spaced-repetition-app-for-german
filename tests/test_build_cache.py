@@ -78,6 +78,45 @@ def test_source_fingerprint_ignores_comments_and_skipped_classes(tmp_path: Path)
     assert _fingerprint_of(tmp_path, base, "fp_c") != _fingerprint_of(tmp_path, changed, "fp_c")
 
 
+def test_source_fingerprint_follows_only_what_the_kept_code_uses(tmp_path: Path) -> None:
+    """A module only the skipped class uses, or only an annotation names,
+    is not the cached code's business; a module the kept code calls is."""
+    import importlib
+    import sys
+
+    pkg = tmp_path / "fpkg"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "helper.py").write_text("def h():\n    return 1\n", encoding="utf-8")
+    (pkg / "lists.py").write_text("WORDS = ['a']\n", encoding="utf-8")
+    (pkg / "kinds.py").write_text("class Counts:\n    pass\n", encoding="utf-8")
+    (pkg / "root.py").write_text(
+        "from fpkg.helper import h\nfrom fpkg.lists import WORDS\nfrom fpkg.kinds import Counts\n\n"
+        "def kept(c: Counts) -> int:\n    return h()\n\n"
+        "class Builder:\n    def go(self):\n        return WORDS\n",
+        encoding="utf-8",
+    )
+    sys.path.insert(0, str(tmp_path))
+    try:
+
+        def fp() -> str:
+            importlib.invalidate_caches()
+            return source_fingerprint(
+                "fpkg.root", skip_classes=frozenset({"Builder"}), package="fpkg"
+            )
+
+        before = fp()
+        (pkg / "lists.py").write_text("WORDS = ['a', 'b']\n", encoding="utf-8")
+        (pkg / "kinds.py").write_text("class Counts:\n    x = 1\n", encoding="utf-8")
+        assert fp() == before, "only the skipped class and an annotation use these"
+        (pkg / "helper.py").write_text("def h():\n    return 2\n", encoding="utf-8")
+        assert fp() != before, "the kept code calls this"
+    finally:
+        sys.path.remove(str(tmp_path))
+        for name in [m for m in sys.modules if m.startswith("fpkg")]:
+            del sys.modules[name]
+
+
 def test_source_fingerprint_of_a_missing_module_is_an_error() -> None:
     with pytest.raises(ValueError, match="no Python source"):
         source_fingerprint("src.no_such_module")
