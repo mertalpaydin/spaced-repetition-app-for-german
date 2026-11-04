@@ -66,8 +66,28 @@ def test_check_record_wants_the_particle_after_the_verb_and_in_front() -> None:
         "particle_not_in_front"
     )
     assert check_record(_record("gehen", ["ging"], [], ["gegangen"]), False) == "missing_form"
+    # "weg" is not the start of "gehen", so it is no particle of it
     assert check_record(_record("gehen", ["ging weg"], ["ist"], ["gegangen"]), False) == (
-        "praeteritum_not_one_word"
+        "particle_not_after_the_verb"
+    )
+
+
+def test_check_record_reads_the_particle_from_the_draft() -> None:
+    """Separable verbs the deck files as plain verbs, particles no list has
+    ("davon", "raus"), a particle in two words, a one-word alternative."""
+    assert (
+        check_record(_record("davonlaufen", ["lief davon"], ["ist"], ["davongelaufen"]), False)
+        is None
+    )
+    assert (
+        check_record(_record("rausgehen", ["ging raus"], ["ist"], ["rausgegangen"]), True) is None
+    )
+    wieder = _record("wiederherstellen", ["stellte wieder her"], ["hat"], ["wiederhergestellt"])
+    assert check_record(wieder, True) is None
+    both = _record("anerkennen", ["erkannte an", "anerkannte"], ["hat"], ["anerkannt"])
+    assert check_record(both, True) is None
+    assert check_record(_record("rausgehen", ["ging raus"], ["ist"], ["gegangen"]), True) == (
+        "particle_not_in_front"
     )
 
 
@@ -80,6 +100,28 @@ def test_doubtful_flags_a_form_no_dictionary_knows_even_a_regular_looking_one() 
     assert doubtful(_record("aufstehen", ["stand auf"], ["ist"], ["aufgestanden"]), words) == [
         "aufgestanden"
     ]
+
+
+def test_doubtful_with_the_store_derives_from_a_known_base_or_the_weak_rule() -> None:
+    words = frozenset({"kam", "gekommen", "ging", "gegangen"})
+    records = {
+        "kommen": _record("kommen", ["kam"], ["ist"], ["gekommen"]),
+        "gehen": _record("gehen", ["ging"], ["ist"], ["gegangen"]),
+    }
+    ankommen = _record("ankommen", ["kam an"], ["ist"], ["angekommen"])
+    bekommen = _record("bekommen", ["bekam"], ["hat"], ["bekommen"])
+    assert doubtful(ankommen, words, records) == []
+    assert doubtful(bekommen, words, records) == []
+    # a regular verb with no irregular verb inside it: the rule vouches
+    assert (
+        doubtful(
+            _record("rausschaffen", ["schaffte raus"], ["hat"], ["rausgeschafft"]), words, records
+        )
+        == []
+    )
+    # a compound of an irregular verb drafted weak: nothing vouches
+    weak = _record("weggehen", ["gehte weg"], ["ist"], ["weggegeht"])
+    assert doubtful(weak, words, records) == ["gehte weg", "weggegeht"]
 
 
 def test_drill_verbs_puts_sein_and_tun_first_and_takes_each_infinitive_once() -> None:

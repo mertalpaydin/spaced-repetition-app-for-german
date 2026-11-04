@@ -94,9 +94,13 @@ def _needs_e(stem: str) -> bool:
     return bool(re.search(r"[^aeiouäöülrhmn][mn]$", stem))
 
 
-def weak_forms(infinitive: str, separable: bool) -> tuple[str, str]:
-    """(Präteritum, Partizip II) as the weak-verb rule gives them."""
-    particle, base = split_particle(infinitive) if separable else ("", infinitive)
+def weak_forms(infinitive: str, separable: bool, particle: str | None = None) -> tuple[str, str]:
+    """(Präteritum, Partizip II) as the weak-verb rule gives them. A known
+    ``particle`` (from the draft) beats guessing one from the list."""
+    if particle:
+        base = infinitive[len(particle) :]
+    else:
+        particle, base = split_particle(infinitive) if separable else ("", infinitive)
     stem = _stem(base)
     e = "e" if _needs_e(stem) else ""
     praeteritum = f"{stem}{e}te"
@@ -108,23 +112,35 @@ def weak_forms(infinitive: str, separable: bool) -> tuple[str, str]:
     return praeteritum, partizip
 
 
+def draft_particle(record: VerbFormsRecord) -> str:
+    """The particle the draft splits off ("lief davon" -> "davon",
+    "stellte wieder her" -> "wiederher"), or "" for a verb it does not
+    split. Read from the draft rather than a list: the deck's separable verbs
+    carry particles no list has ("raus", "weh", "zugute"), and some reach the
+    drill filed as plain verbs."""
+    words = record.praeteritum[0].split() if record.praeteritum else []
+    return "".join(words[1:])
+
+
 def check_record(record: VerbFormsRecord, separable: bool) -> str | None:
     """Why the record cannot be exported, or None. Shape only; see
-    ``doubtful`` for the dictionary."""
+    ``doubtful`` for the dictionary. ``separable`` is the deck's word for
+    it: such a verb's usual Präteritum must be split ("stand auf")."""
     if not (record.praeteritum and record.partizip and record.auxiliary):
         return "missing_form"
-    particle, _ = split_particle(record.infinitive) if separable else ("", record.infinitive)
+    particle = draft_particle(record)
+    if separable and not particle:
+        return "particle_not_after_the_verb"
     for form in record.praeteritum:
         words = form.split()
-        if separable and particle:
-            if len(words) != 2 or words[1] != particle:
-                return "particle_not_after_the_verb"
-        elif len(words) != 1:
-            return "praeteritum_not_one_word"
+        # a one-word alternative is fine ("anerkannte" beside "erkannte an")
+        rest = "".join(words[1:])
+        if rest and not (record.infinitive.startswith(rest) and len(record.infinitive) > len(rest)):
+            return "particle_not_after_the_verb"
     for form in record.partizip:
         if " " in form or not form.endswith(("t", "n")):
             return "partizip_shape"
-        if separable and particle and not form.startswith(particle):
+        if particle and not form.startswith(particle):
             return "particle_not_in_front"
     return None
 
@@ -148,12 +164,52 @@ def answer_in_gloss(record: VerbFormsRecord) -> str | None:
 _ENGLISH_HOMOGRAPHS: frozenset[str] = frozenset({"stand", "fand", "bat", "hing", "rang", "band"})
 
 
-def doubtful(record: VerbFormsRecord, dictionary: frozenset[str]) -> list[str]:
-    """Forms no dictionary knows. Regular-looking ones too: "gehte" and
-    "gegeht" are exactly what the weak rule gives for "gehen", so agreeing
-    with the rule proves nothing about a strong verb."""
+def _unknown(record: VerbFormsRecord, dictionary: frozenset[str]) -> list[str]:
     out = [f for f in record.praeteritum if normalise(f.split()[0]) not in dictionary]
     return out + [f for f in record.partizip if normalise(f) not in dictionary]
+
+
+def _derived(prefix: str, base: VerbFormsRecord) -> tuple[str, str]:
+    """A prefixed verb's forms from its base verb's: "ver" + "stand",
+    "verstanden"; or, separable, "kam an", "angekommen"."""
+    praet, part = base.praeteritum[0], base.partizip[0]
+    if prefix in INSEPARABLE_PREFIXES:
+        stripped = (
+            part[2:] if part.startswith("ge") and not base.infinitive.startswith("ge") else part
+        )
+        return prefix + praet, prefix + stripped
+    return f"{praet} {prefix}", prefix + part
+
+
+def doubtful(
+    record: VerbFormsRecord,
+    dictionary: frozenset[str],
+    records: Mapping[str, VerbFormsRecord] | None = None,
+) -> list[str]:
+    """Forms nothing vouches for. A form vouches for itself when the
+    dictionary knows it. Failing that, with ``records``, a prefixed verb is
+    vouched for by a base verb the dictionary knows whose forms derive its
+    own ("ankommen" from "kommen"), and a verb with no such irregular base
+    inside it by the weak-verb rule. The rule alone is not enough: "gehte"
+    and "gegeht" are exactly what it gives for "gehen"."""
+    unknown = _unknown(record, dictionary)
+    if not unknown or records is None:
+        return unknown
+    first = (record.praeteritum[0], record.partizip[0])
+    irregular_base = False
+    for k in range(1, len(record.infinitive) - 2):
+        base = records.get(record.infinitive[k:])
+        if base is None or not base.accepted or not base.praeteritum or _unknown(base, dictionary):
+            continue
+        if _derived(record.infinitive[:k], base) == first:
+            return []
+        irregular_base = irregular_base or (
+            (base.praeteritum[0], base.partizip[0]) != weak_forms(base.infinitive, False)
+        )
+    particle = draft_particle(record)
+    if not irregular_base and first == weak_forms(record.infinitive, bool(particle), particle):
+        return []
+    return unknown
 
 
 def drill_verbs(units: Iterable[PhraseUnit]) -> list[tuple[str, bool, PhraseUnit | None]]:
@@ -191,7 +247,10 @@ def verb_cards(
         gloss = (unit.gloss_en if unit is not None else None) or record.gloss_en
         if not gloss:
             continue
-        weak = (record.praeteritum[0], record.partizip[0]) == weak_forms(infinitive, separable)
+        particle = draft_particle(record)
+        weak = (record.praeteritum[0], record.partizip[0]) == weak_forms(
+            infinitive, bool(particle), particle
+        )
         cards.append(
             VerbCard(
                 unit_id=drill_unit_id(infinitive),
