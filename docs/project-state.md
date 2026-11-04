@@ -458,6 +458,40 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **FSRS fitted to the owner, typo marks, and CEFR in the ranking,
+  2026-11-04.** Three changes from his log and his asks of that day.
+
+  FSRS: the library defaults aimed at 90% recall and got 78% on reviews a
+  day or more apart, all of the gap at the start of a unit's life (second
+  to fourth review recalled 63-74% where 83-90% was predicted; from the
+  sixth review on the defaults were right). `FITTED_PARAMETERS` in
+  `src/engine/fsrs.py`, the same list in `web/lib/engine.js`, fitted with
+  `fsrs` 6.3.2's optimizer in a throwaway environment (it needs torch).
+  Fitted on the reviews before 10-21 they predicted the next two weeks
+  better (log loss 0.456 to 0.446). A new unit right twice now comes back
+  after 5 days, not 11. Replay semantics changed, not the format: the same
+  log replays to earlier due dates. Simulated at 15 new units a day, week
+  one is about 335 reviews a day at his 90% target and about 234 at 85%,
+  against 215 with the old parameters; "Zielgenauigkeit" in the settings is
+  the lever. Refit when the log has grown by a few thousand reviews.
+
+  Typos: a near spelling is shown as one word marked letter by letter
+  (`web/lib/letterdiff.js`, display only, no Python twin), and a typo is
+  neutral gray, not the warning yellow.
+
+  Ranking: among single words the frequency score is multiplied by the
+  CEFR level the learner is shown (`UnitBuilder.CEFR_RANK_PULL`: A1 1.6,
+  A2 1.25, B1 1, B2 or unlisted 0.75). "der Kerl" was 566 on film
+  dialogue while "der Bus" and "kalt" waited behind it. Weighing speech and
+  writing as equal registers was tried first and rejected: it removed the
+  film words but also regnen, müde, Schuh, schwimmen, and brought in
+  Politik and international. With the pull: Kerl 1068, töten 436, Bus
+  486; A1 among the first 1000 single words 453 to 521, B2 64 to 24. The
+  CEFR levels themselves: A1 to B1 from the Goethe-Institut lists, B2 the
+  next 6,000 words of an OpenSubtitles frequency list, and a word on no
+  list is labelled B2. The units the new order pulled into the top 1500
+  were reviewed the same day (round `rank1104`).
+
 - **The November translations, 2026-11-04.** The scheduled job's run of
   2026-11-01 translated 37,400 sentences (Azure, free; the Gemini fallback
   tried the free lane after Azure refused and spent nothing). About 194,000

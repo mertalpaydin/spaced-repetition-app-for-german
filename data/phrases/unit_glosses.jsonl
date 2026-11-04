@@ -1143,6 +1143,7 @@
 {"unit_id":"aj:sterblich","display_de":"sterblich","glosses":["mortal"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:stetig","display_de":"stetig","glosses":["steady","constant","continuous"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:steuerfrei","display_de":"steuerfrei","glosses":["tax-free","tax-exempt"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"aj:still","display_de":"still","glosses":["quiet","silent"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-11-04T19:54:55.223586Z"}
 {"unit_id":"aj:stille","display_de":"stille","glosses":["quiet","silent","calm"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:stilvoll","display_de":"stilvoll","glosses":["stylish","tasteful"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"aj:stoerend","display_de":"störend","glosses":["disturbing","disruptive","annoying"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -6802,7 +6803,9 @@
 {"unit_id":"nn:griff","display_de":"der Griff","glosses":["handle","grip"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:grille","display_de":"die Grille","glosses":["cricket","whim"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:grippe","display_de":"die Grippe","glosses":["flu","influenza"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:groesse","display_de":"die Größe","glosses":["size","height"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-11-04T19:54:55.223586Z"}
 {"unit_id":"nn:groll","display_de":"das Groll","glosses":["grudge","resentment"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:grossmutter","display_de":"die Großmutter","glosses":["grandma","grandmother"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-11-04T19:54:55.223586Z"}
 {"unit_id":"nn:grossvater","display_de":"der Großvater","glosses":["grandfather","grandpa"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-24T11:05:09.561948Z"}
 {"unit_id":"nn:grube","display_de":"die Grube","glosses":["pit","trench","mine"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:gruen","display_de":"das Grün","glosses":["green","greenery"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -7038,6 +7041,7 @@
 {"unit_id":"nn:hund","display_de":"der Hund","glosses":["dog"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
 {"unit_id":"nn:hunde","display_de":"die Hunde","glosses":["dogs"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:hunderttausend","display_de":"die Hunderttausend","glosses":["hundred thousand"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:hunger","display_de":"der Hunger","glosses":["hunger"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-11-04","prompt_version":1,"generated_at":"2026-11-04T19:55:49.633389Z"}
 {"unit_id":"nn:hur","display_de":"die Hur","glosses":["whore","prostitute"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:hurrikan","display_de":"der Hurrikan","glosses":["hurricane"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:hut","display_de":"der Hut","glosses":["hat"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
@@ -7884,6 +7888,7 @@
 {"unit_id":"nn:munition","display_de":"die Munition","glosses":["ammunition","ammo"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:munter","display_de":"der Munter","glosses":["lively person","cheerful person"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:muschel","display_de":"die Muschel","glosses":["shell","clam","mussel"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:museum","display_de":"das Museum","glosses":["museum"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-11-04T19:54:55.223586Z"}
 {"unit_id":"nn:musiker","display_de":"der Musiker","glosses":["musician"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:musikerin","display_de":"die Musikerin","glosses":["female musician"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:musizieren","display_de":"das Musizieren","glosses":["making music","playing music"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -8310,6 +8315,7 @@
 {"unit_id":"nn:rache","display_de":"die Rache","glosses":["revenge","vengeance"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:rad","display_de":"das Rad","glosses":["wheel","bicycle"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:radfahrer","display_de":"der Radfahrer","glosses":["cyclist","bicyclist"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:radio","display_de":"das Radio","glosses":["radio"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-11-04T19:54:55.223586Z"}
 {"unit_id":"nn:raeder","display_de":"die Räder","glosses":["wheels","bicycles"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:raetsel","display_de":"das Rätsel","glosses":["riddle","puzzle","mystery"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:raeuber","display_de":"der Räuber","glosses":["robber","predator"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -8449,6 +8455,7 @@
 {"unit_id":"nn:riegel","display_de":"der Riegel","glosses":["bolt","bar","latch"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:riese","display_de":"der Riese","glosses":["giant","grand","thousand"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:rind","display_de":"das Rind","glosses":["cattle","bovine","cow"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:ring","display_de":"der Ring","glosses":["ring"],"accepted":true,"reject_reason":null,"model":"hand-written, 2026-11-04","prompt_version":1,"generated_at":"2026-11-04T19:55:49.633389Z"}
 {"unit_id":"nn:ringen","display_de":"das Ringen","glosses":["struggle","wrestling"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:rippe","display_de":"die Rippe","glosses":["rib"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:risiko","display_de":"das Risiko","glosses":["risk"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
@@ -9133,6 +9140,7 @@
 {"unit_id":"nn:taube","display_de":"die Taube","glosses":["pigeon","dove"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:taucher","display_de":"der Taucher","glosses":["diver"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:tausch","display_de":"der Tausch","glosses":["exchange","swap"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:taxi","display_de":"das Taxi","glosses":["cab","taxi"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-11-04T19:54:55.223586Z"}
 {"unit_id":"nn:taxifahrer","display_de":"der Taxifahrer","glosses":["taxi driver","cab driver"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:team","display_de":"das Team","glosses":["team"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-10-07T17:40:44.699680Z"}
 {"unit_id":"nn:teamarbeit","display_de":"die Teamarbeit","glosses":["teamwork"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}

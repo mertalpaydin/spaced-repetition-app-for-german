@@ -6008,3 +6008,42 @@
 - 4ed5550a657c  # BAD_SENTENCE: Odd out of context; jemanden festlegen with da reads as a fragment.
 - 924710c0f984  # BAD_GLOSS: einbringen is to contribute, not to bring up; the sentence is too bare to say which.
 - c9f6501731c2  # BAD_SENTENCE: Subtitle line built on two names; another sentence teaches the verb better.
+# Review round rank1104.
+- 080efdcef991  # BAD_SENTENCE: The gap '[müßt]' uses obsolete pre-1996 spelling instead of modern 'müsst'.
+- 0d57b7f22dd9  # BAD_SENTENCE: Odd out of context: raising ten more flags.
+- 170a702abacc  # BAD_GLOSS: The gloss splits 'oben vorn' into 'top, front' and omits 'je', mistranslating a sentence that also 
+- 176d0797a3c3  # WRONG_UNIT: The sentence uses the idiom 'jemandem den/die Daumen drücken' rather than the plain verb 'drücken'
+- 1b1fa05fbf65  # BAD_SENTENCE: Abstract essay line; the gloss cannot make it mean much.
+- 25fe02415635  # BAD_GLOSS: The literal gloss 'the latest of the new' mistranslates the German idiom 'das Neuste vom Neuen' ('t
+- 2df1c5919df1  # WRONG_UNIT: Bracketed 'Rings' is the adverb 'rings' ('rings um'), not a form of the noun 'der Ring'.
+- 31c191adde6c  # BAD_GLOSS: The gloss 'connects wounds' mistranslates 'Wunden verbinden' ('bandages wounds') in a German pun.
+- 332157cc389f  # BAD_SENTENCE: Archaic proverb omits the required finite auxiliary 'haben' in 'Was sie gestern gelernt'.
+- 5a3468710c05  # BAD_SENTENCE: Carnival jargon (Kindersitzung, 14.11 Uhr) with numbers to read past.
+- 66ebe9225439  # BAD_SENTENCE: Obscure archaic proverb is opaque and reads as racially offensive out of context.
+- 6eddf5ad3b05  # BAD_GLOSS: Ungrammatical English gloss 'Priests teach good' mistranslates 'lehren Gutes' ('teach what is good'
+- 7355f8e511f6  # BAD_SENTENCE: The word order 'Rauchen hier ist...' is an unnatural English calque instead of 'Rauchen ist hier
+- 752bac49fc47  # BAD_SENTENCE: Archaic biblical German ('Bedenk ..., so wirst du nimmermehr ...') is not natural modern German.
+- 81246a5b84ee  # BAD_SENTENCE: Spelling: entlanggehen is one word; the gap tests a split standard German does not write.
+- 83855d79d186  # BAD_SENTENCE: Missing context leaves the inanimate subject pronoun 'es' and 'Am besten' without a referent.
+- 92ddf8ae4092  # BAD_SENTENCE: Cryptic archaic proverb with syncopated 'die andern' lacks context and has a mistranslated gloss
+- 94c2a9816374  # BAD_GLOSS: Literal machine translation 'Foreign bread is a tart bread.' mistranslates a figurative proverb abo
+- a9e623f21624  # BAD_SENTENCE: Context-dependent sentence with contrastive fronting and academic Latin 'qua' is not self-contai
+- c144a4cbb732  # WRONG_UNIT: Bracketed 'Gefallen' is neuter 'das Gefallen' in the phrase 'Gefallen finden an +Dat', not masculi
+- c18c3f0bb758  # BAD_SENTENCE: Football jargon: mit rechts abziehen.
+- c49d184b39bd  # BAD_GLOSS: The gloss mistranslates 'als täte man nicht so' ('as if one were not pretending') as nonsensical 'n
+- cc12eb22f479  # BAD_SENTENCE: Archaic proverb uses 'Ruf' in the obsolete sense of 'rumor' without an article, mistranslated as
+- cd1e64fcd750  # BAD_SENTENCE: Archaic rhyming proverb omits the required article before 'Aufenthalt' and uses dated 'mehrt den
+- df5a8cc62cca  # WRONG_UNIT: The bracketed word is capitalized as part of the proper name 'die Vereinigten Staaten von Amerika'
+- e2eff6d23f6d  # BAD_SENTENCE: Putting bare 'Rauchen hier' before 'ist' is unnatural English-calqued word order ('Rauchen ist h
+- fbe8aeab87ef  # WRONG_UNIT: Bracketed 'raus' is the prefix of the separable verb 'rausmüssen' (properly spelled 'rausmusste' h
+- fcb6505c4bd7  # WRONG_UNIT: Sentence uses the figurative idiom 'in die Hose gehen' ('go wrong'), which the display 'die Hose' 
+# Review round rank1104b.
+- 1aabeec9f019  # WRONG_UNIT: Rings um is the adverb rings, capitalised at the start of the sentence, not the noun.
+- 3e85204f7834  # BAD_GLOSS: Aphorism glossed circularly: Reputation is the good reputation.
+- 4ea227e47071  # BAD_SENTENCE: A fragment: the subject and the opening of the clause are missing.
+- af16f75976be  # BAD_SENTENCE: auf rechts einschwenken is odd; the gloss guesses.
+- db20e1db0e29  # BAD_SENTENCE: Proverb, opaque out of context.
+- e51b2a7d203b  # WRONG_UNIT: einen Neuen is der Neue (a new person), not das Neue.
+# Review round rank1104c.
+- 71c8eac1664d  # BAD_GLOSS: fremdes Brot essen is an idiom (to live on others or abroad), glossed literally.
+- f09c5ab9c731  # BAD_SENTENCE: Odd out of context.
