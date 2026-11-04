@@ -458,6 +458,24 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **The verb drill, 2026-11-04** (rule 9: the manifest gained `verbs_file`,
+  `verbs_version` and `verb_count`, all defaulted; the review log's format is
+  unchanged). A "Verben" screen gives a verb and its English and asks the
+  Präteritum and the Perfekt for er/sie/es, auxiliary and participle in two
+  boxes. The forms are drafted by agy into `data/phrases/verb_forms.jsonl`
+  and checked by `src/phrases/verb_forms.py` (particle placement, auxiliary,
+  no answer in the English, every form a known word); see "The verb drill"
+  in `docs/phrase-deck.md`. Verbs: the deck's plain and separable ones in
+  rank order, plus "sein" and "tun"; reflexive verbs are not in it yet.
+
+  Its reviews go into the same log under `pf:` unit ids, and each mode
+  replays only its own entries (`entries_for_mode`, `entriesForMode`): one
+  log replayed as one would have let verb reviews spend the sentence deck's
+  daily budget, count as its new units and space its cards. The drill has
+  its own allowance (20 a day, 5 new, both in the settings) and the same
+  grader: a typo is hard, a wrong form or auxiliary is again, "sein" typed
+  for "ist" is the right auxiliary in the wrong person and counts as a typo.
+
 - **FSRS fitted to the owner, typo marks, and CEFR in the ranking,
   2026-11-04.** Three changes from his log and his asks of that day.
 
