@@ -688,6 +688,17 @@ def _to_card(unit: PhraseUnit, occ: Occurrence, gloss: Gloss | None) -> PhraseCa
     )
 
 
+def _verb_of(unit: PhraseUnit) -> str:
+    """The infinitive of a unit's verb, or "" for a unit with none."""
+    if unit.kind in {"verb", "separable_verb"}:
+        return unit.lemma_key
+    if unit.kind == "verb_prep" and unit.parts:
+        return unit.parts[0]
+    if unit.kind == "reflexive_verb" and len(unit.parts) > 1:
+        return unit.parts[1]
+    return ""
+
+
 def select_cards(
     units: Iterable[PhraseUnit],
     occurrences_by_unit: Mapping[str, list[Occurrence]],
@@ -699,8 +710,14 @@ def select_cards(
     max_validations: int | None = None,
     excluded_card_ids: frozenset[str] = frozenset(),
     kept_card_ids: frozenset[str] = frozenset(),
+    praeteritum_forms: Mapping[str, frozenset[str]] | None = None,
 ) -> CardSelection:
     """``occurrences_by_unit`` maps ``unit_id`` to that unit's occurrences.
+
+    ``praeteritum_forms`` maps a verb's infinitive to every person of its
+    Präteritum (``verb_forms.praeteritum_surfaces``): a gap that is one of
+    them is a Präteritum whatever the tagger said ("Wir boten ihnen ...",
+    tagged present, 2026-11-03), and the Präteritum is never shown.
     ``glosses`` maps sentence text to its stored gloss (any source; the trust
     rule is applied here). ``validate`` is the carrier validator, injected.
     ``max_validations`` bounds the validator calls; past it, remaining units
@@ -764,6 +781,10 @@ def select_cards(
             reason = unsuitable_reason(group[0], governed.get(unit.lemma_key, frozenset()))
             if reason is not None:
                 stats[reason] += 1
+                continue
+            past = (praeteritum_forms or {}).get(_verb_of(unit), frozenset())
+            if past and any(s.lower() in past for s in group[0].surfaces):
+                stats["praeteritum_by_form"] += 1
                 continue
             candidates.append((group[0], usable_gloss(text, glosses.get(text))))
 

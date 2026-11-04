@@ -972,6 +972,9 @@ def _select_cards(
 
     verdicts = _verdict_cache(build_dir)
     curated = load_curated(args.phrases_dir)
+    verb_records = {
+        inf: r for inf, r in verb_forms_module.load_records(args.verb_forms).items() if r.accepted
+    }
     selection = cards_module.select_cards(
         units,
         by_unit,
@@ -981,6 +984,11 @@ def _select_cards(
         max_validations=args.max_validations,
         excluded_card_ids=frozenset(curated.excluded_cards),
         kept_card_ids=kept_card_ids,
+        # The drill's forms catch the Präteritum the tagger calls present.
+        praeteritum_forms=verb_forms_module.praeteritum_surfaces(
+            {inf: r.praeteritum for inf, r in verb_records.items()},
+            {inf: r.partizip for inf, r in verb_records.items()},
+        ),
     )
     if verdicts is not None:
         verdicts.save()
@@ -1230,6 +1238,7 @@ def stage_export(args: argparse.Namespace) -> int:
     # After the glosses, which the rivals are found from.
     units = rivals_module.apply_synonyms(units, load_curated(args.phrases_dir).synonyms)
     units = rivals_module.assign_rivals(units)
+    units = rivals_module.apply_curated_rivals(units, load_curated(args.phrases_dir).rivals)
     corpus: dict[str, int] = {}
     stats_path = build_dir / "parse_stats.json"
     if stats_path.exists():

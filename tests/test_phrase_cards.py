@@ -63,6 +63,35 @@ def test_a_glossed_sentence_beats_an_unglossed_twin_of_the_same_form() -> None:
     assert selection.wanted == []
 
 
+def test_select_cards_praeteritum_the_tagger_missed_is_caught_by_the_verb_forms() -> None:
+    """ "Wir boten ihnen die Möglichkeit." was tagged present tense, so the
+    Präteritum rule never saw it (owner, 2026-11-03). The drill's verb forms
+    know "bot", so "boten" is caught whatever the tag says."""
+    from src.phrases.verb_forms import praeteritum_surfaces
+
+    unit = UNIT.model_copy(
+        update={"unit_id": "vb:bieten", "kind": "verb", "lemma_key": "bieten", "parts": ["bieten"]}
+    )
+    text = "Wir boten ihnen die Möglichkeit."
+    occ = Occurrence(
+        kind="verb", unit_key="bieten", parts=["bieten"], token_indices=[1], spans=[(4, 9)],
+        surfaces=["boten"], corpus_source="tatoeba", line_id="1", text=text,
+        form_key="Fin|Pres|1|Plur",
+    )  # fmt: skip
+    glosses = {text: Gloss("We offered them the opportunity.", "azure")}
+    forms = praeteritum_surfaces({"bieten": ["bot"]})
+    assert "boten" in forms["bieten"] and "bietet" not in forms["bieten"]
+    # "entschieden" is "they decided" and the participle: not a Präteritum
+    split = praeteritum_surfaces({"entscheiden": ["entschied"]}, {"entscheiden": ["entschieden"]})
+    assert "entschieden" not in split["entscheiden"] and "entschied" in split["entscheiden"]
+    shown = select_cards([unit], {unit.unit_id: [occ]}, glosses, validate=lambda _: True)
+    assert len(shown.cards) == 1, "without the forms the tag decides"
+    caught = select_cards(
+        [unit], {unit.unit_id: [occ]}, glosses, validate=lambda _: True, praeteritum_forms=forms
+    )
+    assert caught.cards == [] and caught.stats["praeteritum_by_form"] == 1
+
+
 def test_select_cards_deployed_card_keeps_its_place_over_a_newly_glossed_one() -> None:
     """The November glosses (2026-11-04) would have swapped 363 shown, reviewed
     top-band cards for unread ones, only because a shorter sentence had

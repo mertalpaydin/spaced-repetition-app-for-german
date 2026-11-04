@@ -268,6 +268,39 @@ def verb_cards(
     return sorted(cards, key=lambda c: (c.source_unit_id is not None, c.rank, c.infinitive))
 
 
+def praeteritum_surfaces(
+    forms: Mapping[str, Iterable[str]],
+    participles: Mapping[str, Iterable[str]] | None = None,
+) -> dict[str, frozenset[str]]:
+    """Every person of each verb's Präteritum, from its er/sie/es form:
+    "bot" -> bot, botst, botest, boten, botet; "machte" -> machte,
+    machtest, machten, machtet. A separable verb's verb word, and the word
+    fused with its particle as a subordinate clause writes it ("aufstand").
+    ``forms`` maps an infinitive to its Präteritum forms as stored.
+
+    A form that is also the verb's participle is left out: "entschieden" is
+    "they decided" and "decided", and "Ich habe mich entschieden" is no
+    Präteritum (found by the golden sample, 2026-11-04)."""
+    out: dict[str, frozenset[str]] = {}
+    for infinitive, praeteritum in forms.items():
+        not_past = {p.lower() for p in (participles or {}).get(infinitive, ())}
+        surfaces: set[str] = set()
+        for form in praeteritum:
+            words = form.lower().split()
+            if not words:
+                continue
+            base, particle = words[0], "".join(words[1:])
+            endings = (
+                ("", "st", "n", "t") if base.endswith("e") else ("", "st", "est", "en", "t", "et")
+            )
+            for ending in endings:
+                surfaces.add(base + ending)
+                if particle:
+                    surfaces.add(particle + base + ending)
+        out[infinitive] = frozenset(surfaces - not_past)
+    return out
+
+
 def verbs_version(cards: Iterable[VerbCard]) -> str:
     digest = hashlib.sha1()
     for card in cards:
