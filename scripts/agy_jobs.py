@@ -566,7 +566,7 @@ def job_verb_forms(args: argparse.Namespace) -> int:
         if args.skip_done_in
         else set(existing)
     )
-    todo = [v for v in verb_forms_module.drill_verbs(units) if v[0] not in done]
+    todo = [v for v in verb_forms_module.form_requests(units) if v[0] not in done]
     if args.slice:
         # "i/n": every n-th verb from the i-th, so n agents can run side by
         # side, each into its own file, merged afterwards.

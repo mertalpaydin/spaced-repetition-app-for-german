@@ -233,13 +233,79 @@ def drill_verbs(units: Iterable[PhraseUnit]) -> list[tuple[str, bool, PhraseUnit
     return out
 
 
+def drill_reflexives(units: Iterable[PhraseUnit]) -> list[tuple[str, PhraseUnit]]:
+    """(base infinitive, unit) for every bare reflexive verb ("sich setzen",
+    not "sich freuen auf"), in rank order, one per base. Its forms derive
+    from the base verb's; see ``reflexive_forms``."""
+    seen: set[str] = set()
+    out: list[tuple[str, PhraseUnit]] = []
+    for unit in sorted(units, key=lambda u: u.rank):
+        if unit.kind != "reflexive_verb" or len(unit.parts) != 2 or unit.parts[0] != "sich":
+            continue
+        base = unit.parts[1]
+        if not re.fullmatch(r"[a-zäöüß]+", base) or base in seen:
+            continue
+        seen.add(base)
+        out.append((base, unit))
+    return out
+
+
+def form_requests(units: Iterable[PhraseUnit]) -> list[tuple[str, bool, PhraseUnit | None]]:
+    """What the drafting job must cover: the drill's verbs, then the bases
+    of its reflexive verbs that are not drill verbs themselves."""
+    units = list(units)
+    verbs = drill_verbs(units)
+    have = {inf for inf, _, _ in verbs}
+    extra = [
+        (base, bool(split_particle(base)[0]), None)
+        for base, _ in drill_reflexives(units)
+        if base not in have
+    ]
+    return verbs + extra
+
+
+def reflexive_forms(base: VerbFormsRecord) -> tuple[list[str], list[str]]:
+    """The reflexive verb's Präteritum and participle from its base verb's:
+    the pronoun after the verb ("setzte sich", "stellte sich vor") and in
+    front of the participle ("sich gesetzt")."""
+    praeteritum = []
+    for form in base.praeteritum:
+        words = form.split()
+        praeteritum.append(" ".join([words[0], "sich", *words[1:]]))
+    return praeteritum, [f"sich {p}" for p in base.partizip]
+
+
 def verb_cards(
     units: Iterable[PhraseUnit], records: Mapping[str, VerbFormsRecord]
 ) -> list[VerbCard]:
     """The drill's verbs: every deck verb with an accepted, well-formed
-    record and an English to show."""
+    record and an English to show, then the bare reflexive verbs whose base
+    has one. A reflexive verb takes "hat" whatever its base takes ("sich
+    verlaufen" beside "ist verlaufen")."""
+    units = list(units)
     verbs = drill_verbs(units)
     cards: list[VerbCard] = []
+    for base, reflexive in drill_reflexives(units):
+        record = records.get(base)
+        if record is None or not record.accepted or not reflexive.gloss_en:
+            continue
+        if check_record(record, bool(draft_particle(record))):
+            continue
+        praeteritum, partizip = reflexive_forms(record)
+        cards.append(
+            VerbCard(
+                unit_id=drill_unit_id(f"sich {base}"),
+                infinitive=f"sich {base}",
+                gloss_en=reflexive.gloss_en,
+                rank=reflexive.rank,
+                source_unit_id=reflexive.unit_id,
+                praeteritum=praeteritum,
+                auxiliary=["hat"],
+                partizip=partizip,
+                weak=(record.praeteritum[0], record.partizip[0])
+                == weak_forms(base, bool(draft_particle(record)), draft_particle(record)),
+            )
+        )
     for position, (infinitive, separable, unit) in enumerate(verbs, start=1):
         record = records.get(infinitive)
         if record is None or not record.accepted or check_record(record, separable):

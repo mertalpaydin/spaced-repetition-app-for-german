@@ -11,6 +11,7 @@ from src.phrases.verb_forms import (
     doubtful,
     drill_unit_id,
     drill_verbs,
+    form_requests,
     split_particle,
     verb_cards,
     weak_forms,
@@ -135,6 +136,44 @@ def test_drill_verbs_puts_sein_and_tun_first_and_takes_each_infinitive_once() ->
     ]
     got = [(inf, sep) for inf, sep, _ in drill_verbs(units)]
     assert got == [("sein", False), ("tun", False), ("gehen", False), ("aufstehen", True)]
+
+
+def test_reflexive_verbs_derive_their_forms_from_the_base_verb() -> None:
+    """ "sich setzen": setzte sich, hat sich gesetzt; "sich vorstellen": stellte
+    sich vor, hat sich vorgestellt. A reflexive verb takes "hat", whatever
+    the base takes ("sich verlaufen" beside "ist verlaufen")."""
+    reflexive = PhraseUnit.model_validate(
+        {
+            "unit_id": "rv:sich_setzen", "kind": "reflexive_verb", "lemma_key": "sich setzen",
+            "parts": ["sich", "setzen"], "display_de": "sich setzen", "gloss_en": "to sit down",
+            "sentence_count": 10, "rank": 300, "source": "mined", "card_count": 1,
+        }
+    )  # fmt: skip
+    vorstellen = reflexive.model_copy(
+        update={"unit_id": "rv:sich_vorstellen", "lemma_key": "sich vorstellen",
+                "parts": ["sich", "vorstellen"], "display_de": "sich vorstellen",
+                "gloss_en": "to imagine", "rank": 310}
+    )  # fmt: skip
+    verlaufen = reflexive.model_copy(
+        update={"unit_id": "rv:sich_verlaufen", "lemma_key": "sich verlaufen",
+                "parts": ["sich", "verlaufen"], "display_de": "sich verlaufen",
+                "gloss_en": "to get lost", "rank": 320}
+    )  # fmt: skip
+    records = {
+        "setzen": _record("setzen", ["setzte"], ["hat"], ["gesetzt"]),
+        "vorstellen": _record("vorstellen", ["stellte vor"], ["hat"], ["vorgestellt"]),
+        "verlaufen": _record("verlaufen", ["verlief"], ["ist"], ["verlaufen"]),
+    }
+    assert form_requests([reflexive, vorstellen, verlaufen])[-3:] == [
+        ("setzen", False, None), ("vorstellen", True, None), ("verlaufen", False, None),
+    ]  # fmt: skip
+    cards = {c.unit_id: c for c in verb_cards([reflexive, vorstellen, verlaufen], records)}
+    assert cards["pf:sich_setzen"].praeteritum == ["setzte sich"]
+    assert cards["pf:sich_setzen"].partizip == ["sich gesetzt"]
+    assert cards["pf:sich_setzen"].gloss_en == "to sit down", "the reflexive's own English"
+    assert cards["pf:sich_vorstellen"].praeteritum == ["stellte sich vor"]
+    assert cards["pf:sich_verlaufen"].auxiliary == ["hat"]
+    assert cards["pf:sich_setzen"].infinitive == "sich setzen"
 
 
 def test_verb_cards_and_export_round_trip(tmp_path: Path) -> None:
