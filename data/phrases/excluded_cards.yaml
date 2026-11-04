@@ -5996,3 +5996,15 @@
 - cea1ee37511f  # BAD_SENTENCE: Typo: OpnenDNS for OpenDNS.
 - f298fad0083f  # WRONG_UNIT: Part of the fixed expression mehr oder weniger, not the adverb on its own.
 # Review round r1028d.
+# Review round r1104.
+- 026917862072  # BAD_SENTENCE: News snippet uses the obscure veterinary acronym 'MKS'/'FMD' without context and obscures singul
+- 3d601390f53a  # BAD_SENTENCE: Inanimate plural pronoun 'Sie' ('They') lacks a noun referent such as interest or payouts.
+- 518b9b321609  # BAD_SENTENCE: Rhetorical question lacks context for which crimes are meant and what they would suffice for.
+- 579367c270ec  # BAD_SENTENCE: Starts with dangling demonstrative 'Dieses' and 'auch', missing the preceding neuter noun refere
+- 5e49415a1f5e  # BAD_SENTENCE: Marketing snippet contains product jargon ('NVIDIA Reflex') and a dangling 'Genau hier' missing 
+- dbe9ae935c7f  # BAD_SENTENCE: Near-duplicate of 85fbfca54f53 (an Lungenkrebs gestorben); a second identical frame teaches noth
+# Review round r1104c.
+- 0d05a4e3cf99  # BAD_SENTENCE: Spelling: entlanggelaufen is one word; the gap tests a split that standard German does not write
+- 4ed5550a657c  # BAD_SENTENCE: Odd out of context; jemanden festlegen with da reads as a fragment.
+- 924710c0f984  # BAD_GLOSS: einbringen is to contribute, not to bring up; the sentence is too bare to say which.
+- c9f6501731c2  # BAD_SENTENCE: Subtitle line built on two names; another sentence teaches the verb better.

@@ -458,6 +458,28 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **The November translations, 2026-11-04.** The scheduled job's run of
+  2026-11-01 translated 37,400 sentences (Azure, free; the Gemini fallback
+  tried the free lane after Azure refused and spent nothing). About 194,000
+  usable sentences are left, five more months. Two defects surfaced when
+  the glosses went into the deck:
+
+  - Rebuilding the cards swapped 363 shown, reviewed top-band cards for
+    unread ones, because a shorter sentence had gained English. The cards
+    stage now keeps every card the deployed deck shows (`--fresh-cards`
+    opts out). With that, 25 top-band cards changed instead of 390.
+  - Pass 0 of the job, the deck's own untranslated card sentences, only
+    covered the two corpora the job reads, while the deck uses six: 750 of
+    7,244 were glossed and the other 6,492 could never be. They are read
+    from the wanted file now, so December's run does them first (about a
+    fifth of the month). The 549 that belong to units ranked up to 4000
+    were translated by agy the same day.
+
+  The `still untrusted` figure differs between runs of one month: a run
+  with budget filters unusable sentences out first (193,587 on 11-01), a
+  run of a spent month skips that filter (304,352 on 11-02). The first is
+  the one to compare month on month.
+
 - **The owner's reports and words of 2026-10-28.** Nine "Problem melden"
   reports from his log of 2026-10-25 to 27, the words he had added from the
   page, and two new words.
