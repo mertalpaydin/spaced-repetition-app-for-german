@@ -574,11 +574,56 @@ def test_a_plain_verb_card_does_not_show_the_prepositional_unit() -> None:
     )
     # the same sentence is fine when the deck teaches no such unit
     assert unsuitable_reason(verb("Er sorgt für das Essen.", "sorgt")) is None
-    # a preposition far from the verb is not its government
+    # Changed 2026-11-05. This line used to say a preposition five words on
+    # is not the government, but "Er sorgt schon lange nicht mehr für das
+    # Essen" is "sorgen für" (to provide). A main clause puts its
+    # prepositional object at the end of the middle field, and the 4-word
+    # window let "Nun stößt er auch innerhalb seiner Partei auf Gegenwind"
+    # through as plain "stoßen": 464 deck cards, read before the change.
     assert (
         unsuitable_reason(verb("Er sorgt schon lange nicht mehr für das Essen.", "sorgt"), governed)
+        == "prepositional_reading"
+    )
+    # A preposition in the next clause is not the government.
+    assert (
+        unsuitable_reason(
+            verb("Er sorgt schon seit Jahren gut, für das Essen kocht sie.", "sorgt"), governed
+        )
         is None
     )
+
+
+def test_the_prepositional_reading_spans_the_clause_and_a_clause_final_verb() -> None:
+    """Round rank1105 (2026-11-05) dropped nine "stoßen" cards by hand that
+    were all "stoßen auf": the preposition sat six words on, or before a
+    verb that ends its clause. The infinitive "zu" and "um ... zu" are not
+    the prepositions "zu" and "um", nor is "am" in "am besten"."""
+    from src.phrases.cards import unsuitable_reason
+
+    def verb(text: str, surface: str, key: str) -> Occurrence:
+        start = text.index(surface)
+        return Occurrence(
+            kind="verb", unit_key=key, parts=[key], token_indices=[1],
+            spans=[(start, start + len(surface))], surfaces=[surface], corpus_source="tatoeba",
+            line_id=text, text=text, form_key="Fin|Pres|3|Sing",
+        )  # fmt: skip
+
+    auf = frozenset({"auf"})
+    far = verb("Nun stößt er auch innerhalb seiner Partei auf Gegenwind.", "stößt", "stoßen")
+    assert unsuitable_reason(far, auf) == "prepositional_reading"
+    final = verb("Die Klage dürfte auf großes Interesse stoßen.", "stoßen", "stoßen")
+    assert unsuitable_reason(final, auf) == "prepositional_reading"
+    # a bare preposition before a verb that does not end its clause is its own phrase
+    fronted = verb("Auf dem Weg stößt er einen Stein weg.", "stößt", "stoßen")
+    assert unsuitable_reason(fronted, auf) is None
+    infinitive = verb(
+        "Du hast kein Recht, diese Leute zu verurteilen.", "verurteilen", "verurteilen"
+    )
+    assert unsuitable_reason(infinitive, frozenset({"zu"})) is None
+    um_zu = verb("Ich komme heute, um dich zu bitten.", "bitten", "bitten")
+    assert unsuitable_reason(um_zu, frozenset({"um"})) is None
+    besten = verb("Wen kannst du am besten leiden?", "leiden", "leiden")
+    assert unsuitable_reason(besten, frozenset({"an"})) is None
 
 
 def test_the_prepositional_reading_catches_the_pronominal_form() -> None:

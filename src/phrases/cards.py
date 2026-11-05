@@ -264,6 +264,37 @@ def with_complement_gap(occ: Occurrence, prep: str) -> Occurrence | None:
     )
 
 
+_CLAUSE_END: re.Pattern[str] = re.compile(r"[,;:.!?–]")
+#: What may follow a verb that still ends its clause: "stoßen wird",
+#: "verurteilt worden ist".
+_CLAUSE_FINAL_AUXILIARIES: frozenset[str] = frozenset(
+    {
+        "wird", "werden", "wirst", "werde", "würde", "würden", "worden", "wurde", "wurden",
+        "kann", "können", "konnte", "konnten", "muss", "müssen", "musste", "soll", "sollen",
+        "sollte", "will", "wollen", "darf", "dürfen", "möchte", "möchten", "hat", "haben",
+        "hatte", "hätte", "ist", "sind", "war", "waren", "wäre", "lässt", "lassen", "sein",
+    }
+)  # fmt: skip
+
+
+def _clause_final_government(occ: Occurrence, preps: set[str]) -> bool:
+    """A governed preposition before a verb that ends its clause: "Die
+    Klage dürfte auf großes Interesse stoßen"."""
+    tail = [w.lower() for w in _WORD.findall(_CLAUSE_END.split(occ.text[occ.spans[0][1] :], 1)[0])]
+    if not all(w in _CLAUSE_FINAL_AUXILIARIES for w in tail):
+        return False
+    head = re.split(r"[,;:–]", occ.text[: occ.spans[0][0]])[-1]
+    before = [w.lower() for w in _WORD.findall(head)]
+    if before[-1:] == ["zu"]:  # "diese Leute zu verurteilen", and "um ... zu"
+        before = before[:-1]
+        if before[:1] == ["um"]:
+            before = before[1:]
+    found = preps & set(before)
+    if "besten" in before:
+        found.discard("am")
+    return bool(found)
+
+
 def _prepositional_reading(occ: Occurrence, governed: frozenset[str]) -> bool:
     """A plain-verb carrier that really shows a verb the deck teaches with a
     preposition.
@@ -275,19 +306,33 @@ def _prepositional_reading(occ: Occurrence, governed: frozenset[str]) -> bool:
     2026-09-21). ``governed`` is what the deck itself teaches for this
     lemma, so the rule cannot invent a government the deck does not have.
 
-    The preposition has to follow the verb and stay close to it: "Ich denke
-    an dich" is the prepositional unit, while "An diesem Tag denke ich viel"
-    is not.
+    The preposition has to follow the verb in its clause: "Ich denke an
+    dich" is the prepositional unit, while "An diesem Tag denke ich viel" is
+    not. Up to 2026-11-05 it also had to come within four words, which let
+    "Nun stößt er auch innerhalb seiner Partei auf Gegenwind" through as
+    plain "stoßen": a main clause puts its prepositional object at the end
+    of the middle field. Reading the 464 deck cards the whole clause adds
+    found them almost all the prepositional verb ("an Krebs gestorben",
+    "zum Tode verurteilt"). The four-word window still counts across a
+    comma, as it always did.
+
+    A bare preposition before the verb counts only when the verb ends its
+    clause ("auf großes Interesse stoßen"), and then not the infinitive
+    "zu", "um ... zu", or "am" of "am besten".
     """
     if not governed:
         return False
-    after = [w.lower() for w in _WORD.findall(occ.text[occ.spans[0][1] :])[:4]]
+    rest = occ.text[occ.spans[0][1] :]
+    after = [w.lower() for w in _WORD.findall(rest)[:4]]
+    clause = {w.lower() for w in _WORD.findall(_CLAUSE_END.split(rest, maxsplit=1)[0])}
     pronominal: set[str] = set()
     fused: set[str] = set()
     for prep in governed:
         pronominal |= _PRONOMINAL_FORMS.get(prep, frozenset())
         fused |= _FUSED_PREPOSITIONS.get(prep, frozenset())
-    if (set(governed) | pronominal | fused) & set(after):
+    if (set(governed) | pronominal | fused) & (set(after) | clause):
+        return True
+    if _clause_final_government(occ, set(governed) | fused):
         return True
     # The pronominal form also comes before the verb, in a verb-final clause
     # or when it is fronted: "darauf achten", "darueber verfuegen", which
