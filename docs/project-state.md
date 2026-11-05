@@ -458,6 +458,64 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **The owner's reports of 2026-10-28 to 11-03, and four open items,
+  2026-11-04/05** (rule 9: `PhraseUnit.rival_words`, additive, defaulted).
+  Twelve reports. Grading, both engines: a -nis plural ("Kenntnisse") is an
+  ending slip, and one letter slipped inside an ending ("vertraure") is a
+  near miss. Rivals by hand in `data/phrases/rivals.yaml`, for pairs the
+  English cannot find (Gegend/Umgebung, gegenüber/dagegen, sich
+  unterhalten/sprechen) and words the deck has no unit for (wegen,
+  Durchsage), which go into `rival_words`. "Wir boten ..." reached him
+  because the tagger called it present; the cards stage now also drops a gap
+  that is any person of the verb's Präteritum from the drill's store, minus
+  forms that are also the participle ("entschieden"). Six cards dropped
+  (odd structures, an idiom glossed literally, two near-duplicates of "wie
+  es weitergeht").
+
+  Open items done the same night: the build cache follows only the imports
+  its own code reads, so a curated list or a detector no longer forces a
+  14-minute rebuild; a noun card whose gap is another word goes ("Rings
+  um" under "der Ring", "einen Neuen" under "das Neue"); adverb units whose
+  cards show another word got their display fixed by override ("meistens",
+  "außerdem", "beliebt", "angewiesen (auf)"); the drill asks the bare
+  reflexive verbs, derived from the base verb, always with "hat".
+
+  The cited articles of nouns the corpus never puts behind "ein"/"eine"
+  were checked against agy's article for each of 5,739 nouns: 405
+  disagreed. 160 real nouns got their article by display override
+  (`only_kind: "noun"`: "der Code", "das Passwort", "der Bär", ...). 121
+  were not nouns at all but verb forms, adjectives and names the tagger
+  capitalised ("die Bringen", "die Ähnlich", "die Kate"); an exclusion may
+  now name one kind (`noun:<key>`), so these go without taking the verb or
+  adjective of the same key with them. None of them had been started.
+  Plural citations and ambiguous ones (Band, Harz, Ostern) were left
+  alone.
+
+  Two more card rules. A word card whose gap sits inside one of the
+  deck's curated idioms goes ("Ich verstehe es mehr oder [weniger]",
+  "keine [Ahnung]", "zum [Glück]"): the idiom is its own unit, and five of
+  the six "weniger" cards had been this one. 70 cards had the shape. Mined
+  expressions do not count, they are mostly free collocations ("eine gute
+  Idee"). And the carrier validator rejects a verb-final clause with its
+  opening cut off ("Februar das Licht der Welt erblickt hat."): 14 deck
+  sentences matched the shape, 11 of them fragments; the 3 main clauses
+  among them are kept by requiring the non-finite verb to stand directly
+  before the finite one (section 16 of the validator's docstring).
+
+  Ranks 1501 to 2000 were read the same night: rounds rank1105 (agy, 1,065
+  cards, then Claude for the last batches when agy's reviewer quota ran
+  out), rank1105b and rank1105c (Claude, 196 and 54 replacements); 268
+  cards and 5 units dropped, 9 findings overruled and recorded beside the
+  round. The top 2000 now has cards and English for every unit; 18 units
+  carry an unread replacement and 5 have fewer than 3 cards (TODO.md).
+  Three units had no card: "äußerst" lost every occurrence to its
+  Swiss-spelled twin "äusserst", whose id slugs to the same
+  "aj:aeusserst" and which `match_to_unit` tries first; the twin is
+  excluded as an adjective. "sich auswirken" (a separable-verb unit) and
+  "sich darum kümmern" can never have a card, since their reflexive
+  occurrences belong to "sich auswirken auf" and "sich kümmern um", which
+  teach them; both excluded by kind.
+
 - **The verb drill, 2026-11-04** (rule 9: the manifest gained `verbs_file`,
   `verbs_version` and `verb_count`, all defaulted; the review log's format is
   unchanged). A "Verben" screen gives a verb and its English and asks the
@@ -466,7 +524,8 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   and checked by `src/phrases/verb_forms.py` (particle placement, auxiliary,
   no answer in the English, every form a known word); see "The verb drill"
   in `docs/phrase-deck.md`. Verbs: the deck's plain and separable ones in
-  rank order, plus "sein" and "tun"; reflexive verbs are not in it yet.
+  rank order, plus "sein" and "tun"; reflexive verbs joined on 2026-11-05
+  (entry above).
 
   Its reviews go into the same log under `pf:` unit ids, and each mode
   replays only its own entries (`entries_for_mode`, `entriesForMode`): one
