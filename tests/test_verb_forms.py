@@ -186,6 +186,33 @@ def test_reflexive_verbs_derive_their_forms_from_the_base_verb() -> None:
     assert cards["pf:sich_setzen"].infinitive == "sich setzen"
 
 
+def test_a_reflexive_verb_s_base_comes_from_its_citation_form() -> None:
+    """The key can be misspelt where an override fixed the display
+    ("sich_umschaun" shown as "sich umschauen"), and the key hides what the
+    display shows: "sich einschüchtern lassen" was drilled as "schüchterte
+    sich ein" (2026-11-05). A reflexive verb is in the drill when its
+    citation form is "sich" and one verb, whatever case it governs."""
+    from src.phrases.verb_forms import drill_reflexives
+
+    def rv(key: str, display: str, rank: int) -> PhraseUnit:
+        return PhraseUnit.model_validate(
+            {
+                "unit_id": f"rv:sich_{key}", "kind": "reflexive_verb", "lemma_key": f"sich {key}",
+                "parts": ["sich", key], "display_de": display, "gloss_en": "x",
+                "sentence_count": 10, "rank": rank, "source": "mined", "card_count": 1,
+            }
+        )  # fmt: skip
+
+    units = [
+        rv("umschaun", "sich umschauen", 1),
+        rv("schnappen", "sich schnappen +Dat", 2),
+        rv("einschuechtern", "sich einschüchtern lassen", 3),
+        rv("zuhalten", "sich die Ohren zuhalten", 4),
+        rv("annaeheren", "sich annähern an", 5),
+    ]
+    assert [base for base, _ in drill_reflexives(units)] == ["umschauen", "schnappen"]
+
+
 def test_verb_cards_and_export_round_trip(tmp_path: Path) -> None:
     units = [
         _unit("vb:gehen", "verb", "gehen", 8, gloss="to go"),

@@ -236,13 +236,22 @@ def drill_verbs(units: Iterable[PhraseUnit]) -> list[tuple[str, bool, PhraseUnit
 def drill_reflexives(units: Iterable[PhraseUnit]) -> list[tuple[str, PhraseUnit]]:
     """(base infinitive, unit) for every bare reflexive verb ("sich setzen",
     not "sich freuen auf"), in rank order, one per base. Its forms derive
-    from the base verb's; see ``reflexive_forms``."""
+    from the base verb's; see ``reflexive_forms``.
+
+    Read from the citation form, not the key (2026-11-05): an override can
+    fix a misspelt key's display ("sich_umschaun", "sich umschauen"), and
+    the display shows what the key hides ("sich einschüchtern lassen",
+    which the key made "sich einschüchtern"). A case marker does not count:
+    "sich schnappen +Dat" is bare."""
     seen: set[str] = set()
     out: list[tuple[str, PhraseUnit]] = []
     for unit in sorted(units, key=lambda u: u.rank):
-        if unit.kind != "reflexive_verb" or len(unit.parts) != 2 or unit.parts[0] != "sich":
+        if unit.kind != "reflexive_verb":
             continue
-        base = unit.parts[1]
+        words = re.sub(r"\s*\+\s*(Akk|Dat|Gen)\b", "", unit.display_de).split()
+        if len(words) != 2 or words[0] != "sich":
+            continue
+        base = words[1]
         if not re.fullmatch(r"[a-zäöüß]+", base) or base in seen:
             continue
         seen.add(base)
