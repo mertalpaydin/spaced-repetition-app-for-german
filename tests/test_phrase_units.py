@@ -204,6 +204,21 @@ def test_ranks_are_unique_and_follow_sentence_count() -> None:
     assert units[0].unit_id == "vp:denken_an"
 
 
+def test_an_exclusion_can_name_one_kind() -> None:
+    """An exclusion "noun:sag" drops the imperative the tagger filed as a
+    noun ("die Sag") and keeps the verb "sagen" alone (2026-11-05): a bare key drops
+    every kind, and junk nouns share keys with real verbs ("die Bringen")."""
+    counts = _word_counts()
+    counts.nouns.update({"frage": 500})
+    builder = _builder(counts, CuratedLists(exclude=["noun:frage"]))
+    builder.t = Thresholds(word_min_count=50)
+    assert builder.build(_word_occ("noun", "frage", 2)) == []
+    assert builder.report["rejected"]["noun:excluded"] == 1
+    kept = _builder(_word_counts(), CuratedLists(exclude=["verb:frage"]))
+    kept.t = Thresholds(word_min_count=50)
+    assert [u.lemma_key for u in kept.build(_word_occ("noun", "frage", 2))] == ["frage"]
+
+
 def test_excluded_keys_never_become_units() -> None:
     builder = _builder(_counts(kommen=100), CuratedLists(exclude=["kommen zu"]))
     assert builder.build(_occ("verb_prep", "kommen zu", ["kommen", "zu"], 40, case="Dat")) == []

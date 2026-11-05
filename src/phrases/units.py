@@ -1889,7 +1889,9 @@ class UnitBuilder:
         phrase_idents = [ident for ident, s in stats.items() if s.kind not in WORD_KINDS]
         for ident in phrase_idents + word_idents:
             s = stats[ident]
-            if s.key in self.excluded:
+            # "noun:sag" excludes one kind only (2026-11-05): junk nouns the
+            # tagger made of verb forms share their key with the real verb.
+            if s.key in self.excluded or f"{s.kind}:{s.key}" in self.excluded:
                 # A request never overrides an exclusion. Those were written
                 # because the occurrences themselves are wrong: every carrier
                 # of "sorgen", "achten" and "selber" teaches a different
