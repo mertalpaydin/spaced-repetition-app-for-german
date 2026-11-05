@@ -516,6 +516,24 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   occurrences belong to "sich auswirken auf" and "sich kümmern um", which
   teach them; both excluded by kind.
 
+  What the rounds kept finding was then fixed at the source, the morning
+  of 2026-11-05. The prepositional reading spans the verb's clause instead
+  of four words, and counts a bare preposition before a clause-final verb
+  ("auf großes Interesse stoßen"), but not the infinitive "zu", "um ...
+  zu", "am besten", or a decimal comma as a clause break: 464 deck cards
+  were read before the change, almost all the prepositional verb. The
+  drill reads a reflexive verb from its citation form, not its key, which
+  fixed five bases ("sich ausbreiten" for "sich breiten") and took out
+  thirteen that are not bare ("sich einschüchtern lassen"). The plain
+  verb "verabschieden" had carried the display "sich verabschieden" since
+  2026-09-21, so its cards ("ein Gesetz verabschieden") were shown under
+  the wrong word, while the A1 reflexive had no unit; the override is
+  gone and "sich verabschieden von" is seeded. "der Erbe" became "das
+  Erbe" (its gloss and most cards are the inheritance), and "das Gut"
+  became "das Gute", since the lemmatiser files "Gute" under "gut" and
+  that is most of the unit's sentences. Two more rounds (rank1105d and e,
+  Claude) read the replacements.
+
 - **The verb drill, 2026-11-04** (rule 9: the manifest gained `verbs_file`,
   `verbs_version` and `verb_count`, all defaulted; the review log's format is
   unchanged). A "Verben" screen gives a verb and its English and asks the
