@@ -76,3 +76,5 @@
 - {verb: erkennen, prep: an, case: Dat, cefr: B1, gloss_en: to recognise by}
 - {verb: schützen, prep: vor, case: Dat, reflexive: true, cefr: B1, gloss_en: to protect oneself from}
 - {verb: verstehen, prep: von, case: Dat, cefr: B1, gloss_en: to know about (be an expert in)}
+# 2026-11-05: the A1 reflexive had no unit; the plain verb carried its display by mistake.
+- {verb: verabschieden, prep: von, case: Dat, reflexive: true, cefr: A1, gloss_en: to say goodbye to}

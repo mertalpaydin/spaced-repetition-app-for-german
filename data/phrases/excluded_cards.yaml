@@ -6316,3 +6316,54 @@
 - e63f42793387  # BAD_SENTENCE: 'die Anklage des Alten' needs its context.
 - eaf579d79ca6  # WRONG_UNIT: 'beim Alten bleiben' is the neuter idiom, not 'der Alte'.
 - fcb01fd2cfb6  # BAD_SENTENCE: 'derweil' points back to a missing sentence.
+# 2026-11-05: neuter readings under a masculine nominalised adjective, and 'Erben' (heirs)
+# under 'das Erbe' (inheritance). A rule for the first was measured and rejected: 4 true of 17.
+- 6869592e4aa8  # WRONG_UNIT: 'das Kranke' (the sick, as a quality) under 'der Kranke'
+- 3d5875543214  # WRONG_UNIT: 'etwas Verrücktes' under 'der Verrückte'
+- caecb0df6d50  # WRONG_UNIT: 'das Konservative' under 'der Konservative'
+- d03ee86fa528  # WRONG_UNIT: 'die Erben' (heirs) under 'das Erbe' (inheritance)
+- fb24b079e722  # WRONG_UNIT: 'ohne Erben' (heirs) under 'das Erbe' (inheritance)
+# Review round rank1105d.
+- 06c31d632090  # BAD_SENTENCE: Electrical jargon cut from its context.
+- 13b5de9cf2a3  # WRONG_UNIT: 'den Richtigen' is 'der Richtige' (the right man).
+- 1e78f7699e26  # BAD_SENTENCE: Near-duplicate of 'Ich habe ein Tor geschossen.'
+- 1fda45ff268f  # BAD_SENTENCE: Vulgar and insulting.
+- 2173b2092edb  # BAD_SENTENCE: Web boilerplate ('Dieser Artikel wurde erstmals am ... veröffentlicht').
+- 2b6bfe70018c  # BAD_SENTENCE: 'hingegen' points back to a missing sentence.
+- 35a3e45dd936  # WRONG_UNIT: 'die Richtige' (the right woman), not 'das Richtige'.
+- 361df7f41a50  # WRONG_UNIT: 'Genau genommen' (strictly speaking) is a separate expression.
+- 483d28295cce  # WRONG_UNIT: The fixed phrase 'an Grenzen stoßen'.
+- 4b07790a3e38  # BAD_SENTENCE: 'Dadurch käme es' points back to a missing sentence.
+- 50d767a2ff88  # WRONG_UNIT: 'zu ... stoßen' (to join), in the Swiss spelling 'stossen'.
+- 5deec4ab14b2  # BAD_SENTENCE: Near-duplicate of another congress sentence in the same unit.
+- 60a885f77833  # WRONG_UNIT: 'rechnen auf' (to count on), not plain 'rechnen'.
+- 86855cd5e56e  # WRONG_UNIT: 'Zum wahren Glück gehört' is 'gehören zu', its own unit.
+- 8fb7b1c86268  # BAD_SENTENCE: Broken: 'dass schon kommende Woche eine.'
+- 905e2bd3caa7  # BAD_SENTENCE: Near-duplicate of 'Ich habe früher ein Tagebuch geführt.'
+- 906e50113014  # BAD_GLOSS: The idiom 'So schnell schießen die Preußen nicht' is glossed literally.
+- 9a24168d21f0  # BAD_SENTENCE: A generalisation about women.
+- b470367100bf  # BAD_SENTENCE: 'hingegen' points back to a missing sentence.
+- b8b4452d33a5  # WRONG_UNIT: 'stoßen bei ... auf Kritik' is 'stoßen auf'.
+- cdf01bc620c5  # WRONG_UNIT: 'loses Mundwerk' is the adjective 'lose', not the adverb 'los'.
+- d4f01ec07cb7  # BAD_SENTENCE: Near-duplicate of another congress sentence in the same unit.
+- d8372397d650  # WRONG_UNIT: 'mit ... gerechnet' is 'rechnen mit', and business jargon.
+- dc0da4b31f7a  # WRONG_UNIT: 'Gut und Böse' is good and evil, not 'das Gut'; 'Sie' glossed 'It'.
+- de90df1b05b1  # WRONG_UNIT: 'ein Richtiger' is 'der Richtige' (the right man).
+- e17731bb1682  # BAD_SENTENCE: A news line about a statue, cut from its context.
+- f9d8795dfb65  # WRONG_UNIT: 'mit einem Umsatz ... gerechnet' is 'rechnen mit'.
+- fc52a561436d  # BAD_GLOSS: A fragment, and the English 'are expecting the next 12 months' is broken.
+# Review round rank1105e.
+- 1a79990abc75  # BAD_GLOSS: 'einen Bock schießen' (to blunder) is glossed literally as 'shot a buck'.
+- 65a409b74e48  # WRONG_UNIT: The fixed phrase 'an seine Grenzen stoßen'.
+- 6ed9b6174912  # BAD_SENTENCE: 'Denn wer soll' points back to a missing sentence.
+- 848361582ffd  # BAD_SENTENCE: 'Es schützt' has no referent.
+- 8e408f23e04b  # BAD_SENTENCE: Another variant of the congress sentence the unit already has.
+- baee131a802c  # BAD_SENTENCE: 'Und er' points back to a missing sentence.
+- d3d6ab49b2b6  # WRONG_UNIT: 'Allgemeines Gut' is 'das Gut' (a good), not 'das Gute'.
+- dd2ab8d5c443  # BAD_SENTENCE: A fragment ('Und dafür sorgen, dass ...').
+- dffba6a6dafd  # BAD_SENTENCE: 'Von der hat man sich' has no referent.
+- ec0cffee4bc9  # BAD_SENTENCE: Another variant of the congress sentence the unit already has.
+- ec46094bcdb6  # BAD_SENTENCE: A match report cut from its context.
+- f460df3dbe69  # BAD_SENTENCE: Tense mismatch: 'wurde ermutigt, nachdem sie ... erfahren hat'.
+- f65f5a1013ad  # WRONG_UNIT: 'Berliner und Brandenburger' are people, the noun, not the adjective.
+- 2b95f0aa2312  # WRONG_UNIT: 'ein hohes Gut' is 'das Gut' (a good), not 'das Gute' (2026-11-05)

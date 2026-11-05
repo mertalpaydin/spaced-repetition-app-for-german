@@ -348,6 +348,7 @@
 - {key: "entschluss treffen", cefr: "B1"}
 - {key: "entsprechen", case: "Dat"}
 - {key: "equipment", display: "das Equipment", only_kind: "noun"}
+- {key: "erbe", display: "das Erbe", only_kind: "noun"}
 - {key: "erdrutsch", display: "der Erdrutsch", only_kind: "noun"}
 - {key: "erfolgen durch", cefr: "B2"}
 - {key: "erfolgen über", cefr: "B2"}
@@ -552,7 +553,7 @@
 - {key: "gut verfassung", display: "in guter Verfassung"}
 - {key: "gut wünschen", display: "alles Gute wünschen"}
 - {key: "gut zweck", display: "guter Zweck"}
-- {key: "gut", display: "das Gut", only_kind: "noun"}
+- {key: "gut", display: "das Gute", gloss_en: "the good / good things", only_kind: "noun"}  # 2026-11-05: its carriers are "Gutes", "alles Gute", "Gut und Böse"
 - {key: "gürtel schnallen", display: "den Gürtel enger schnallen"}
 - {key: "haar bürsten", display: "Haare bürsten"}
 - {key: "haar kämmen", cefr: "A2"}
@@ -1329,7 +1330,6 @@
 - {key: "urteilen nach", cefr: "B2"}
 - {key: "user", display: "der User", only_kind: "noun"}
 - {key: "venus", display: "die Venus", only_kind: "noun"}
-- {key: "verabschieden", display: "sich verabschieden"}
 - {key: "verantwortung entziehen", display: "sich der Verantwortung entziehen"}
 - {key: "verantwortung tragen", cefr: "B1"}
 - {key: "verband wechseln", cefr: "B1"}
