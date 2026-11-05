@@ -624,6 +624,11 @@ def test_the_prepositional_reading_spans_the_clause_and_a_clause_final_verb() ->
     assert unsuitable_reason(um_zu, frozenset({"um"})) is None
     besten = verb("Wen kannst du am besten leiden?", "leiden", "leiden")
     assert unsuitable_reason(besten, frozenset({"an"})) is None
+    # a decimal comma or a date's dots do not end the clause (round rank1105d)
+    decimal = verb("Sie hatten mit 16,8 Milliarden gerechnet.", "gerechnet", "rechnen")
+    assert unsuitable_reason(decimal, frozenset({"mit"})) == "prepositional_reading"
+    dated = verb("Er rechnet am 02.06.2024 mit dem Ergebnis.", "rechnet", "rechnen")
+    assert unsuitable_reason(dated, frozenset({"mit"})) == "prepositional_reading"
 
 
 def test_the_prepositional_reading_catches_the_pronominal_form() -> None:

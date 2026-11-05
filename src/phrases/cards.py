@@ -264,7 +264,10 @@ def with_complement_gap(occ: Occurrence, prep: str) -> Occurrence | None:
     )
 
 
-_CLAUSE_END: re.Pattern[str] = re.compile(r"[,;:.!?–]")
+#: A clause ends at a comma, a stop or a dash, but not at the comma of
+#: "16,8" or the dots of "02.06.2024" (round rank1105d).
+_CLAUSE_END: re.Pattern[str] = re.compile(r"(?<!\d)[,.](?!\d)|[;:!?–]")
+_CLAUSE_START: re.Pattern[str] = re.compile(r"(?<!\d),(?!\d)|[;:–]")
 #: What may follow a verb that still ends its clause: "stoßen wird",
 #: "verurteilt worden ist".
 _CLAUSE_FINAL_AUXILIARIES: frozenset[str] = frozenset(
@@ -283,7 +286,7 @@ def _clause_final_government(occ: Occurrence, preps: set[str]) -> bool:
     tail = [w.lower() for w in _WORD.findall(_CLAUSE_END.split(occ.text[occ.spans[0][1] :], 1)[0])]
     if not all(w in _CLAUSE_FINAL_AUXILIARIES for w in tail):
         return False
-    head = re.split(r"[,;:–]", occ.text[: occ.spans[0][0]])[-1]
+    head = _CLAUSE_START.split(occ.text[: occ.spans[0][0]])[-1]
     before = [w.lower() for w in _WORD.findall(head)]
     if before[-1:] == ["zu"]:  # "diese Leute zu verurteilen", and "um ... zu"
         before = before[:-1]
