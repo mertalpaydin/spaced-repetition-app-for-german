@@ -127,6 +127,27 @@ def test_select_cards_noun_gap_the_sentence_does_not_mean() -> None:
     assert selection.stats["adverb_rings"] == 1 and selection.stats["nominal_gender"] == 1
 
 
+def test_select_cards_word_inside_a_curated_idiom_is_no_card_for_the_word() -> None:
+    """Five of the six "weniger" cards were "mehr oder weniger" (2026-11-05),
+    and reviewers had dropped two more: the idiom is its own unit, so a word
+    card whose gap sits inside it teaches the idiom, not the word."""
+    adverb = {"kind": "adverb"}
+    weniger = _noun_unit("av:weniger", "weniger", "weniger").model_copy(update=adverb)
+    idiom = UNIT.model_copy(
+        update={"unit_id": "id:mehr_oder_weniger", "kind": "idiom", "parts": ["mehr oder weniger"],
+                "lemma_key": "mehr oder weniger", "display_de": "mehr oder weniger"}
+    )  # fmt: skip
+    inside = _noun_occ("Ich verstehe es mehr oder weniger.", "weniger", "weniger")
+    outside = _noun_occ("Je älter ich werde, desto weniger verstehe ich.", "weniger", "weniger")
+    inside, outside = (o.model_copy(update=adverb) for o in (inside, outside))
+    glosses = {o.text: Gloss("English.", "azure") for o in (inside, outside)}
+    selection = select_cards(
+        [weniger, idiom], {"av:weniger": [inside, outside]}, glosses, validate=lambda _: True
+    )
+    assert [c.sentence_de for c in selection.cards] == [outside.text], selection.stats
+    assert selection.stats["inside_idiom"] == 1
+
+
 def test_select_cards_deployed_card_keeps_its_place_over_a_newly_glossed_one() -> None:
     """The November glosses (2026-11-04) would have swapped 363 shown, reviewed
     top-band cards for unread ones, only because a shorter sentence had

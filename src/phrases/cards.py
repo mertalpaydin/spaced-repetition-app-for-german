@@ -717,6 +717,41 @@ def unit_sense_reason(unit: PhraseUnit, occ: Occurrence) -> str | None:
     return None
 
 
+def idiom_patterns(units: Iterable[PhraseUnit]) -> dict[str, list[tuple[str, ...]]]:
+    """The deck's curated idioms as lowercase token runs, by each token."""
+    by_token: dict[str, list[tuple[str, ...]]] = defaultdict(list)
+    for unit in units:
+        tokens = tuple(" ".join(unit.parts).lower().split())
+        if unit.kind == "idiom" and len(tokens) >= 2:
+            for token in set(tokens):
+                by_token[token].append(tokens)
+    return by_token
+
+
+def inside_idiom(occ: Occurrence, patterns: Mapping[str, list[tuple[str, ...]]]) -> bool:
+    """Whether a one-gap card's gap sits inside one of the deck's idioms.
+
+    "Ich verstehe es mehr oder [weniger]" teaches "mehr oder weniger", which
+    is its own unit, not the adverb (2026-11-05: five of six "weniger"
+    cards). Curated idioms only: the mined expressions are mostly free
+    collocations ("eine gute Idee"), and a card for "Idee" there is fine."""
+    if len(occ.spans) != 1:
+        return False
+    tokens = [(m.group(0).lower(), m.start(), m.end()) for m in re.finditer(r"\w+", occ.text)]
+    start = occ.spans[0][0]
+    at = next((i for i, (_, lo, hi) in enumerate(tokens) if lo <= start < hi), None)
+    if at is None:
+        return False
+    word = tokens[at][0]
+    words = [t for t, _, _ in tokens]
+    for pattern in patterns.get(word, []):
+        for offset, token in enumerate(pattern):
+            lo = at - offset
+            if token == word and lo >= 0 and tuple(words[lo : lo + len(pattern)]) == pattern:
+                return True
+    return False
+
+
 def _verb_of(unit: PhraseUnit) -> str:
     """The infinitive of a unit's verb, or "" for a unit with none."""
     if unit.kind in {"verb", "separable_verb"}:
@@ -766,6 +801,7 @@ def select_cards(
         if unit.kind == "verb_prep" and len(unit.parts) >= 2:
             verb, *preps = unit.parts
             governed[verb] = governed.get(verb, frozenset()) | {p.lower() for p in preps}
+    idioms = idiom_patterns(units)
 
     cards: list[PhraseCard] = []
     wanted: list[WantedCarrier] = []
@@ -814,6 +850,9 @@ def select_cards(
             sense = unit_sense_reason(unit, group[0])
             if sense is not None:
                 stats[sense] += 1
+                continue
+            if unit.kind in WORD_KINDS and inside_idiom(group[0], idioms):
+                stats["inside_idiom"] += 1
                 continue
             past = (praeteritum_forms or {}).get(_verb_of(unit), frozenset())
             if past and any(s.lower() in past for s in group[0].surfaces):

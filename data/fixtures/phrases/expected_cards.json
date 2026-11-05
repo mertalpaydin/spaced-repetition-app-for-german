@@ -362,6 +362,15 @@
   "form_key": "initial"
  },
  {
+  "card_id": "903411c1564e",
+  "unit_id": "vb:geben",
+  "sentence_de": "Fahr in der Nacht, dann gibt es nicht so viel Verkehr!",
+  "answers": [
+   "gibt"
+  ],
+  "form_key": "Fin|Pres|3|Sing"
+ },
+ {
   "card_id": "97145c3d334a",
   "unit_id": "nn:angst",
   "sentence_de": "Wir werden keine Angst haben.",
@@ -453,15 +462,6 @@
    "und"
   ],
   "form_key": "medial"
- },
- {
-  "card_id": "d58e4b9528a0",
-  "unit_id": "vb:geben",
-  "sentence_de": "Es gibt nichts schöneres als einen Spaziergang.",
-  "answers": [
-   "gibt"
-  ],
-  "form_key": "Fin|Pres|3|Sing"
  },
  {
   "card_id": "d5f7836447bd",
