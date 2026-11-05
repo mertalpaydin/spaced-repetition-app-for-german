@@ -675,6 +675,23 @@ set: **a rule that buys precision with correct German does not ship.**
     this shape. It stays the verifier's job**, recorded in TODO.md
     section 1 rather than left implicit.
 
+16. **A verb-final clause with its opening cut off.** Round `rank1104`
+    (2026-11-04) met `Februar das Licht der Welt erblickt hat.`: the corpus
+    split a sentence after a date, and the rest is a subordinate clause
+    with nothing to open it. A main clause puts its finite verb second,
+    so a sentence that ends on a non-finite verb plus the finite ROOT
+    ("erblickt hat", "erzielen konnte"), with no subordinator, relative
+    pronoun, w-word or comparison particle anywhere, is that fragment.
+    Over the 62,974 deck sentences (2026-11-05) the shape matched 14; the
+    11 true ones were all fragments ("Die mit Sprengstoff vollgestopft
+    war.", "Minute den Ausgleich erzielen konnte."), and the 3 false ones
+    all had a comma before the final verb, an infinitive or participle
+    clause set off in front of it ("Die Wahrheit, offen ausgesprochen,
+    schmerzt."). So the non-finite verb must stand directly before the
+    finite one. A verb-final fragment with no non-finite verb ("..., die
+    Welt erblickte.") is not caught: it cannot be told from a main clause
+    with a long first constituent ("Der Mann mit dem Hut lacht.").
+
 ## Why this module loads its own spaCy pipeline
 
 ``src.taxonomy.tagger`` and ``src.generation.blanking.sentence_tagger`` both
@@ -739,6 +756,7 @@ REASON_CONTENT_WORD_NOT_A_REAL_WORD = "content_word_not_a_real_word"
 REASON_COLON_JOINED_FRAGMENT = "colon_joined_fragment"
 REASON_OPENS_MID_QUOTATION = "opens_mid_quotation"
 REASON_NO_MAIN_CLAUSE_VERB = "no_main_clause_verb"
+REASON_VERB_FINAL_FRAGMENT = "verb_final_fragment"
 
 # STTS fine-grained tags for a finite verb: full verb, auxiliary, modal, and
 # their imperative counterparts (imperative is a finite mood, not a
@@ -1704,6 +1722,34 @@ def _no_main_clause_verb_reason(tokens: list[SpacyToken]) -> str | None:
     return REASON_NO_MAIN_CLAUSE_VERB
 
 
+#: Verb forms that close a verb-final clause before its finite verb.
+_CLAUSE_FINAL_NON_FINITE_TAGS: frozenset[str] = frozenset(
+    {"VVPP", "VVINF", "VAINF", "VMINF", "VAPP", "VMPP", "VVIZU"}
+)
+#: Words that may open a verb-final clause: subordinators, relative
+#: pronouns, w-words, and the comparison particles "als"/"wie".
+_CLAUSE_INTRODUCER_TAGS: frozenset[str] = frozenset(
+    {"KOUS", "KOUI", "PRELS", "PRELAT", "PWS", "PWAV", "PWAT", "KOKOM"}
+)
+
+
+def _verb_final_fragment_reason(tokens: list[SpacyToken]) -> str | None:
+    """A subordinate clause standing alone, its opening cut off (module
+    docstring section 16): the sentence ends on a non-finite verb directly
+    followed by the finite ROOT, and nothing in it opens a clause."""
+    content = [t for t in tokens if t.pos_ != "PUNCT"]
+    if len(content) < 3:
+        return None
+    last, before = content[-1], content[-2]
+    if not _is_finite(last) or last.dep_ != "ROOT":
+        return None
+    if before.tag_ not in _CLAUSE_FINAL_NON_FINITE_TAGS or before.i != last.i - 1:
+        return None
+    if any(t.tag_ in _CLAUSE_INTRODUCER_TAGS for t in tokens):
+        return None
+    return REASON_VERB_FINAL_FRAGMENT
+
+
 def _reverse_form_to_cells(cell_to_form: dict[Cell, str]) -> dict[str, tuple[Cell, ...]]:
     """Invert a ``cell -> surface form`` paradigm dict from ``paradigms.py``
     into ``surface form -> every cell that produces it``, so a determiner's
@@ -2277,6 +2323,10 @@ def validate_carrier(sentence: str) -> CarrierValidation:
     main_clause_reason = _no_main_clause_verb_reason(tokens)
     if main_clause_reason is not None:
         return CarrierValidation(sentence, False, main_clause_reason)
+
+    verb_final_reason = _verb_final_fragment_reason(tokens)
+    if verb_final_reason is not None:
+        return CarrierValidation(sentence, False, verb_final_reason)
 
     for verb in finite_verbs:
         connector_reason = _clause_connector_reason(verb)

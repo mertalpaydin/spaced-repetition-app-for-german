@@ -1246,3 +1246,39 @@ def test_validate_carrier_keeps_sentences_without_a_swiss_number(sentence: str) 
     """The check must fire on the separator, not on apostrophes generally."""
     result = cv.validate_carrier(sentence)
     assert result.reason != cv.REASON_SWISS_SPELLING
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Februar das Licht der Welt erblickt hat.",
+        "Die mit Sprengstoff vollgestopft war.",
+        "Minute den Ausgleich erzielen konnte.",
+    ],
+)
+def test_validate_carrier_rejects_a_verb_final_clause_with_its_opening_cut_off(
+    sentence: str,
+) -> None:
+    """Round rank1104 (2026-11-04) and the deck measurement of 2026-11-05:
+    a subordinate clause the corpus split from its opening (module docstring
+    section 16)."""
+    result = cv.validate_carrier(sentence)
+    assert not result.accepted
+    assert result.reason == cv.REASON_VERB_FINAL_FRAGMENT
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Er hat das Licht der Welt erblickt.",
+        "Ich weiß, dass er es gesehen hat.",
+        "Was er gesagt hat, stimmt.",
+        # The three false positives of the measurement: a clause set off by
+        # commas in front of the final verb.
+        "Die Wahrheit, offen ausgesprochen, schmerzt.",
+        "Die Reue, ihre bosnische Heimat verlassen zu haben, bleibt.",
+        "Das Risiko, das Gleichgewicht zu verlieren und zu stürzen, sinkt.",
+    ],
+)
+def test_validate_carrier_keeps_main_clauses_that_end_on_a_verb(sentence: str) -> None:
+    assert cv.validate_carrier(sentence).reason != cv.REASON_VERB_FINAL_FRAGMENT
