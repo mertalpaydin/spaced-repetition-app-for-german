@@ -534,6 +534,13 @@
             "default": null,
             "title": "Requested Order"
           },
+          "rival_words": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rival Words",
+            "type": "array"
+          },
           "rivals": {
             "items": {
               "type": "string"
@@ -955,6 +962,13 @@
             "default": null,
             "title": "Requested Order"
           },
+          "rival_words": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rival Words",
+            "type": "array"
+          },
           "rivals": {
             "items": {
               "type": "string"
@@ -1187,6 +1201,13 @@
             ],
             "default": null,
             "title": "Requested Order"
+          },
+          "rival_words": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rival Words",
+            "type": "array"
           },
           "rivals": {
             "items": {
