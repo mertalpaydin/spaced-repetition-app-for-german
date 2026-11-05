@@ -158,8 +158,10 @@
 - {key: "außer", kind: "adverb"}
 - {key: "außergewöhnlich fähigkeit", display: "außergewöhnliche Fähigkeiten"}
 - {key: "bachelor", display: "der Bachelor", only_kind: "noun"}
+- {key: "band", gloss_en: "band (music group)", only_kind: "noun"}
 - {key: "bands", display: "die Bands", only_kind: "noun"}
 - {key: "bar münze", display: "für bare Münze nehmen"}
+- {key: "bar", gloss_en: "bar", only_kind: "noun"}
 - {key: "basketball", display: "der Basketball", only_kind: "noun"}
 - {key: "beachtung finden", cefr: "B2"}
 - {key: "beachtung schenken", cefr: "B2"}
@@ -183,6 +185,7 @@
 - {key: "beraten über", cefr: "B2"}
 - {key: "berater", cefr: "B1"}
 - {key: "berg versetzen", display: "Berge versetzen"}
+- {key: "berliner", display: "Berliner", only_kind: "adjective"}
 - {key: "beruhen auf", case: "Dat"}
 - {key: "bescheid wussten", display: "Bescheid wissen"}
 - {key: "bescheiden verhältnis", display: "aus bescheidenen Verhältnissen"}
@@ -262,6 +265,7 @@
 - {key: "dazu", kind: "adverb"}
 - {key: "demokrat", display: "der Demokrat", only_kind: "noun"}
 - {key: "derzeitig stand", display: "nach derzeitigem Stand"}
+- {key: "detail", gloss_en: "detail", only_kind: "noun"}
 - {key: "deuten auf", cefr: "B2"}
 - {key: "deutlich mehrheit", display: "deutliche Mehrheit"}
 - {key: "deutlich wort", display: "mit deutlichen Worten"}
@@ -385,6 +389,7 @@
 - {key: "falsch schluß", cefr: "B2"}
 - {key: "falsch weg", display: "der falsche Weg"}
 - {key: "falschen erwischen", display: "den Falschen erwischen"}
+- {key: "fan", gloss_en: "fan / supporter", only_kind: "noun"}
 - {key: "faul haut", display: "auf der faulen Haut liegen"}
 - {key: "feindlich gebiet", display: "in feindlichem Gebiet"}
 - {key: "ferngehalten von", display: "fernhalten von +Dat"}
@@ -515,6 +520,7 @@
 - {key: "getrennt weg", cefr: "B2"}
 - {key: "gewiss sinn", display: "in gewissem Sinne"}
 - {key: "gewiß weise", display: "in gewisser Weise"}
+- {key: "gewiß", display: "gewiss"}
 - {key: "gier", display: "die Gier", only_kind: "noun"}
 - {key: "glaube schenken", display: "Glauben schenken"}
 - {key: "gleichaufliegen", display: "gleichauf liegen"}
@@ -536,7 +542,6 @@
 - {key: "grün daum", display: "einen grünen Daumen haben"}
 - {key: "grün licht", cefr: "B2"}
 - {key: "grün star", cefr: "B2"}
-- {key: "gut", display: "das Gut", only_kind: "noun"}
 - {key: "gut benehme", display: "gutes Benehmen"}
 - {key: "gut erziehung", display: "gute Erziehung"}
 - {key: "gut gedächtnis", cefr: "A2"}
@@ -547,6 +552,7 @@
 - {key: "gut verfassung", display: "in guter Verfassung"}
 - {key: "gut wünschen", display: "alles Gute wünschen"}
 - {key: "gut zweck", display: "guter Zweck"}
+- {key: "gut", display: "das Gut", only_kind: "noun"}
 - {key: "gürtel schnallen", display: "den Gürtel enger schnallen"}
 - {key: "haar bürsten", display: "Haare bürsten"}
 - {key: "haar kämmen", cefr: "A2"}
@@ -606,7 +612,6 @@
 - {key: "hinzugehören", display: "hingehören"}
 - {key: "hinzusetzen", display: "hinsetzen"}
 - {key: "hit", display: "der Hit", only_kind: "noun"}
-- {key: "hoch", display: "das Hoch", only_kind: "noun"}
 - {key: "hoch alter", cefr: "B1"}
 - {key: "hoch bevölkerungsdicht", display: "hohe Bevölkerungsdichte"}
 - {key: "hoch geschwindigkeit", display: "mit hoher Geschwindigkeit"}
@@ -617,6 +622,7 @@
 - {key: "hoch niveau", cefr: "B1"}
 - {key: "hoch tempo", display: "hohes Tempo"}
 - {key: "hoch wahrscheinlichkeit", display: "hohe Wahrscheinlichkeit"}
+- {key: "hoch", display: "das Hoch", only_kind: "noun"}
 - {key: "hochfahren", cefr: "B1"}
 - {key: "hockey", display: "das Hockey", only_kind: "noun"}
 - {key: "honorar", display: "das Honorar", only_kind: "noun"}
@@ -656,6 +662,7 @@
 - {key: "ins visier geraten", cefr: "B2"}
 - {key: "ins visier nehmen", cefr: "B2"}
 - {key: "insasse", display: "der Insasse", only_kind: "noun"}
+- {key: "intelligent", gloss_en: "intelligent / clever", only_kind: "adjective"}
 - {key: "intern untersuchung", cefr: "B2"}
 - {key: "international ebene", display: "internationale Ebene"}
 - {key: "international gewässer", cefr: "B2"}
@@ -779,13 +786,14 @@
 - {key: "längst vergessen", kind: "expression"}
 - {key: "löffel abgeben", cefr: "B2"}
 - {key: "lücke schließen", cefr: "B2"}
-- {key: "machtwort", display: "das Machtwort", only_kind: "noun"}
 - {key: "machtwort sprechen", cefr: "B2", display: "ein Machtwort sprechen"}
+- {key: "machtwort", display: "das Machtwort", only_kind: "noun"}
 - {key: "madame", display: "die Madame", only_kind: "noun"}
 - {key: "marathon", display: "der Marathon", only_kind: "noun"}
 - {key: "markt beherrschen", cefr: "B2"}
 - {key: "marmelade", display: "die Marmelade", only_kind: "noun"}
 - {key: "master", display: "der Master", only_kind: "noun"}
+- {key: "material", gloss_en: "material", only_kind: "noun"}
 - {key: "mathematisch problem", display: "mathematisches Problem"}
 - {key: "maul zerreißen", display: "sich das Maul zerreißen"}
 - {key: "medizinisch einrichtung", display: "medizinische Einrichtungen"}
@@ -904,9 +912,11 @@
 - {key: "polizei melden", display: "der Polizei melden"}
 - {key: "polizeilich gewahrsam", display: "in polizeilichem Gewahrsam"}
 - {key: "portrait", display: "das Portrait", only_kind: "noun"}
+- {key: "position", gloss_en: "position", only_kind: "noun"}
 - {key: "positiv eindruck", display: "ein positiver Eindruck"}
 - {key: "potenzial sehen", cefr: "B2"}
 - {key: "preis treiben", cefr: "B2"}
+- {key: "professor", gloss_en: "professor", only_kind: "noun"}
 - {key: "promi", display: "der Promi", only_kind: "noun"}
 - {key: "protein", display: "das Protein", only_kind: "noun"}
 - {key: "prüfung unterziehen", display: "sich einer Prüfung unterziehen"}
@@ -956,6 +966,7 @@
 - {key: "rochen nach", display: "riechen nach +Dat"}
 - {key: "rollenspiel", display: "das Rollenspiel", only_kind: "noun"}
 - {key: "rom", display: "das Rom", only_kind: "noun"}
+- {key: "rose", gloss_en: "rose", only_kind: "noun"}
 - {key: "rot faden", cefr: "B2"}
 - {key: "rot kleid", display: "rotes Kleid"}
 - {key: "rot zahl", cefr: "B2"}
@@ -970,6 +981,7 @@
 - {key: "safe", display: "der Safe", only_kind: "noun"}
 - {key: "sattel", display: "der Sattel", only_kind: "noun"}
 - {key: "sauce", display: "die Sauce", only_kind: "noun"}
+- {key: "sauer", kind: "adjective", gloss_en: "sour / annoyed", only_kind: "adverb"}
 - {key: "schacht", display: "der Schacht", only_kind: "noun"}
 - {key: "schallend gelächter", cefr: "B2"}
 - {key: "scharen um", display: "sich scharen um +Akk"}
@@ -1037,6 +1049,7 @@
 - {key: "sexuell orientierung", cefr: "B2"}
 - {key: "sexuell übergriff", display: "sexuelle Übergriffe"}
 - {key: "show stehlen", display: "jemandem die Show stehlen"}
+- {key: "show", gloss_en: "show", only_kind: "noun"}
 - {key: "sich abbringen von", display: "abbringen von +Dat"}
 - {key: "sich abgeben mit", cefr: "B2"}
 - {key: "sich abheben von", cefr: "B1"}
@@ -1194,6 +1207,7 @@
 - {key: "stark regen", display: "starker Regen"}
 - {key: "stark schneefall", display: "starker Schneefall"}
 - {key: "starkmachen", display: "sich starkmachen"}
+- {key: "start", gloss_en: "start / launch", only_kind: "noun"}
 - {key: "statement abgeben", cefr: "B2"}
 - {key: "statt", cefr: "B1", kind: "adverb"}
 - {key: "stattgeben", cefr: "B2"}
@@ -1245,6 +1259,7 @@
 - {key: "terroristisch anschlag", display: "terroristische Anschläge"}
 - {key: "test unterziehen", display: "sich einem Test unterziehen"}
 - {key: "teufel malen", display: "den Teufel an die Wand malen"}
+- {key: "theater", gloss_en: "theatre / theater", only_kind: "noun"}
 - {key: "therapeut", display: "der Therapeut", only_kind: "noun"}
 - {key: "tief trauer", display: "in tiefer Trauer"}
 - {key: "tief verständnis", cefr: "B2"}
@@ -1256,6 +1271,7 @@
 - {key: "tot hose", cefr: "B2"}
 - {key: "tote erwecken", display: "Tote erwecken"}
 - {key: "trab", display: "der Trab", only_kind: "noun"}
+- {key: "trainer", gloss_en: "coach / trainer", only_kind: "noun"}
 - {key: "trainingslager", display: "das Trainingslager", only_kind: "noun"}
 - {key: "transparent kommunikation", cefr: "B2"}
 - {key: "trauen", case: "Dat"}
@@ -1278,8 +1294,8 @@
 - {key: "umgekehrt reihenfolge", display: "in umgekehrter Reihenfolge"}
 - {key: "umschaun", display: "sich umschauen"}
 - {key: "umwandeln in", case: "Akk"}
-- {key: "unannehmlichkeit", display: "die Unannehmlichkeit", only_kind: "noun"}
 - {key: "unannehmlichkeit bereiten", display: "jemandem Unannehmlichkeiten bereiten"}
+- {key: "unannehmlichkeit", display: "die Unannehmlichkeit", only_kind: "noun"}
 - {key: "unbekannt ursache", display: "aus unbekannter Ursache"}
 - {key: "unbeschrieben blatt", display: "ein unbeschriebenes Blatt"}
 - {key: "undenkbar", kind: "adjective", gloss_en: "unthinkable", only_kind: "adverb"}

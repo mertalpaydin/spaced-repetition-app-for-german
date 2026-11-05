@@ -2635,3 +2635,19 @@
 - noun:wirf  # das Wirf: not a noun (article audit 2026-11-05)
 - noun:wüst  # das Wüst: not a noun (article audit 2026-11-05)
 - noun:zeigen  # die Zeigen: not a noun (article audit 2026-11-05)
+# Review round rank1105: units the reviewer rejected.
+- "kleine"  # BAD_UNIT: Feminine singular nominalization 'die Kleine' (mis-extracted from plural 'die Kleinen') is not a use
+- "liebst"  # BAD_UNIT: Bare 'liebst' is an uninflected superlative stem of 'lieb', not a valid standalone German adjective 
+- "nimm"  # BAD_UNIT: 'nimm' is an inflected imperative of 'nehmen' misclassified as an adverb, not a valid unit.
+- "sollten"  # BAD_UNIT: 'sollten' is an inflected form of 'sollen', not a valid German verb lemma.
+- "äpfel"  # BAD_UNIT: Unit 'der Äpfel' combines the masculine singular article with the plural form 'Äpfel' instead of sin
+# 2026-11-05: the Swiss spelling of 'äußerst' as an adjective. Its id slugs to aj:aeusserst,
+# which every 'äußerst' occurrence matches first, so the adverb unit (rank 1945) had no card.
+- adjective:äusserst
+# 2026-11-05: card-less duplicates in the top 2000. Every reflexive occurrence goes to the
+# reflexive unit by design, so these can never have a card; 'sich auswirken auf' (rank 1787) and
+# 'sich kümmern um' (rank 152) teach them. Neither requested nor started.
+- separable_verb:auswirken
+- expression:darum kümmern
+# Review round rank1105b: units the reviewer rejected.
+# Review round rank1105c: units the reviewer rejected.

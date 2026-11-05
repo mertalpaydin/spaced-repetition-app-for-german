@@ -6054,3 +6054,265 @@
 - 4758f9435510  # BAD_SENTENCE: 'Geboten wird hier bald ...', a fronted passive participle
 - 31045fa373c2  # DUPLICATE: third 'wie es weitergeht'; the owner saw the same card again and again
 - 725015be6577  # DUPLICATE: second 'wie es weitergeht' (0f764e2195a7 stays)
+# Review round rank1105.
+- 00a970b2fc01  # WRONG_UNIT: Bracketed 'sauer' is a predicative adjective ('sauer auf +Akk'), not an adverb, and the gloss says
+- 00ef5d0af382  # BAD_SENTENCE: Uses obsolete regional 'ins Holz' meaning 'into the forest', misleading learners about 'das Holz
+- 01070de7e5db  # BAD_SENTENCE: Dangling anaphor 'deren' lacks an antecedent, and 'SIM-Karten anfertigen' is unnatural collocati
+- 01c8558a6e9e  # BAD_SENTENCE: Starts with bare demonstrative 'Diese' lacking its antecedent noun from prior context.
+- 06269ea1a480  # BAD_GLOSS: The gloss 'We say thank you very much' is unnatural English and cues 'vielen' rather than 'herzlich
+- 0825f388e206  # WRONG_UNIT: Uses the idiom 'auf die schiefe Bahn bringen', which the single-word unit 'die Bahn' does not name
+- 0a524c63103f  # BAD_SENTENCE: 'Ich rate dir an, mit Tom keine Gesellschaft zu pflegen' is unidiomatic German mixing stilted 'a
+- 0c1a2cf31dfa  # WRONG_UNIT: 'Abgesehen von' is the preposition 'apart from', not 'to refrain from' (as d18234a856d1).
+- 0c6244a67a84  # BAD_SENTENCE: Ends with the ungrammatical fragment/typo ', den.'.
+- 0dd73ccdc61f  # BAD_GLOSS: Gloss 'down to earth' omits 'facts' ('Tatsachen') and fails to distinguish it from 'Realität' in th
+- 0e65a669e2fd  # BAD_GLOSS: The gloss 'I was very happy' omits 'Da' and cues 'sehr' instead of 'riesig'.
+- 0e75c8afc4e5  # BAD_SENTENCE: Lacks context for inanimate 'Sie ... wohl' and uses 'Zuhause' without a determiner after 'an'.
+- 150d6944e0df  # BAD_SENTENCE: Sentence starts mid-paragraph with 'Und beide' without naming what 'beide' refers to.
+- 160a105fff11  # BAD_SENTENCE: Graphic stabbing sentence missing the required dative possessor/victim in German (and object in 
+- 17b5595a394e  # WRONG_UNIT: Sentence uses the colloquial idiom 'am Start sein' (back in action), which 'der Start' does not na
+- 1a1c86aadde3  # BAD_GLOSS: The gloss translates 'Sturm' as 'trouble' instead of 'storm', misleading the learner about the gap.
+- 1a1fa2f5c439  # BAD_GLOSS: In this proverb, archaic 'blöder' means 'shy/timid', so 'A stupid dog rarely gets fat' mistranslate
+- 1c7c37ca9551  # BAD_GLOSS: The gloss omits 'warmly', leaving the gapped word 'herzlich' untranslated.
+- 1d4ea9f67c25  # BAD_SENTENCE: Police-report snippet lacks prior context ('anschließend') and uses bureaucratic officialese ('v
+- 1e7b334d04eb  # BAD_SENTENCE: Sentence starts mid-narrative with 'Doch' referring to missing prior context.
+- 1ffd0e7dc322  # BAD_SENTENCE: This is a subjectless dialogue fragment lacking surrounding context.
+- 22932e2e1b71  # BAD_SENTENCE: Starts with contextless 'Aber dabei', and the gloss literally calques the idiom 'in die Knie geh
+- 23188ad15e65  # WRONG_UNIT: Here 'darunter' is the prepositional complement of 'verstehen unter +Dat' ('mean by'), not the sta
+- 23460135726b  # BAD_GLOSS: 'Seine Fahrt beschleunigen' means to pick up speed, so 'accelerated its journey' mistranslates 'Fah
+- 27ba2d180d3e  # BAD_GLOSS: Gloss 'Is learning working?' is an unnatural literal translation of 'Klappt es mit dem Lernen?'.
+- 27e3f60cd3bf  # BAD_GLOSS: Literally mistranslates the idiom 'Das will ich dir nicht raten!' ('You'd better not!').
+- 289032d626d7  # BAD_SENTENCE: Pronoun 'sie' rendered as 'it' depends on an unstated feminine noun from missing prior context.
+- 2a025e180e4c  # WRONG_UNIT: Sentence uses the idiom 'nah am Wasser gebaut sein' ('to cry easily'), not spatial 'nah', and the 
+- 2a521bd63034  # BAD_SENTENCE: 'Ich fand ihn im Park Rad fahren' is an ungrammatical English calque ('finden' cannot take this 
+- 2a5b8d789f57  # BAD_SENTENCE: Uses ungrammatical 'gelang' (past of 'gelingen') instead of 'gelangte' (past of 'gelangen').
+- 2b401340334d  # WRONG_UNIT: Sentence uses the fixed phrase 'an Grenzen stoßen' ('reach limits'), which plain 'stoßen' does not
+- 2ce90013861a  # BAD_SENTENCE: Contains the typo 'vieviel' instead of 'wie viel'.
+- 2f6fcf7d399b  # BAD_SENTENCE: Ungrammatical comma separates subject and verb ('Dummheit und Stolz, wachsen'), with a nonsensic
+- 31819057b1b6  # BAD_GLOSS: 'Was zum Schreiben' means 'something to write with', not 'something to write about'.
+- 31e79327c3ab  # BAD_GLOSS: Gloss mistranslates 'zu jener' (to that one) as ungrammatical 'to the one'.
+- 36e5f783845d  # BAD_SENTENCE: The sentence uses a sexist, hateful insult ('blöde Kuh') unsuitable for learners.
+- 394264bd0fc5  # BAD_SENTENCE: Subjectless sentence fragment with unnatural, repetitive phrasing.
+- 3c418b482fe9  # BAD_SENTENCE: Concessive 'zwar' clause lacks its required contrasting continuation from the surrounding text.
+- 3cb56818167d  # BAD_SENTENCE: Missing noun after 'seinem' and dangling 'da' leave the sentence incomplete and dependent on mis
+- 3df17ef49ef1  # WRONG_UNIT: Sentence uses the prepositional verb 'stoßen auf +Akk' ('encounter/face'), which plain 'stoßen' do
+- 3f0e898e1322  # WRONG_UNIT: Sentence uses the colloquial idiom 'etwas am Start haben' (have on offer), which 'der Start' does 
+- 40d511253330  # BAD_GLOSS: The gloss mistranslates 'Zahler' ('payers') as 'counters' by confusing it with 'Zähler'.
+- 4346c3261b85  # WRONG_UNIT: Sentence uses the prepositional verb 'stoßen zu +Dat' ('join'), which plain 'stoßen' does not name
+- 455682412c69  # BAD_SENTENCE: Misspells the proper name 'Der Mittlere Osten' in lowercase and calques English 'Middle East' (G
+- 4a75a37ce057  # BAD_GLOSS: Idiomatic gloss 'two birds with one stone' says 'birds' and misleads learners about the gap 'Fliege
+- 4b9d225f916b  # WRONG_UNIT: Bracketed 'gefangen' belongs to the multi-word verb 'gefangen nehmen', not standalone 'fangen'.
+- 4f2f0db76dcb  # BAD_SENTENCE: Lacks prior context of multiple offences for 'jeweils', causing the gloss to mistranslate it as 
+- 4f7da9c6dcd1  # BAD_SENTENCE: Anaphoric 'Dahinter' lacks a referent and the sports-report clause is opaque out of context.
+- 4fa24fe203b5  # BAD_SENTENCE: Uses opaque Austrian sports jargon ('anschreiben' = score) in a match snippet lacking context.
+- 4fd5fb6b8d54  # WRONG_UNIT: Uses the idiom 'auf die schiefe Bahn geraten' ('went astray'), which the unit 'die Bahn' does not 
+- 524b783aa39d  # BAD_GLOSS: The gloss is ungrammatical machine translation ('This ... is looking for witnesses') on a context-d
+- 52deca9603e9  # WRONG_UNIT: Sentence uses the fixed idiom 'jemandem sauer aufstoßen' rather than standalone adverb 'sauer'.
+- 5896ca27bc0e  # BAD_SENTENCE: This Swiss news snippet relies on missing prior context for 'Da' (which the gloss drops).
+- 5a7948bd797d  # BAD_SENTENCE: Sentence depends on missing prior context ('Dann...') to explain why 'Big Data' becomes 'kolossa
+- 5db27bdfe2b5  # BAD_SENTENCE: Archaic verse ('Ehr'') uses singular '[sinkt]' in the gap with a four-noun subject.
+- 5ed1fae1ac64  # BAD_SENTENCE: Missing context: 'Grund' and 'auch hier wieder' refer back to a missing preceding text.
+- 602cd753decb  # BAD_SENTENCE: Sentence begins with contrastive 'Aber', presupposing missing prior context.
+- 617f2022691b  # BAD_SENTENCE: Gap requires archaic dative singular inflection '[Diebe]' ('keinem Diebe') instead of modern 'Di
+- 62110ead889f  # WRONG_UNIT: Sentence uses the fixed idiom 'jemandem sauer aufstoßen' rather than standalone adverb 'sauer'.
+- 63be65bb8543  # BAD_SENTENCE: Sentence begins with anaphoric 'Darüber hinaus' and lacks context for what requires red lines.
+- 65b60b873810  # BAD_SENTENCE: Starts with 'Der Grund:', explicitly referring to a missing preceding statement.
+- 67d525662632  # BAD_SENTENCE: 'Die andern' lacks a referent outside an obscure dog proverb, leaving the sentence cryptic witho
+- 67e8b1892453  # BAD_GLOSS: The gloss mistranslates 'Sie' ('She') as 'It' and renders a derogatory idiom about a woman's age li
+- 69f1931bea0b  # WRONG_UNIT: Bracketed 'eingeschränkt' is an adverbial adjective ('sehr eingeschränkt'), not a verb form of 'ei
+- 6a27a5ccf76c  # BAD_SENTENCE: Direct question ends with a period instead of a question mark.
+- 6c8e3d852562  # BAD_SENTENCE: Clipped interview quote relies on missing context ('auch') and the unexplained football initiali
+- 6d97b4d5278b  # BAD_SENTENCE: Dangling 'Diese' lacks context and 'einen Austausch der Praxis' is unnatural standalone jargon.
+- 6e8eaf8d816c  # BAD_SENTENCE: Anaphoric 'dann' refers to an omitted prior event or condition.
+- 6ecb5b480c69  # BAD_SENTENCE: Lacks prior context for 'jeweils', and the gloss 'met each other respectively' is nonsensical.
+- 704da201d230  # WRONG_UNIT: Bracketed 'Alter' is the neuter noun 'das Alter' (age), not 'der Alte' (old man).
+- 708593fd1ee6  # BAD_SENTENCE: Out-of-context sentence where ambiguous 'Becken' (cymbal/basin) produces an absurd 'pelvis' read
+- 714776fb726e  # BAD_GLOSS: Mistranslates archaic 'wird man gut gehalten' (one is well treated/cared for) as 'you are well reta
+- 728edf709fed  # BAD_SENTENCE: Garbled subtitle fragment ('Bei gutem Benehmen, 7.') with missing context.
+- 72cf7e1bf42d  # BAD_SENTENCE: Unnatural translationese ('Ich bade mich in der Toilette' means bathing inside a toilet bowl, co
+- 74a9872c2a5f  # BAD_SENTENCE: Review excerpt with dangling 'hier' (missing context) and marked Nachfeld word order ('stürzen h
+- 75e3a46d933a  # BAD_SENTENCE: Depends on missing context ('auch so' = 'also like that') and likely capitalizes 'sie' ('they') 
+- 7697543548d0  # BAD_SENTENCE: Uses non-standard coined Germanization 'Wikipädie' instead of 'Wikipedia' or 'Enzyklopädie'.
+- 7bcc9a79ecee  # BAD_GLOSS: Gloss literally mistranslates 'meine Tage' ('my period') as nonsensical 'My days'.
+- 7c0571b99a3c  # WRONG_UNIT: Bracketed 'Bares' in 'Bares für Rares' is nominalized 'bar' ('cash'), not 'die Bar'.
+- 7de237bdeee0  # WRONG_UNIT: Sentence uses non-reflexive transitive 'verabschieden' (to adopt a budget), not 'sich verabschiede
+- 80245f9c4801  # BAD_GLOSS: Gloss mistranslates 'Gänge zu besorgen' (errands to run) as 'get various courses', misleading about
+- 810889c20f25  # BAD_SENTENCE: 'Die Jugend geschieht' is unnatural translationese because 'geschehen' takes event subjects, not
+- 812e402efc14  # BAD_GLOSS: 'I didn't grab Dan.' implies physical grabbing ('packen') rather than 'sich jdn. schnappen' and mis
+- 81eb8f837206  # BAD_SENTENCE: News snippet uses non-standard '*innen' spelling and lacks context for the bare surname 'Woitsch
+- 84643abd4494  # BAD_GLOSS: The gloss completely omits 'warmly', giving no cue for the gap 'herzlich'.
+- 870acddf385d  # BAD_SENTENCE: Sentence fragment lacking a main clause and containing parenthetical '(noch)'.
+- 87560cbd7f97  # BAD_GLOSS: Gloss mistranslates 'Mausersatz' (computer mouse replacement) as 'a substitute for mice', implying 
+- 897100d6ee27  # BAD_SENTENCE: Sentence lacks context because anaphoric 'Darunter' ('among them') and '1,6 Millionen' have no a
+- 899a48b041ef  # WRONG_UNIT: In the idiom 'außer Rand und Band', 'Band' is 'das Band' (restraint/hoop), not 'die Band' (music b
+- 8abea5b93402  # WRONG_UNIT: In 'sich des Alten entledigen' (rid oneself of the old), 'Alten' is neuter 'das Alte', mistranslat
+- 8bf4da2fee34  # BAD_GLOSS: Mistranslates idiomatic 'rund' (well-rounded/cohesive) literally as ungrammatical 'more round' and 
+- 8c3092425d2b  # WRONG_GAPS: The unit token 'es' in 'nehme ich es ... genau' is missing from the brackets.
+- 8dfc5e4cf148  # BAD_SENTENCE: Misuses 'Hochzeit' (wedding ceremony) for 'Ehe' (marriage), with ungrammatical gloss 'Love and w
+- 8ed61f30e943  # BAD_GLOSS: Gloss mistranslates 'Magistrat' as false friend 'magistrate' and adds modal 'would like to' for pre
+- 926d34bea1a6  # BAD_SENTENCE: Contains an unattributed partial news quotation around 'entbehrt jeder Grundlage' missing speake
+- 94e962798836  # BAD_GLOSS: The gloss mistranslates the idiom 'bis zum Gehtnichtmehr' ('endlessly/to the limit') literally as '
+- 954d009b71a4  # WRONG_UNIT: Sentence uses the separable verb 'dazustoßen' ('join in') rather than plain 'stoßen'.
+- 974f7bb3e078  # BAD_SENTENCE: Missing context: starts with 'Doch' and anaphoric inanimate 'sie' ('it') without an antecedent.
+- 97549b2c53d3  # BAD_SENTENCE: 'wird immer fertiger und fertiger' is a joke on a gradable 'fertig', not a model sentence.
+- 99b95af55576  # WRONG_UNIT: Bracketed 'sauer' is a predicative adjective with 'werden', not an adverb, and the gloss mistransl
+- 9b6c24dd351b  # BAD_SENTENCE: 'Er drehte scharf nach links' is an unidiomatic Anglicism; for a person turning left, German req
+- 9b9c77049b38  # BAD_GLOSS: Adverbial 'selten' before 'blöder' means 'exceptionally', so 'rarely stupid' reverses the sentence'
+- 9bc244fb043f  # WRONG_UNIT: Uses the fixed idiom 'im Kreise (+Gen)' with archaic dative 'Kreise' and gloss 'surrounded by', no
+- 9c5cea7b9483  # BAD_GLOSS: Mistranslates 'zur Miete wohnen' (to live as a tenant) literally as 'for rent'.
+- 9cbe4f7158d6  # WRONG_UNIT: Sentence uses the fixed modal idiom 'jdm. nichts anhaben können' (to harm), not the separable verb
+- a2c11e4e39fb  # BAD_GLOSS: The gloss 'the rest of passion' reads as 'remainder of passion' in English rather than translating 
+- a3a9159de296  # BAD_GLOSS: Translating 'ausgestattet' loosely as 'given' misleads the learner about the gap in this context-de
+- a4d0a0e6dcda  # BAD_GLOSS: Standalone 'Sie hat' with no feminine noun antecedent in the sentence is translated as 'It has' ins
+- a6e779d9e359  # BAD_SENTENCE: Contrastive object-first sentence with unanchored pronoun 'es' lacks prior context.
+- a7bc0da09287  # WRONG_UNIT: Sentence uses 'sich versteckt halten' (finite 'hält' with predicative 'versteckt'), not the verb '
+- aa1012f04706  # WRONG_UNIT: Bracketed 'Gute' in 'alles Gute' is a nominalized adjective from 'gut', not the noun 'das Gut'.
+- ab0c99cb72f2  # WRONG_UNIT: Sentence uses the fixed idiom 'die Hand ins Feuer legen' ('to vouch for sth.'), not plain 'legen',
+- ac78fab0a131  # BAD_SENTENCE: Scraped news teaser with a dangling fragment ('- Startprobleme?') and missing context.
+- af3db48701ea  # BAD_SENTENCE: Forum-style snippet uses 'zugreifen' elliptically without its 'auf' complement and relies on pri
+- af52d6da0ce9  # BAD_GLOSS: Mistranslates 'hoch auf dem gelben Wagen' (wagon/stagecoach) as 'high on the yellow car'.
+- b0f6939dd8c3  # BAD_GLOSS: Literal translation 'Strangers' quarrels are half joy' is ungrammatical English for this obscure pr
+- b11813c58bf8  # BAD_SENTENCE: Pronoun 'Er' refers to an omitted masculine inanimate noun, making the pairing with English 'It'
+- b36a822307ce  # WRONG_UNIT: The sentence uses 'etwas in Anspruch nehmen' with 'Platz' as object ('take up space'), not 'Platz 
+- b3e1f94bfe52  # BAD_SENTENCE: Contains the typo 'Fima' instead of 'Firma'.
+- b483328a73a1  # WRONG_UNIT: Sentence uses the fixed idiom 'in die Bresche springen' ('step into the breach'), which the plain 
+- b4d87d2019cb  # BAD_SENTENCE: News snippet lacks prior context ('Auch andere ... zogen Konsequenzen') and gloss uses unidiomat
+- b5d97080715d  # BAD_SENTENCE: Demeaning sexist proverb ('An ugly woman doesn't like mirrors') unsuitable for learners.
+- b6e562902b98  # BAD_SENTENCE: Image caption relies on a missing picture for deictic 'so' ('like this') and mixes literary 'Ein
+- b703b1b0c872  # BAD_GLOSS: Gloss mistranslates archaic 'unter geringem Kleid' ('beneath humble attire') as 'under a small dres
+- bb34aa6954da  # BAD_GLOSS: The English gloss omits 'genau das Richtige' ('just the right thing'), leaving the gap untranslated
+- bdadf76b8c19  # WRONG_UNIT: 'Genau genommen' (strictly speaking) is a separate fixed expression and does not instantiate 'es g
+- be3a6a2ef72e  # BAD_SENTENCE: Elliptical, context-dependent headline pun whose meaning is opaque as a standalone sentence.
+- c58ff9c6d6a0  # WRONG_UNIT: Sentence uses the idiom 'etwas gebacken bekommen' ('get it done') rather than plain 'backen', and 
+- c5ad6906920c  # BAD_SENTENCE: Erroneous comma before the comparative phrase 'als die meisten Menschen'.
+- c8aca36012f4  # BAD_GLOSS: Gloss mistranslates idiomatic temporal 'langsam' ('by now/soon') literally as 'slowly'.
+- c960df249789  # BAD_GLOSS: Mistranslates the idiom 'Das ist ja wohl die Höhe!' literally as 'That's probably the height!'.
+- ca173117db3b  # BAD_GLOSS: Masculine pronoun 'ihn' with no antecedent in the sentence is translated as 'it' instead of 'him'.
+- cb45a364453e  # BAD_GLOSS: Stains 'come out' rather than 'go out' in English.
+- cb6eac152636  # BAD_SENTENCE: Missing context: sentence-initial feminine demonstrative 'Die' and 'aber' require a preceding fe
+- cbf2b6cc7f2a  # BAD_SENTENCE: Ungrammatical scraped ad snippet with a stray preposition 'in' missing its object and dangling '
+- cdc0141ae73d  # BAD_GLOSS: The gloss mistranslates 'teilen' as 'shared' instead of 'parted' or 'divided'.
+- ce1195a0939e  # WRONG_UNIT: Bracketed 'Bares' in 'Bares für Rares' is nominalized 'bar' ('cash'), not 'die Bar'.
+- cee05ac6ef42  # BAD_GLOSS: Gloss 'But that was not all.' completely omits the gapped word 'längst' ('far from / nowhere near')
+- cefe3ec22382  # BAD_SENTENCE: Rude body-shaming remark unsuitable for a learner exercise.
+- d072941476a6  # WRONG_UNIT: Masculine 'der Richtige' ('the right person') does not instantiate the neuter noun 'das Richtige' 
+- d18234a856d1  # WRONG_UNIT: 'Abgesehen von' is the lexicalized preposition meaning 'apart from', not a verbal use of 'absehen 
+- d26859bcd95d  # BAD_SENTENCE: Contains the typo 'New Yoker' for 'New Yorker' in the sentence (and gloss).
+- d5d33260ad7b  # BAD_GLOSS: Gloss translates 'sieht es ihm nach' (overlooks/forgives it) as the opposite meaning 'holds it agai
+- d68ac894dea6  # WRONG_UNIT: The sentence relies on the fixed idiom 'den Spieß umdrehen' ('turn the tables'), which the display
+- d8510a9c0ba0  # BAD_SENTENCE: Slash-abbreviated form '[Teilnehmer]/innen' splits a token across the gap in bureaucratic survey
+- d86911297003  # WRONG_UNIT: Sentence uses the prepositional verb 'stoßen auf +Akk' ('meet resistance'), which plain 'stoßen' d
+- d9837092e1eb  # BAD_SENTENCE: Not self-contained: 'Deshalb' and the tabloid nonce phrase 'Bohlen-Trick' require missing articl
+- d9d1214a7b83  # BAD_SENTENCE: Missing mandatory comma after the closing quotation mark before 'sagte'.
+- dacebca39a0c  # BAD_SENTENCE: Sentence lacks context because 'darunter' ('below that') refers to an unstated threshold from a 
+- db39bbc8b484  # BAD_GLOSS: The gloss 'jumps closely' is unidiomatic English that mistranslates 'springt knapp' ('barely clears
+- dd5211129eae  # WRONG_UNIT: Bracketed 'Fliegen' in 'vom Fliegen' is the nominalized verb 'das Fliegen' ('flying'), not 'die Fl
+- dd57b3ccfeff  # BAD_GLOSS: Gloss 'have long been in this practice' mistranslates 'sind doch längst in dieser Praxis drin' and 
+- de841cbdedd8  # BAD_GLOSS: 'Prevented teacher' is nonsensical literal machine translation for 'verhinderte Lehrerin' ('would-b
+- e097de86d0b1  # BAD_GLOSS: Gloss mistranslates 'die passende Abkühlung' (refreshment/way to cool off) as unidiomatic 'the righ
+- e1612eb8c5fd  # BAD_GLOSS: The English gloss completely omits 'jeweils' ('each time'), and the sentence lacks prior context.
+- e19b0a6e9771  # BAD_SENTENCE: Incomplete corrupted sentence missing the object of 'auf' and the 'oder' clause.
+- e1e642c3a6a6  # BAD_GLOSS: Translating 'ins Zentrum' as 'into the spotlight' cues 'Rampenlicht' rather than 'Zentrum'.
+- e1ea6ca2102f  # BAD_GLOSS: Gloss mistranslates 'Schloss' as 'castle' instead of 'lock' in an archaic proverb.
+- e22322dc482d  # BAD_SENTENCE: The sentence is a dehumanizing abusive insult ('blöde Hunde') unsuitable for exercises.
+- e3b6214d54e5  # BAD_GLOSS: The gloss 'too good' misleads the learner into typing 'gut' instead of 'schade'.
+- e861fe17a5da  # BAD_GLOSS: The gloss 'my way' obscures 'nach meinem Willen' ('according to my will') and misleads about the ga
+- e955bbd94752  # WRONG_UNIT: The sentence uses the opaque idiom 'unter einer Decke stecken' ('be in cahoots'), which 'die Decke
+- eb2c34d25caf  # BAD_GLOSS: Gloss 'You smoke us' is broken literal translation for 'Du verräucherst uns' ('You are smoking us o
+- f15d3932785b  # BAD_SENTENCE: Typo 'er erste' instead of 'der erste' makes the sentence ungrammatical.
+- f3d6c965a15e  # BAD_GLOSS: English gloss ends abruptly at 'discusses.' with no object, omitting 'Das' from an anaphoric podcas
+- f416500bbba9  # BAD_SENTENCE: Contains the typo 'anwantlichen' instead of 'anwaltlichen'.
+- f46c4e4a05ae  # BAD_SENTENCE: Unnatural, cryptic sentence ('Gegensätze wecken') paired with a misleading gloss ('aroused').
+- f69517e84aae  # WRONG_UNIT: Bracketed 'Steuer' here is neuter 'das Steuer' (steering wheel), not feminine 'die Steuer' (tax).
+- fa45eec5683e  # BAD_SENTENCE: Missing mandatory comma after 'Recht' before the infinitive clause.
+- fa5825289ddf  # BAD_GLOSS: Without prior context, standalone 'Sie ... ihrer' translates as 'She ... her', not 'It ... its'.
+- fc7b1dd244d5  # BAD_SENTENCE: Corrupts the German idiom 'jemandem kein X für ein U vormachen' into 'kein A für ein U'.
+- fddb62ed73c8  # BAD_SENTENCE: Missing context: 'diese Sprechsituation' refers back to Habermas's 'ideale Sprechsituation' in a
+- ff7cc3b66d36  # BAD_SENTENCE: Lacks prior context for 'jeweils' ('in each case'), and 'were available' poorly translates 'lage
+# Review round rank1105b.
+- 0484a32a46f1  # BAD_SENTENCE: Opens on 'Und das', which points back to a sentence the card does not show.
+- 0b7fb243977a  # BAD_SENTENCE: 'dann' points back to a missing sentence (as the card dropped in rank1105).
+- 0d5d0bd0ed21  # BAD_SENTENCE: An insult, and the vocative needs a comma: 'Wo steckst du, blöder Hund?'.
+- 0ec5d63541b2  # BAD_SENTENCE: Ends on a broken name 'Weimar/.'.
+- 0f45ec69afbe  # BAD_SENTENCE: A review blurb that means little on its own.
+- 1639d4401558  # WRONG_UNIT: 'Was ist denn los' is the idiom 'Was ist los?', its own unit.
+- 1ae7576cb57f  # BAD_GLOSS: 'sein blaues Wunder erleben' is glossed 'a rude awakening', which does not cue 'Wunder'.
+- 22b70a6aedea  # BAD_GLOSS: The gloss swaps subject and object, and the sentence needs its context.
+- 283efacf931d  # WRONG_UNIT: 'am Steuer' is 'das Steuer' (the wheel), not 'die Steuer' (tax).
+- 2b8407a1307e  # BAD_SENTENCE: Near-duplicate of 'Sie ist eine äußerst attraktive Frau.', glossed identically.
+- 2d416ee8519a  # BAD_GLOSS: Archaic proverb with ungrammatical English ('Many a man beware').
+- 33dac6766cf8  # WRONG_UNIT: 'stoßen auf' (to come across), not plain 'stoßen'.
+- 34ebf76de84e  # BAD_GLOSS: The gloss drops 'bei uns', and the sentence needs its article.
+- 35ffdf9f3b6d  # WRONG_UNIT: 'das festeste Band der Liebe' is 'das Band' (bond), not 'die Band'.
+- 40860dbba97e  # WRONG_UNIT: 'das vergessene Alte' is neuter 'das Alte', not 'der Alte'.
+- 43c6d118c7de  # WRONG_GAPS: The unit's 'es' is not in the gaps.
+- 47964b125074  # WRONG_UNIT: 'zu Grunde gehen' is the verb 'zugrunde gehen', not the noun 'der Grund'.
+- 4e048b1f366f  # BAD_SENTENCE: Opens on 'Der war aber', a pronoun with no referent.
+- 52ec6f4a2459  # BAD_SENTENCE: 'Aber nicht nur das Ausmaß ...' is cut from its context.
+- 58f901654e92  # BAD_SENTENCE: 'Darunter fällt ...' refers to something the card does not show.
+- 5b9532b0a3c0  # WRONG_UNIT: 'an den Tag legen' is an idiom ('to display'), and 'soviel' is the old spelling.
+- 5eef4666e43a  # WRONG_UNIT: Non-reflexive 'verabschieden' (to pass a bill), not 'sich verabschieden'.
+- 646ec6b91ba3  # BAD_SENTENCE: 'dass zu hören' should be 'das zu hören'.
+- 65366f2b3515  # BAD_GLOSS: The gloss drops the gapped word: 'my family was always because ...'.
+- 66d155411bb7  # BAD_SENTENCE: Wrong comma before 'als' in a comparison.
+- 7055a5154461  # BAD_SENTENCE: 'Darunter finden sich ...' refers to something the card does not show.
+- 7d0d818f10f5  # WRONG_UNIT: The fixed phrase 'an Grenzen stoßen'.
+- 8421e9c3de4c  # BAD_SENTENCE: A news line about a delegation, cut from its context.
+- 872d66654395  # WRONG_UNIT: The idiom 'vor den Kopf stoßen' (to offend).
+- 8e0cf9e8d534  # BAD_GLOSS: 'hinten und vorne nicht reichen' means 'nowhere near enough'; the gloss is literal.
+- 91648cea581d  # BAD_SENTENCE: Railway jargon ('Sichtdreiecke') from a news snippet.
+- a5c4a04b8f58  # BAD_GLOSS: 'die halbe Miete' is glossed 'half the battle', which does not cue 'Miete'.
+- a648ff2daedc  # BAD_SENTENCE: Opens on 'Doch er', a match report cut from its context.
+- a66d196e0054  # BAD_SENTENCE: Opens on 'Dabei hat es', which points back to a missing sentence.
+- a7ec1d34febe  # WRONG_UNIT: 'Lernen, ... kann man' is the verb 'lernen' fronted, not the noun.
+- b0ff01bfa962  # BAD_SENTENCE: 'Moser ... da' needs the article it was cut from.
+- b1b96b15f27c  # WRONG_UNIT: 'alles beim Alten' is the neuter idiom, and the sentence is a cut-off fragment.
+- b761fef703b0  # BAD_GLOSS: Motor-racing jargon with an unclear English ('revving the gears out').
+- b9d38b801268  # WRONG_UNIT: Archaic verse, and 'Gutes' is the nominalised adjective, not 'das Gut'.
+- bee173007572  # BAD_SENTENCE: Ungrammatical: 'hat sich dich ... geschnappt'.
+- c175a8ff9af1  # WRONG_UNIT: The separable verb 'ausstoßen' (to emit), not 'stoßen'.
+- c3d0943eb130  # BAD_SENTENCE: A slogan with a comma between subject and verb.
+- c73adde95413  # BAD_SENTENCE: Broken: 'die Rechte von einschränken' has lost its object.
+- c8df86085743  # BAD_SENTENCE: Near-duplicate of 'Sie werden nie Ruhe geben.' in the same unit.
+- c8f0abbce560  # BAD_SENTENCE: 'kommt der in jede ...' needs its context; colloquial pronoun with no referent.
+- ca966a0d4603  # BAD_SENTENCE: 'Pete Hegseth ist die rote Linie' is a headline that means nothing on its own.
+- d2315787a47c  # BAD_SENTENCE: Broken: 'ist ein deshalb eine wichtige'.
+- de3584ad7a3d  # BAD_SENTENCE: 'kreuzt sich die Acht' is cryptic without its context.
+- de78fb961b73  # BAD_SENTENCE: 'Damals ...' points back to a missing context.
+- e320788c3980  # BAD_SENTENCE: 'zurückgeblieben' as an insult (mentally slow) is unsuitable.
+- e462b17a2d4b  # BAD_SENTENCE: An insult in an odd frame ('eine blöde Kuh für mich').
+- e47ceba88433  # BAD_SENTENCE: 'jeweils' refers to cases the card does not show.
+- e522a85885e6  # BAD_SENTENCE: Near-duplicate of 'Tom hat wirklich Ahnung von der Sache.' in the same unit.
+- ea9b08d6f706  # BAD_SENTENCE: An advertising headline ('Elektro-Punch!').
+- f19ef26434e1  # BAD_SENTENCE: 'Strom ist in unmittelbarer Nähe' is an odd sentence, and repeats another card's phrase.
+- f3b8cdcfe18e  # WRONG_UNIT: 'Genau genommen' (strictly speaking) is a separate expression.
+- f92dc03a3c02  # WRONG_UNIT: A fragment, and 'Abgesehen von' is the preposition 'apart from'.
+# Review round rank1105c.
+- 1a8be145323b  # BAD_SENTENCE: Clumsy news line ('darunter 2.000 staatlich finanziert').
+- 224458318bcf  # WRONG_UNIT: Non-reflexive passive 'verabschiedet' in an archaic proverb.
+- 2580aa4cddcb  # WRONG_UNIT: 'Genau genommen' (strictly speaking) is a separate expression.
+- 25dae2d6d282  # WRONG_UNIT: 'auf Interesse stoßen' is 'stoßen auf', not plain 'stoßen'.
+- 39ff3c7bd36b  # BAD_SENTENCE: An insult ('eine blöde Kuh'), as dropped in rank1105.
+- 3b97bf34fc70  # BAD_SENTENCE: A fragment ('Bis hin zum Pärchen, ...').
+- 4928f30b001d  # BAD_SENTENCE: 'Dafür muss er aber erst ihre' needs its context.
+- 64c66caa5cc2  # BAD_SENTENCE: Near-duplicate of 'Der Fall der Berliner Mauer brachte neue Hoffnung.'
+- 64dbe8688d30  # BAD_SENTENCE: 'Dabei ... sie' points back to a missing sentence.
+- 7b4e75fbd88e  # BAD_SENTENCE: Near-duplicate of 'Je mehr ich darüber nachdenke, desto weniger mag ich es.'
+- 7e2d682449bf  # BAD_SENTENCE: An insult with a threat ('diese blöde Kuh umbringen').
+- 83890a8985bc  # BAD_SENTENCE: 'Sie sind Mittfünfziger' has no referent.
+- 91ee480994e9  # WRONG_UNIT: The gap is 'Nord', another form than 'der Norden'.
+- 968de543b92b  # BAD_SENTENCE: 'Dafür gibt es dann' points back to a missing sentence.
+- 9fc3b4661468  # WRONG_UNIT: 'ein loses Mundwerk' is the adjective 'lose' (loose), not the adverb 'los'.
+- a0937bdf3f74  # WRONG_UNIT: 'Gutes' is the nominalised adjective, not 'das Gut'.
+- a5726fc3ca1d  # BAD_SENTENCE: Broken: 'aus der ganzen zu vergleichen' has lost 'Welt'.
+- af5f5e1a105d  # BAD_GLOSS: 'Lager' here is a camp, not a warehouse.
+- b3e677819f53  # BAD_GLOSS: The gloss drops the gapped 'jeweils'.
+- be8bdcd78274  # WRONG_UNIT: 'auf Widerstand stoßen' is 'stoßen auf', not plain 'stoßen'.
+- c815ed4a9d11  # WRONG_UNIT: 'stößt ... vor' is 'vorstoßen', and 'in Stratosphäre' lacks its article.
+- ca81fdf84e80  # BAD_GLOSS: 'die halbe Miete' is glossed 'half the battle', which does not cue 'Miete'.
+- caf4a1146d09  # BAD_SENTENCE: 'Die Königsblauen' is a club nickname the card does not explain.
+- d3b77c4aa374  # BAD_SENTENCE: Reported speech in the subjunctive, cut from its context.
+- ddb3d147e192  # BAD_SENTENCE: 'Das wird sich jetzt ändern' points back to a missing sentence.
+- e6274d112869  # BAD_SENTENCE: Old spelling 'Überfluß' and an elliptical second clause.
+- e63f42793387  # BAD_SENTENCE: 'die Anklage des Alten' needs its context.
+- eaf579d79ca6  # WRONG_UNIT: 'beim Alten bleiben' is the neuter idiom, not 'der Alte'.
+- fcb01fd2cfb6  # BAD_SENTENCE: 'derweil' points back to a missing sentence.
