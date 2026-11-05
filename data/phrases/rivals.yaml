@@ -1,0 +1,16 @@
+# Words easy to mix up that the English alone does not pair: typing one in
+# another's gap is the right idea and the wrong word, so the page says
+# another word is wanted and gives one more try, nothing recorded. Most
+# rivals are found mechanically (src/phrases/rivals.py: a shared English
+# sense in one word class); these are the ones the owner met that it
+# cannot find, because the English differs, the word classes differ, or the
+# deck has no unit for one of them ("wegen", "Durchsage"). One group per
+# line, lemma keys as the miner keys them; a word with no unit is matched
+# as typed. Applied at export. Started 2026-11-04 from the reports of
+# 2026-10-28 to 11-03.
+- [gegend, umgebung]
+- [aufgrund, wegen]
+- [ansage, durchsage]
+- [gegenüber, dagegen]
+- [sich unterhalten mit, sprechen mit]
+- [sich unterhalten, sprechen, reden]

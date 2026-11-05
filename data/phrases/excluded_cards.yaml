@@ -6047,3 +6047,10 @@
 # Review round rank1104c.
 - 71c8eac1664d  # BAD_GLOSS: fremdes Brot essen is an idiom (to live on others or abroad), glossed literally.
 - f09c5ab9c731  # BAD_SENTENCE: Odd out of context.
+# Owner's reports, 2026-10-28 to 11-03.
+- c38fcb8815f5  # BAD_SENTENCE: 'Was, bei ihm bedankst du dich?' is a structure the owner could not read
+- 78473ca10744  # BAD_GLOSS: 'eine Ansage an die Konkurrenz' is a challenge, not an announcement
+- 7c17a409d5f5  # BAD_SENTENCE: the fronted infinitive 'Eier legen darf' reads as a plural verb
+- 4758f9435510  # BAD_SENTENCE: 'Geboten wird hier bald ...', a fronted passive participle
+- 31045fa373c2  # DUPLICATE: third 'wie es weitergeht'; the owner saw the same card again and again
+- 725015be6577  # DUPLICATE: second 'wie es weitergeht' (0f764e2195a7 stays)
