@@ -325,9 +325,10 @@ function loadCard() {
     showPanel("limit");
     return;
   }
-  if (step.panel === "new") {
-    $("limit-text").textContent =
-      "Alle fälligen Einheiten sind durch. Weiter mit neuen Einheiten?";
+  if (step.panel === "new" || step.panel === "cap") {
+    $("limit-text").textContent = step.panel === "new"
+      ? "Alle fälligen Einheiten sind durch. Weiter mit neuen Einheiten?"
+      : `Neue Einheiten für heute: ${step.started} von ${step.cap}. Nichts ist fällig. Trotzdem neue anfangen?`;
     $("btn-more").textContent = "Neue Einheiten";
     showPanel("limit");
     return;
@@ -641,10 +642,13 @@ function loadVerb() {
   const step = practiceStep(verbs, verbState, engine, verbSettings(), now(),
     { grantedExtra: verbExtra, newAllowed: verbNewAllowed, choose: pickAny });
   verbPanel = step.panel;
-  if (step.panel === "target" || step.panel === "new") {
-    $("verb-limit-text").textContent = step.panel === "target"
-      ? `Tagesziel für Verben erreicht (${step.spent}). Fällig: ${step.due}.`
-      : "Keine fälligen Verben mehr. Neue anfangen?";
+  if (step.panel === "target" || step.panel === "new" || step.panel === "cap") {
+    $("verb-limit-text").textContent = {
+      target: `Tagesziel für Verben erreicht (${step.spent}). Fällig: ${step.due}.`,
+      new: "Keine fälligen Verben mehr. Neue anfangen?",
+      cap: `Neue Verben für heute: ${step.started} von ${step.cap}. Nichts ist fällig. Trotzdem neue anfangen?`,
+    }[step.panel];
+    $("btn-verb-more").textContent = step.panel === "target" ? "Trotzdem weiter" : "Neue Verben";
     $("verb-limit").hidden = false;
     return;
   }

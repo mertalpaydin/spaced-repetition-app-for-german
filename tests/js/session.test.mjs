@@ -532,6 +532,35 @@ test("every press of Weiter at the day's target moves on", () => {
   assert.equal(grant.grantedExtra, 4, "both target presses granted a block");
 });
 
+test("the day's new-unit cap stops and asks instead of saying there is nothing", () => {
+  // Owner, 2026-11-06, on the verb drill's first day: five new verbs, the
+  // cap, and the page said "Keine Verben fällig und keine neuen" with 4,150
+  // waiting and no way on. Under the day's target, nothing due, new units
+  // left: that is the cap, and "Weiter" lifts it like the "new" panel does.
+  const d = deck(); const engine = createEngine();
+  d.units.push(unit_("vb:gehen", 3, "gehen"));
+  d.byId["vb:gehen"] = d.units[2];
+  d.cardsByUnit["vb:gehen"] = [card("g1", "vb:gehen", "Wir gehen heim.", ["gehen"])];
+  const settings = { ...DEFAULT_SETTINGS, cardsPerDay: 20, newPerDay: 2, extraCards: 2 };
+  const state = deriveState([
+    rev(1, T0, "vp:warten_auf", "good"), rev(2, "2026-09-01T08:01:00Z", "cn:trotzdem", "good"),
+    rev(3, "2026-09-01T08:11:00Z", "vp:warten_auf", "good"), rev(4, "2026-09-01T08:12:00Z", "cn:trotzdem", "good"),
+  ], engine);
+  const later = "2026-09-01T09:00:00Z";
+  assert.equal(dueUnits(d, state, engine, later, 0).length, 0, "nothing is due");
+
+  const capped = practiceStep(d, state, engine, settings, later);
+  assert.deepEqual(capped, { panel: "cap", started: 2, cap: 2 });
+  const grant = pressMore("cap", { grantedExtra: 0, newAllowed: false }, settings.extraCards);
+  assert.deepEqual(grant, { grantedExtra: 0, newAllowed: true });
+  const step = practiceStep(d, state, engine, settings, later, grant);
+  assert.equal(step.panel, "card");
+  assert.equal(step.unit.unit_id, "vb:gehen");
+  // With every unit started there is truly nothing: still "empty".
+  delete d.byId["vb:gehen"]; d.units.pop();
+  assert.equal(practiceStep(d, state, engine, settings, later).panel, "empty");
+});
+
 test("a correction replays the review as a pass", () => {
   // Twin of test_a_correction_replays_the_review_as_a_pass. The correction
   // type must also be in KNOWN_TYPES, or sync would delete it from the gist.

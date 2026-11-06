@@ -272,7 +272,16 @@ export function practiceStep(deck, state, engine, settings, now, { grantedExtra 
   if (grantedExtra > 0 && !newAllowed && dueUnits(deck, state, engine, now, 0).length === 0) {
     if (!unit || !(unit.unit_id in state.records)) return { panel: "new" };
   }
-  return unit ? { panel: "card", unit } : { panel: "empty" };
+  if (unit) return { panel: "card", unit };
+  // Under the target with nothing due and new units left, the only thing in
+  // the way is the day's new-unit cap. Said as "nothing due and nothing
+  // new" it left the learner stuck on the verb drill's first day, with 4,150
+  // verbs waiting (owner, 2026-11-06).
+  if (!newAllowed && settings.newPerDay !== null
+      && nextUnit(deck, state, engine, settings, now, { overLimit: true, choose })) {
+    return { panel: "cap", started: newUnitsStartedToday(state, now), cap: settings.newPerDay };
+  }
+  return { panel: "empty" };
 }
 
 // The learner's "Weiter" on a stop panel. What it means is decided by the
@@ -281,7 +290,7 @@ export function practiceStep(deck, state, engine, settings, now, { grantedExtra 
 // granting cards, the learner stayed over the target, and the same panel
 // came straight back on every press (owner, 2026-10-23).
 export function pressMore(panel, { grantedExtra, newAllowed }, extraCards) {
-  return panel === "new"
+  return panel === "new" || panel === "cap"
     ? { grantedExtra, newAllowed: true }
     : { grantedExtra: grantedExtra + extraCards, newAllowed };
 }
