@@ -407,7 +407,11 @@ async function check(reveal = false) {
     inp.value = g.expected;
     fitGap(inp);
     inp.readOnly = true;
-    inp.classList.add(g.accepted ? (g.outcome === "typo" ? "typo" : "ok") : "bad");
+    // A wrong ending passes as "Richtig, mit Tippfehler" but is not an
+    // accepted spelling, so it was drawn red like a wrong word (owner,
+    // 2026-11-06, on many cards). Gray, like a typo.
+    const near = g.outcome === "typo" || g.outcome === "inflection";
+    inp.classList.add(near ? "typo" : g.accepted ? "ok" : "bad");
   });
   const fb = $("feedback");
   fb.className = `feedback ${result.rating}`;
@@ -419,8 +423,12 @@ async function check(reveal = false) {
       ? `<span class="diff">${diffHtml(g.typed, g.expected)}</span>`
       : escapeHtml(`${g.typed || "(gezeigt)"} → ${g.expected}`)))
     .join(", ");
-  const synonym = result.gaps.filter((g) => g.accepted && g.typed.toLowerCase() !== g.expected.toLowerCase()
-    && g.outcome !== "typo").map((g) => `${g.typed} gilt auch; im Satz: ${g.expected}`).join(", ");
+  // Another accepted word, not the one in the sentence. Compared trimmed:
+  // a trailing space made "deswegen " a synonym of "deswegen" (2026-11-05);
+  // an old spelling ("wißen") is not a synonym either.
+  const synonym = result.gaps.filter((g) => g.outcome === "exact"
+    && g.typed.trim().toLowerCase() !== g.expected.toLowerCase())
+    .map((g) => `${g.typed.trim()} gilt auch; im Satz: ${g.expected}`).join(", ");
   const u = unitPayload(unit);
   // The rank goes here and nowhere earlier: it is how common the phrase is,
   // which before the answer would narrow down what the phrase can be
