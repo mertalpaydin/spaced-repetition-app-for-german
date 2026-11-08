@@ -40,6 +40,28 @@ test("case, spacing and the infinitive of the auxiliary", () => {
   assert.equal(sein.rating, "hard");
 });
 
+test("a letter slipped in the auxiliary is a typo, another auxiliary is not", () => {
+  // Owner's log of 2026-11-06: "is" for "ist", twice, graded wrong.
+  const is = gradeVerb(GEHEN, { praeteritum: "ging", auxiliary: "is", partizip: "gegangen" });
+  assert.equal(is.gaps[1].outcome, "typo");
+  assert.equal(is.rating, "hard");
+  assert.equal(gradeVerb(GEHEN, { praeteritum: "ging", auxiliary: "hat", partizip: "gegangen" }).gaps[1].outcome, "wrong");
+});
+
+test("a reflexive verb's forms count with or without the sich", () => {
+  // Owner's log of 2026-11-07: "fühlte / hat / gefühlt" for "sich fühlen",
+  // graded wrong for leaving out the pronoun the screen never asks for.
+  const FUEHLEN = { unit_id: "pf:sich_fuehlen", infinitive: "sich fühlen", gloss_en: "to feel", rank: 100,
+    source_unit_id: "rv:sich_fuehlen", praeteritum: ["fühlte sich"], auxiliary: ["hat"], partizip: ["sich gefühlt"], weak: true };
+  assert.equal(gradeVerb(FUEHLEN, { praeteritum: "fühlte", auxiliary: "hat", partizip: "gefühlt" }).rating, "good");
+  assert.equal(gradeVerb(FUEHLEN, { praeteritum: "fühlte sich", auxiliary: "hat", partizip: "sich gefühlt" }).rating, "good");
+  const VORSTELLEN = { ...FUEHLEN, unit_id: "pf:sich_vorstellen", infinitive: "sich vorstellen",
+    praeteritum: ["stellte sich vor"], partizip: ["sich vorgestellt"] };
+  assert.equal(gradeVerb(VORSTELLEN, { praeteritum: "stellte vor", auxiliary: "hat", partizip: "vorgestellt" }).rating, "good");
+  // a plain verb gains nothing from it
+  assert.equal(gradeVerb(GEHEN, { praeteritum: "ging sich", auxiliary: "ist", partizip: "gegangen" }).rating, "again");
+});
+
 test("either auxiliary where both are standard; revealed is again", () => {
   assert.equal(gradeVerb(FAHREN, { praeteritum: "fuhr", auxiliary: "hat", partizip: "gefahren" }).rating, "good");
   const shown = gradeVerb(FAHREN, { praeteritum: null, auxiliary: null, partizip: null });

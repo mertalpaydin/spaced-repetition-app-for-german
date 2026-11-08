@@ -52,22 +52,41 @@ function gradeForm(typed, accepted) {
 // a perfect one, like a typo.
 const AUX_INFINITIVE = { haben: "hat", sein: "ist" };
 
+// One letter added, dropped or changed: "is" for "ist" (2026-11-06). The
+// auxiliaries are three letters, below what the typo grader looks at, and
+// "hat" and "ist" are three letters apart, so this cannot pass the wrong one.
+function oneLetterApart(a, b) {
+  if (Math.abs(a.length - b.length) > 1 || a === b) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i += 1;
+  const rest = (s, skip) => s.slice(i + skip);
+  return rest(a, 1) === rest(b, 1) || rest(a, 1) === rest(b, 0) || rest(a, 0) === rest(b, 1);
+}
+
 function gradeAuxiliary(typed, accepted) {
   if (typed === null || typed === undefined) return "revealed";
   const t = tidy(typed);
   if (accepted.includes(t)) return "exact";
   if (accepted.includes(AUX_INFINITIVE[t])) return "typo";
+  if (t && accepted.some((a) => oneLetterApart(t, a))) return "typo";
   return "wrong";
 }
+
+// A reflexive verb's forms without the pronoun: "fühlte" for "fühlte sich",
+// "gefühlt" for "sich gefühlt". The screen asks for er/sie/es and nothing
+// says to type "sich", so leaving it out is no mistake (2026-11-07).
+const withoutSich = (forms) => forms.map((f) => f.split(" ").filter((w) => w !== "sich").join(" "));
 
 // typed: {praeteritum, auxiliary, partizip}, each a string or null when the
 // learner pressed "Zeigen". Rated as a sentence card is: all exact is good,
 // a typo is hard, anything wrong or shown is again.
 export function gradeVerb(verb, typed) {
+  const reflexive = (verb.infinitive || "").startsWith("sich ");
+  const forms = (accepted) => (reflexive ? [...accepted, ...withoutSich(accepted)] : accepted);
   const fields = [
-    ["praeteritum", gradeForm(typed.praeteritum, verb.praeteritum), verb.praeteritum],
+    ["praeteritum", gradeForm(typed.praeteritum, forms(verb.praeteritum)), verb.praeteritum],
     ["auxiliary", gradeAuxiliary(typed.auxiliary, verb.auxiliary), verb.auxiliary],
-    ["partizip", gradeForm(typed.partizip, verb.partizip), verb.partizip],
+    ["partizip", gradeForm(typed.partizip, forms(verb.partizip)), verb.partizip],
   ];
   const gaps = fields.map(([field, outcome, accepted]) => ({
     field, outcome, accepted: outcome === "exact" || outcome === "typo",
