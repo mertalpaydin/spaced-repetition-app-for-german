@@ -458,6 +458,41 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **A failed card comes back five cards later, and the grader's near
+  misses, 2026-11-08** (no persisted format changes: a verb form is logged
+  with the existing outcome `inflection`). From the owner's log of 11-05 to
+  11-08: 10 reports, 598 reviews.
+
+  Scheduling, both engines. With many units due, a failed unit came back
+  after the whole due queue or the next day: of 92 failed cards since
+  11-04, 10 returned in the same sitting and 57 only on a later day, and
+  since 10-07 half of the same-sitting repeats fell in the sitting's last
+  quarter. The pending tier sat behind the overdue one, and once a failed
+  unit's ten-minute FSRS step passed it was one more overdue unit, sorted by
+  retrievability, where a card failed a minute ago sorts last. Pending now
+  comes first, `relearn_spacing` is 5 (was 8), and at the day's target a
+  repeat still owed is finished before the stop, with one card between it
+  and the failure (`pending_to_finish`). The page drops a stored
+  `relearnSpacing`, since it saves its whole settings object.
+
+  Grading, both engines, and the two agree on all 3,878 logged answers
+  since 10-07. The right verb in the wrong form passes as `hard` again (it
+  failed from 10-22 and offered "Als richtig werten", which he then pressed
+  18 times in four days for a verb form), and the unit's own words count
+  as its verb, which catches a changed stem ("zugeben" for "zugibt"). A
+  typo that spells another unit's word ("bieten" for "bitten", "Absage" for
+  "Ansage") fails as a near miss instead of passing (`is_other_word`, over
+  `deck_words`). Rivals match a verb form ("aufzuhören"), and eight more
+  groups are in `rivals.yaml`. The page draws a wrong ending gray, not red,
+  and the "gilt auch" note no longer fires on a trailing space. The verb
+  drill takes "is" for "ist" as a typo and a reflexive verb's forms without
+  "sich".
+
+  Patterns in his own errors, nothing to fix: "auf" for "aus" in separable
+  verbs (auslösen five times, aussuchen without "aus" five times), "sich
+  bewerben für" for "um" three times, weak forms of strong verbs in the
+  drill ("denkte", "bringte").
+
 - **The owner's reports of 2026-10-28 to 11-03, and four open items,
   2026-11-04/05** (rule 9: `PhraseUnit.rival_words`, additive, defaulted).
   Twelve reports. Grading, both engines: a -nis plural ("Kenntnisse") is an
@@ -688,7 +723,8 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   computed from the glosses, so a gloss change can add or remove a rival.
 
 - **The review log gained a third entry type, 2026-10-22** (rule 9: additive,
-  flagged here). `CorrectionEntry` is "Als richtig werten": the graded review
+  flagged here; the verb-form part below was reversed on 2026-11-08, see
+  that entry). `CorrectionEntry` is "Als richtig werten": the graded review
   stays as written and replay rates it `hard` in its place, keyed by
   `unit_id` and `review_ts` because seq is per device. The button is offered
   only for a near miss, the right word in the wrong form (a verb in another
