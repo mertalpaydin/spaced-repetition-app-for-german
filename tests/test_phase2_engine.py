@@ -44,6 +44,7 @@ from src.engine.session import (
     introduction_order,
     is_postponed,
     next_unit,
+    pending_to_finish,
     pick_card,
     recently_shown,
     requested_to_introduce,
@@ -833,6 +834,63 @@ def _review(seq: int, ts: datetime, unit_id: str, rating: str) -> ReviewEntry:
         expected=["x"],
         elapsed_ms=1,
         deck_version="t",
+    )
+
+
+def _overdue_deck() -> tuple[Deck, list[str], list[ReviewEntry]]:
+    """Eight units known for a month, all overdue a month after T0."""
+    ids = [f"cn:{x}" for x in "abcdefgh"]
+    units = [_unit(uid, i + 1, uid[3:]) for i, uid in enumerate(ids)]
+    cards = {
+        uid: [_card(f"{uid[3:]}{i:011d}", uid, f"{uid[3:]} kam sie.", [uid[3:]])]
+        for i, uid in enumerate(ids)
+    }
+    entries: list[ReviewEntry] = []
+    for i, uid in enumerate(ids):
+        entries.append(_review(2 * i + 1, T0, uid, "good"))
+        entries.append(_review(2 * i + 2, T0 + timedelta(minutes=11), uid, "good"))
+    return Deck(manifest=_deck().manifest, units=units, cards_by_unit=cards), ids, entries
+
+
+def test_a_failed_unit_comes_back_after_the_spacing_ahead_of_the_due_queue() -> None:
+    """Owner, 2026-11-08: with many units due, a failed one came back only
+    after the whole due queue, or the next day (57 of 92 failed cards since
+    11-04). Its ten-minute FSRS step made it one more overdue unit, sorted by
+    retrievability, where a card failed a minute ago sorts last."""
+    engine = FSRSEngine()
+    deck, ids, entries = _overdue_deck()
+    later = T0 + timedelta(days=30)
+    entries.append(_review(17, later, "cn:a", "again"))
+    for i in range(1, 5):
+        entries.append(_review(17 + i, later + timedelta(minutes=i), ids[i], "good"))
+    settings = Settings()
+    assert settings.relearn_spacing == 5
+    state = derive_state(entries, engine)
+    four = next_unit(deck, state, engine, settings, later + timedelta(minutes=5))
+    assert four is not None and four.unit_id != "cn:a", "four cards are not five"
+    entries.append(_review(22, later + timedelta(minutes=5), ids[5], "good"))
+    state = derive_state(entries, engine)
+    six = later + timedelta(minutes=6)
+    assert "cn:g" in {u.unit_id for u in due_units(deck, state, engine, six, timedelta(0))}
+    unit = next_unit(deck, state, engine, settings, six)
+    assert unit is not None and unit.unit_id == "cn:a"
+
+
+def test_repeats_owed_at_the_days_target_are_finished_first() -> None:
+    """The other half of the same report: a unit failed near the target was
+    left for another day when the learner stopped there."""
+    engine = FSRSEngine()
+    deck, ids, entries = _overdue_deck()
+    later = T0 + timedelta(days=30)
+    entries.append(_review(17, later, "cn:a", "again"))
+    state = derive_state(entries, engine)
+    owed = pending_to_finish(deck, state, engine, Settings(), later + timedelta(minutes=1))
+    assert [u.unit_id for u in owed] == ["cn:a"], "owed whatever the spacing"
+    for i in range(1, 4):
+        entries.append(_review(17 + i, later + timedelta(minutes=i), "cn:a", "again"))
+    state = derive_state(entries, engine)
+    assert pending_to_finish(deck, state, engine, Settings(), later + timedelta(minutes=5)) == [], (
+        "not after the sitting's three asks"
     )
 
 

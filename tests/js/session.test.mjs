@@ -200,6 +200,61 @@ test("with nothing else to show, the pending unit comes back at once", () => {
   assert.ok(new Date(soon).getTime() < new Date(state.records["vp:warten_auf"].due).getTime());
 });
 
+// Eight units known for a month, all overdue at LATER.
+const overdueDeck = () => {
+  const ids = ["a", "b", "c", "d", "e", "f", "g", "h"].map((x) => `cn:${x}`);
+  const units = ids.map((id, i) => unit_(id, i + 1, id.slice(3), { kind: "connector" }));
+  const cardsByUnit = Object.fromEntries(ids.map((id) => [id, [card(`${id}1`, id, `${id.slice(3)} kam sie.`, [id.slice(3)])]]));
+  const entries = [];
+  ids.forEach((id, i) => {
+    entries.push(rev(2 * i + 1, T0, id, "good"));
+    entries.push(rev(2 * i + 2, "2026-09-01T08:11:00Z", id, "good"));
+  });
+  return { d: { units, byId: Object.fromEntries(units.map((u) => [u.unit_id, u])), cardsByUnit }, ids, entries };
+};
+const at = (minute) => `2026-10-01T08:${String(minute).padStart(2, "0")}:00Z`;
+
+test("a failed unit comes back after relearnSpacing cards, ahead of the overdue queue", () => {
+  // Owner, 2026-11-08: with many units due, a failed one came back only after
+  // the whole due queue, or the next day: 57 of 92 failed cards since 11-04.
+  // Its ten-minute FSRS step put it among the overdue units sorted by
+  // retrievability, where a card failed a minute ago sorts last.
+  const engine = createEngine();
+  const { d, ids, entries } = overdueDeck();
+  entries.push(rev(17, at(0), "cn:a", "again"));
+  for (let i = 1; i <= 4; i += 1) entries.push(rev(17 + i, at(i), ids[i], "good"));
+  let state = deriveState(entries, engine);
+  assert.equal(DEFAULT_SETTINGS.relearnSpacing, 5);
+  assert.notEqual(nextUnit(d, state, engine, DEFAULT_SETTINGS, at(5)).unit_id, "cn:a", "four cards are not five");
+  entries.push(rev(22, at(5), ids[5], "good"));
+  state = deriveState(entries, engine);
+  assert.ok(dueUnits(d, state, engine, at(6), 0).some((u) => u.unit_id === "cn:g"), "cn:g is still overdue");
+  assert.equal(nextUnit(d, state, engine, DEFAULT_SETTINGS, at(6)).unit_id, "cn:a");
+});
+
+test("at the day's target the repeats are finished before the stop", () => {
+  // The other half of the same report: a card failed near the target was
+  // left for another day if the learner stopped there.
+  const engine = createEngine();
+  const { d, ids, entries } = overdueDeck();
+  const settings = { ...DEFAULT_SETTINGS, cardsPerDay: 3 };
+  entries.push(rev(17, at(0), ids[1], "good"), rev(18, at(1), ids[2], "good"), rev(19, at(2), "cn:a", "again"));
+  let state = deriveState(entries, engine);
+  assert.ok(budgetSpentToday(state, at(3)) >= 3, "the target is reached");
+  // cn:a was the last card: one other card goes between it and its repeat
+  const filler = practiceStep(d, state, engine, settings, at(3));
+  assert.equal(filler.panel, "card");
+  assert.notEqual(filler.unit.unit_id, "cn:a");
+  entries.push(rev(20, at(3), filler.unit.unit_id, "good"));
+  state = deriveState(entries, engine);
+  const repeat = practiceStep(d, state, engine, settings, at(4));
+  assert.equal(repeat.panel, "card");
+  assert.equal(repeat.unit.unit_id, "cn:a");
+  entries.push(rev(21, at(4), "cn:a", "good"));
+  state = deriveState(entries, engine);
+  assert.equal(practiceStep(d, state, engine, settings, at(5)).panel, "target", "then it stops");
+});
+
 test("the budget and the statistics count a retry differently", () => {
   const engine = createEngine();
   const settings = { ...DEFAULT_SETTINGS, cardsPerDay: 40 };

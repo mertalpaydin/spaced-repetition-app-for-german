@@ -44,7 +44,11 @@ function diffHtml(typed, expected) {
 // The verb drill's own daily allowance and new-verb cap; it schedules apart
 // from the sentence deck (see the verbs section below).
 const VERB_DEFAULTS = { verbCardsPerDay: 20, verbNewPerDay: 5 };
-const settings = { ...DEFAULT_SETTINGS, ...VERB_DEFAULTS, token: "", gistId: "", autoSync: true, geminiKey: "", ...loadSettings() };
+// The page saves its whole settings object, so a default no screen edits
+// was stored with it and a changed default never arrived: relearnSpacing
+// went from 8 to 5 on 2026-11-08. The stored copy is dropped.
+const { relearnSpacing: _storedSpacing, ...storedSettings } = loadSettings();
+const settings = { ...DEFAULT_SETTINGS, ...VERB_DEFAULTS, token: "", gistId: "", autoSync: true, geminiKey: "", ...storedSettings };
 // The deck as exported, and the deck the rest of the page sees: the second
 // is the first plus whatever the learner added from this screen. Kept apart
 // so a new request entry only has to refold, never refetch.

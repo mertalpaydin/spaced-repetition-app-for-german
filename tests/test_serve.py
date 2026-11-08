@@ -12,7 +12,7 @@ from src.cli.serve import WEB_DIR, Api, ApiError, make_handler
 from src.engine.review_log import ReviewLog
 from src.engine.session import Settings
 
-from tests.test_phase2_engine import T0, _deck
+from tests.test_phase2_engine import T0, _deck, _overdue_deck, _review
 
 
 def _api(tmp_path: Path) -> Api:
@@ -84,6 +84,30 @@ def test_deck_info_and_stats_after_a_day(tmp_path: Path) -> None:
     assert api.deck_info()["deck_version"] == "test"
     api.now = lambda: T0 + timedelta(days=1)
     assert api.stats()["streak_days"] == 0
+
+
+def test_a_repeat_owed_at_the_target_comes_before_the_limit(tmp_path: Path) -> None:
+    """Twin of the page's "at the day's target the repeats are finished
+    before the stop" (owner, 2026-11-08): one other card goes between the
+    failed unit and its repeat, and only then the limit."""
+    deck, ids, entries = _overdue_deck()
+    later = T0 + timedelta(days=30)
+    clock = [later]
+    log = ReviewLog(tmp_path / "log.jsonl", now=lambda: clock[0])
+    for e in [*entries, _review(17, later, ids[1], "good"), _review(18, later, "cn:a", "again")]:
+        log.append(e)
+    api = Api(deck, log, now=lambda: clock[0])
+    api.settings = Settings(cards_per_day=2)
+    clock[0] = later + timedelta(minutes=1)
+    filler = api.next()
+    assert not filler["limit_reached"] and filler["unit"]["unit_id"] != "cn:a"
+    api.answer({"card_id": filler["card"]["card_id"], "typed": [filler["unit"]["unit_id"][3:]]})
+    clock[0] = later + timedelta(minutes=2)
+    repeat = api.next()
+    assert not repeat["limit_reached"] and repeat["unit"]["unit_id"] == "cn:a"
+    api.answer({"card_id": repeat["card"]["card_id"], "typed": ["a"]})
+    clock[0] = later + timedelta(minutes=3)
+    assert api.next()["limit_reached"]
 
 
 def test_spent_budget_stops_before_due_cards_unless_mid_learning_step(tmp_path: Path) -> None:

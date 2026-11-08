@@ -48,7 +48,10 @@ class Settings:
     #: getting wrong came back every fourth card; with a wrong ending
     #: counting as "again" that was most of a sitting spent on a handful of
     #: units, which is what "I see the same words again and again" was.
-    relearn_spacing: int = 8
+    #: Lowered to 5 on 2026-11-08, when a failed unit started coming back
+    #: ahead of the due queue (the owner's "five answers later no matter
+    #: what"); ``max_asks_per_session`` still stops a loop.
+    relearn_spacing: int = 5
     #: How many times one unit may be asked in a single sitting before it is
     #: left for tomorrow. Spacing alone cannot stop a loop: a unit the
     #: learner never gets right is always eligible again, so without a cap
@@ -248,6 +251,23 @@ def eligible_pending_units(
     return [unit for _, _, unit in out]
 
 
+def pending_to_finish(
+    deck: Deck, state: LearnerState, engine: FSRSEngine, settings: Settings, now: datetime
+) -> list[PhraseUnit]:
+    """Units mid learning step that this sitting may still ask, spacing aside.
+
+    At the day's target they are finished before the stop, so a unit failed
+    near the end is not left for another day (owner, 2026-11-08). Matches
+    pendingToFinish in web/lib/session.js."""
+    cap = settings.max_asks_per_session
+    asks = asks_this_session(state, settings, now)
+    return [
+        u
+        for u in eligible_pending_units(deck, state, engine, settings, now, ignore_spacing=True)
+        if cap <= 0 or asks.get(u.unit_id, 0) < cap
+    ]
+
+
 def introduction_order(deck: Deck, state: LearnerState | None = None) -> list[PhraseUnit]:
     """The order new units are introduced in.
 
@@ -405,14 +425,11 @@ def next_unit(
     wanted = _not_last(not_exhausted(requested_to_introduce(deck, state, settings, now)), last)
     if wanted:
         return wanted[0]
-    overdue = _not_last(
-        spaced(not_exhausted(due_units(deck, state, engine, now, timedelta(0)))), last
-    )
-    if overdue:
-        return overdue[0]
-    # A unit mid learning step comes back on spacing, not on the clock, and
-    # ahead of any new unit: there is no point introducing more while the
-    # learner is still getting this one wrong (owner, 2026-09-22).
+    # A unit mid learning step comes back on spacing, not on the clock
+    # (owner, 2026-09-22), and ahead of the due queue (2026-11-08). Behind it,
+    # with many units due, a failed unit waited for the whole queue or for the
+    # next day: its ten-minute FSRS step made it one more overdue unit, sorted
+    # by retrievability, where a card failed a minute ago sorts last.
     pending = [
         u
         for u in spaced(not_exhausted(eligible_pending_units(deck, state, engine, settings, now)))
@@ -420,6 +437,11 @@ def next_unit(
     ]
     if pending:
         return pending[0]
+    overdue = _not_last(
+        spaced(not_exhausted(due_units(deck, state, engine, now, timedelta(0)))), last
+    )
+    if overdue:
+        return overdue[0]
     within_budget = over_limit or budget_left(state, settings, now) > 0
     under_cap = settings.new_per_day is None or (
         new_units_started_today(state, now) < settings.new_per_day

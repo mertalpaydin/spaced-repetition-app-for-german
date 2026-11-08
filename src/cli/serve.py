@@ -33,6 +33,7 @@ from src.engine.session import (
     budget_left,
     due_units,
     next_unit,
+    pending_to_finish,
     pick_card,
     reviews_today,
     units_by_stage,
@@ -130,7 +131,16 @@ class Api:
                 # rather than on the clock (owner, 2026-09-22).
                 record = state.records.get(unit.unit_id)
                 mid_step = record is not None and record.state != "review"
-                if not mid_step:
+                # Repeats still owed are finished first, spacing shortened:
+                # one other card between a unit and its repeat (2026-11-08).
+                owed = (
+                    []
+                    if mid_step
+                    else pending_to_finish(self.deck, state, self.engine, self.settings, now)
+                )
+                if owed:
+                    unit = next((u for u in owed if u.unit_id != state.last_unit), unit)
+                elif not mid_step:
                     return {"done": False, "limit_reached": True, "today": today}
             if unit is None and not over_limit and today["left"] == 0:
                 more = next_unit(self.deck, state, self.engine, self.settings, now, over_limit=True)

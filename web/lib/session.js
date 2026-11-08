@@ -10,10 +10,13 @@ export { POSTPONE_STEP };
 // relearnSpacing went from 3 to 8 and maxAsksPerSession arrived on
 // 2026-10-06: at 3 a unit the learner kept getting wrong came back every
 // fourth card, and nothing capped the total, so a sitting narrowed onto a
-// handful of units. requestedPerDay is how many words added from the page
-// jump the due queue. Matches Settings in src/engine/session.py.
+// handful of units. It went to 5 on 2026-11-08, when a failed unit started
+// coming back ahead of the due queue (the owner's "five answers later no
+// matter what"); the cap of three asks a sitting still stops a loop.
+// requestedPerDay is how many words added from the page jump the due
+// queue. Matches Settings in src/engine/session.py.
 export const DEFAULT_SETTINGS = { cardsPerDay: 40, newPerDay: null, learnAheadMinutes: 20, retention: 0.9, newPool: 50,
-  relearnSpacing: 8, maxAsksPerSession: 3, sessionGapMinutes: 60, requestedPerDay: 5,
+  relearnSpacing: 5, maxAsksPerSession: 3, sessionGapMinutes: 60, requestedPerDay: 5,
   requestedDelay: 10, extraCards: 10 };
 
 // Is this unit still waiting out a "Später"? It has no learning record (the
@@ -220,13 +223,15 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
 
   const wanted = notLast(notExhausted(requestedToIntroduce(deck, state, settings, now)), last);
   if (wanted.length) return wanted[0];
-  const overdue = notLast(spaced(notExhausted(dueUnits(deck, state, engine, now, 0))), last);
-  if (overdue.length) return overdue[0];
-  // A unit mid learning step comes back on spacing, not on the clock, and
-  // ahead of any new unit: there is no point introducing more while the
-  // learner is still getting this one wrong (owner, 2026-09-22).
+  // A unit mid learning step comes back on spacing, not on the clock
+  // (owner, 2026-09-22), and ahead of the due queue (2026-11-08). Behind it,
+  // with many units due, a failed unit waited for the whole queue or for
+  // the next day: its ten-minute FSRS step made it one more overdue unit,
+  // sorted by retrievability, where a card failed a minute ago sorts last.
   const pending = spaced(notExhausted(eligiblePendingUnits(deck, state, engine, settings, now))).filter((u) => u.unit_id !== last);
   if (pending.length) return pending[0];
+  const overdue = notLast(spaced(notExhausted(dueUnits(deck, state, engine, now, 0))), last);
+  if (overdue.length) return overdue[0];
   const withinBudget = overLimit || budgetLeft(state, settings, now) > 0;
   const underCap = settings.newPerDay === null || newUnitsStartedToday(state, now) < settings.newPerDay;
   if (withinBudget && (underCap || overLimit)) {
@@ -254,6 +259,17 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
 // past the target, the due queue is worked empty and only new units are
 // left. grantedExtra and newAllowed are the learner's answers to those two
 // panels so far this session.
+// Units mid learning step that this sitting may still ask, spacing aside.
+// At the day's target they are finished before the stop, so a unit failed
+// near the end is not left for another day (owner, 2026-11-08). Matches
+// pending_to_finish in src/engine/session.py.
+export function pendingToFinish(deck, state, engine, settings, now) {
+  const cap = settings.maxAsksPerSession ?? 0;
+  const asks = asksThisSession(state, settings, now);
+  return eligiblePendingUnits(deck, state, engine, settings, now, true)
+    .filter((u) => cap <= 0 || (asks[u.unit_id] || 0) < cap);
+}
+
 export function practiceStep(deck, state, engine, settings, now, { grantedExtra = 0, newAllowed = false, choose = null } = {}) {
   const spent = budgetSpentToday(state, now);
   const unit = nextUnit(deck, state, engine, settings, now, { overLimit: newAllowed, choose });
@@ -263,6 +279,13 @@ export function practiceStep(deck, state, engine, settings, now, { grantedExtra 
     // rather than on the clock (owner, 2026-09-22).
     const record = unit ? state.records[unit.unit_id] : null;
     const midStep = record && record.state !== "review";
+    // Repeats still owed are finished first, spacing shortened: one other
+    // card between a unit and its repeat, not relearnSpacing (2026-11-08).
+    const owed = midStep ? [] : pendingToFinish(deck, state, engine, settings, now);
+    if (owed.length) {
+      const other = owed.find((u) => u.unit_id !== state.lastUnit);
+      return { panel: "card", unit: other || unit || owed[0] };
+    }
     const more = unit || nextUnit(deck, state, engine, settings, now, { overLimit: true });
     if (more && !midStep) return { panel: "target", spent, due: dueUnits(deck, state, engine, now, 0).length };
   }
