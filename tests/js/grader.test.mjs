@@ -211,3 +211,18 @@ test("a rival in another ending or with a letter slipped earns the retry", () =>
   assert.equal(rivalTyped(units["nn:beziehung"], gradeCard(bez, ["Verhältnise"]), formsOf), "nn:verhaeltnis");
   assert.equal(rivalTyped(units["nn:beziehung"], gradeCard(bez, ["Beziehnug"]), formsOf), null);
 });
+
+test("the rival's verb in another form earns the retry", () => {
+  // Twin of test_rival_typed_accepts_the_rivals_verb_in_another_form (2026-11-08).
+  const answer = "aufzugeben";
+  const text = "Ich war nahe daran, aufzugeben.";
+  const start = text.indexOf(answer);
+  const card = { unit_id: "sv:aufgeben", sentence_de: text, form_key: "Fin|Pres|3|Sing", answers: [answer],
+    gaps: [{ start, end: start + answer.length, answer, token_index: 0 }] };
+  const units = {
+    "sv:aufgeben": { unit_id: "sv:aufgeben", parts: ["aufgeben"], rivals: ["sv:aufhoeren"] },
+    "sv:aufhoeren": { unit_id: "sv:aufhoeren", parts: ["aufhören"], rivals: [] },
+  };
+  const formsOf = (id) => unitForms(units[id], id === "sv:aufgeben" ? [card] : []);
+  assert.equal(rivalTyped(units["sv:aufgeben"], gradeCard(card, ["aufzuhören"]), formsOf), "sv:aufhoeren");
+});

@@ -170,3 +170,20 @@ def test_rival_typed_accepts_an_inflected_form_or_a_one_letter_slip() -> None:
     assert rival_typed(beziehung, grade_card(card, ["Verhältnise"]), forms_of) == "nn:verhaeltnis"
     # a slip of the asked word itself is the asked word, not a rival
     assert rival_typed(beziehung, grade_card(card, ["Beziehnug"]), forms_of) is None
+
+
+def test_rival_typed_accepts_the_rivals_verb_in_another_form() -> None:
+    """ "aufzuhören" for "aufzugeben" (owner's report of 2026-11-08): the
+    rival "aufhören" with the "zu" of the infinitive, which the ending and
+    one-letter tests do not see."""
+    aufgeben = _unit(
+        "sv:aufgeben", "separable_verb", "aufgeben", "to give up", 1, rivals=["sv:aufhoeren"]
+    )
+    aufhoeren = _unit("sv:aufhoeren", "separable_verb", "aufhören", "to stop", 2)
+    card = _card("g" * 12, "sv:aufgeben", "Ich war nahe daran, aufzugeben.", "aufzugeben")
+    units = {u.unit_id: u for u in (aufgeben, aufhoeren)}
+
+    def forms_of(unit_id: str) -> frozenset[str]:
+        return unit_forms(units[unit_id], [card] if unit_id == "sv:aufgeben" else [])
+
+    assert rival_typed(aufgeben, grade_card(card, ["aufzuhören"]), forms_of) == "sv:aufhoeren"

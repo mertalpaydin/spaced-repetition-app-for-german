@@ -392,8 +392,10 @@ export function rivalTyped(unit, grade, formsOf) {
 // _close_to in src/engine/grading.py.
 export function closeTo(typed, forms) {
   if (forms.has(typed)) return true;
+  // isVerbFormOf covers the ending test and the "ge"/"zu" of a verb:
+  // "aufzuhören" is the rival "aufhören" (2026-11-08).
   for (const f of forms) {
-    if (isInflectionOf(typed, f) || (f.length >= 5 && levenshtein(typed, f) === 1)) return true;
+    if (isVerbFormOf(typed, f) || (f.length >= 5 && levenshtein(typed, f) === 1)) return true;
   }
   return false;
 }

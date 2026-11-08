@@ -553,8 +553,10 @@ def _close_to(typed: str, forms: frozenset[str]) -> bool:
     no retry although both are rivals."""
     if typed in forms:
         return True
+    # is_verb_form_of covers the ending test and the "ge"/"zu" of a verb:
+    # "aufzuhören" is the rival "aufhören" (2026-11-08).
     return any(
-        is_inflection_of(typed, f)
+        is_verb_form_of(typed, f)
         or (len(f) >= 5 and ScopedTypoGrader._levenshtein_distance(typed, f) == 1)
         for f in forms
     )
