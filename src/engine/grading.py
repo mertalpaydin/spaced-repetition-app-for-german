@@ -12,8 +12,8 @@ than something the typo rule could absorb.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
 
 from src.contracts import PhraseCard, PhraseUnit, ReviewOutcome, ReviewRating
 from src.engine.typo_grader import ScopedTypoGrader
@@ -326,14 +326,109 @@ def accepted_forms(card: PhraseCard, gap_index: int, alternatives: Sequence[str]
     return forms
 
 
+@dataclass(frozen=True)
+class UnitWords:
+    """What the grader knows beyond the card: the words of the unit it tests,
+    and which units every word in the deck belongs to (2026-11-08).
+
+    ``own`` is ``unit_forms`` of the unit, ``parts`` its content words, and
+    ``deck`` maps a lower-cased word to the content words of the units it is
+    a form of (``deck_words``). Empty, the grader behaves as before."""
+
+    own: frozenset[str] = frozenset()
+    parts: frozenset[str] = frozenset()
+    deck: Mapping[str, frozenset[str]] = field(default_factory=dict)
+
+
+def _content_parts(unit: PhraseUnit) -> frozenset[str]:
+    """The unit's citation words that name it: "bitten" of "bitten um"."""
+    words = {w.lower() for part in unit.parts for w in part.split()}
+    return frozenset(w for w in words if len(w) >= 4 and w not in _NOT_A_RIVAL_FORM)
+
+
+def deck_words(
+    units: Iterable[PhraseUnit], cards_by_unit: Mapping[str, Sequence[PhraseCard]]
+) -> dict[str, frozenset[str]]:
+    """Every word in the deck, lower-cased, to the content words of the units
+    it is a form of: "bieten" to {"bieten", "chance", ...}."""
+    owners: dict[str, set[str]] = {}
+    for unit in units:
+        parts = _content_parts(unit)
+        if not parts:
+            continue
+        words = {w.lower() for part in unit.parts for w in part.split()}
+        for card in cards_by_unit.get(unit.unit_id, ()):
+            words.update(a.lower() for a in card.answers)
+        for word in words:
+            owners.setdefault(word, set()).update(parts)
+    return {word: frozenset(parts) for word, parts in owners.items()}
+
+
+def unit_words(
+    unit: PhraseUnit, cards: Iterable[PhraseCard], deck: Mapping[str, frozenset[str]]
+) -> UnitWords:
+    return UnitWords(own=unit_forms(unit, cards), parts=_content_parts(unit), deck=deck)
+
+
+def _base(word: str) -> tuple[str, str]:
+    """(particle, base) of a separable verb, "aussehen" -> ("aus", "sehen");
+    ("", word) for any other word."""
+    for particle in _PARTICLES:
+        if word.startswith(particle) and len(word) - len(particle) >= 4:
+            return particle, word[len(particle) :]
+    return "", word
+
+
+def is_other_word(typed: str, expected: str, words: UnitWords) -> bool:
+    """Whether ``typed``, a letter away from ``expected``, is a word of
+    another unit in the deck rather than a slip.
+
+    The typo rule passes any one-letter change outside the ending, and 22 of
+    its passes since 2026-10-07 were another word: "bieten" for "bitten" six
+    times, "liegt" for "legt", "Absage" for "Ansage", "auflösen" for
+    "auslösen" (2026-11-08). The same verb in another form is not another
+    word ("entschieden" for "entscheiden", "seht" in "sieht ... an"), nor is
+    a missed umlaut. A separable verb's particle counts, so "aufgeben" for
+    "ausgeben" is another word, while the bare verb of a split one is not."""
+    a, b = typed.strip().lower(), expected.strip().lower()
+    if not a or a == b or _fold_umlauts(a) == _fold_umlauts(b):
+        return False
+    if a in words.own or is_verb_form_of(a, b):
+        return False
+    owners = words.deck.get(a)
+    if not owners:
+        return False
+    mine = words.parts | {_base(p)[1] for p in words.parts}
+    for part in owners:
+        if part in mine:
+            return False
+        particle, base = _base(part)
+        if particle and not a.startswith(particle) and base in mine:
+            return False
+    return True
+
+
+def _own_verb_form(typed: str, expected: str, words: UnitWords) -> bool:
+    """The unit's own word in another form, where the stem changes:
+    "zugeben" for "zugibt", "mitbringen" for "mitgebracht" (2026-11-05)."""
+    a, b = typed.strip().lower(), expected.strip().lower()
+    return a != b and a in words.own and a[:2] == b[:2]
+
+
 def grade_gap(
-    card: PhraseCard, gap_index: int, typed: str | None, alternatives: Sequence[str] = ()
+    card: PhraseCard,
+    gap_index: int,
+    typed: str | None,
+    alternatives: Sequence[str] = (),
+    words: UnitWords | None = None,
 ) -> GapGrade:
     expected = card.gaps[gap_index].answer
     if typed is None:
         return GapGrade(expected=expected, typed="", outcome="revealed", accepted=False)
+    words = words or UnitWords()
     forms = accepted_forms(card, gap_index, alternatives)
     result = ScopedTypoGrader.grade(typed, forms, topic_id=None)
+    accepted = result.is_correct
     verbal = card.form_key.split("|", 1)[0] in _VERBAL_FORMS
     near = False
     if result.is_correct and result.is_exact:
@@ -341,15 +436,24 @@ def grade_gap(
     elif result.is_correct and result.is_transliteration:
         outcome = "translit"
     elif result.is_correct and result.is_scoped_typo:
-        outcome = "typo"
+        if all(is_other_word(typed, f, words) for f in forms):
+            # Another word, not a slip: it fails, and the learner may still
+            # count it with "Als richtig werten" if it was one.
+            outcome, near, accepted = "wrong", True, False
+        else:
+            outcome = "typo"
     elif result.is_capitalization_error:
         outcome, near = "case", True
-    elif verbal and any(is_verb_form_of(typed, form) for form in forms):
-        # A verb in the wrong tense or person is the learner's call, not an
-        # automatic pass: until 2026-10-22 "wartet" for "warten" was accepted
-        # as an ending slip, which the owner called too loose. It fails, and
-        # "Als richtig werten" is offered.
-        outcome, near = "wrong", True
+    elif verbal and (
+        any(is_verb_form_of(typed, form) for form in forms)
+        or _own_verb_form(typed, expected, words)
+    ):
+        # The right verb in the wrong tense or person passes as "hard", like
+        # a noun or adjective ending. From 2026-10-22 it failed and offered
+        # "Als richtig werten" (the owner had called the automatic pass too
+        # loose); in the four days to 2026-11-08 he pressed that button 25
+        # times, 18 of them for exactly this, and asked for it to pass.
+        outcome = "inflection"
     elif not verbal and any(is_inflection_of(typed, form) for form in forms):
         outcome = "inflection"
     elif expected.lower() == "zu" and typed.strip().lower() in {"", "zu"}:
@@ -365,18 +469,21 @@ def grade_gap(
         outcome, near = "wrong", True
     else:
         outcome = "wrong"
-    return GapGrade(
-        expected=expected, typed=typed, outcome=outcome, accepted=result.is_correct, near=near
-    )
+    return GapGrade(expected=expected, typed=typed, outcome=outcome, accepted=accepted, near=near)
 
 
 def grade_card(
-    card: PhraseCard, typed: list[str | None], alternatives: Sequence[str] = ()
+    card: PhraseCard,
+    typed: list[str | None],
+    alternatives: Sequence[str] = (),
+    words: UnitWords | None = None,
 ) -> CardGrade:
-    """``typed`` has one entry per gap; ``None`` means the learner revealed it."""
+    """``typed`` has one entry per gap; ``None`` means the learner revealed it.
+    ``words`` (``unit_words``) lets the grader tell a slip from another word
+    and see the unit's own verb in a changed stem."""
     if len(typed) != len(card.gaps):
         raise ValueError(f"{len(card.gaps)} gaps, {len(typed)} answers")
-    gaps = [grade_gap(card, i, t, alternatives) for i, t in enumerate(typed)]
+    gaps = [grade_gap(card, i, t, alternatives, words) for i, t in enumerate(typed)]
     worst = max(gaps, key=lambda g: _SEVERITY[g.outcome])
     if worst.outcome in {"exact", "translit"}:
         rating: ReviewRating = "good"

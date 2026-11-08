@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import { gradeCard, gradeText, isInflectionOf, isVerbFormOf, renderMarked, rivalTyped, unitForms } from "../../web/lib/grader.js";
+import { deckWords, gradeCard, gradeText, isInflectionOf, isVerbFormOf, renderMarked, rivalTyped, unitForms, unitWords } from "../../web/lib/grader.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const cases = JSON.parse(readFileSync(join(here, "..", "..", "data", "fixtures", "grading", "grader_parity.json"), "utf-8"));
@@ -32,13 +32,15 @@ test("card grading maps outcomes to ratings and accepts a lower-case sentence op
   };
   assert.equal(gradeCard(card, ["trotzdem", "wartet", "auf"]).rating, "good");
   assert.equal(gradeCard(card, ["Trotzdem", "wertet", "auf"]).rating, "hard");
-  // A VERB in the wrong person fails and is a near miss, which offers "Als
-  // richtig werten" (owner, 2026-10-22: the old automatic pass was too
-  // loose). The Python twin in tests/test_phase2_engine.py asserts the same;
-  // the two graders must agree or the phone and the laptop disagree.
-  assert.equal(gradeCard(card, ["Trotzdem", "warte", "auf"]).outcome, "wrong");
-  assert.equal(gradeCard(card, ["Trotzdem", "warte", "auf"]).rating, "again");
-  assert.ok(gradeCard(card, ["Trotzdem", "warte", "auf"]).nearMiss);
+  // A VERB in the wrong person. From 2026-10-22 it failed as a near miss and
+  // offered "Als richtig werten"; changed back on 2026-11-08 at the owner's
+  // request, after he pressed that button 18 times in four days for a verb
+  // form: it passes as "hard". The Python twin in tests/test_phase2_engine.py
+  // asserts the same; the two graders must agree or the phone and the
+  // laptop disagree.
+  assert.equal(gradeCard(card, ["Trotzdem", "warte", "auf"]).outcome, "inflection");
+  assert.equal(gradeCard(card, ["Trotzdem", "warte", "auf"]).rating, "hard");
+  assert.ok(!gradeCard(card, ["Trotzdem", "warte", "auf"]).nearMiss);
   // A different word is still "again", and is not a near miss.
   assert.equal(gradeCard(card, ["Trotzdem", "suchen", "auf"]).rating, "again");
   assert.ok(!gradeCard(card, ["Trotzdem", "suchen", "auf"]).nearMiss);
@@ -63,6 +65,43 @@ test("declension still passes, now with umlaut plurals, and verb forms are near 
   const zu = { sentence_de: "Er versucht zu schlafen.", form_key: "Inf", gaps: [
     { start: 12, end: 14, answer: "zu", token_index: 2 }, { start: 15, end: 23, answer: "schlafen", token_index: 3 }] };
   assert.ok(gradeCard(zu, ["", "schlafen"]).nearMiss, "a missed zu is a near miss");
+});
+
+test("a typo that spells another deck word is not a typo", () => {
+  // Twin of test_a_typo_that_spells_another_deck_word_is_not_a_typo (2026-11-08).
+  const u = (unit_id, display) => ({ unit_id, parts: [display], display_de: display });
+  const one = (text, answer, form_key = "Fin") => {
+    const start = text.indexOf(answer);
+    return { sentence_de: text, form_key, answers: [answer], gaps: [{ start, end: start + answer.length, answer, token_index: 0 }] };
+  };
+  const units = [u("vb:bitten", "bitten"), u("vb:bieten", "bieten"), u("nn:ansage", "Ansage"), u("nn:absage", "Absage"),
+    u("sv:ausgeben", "ausgeben"), u("sv:aufgeben", "aufgeben"), u("vb:entscheiden", "entscheiden"),
+    u("aj:entschieden", "entschieden"), u("sv:ansehen", "ansehen"), u("sv:aussehen", "aussehen")];
+  const cards = {
+    "vb:bieten": [one("Wir bieten Platz.", "bieten")],
+    "vb:entscheiden": [one("Wir haben entschieden.", "entschieden")],
+    "sv:aussehen": [{ ...one("Ihr seht gut aus.", "seht"), answers: ["seht", "aus"] }],
+  };
+  const index = deckWords(units, cards);
+  const grade = (unitId, text, answer, typed, formKey = "Fin") => {
+    const card = one(text, answer, formKey);
+    const unit = units.find((x) => x.unit_id === unitId);
+    return gradeCard(card, [typed], [], unitWords(unit, [card], index)).gaps[0].outcome;
+  };
+  assert.equal(grade("vb:bitten", "Ich werde ihn bitten.", "bitten", "bieten"), "wrong");
+  assert.equal(grade("nn:ansage", "Eine klare Ansage.", "Ansage", "Absage", "Acc"), "wrong");
+  assert.equal(grade("sv:ausgeben", "Was wir ausgeben.", "ausgeben", "aufgeben"), "wrong");
+  assert.equal(grade("vb:entscheiden", "Wir entscheiden.", "entscheiden", "entschieden"), "typo");
+  assert.equal(grade("sv:ansehen", "Er sieht es an.", "sieht", "seht"), "typo");
+  const bitten = one("Ich werde ihn bitten.", "bitten");
+  assert.equal(gradeCard(bitten, ["bieten"]).gaps[0].outcome, "typo", "without the deck's words, as before");
+  const failed = gradeCard(bitten, ["bieten"], [], unitWords(units[0], [bitten], index));
+  assert.ok(failed.rating === "again" && failed.nearMiss);
+  // "zugeben" for "zugibt" (report of 2026-11-05): the unit's own verb.
+  const zugeben = u("sv:zugeben", "zugeben");
+  const zugibt = one("Mehr als sie zugibt.", "zugibt");
+  assert.equal(gradeCard(zugibt, ["zugeben"], [], unitWords(zugeben, [zugibt], new Map())).rating, "hard");
+  assert.equal(gradeCard(zugibt, ["zugeben"]).rating, "again");
 });
 
 test("a fused preposition or a sharp s is a near miss", () => {

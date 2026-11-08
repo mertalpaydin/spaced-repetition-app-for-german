@@ -211,14 +211,14 @@ def test_grade_card_maps_outcomes_to_ratings() -> None:
     assert grade_card(card, ["wartet", "auf"]).rating == "good"
     assert grade_card(card, ["wartet", "auf"]).outcome == "exact"
     assert grade_card(card, ["wertet", "auf"]).rating == "hard"
-    # A VERB in the wrong person or tense is the learner's call. From
-    # 2026-10-06 it passed automatically as "inflection"; on 2026-10-22 the
-    # owner called that too loose ("accepts any verb person: fix") and asked
-    # for a button instead. So it fails, and is a near miss, which is what
-    # puts "Als richtig werten" on the screen.
-    assert grade_card(card, ["warte", "auf"]).outcome == "wrong"
-    assert grade_card(card, ["warte", "auf"]).rating == "again"
-    assert grade_card(card, ["warte", "auf"]).near_miss
+    # A VERB in the wrong person or tense. From 2026-10-06 it passed as
+    # "inflection"; on 2026-10-22 the owner called that too loose and asked
+    # for "Als richtig werten" instead, so it failed as a near miss. Changed
+    # back on 2026-11-08 at his request: in four days he pressed the button
+    # 25 times, 18 of them for a verb form. It passes as "hard" again.
+    assert grade_card(card, ["warte", "auf"]).outcome == "inflection"
+    assert grade_card(card, ["warte", "auf"]).rating == "hard"
+    assert not grade_card(card, ["warte", "auf"]).near_miss
     # A different word is still "again" and is NOT a near miss, which is what
     # keeps the button from turning a guess into a pass.
     assert grade_card(card, ["suchen", "auf"]).outcome == "wrong"
@@ -259,6 +259,69 @@ def test_verb_forms_the_owner_named_are_near_misses() -> None:
         form_key="Inf",
     )
     assert grade_card(zu, ["", "schlafen"]).near_miss
+
+
+def _words_unit(unit_id: str, display: str, kind: str) -> PhraseUnit:
+    return _unit("cn:x", 1, display).model_copy(update={"unit_id": unit_id, "kind": kind})
+
+
+def test_a_typo_that_spells_another_deck_word_is_not_a_typo() -> None:
+    """2026-11-08: 22 typo passes since 10-07 were another word ("bieten" for
+    "bitten" six times, "Absage" for "Ansage"). They fail as a near miss now,
+    so the learner can still count a real slip. The same verb in another
+    form, a missed umlaut and the bare verb of a split separable verb stay
+    typos."""
+    from src.engine.grading import deck_words, unit_words
+
+    units = [
+        _words_unit("vb:bitten", "bitten", "verb"),
+        _words_unit("vb:bieten", "bieten", "verb"),
+        _words_unit("nn:ansage", "Ansage", "noun"),
+        _words_unit("nn:absage", "Absage", "noun"),
+        _words_unit("sv:ausgeben", "ausgeben", "separable_verb"),
+        _words_unit("sv:aufgeben", "aufgeben", "separable_verb"),
+        _words_unit("vb:entscheiden", "entscheiden", "verb"),
+        _words_unit("aj:entschieden", "entschieden", "adjective"),
+        _words_unit("sv:ansehen", "ansehen", "separable_verb"),
+        _words_unit("sv:aussehen", "aussehen", "separable_verb"),
+    ]
+    cards = {
+        "vb:bieten": [_card("b10000000000", "vb:bieten", "Wir bieten Platz.", ["bieten"])],
+        "aj:entschieden": [_card("e10000000000", "aj:entschieden", "Er ist es.", ["es"])],
+        "vb:entscheiden": [_card("e20000000000", "vb:entscheiden", "Wir haben entschieden.",
+                                 ["entschieden"])],
+        "sv:aussehen": [_card("s10000000000", "sv:aussehen", "Ihr seht gut aus.", ["seht", "aus"])],
+    }  # fmt: skip
+    index = deck_words(units, cards)
+
+    def grade(unit_id: str, text: str, answer: str, typed: str, form_key: str = "Fin") -> str:
+        unit = next(u for u in units if u.unit_id == unit_id)
+        card = _card("t10000000000", unit_id, text, [answer], form_key=form_key)
+        return grade_card(card, [typed], words=unit_words(unit, [card], index)).outcome
+
+    assert grade("vb:bitten", "Ich werde ihn bitten.", "bitten", "bieten") == "wrong"
+    assert grade("nn:ansage", "Eine klare Ansage.", "Ansage", "Absage", "Acc") == "wrong"
+    assert grade("sv:ausgeben", "Was wir ausgeben.", "ausgeben", "aufgeben") == "wrong"
+    assert grade("vb:entscheiden", "Wir entscheiden.", "entscheiden", "entschieden") == "typo"
+    assert grade("sv:ansehen", "Er sieht es an.", "sieht", "seht") == "typo"
+    # without the deck's words the grader is as it was
+    card = _card("t10000000000", "vb:bitten", "Ich werde ihn bitten.", ["bitten"])
+    assert grade_card(card, ["bieten"]).outcome == "typo"
+    failed = grade_card(card, ["bieten"], words=unit_words(units[0], [card], index))
+    assert failed.rating == "again" and failed.near_miss
+
+
+def test_the_units_own_verb_in_a_changed_stem_is_its_form() -> None:
+    """ "zugeben" for "zugibt" (report of 2026-11-05): the stem changes, so
+    no ending rule sees it, but it is the unit's own infinitive."""
+    from src.engine.grading import unit_words
+
+    unit = _words_unit("sv:zugeben", "zugeben", "separable_verb")
+    card = _card("z10000000000", "sv:zugeben", "Mehr als sie zugibt.", ["zugibt"])
+    words = unit_words(unit, [card], {})
+    assert grade_card(card, ["zugeben"], words=words).rating == "hard"
+    assert grade_card(card, ["zugeben"]).rating == "again", "the card alone cannot see it"
+    assert grade_card(card, ["zahlen"], words=words).rating == "again"
 
 
 def test_grade_card_nis_plural_and_a_slipped_letter_in_the_ending() -> None:

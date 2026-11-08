@@ -5,7 +5,7 @@
 
 import { loadDeck, loadReserveIndex, lookupReserve, withAdded } from "./lib/deck.js";
 import { createEngine } from "./lib/engine.js";
-import { closeTo, gradeCard, renderMarked, rivalTyped, unitForms } from "./lib/grader.js";
+import { closeTo, deckWords, gradeCard, renderMarked, rivalTyped, unitForms, unitWords } from "./lib/grader.js";
 import { isCloseEnough, letterDiff } from "./lib/letterdiff.js";
 import { deriveState, entriesForMode, entriesSinceReset, makeCorrection, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import { gradeVerb, loadVerbs, verbDeck } from "./lib/verbs.js";
@@ -294,6 +294,16 @@ function fitGap(input, text = null) {
   input.size = Math.max(GAP_MIN_CHARS, content.length + 1);
 }
 
+// Which units every word in the deck belongs to, for telling a typo from
+// another word (2026-11-08). Built once per deck: the deck is refolded when
+// the learner adds a word, so it is keyed on the object.
+let wordsFor = null;
+let wordsIndex = null;
+function deckWordIndex() {
+  if (wordsFor !== deck) { wordsIndex = deckWords(deck.units, deck.cardsByUnit); wordsFor = deck; }
+  return wordsIndex;
+}
+
 function showPanel(which) {
   $("practice-card").hidden = which !== "card";
   $("practice-limit").hidden = which !== "limit";
@@ -375,7 +385,8 @@ async function check(reveal = false) {
   if (!current || answered) return;
   const typed = typedValues(reveal);
   const { card, unit } = current;
-  const result = gradeCard(card, typed, unit.also_accepted || []);
+  const result = gradeCard(card, typed, unit.also_accepted || [],
+    unitWords(unit, deck.cardsByUnit[unit.unit_id] || [], deckWordIndex()));
   // A word that means the same as the asked one: the right idea, the wrong
   // word. Said so and tried again, nothing recorded, once per such word
   // (owner, 2026-10-24). The note names only what the learner typed, never

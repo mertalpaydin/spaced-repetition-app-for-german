@@ -20,7 +20,7 @@ from pathlib import Path
 
 from src.contracts import PhraseCard, PhraseUnit
 from src.engine.fsrs import FSRSEngine
-from src.engine.grading import grade_card, render_marked, render_with_gaps
+from src.engine.grading import deck_words, grade_card, render_marked, render_with_gaps, unit_words
 from src.engine.review_log import (
     DEFAULT_LOG_PATH,
     LearnerState,
@@ -56,6 +56,7 @@ class Client:
         settings: Settings | None = None,
     ) -> None:
         self.deck = deck
+        self._words = deck_words(deck.units, deck.cards_by_unit)
         self.log = log
         self.read = read
         self.write = write
@@ -144,7 +145,8 @@ class Client:
                 return True
             typed.append(None if answer == REVEAL else answer)
         elapsed_ms = int((self.clock() - started) * 1000)
-        grade = grade_card(card, typed)
+        words = unit_words(unit, self.deck.cards_by_unit.get(unit.unit_id, []), self._words)
+        grade = grade_card(card, typed, unit.also_accepted, words)
         self.log.record_review(
             unit_id=unit.unit_id,
             card_id=card.card_id,

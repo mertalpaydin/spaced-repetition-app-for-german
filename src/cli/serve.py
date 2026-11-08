@@ -25,7 +25,7 @@ from typing import Any
 
 from src.contracts import PhraseCard, PhraseUnit, ReviewEntry
 from src.engine.fsrs import FSRSEngine
-from src.engine.grading import grade_card, render_marked
+from src.engine.grading import deck_words, grade_card, render_marked, unit_words
 from src.engine.review_log import DEFAULT_LOG_PATH, ReviewLog, derive_state, entries_for_mode
 from src.engine.session import (
     Deck,
@@ -93,6 +93,7 @@ class Api:
         self.now = now
         self.lock = threading.Lock()
         self._cards = {c.card_id: c for cards in deck.cards_by_unit.values() for c in cards}
+        self._words = deck_words(deck.units, deck.cards_by_unit)
 
     def deck_info(self) -> dict[str, Any]:
         m = self.deck.manifest
@@ -206,7 +207,8 @@ class Api:
         typed = [None if t is None else str(t) for t in typed_raw]
         elapsed = int(body.get("elapsed_ms", 0) or 0)
         unit = self.deck.by_id[card.unit_id]
-        grade = grade_card(card, typed, unit.also_accepted)
+        words = unit_words(unit, self.deck.cards_by_unit.get(unit.unit_id, []), self._words)
+        grade = grade_card(card, typed, unit.also_accepted, words)
         with self.lock:
             self.log.record_review(
                 unit_id=card.unit_id,

@@ -263,27 +263,98 @@ export function acceptedForms(card, i, alternatives = []) {
   return forms;
 }
 
-export function gradeGap(card, i, typed, alternatives = []) {
+// The unit's citation words that name it: "bitten" of "bitten um".
+function contentParts(unit) {
+  const words = new Set((unit.parts || []).flatMap((p) => p.toLowerCase().split(/\s+/)));
+  return new Set([...words].filter((w) => w.length >= 4 && !NOT_A_RIVAL_FORM.has(w)));
+}
+
+// Every word in the deck, lower-cased, to the content words of the units it
+// is a form of. Matches deck_words in src/engine/grading.py.
+export function deckWords(units, cardsByUnit) {
+  const owners = new Map();
+  for (const unit of units) {
+    const parts = contentParts(unit);
+    if (!parts.size) continue;
+    const words = new Set((unit.parts || []).flatMap((p) => p.toLowerCase().split(/\s+/)));
+    for (const card of cardsByUnit[unit.unit_id] || []) for (const a of card.answers) words.add(a.toLowerCase());
+    for (const w of words) {
+      if (!owners.has(w)) owners.set(w, new Set());
+      for (const p of parts) owners.get(w).add(p);
+    }
+  }
+  return owners;
+}
+
+// What the grader knows beyond the card. Matches unit_words.
+export function unitWords(unit, cards, deck) {
+  return { own: unitForms(unit, cards), parts: contentParts(unit), deck };
+}
+
+// [particle, base] of a separable verb, "aussehen" -> ["aus", "sehen"].
+function baseOf(word) {
+  for (const particle of PARTICLES) {
+    if (word.startsWith(particle) && word.length - particle.length >= 4) return [particle, word.slice(particle.length)];
+  }
+  return ["", word];
+}
+
+// A letter away from the answer, and a word of another unit in the deck,
+// not a slip: "bieten" for "bitten", "Absage" for "Ansage" (2026-11-08).
+// Matches is_other_word in src/engine/grading.py.
+export function isOtherWord(typed, expected, words) {
+  const a = (typed || "").trim().toLowerCase();
+  const b = (expected || "").trim().toLowerCase();
+  if (!a || a === b || foldUmlauts(a) === foldUmlauts(b)) return false;
+  if (words.own.has(a) || isVerbFormOf(a, b)) return false;
+  const owners = words.deck.get(a);
+  if (!owners || !owners.size) return false;
+  const mine = new Set([...words.parts, ...[...words.parts].map((p) => baseOf(p)[1])]);
+  for (const part of owners) {
+    if (mine.has(part)) return false;
+    const [particle, base] = baseOf(part);
+    if (particle && !a.startsWith(particle) && mine.has(base)) return false;
+  }
+  return true;
+}
+
+// The unit's own word in a changed stem: "zugeben" for "zugibt". Matches
+// _own_verb_form.
+function ownVerbForm(typed, expected, words) {
+  const a = (typed || "").trim().toLowerCase();
+  const b = (expected || "").trim().toLowerCase();
+  return a !== b && words.own.has(a) && a.slice(0, 2) === b.slice(0, 2);
+}
+
+const NO_WORDS = { own: new Set(), parts: new Set(), deck: new Map() };
+
+export function gradeGap(card, i, typed, alternatives = [], words = null) {
   const expected = card.gaps[i].answer;
   if (typed === null || typed === undefined) return { expected, typed: "", outcome: "revealed", accepted: false };
+  const known = words || NO_WORDS;
   const forms = acceptedForms(card, i, alternatives);
   const r = gradeText(typed, forms);
+  let accepted = r.is_correct;
   const verbal = VERBAL_FORMS.has((card.form_key || "").split("|")[0]);
   let outcome, near = false;
   if (r.is_correct && r.is_exact) outcome = "exact";
   else if (r.is_correct && r.is_transliteration) outcome = "translit";
-  else if (r.is_correct && r.is_scoped_typo) outcome = "typo";
+  else if (r.is_correct && r.is_scoped_typo) {
+    // Another word, not a slip: it fails, and "Als richtig werten" is offered.
+    if (forms.every((f) => isOtherWord(typed, f, known))) { outcome = "wrong"; near = true; accepted = false; }
+    else outcome = "typo";
+  }
   else if (r.is_capitalization_error) { outcome = "case"; near = true; }
-  // A verb in the wrong tense or person fails and is offered "Als richtig
-  // werten"; a noun or adjective ending still passes on its own. Matches
-  // grade_gap in src/engine/grading.py.
-  else if (verbal && forms.some((f) => isVerbFormOf(typed, f))) { outcome = "wrong"; near = true; }
+  // The right verb in the wrong tense or person passes as "hard", like an
+  // ending (2026-11-08; from 10-22 it failed and offered the button, which
+  // the owner then pressed 18 times in four days). Matches grade_gap.
+  else if (verbal && (forms.some((f) => isVerbFormOf(typed, f)) || ownVerbForm(typed, expected, known))) outcome = "inflection";
   else if (!verbal && forms.some((f) => isInflectionOf(typed, f))) outcome = "inflection";
   else if (expected.toLowerCase() === "zu" && ["", "zu"].includes(typed.trim().toLowerCase())) { outcome = "wrong"; near = true; }
   else if (forms.some((f) => isFusedPrepositionOf(typed, f) || isSharpSSlip(typed, f)
     || isPrepositionSlip(typed, f) || isFeminineFormOf(typed, f) || isOneLetterSlip(typed, f))) { outcome = "wrong"; near = true; }
   else outcome = "wrong";
-  return { expected, typed, outcome, accepted: r.is_correct, near };
+  return { expected, typed, outcome, accepted, near };
 }
 
 // Too short or too common to say which unit the learner meant. Matches
@@ -327,9 +398,11 @@ export function closeTo(typed, forms) {
   return false;
 }
 
-export function gradeCard(card, typed, alternatives = []) {
+// `words` (unitWords) lets the grader tell a slip from another word and see
+// the unit's own verb in a changed stem; without it the grader is as before.
+export function gradeCard(card, typed, alternatives = [], words = null) {
   if (typed.length !== card.gaps.length) throw new Error(`${card.gaps.length} gaps, ${typed.length} answers`);
-  const gaps = typed.map((t, i) => gradeGap(card, i, t, alternatives));
+  const gaps = typed.map((t, i) => gradeGap(card, i, t, alternatives, words));
   const worst = gaps.reduce((w, g) => (SEVERITY[g.outcome] > SEVERITY[w.outcome] ? g : w), gaps[0]);
   const good = worst.outcome === "exact" || worst.outcome === "translit";
   const hard = worst.outcome === "typo" || worst.outcome === "inflection";
