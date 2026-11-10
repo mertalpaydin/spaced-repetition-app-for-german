@@ -138,6 +138,40 @@ def test_drill_verbs_puts_sein_and_tun_first_and_takes_each_infinitive_once() ->
     assert got == [("sein", False), ("tun", False), ("gehen", False), ("aufstehen", True)]
 
 
+def test_form_requests_cover_every_verb_the_cards_stage_checks() -> None:
+    """ "Sie verliebten sich in denselben Kerl" reached the owner (report of
+    2026-11-10): the tagger called it present, and the forms that catch a
+    Präteritum anyway existed only for the drill's verbs. The verb of a
+    prepositional or reflexive unit needs its forms too. A prefix that can
+    go either way ("unter", "um") counts as separable only when the deck has
+    the separable verb."""
+
+    def unit(unit_id: str, kind: str, parts: list[str], rank: int) -> PhraseUnit:
+        return PhraseUnit.model_validate(
+            {
+                "unit_id": unit_id, "kind": kind, "lemma_key": " ".join(parts), "parts": parts,
+                "display_de": " ".join(parts), "gloss_en": "x", "sentence_count": 10,
+                "rank": rank, "source": "mined", "card_count": 1,
+            }
+        )  # fmt: skip
+
+    units = [
+        unit("vb:nehmen", "verb", ["nehmen"], 1),
+        unit("vb:halten", "verb", ["halten"], 2),
+        unit("vb:gehen", "verb", ["gehen"], 3),
+        unit("rv:sich_verlieben_in", "reflexive_verb", ["sich", "verlieben", "in"], 10),
+        unit("vp:teilnehmen_an", "verb_prep", ["teilnehmen", "an"], 11),
+        unit("rv:sich_unterhalten_mit", "reflexive_verb", ["sich", "unterhalten", "mit"], 12),
+        unit("vp:umgehen_mit", "verb_prep", ["umgehen", "mit"], 13),
+        unit("sv:umgehen", "separable_verb", ["umgehen"], 14),
+    ]
+    requested = [(inf, sep) for inf, sep, _ in form_requests(units)]
+    assert ("verlieben", False) in requested
+    assert ("teilnehmen", True) in requested
+    assert ("unterhalten", False) in requested, "unter- can go either way"
+    assert requested.count(("umgehen", True)) == 1, "the deck has the separable umgehen"
+
+
 def test_reflexive_verbs_derive_their_forms_from_the_base_verb() -> None:
     """ "sich setzen": setzte sich, hat sich gesetzt; "sich vorstellen": stellte
     sich vor, hat sich vorgestellt. A reflexive verb takes "hat", whatever

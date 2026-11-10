@@ -127,6 +127,37 @@ def test_select_cards_noun_gap_the_sentence_does_not_mean() -> None:
     assert selection.stats["adverb_rings"] == 1 and selection.stats["nominal_gender"] == 1
 
 
+def test_select_cards_a_one_word_unit_written_as_two_is_no_card() -> None:
+    """ "sodass" written "so dass" made a card of two gaps for a one-word unit,
+    and the owner asked whether the word is one or two (2026-11-10). Both are
+    correct; the deck teaches the one it cites."""
+    sodass = UNIT.model_copy(
+        update={"unit_id": "cn:sodass", "kind": "connector", "lemma_key": "sodass",
+                "parts": ["sodass"], "display_de": "sodass"}
+    )  # fmt: skip
+
+    def occ(text: str, surfaces: list[str]) -> Occurrence:
+        spans, at = [], 0
+        for s in surfaces:
+            start = text.index(s, at)
+            spans.append((start, start + len(s)))
+            at = start + len(s)
+        return Occurrence(
+            kind="connector", unit_key="sodass", parts=["sodass"],
+            token_indices=list(range(len(surfaces))), spans=spans, surfaces=surfaces,
+            corpus_source="tatoeba", line_id=text, text=text, form_key="medial",
+        )  # fmt: skip
+
+    split = occ("Es war schwül, so dass ich nicht schlief.", ["so", "dass"])
+    whole = occ("Es war schwül, sodass ich nicht schlief.", ["sodass"])
+    glosses = {o.text: Gloss("English.", "azure") for o in (split, whole)}
+    selection = select_cards(
+        [sodass], {"cn:sodass": [split, whole]}, glosses, validate=lambda _: True
+    )
+    assert [c.sentence_de for c in selection.cards] == [whole.text]
+    assert selection.stats["split_spelling"] == 1
+
+
 def test_select_cards_word_inside_a_curated_idiom_is_no_card_for_the_word() -> None:
     """Five of the six "weniger" cards were "mehr oder weniger" (2026-11-05),
     and reviewers had dropped two more: the idiom is its own unit, so a word

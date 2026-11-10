@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 
 from src.contracts import WORD_KINDS, GapSpan, PhraseCard, PhraseUnit
 from src.phrases.occurrences import Occurrence
+from src.phrases.verb_forms import checked_verb
 
 TRUSTED_GLOSS_SOURCES: frozenset[str] = frozenset({"azure", "gemini"})
 GLOSS_LENGTH_RATIO: tuple[float, float] = (0.4, 2.5)
@@ -800,15 +801,22 @@ def inside_idiom(occ: Occurrence, patterns: Mapping[str, list[tuple[str, ...]]])
     return False
 
 
-def _verb_of(unit: PhraseUnit) -> str:
-    """The infinitive of a unit's verb, or "" for a unit with none."""
-    if unit.kind in {"verb", "separable_verb"}:
-        return unit.lemma_key
-    if unit.kind == "verb_prep" and unit.parts:
-        return unit.parts[0]
-    if unit.kind == "reflexive_verb" and len(unit.parts) > 1:
-        return unit.parts[1]
-    return ""
+#: Kinds whose citation is one word and can never be split by the grammar,
+#: as a separable verb is ("Hinzu kommen" is "hinzukommen", rightly).
+_UNSPLIT_KINDS: frozenset[str] = frozenset({"connector", "adverb", "adjective", "noun"})
+
+
+def split_spelling(unit: PhraseUnit, occ: Occurrence) -> bool:
+    """A one-word unit written as two: "so dass" for "sodass". Both are
+    correct, but the card asks two gaps for a word the deck cites as one,
+    and the owner could not tell which to type (2026-11-10)."""
+    display = unit.display_de.lower()
+    return (
+        unit.kind in _UNSPLIT_KINDS
+        and len(occ.surfaces) > 1
+        and " " not in display
+        and "".join(s.lower() for s in occ.surfaces) == display
+    )
 
 
 def select_cards(
@@ -902,7 +910,10 @@ def select_cards(
             if unit.kind in WORD_KINDS and inside_idiom(group[0], idioms):
                 stats["inside_idiom"] += 1
                 continue
-            past = (praeteritum_forms or {}).get(_verb_of(unit), frozenset())
+            if split_spelling(unit, group[0]):
+                stats["split_spelling"] += 1
+                continue
+            past = (praeteritum_forms or {}).get(checked_verb(unit), frozenset())
             if past and any(s.lower() in past for s in group[0].surfaces):
                 stats["praeteritum_by_form"] += 1
                 continue

@@ -259,12 +259,36 @@ def drill_reflexives(units: Iterable[PhraseUnit]) -> list[tuple[str, PhraseUnit]
     return out
 
 
+def checked_verb(unit: PhraseUnit) -> str:
+    """The infinitive of a unit's verb, the one the cards stage checks for a
+    Präteritum (``cards.select_cards``), or "" for a unit with none."""
+    if unit.kind in {"verb", "separable_verb"}:
+        return unit.lemma_key
+    if unit.kind == "verb_prep" and unit.parts:
+        return unit.parts[0]
+    if unit.kind == "reflexive_verb" and len(unit.parts) > 1:
+        return unit.parts[1]
+    return ""
+
+
+#: Prefixes that make a separable verb in one word and an inseparable one in
+#: another ("umgehen mit", "etwas umgehen"; "sich unterhalten").
+_EITHER_WAY_PREFIXES: frozenset[str] = frozenset(
+    {"um", "unter", "über", "durch", "wider", "hinter", "voll", "wieder"}
+)
+
+
 def form_requests(units: Iterable[PhraseUnit]) -> list[tuple[str, bool, PhraseUnit | None]]:
     """What the drafting job must cover: the drill's verbs, then the bases
-    of its reflexive verbs that are not drill verbs themselves."""
+    of its reflexive verbs that are not drill verbs themselves, then every
+    other verb the cards stage checks for a Präteritum. The last group came
+    on 2026-11-10, after "Sie verliebten sich in denselben Kerl" reached the
+    owner: the tagger called it present, and "verlieben" had no forms to
+    catch it with, because it is only ever "sich verlieben in"."""
     units = list(units)
     verbs = drill_verbs(units)
     have = {inf for inf, _, _ in verbs}
+    separable_keys = {u.lemma_key for u in units if u.kind == "separable_verb"}
 
     def separable(base: str) -> bool:
         # "vor"+"stellen", but not "ein"+"igen": the rest must be a verb
@@ -274,7 +298,17 @@ def form_requests(units: Iterable[PhraseUnit]) -> list[tuple[str, bool, PhraseUn
     extra = [
         (base, separable(base), None) for base, _ in drill_reflexives(units) if base not in have
     ]
-    return verbs + extra
+    seen = have | {base for base, _, _ in extra}
+    checked: list[tuple[str, bool, PhraseUnit | None]] = []
+    for unit in sorted(units, key=lambda u: u.rank):
+        verb = checked_verb(unit)
+        if not verb or verb in seen or not re.fullmatch(r"[a-zäöüß]+", verb):
+            continue
+        seen.add(verb)
+        particle, _ = split_particle(verb)
+        either_way = particle in _EITHER_WAY_PREFIXES and verb not in separable_keys
+        checked.append((verb, verb in separable_keys or (separable(verb) and not either_way), None))
+    return verbs + extra + checked
 
 
 def reflexive_forms(base: VerbFormsRecord) -> tuple[list[str], list[str]]:
