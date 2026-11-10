@@ -6367,3 +6367,17 @@
 - f460df3dbe69  # BAD_SENTENCE: Tense mismatch: 'wurde ermutigt, nachdem sie ... erfahren hat'.
 - f65f5a1013ad  # WRONG_UNIT: 'Berliner und Brandenburger' are people, the noun, not the adjective.
 - 2b95f0aa2312  # WRONG_UNIT: 'ein hohes Gut' is 'das Gut' (a good), not 'das Gute' (2026-11-05)
+# Review round rank1110.
+- 07ef35d869ca  # BAD_SENTENCE: 'Dort' and 'dessen' point outside the sentence; the English says 'his wife'.
+- 09039c763e46  # BAD_SENTENCE: 'jeweils' refers to matches the card does not show.
+- 235845c7d392  # BAD_SENTENCE: 'Dennoch bleibt sie' points back to a missing sentence.
+- 46d6de5746bc  # BAD_SENTENCE: 'für die' and 'der Horst' need the article it was cut from.
+- 5894fa085790  # BAD_SENTENCE: A fragment: 'Am besten im PDF-Format, sodass ...' has no main clause.
+- 5ab29f5113a1  # BAD_SENTENCE: 'sie' (the hair) is never named.
+- b81fadc68664  # BAD_SENTENCE: 'Teilweise sind diese defekt' has no referent.
+- c5d5f0779b02  # WRONG_UNIT: 'Neue Berliner Redaktionsgesellschaft' is a company name.
+# Review round rank1110b.
+- 03bfc2400e3a  # BAD_SENTENCE: 'zeigte diese grün' points back to a missing sentence.
+- 2c9ed8e3561c  # BAD_SENTENCE: A purpose ('so that you do not fail') wants 'damit', not 'sodass'.
+- b433f1ff9101  # BAD_GLOSS: The English leaves out the gapped 'jeweils'.
+# Review round rank1110c.
