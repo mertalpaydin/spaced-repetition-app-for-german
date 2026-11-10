@@ -458,6 +458,28 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **The owner's log of 2026-11-08 to 11-10** (no format changes). The
+  re-queue works: of 61 failed cards, 40 came back in the same sitting,
+  nine in ten within five cards, and the other 21 were all ones he set
+  aside with "Später" or "Kannte ich schon" right after.
+
+  Five reports. "Sie verliebten sich in denselben Kerl" was a Präteritum
+  the tagger called present, and the stored forms that catch one anyway
+  covered only the drill's verbs: 276 verbs of prepositional and reflexive
+  units had none. `form_requests` now covers every verb the cards stage
+  checks, and agy drafted them (226 accepted; "umgehen" fixed by hand to
+  the separable "ging um" of "umgehen mit"); 111 more past-tense sentences
+  are caught. "sodass" had five cards written "so dass", two gaps for a
+  one-word unit; a one-word connector, adverb, adjective or noun written as
+  two is no card now. Behind that was a validator bug: the small model
+  reads "sodass" as a verb, so every one-word "sodass" clause was rejected
+  and only the split spelling and news fragments got through; the
+  validator now parses a copy respelled "so dass", and agy wrote six
+  sentences for the unit. Rivals for danken / sich bedanken für,
+  vorgehen / weitergehen, hart / stark; the drill takes a reflexive's
+  "sich" in any position. A lower-case noun still fails with the button:
+  he has counted 8 of 20.
+
 - **A failed card comes back five cards later, and the grader's near
   misses, 2026-11-08** (no persisted format changes: a verb form is logged
   with the existing outcome `inflection`). From the owner's log of 11-05 to
