@@ -1088,6 +1088,20 @@ def _is_finite(token: SpacyToken) -> bool:
     return token.tag_ in _FINITE_TAGS and token.pos_ in ("VERB", "AUX")
 
 
+#: "sodass" as the small model reads it: a verb (``VVIMP``, ``VVFIN``) that
+#: takes the clause's subject, so a clause it opened had an extra finite
+#: verb, no connector and no subject, and was rejected. That was every
+#: sentence agy wrote for the unit and most of the corpus's, while "so dass"
+#: in two words passed, which is why its cards were nearly all the split
+#: spelling (2026-11-10). The parse is of a copy respelled "so dass", the
+#: same grammar in the form the model knows.
+_SODASS = re.compile(r"\b([Ss])odass\b")
+
+
+def _respell_for_parser(text: str) -> str:
+    return _SODASS.sub(r"\1o dass", text)
+
+
 def _has_swiss_diphthong_spelling(text: str) -> bool:
     """The general diphthong-plus-``ss`` rule (module-level
     ``_SWISS_DIPHTHONG_SS_PATTERN``, see its own comment for the rule and
@@ -2302,7 +2316,7 @@ def validate_carrier(sentence: str) -> CarrierValidation:
     if nlp is None:
         return CarrierValidation(sentence, False, REASON_SPACY_UNAVAILABLE)
 
-    doc = nlp(stripped)
+    doc = nlp(_respell_for_parser(stripped))
     sentence_spans = list(doc.sents)
     if _real_sentence_count(sentence_spans) > 1:
         return CarrierValidation(sentence, False, REASON_MULTIPLE_SENTENCES)

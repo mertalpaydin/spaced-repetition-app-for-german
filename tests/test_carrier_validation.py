@@ -1282,3 +1282,20 @@ def test_validate_carrier_rejects_a_verb_final_clause_with_its_opening_cut_off(
 )
 def test_validate_carrier_keeps_main_clauses_that_end_on_a_verb(sentence: str) -> None:
     assert cv.validate_carrier(sentence).reason != cv.REASON_VERB_FINAL_FRAGMENT
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Es regnete stark, sodass wir zu Hause blieben.",
+        "Er sprach sehr schnell, sodass ihn niemand verstand.",
+        "Der Zug hatte Verspätung, sodass ich den Termin verpasst habe.",
+        "Sie hat fleißig gelernt, sodass sie die Prüfung bestanden hat.",
+    ],
+)
+def test_validate_carrier_keeps_a_clause_opened_by_sodass(sentence: str) -> None:
+    """The small model reads "sodass" as a verb that takes the clause's
+    subject, so a clause it opens had an extra finite verb, no connector and
+    no subject, and was rejected: every sentence agy wrote for the unit, and
+    most of the corpus's, while "so dass" in two words passed (2026-11-10)."""
+    assert cv.validate_carrier(sentence).accepted
