@@ -72,21 +72,23 @@ function gradeAuxiliary(typed, accepted) {
   return "wrong";
 }
 
-// A reflexive verb's forms without the pronoun: "fühlte" for "fühlte sich",
-// "gefühlt" for "sich gefühlt". The screen asks for er/sie/es and nothing
-// says to type "sich", so leaving it out is no mistake (2026-11-07).
-const withoutSich = (forms) => forms.map((f) => f.split(" ").filter((w) => w !== "sich").join(" "));
+// A reflexive verb's forms are graded without the pronoun, so "fühlte",
+// "fühlte sich" and "gefühlt sich" all count. The screen asks for er/sie/es
+// and nothing says to type "sich" or where (2026-11-07, 11-09).
+const dropSich = (s) => s.split(/\s+/).filter((w) => w.toLowerCase() !== "sich").join(" ");
 
 // typed: {praeteritum, auxiliary, partizip}, each a string or null when the
 // learner pressed "Zeigen". Rated as a sentence card is: all exact is good,
 // a typo is hard, anything wrong or shown is again.
 export function gradeVerb(verb, typed) {
   const reflexive = (verb.infinitive || "").startsWith("sich ");
-  const forms = (accepted) => (reflexive ? [...accepted, ...withoutSich(accepted)] : accepted);
+  const form = (input, accepted) => (reflexive
+    ? gradeForm(input === null || input === undefined ? input : dropSich(input), accepted.map(dropSich))
+    : gradeForm(input, accepted));
   const fields = [
-    ["praeteritum", gradeForm(typed.praeteritum, forms(verb.praeteritum)), verb.praeteritum],
+    ["praeteritum", form(typed.praeteritum, verb.praeteritum), verb.praeteritum],
     ["auxiliary", gradeAuxiliary(typed.auxiliary, verb.auxiliary), verb.auxiliary],
-    ["partizip", gradeForm(typed.partizip, forms(verb.partizip)), verb.partizip],
+    ["partizip", form(typed.partizip, verb.partizip), verb.partizip],
   ];
   const gaps = fields.map(([field, outcome, accepted]) => ({
     field, outcome, accepted: outcome === "exact" || outcome === "typo",

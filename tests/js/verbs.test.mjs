@@ -58,6 +58,8 @@ test("a reflexive verb's forms count with or without the sich", () => {
   const VORSTELLEN = { ...FUEHLEN, unit_id: "pf:sich_vorstellen", infinitive: "sich vorstellen",
     praeteritum: ["stellte sich vor"], partizip: ["sich vorgestellt"] };
   assert.equal(gradeVerb(VORSTELLEN, { praeteritum: "stellte vor", auxiliary: "hat", partizip: "vorgestellt" }).rating, "good");
+  // and wherever it stands: "befunden sich" for "sich befunden" (2026-11-09)
+  assert.equal(gradeVerb(FUEHLEN, { praeteritum: "fühlte", auxiliary: "hat", partizip: "gefühlt sich" }).rating, "good");
   // a plain verb gains nothing from it
   assert.equal(gradeVerb(GEHEN, { praeteritum: "ging sich", auxiliary: "ist", partizip: "gegangen" }).rating, "again");
 });
