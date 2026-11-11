@@ -625,10 +625,12 @@ class CorrectionEntry(BaseModel):
 LogEntry = ReviewEntry | MarkEntry | ResetEntry | RequestEntry | IssueEntry | CorrectionEntry
 
 #: How many more units must be started before a postponed one comes back.
-#: Fifty is the owner's number (2026-10-20): "ship that phrase like 50 in
-#: the ranking". "Später" drops the unit's learning record, so it is no
-#: longer "lernend", and it returns as a NEW unit after fifty others, which
-#: at ten a day is about a week.
+#: Fifty was the owner's number (2026-10-20): "ship that phrase like 50 in
+#: the ranking"; a hundred since 2026-11-11 ("make spater button move
+#: words for 100 not 50"). "Später" drops the unit's learning record, so it
+#: is no longer "lernend", and it returns as a NEW unit after a hundred
+#: others, at sixteen a day about a week. A unit postponed before the change
+#: is replayed with the new step.
 #:
 #: Two earlier versions got this wrong. The first wrote known=True and
 #: deleted the unit for good. The second pushed it fifty places down the
@@ -636,4 +638,4 @@ LogEntry = ReviewEntry | MarkEntry | ResetEntry | RequestEntry | IssueEntry | Co
 #: twenty hours; either way a unit already in learning came back through the
 #: due queue as a learning card, the owner's "geschehen" and "auftauchen" on
 #: 2026-10-22 among them.
-POSTPONE_STEP = 50
+POSTPONE_STEP = 100

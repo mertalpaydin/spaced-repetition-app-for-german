@@ -8,7 +8,7 @@ import { newRecord } from "./engine.js";
 // Lives here rather than in session.js because the replay needs it and
 // session.js already imports this module. Matches POSTPONE_STEP in
 // src/contracts.py.
-export const POSTPONE_STEP = 50;
+export const POSTPONE_STEP = 100;
 
 // A reset carries no unit, so the empty string stands in for one; the
 // Python side builds the same key (src/engine/review_log.entry_key).
