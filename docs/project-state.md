@@ -458,6 +458,28 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **No B2 in the top 1000, twelve requested words, and Später, 2026-11-11**
+  (additive: `CuratedLists.rank_hold`; `POSTPONE_STEP` is 100, so a unit
+  postponed earlier is replayed with the longer step). After ranking, the
+  B2 units among the first 1000 move to just behind it (55 moved); only
+  that stretch is renumbered, and the units moving up come from 1001 to
+  about 1055, all reviewed. A unit in requested.yaml or in
+  `data/phrases/rank_hold.yaml` keeps its place: the 760 units his log of
+  11-10 shows him answering, marking or adding, generated from that log,
+  so a unit he met later is not in it until it is regenerated. 35 B2 units
+  remain in the top 1000, all of them his.
+
+  Requested: Gefängnis, Strafe, Gewalt, begrenzen, fördern, Verbrechen,
+  Gebiet, zuständig, Vereidigung ("Vereibigung" in his list), wirken,
+  Geheimnis, vertreten. "fördern" had been kept out by a kind rule, which a
+  request clears; "Vereidigung" is in no corpus sentence, so agy wrote six.
+  All twelve have six read cards with English and a unit gloss (rounds
+  req1111 to req1111d dropped 10 cards).
+
+  The page: "Später" in Sortieren (key 3), writing the practice mark; the
+  header shows what is due now, by tonight and tomorrow (`dueCounts`, local
+  days), and the drill's own counts on the Verben screen.
+
 - **The owner's log of 2026-11-08 to 11-10** (no format changes). The
   re-queue works: of 61 failed cards, 40 came back in the same sitting,
   nine in ten within five cards, and the other 21 were all ones he set
