@@ -9490,6 +9490,7 @@
 {"unit_id":"nn:verdaechtige","display_de":"der Verdächtige","glosses":["suspect"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:verderben","display_de":"das Verderben","glosses":["spoilage","ruin","destruction"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:verdienst","display_de":"der Verdienst","glosses":["merit","earnings","income"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"nn:vereidigung","display_de":"die Vereidigung","glosses":["swearing-in","inauguration"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-11-11T07:14:55.434032Z"}
 {"unit_id":"nn:verein","display_de":"der Verein","glosses":["club","association"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:vereinbarung","display_de":"die Vereinbarung","glosses":["agreement","arrangement"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"nn:vereinigung","display_de":"die Vereinigung","glosses":["association","unification","union"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
@@ -15713,6 +15714,7 @@
 {"unit_id":"vb:flirten","display_de":"flirten","glosses":["to flirt"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"vb:fluechten","display_de":"flüchten","glosses":["to flee","to escape"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"vb:fluestern","display_de":"flüstern","glosses":[],"accepted":false,"reject_reason":"missing","model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
+{"unit_id":"vb:foerdern","display_de":"fördern","glosses":["to promote","to support","to encourage"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash-medium","prompt_version":1,"generated_at":"2026-11-11T07:14:55.433012Z"}
 {"unit_id":"vb:fokussieren","display_de":"fokussieren","glosses":["to focus"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}
 {"unit_id":"vb:folgen","display_de":"folgen","glosses":["to follow"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T04:26:33.862304Z"}
 {"unit_id":"vb:foltern","display_de":"foltern","glosses":["to torture"],"accepted":true,"reject_reason":null,"model":"gemini-3.8-flash","prompt_version":1,"generated_at":"2026-09-21T06:17:51.829621Z"}

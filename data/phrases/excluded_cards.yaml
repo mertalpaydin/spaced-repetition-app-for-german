@@ -6381,3 +6381,17 @@
 - 2c9ed8e3561c  # BAD_SENTENCE: A purpose ('so that you do not fail') wants 'damit', not 'sodass'.
 - b433f1ff9101  # BAD_GLOSS: The English leaves out the gapped 'jeweils'.
 # Review round rank1110c.
+# Review round req1111.
+- 45dce8edc5dc  # BAD_SENTENCE: Car jargon ('der ID.5') cut from its article.
+- 46ba4916e428  # BAD_SENTENCE: 'eine heile Welt vertreten' is an odd use of the verb.
+- 572fb31fe41f  # BAD_SENTENCE: Near-duplicate of 'Unwissenheit schützt nicht vor Strafe.'
+- 6d4af3a6ad6f  # BAD_SENTENCE: 'Dabei vertreten wir' points back to a missing sentence.
+- 73c125248b5b  # BAD_SENTENCE: 'Oder man spricht ...' points back to a missing sentence.
+- bb7720d0b53f  # BAD_SENTENCE: 'Dann müssen wir das' points back to a missing sentence.
+- ea7d96ab0606  # WRONG_UNIT: 'die Platzanzahl begrenzt ist' is the adjective 'begrenzt', not the verb.
+# Review round req1111b.
+- 5d4316cc0cd2  # BAD_SENTENCE: 'Daneben ... für sie' points back to a missing sentence.
+- abd1f3d24d31  # BAD_SENTENCE: 'dieses zu fördern' points back to a missing sentence.
+# Review round req1111c.
+- 8b3e0fc5fc63  # BAD_SENTENCE: 'Es ging also darum' needs its context, and fördern has no object.
+# Review round req1111d.
