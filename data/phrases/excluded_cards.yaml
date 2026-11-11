@@ -6395,3 +6395,12 @@
 # Review round req1111c.
 - 8b3e0fc5fc63  # BAD_SENTENCE: 'Es ging also darum' needs its context, and fördern has no object.
 # Review round req1111d.
+# Review round req1111e.
+- 0db5539861cf  # BAD_SENTENCE: A quoted news fragment, and a third 'kriminelle Vereinigung'.
+- 40882efd251c  # BAD_SENTENCE: Another 'kriminelle Vereinigung'; the unit should show more than one use.
+- d9f3f61b21ef  # BAD_SENTENCE: Another 'kriminelle Vereinigung', as an opinion.
+# Review round req1111f.
+- 0e98a1b06ae1  # BAD_SENTENCE: Another 'kriminelle Vereinigung'.
+- 1948787fd41c  # BAD_SENTENCE: A headline run into its subheading.
+- 61ea4050ff66  # BAD_GLOSS: The Bundesanwaltschaft is German, not Swiss; and an obscure group name.
+# Review round req1111g.

@@ -471,8 +471,12 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
 
   Requested: Gefängnis, Strafe, Gewalt, begrenzen, fördern, Verbrechen,
   Gebiet, zuständig, Vereidigung ("Vereibigung" in his list), wirken,
-  Geheimnis, vertreten. "fördern" had been kept out by a kind rule, which a
-  request clears; "Vereidigung" is in no corpus sentence, so agy wrote six.
+  Geheimnis, vertreten, and Vereinigung ("Vereibigung" in his list; I first
+  read it as "Vereidigung" without asking and built that, which he
+  corrected: it is excluded, and an unclear word is now asked about first).
+  "fördern" had been kept out by a kind rule, which a request clears. The
+  corpus has "Vereinigung" mostly as "kriminelle Vereinigung", so agy wrote
+  three sentences for its other uses.
   All twelve have six read cards with English and a unit gloss (rounds
   req1111 to req1111d dropped 10 cards).
 
