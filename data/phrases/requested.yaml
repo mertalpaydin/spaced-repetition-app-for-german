@@ -229,3 +229,16 @@
 - {key: "maßnahme", kind: noun, note: "owner 2026-10-28"}
 - {key: "umgehen mit", kind: verb_prep, note: "owner 2026-10-28, umgehen: to deal with"}
 - {key: "etwas umgehen", kind: idiom, note: "owner 2026-10-28, umgehen: to avoid / to get around"}
+# Added 2026-11-11 from the owner's list ("Vereibigung" read as "Vereidigung").
+- {key: "gefängnis", kind: noun, note: "owner 2026-11-11"}
+- {key: "strafe", kind: noun, note: "owner 2026-11-11"}
+- {key: "gewalt", kind: noun, note: "owner 2026-11-11"}
+- {key: "begrenzen", kind: verb, note: "owner 2026-11-11"}
+- {key: "fördern", kind: verb, note: "owner 2026-11-11"}
+- {key: "verbrechen", kind: noun, note: "owner 2026-11-11"}
+- {key: "gebiet", kind: noun, note: "owner 2026-11-11"}
+- {key: "zuständig", kind: adjective, note: "owner 2026-11-11"}
+- {key: "vereidigung", kind: noun, note: "owner 2026-11-11, written 'Vereibigung'"}
+- {key: "wirken", kind: verb, note: "owner 2026-11-11"}
+- {key: "geheimnis", kind: noun, note: "owner 2026-11-11"}
+- {key: "vertreten", kind: verb, note: "owner 2026-11-11"}

@@ -464,6 +464,15 @@
   "form_key": "medial"
  },
  {
+  "card_id": "d5080a017731",
+  "unit_id": "nn:geheimnis",
+  "sentence_de": "Das Geheimnis, tausend Hände am Tag schütteln zu können, besteht darin, selbst zu schütteln, nicht schütteln zu lassen.",
+  "answers": [
+   "Geheimnis"
+  ],
+  "form_key": "Nom|Sing"
+ },
+ {
   "card_id": "d5f7836447bd",
   "unit_id": "vb:spielen",
   "sentence_de": "Wer ist dieser Mann, der Klavier spielt?",
