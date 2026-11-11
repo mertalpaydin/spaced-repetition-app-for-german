@@ -196,12 +196,46 @@ def test_trivial_flag_from_curated_rank_and_stoplist() -> None:
 
 def test_ranks_are_unique_and_follow_sentence_count() -> None:
     builder = _builder(_counts(warten=100, denken=100))
+    # The frequency ranking alone: a deck this small is all "top", where the
+    # B2 rule of 2026-11-11 would move both units (its own test is below).
+    builder.B2_FREE_TOP = 0
     units = builder.build(
         _occ("verb_prep", "warten auf", ["warten", "auf"], 20, case="Akk")
         + _occ("verb_prep", "denken an", ["denken", "an"], 30, case="Akk")
     )
     assert [(u.rank, u.lemma_key) for u in units] == [(1, "denken an"), (2, "warten auf")]
     assert units[0].unit_id == "vp:denken_an"
+
+
+def test_no_b2_unit_in_the_top_unless_held_or_requested() -> None:
+    """Owner, 2026-11-11: "No B2 words in the top 1000." They wait just
+    behind it in their own order, and only the stretch they leave is
+    renumbered. A unit he has met, marked or added (rank_hold.yaml) keeps
+    its place, and so does one in requested.yaml."""
+    from src.contracts import PhraseUnit
+
+    def unit(uid: str, rank: int, cefr: str, requested: int | None = None) -> PhraseUnit:
+        return PhraseUnit.model_validate(
+            {
+                "unit_id": uid, "kind": "noun", "lemma_key": uid[3:], "parts": [uid[3:]],
+                "display_de": uid[3:], "cefr": cefr, "sentence_count": 10, "rank": rank,
+                "source": "mined", "card_count": 0, "requested_order": requested,
+            }
+        )  # fmt: skip
+
+    units = [
+        unit("nn:a", 1, "A1"), unit("nn:b", 2, "B2"), unit("nn:c", 4, "B2"),
+        unit("nn:d", 5, "B2", requested=0), unit("nn:e", 6, "A2"), unit("nn:f", 7, "B1"),
+        unit("nn:g", 8, "B2"), unit("nn:h", 9, "A1"),
+    ]  # fmt: skip
+    builder = _builder(_counts(), CuratedLists(rank_hold=["nn:c"]))
+    builder.B2_FREE_TOP = 4
+    out = builder._b2_out_of_the_top(units)
+    assert [(u.unit_id, u.rank) for u in out] == [
+        ("nn:a", 1), ("nn:c", 2), ("nn:d", 4), ("nn:e", 5), ("nn:b", 6), ("nn:f", 7), ("nn:g", 8),
+        ("nn:h", 9),
+    ]  # fmt: skip
+    assert builder.report["b2_out_of_the_top"] == 1
 
 
 def test_an_exclusion_can_name_one_kind() -> None:
@@ -814,6 +848,7 @@ def test_rank_word_cefr_pull_puts_a1_before_a_more_frequent_unlisted_word() -> N
         counts.word_by_source["noun:kerl"] = Counter({"tatoeba": kerl})
         builder = _builder(counts)
         builder.t = Thresholds(word_min_count=50)
+        builder.B2_FREE_TOP = 0  # the pull alone; the B2 rule has its own test
         builder.vocabulary.vocab["frage"] = "A1"
         units = builder.build(_word_occ("noun", "frage", 2) + _word_occ("noun", "kerl", 2))
         return [u.lemma_key for u in sorted(units, key=lambda u: u.rank) if u.kind == "noun"]

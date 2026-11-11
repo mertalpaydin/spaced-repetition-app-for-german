@@ -193,6 +193,9 @@ class CuratedLists(BaseModel):
     #: Groups of words easy to mix up that the English alone does not pair
     #: (rivals.yaml): each earns a retry in the others' gaps.
     rivals: list[list[str]] = Field(default_factory=list)
+    #: Unit ids whose rank no reordering may move (rank_hold.yaml): the
+    #: units the learner has met, marked or added, from his log.
+    rank_hold: list[str] = Field(default_factory=list)
 
 
 def _load_yaml_list(path: Path) -> list[object]:
@@ -287,6 +290,7 @@ def load_curated(phrases_dir: Path = DEFAULT_PHRASES_DIR) -> CuratedLists:
         requested=requested,
         synonyms=synonyms,
         rivals=rivals,
+        rank_hold=[str(raw) for raw in _load_yaml_list(phrases_dir / "rank_hold.yaml")],
     )
 
 

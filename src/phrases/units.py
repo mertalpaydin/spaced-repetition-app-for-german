@@ -1120,6 +1120,11 @@ class UnitBuilder:
     #: as measured. A class attribute, not a module constant, so a change here
     #: does not invalidate the build cache (``src/phrases/build_cache.py``).
     CEFR_RANK_PULL = {"A1": 1.6, "A2": 1.25, "B1": 1.0, "B2": 0.75}
+    #: No B2 unit among the first this many (owner, 2026-11-11: "No B2
+    #: words in the top 1000"). The pull above weighs words only, and 81 B2
+    #: units still sat in the top 1000 that day, 48 of them separable verbs
+    #: on no CEFR list. See ``_b2_out_of_the_top``.
+    B2_FREE_TOP = 1000
 
     def __init__(
         self,
@@ -2017,6 +2022,7 @@ class UnitBuilder:
                     card_count=0,
                 )
             )
+        units = self._b2_out_of_the_top(units)
         # A request the corpus cannot serve at all: no occurrence under that
         # kind and lemma, so nothing can be built from it. Reported by name
         # rather than passed over, because at this point it is usually a
@@ -2040,6 +2046,36 @@ class UnitBuilder:
         self.report["kinds"] = dict(Counter(u.kind for u in units))
         self.report["wordlist_coverage"] = self._wordlist_coverage(units)
         return units
+
+    def _b2_out_of_the_top(self, units: list[PhraseUnit]) -> list[PhraseUnit]:
+        """The B2 units among the first ``B2_FREE_TOP``, moved to just behind
+        it in their own order. Not a unit the learner has met, marked or
+        added (``rank_hold.yaml``), nor one in requested.yaml: those places
+        are his. Only the stretch from the first moved unit to the end of
+        the top is renumbered, with the ranks it had, so every other unit
+        keeps its rank and the units that move up come from just behind."""
+        hold = set(self.curated.rank_hold)
+        head = 0
+        moved: list[PhraseUnit] = []
+        end = len(units)
+        for i, unit in enumerate(units):
+            if head >= self.B2_FREE_TOP:
+                end = i
+                break
+            if unit.cefr == "B2" and unit.requested_order is None and unit.unit_id not in hold:
+                moved.append(unit)
+            else:
+                head += 1
+        if not moved:
+            return units
+        moved_ids = {u.unit_id for u in moved}
+        first = next(i for i, u in enumerate(units) if u.unit_id in moved_ids)
+        stretch = units[first:end]
+        order = [u for u in stretch if u.unit_id not in moved_ids] + moved
+        ranks = sorted(u.rank for u in stretch)
+        renumbered = [u.model_copy(update={"rank": r}) for u, r in zip(order, ranks, strict=True)]
+        self.report["b2_out_of_the_top"] = len(moved)
+        return units[:first] + renumbered + units[end:]
 
     def _per_million(self, s: UnitStats) -> float:
         """Weighted mean over the corpora of sentences-per-million in that
