@@ -11,7 +11,7 @@ import { deriveState, entriesForMode, entriesSinceReset, makeCorrection, makeIss
 import { gradeVerb, loadVerbs, verbDeck } from "./lib/verbs.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
-  DEFAULT_SETTINGS, computeStats, dueUnits, isPostponed, pickCard, practiceStep, pressMore, reviewsToday, unitsByStage, untriagedUnits,
+  DEFAULT_SETTINGS, computeStats, dueCounts, dueUnits, isPostponed, pickCard, practiceStep, pressMore, reviewsToday, unitsByStage, untriagedUnits,
 } from "./lib/session.js";
 import { appendEntries, kv, loadSettings, readLog, replaceLog, saveSettings } from "./lib/store.js";
 import { syncLog } from "./lib/sync.js";
@@ -220,7 +220,10 @@ async function sync() {
 
 // -- views --------------------------------------------------------------------
 
+let currentView = "practice";
+
 function show(view) {
+  currentView = view;
   document.querySelectorAll(".view").forEach((v) => { v.hidden = v.id !== `view-${view}`; });
   document.querySelectorAll("nav button[data-view]").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
   if (view === "practice") loadCard();
@@ -229,16 +232,25 @@ function show(view) {
   if (view === "units") loadUnits();
   if (view === "stats") loadStats();
   if (view === "settings") loadSettingsView();
+  renderToday();
 }
 document.querySelectorAll("nav button[data-view]").forEach((b) => b.addEventListener("click", () => show(b.dataset.view)));
 
+// The header line: the day's answers against the target, and what is due
+// now, by tonight and tomorrow (owner, 2026-11-11). On the Verben screen
+// the drill's own, in the same form.
 function renderToday() {
   const t = now();
-  const due = dueUnits(deck, state, engine, t, 0).length;
+  const drill = currentView === "verbs" && verbs && verbState;
+  const d = drill ? verbs : deck;
+  const s = drill ? verbState : state;
+  if (!d || !s) return;
+  const due = dueCounts(d, s, engine, t);
   // The target includes any blocks the learner has asked for, so the counter
   // and the panel agree about what the day's allowance is.
-  const target = settings.cardsPerDay + grantedExtra;
-  $("today").textContent = `heute ${reviewsToday(state, t)}/${target} · fällig ${due}`;
+  const target = drill ? settings.verbCardsPerDay + verbExtra : settings.cardsPerDay + grantedExtra;
+  $("today").textContent = `${drill ? "Verben " : ""}heute ${reviewsToday(s, t)}/${target}`
+    + ` · fällig: jetzt ${due.now} · heute ${due.today} · morgen ${due.tomorrow}`;
 }
 
 // -- practice -----------------------------------------------------------------
@@ -620,18 +632,22 @@ function showTriage() {
   $("triage-display").textContent = u.display + (u.gloss ? `  (${u.gloss})` : "");
 }
 
-async function triageAnswer(known) {
+// "Später" writes the practice screen's own mark (owner, 2026-11-11): the
+// unit counts as sorted and comes back as a new unit after POSTPONE_STEP.
+async function triageAnswer(known, source = "triage") {
   const unit = triageQueue.shift();
   if (!unit) return;
-  await record(makeMark(entries, unit.unit_id, known, "triage", now()));
+  await record(makeMark(entries, unit.unit_id, known, source, now()));
   if (triageQueue.length === 0) loadTriage(); else showTriage();
 }
 $("btn-tri-known").addEventListener("click", () => triageAnswer(true));
 $("btn-tri-learn").addEventListener("click", () => triageAnswer(false));
+$("btn-tri-later").addEventListener("click", () => triageAnswer(false, "postpone"));
 document.addEventListener("keydown", (ev) => {
   if ($("view-triage").hidden || ev.target.tagName === "INPUT") return;
   if (ev.key === "1") triageAnswer(true);
   if (ev.key === "2") triageAnswer(false);
+  if (ev.key === "3") triageAnswer(false, "postpone");
 });
 
 // -- verbs --------------------------------------------------------------------
@@ -657,6 +673,7 @@ function verbSettings() {
 
 function loadVerb() {
   ["verb-card", "verb-limit", "verb-empty"].forEach((id) => { $(id).hidden = true; });
+  renderToday();
   if (!verbs || !verbs.units.length) {
     $("verb-empty").textContent = "Dieses Deck hat noch keine Verben.";
     $("verb-empty").hidden = false;
@@ -734,6 +751,7 @@ async function checkVerb(reveal = false) {
     + `<div class="unit">${escapeHtml(unit.infinitive)}: er ${escapeHtml(unit.praeteritum.join(" / "))}, er ${escapeHtml(perfekt)}</div>`
     + `<div class="rank muted">${unit.weak ? "regelmäßig" : "unregelmäßig"}</div>`;
   fb.hidden = false;
+  renderToday();
   ["btn-verb-check", "btn-verb-reveal"].forEach((id) => { $(id).hidden = true; });
   ["btn-verb-known", "btn-verb-next"].forEach((id) => { $(id).hidden = false; });
   $("btn-verb-next").focus();

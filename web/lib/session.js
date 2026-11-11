@@ -85,6 +85,17 @@ export function dueUnits(deck, state, engine, now, horizonMs) {
   return due.map((d) => d[2]);
 }
 
+// How many units are due now, by the end of today (the ones due now
+// included) and in the course of tomorrow, in the learner's local days
+// (owner, 2026-11-11: "show fällig for jetzt/heute/morgen").
+export function dueCounts(deck, state, engine, now) {
+  const t = new Date(now);
+  const endOfToday = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1).getTime();
+  const endOfTomorrow = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 2).getTime();
+  const count = (until) => dueUnits(deck, state, engine, now, until - t.getTime()).length;
+  return { now: count(t.getTime()), today: count(endOfToday - 1), tomorrow: count(endOfTomorrow - 1) - count(endOfToday - 1) };
+}
+
 // When the current sitting began: walk the reviews back while the gaps
 // between them stay under the session gap. Matches session_start in
 // src/engine/session.py.

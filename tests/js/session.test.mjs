@@ -8,7 +8,7 @@ import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
 import { deriveState, entryKey, makeCorrection, makeIssue, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
 import { reserveLetter, withAdded } from "../../web/lib/deck.js";
-import { DEFAULT_SETTINGS, POSTPONE_STEP, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueUnits, eligiblePendingUnits, introductionOrder, isPostponed, nextUnit, pickCard, practiceStep, pressMore, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage } from "../../web/lib/session.js";
+import { DEFAULT_SETTINGS, POSTPONE_STEP, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueCounts, dueUnits, eligiblePendingUnits, introductionOrder, isPostponed, nextUnit, pickCard, practiceStep, pressMore, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage, untriagedUnits } from "../../web/lib/session.js";
 
 const T0 = "2026-09-01T08:00:00Z";
 const unit_ = (unit_id, rank, display_de, extra = {}) => ({ unit_id, kind: "verb_prep", display_de, rank, trivial: false, gloss_en: null, also_accepted: [], ...extra });
@@ -614,6 +614,29 @@ test("the day's new-unit cap stops and asks instead of saying there is nothing",
   // With every unit started there is truly nothing: still "empty".
   delete d.byId["vb:gehen"]; d.units.pop();
   assert.equal(practiceStep(d, state, engine, settings, later).panel, "empty");
+});
+
+test("due counts for now, the rest of today and tomorrow, in local days", () => {
+  // Owner, 2026-11-11: "show fällig for jetzt/heute/morgen not just jetzt".
+  const at = (d, h) => new Date(2026, 8, d, h, 0).toISOString();
+  const units = ["a", "b", "c", "d", "e"].map((x, i) => unit_(`cn:${x}`, i + 1, x, { kind: "connector" }));
+  const d = { units, byId: Object.fromEntries(units.map((u) => [u.unit_id, u])), cardsByUnit: {} };
+  const state = { known: new Set(["cn:e"]), records: {
+    "cn:a": { due: at(1, 9) }, "cn:b": { due: at(1, 20) }, "cn:c": { due: at(2, 9) },
+    "cn:d": { due: at(3, 9) }, "cn:e": { due: at(1, 9) },
+  } };
+  const engine = { retrievability: () => 0.5 };
+  assert.deepEqual(dueCounts(d, state, engine, at(1, 12)), { now: 1, today: 2, tomorrow: 1 });
+});
+
+test("Später in Sortieren takes the unit out of the sorting", () => {
+  // Owner, 2026-11-11: "add spater to Sortieren section". The mark is the
+  // practice screen's own: the unit counts as sorted, and practice brings it
+  // back as a new unit after POSTPONE_STEP others.
+  const d = deck(); const engine = createEngine();
+  const state = deriveState([{ type: "mark", seq: 1, ts: T0, unit_id: "cn:trotzdem", known: false, source: "postpone" }], engine);
+  assert.deepEqual(untriagedUnits(d, state).map((u) => u.unit_id), ["vp:warten_auf"]);
+  assert.equal(POSTPONE_STEP, 100);
 });
 
 test("a correction replays the review as a pass", () => {
