@@ -346,11 +346,13 @@ def test_grade_card_nis_plural_and_a_slipped_letter_in_the_ending() -> None:
     assert not grade_card(vertrauen, ["glaube"]).near_miss
 
 
-def test_grade_card_fused_preposition_or_sharp_s_is_a_near_miss() -> None:
+def test_grade_card_fused_preposition_passes_and_sharp_s_is_a_near_miss() -> None:
     """The owner's three reports of 2026-10-23/24, each "no consider this
     right button": "zum" for "zu", "vom" for "von", "Nachweiß" for
-    "Nachweis". The right word, a fused article or an s the wrong shape. It
-    fails, and the learner decides."""
+    "Nachweis". A fused article failed as a near miss until 2026-11-16; he
+    then counted it with the button every time (4 of 4 that week) and asked
+    for it to pass, so it passes as "hard", like a verb form. An s the wrong
+    shape still fails as a near miss."""
     fuehren = _card(
         "f10000000000",
         "vp:fuehren_zu",
@@ -358,8 +360,8 @@ def test_grade_card_fused_preposition_or_sharp_s_is_a_near_miss() -> None:
         ["führt", "zu"],
         form_key="Fin|Pres|3|Sing",
     )
-    assert grade_card(fuehren, ["führt", "zum"]).rating == "again"
-    assert grade_card(fuehren, ["führt", "zum"]).near_miss
+    assert grade_card(fuehren, ["führt", "zum"]).rating == "hard"
+    assert grade_card(fuehren, ["führt", "zum"]).outcome == "inflection"
     erzaehlen = _card(
         "e10000000000",
         "vp:erzaehlen_von",
@@ -367,7 +369,7 @@ def test_grade_card_fused_preposition_or_sharp_s_is_a_near_miss() -> None:
         ["von", "erzählen"],
         form_key="Inf",
     )
-    assert grade_card(erzaehlen, ["vom", "erzählen"]).near_miss
+    assert grade_card(erzaehlen, ["vom", "erzählen"]).rating == "hard"
     nachweis = _card(
         "n10000000000",
         "nn:nachweis",

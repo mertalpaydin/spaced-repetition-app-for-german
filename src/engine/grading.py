@@ -458,9 +458,13 @@ def grade_gap(
         outcome = "inflection"
     elif expected.lower() == "zu" and typed.strip().lower() in {"", "zu"}:
         outcome, near = "wrong", True
+    elif any(is_fused_preposition_of(typed, f) for f in forms):
+        # "an" for "am", "von" for "vom": the right preposition with or
+        # without its article. A near miss until 2026-11-16, when the owner
+        # had counted it with the button every time (4 of 4 that week).
+        outcome = "inflection"
     elif any(
-        is_fused_preposition_of(typed, f)
-        or is_sharp_s_slip(typed, f)
+        is_sharp_s_slip(typed, f)
         or is_preposition_slip(typed, f)
         or is_feminine_form_of(typed, f)
         or is_one_letter_slip(typed, f)

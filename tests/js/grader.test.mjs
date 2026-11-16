@@ -104,16 +104,17 @@ test("a typo that spells another deck word is not a typo", () => {
   assert.equal(gradeCard(zugibt, ["zugeben"]).rating, "again");
 });
 
-test("a fused preposition or a sharp s is a near miss", () => {
-  // Twin of test_grade_card_fused_preposition_or_sharp_s_is_a_near_miss: the
-  // owner's three reports of 2026-10-23/24.
+test("a fused preposition passes, a sharp s is a near miss", () => {
+  // Twin of test_grade_card_fused_preposition_passes_and_sharp_s_is_a_near_miss:
+  // the owner's reports of 2026-10-23/24. A fused article passes as "hard"
+  // since 2026-11-16, after he counted it with the button 4 times of 4.
   const fuehren = { sentence_de: "Ich versuche alles, aber es führt zu nichts.", form_key: "Fin|Pres|3|Sing", gaps: [
     { start: 28, end: 33, answer: "führt", token_index: 5 }, { start: 34, end: 36, answer: "zu", token_index: 6 }] };
-  assert.equal(gradeCard(fuehren, ["führt", "zum"]).rating, "again");
-  assert.ok(gradeCard(fuehren, ["führt", "zum"]).nearMiss);
+  assert.equal(gradeCard(fuehren, ["führt", "zum"]).rating, "hard");
+  assert.equal(gradeCard(fuehren, ["führt", "zum"]).outcome, "inflection");
   const erzaehlen = { sentence_de: "Ich begann, von unseren Abenteuern zu erzählen.", form_key: "Inf", gaps: [
     { start: 12, end: 15, answer: "von", token_index: 3 }, { start: 38, end: 46, answer: "erzählen", token_index: 7 }] };
-  assert.ok(gradeCard(erzaehlen, ["vom", "erzählen"]).nearMiss);
+  assert.equal(gradeCard(erzaehlen, ["vom", "erzählen"]).rating, "hard");
   const nachweis = { sentence_de: "Alle erhalten unter Nachweis ihres Wohnsitzes einen Rabatt.", form_key: "Dat|Sing", gaps: [
     { start: 20, end: 28, answer: "Nachweis", token_index: 3 }] };
   assert.equal(gradeCard(nachweis, ["Nachweiß"]).rating, "again");

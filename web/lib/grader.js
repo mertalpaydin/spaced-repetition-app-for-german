@@ -351,7 +351,9 @@ export function gradeGap(card, i, typed, alternatives = [], words = null) {
   else if (verbal && (forms.some((f) => isVerbFormOf(typed, f)) || ownVerbForm(typed, expected, known))) outcome = "inflection";
   else if (!verbal && forms.some((f) => isInflectionOf(typed, f))) outcome = "inflection";
   else if (expected.toLowerCase() === "zu" && ["", "zu"].includes(typed.trim().toLowerCase())) { outcome = "wrong"; near = true; }
-  else if (forms.some((f) => isFusedPrepositionOf(typed, f) || isSharpSSlip(typed, f)
+  // "an" for "am": passes since 2026-11-16 (4 of 4 counted with the button).
+  else if (forms.some((f) => isFusedPrepositionOf(typed, f))) outcome = "inflection";
+  else if (forms.some((f) => isSharpSSlip(typed, f)
     || isPrepositionSlip(typed, f) || isFeminineFormOf(typed, f) || isOneLetterSlip(typed, f))) { outcome = "wrong"; near = true; }
   else outcome = "wrong";
   return { expected, typed, outcome, accepted, near };
