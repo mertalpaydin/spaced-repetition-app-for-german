@@ -458,6 +458,20 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **Form tags, Heute fällige jetzt, and two grader changes, 2026-11-16**
+  (no format changes; CLAUDE.md rule 3 now names the tags). Before the
+  answer a card shows small tags for the form its gap asks, read from the
+  parser's form_key: Plural, Dativ, Genitiv for a noun or adjective,
+  Partizip II for a verb, zu-Infinitiv only when the "zu" is the learner's
+  to type (`formHints`). 22,784 of 75,853 shown cards carry one. The tags
+  are as right as the parser's case and number, which is usually but not
+  always. "Heute fällige jetzt" in the header asks everything due by
+  tonight now (`aheadUntil` / `ahead_until`). A fused preposition ("an" for
+  "am") passes as hard in both engines, which agree on all 4,846 logged
+  answers since 10-07; the owner had counted it with the button 4 of 4
+  times. In the verb drill a one-letter edit that changes a vowel is
+  wrong, not a typo ("kennte", "fäng an", "geliegen").
+
 - **No B2 in the top 1000, twelve requested words, and Später, 2026-11-11**
   (additive: `CuratedLists.rank_hold`; `POSTPONE_STEP` is 100, so a unit
   postponed earlier is replayed with the longer step). After ranking, the

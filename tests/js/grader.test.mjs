@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import { deckWords, gradeCard, gradeText, isInflectionOf, isVerbFormOf, renderMarked, rivalTyped, unitForms, unitWords } from "../../web/lib/grader.js";
+import { deckWords, formHints, gradeCard, gradeText, isInflectionOf, isVerbFormOf, renderMarked, rivalTyped, unitForms, unitWords } from "../../web/lib/grader.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const cases = JSON.parse(readFileSync(join(here, "..", "..", "data", "fixtures", "grading", "grader_parity.json"), "utf-8"));
@@ -65,6 +65,25 @@ test("declension still passes, now with umlaut plurals, and verb forms are near 
   const zu = { sentence_de: "Er versucht zu schlafen.", form_key: "Inf", gaps: [
     { start: 12, end: 14, answer: "zu", token_index: 2 }, { start: 15, end: 23, answer: "schlafen", token_index: 3 }] };
   assert.ok(gradeCard(zu, ["", "schlafen"]).nearMiss, "a missed zu is a near miss");
+});
+
+test("form hints say which form a gap asks, never the word", () => {
+  // Owner, 2026-11-16: an indicator for "a multiple, past partizip, zu
+  // infinitiv, dativ ending"; Genitiv as the same kind of ending.
+  const card = (form_key, answers) => ({ form_key, answers, gaps: answers.map((answer) => ({ answer })) });
+  const noun = { kind: "noun", parts: ["Socke"] };
+  assert.deepEqual(formHints(card("Dat|Sing", ["Socke"]), noun), ["Dativ"]);
+  assert.deepEqual(formHints(card("Dat|Plur", ["Socken"]), noun), ["Plural", "Dativ"]);
+  assert.deepEqual(formHints(card("Gen|Sing", ["Socke"]), noun), ["Genitiv"]);
+  assert.deepEqual(formHints(card("Nom|Sing", ["Socke"]), noun), []);
+  const verb = { kind: "separable_verb", parts: ["einlösen"] };
+  assert.deepEqual(formHints(card("Part|fused", ["eingelöst"]), verb), ["Partizip II"]);
+  assert.deepEqual(formHints(card("Inf", ["einzulösen"]), verb), ["zu-Infinitiv"], "a zu hidden in the word");
+  assert.deepEqual(formHints(card("Inf", ["einlösen"]), verb), [], "a plain infinitive, or a zu the card shows");
+  assert.deepEqual(formHints(card("Inf", ["zu", "singen"]), { kind: "verb", parts: ["singen"] }), ["zu-Infinitiv"]);
+  assert.deepEqual(formHints(card("Inf", ["dazugehören"]), { kind: "separable_verb", parts: ["dazugehören"] }), []);
+  // a verb's form tag says nothing about a noun gap's case, and vice versa
+  assert.deepEqual(formHints(card("Dat|Sing", ["hilft"]), { kind: "verb", parts: ["helfen"] }), []);
 });
 
 test("a typo that spells another deck word is not a typo", () => {

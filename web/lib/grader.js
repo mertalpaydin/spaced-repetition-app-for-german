@@ -198,6 +198,43 @@ export function isVerbFormOf(typed, expected) {
   return false;
 }
 
+// -- form hints ------------------------------------------------------------------
+// Which form a card's gap asks, shown before the answer (owner, 2026-11-16:
+// "an indicator ... whether a multiple, past partizip, zu infinitiv, dativ
+// ending is asked"; Genitiv is the same kind of ending). They name the
+// grammar, never the word, so the card still gives nothing away. Read from
+// the parser's form_key, which describes the unit's head: a case or number
+// only for a noun or adjective, a participle or infinitive only for a verb.
+
+const NOMINAL_KINDS = new Set(["noun", "adjective", "adj_noun"]);
+const VERBAL_KINDS = new Set(["verb", "separable_verb", "verb_prep", "reflexive_verb", "noun_verb", "adj_verb"]);
+
+// A zu the learner must type: a gap that is "zu", or one hidden in the word
+// ("einzulösen" for "einlösen"). A zu the sentence shows needs no hint.
+function hiddenZu(card, unit) {
+  const lemmas = new Set((unit.parts || []).flatMap((p) => p.toLowerCase().split(/\s+/)));
+  return (card.answers || []).some((answer) => {
+    const a = answer.toLowerCase();
+    if (a === "zu") return true;
+    return ["", ...PARTICLES].some((p) => a.startsWith(`${p}zu`) && lemmas.has(p + a.slice(p.length + 2)));
+  });
+}
+
+export function formHints(card, unit) {
+  const fk = (card.form_key || "").split("|");
+  const out = [];
+  if (NOMINAL_KINDS.has(unit.kind)) {
+    if (fk.includes("Plur")) out.push("Plural");
+    if (fk.includes("Dat")) out.push("Dativ");
+    if (fk.includes("Gen")) out.push("Genitiv");
+  }
+  if (VERBAL_KINDS.has(unit.kind)) {
+    if (fk[0] === "Part") out.push("Partizip II");
+    if (fk[0] === "Inf" && hiddenZu(card, unit)) out.push("zu-Infinitiv");
+  }
+  return out;
+}
+
 // A preposition fused with its article, to the bare preposition. Matches
 // _FUSED_PREPOSITIONS in src/engine/grading.py.
 const FUSED_PREPOSITIONS = { zum: "zu", zur: "zu", vom: "von", am: "an", ans: "an", im: "in", ins: "in",

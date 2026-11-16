@@ -5,7 +5,7 @@
 
 import { loadDeck, loadReserveIndex, lookupReserve, withAdded } from "./lib/deck.js";
 import { createEngine } from "./lib/engine.js";
-import { closeTo, deckWords, gradeCard, renderMarked, rivalTyped, unitForms, unitWords } from "./lib/grader.js";
+import { closeTo, deckWords, formHints, gradeCard, renderMarked, rivalTyped, unitForms, unitWords } from "./lib/grader.js";
 import { isCloseEnough, letterDiff } from "./lib/letterdiff.js";
 import { deriveState, entriesForMode, entriesSinceReset, makeCorrection, makeIssue, makeMark, makeRequest, makeReset, makeReview, mergeEntries, parseJsonl, toJsonl } from "./lib/log.js";
 import { gradeVerb, loadVerbs, verbDeck } from "./lib/verbs.js";
@@ -388,7 +388,16 @@ function loadCard() {
   // The phrase's own English is shown before the answer (owner's decision,
   // 2026-09-13): the sentence gloss alone did not always pin the phrase.
   $("hint").textContent = unit.gloss_en ? `Gesucht: ${unit.gloss_en}` : "";
-  $("hint").hidden = !unit.gloss_en;
+  // Which form the gap asks, as small tags: Plural, Dativ, Partizip II ...
+  // (owner, 2026-11-16). The grammar, never the word.
+  const forms = formHints(card, unit);
+  for (const form of forms) {
+    const tag = document.createElement("span");
+    tag.className = "form-tag";
+    tag.textContent = form;
+    $("hint").append(" ", tag);
+  }
+  $("hint").hidden = !unit.gloss_en && !forms.length;
   renderSentence(card);
   startedAt = performance.now();
   const first = $("sentence").querySelector("input");
