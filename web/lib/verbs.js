@@ -36,15 +36,34 @@ export function verbDeck(index, version = "") {
 const SEVERITY = { revealed: 3, wrong: 2, typo: 1, exact: 0 };
 const tidy = (s) => s.trim().replace(/\s+/g, " ").toLowerCase();
 
+const VOWELS = new Set("aeiouäöüy");
+
+// Whether the one edit between two spellings adds, drops or changes a vowel.
+// A swap of two neighbours keeps the vowels and is left to the typo rule.
+function vowelEdit(a, b) {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i += 1;
+  let j = 0;
+  while (j < a.length - i && j < b.length - i && a[a.length - 1 - j] === b[b.length - 1 - j]) j += 1;
+  const x = a.slice(i, a.length - j);
+  const y = b.slice(i, b.length - j);
+  if (x.length === 2 && y.length === 2 && x[0] === y[1] && x[1] === y[0]) return false;
+  return [...x, ...y].some((ch) => VOWELS.has(ch));
+}
+
 // A form against its accepted spellings: the same typo grader the sentence
-// cards use, lower case on both sides (a capital is no mistake here).
+// cards use, lower case on both sides (a capital is no mistake here). A
+// typo that changes a vowel is wrong: the vowel is what the drill tests for
+// a strong verb, and "kennte / gekennt", "fäng an" and "geliegen" passed as
+// typos (owner's log, 2026-11-10 to 11-16).
 function gradeForm(typed, accepted) {
   if (typed === null || typed === undefined) return "revealed";
   const t = tidy(typed);
   if (!t) return "wrong";
-  const r = gradeText(t, accepted.map(tidy));
+  const forms = accepted.map(tidy);
+  const r = gradeText(t, forms);
   if (r.is_correct && (r.is_exact || r.is_transliteration)) return "exact";
-  if (r.is_correct && r.is_scoped_typo) return "typo";
+  if (r.is_correct && r.is_scoped_typo) return forms.every((f) => vowelEdit(t, f)) ? "wrong" : "typo";
   return "wrong";
 }
 

@@ -40,6 +40,21 @@ test("case, spacing and the infinitive of the auxiliary", () => {
   assert.equal(sein.rating, "hard");
 });
 
+test("a changed vowel is no typo in the drill, a slipped consonant or a swap is", () => {
+  // Owner's log of 2026-11-10 to 11-16: "kennte / gekennt", "fäng an",
+  // "geliegen", "geschenen" all passed as typos, and the vowel is what the
+  // drill tests for a strong verb.
+  const KENNEN = { ...GEHEN, unit_id: "pf:kennen", infinitive: "kennen", praeteritum: ["kannte"], auxiliary: ["hat"], partizip: ["gekannt"] };
+  const kennte = gradeVerb(KENNEN, { praeteritum: "kennte", auxiliary: "hat", partizip: "gekennt" });
+  assert.deepEqual(kennte.gaps.map((g) => g.outcome), ["wrong", "exact", "wrong"]);
+  const LIEGEN = { ...GEHEN, unit_id: "pf:liegen", infinitive: "liegen", praeteritum: ["lag"], auxiliary: ["hat"], partizip: ["gelegen"] };
+  assert.equal(gradeVerb(LIEGEN, { praeteritum: "lag", auxiliary: "hat", partizip: "geliegen" }).gaps[2].outcome, "wrong");
+  // a consonant slipped and two letters swapped are still typos
+  const LESEN = { ...GEHEN, unit_id: "pf:lesen", infinitive: "lesen", praeteritum: ["las"], auxiliary: ["hat"], partizip: ["gelesen"] };
+  assert.equal(gradeVerb(LESEN, { praeteritum: "las", auxiliary: "hat", partizip: "gelessen" }).gaps[2].outcome, "typo");
+  assert.equal(gradeVerb(GEHEN, { praeteritum: "ging", auxiliary: "ist", partizip: "gegnagen" }).gaps[2].outcome, "typo");
+});
+
 test("a letter slipped in the auxiliary is a typo, another auxiliary is not", () => {
   // Owner's log of 2026-11-06: "is" for "ist", twice, graded wrong.
   const is = gradeVerb(GEHEN, { praeteritum: "ging", auxiliary: "is", partizip: "gegangen" });
