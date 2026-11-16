@@ -242,3 +242,11 @@
 - {key: "wirken", kind: verb, note: "owner 2026-11-11"}
 - {key: "geheimnis", kind: noun, note: "owner 2026-11-11"}
 - {key: "vertreten", kind: verb, note: "owner 2026-11-11"}
+# Added 2026-11-16 from the owner's list; "Wiederspruch" in it is "Widerspruch", he confirmed.
+- {key: "verspannung", kind: noun, note: "owner 2026-11-16"}
+- {key: "benachteiligen", kind: verb, note: "owner 2026-11-16"}
+- {key: "fordern", kind: verb, note: "owner 2026-11-16"}
+- {key: "auffordern", kind: separable_verb, note: "owner 2026-11-16"}
+- {key: "einspruch", kind: noun, note: "owner 2026-11-16"}
+- {key: "gericht", kind: noun, note: "owner 2026-11-16"}
+- {key: "widerspruch", kind: noun, note: "owner 2026-11-16, written 'Wiederspruch'"}

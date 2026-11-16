@@ -49,7 +49,7 @@
 - {key: "abhingen", display: "abhängen"}
 - {key: "abprallen nach", display: "abprallen von +Dat"}
 - {key: "abregen", display: "sich abregen"}
-- {key: "absagen", cefr: "B1"}
+- {key: "absagen", cefr: "B1", gloss_en: "to cancel / to call off / to decline", only_kind: "separable_verb"}  # 2026-11-16: the owner met "to decline" glossed only "to cancel"
 - {key: "abschluss bilden", cefr: "B2"}
 - {key: "absicheren", display: "absichern"}
 - {key: "abspeichern", cefr: "A2"}

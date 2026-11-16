@@ -6404,3 +6404,19 @@
 - 1948787fd41c  # BAD_SENTENCE: A headline run into its subheading.
 - 61ea4050ff66  # BAD_GLOSS: The Bundesanwaltschaft is German, not Swiss; and an obscure group name.
 # Review round req1111g.
+# The owner's notes of 2026-11-12 to 11-16.
+- 8a95de3bd12f  # BAD_SENTENCE: 'Nun sagt er der Schweiz ab' is a sports line cut from its context
+- 48bd14533809  # TWO_ANSWERS: 'ausreichend Platz' and 'ausreichenden Platz' are both right; the owner asked why no ending
+- a6ea222bcb91  # TWO_ANSWERS: 'ausreichend Vorsorge' and 'ausreichende Vorsorge' are both right
+- bff8e626100c  # TWO_ANSWERS: 'über ausreichend Zeit' and 'über ausreichende Zeit' are both right (his note)
+- 35ee527cafbe  # BAD_SENTENCE: the gap in quotation marks
+# Review round req1116.
+- 0380aa4550d9  # BAD_SENTENCE: 'Dagegen legte der HSV' needs its context.
+- 2674b64be5fb  # BAD_SENTENCE: Legal jargon (Devolutiveffekt).
+- 3778a93b00d6  # BAD_SENTENCE: Präteritum (benachteiligte), never shown.
+- 3975037fb99b  # BAD_SENTENCE: A second 'Widerspruch in sich'.
+- 4557af2c00f9  # BAD_SENTENCE: A third 'Einspruch einlegen', its 'sie' unnamed.
+# Review round req1116b.
+- 497529eeb0d2  # BAD_SENTENCE: 'aber' points back to a missing sentence.
+- 5a94b73aa505  # BAD_SENTENCE: 'Doch auch dieser' points back to a missing sentence.
+# Review round req1116c.
