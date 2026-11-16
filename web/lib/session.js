@@ -221,7 +221,10 @@ export function requestedToIntroduce(deck, state, settings, now) {
   return out;
 }
 
-export function nextUnit(deck, state, engine, settings, now, { overLimit = false, choose = null } = {}) {
+// `aheadUntil` (ms since the epoch) counts what falls due by then as due
+// now: the page's "Heute fällige jetzt" (owner, 2026-11-16). Matches
+// ahead_until in src/engine/session.py.
+export function nextUnit(deck, state, engine, settings, now, { overLimit = false, choose = null, aheadUntil = null } = {}) {
   const last = state.lastUnit;
   const asks = asksThisSession(state, settings, now);
   // Spacing cannot stop a loop on its own: a unit the learner never gets
@@ -241,7 +244,8 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
   // sorted by retrievability, where a card failed a minute ago sorts last.
   const pending = spaced(notExhausted(eligiblePendingUnits(deck, state, engine, settings, now))).filter((u) => u.unit_id !== last);
   if (pending.length) return pending[0];
-  const overdue = notLast(spaced(notExhausted(dueUnits(deck, state, engine, now, 0))), last);
+  const horizon = aheadUntil ? Math.max(0, aheadUntil - new Date(now).getTime()) : 0;
+  const overdue = notLast(spaced(notExhausted(dueUnits(deck, state, engine, now, horizon))), last);
   if (overdue.length) return overdue[0];
   const withinBudget = overLimit || budgetLeft(state, settings, now) > 0;
   const underCap = settings.newPerDay === null || newUnitsStartedToday(state, now) < settings.newPerDay;
@@ -281,9 +285,9 @@ export function pendingToFinish(deck, state, engine, settings, now) {
     .filter((u) => cap <= 0 || (asks[u.unit_id] || 0) < cap);
 }
 
-export function practiceStep(deck, state, engine, settings, now, { grantedExtra = 0, newAllowed = false, choose = null } = {}) {
+export function practiceStep(deck, state, engine, settings, now, { grantedExtra = 0, newAllowed = false, choose = null, aheadUntil = null } = {}) {
   const spent = budgetSpentToday(state, now);
-  const unit = nextUnit(deck, state, engine, settings, now, { overLimit: newAllowed, choose });
+  const unit = nextUnit(deck, state, engine, settings, now, { overLimit: newAllowed, choose, aheadUntil });
   if (spent >= settings.cardsPerDay + grantedExtra) {
     // Stop and ask, unless the unit is mid learning step. Its due time is not
     // consulted: nextUnit already decided the unit is eligible, on spacing
@@ -297,7 +301,7 @@ export function practiceStep(deck, state, engine, settings, now, { grantedExtra 
       const other = owed.find((u) => u.unit_id !== state.lastUnit);
       return { panel: "card", unit: other || unit || owed[0] };
     }
-    const more = unit || nextUnit(deck, state, engine, settings, now, { overLimit: true });
+    const more = unit || nextUnit(deck, state, engine, settings, now, { overLimit: true, aheadUntil });
     if (more && !midStep) return { panel: "target", spent, due: dueUnits(deck, state, engine, now, 0).length };
   }
   // The second panel, and only after the first: asked once per grant rather

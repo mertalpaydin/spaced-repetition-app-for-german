@@ -70,6 +70,11 @@ let newAllowed = false;
 // Which stop panel is on screen ("target" or "new"), so its button does what
 // the panel asked.
 let limitPanel = null;
+// "Heute fällige jetzt" (owner, 2026-11-16): until this time (ms), what falls
+// due today counts as due now. One for the sentences, one for the drill;
+// neither is saved, so a new day or a reload starts without it.
+let aheadUntil = null;
+let verbAheadUntil = null;
 
 // The verb drill: its deck (null when the deck has no verbs.json) and the
 // replay of its own entries. One log for both, two replays: replayed
@@ -251,7 +256,18 @@ function renderToday() {
   const target = drill ? settings.verbCardsPerDay + verbExtra : settings.cardsPerDay + grantedExtra;
   $("today").textContent = `${drill ? "Verben " : ""}heute ${reviewsToday(s, t)}/${target}`
     + ` · fällig: jetzt ${due.now} · heute ${due.today} · morgen ${due.tomorrow}`;
+  const active = drill ? verbAheadUntil : aheadUntil;
+  $("btn-ahead").hidden = due.today <= due.now || (active !== null && active > new Date(t).getTime());
 }
+
+// Everything due by the end of today is asked now, in this view.
+$("btn-ahead").addEventListener("click", () => {
+  const t = new Date(now());
+  const endOfToday = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1).getTime() - 1;
+  if (currentView === "verbs") { verbAheadUntil = endOfToday; loadVerb(); return; }
+  aheadUntil = endOfToday;
+  if (currentView === "practice") loadCard(); else show("practice");
+});
 
 // -- practice -----------------------------------------------------------------
 
@@ -340,7 +356,7 @@ function loadCard() {
   // thing he was complaining about (owner, 2026-10-21).
   ["btn-check", "btn-reveal", "btn-defer"].forEach((id) => { $(id).hidden = false; });
   renderToday();
-  const step = practiceStep(deck, state, engine, settings, now(), { grantedExtra, newAllowed, choose: pickAny });
+  const step = practiceStep(deck, state, engine, settings, now(), { grantedExtra, newAllowed, choose: pickAny, aheadUntil });
   limitPanel = step.panel;
   if (step.panel === "target") {
     const done = `${step.spent} Karten`;
@@ -680,7 +696,7 @@ function loadVerb() {
     return;
   }
   const step = practiceStep(verbs, verbState, engine, verbSettings(), now(),
-    { grantedExtra: verbExtra, newAllowed: verbNewAllowed, choose: pickAny });
+    { grantedExtra: verbExtra, newAllowed: verbNewAllowed, choose: pickAny, aheadUntil: verbAheadUntil });
   verbPanel = step.panel;
   if (step.panel === "target" || step.panel === "new" || step.panel === "cap") {
     $("verb-limit-text").textContent = {

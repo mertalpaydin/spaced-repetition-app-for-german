@@ -616,6 +616,18 @@ test("the day's new-unit cap stops and asks instead of saying there is nothing",
   assert.equal(practiceStep(d, state, engine, settings, later).panel, "empty");
 });
 
+test("aheadUntil makes what is due by then due now, ahead of new units", () => {
+  // Owner, 2026-11-16: "make all heute fällig jetzt fällig button".
+  const d = deck(); const engine = createEngine();
+  const state = deriveState([rev(1, T0, "vp:warten_auf", "good"), rev(2, "2026-09-01T08:11:00Z", "vp:warten_auf", "good")], engine);
+  const due = new Date(state.records["vp:warten_auf"].due).getTime();
+  const before = new Date(due - 2 * 3600000).toISOString();
+  assert.equal(nextUnit(d, state, engine, DEFAULT_SETTINGS, before).unit_id, "cn:trotzdem", "a new unit, nothing is due");
+  const ahead = { aheadUntil: due + 3600000 };
+  assert.equal(nextUnit(d, state, engine, DEFAULT_SETTINGS, before, ahead).unit_id, "vp:warten_auf");
+  assert.equal(practiceStep(d, state, engine, DEFAULT_SETTINGS, before, ahead).unit.unit_id, "vp:warten_auf");
+});
+
 test("due counts for now, the rest of today and tomorrow, in local days", () => {
   // Owner, 2026-11-11: "show fällig for jetzt/heute/morgen not just jetzt".
   const at = (d, h) => new Date(2026, 8, d, h, 0).toISOString();

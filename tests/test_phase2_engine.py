@@ -941,6 +941,24 @@ def test_a_failed_unit_comes_back_after_the_spacing_ahead_of_the_due_queue() -> 
     assert unit is not None and unit.unit_id == "cn:a"
 
 
+def test_ahead_until_makes_what_is_due_by_then_due_now() -> None:
+    """Twin of the page's "aheadUntil makes what is due by then due now"
+    (owner, 2026-11-16: "make all heute fällig jetzt fällig button")."""
+    deck = _deck()
+    engine = FSRSEngine()
+    entries = [
+        _review(1, T0, "vp:warten_auf", "good"),
+        _review(2, T0 + timedelta(minutes=11), "vp:warten_auf", "good"),
+    ]
+    state = derive_state(entries, engine)
+    due = state.records["vp:warten_auf"].due
+    before = due - timedelta(hours=2)
+    plain = next_unit(deck, state, engine, Settings(), before)
+    assert plain is not None and plain.unit_id == "cn:trotzdem", "a new unit, nothing is due"
+    ahead = next_unit(deck, state, engine, Settings(), before, ahead_until=due + timedelta(hours=1))
+    assert ahead is not None and ahead.unit_id == "vp:warten_auf"
+
+
 def test_repeats_owed_at_the_days_target_are_finished_first() -> None:
     """The other half of the same report: a unit failed near the target was
     left for another day when the learner stopped there."""

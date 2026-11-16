@@ -390,6 +390,7 @@ def next_unit(
     *,
     over_limit: bool = False,
     choose: Callable[[int], int] | None = None,
+    ahead_until: datetime | None = None,
 ) -> PhraseUnit | None:
     """A word the learner just added first, then due units, least retrievable
     first; then a new unit while the day's budget lasts (or ``over_limit``
@@ -437,9 +438,11 @@ def next_unit(
     ]
     if pending:
         return pending[0]
-    overdue = _not_last(
-        spaced(not_exhausted(due_units(deck, state, engine, now, timedelta(0)))), last
-    )
+    # ``ahead_until`` counts what falls due by then as due now: the page's
+    # "Heute fällige jetzt" (owner, 2026-11-16). Matches aheadUntil in
+    # web/lib/session.js.
+    horizon = max(ahead_until - now, timedelta(0)) if ahead_until else timedelta(0)
+    overdue = _not_last(spaced(not_exhausted(due_units(deck, state, engine, now, horizon))), last)
     if overdue:
         return overdue[0]
     within_budget = over_limit or budget_left(state, settings, now) > 0
