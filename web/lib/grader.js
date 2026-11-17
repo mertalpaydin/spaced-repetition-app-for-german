@@ -207,6 +207,9 @@ export function isVerbFormOf(typed, expected) {
 // only for a noun or adjective, a participle or infinitive only for a verb.
 
 const NOMINAL_KINDS = new Set(["noun", "adjective", "adj_noun"]);
+// An adjective's ending changes in the accusative ("einen guten"), a noun's
+// almost never, so only these say Akkusativ (owner, 2026-11-17).
+const ADJECTIVAL_KINDS = new Set(["adjective", "adj_noun"]);
 const VERBAL_KINDS = new Set(["verb", "separable_verb", "verb_prep", "reflexive_verb", "noun_verb", "adj_verb"]);
 
 // A zu the learner must type: a gap that is "zu", or one hidden in the word
@@ -225,6 +228,7 @@ export function formHints(card, unit) {
   const out = [];
   if (NOMINAL_KINDS.has(unit.kind)) {
     if (fk.includes("Plur")) out.push("Plural");
+    if (fk.includes("Acc") && ADJECTIVAL_KINDS.has(unit.kind)) out.push("Akkusativ");
     if (fk.includes("Dat")) out.push("Dativ");
     if (fk.includes("Gen")) out.push("Genitiv");
   }

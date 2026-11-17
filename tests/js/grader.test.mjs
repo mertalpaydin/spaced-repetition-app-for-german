@@ -76,6 +76,10 @@ test("form hints say which form a gap asks, never the word", () => {
   assert.deepEqual(formHints(card("Dat|Plur", ["Socken"]), noun), ["Plural", "Dativ"]);
   assert.deepEqual(formHints(card("Gen|Sing", ["Socke"]), noun), ["Genitiv"]);
   assert.deepEqual(formHints(card("Nom|Sing", ["Socke"]), noun), []);
+  // Akkusativ on adjectives, whose ending it changes; not on nouns (2026-11-17).
+  assert.deepEqual(formHints(card("Acc|Sing", ["Socke"]), noun), []);
+  assert.deepEqual(formHints(card("Acc|Sing", ["neuen"]), { kind: "adjective", parts: ["neu"] }), ["Akkusativ"]);
+  assert.deepEqual(formHints(card("Acc|Plur", ["frische", "Brötchen"]), { kind: "adj_noun", parts: ["frisch", "Brötchen"] }), ["Plural", "Akkusativ"]);
   const verb = { kind: "separable_verb", parts: ["einlösen"] };
   assert.deepEqual(formHints(card("Part|fused", ["eingelöst"]), verb), ["Partizip II"]);
   assert.deepEqual(formHints(card("Inf", ["einzulösen"]), verb), ["zu-Infinitiv"], "a zu hidden in the word");

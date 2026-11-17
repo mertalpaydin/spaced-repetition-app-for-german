@@ -474,7 +474,12 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   takes over, at the next card if an answer is being typed. On the 11-16
   log, 1 card in 5 in his queue carries a form tag (555 of 2,755; 289 of
   468 units have at least one), as the rule says: none for connectors,
-  adverbs, idioms or a nominative, accusative or present-tense gap.
+  adverbs, idioms or a nominative, accusative or present-tense gap. At his
+  word an adjective or adjective-noun gap in the accusative now says
+  Akkusativ (2,293 cards in the deck, 28 more in his queue; a noun's
+  accusative does not, its form almost never changes). Komparativ and
+  Superlativ cannot be tagged: the miner drops every non-positive
+  adjective (`_word_of`, `Degree != Pos`), so no card asks one.
 
 - **Form tags, Heute fällige jetzt, and two grader changes, 2026-11-16**
   (no format changes; CLAUDE.md rule 3 now names the tags). Before the
