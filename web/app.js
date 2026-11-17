@@ -11,7 +11,7 @@ import { deriveState, entriesForMode, entriesSinceReset, makeCorrection, makeIss
 import { gradeVerb, loadVerbs, verbDeck } from "./lib/verbs.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
-  DEFAULT_SETTINGS, computeStats, dueCounts, dueUnits, isPostponed, pickCard, practiceStep, pressMore, reviewsToday, unitsByStage, untriagedUnits,
+  DEFAULT_SETTINGS, budgetSpentToday, computeStats, dueCounts, dueUnits, isPostponed, pickCard, practiceStep, pressMore, unitsByStage, untriagedUnits,
 } from "./lib/session.js";
 import { appendEntries, kv, loadSettings, readLog, replaceLog, saveSettings } from "./lib/store.js";
 import { syncLog } from "./lib/sync.js";
@@ -75,6 +75,8 @@ let limitPanel = null;
 // neither is saved, so a new day or a reload starts without it.
 let aheadUntil = null;
 let verbAheadUntil = null;
+// A new app version has taken over; the page reloads at the next card.
+let reloadPending = false;
 
 // The verb drill: its deck (null when the deck has no verbs.json) and the
 // replay of its own entries. One log for both, two replays: replayed
@@ -238,35 +240,92 @@ function show(view) {
   if (view === "stats") loadStats();
   if (view === "settings") loadSettingsView();
   renderToday();
+  paintQueueNote();
 }
 document.querySelectorAll("nav button[data-view]").forEach((b) => b.addEventListener("click", () => show(b.dataset.view)));
 
-// The header line: the day's answers against the target, and what is due
+// The header line: the day's cards against the target, and what is due
 // now, by tonight and tomorrow (owner, 2026-11-11). On the Verben screen
-// the drill's own, in the same form.
+// the drill's own, in the same form. The count is what the target is
+// charged for, the number the "Tagesziel erreicht" panel gives: counted
+// with every repeat it said 147/100 beside a panel saying 130 (owner,
+// 2026-11-17).
 function renderToday() {
   const t = now();
   const drill = currentView === "verbs" && verbs && verbState;
   const d = drill ? verbs : deck;
   const s = drill ? verbState : state;
   if (!d || !s) return;
-  const due = dueCounts(d, s, engine, t);
+  const active = drill ? verbAheadUntil : aheadUntil;
+  const due = dueCounts(d, s, engine, t, active);
   // The target includes any blocks the learner has asked for, so the counter
   // and the panel agree about what the day's allowance is.
   const target = drill ? settings.verbCardsPerDay + verbExtra : settings.cardsPerDay + grantedExtra;
-  $("today").textContent = `${drill ? "Verben " : ""}heute ${reviewsToday(s, t)}/${target}`
+  $("today").textContent = `${drill ? "Verben " : ""}heute ${budgetSpentToday(s, t)}/${target}`
     + ` · fällig: jetzt ${due.now} · heute ${due.today} · morgen ${due.tomorrow}`;
-  const active = drill ? verbAheadUntil : aheadUntil;
-  $("btn-ahead").hidden = due.today <= due.now || (active !== null && active > new Date(t).getTime());
+  // Offered whenever more falls due today than is due now (owner,
+  // 2026-11-17). Pressed, "jetzt" counts the whole day and the two agree.
+  $("btn-ahead").hidden = due.today <= due.now;
+  noticeEmptyQueue(drill ? "verbs" : "deck", due, active !== null && active > new Date(t).getTime());
+}
+
+// A line under the header saying what just changed in the queue: the due
+// units are done, or "Heute fällige jetzt" brought the day's forward (owner,
+// 2026-11-17: a press showed nothing, and nothing marked the end of the due
+// units). It stays for the answer that caused it and the card after.
+const lastDueNow = { deck: null, verbs: null };
+const noticed = new Set();
+let queueNote = null;   // { mode, text, cards }
+
+function setQueueNote(mode, text) {
+  queueNote = { mode, text, cards: 0 };
+  paintQueueNote();
+}
+
+function paintQueueNote() {
+  const mode = currentView === "verbs" ? "verbs" : currentView === "practice" ? "deck" : null;
+  const shown = queueNote !== null && queueNote.mode === mode;
+  $("queue-note").hidden = !shown;
+  if (shown) $("queue-note").textContent = queueNote.text;
+}
+
+// A new card in this mode: the note has had its answer and one more card.
+function ageQueueNote(mode) {
+  if (queueNote && queueNote.mode === mode && ++queueNote.cards > 1) queueNote = null;
+  paintQueueNote();
+}
+
+// "jetzt" just reached nought. Said once a day per mode, and once more for
+// the whole day under "Heute fällige jetzt": a failed unit coming due again
+// and answered takes the count to nought a second time.
+function noticeEmptyQueue(mode, due, ahead) {
+  const before = lastDueNow[mode];
+  lastDueNow[mode] = due.now;
+  if (!(before > 0) || due.now > 0) return;
+  const whole = ahead || due.today === 0;
+  const key = `${mode}|${new Date(now()).toDateString()}|${whole}`;
+  if (noticed.has(key)) return;
+  noticed.add(key);
+  const noun = mode === "verbs" ? "Verben" : "Einheiten";
+  setQueueNote(mode, whole
+    ? `✓ Alle heute fälligen ${noun} sind erledigt.`
+    : `✓ Alle jetzt fälligen ${noun} sind erledigt. Bis heute Abend werden noch ${due.today} fällig; „Heute fällige jetzt“ holt sie vor.`);
 }
 
 // Everything due by the end of today is asked now, in this view.
 $("btn-ahead").addEventListener("click", () => {
   const t = new Date(now());
   const endOfToday = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1).getTime() - 1;
-  if (currentView === "verbs") { verbAheadUntil = endOfToday; loadVerb(); return; }
-  aheadUntil = endOfToday;
-  if (currentView === "practice") loadCard(); else show("practice");
+  const drill = currentView === "verbs" && verbs && verbState;
+  const mode = drill ? "verbs" : "deck";
+  const due = dueCounts(drill ? verbs : deck, drill ? verbState : state, engine, now());
+  if (drill) verbAheadUntil = endOfToday; else aheadUntil = endOfToday;
+  setQueueNote(mode, `${due.today - due.now} später heute fällige ${drill ? "Verben" : "Einheiten"} vorgezogen: jetzt sind ${due.today} fällig.`);
+  // The header count jumps; a flash says it was this press that moved it.
+  $("today").classList.remove("flash");
+  void $("today").offsetWidth;
+  $("today").classList.add("flash");
+  if (drill) loadVerb(); else if (currentView === "practice") loadCard(); else show("practice");
 });
 
 // -- practice -----------------------------------------------------------------
@@ -340,6 +399,8 @@ function showPanel(which) {
 }
 
 function loadCard() {
+  if (reloadPending) { location.reload(); return; }
+  ageQueueNote("deck");
   answered = false;
   $("feedback").hidden = true;
   $("retry-note").hidden = true;
@@ -607,7 +668,8 @@ $("btn-history-close").addEventListener("click", () => loadCard());
 $("btn-more").addEventListener("click", () => {
   // Two meanings, one button, decided by the panel it was pressed on; see
   // pressMore in lib/session.js for why it is not recomputed here.
-  ({ grantedExtra, newAllowed } = pressMore(limitPanel, { grantedExtra, newAllowed }, settings.extraCards));
+  ({ grantedExtra, newAllowed } = pressMore(limitPanel, { grantedExtra, newAllowed }, settings.extraCards,
+    budgetSpentToday(state, now()) - settings.cardsPerDay));
   loadCard();
 });
 // Which gap an umlaut button types into. document.activeElement is useless
@@ -697,6 +759,8 @@ function verbSettings() {
 }
 
 function loadVerb() {
+  if (reloadPending) { location.reload(); return; }
+  ageQueueNote("verbs");
   ["verb-card", "verb-limit", "verb-empty"].forEach((id) => { $(id).hidden = true; });
   renderToday();
   if (!verbs || !verbs.units.length) {
@@ -794,7 +858,8 @@ $("btn-verb-next").addEventListener("click", () => loadVerb());
 $("btn-verb-known").addEventListener("click", () => markVerbKnown());
 $("btn-verb-more").addEventListener("click", () => {
   ({ grantedExtra: verbExtra, newAllowed: verbNewAllowed } = pressMore(
-    verbPanel, { grantedExtra: verbExtra, newAllowed: verbNewAllowed }, settings.extraCards));
+    verbPanel, { grantedExtra: verbExtra, newAllowed: verbNewAllowed }, settings.extraCards,
+    budgetSpentToday(verbState, now()) - settings.verbCardsPerDay));
   loadVerb();
 });
 // Enter moves to the next field and checks on the last; after the answer it
@@ -1160,6 +1225,18 @@ async function boot() {
   show("practice");
   if (settings.token) sync().then((r) => { if (r && r.pulled > 0 && !answered) loadCard(); }).catch(() => {});
   if ("serviceWorker" in navigator) {
+    // A new version takes over on the load that found it, not the one after:
+    // the old worker serves the old shell until a reload, so "Heute fällige
+    // jetzt" stayed missing until a manual refresh (owner, 2026-11-17). Only
+    // when a worker was already in control, so the first install does not
+    // reload, and never under an answer being typed: then at the next card.
+    const updating = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!updating || reloadPending) return;
+      reloadPending = true;
+      const typing = Array.from(document.querySelectorAll("input.gap")).some((i) => !i.readOnly && i.value.trim());
+      if (!typing) location.reload();
+    });
     navigator.serviceWorker.register("./sw.js").then((reg) => {
       if (reg.active) reg.active.postMessage({ type: "deck", version: m.deck_version });
       navigator.serviceWorker.ready.then((r) => r.active && r.active.postMessage({ type: "deck", version: m.deck_version }));

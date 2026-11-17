@@ -639,6 +639,36 @@ test("due counts for now, the rest of today and tomorrow, in local days", () => 
   } };
   const engine = { retrievability: () => 0.5 };
   assert.deepEqual(dueCounts(d, state, engine, at(1, 12)), { now: 1, today: 2, tomorrow: 1 });
+  // Under "Heute fällige jetzt", "jetzt" is the whole day: pressed, the
+  // number did not move and the press looked like nothing (owner, 2026-11-17).
+  const endOfDay = new Date(2026, 8, 2).getTime() - 1;
+  assert.deepEqual(dueCounts(d, state, engine, at(1, 12), endOfDay), { now: 2, today: 2, tomorrow: 1 });
+  // A window left from yesterday counts nothing extra.
+  assert.deepEqual(dueCounts(d, state, engine, at(2, 12), endOfDay), dueCounts(d, state, engine, at(2, 12)));
+});
+
+test("a press past the target counts its block from the cards already done", () => {
+  // Owner, 2026-11-17: grants are not saved, so after a reload at 130 cards
+  // of 100 a press of Weiter made the target 110, the panel came straight
+  // back, and it took three presses to see a card.
+  const d = deck(); const engine = createEngine();
+  d.units.push(unit_("vb:gehen", 3, "gehen"));
+  d.byId["vb:gehen"] = d.units[2];
+  d.cardsByUnit["vb:gehen"] = [card("g1", "vb:gehen", "Wir gehen heim.", ["gehen"])];
+  const settings = { ...DEFAULT_SETTINGS, cardsPerDay: 1, extraCards: 2 };
+  const state = deriveState([
+    rev(1, T0, "vp:warten_auf", "good"), rev(2, "2026-09-01T08:01:00Z", "cn:trotzdem", "good"),
+    rev(3, "2026-09-01T08:11:00Z", "vp:warten_auf", "good"), rev(4, "2026-09-01T08:12:00Z", "cn:trotzdem", "good"),
+  ], engine);
+  const later = "2026-09-01T09:00:00Z";
+  const spent = budgetSpentToday(state, later);
+  assert.ok(spent >= settings.cardsPerDay + settings.extraCards, "already a block past the target");
+  assert.equal(practiceStep(d, state, engine, settings, later).panel, "target");
+  const grant = pressMore("target", { grantedExtra: 0, newAllowed: false }, settings.extraCards, spent - settings.cardsPerDay);
+  assert.equal(grant.grantedExtra, spent - settings.cardsPerDay + settings.extraCards);
+  assert.notEqual(practiceStep(d, state, engine, settings, later, grant).panel, "target", "one press is enough");
+  // A grant already beyond the cards done is kept and added to.
+  assert.equal(pressMore("target", { grantedExtra: 9, newAllowed: false }, 2, 3).grantedExtra, 11);
 });
 
 test("Später in Sortieren takes the unit out of the sorting", () => {

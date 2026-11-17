@@ -458,6 +458,24 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **The header counts the target's cards, and the queue says when it is
+  empty, 2026-11-17** (no format changes). The owner's complaints on the
+  day after: "heute 147/100" stood beside a panel saying "Tagesziel
+  erreicht (130)", and at 130 one press of Weiter made the target 110, so
+  it took three presses to see a card. The header now counts
+  `budgetSpentToday`, the panel's number, and `pressMore` counts a block
+  from the cards already done (grants are not saved, so a reload past the
+  target lost them). Under "Heute fällige jetzt" the header's "jetzt" counts
+  the whole day, so a press moves it, with a flash and a line under the
+  header; the button shows whenever "heute" is more than "jetzt". When
+  "jetzt" reaches nought a line says so, once a day per mode. The button
+  had seemed to need a refresh because the old service worker serves the
+  old shell until a reload; the page now reloads itself when a new version
+  takes over, at the next card if an answer is being typed. On the 11-16
+  log, 1 card in 5 in his queue carries a form tag (555 of 2,755; 289 of
+  468 units have at least one), as the rule says: none for connectors,
+  adverbs, idioms or a nominative, accusative or present-tense gap.
+
 - **Form tags, Heute fällige jetzt, and two grader changes, 2026-11-16**
   (no format changes; CLAUDE.md rule 3 now names the tags). Before the
   answer a card shows small tags for the form its gap asks, read from the

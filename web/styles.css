@@ -41,7 +41,10 @@ html, body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5
 header { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.6rem 1rem; background: var(--accent); color: var(--accent-ink); flex-wrap: wrap; }
 .brand { display: flex; align-items: baseline; gap: 0.8rem; }
 header h1 { font-size: 1.1rem; margin: 0; }
-.today { font-size: 0.9rem; opacity: 0.9; }
+.today { font-size: 0.9rem; opacity: 0.9; border-radius: 6px; padding: 0 0.3em; }
+.today.flash { animation: today-flash 1.5s ease-out; }
+@keyframes today-flash { from { background: rgba(255, 255, 255, 0.5); } to { background: transparent; } }
+.queue-note { margin: 0 0 1rem; padding: 0.6rem 0.9rem; border-radius: 10px; border: 1px solid var(--ok); background: var(--ok-bg); color: var(--ok); }
 nav { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 nav button { background: transparent; color: var(--accent-ink); border: 1px solid var(--accent-ink); border-radius: 6px; padding: 0.35rem 0.7rem; font-size: 0.95rem; opacity: 0.85; }
 nav button.active { background: var(--accent-ink); color: var(--accent); opacity: 1; }

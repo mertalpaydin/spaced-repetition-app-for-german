@@ -87,13 +87,17 @@ export function dueUnits(deck, state, engine, now, horizonMs) {
 
 // How many units are due now, by the end of today (the ones due now
 // included) and in the course of tomorrow, in the learner's local days
-// (owner, 2026-11-11: "show fällig for jetzt/heute/morgen").
-export function dueCounts(deck, state, engine, now) {
+// (owner, 2026-11-11: "show fällig for jetzt/heute/morgen"). Under
+// "Heute fällige jetzt" (`aheadUntil`, ms) "jetzt" counts what the scheduler
+// now treats as due, so the number jumps when the button is pressed: it did
+// not, and the press looked like it had done nothing (owner, 2026-11-17).
+export function dueCounts(deck, state, engine, now, aheadUntil = null) {
   const t = new Date(now);
   const endOfToday = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1).getTime();
   const endOfTomorrow = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 2).getTime();
-  const count = (until) => dueUnits(deck, state, engine, now, until - t.getTime()).length;
-  return { now: count(t.getTime()), today: count(endOfToday - 1), tomorrow: count(endOfTomorrow - 1) - count(endOfToday - 1) };
+  const count = (until) => dueUnits(deck, state, engine, now, Math.max(until - t.getTime(), 0)).length;
+  const today = count(endOfToday - 1);
+  return { now: count(Math.max(t.getTime(), aheadUntil ?? 0)), today, tomorrow: count(endOfTomorrow - 1) - today };
 }
 
 // When the current sitting began: walk the reviews back while the gaps
@@ -287,6 +291,8 @@ export function pendingToFinish(deck, state, engine, settings, now) {
 
 export function practiceStep(deck, state, engine, settings, now, { grantedExtra = 0, newAllowed = false, choose = null, aheadUntil = null } = {}) {
   const spent = budgetSpentToday(state, now);
+  // What counts as due: under "Heute fällige jetzt", everything due by then.
+  const horizon = aheadUntil ? Math.max(0, aheadUntil - new Date(now).getTime()) : 0;
   const unit = nextUnit(deck, state, engine, settings, now, { overLimit: newAllowed, choose, aheadUntil });
   if (spent >= settings.cardsPerDay + grantedExtra) {
     // Stop and ask, unless the unit is mid learning step. Its due time is not
@@ -302,12 +308,12 @@ export function practiceStep(deck, state, engine, settings, now, { grantedExtra 
       return { panel: "card", unit: other || unit || owed[0] };
     }
     const more = unit || nextUnit(deck, state, engine, settings, now, { overLimit: true, aheadUntil });
-    if (more && !midStep) return { panel: "target", spent, due: dueUnits(deck, state, engine, now, 0).length };
+    if (more && !midStep) return { panel: "target", spent, due: dueUnits(deck, state, engine, now, horizon).length };
   }
   // The second panel, and only after the first: asked once per grant rather
   // than silently moving on, because "no more due cards" is the natural place
   // to stop (owner, 2026-10-07).
-  if (grantedExtra > 0 && !newAllowed && dueUnits(deck, state, engine, now, 0).length === 0) {
+  if (grantedExtra > 0 && !newAllowed && dueUnits(deck, state, engine, now, horizon).length === 0) {
     if (!unit || !(unit.unit_id in state.records)) return { panel: "new" };
   }
   if (unit) return { panel: "card", unit };
@@ -327,10 +333,15 @@ export function practiceStep(deck, state, engine, settings, now, { grantedExtra 
 // second press at the target with nothing due allowed new units instead of
 // granting cards, the learner stayed over the target, and the same panel
 // came straight back on every press (owner, 2026-10-23).
-export function pressMore(panel, { grantedExtra, newAllowed }, extraCards) {
+// `over` is how far the day's spent cards already stand past the target. A
+// block is counted from there, not from the last grant: grants are not
+// saved, so after a reload at 130 cards of 100 a press made the target 110,
+// the panel came straight back, and it took three presses to see a card
+// (owner, 2026-11-17).
+export function pressMore(panel, { grantedExtra, newAllowed }, extraCards, over = 0) {
   return panel === "new" || panel === "cap"
     ? { grantedExtra, newAllowed: true }
-    : { grantedExtra: grantedExtra + extraCards, newAllowed };
+    : { grantedExtra: Math.max(grantedExtra, over) + extraCards, newAllowed };
 }
 
 // A finite past-tense form in the gaps: Präteritum is a B1 form, so a unit
