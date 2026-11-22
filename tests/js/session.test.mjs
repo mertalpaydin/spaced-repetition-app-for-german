@@ -8,7 +8,7 @@ import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
 import { deriveState, entryKey, makeCorrection, makeIssue, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
 import { reserveLetter, withAdded } from "../../web/lib/deck.js";
-import { DEFAULT_SETTINGS, LEECH_FAILS, POSTPONE_STEP, shouldSetAside, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueCounts, dueUnits, eligiblePendingUnits, introductionOrder, isPostponed, nextUnit, pickCard, practiceStep, pressMore, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage, untriagedUnits } from "../../web/lib/session.js";
+import { DEFAULT_SETTINGS, LEECH_FAILS, POSTPONE_STEP, shouldSetAside, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueCounts, dueUnits, eligiblePendingUnits, introductionOrder, isPostponed, newUnitTurn, nextUnit, pickCard, practiceStep, pressMore, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage, untriagedUnits } from "../../web/lib/session.js";
 
 const T0 = "2026-09-01T08:00:00Z";
 const unit_ = (unit_id, rank, display_de, extra = {}) => ({ unit_id, kind: "verb_prep", display_de, rank, trivial: false, gloss_en: null, also_accepted: [], ...extra });
@@ -230,6 +230,37 @@ test("a failed unit comes back after relearnSpacing cards, ahead of the overdue 
   state = deriveState(entries, engine);
   assert.ok(dueUnits(d, state, engine, at(6), 0).some((u) => u.unit_id === "cn:g"), "cn:g is still overdue");
   assert.equal(nextUnit(d, state, engine, DEFAULT_SETTINGS, at(6)).unit_id, "cn:a");
+});
+
+test("newEvery mixes a new unit in among due ones, up to newPerDay", () => {
+  // The owner, 2026-11-22 ("option D"): one new unit in every five cards
+  // while units are due. Before it new units came only once the due queue
+  // was empty, and on a day of dues there were none. Twin in
+  // tests/test_phase2_engine.py.
+  const engine = createEngine();
+  const { d, ids, entries } = overdueDeck();
+  const fresh = unit_("cn:neu", 9, "neu", { kind: "connector" });
+  d.units.push(fresh); d.byId["cn:neu"] = fresh;
+  d.cardsByUnit["cn:neu"] = [card("cn:neu1", "cn:neu", "neu kam sie.", ["neu"])];
+  const mix = { ...DEFAULT_SETTINGS, newEvery: 5, newPerDay: 5 };
+  assert.equal(DEFAULT_SETTINGS.newEvery, 0, "off unless the page turns it on");
+  let state = deriveState(entries, engine);
+  assert.ok(ids.includes(nextUnit(d, state, engine, mix, at(0)).unit_id), "the day's first card is a due one");
+  for (let i = 0; i < 4; i += 1) entries.push(rev(17 + i, at(i), ids[i], "good"));
+  state = deriveState(entries, engine);
+  assert.equal(newUnitTurn(state, mix, at(4)), true);
+  assert.equal(nextUnit(d, state, engine, mix, at(4)).unit_id, "cn:neu");
+  // off, or the day's cap reached: the due queue as before
+  for (const settings of [{ ...DEFAULT_SETTINGS, newPerDay: 5 }, { ...mix, newPerDay: 0 }]) {
+    assert.ok(ids.includes(nextUnit(d, state, engine, settings, at(4)).unit_id));
+  }
+  // the count starts again from the new unit
+  entries.push(rev(21, at(4), "cn:neu", "good"));
+  state = deriveState(entries, engine);
+  assert.equal(newUnitTurn(state, mix, at(5)), false);
+  for (let i = 4; i < 8; i += 1) entries.push(rev(18 + i, at(i + 1), ids[i], "good"));
+  state = deriveState(entries, engine);
+  assert.equal(newUnitTurn(state, mix, at(9)), true);
 });
 
 test("at the day's target the repeats are finished before the stop", () => {

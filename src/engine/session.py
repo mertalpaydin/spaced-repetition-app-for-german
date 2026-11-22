@@ -73,6 +73,10 @@ class Settings:
     #: words at once should not lose the day's reviews to them either
     #: (owner, 2026-10-06).
     requested_per_day: int = 5
+    #: One new unit in every ``new_every`` cards while units are due, under
+    #: ``new_per_day``; 0 is off, new units only once nothing is due. See
+    #: ``new_unit_turn``. The page turns it on (owner, 2026-11-22).
+    new_every: int = 0
 
 
 @dataclass
@@ -158,6 +162,28 @@ def budget_spent_today(state: LearnerState, now: datetime) -> int:
     """
     day = now.astimezone(UTC).date()
     return sum(1 for ts in state.budget_review_times if ts.astimezone(UTC).date() == day)
+
+
+def new_unit_turn(state: LearnerState, settings: Settings, now: datetime) -> bool:
+    """Is it a new unit's turn among the due ones?
+
+    Every ``new_every``-th card of the day is one, counted from the day's
+    last new unit, while ``new_per_day`` allows (``next_unit`` checks that).
+    With new units only once the due queue was empty, a day of dues meant no
+    new word at all: seven in nine days, and two days away out of boredom
+    (owner, 2026-11-22). Matches ``newUnitTurn`` in ``web/lib/session.js``.
+    """
+    if settings.new_every <= 0:
+        return False
+    day = now.astimezone(UTC).date()
+    starts = [ts for ts in state.first_review.values() if ts.astimezone(UTC).date() == day]
+    last_start = max(starts) if starts else None
+    since = sum(
+        1
+        for ts in state.review_times
+        if ts.astimezone(UTC).date() == day and (last_start is None or ts > last_start)
+    )
+    return since >= settings.new_every - 1
 
 
 def budget_left(state: LearnerState, settings: Settings, now: datetime) -> int:
@@ -451,14 +477,8 @@ def next_unit(
     # "Heute fällige jetzt" (owner, 2026-11-16). Matches aheadUntil in
     # web/lib/session.js.
     horizon = max(ahead_until - now, timedelta(0)) if ahead_until else timedelta(0)
-    overdue = _not_last(spaced(not_exhausted(due_units(deck, state, engine, now, horizon))), last)
-    if overdue:
-        return overdue[0]
-    within_budget = over_limit or budget_left(state, settings, now) > 0
-    under_cap = settings.new_per_day is None or (
-        new_units_started_today(state, now) < settings.new_per_day
-    )
-    if within_budget and (under_cap or over_limit):
+
+    def new_unit() -> PhraseUnit | None:
         pool: list[PhraseUnit] = []
         for unit in introduction_order(deck, state):
             if unit.unit_id in state.records:
@@ -467,8 +487,26 @@ def next_unit(
                 pool.append(unit)
                 if len(pool) >= max(settings.new_pool, 1):
                     break
-        if pool:
-            return pool[(choose(len(pool)) if choose else 0) % len(pool)]
+        return pool[(choose(len(pool)) if choose else 0) % len(pool)] if pool else None
+
+    within_budget = over_limit or budget_left(state, settings, now) > 0
+    under_cap = settings.new_per_day is None or (
+        new_units_started_today(state, now) < settings.new_per_day
+    )
+    overdue = _not_last(spaced(not_exhausted(due_units(deck, state, engine, now, horizon))), last)
+    if overdue:
+        # A new unit's turn among the due ones, under the day's cap only: a
+        # press past the cap is for when nothing is due.
+        turn = (
+            new_unit()
+            if within_budget and under_cap and new_unit_turn(state, settings, now)
+            else None
+        )
+        return turn or overdue[0]
+    if within_budget and (under_cap or over_limit):
+        fresh = new_unit()
+        if fresh is not None:
+            return fresh
     # Learn-ahead never re-shows the unit just answered: that is the
     # back-to-back repeat the first learner complained about.
     ahead = [

@@ -44,6 +44,7 @@ from src.engine.session import (
     eligible_pending_units,
     introduction_order,
     is_postponed,
+    new_unit_turn,
     next_unit,
     pending_to_finish,
     pick_card,
@@ -941,6 +942,46 @@ def test_a_failed_unit_comes_back_after_the_spacing_ahead_of_the_due_queue() -> 
     assert "cn:g" in {u.unit_id for u in due_units(deck, state, engine, six, timedelta(0))}
     unit = next_unit(deck, state, engine, settings, six)
     assert unit is not None and unit.unit_id == "cn:a"
+
+
+def test_new_every_mixes_a_new_unit_in_among_due_ones() -> None:
+    """The owner, 2026-11-22 ("option D"): one new unit in every five cards
+    while units are due, up to new_per_day. Before it new units came only
+    once the due queue was empty, and on a day of dues there were none. The
+    twin in tests/js pins the same."""
+    engine = FSRSEngine()
+    base, ids, entries = _overdue_deck()
+    fresh = _unit("cn:neu", 9, "neu")
+    neu_card = _card("n00000000099", "cn:neu", "neu kam sie.", ["neu"])
+    deck = Deck(
+        manifest=base.manifest,
+        units=[*base.units, fresh],
+        cards_by_unit={**base.cards_by_unit, "cn:neu": [neu_card]},
+    )
+    later = T0 + timedelta(days=30)
+    mix = Settings(new_every=5, new_per_day=5)
+    assert Settings().new_every == 0, "off unless the page turns it on"
+    first = next_unit(deck, derive_state(entries, engine), engine, mix, later)
+    assert first is not None and first.unit_id in ids, "the day's first card is a due one"
+    for i in range(4):
+        entries.append(_review(17 + i, later + timedelta(minutes=i), ids[i], "good"))
+    state = derive_state(entries, engine)
+    fifth = later + timedelta(minutes=4)
+    assert new_unit_turn(state, mix, fifth)
+    unit = next_unit(deck, state, engine, mix, fifth)
+    assert unit is not None and unit.unit_id == "cn:neu"
+    # off, or the day's cap reached: the due queue as before
+    for settings in (Settings(new_per_day=5), Settings(new_every=5, new_per_day=0)):
+        unit = next_unit(deck, state, engine, settings, fifth)
+        assert unit is not None and unit.unit_id in ids
+    # the count starts again from the new unit
+    entries.append(_review(21, fifth, "cn:neu", "good"))
+    state = derive_state(entries, engine)
+    assert not new_unit_turn(state, mix, fifth + timedelta(minutes=1))
+    for i in range(4, 8):
+        entries.append(_review(18 + i, later + timedelta(minutes=i + 1), ids[i], "good"))
+    state = derive_state(entries, engine)
+    assert new_unit_turn(state, mix, later + timedelta(minutes=9))
 
 
 def test_ahead_until_makes_what_is_due_by_then_due_now() -> None:

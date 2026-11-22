@@ -161,11 +161,12 @@
         <h3>Tagespensum</h3>
         <label>Karten pro Tag <input id="set-cards" type="number" min="1" step="1"></label>
         <label>Neue Einheiten pro Tag (leer = unbegrenzt) <input id="set-new" type="number" min="0" step="1"></label>
+        <label>Neue Einheit alle … Karten, auch wenn etwas fällig ist (0 = erst wenn nichts fällig ist) <input id="set-new-every" type="number" min="0" step="1"></label>
         <label>Neue Einheit zufällig aus den nächsten <input id="set-pool" type="number" min="1" step="1"></label>
         <label>Verben pro Tag <input id="set-verb-cards" type="number" min="1" step="1"></label>
         <label>Neue Verben pro Tag <input id="set-verb-new" type="number" min="0" step="1"></label>
         <label>Zielgenauigkeit <input id="set-retention" type="number" min="0.8" max="0.97" step="0.01"></label>
-        <p class="hint">Wie oft du eine Einheit beim Abfragen können sollst. 0,90 ist der Standard.
+        <p class="hint">Wie oft du eine Einheit beim Abfragen können sollst. Eingestellt ist 0,85 (seit 22.11.).
           Niedriger heißt längere Abstände und weniger Wiederholungen pro Tag, dafür mehr Fehler;
           höher heißt das Gegenteil. Ändere es einzeln und gib ihm ein paar Tage, sonst weißt du
           nachher nicht, was gewirkt hat.</p>

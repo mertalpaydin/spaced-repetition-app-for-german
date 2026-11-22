@@ -49,7 +49,19 @@ const VERB_DEFAULTS = { verbCardsPerDay: 20, verbNewPerDay: 5 };
 // was stored with it and a changed default never arrived: relearnSpacing
 // went from 8 to 5 on 2026-11-08. The stored copy is dropped.
 const { relearnSpacing: _storedSpacing, ...storedSettings } = loadSettings();
-const settings = { ...DEFAULT_SETTINGS, ...VERB_DEFAULTS, token: "", gistId: "", autoSync: true, geminiKey: "", ...storedSettings };
+// The owner's choice of 2026-11-22 ("option D"): a new unit in every five
+// cards while units are due, five a day, Zielgenauigkeit 0.85. Simulated
+// over his log, dues fell from 130 to 180 a day to 65 to 80 with five new
+// words a day. Laid once over what a device stored, for the reason above,
+// and the screen can change it after that.
+const PAGE_SETTINGS = { newEvery: 5, newPerDay: 5, retention: 0.85 };
+const SETTINGS_REVISION = 1;
+const migrated = (storedSettings.settingsRevision ?? 0) < SETTINGS_REVISION;
+if (migrated) Object.assign(storedSettings, PAGE_SETTINGS, { settingsRevision: SETTINGS_REVISION });
+const settings = {
+  ...DEFAULT_SETTINGS, ...VERB_DEFAULTS, ...PAGE_SETTINGS, token: "", gistId: "", autoSync: true, geminiKey: "", ...storedSettings,
+};
+if (migrated) saveSettings(settings);
 // The deck as exported, and the deck the rest of the page sees: the second
 // is the first plus whatever the learner added from this screen. Kept apart
 // so a new request entry only has to refold, never refetch.
@@ -767,7 +779,7 @@ let verbPanel = null;
 function verbSettings() {
   return {
     ...settings, cardsPerDay: settings.verbCardsPerDay, newPerDay: settings.verbNewPerDay,
-    newPool: 10, requestedPerDay: 0,
+    newPool: 10, requestedPerDay: 0, newEvery: 0,
   };
 }
 
@@ -1133,6 +1145,7 @@ function loadSettingsView() {
   $("set-cards").value = settings.cardsPerDay;
   $("set-new").value = settings.newPerDay === null ? "" : settings.newPerDay;
   $("set-pool").value = settings.newPool;
+  $("set-new-every").value = settings.newEvery;
   $("set-retention").value = settings.retention;
   $("set-verb-cards").value = settings.verbCardsPerDay;
   $("set-verb-new").value = settings.verbNewPerDay;
@@ -1147,6 +1160,7 @@ $("btn-settings-save").addEventListener("click", () => {
   const n = $("set-new").value.trim();
   settings.newPerDay = n === "" ? null : Math.max(0, parseInt(n, 10) || 0);
   settings.newPool = Math.max(1, parseInt($("set-pool").value, 10) || DEFAULT_SETTINGS.newPool);
+  settings.newEvery = Math.max(0, parseInt($("set-new-every").value, 10) || 0);
   settings.verbCardsPerDay = Math.max(1, parseInt($("set-verb-cards").value, 10) || VERB_DEFAULTS.verbCardsPerDay);
   settings.verbNewPerDay = Math.max(0, parseInt($("set-verb-new").value, 10) || 0);
   const ret = parseFloat($("set-retention").value);

@@ -14,10 +14,11 @@ export { LEECH_FAILS, POSTPONE_STEP };
 // coming back ahead of the due queue (the owner's "five answers later no
 // matter what"); the cap of three asks a sitting still stops a loop.
 // requestedPerDay is how many words added from the page jump the due
-// queue. Matches Settings in src/engine/session.py.
+// queue. newEvery mixes a new unit in among due ones, see newUnitTurn; 0
+// here, and the page turns it on. Matches Settings in src/engine/session.py.
 export const DEFAULT_SETTINGS = { cardsPerDay: 40, newPerDay: null, learnAheadMinutes: 20, retention: 0.9, newPool: 50,
   relearnSpacing: 5, maxAsksPerSession: 3, sessionGapMinutes: 60, requestedPerDay: 5,
-  requestedDelay: 10, extraCards: 10 };
+  requestedDelay: 10, extraCards: 10, newEvery: 0 };
 
 // Is this unit still waiting out a "Später"? It has no learning record (the
 // replay drops it), so it can only return as a NEW unit, and only once
@@ -74,6 +75,23 @@ export function newUnitsStartedToday(state, now) {
 export function budgetSpentToday(state, now) {
   const day = dayOf(now);
   return (state.budgetReviewTimes || []).filter((ts) => dayOf(ts) === day).length;
+}
+
+// Is it a new unit's turn among the due ones? Every newEvery-th card of the
+// day is one, counted from the day's last new unit, while newPerDay allows
+// (nextUnit checks that). With new units only once the due queue was empty,
+// a day of dues meant no new word at all: seven in nine days, and two days
+// away out of boredom (owner, 2026-11-22). Matches new_unit_turn in
+// src/engine/session.py.
+export function newUnitTurn(state, settings, now) {
+  const every = settings.newEvery ?? 0;
+  if (every <= 0) return false;
+  const day = dayOf(now);
+  const ms = (ts) => new Date(ts).getTime();
+  const starts = Object.values(state.firstReview).filter((ts) => dayOf(ts) === day).map(ms);
+  const lastStart = starts.length ? Math.max(...starts) : -Infinity;
+  const since = state.reviewTimes.filter((ts) => dayOf(ts) === day && ms(ts) > lastStart).length;
+  return since >= every - 1;
 }
 
 export function budgetLeft(state, settings, now) {
@@ -256,11 +274,7 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
   const pending = spaced(notExhausted(eligiblePendingUnits(deck, state, engine, settings, now))).filter((u) => u.unit_id !== last);
   if (pending.length) return pending[0];
   const horizon = aheadUntil ? Math.max(0, aheadUntil - new Date(now).getTime()) : 0;
-  const overdue = notLast(spaced(notExhausted(dueUnits(deck, state, engine, now, horizon))), last);
-  if (overdue.length) return overdue[0];
-  const withinBudget = overLimit || budgetLeft(state, settings, now) > 0;
-  const underCap = settings.newPerDay === null || newUnitsStartedToday(state, now) < settings.newPerDay;
-  if (withinBudget && (underCap || overLimit)) {
+  const newUnit = () => {
     const pool = [];
     for (const unit of introductionOrder(deck, state)) {
       if (unit.unit_id in state.records) continue;
@@ -269,7 +283,20 @@ export function nextUnit(deck, state, engine, settings, now, { overLimit = false
         if (pool.length >= Math.max(settings.newPool || 1, 1)) break;
       }
     }
-    if (pool.length) return pool[(choose ? choose(pool.length) : 0) % pool.length];
+    return pool.length ? pool[(choose ? choose(pool.length) : 0) % pool.length] : null;
+  };
+  const withinBudget = overLimit || budgetLeft(state, settings, now) > 0;
+  const underCap = settings.newPerDay === null || newUnitsStartedToday(state, now) < settings.newPerDay;
+  const overdue = notLast(spaced(notExhausted(dueUnits(deck, state, engine, now, horizon))), last);
+  if (overdue.length) {
+    // A new unit's turn among the due ones, under the day's cap only: a
+    // "Neue Einheiten" press past the cap is for when nothing is due.
+    const turn = withinBudget && underCap && newUnitTurn(state, settings, now) ? newUnit() : null;
+    return turn || overdue[0];
+  }
+  if (withinBudget && (underCap || overLimit)) {
+    const fresh = newUnit();
+    if (fresh) return fresh;
   }
   const ahead = spaced(notExhausted(dueUnits(deck, state, engine, now, settings.learnAheadMinutes * 60000))).filter((u) => u.unit_id !== last);
   if (ahead.length) return ahead[0];
