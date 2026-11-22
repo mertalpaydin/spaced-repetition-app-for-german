@@ -16,6 +16,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from src.contracts import (
+    LEECH_FAILS,
     DeckManifest,
     PhraseCard,
     PhraseUnit,
@@ -178,6 +179,14 @@ def is_postponed(state: LearnerState, unit_id: str) -> bool:
     """
     until = state.postponed_until.get(unit_id)
     return until is not None and introduced_count(state) < until
+
+
+def should_set_aside(state: LearnerState, unit_id: str) -> bool:
+    """Has this unit, still in learning, been failed ``LEECH_FAILS`` times
+    since it entered? The page asks after a failed answer and, if so, writes
+    a ``leech`` mark (owner, 2026-11-22). Matches ``shouldSetAside`` in
+    ``web/lib/session.js``."""
+    return unit_id in state.records and state.fails.get(unit_id, 0) >= LEECH_FAILS
 
 
 def due_units(
@@ -511,13 +520,15 @@ def units_by_stage(
     postponement, which has no learning record and so would otherwise be in
     no group at all, and a pre-2026-10-20 ``defer`` mark. ``never`` is "Nicht
     mehr lernen", listed apart from "Kannte ich schon" because the owner
-    asked for the two to be told apart (2026-10-21). Every group but the
-    learning ones offers "Wieder lernen"."""
+    asked for the two to be told apart (2026-10-21). ``difficult`` holds
+    what the leech rule set aside, apart from what "Später" did (2026-11-22).
+    Every group but the learning ones offers "Wieder lernen"."""
     by_id = deck.by_id
     groups: dict[str, list[tuple[PhraseUnit, datetime | None]]] = {
         "known": [],
         "never": [],
         "deferred": [],
+        "difficult": [],
         "learning": [],
     }
     for name, _ in STABILITY_BANDS:
@@ -529,7 +540,8 @@ def units_by_stage(
             groups[stage].append((by_id[unit_id], None))
     for unit_id in state.postponed_until:
         if unit_id in by_id and unit_id not in state.known and is_postponed(state, unit_id):
-            groups["deferred"].append((by_id[unit_id], None))
+            stage = "difficult" if unit_id in state.leeches else "deferred"
+            groups[stage].append((by_id[unit_id], None))
     for unit_id, record in state.records.items():
         unit = by_id.get(unit_id)
         if unit is None or unit_id in state.known:

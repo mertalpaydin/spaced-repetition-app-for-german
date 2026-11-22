@@ -11,7 +11,8 @@ import { deriveState, entriesForMode, entriesSinceReset, makeCorrection, makeIss
 import { gradeVerb, loadVerbs, verbDeck } from "./lib/verbs.js";
 import { QuotaExhaustedError, callSummary, writeCards } from "./lib/gemini.js";
 import {
-  DEFAULT_SETTINGS, budgetSpentToday, computeStats, dueCounts, dueUnits, isPostponed, pickCard, practiceStep, pressMore, unitsByStage, untriagedUnits,
+  DEFAULT_SETTINGS, LEECH_FAILS, POSTPONE_STEP, budgetSpentToday, computeStats, dueCounts, dueUnits, isPostponed, pickCard, practiceStep, pressMore,
+  shouldSetAside, unitsByStage, untriagedUnits,
 } from "./lib/session.js";
 import { appendEntries, kv, loadSettings, readLog, replaceLog, saveSettings } from "./lib/store.js";
 import { syncLog } from "./lib/sync.js";
@@ -629,7 +630,19 @@ async function relearn(unitId) {
   loadUnits();
 }
 
-function nextCard() { loadCard(); }
+// A unit just failed for the LEECH_FAILS-th time is set aside before the
+// next card, the way "Später" sets one aside (owner, 2026-11-22: units
+// failed again and again took a third of his reviews). Asked here, not at
+// the answer, so "Als richtig werten" can still turn the failure into a pass.
+async function nextCard() {
+  const unit = answered && current ? current.unit : null;
+  if (unit && (state.ratings[unit.unit_id] || []).at(-1) === "again" && shouldSetAside(state, unit.unit_id)) {
+    await record(makeMark(entries, unit.unit_id, false, "leech", now()));
+    setQueueNote("deck", `„${unit.display_de}“ war ${LEECH_FAILS}-mal falsch und ist beiseitegelegt. `
+      + `Die Einheit kommt nach ${POSTPONE_STEP} neuen Einheiten wieder; unter Einheiten → Schwierig auch früher.`);
+  }
+  loadCard();
+}
 
 function showHistory() {
   const reviews = entriesSinceReset(entriesForMode(entries, "deck")).filter((e) => e.type === "review").slice(-20).reverse();
@@ -906,7 +919,8 @@ function loadUnits() {
     section("Jung (7 bis 21 Tage)", g.young, true) +
     section("Reif (21 bis 90 Tage)", g.mature, true) +
     section("Fest (über 90 Tage)", g.solid, true) +
-    section("Später (kommt nach 50 neuen Einheiten wieder)", g.deferred, false, true) +
+    section(`Später (kommt nach ${POSTPONE_STEP} neuen Einheiten wieder)`, g.deferred, false, true) +
+    section(`Schwierig (${LEECH_FAILS}-mal falsch, kommt nach ${POSTPONE_STEP} neuen Einheiten wieder)`, g.difficult, false, true) +
     section("Kannte ich schon", g.known, false, true) +
     section("Nicht mehr lernen", g.never, false, true);
   $("units").querySelectorAll("button[data-relearn]").forEach((b) => b.addEventListener("click", () => relearn(b.dataset.relearn)));
@@ -935,7 +949,8 @@ function setAside(unitId) {
     const source = state.knownSource[unitId];
     return source === "never" ? "nicht mehr lernen" : source === "defer" ? "zurückgestellt" : "als bekannt markiert";
   }
-  return isPostponed(state, unitId) ? "auf später verschoben" : "";
+  if (!isPostponed(state, unitId)) return "";
+  return state.leeches.has(unitId) ? `nach ${LEECH_FAILS} Fehlern beiseitegelegt` : "auf später verschoben";
 }
 
 // A request lifts the mark (deriveState), so asking again is the way back.

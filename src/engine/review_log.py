@@ -239,6 +239,12 @@ class LearnerState:
     #: Reviews since each unit entered learning or relearning, cleared when it
     #: graduates. Only the exemption above reads it.
     retries_pending: dict[str, int] = field(default_factory=dict)
+    #: Failures ("again", after corrections) since each unit last entered
+    #: learning; cleared when it is set aside. ``should_set_aside`` reads it.
+    fails: dict[str, int] = field(default_factory=dict)
+    #: Units whose latest set-aside was the leech rule, not "Später", so the
+    #: Einheiten screen can list them as "Schwierig".
+    leeches: set[str] = field(default_factory=set)
     #: The unit of the last review, so the scheduler does not repeat it.
     last_unit: str | None = None
     #: Units the learner added from the page, oldest first. They are taught
@@ -285,6 +291,7 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
             state.known.discard(entry.unit_id)
             state.known_source.pop(entry.unit_id, None)
             state.postponed_until.pop(entry.unit_id, None)
+            state.leeches.discard(entry.unit_id)
             if entry.unit is not None:
                 state.added_units[entry.unit_id] = entry.unit
             if entry.cards:
@@ -297,21 +304,29 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
             continue
         if isinstance(entry, MarkEntry):
             state.triaged.add(entry.unit_id)
-            if entry.source == "postpone":
+            set_aside = entry.source in ("postpone", "leech")
+            if set_aside:
                 # "Später" takes the unit OUT of learning: its record goes,
                 # so it is no longer due, pending or "lernend", and it can
                 # only come back as a new unit once POSTPONE_STEP more units
                 # have been started. Until 2026-10-22 the record was kept
                 # and the unit merely hidden for twenty hours, after which it
                 # returned as a learning card, which is what the owner had
-                # asked it not to do.
-                state.postponed[entry.unit_id] = state.postponed.get(entry.unit_id, 0) + 1
+                # asked it not to do. The leech rule sets a unit aside the
+                # same way (2026-11-22); only "Später" counts as a press.
+                if entry.source == "postpone":
+                    state.postponed[entry.unit_id] = state.postponed.get(entry.unit_id, 0) + 1
+                    state.leeches.discard(entry.unit_id)
+                else:
+                    state.leeches.add(entry.unit_id)
                 state.postponed_until[entry.unit_id] = len(state.first_review) + POSTPONE_STEP
                 state.records.pop(entry.unit_id, None)
                 state.retries_pending.pop(entry.unit_id, None)
+                state.fails.pop(entry.unit_id, None)
             if entry.known:
                 state.known.add(entry.unit_id)
                 state.known_source[entry.unit_id] = entry.source
+                state.leeches.discard(entry.unit_id)
             else:
                 state.known.discard(entry.unit_id)
                 state.known_source.pop(entry.unit_id, None)
@@ -319,8 +334,9 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
                 # aside, a postponement included; until 2026-10-22 it cleared
                 # only the known flag, so a postponed unit could not be
                 # brought back early.
-                if entry.source != "postpone":
+                if not set_aside:
                     state.postponed_until.pop(entry.unit_id, None)
+                    state.leeches.discard(entry.unit_id)
             continue
         until = state.postponed_until.get(entry.unit_id)
         if until is not None and len(state.first_review) < until:
@@ -341,6 +357,8 @@ def derive_state(entries: Iterable[LogEntry], engine: FSRSEngine) -> LearnerStat
         state.records[entry.unit_id] = engine.schedule_review(record, rating, now=entry.ts)
         state.last_card[entry.unit_id] = entry.card_id
         state.ratings.setdefault(entry.unit_id, []).append(rating)
+        if rating == "again":
+            state.fails[entry.unit_id] = state.fails.get(entry.unit_id, 0) + 1
         state.first_review.setdefault(entry.unit_id, entry.ts)
         state.review_times.append(entry.ts)
         state.review_times_by_unit.setdefault(entry.unit_id, []).append(entry.ts)

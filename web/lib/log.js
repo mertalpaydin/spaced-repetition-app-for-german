@@ -10,6 +10,11 @@ import { newRecord } from "./engine.js";
 // src/contracts.py.
 export const POSTPONE_STEP = 100;
 
+// A unit failed this many times since it last entered learning is set aside
+// at its next failure, as "Später" sets one aside (owner, 2026-11-22).
+// Matches LEECH_FAILS in src/contracts.py.
+export const LEECH_FAILS = 8;
+
 // A reset carries no unit, so the empty string stands in for one; the
 // Python side builds the same key (src/engine/review_log.entry_key).
 export function entryKey(e) { return `${e.type}|${e.unit_id || ""}|${e.ts}`; }
@@ -80,6 +85,10 @@ function freshState() {
     // "the last N units answered" is a slice. Matches review_order in
     // src/engine/review_log.py.
     reviewOrder: [],
+    // Failures since each unit last entered learning, and the units whose
+    // latest set-aside was the leech rule. Matches fails and leeches in
+    // src/engine/review_log.py.
+    fails: {}, leeches: new Set(),
   };
 }
 
@@ -120,6 +129,7 @@ export function deriveState(entries, engine) {
       state.known.delete(e.unit_id);
       delete state.knownSource[e.unit_id];
       delete state.postponedUntil[e.unit_id];
+      state.leeches.delete(e.unit_id);
       if (e.unit) state.addedUnits[e.unit_id] = e.unit;
       if (e.cards && e.cards.length) state.addedCards[e.unit_id] = e.cards;
       continue;
@@ -135,19 +145,26 @@ export function deriveState(entries, engine) {
       // longer due, pending or "lernend", and it comes back only as a new
       // unit once POSTPONE_STEP more have been started. Matches derive_state
       // in src/engine/review_log.py.
-      if (e.source === "postpone") {
-        state.postponed[e.unit_id] = (state.postponed[e.unit_id] || 0) + 1;
+      // The leech rule sets a unit aside the same way (2026-11-22); only
+      // "Später" counts as a press.
+      const setAside = e.source === "postpone" || e.source === "leech";
+      if (setAside) {
+        if (e.source === "postpone") {
+          state.postponed[e.unit_id] = (state.postponed[e.unit_id] || 0) + 1;
+          state.leeches.delete(e.unit_id);
+        } else state.leeches.add(e.unit_id);
         state.postponedUntil[e.unit_id] = Object.keys(state.firstReview).length + POSTPONE_STEP;
         delete state.records[e.unit_id];
         delete state.retriesPending[e.unit_id];
+        delete state.fails[e.unit_id];
       }
-      if (e.known) { state.known.add(e.unit_id); state.knownSource[e.unit_id] = e.source; }
+      if (e.known) { state.known.add(e.unit_id); state.knownSource[e.unit_id] = e.source; state.leeches.delete(e.unit_id); }
       else {
         state.known.delete(e.unit_id);
         delete state.knownSource[e.unit_id];
         // "Wieder lernen" brings a unit back from a postponement too. Matches
         // derive_state in src/engine/review_log.py.
-        if (e.source !== "postpone") delete state.postponedUntil[e.unit_id];
+        if (!setAside) { delete state.postponedUntil[e.unit_id]; state.leeches.delete(e.unit_id); }
       }
       continue;
     }
@@ -170,6 +187,7 @@ export function deriveState(entries, engine) {
     state.records[e.unit_id] = engine.schedule(record, rating, e.ts);
     state.lastCard[e.unit_id] = e.card_id;
     (state.ratings[e.unit_id] ||= []).push(rating);
+    if (rating === "again") state.fails[e.unit_id] = (state.fails[e.unit_id] || 0) + 1;
     if (!(e.unit_id in state.firstReview)) state.firstReview[e.unit_id] = e.ts;
     state.reviewTimes.push(e.ts);
     (state.reviewTimesByUnit[e.unit_id] ||= []).push(e.ts);

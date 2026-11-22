@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from src.cli.train import Client
 from src.contracts import (
+    LEECH_FAILS,
     POSTPONE_STEP,
     CorrectionEntry,
     DeckManifest,
@@ -50,6 +51,7 @@ from src.engine.session import (
     requested_to_introduce,
     reviews_today,
     session_start,
+    should_set_aside,
     showable_cards,
     stability_band,
     units_by_stage,
@@ -1219,6 +1221,49 @@ def test_postpone_leaves_every_status_and_wieder_lernen_brings_it_back() -> None
     relearnt = derive_state([*seen, press, back], engine)
     assert not is_postponed(relearnt, unit_id)
     assert where(relearnt) == []  # a new unit again, in no list until it is answered
+
+
+def test_leech_rule_eighth_failure_sets_unit_aside_as_difficult() -> None:
+    """The owner, 2026-11-22: units failed five times or more took a third of
+    his reviews and new units had stopped. A unit failed LEECH_FAILS times is
+    set aside the way "Später" sets one aside, listed as "Schwierig", and
+    starts counting afresh when it comes back. The twin in tests/js pins the
+    same."""
+    deck = _deck()
+    engine = FSRSEngine()
+    unit_id = "vp:warten_auf"
+    fails = [_minutes_review(i + 1, unit_id, 15 * i, "again") for i in range(LEECH_FAILS)]
+    # a correction to a pass is not a failure
+    fix = CorrectionEntry(
+        seq=50, ts=fails[-1].ts, unit_id=unit_id, review_ts=fails[-1].ts, rating="hard"
+    )
+    assert not should_set_aside(derive_state([*fails[:-1]], engine), unit_id)
+    assert not should_set_aside(derive_state([*fails, fix], engine), unit_id)
+    state = derive_state(fails, engine)
+    assert state.fails[unit_id] == LEECH_FAILS
+    assert should_set_aside(state, unit_id)
+
+    mark = MarkEntry(
+        seq=60, ts=fails[-1].ts + timedelta(minutes=1), unit_id=unit_id, known=False, source="leech"
+    )
+    aside = derive_state([*fails, mark], engine)
+    assert unit_id not in aside.records
+    assert is_postponed(aside, unit_id)
+    assert aside.postponed == {}, "not a press of Später"
+    assert not should_set_aside(aside, unit_id)
+    groups = units_by_stage(deck, aside, T0 + timedelta(days=1))
+    assert [u.unit_id for u, _ in groups["difficult"]] == [unit_id]
+    assert groups["deferred"] == []
+
+    # "Wieder lernen" brings it back, counting from nought
+    back = MarkEntry(
+        seq=61, ts=mark.ts + timedelta(minutes=1), unit_id=unit_id, known=False, source="practice"
+    )
+    again = _minutes_review(62, unit_id, 15 * LEECH_FAILS + 5, "again")
+    relearnt = derive_state([*fails, mark, back, again], engine)
+    assert not is_postponed(relearnt, unit_id)
+    assert unit_id not in relearnt.leeches
+    assert relearnt.fails[unit_id] == 1
 
 
 def test_never_is_listed_apart_from_known() -> None:

@@ -8,7 +8,7 @@ import { createEngine } from "../../web/lib/engine.js";
 import { gradeCard } from "../../web/lib/grader.js";
 import { deriveState, entryKey, makeCorrection, makeIssue, makeRequest, makeReset, mergeEntries, parseJsonl, toJsonl } from "../../web/lib/log.js";
 import { reserveLetter, withAdded } from "../../web/lib/deck.js";
-import { DEFAULT_SETTINGS, POSTPONE_STEP, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueCounts, dueUnits, eligiblePendingUnits, introductionOrder, isPostponed, nextUnit, pickCard, practiceStep, pressMore, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage, untriagedUnits } from "../../web/lib/session.js";
+import { DEFAULT_SETTINGS, LEECH_FAILS, POSTPONE_STEP, shouldSetAside, asksThisSession, budgetLeft, budgetSpentToday, computeStats, dueCounts, dueUnits, eligiblePendingUnits, introductionOrder, isPostponed, nextUnit, pickCard, practiceStep, pressMore, recentlyShown, requestedToIntroduce, reviewsToday, sessionStart, stabilityBand, unitsByStage, untriagedUnits } from "../../web/lib/session.js";
 
 const T0 = "2026-09-01T08:00:00Z";
 const unit_ = (unit_id, rank, display_de, extra = {}) => ({ unit_id, kind: "verb_prep", display_de, rank, trivial: false, gloss_en: null, also_accepted: [], ...extra });
@@ -645,6 +645,40 @@ test("due counts for now, the rest of today and tomorrow, in local days", () => 
   assert.deepEqual(dueCounts(d, state, engine, at(1, 12), endOfDay), { now: 2, today: 2, tomorrow: 1 });
   // A window left from yesterday counts nothing extra.
   assert.deepEqual(dueCounts(d, state, engine, at(2, 12), endOfDay), dueCounts(d, state, engine, at(2, 12)));
+});
+
+test("the eighth failure sets a unit aside as difficult", () => {
+  // Twin of test_leech_rule_eighth_failure_sets_unit_aside_as_difficult
+  // (owner, 2026-11-22).
+  const d = deck(); const engine = createEngine();
+  const id = "vp:warten_auf";
+  const fails = Array.from({ length: LEECH_FAILS }, (_, i) => review_(i + 1, id, 15 * i, "again"));
+  const last = fails[fails.length - 1];
+  const fix = { type: "correction", seq: 50, ts: last.ts, unit_id: id, review_ts: last.ts, rating: "hard" };
+  assert.equal(shouldSetAside(deriveState(fails.slice(0, -1), engine), id), false);
+  assert.equal(shouldSetAside(deriveState([...fails, fix], engine), id), false, "a correction is not a failure");
+  const state = deriveState(fails, engine);
+  assert.equal(state.fails[id], LEECH_FAILS);
+  assert.equal(shouldSetAside(state, id), true);
+
+  const at = (m) => new Date(Date.parse(last.ts) + m * 60000).toISOString();
+  const mark = { type: "mark", seq: 60, ts: at(1), unit_id: id, known: false, source: "leech" };
+  const aside = deriveState([...fails, mark], engine);
+  assert.ok(!(id in aside.records));
+  assert.ok(isPostponed(aside, id));
+  assert.deepEqual(aside.postponed, {}, "not a press of Später");
+  assert.equal(shouldSetAside(aside, id), false);
+  const groups = unitsByStage(d, aside, at(60 * 24));
+  assert.deepEqual(groups.difficult.map(([u]) => u.unit_id), [id]);
+  assert.deepEqual(groups.deferred, []);
+  assert.deepEqual(parseJsonl(toJsonl([mark])), [mark], "the mark survives a sync");
+
+  const back = { type: "mark", seq: 61, ts: at(2), unit_id: id, known: false, source: "practice" };
+  const again = review_(62, id, 15 * LEECH_FAILS + 5, "again");
+  const relearnt = deriveState([...fails, mark, back, again], engine);
+  assert.ok(!isPostponed(relearnt, id));
+  assert.ok(!relearnt.leeches.has(id));
+  assert.equal(relearnt.fails[id], 1);
 });
 
 test("a press past the target counts its block from the cards already done", () => {

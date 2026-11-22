@@ -509,6 +509,10 @@ class MarkEntry(BaseModel):
     exactly like "Kannte ich schon" but under a label promising the opposite
     (owner: "what does the 'später' button do?"). ``defer`` is still read, so
     the old lines in the log keep replaying as they always did.
+
+    ``leech`` (added 2026-11-22) is written by the page, not by a button: a
+    unit failed ``LEECH_FAILS`` times is set aside exactly as ``postpone``
+    sets one aside, and listed apart under "Schwierig".
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -518,7 +522,7 @@ class MarkEntry(BaseModel):
     ts: datetime
     unit_id: str
     known: bool
-    source: Literal["triage", "practice", "defer", "postpone", "never"]
+    source: Literal["triage", "practice", "defer", "postpone", "never", "leech"]
 
 
 class IssueEntry(BaseModel):
@@ -639,3 +643,11 @@ LogEntry = ReviewEntry | MarkEntry | ResetEntry | RequestEntry | IssueEntry | Co
 #: due queue as a learning card, the owner's "geschehen" and "auftauchen" on
 #: 2026-10-22 among them.
 POSTPONE_STEP = 100
+
+#: A unit failed this many times since it last entered learning is set
+#: aside at its next failure, the way "Später" sets one aside: its record
+#: goes and it comes back as a new unit after ``POSTPONE_STEP`` others. On
+#: 2026-11-22 the 96 units the owner had failed five times or more took a
+#: third of his reviews, and new units had all but stopped; he asked for
+#: this rule. Eight is Anki's leech threshold.
+LEECH_FAILS = 8

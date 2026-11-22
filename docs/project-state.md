@@ -458,6 +458,30 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   one, and the phrase was taught nowhere. Worth checking whether other
   exclusions shadow a curated key the same way.
 
+- **Units failed eight times are set aside, 2026-11-22** (log format:
+  one new mark source, additive). The owner's log to 11-20: he answered
+  85 to 97% of due reviews right, the scheduler's 90% target, but new units
+  had all but stopped (7 in the nine days from 11-12) because due units
+  always come first and some were due every day, and he stopped using the
+  app for two days. The 96 units he had failed five times or more took a
+  third of his reviews from 11-11 to 11-20. At his word, a unit failed
+  `LEECH_FAILS` (8) times since it last entered learning is set aside at
+  its next failure: the page writes a mark with the new source `leech`,
+  which both replays treat as "Später" (record dropped, back as a new unit
+  after `POSTPONE_STEP`), and the Einheiten screen lists it under
+  "Schwierig" with "Wieder lernen". A correction to a pass is not a
+  failure; the check runs on "Weiter", after "Als richtig werten" could
+  have changed the rating. Only the sentence deck, not the verb drill. His
+  four reports: the losgehen card in the "attack" sense is excluded, and
+  beginnen mit / anfangen mit, sammeln / abholen and allerdings / dennoch /
+  jedoch / trotzdem are rival groups (one more try, nothing recorded); he
+  had typed those four connectors for each other about thirty times.
+  Not built, waiting on him: new units mixed in among due ones (a
+  simulation from his state gave a steady 100 to 120 due a day with five
+  new a day at 0.90 and 65 to 80 at 0.85, against 88 to 197 a day under
+  today's rule, which lets dozens of new units in whenever the due queue
+  is cleared).
+
 - **The header counts the target's cards, and the queue says when it is
   empty, 2026-11-17** (no format changes). The owner's complaints on the
   day after: "heute 147/100" stood beside a panel saying "Tagesziel

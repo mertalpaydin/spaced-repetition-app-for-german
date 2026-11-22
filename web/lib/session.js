@@ -1,8 +1,8 @@
 // The scheduler and stats, matching src/engine/session.py and stats.py.
 
-import { POSTPONE_STEP, entriesSinceReset } from "./log.js";
+import { LEECH_FAILS, POSTPONE_STEP, entriesSinceReset } from "./log.js";
 
-export { POSTPONE_STEP };
+export { LEECH_FAILS, POSTPONE_STEP };
 
 // newPool: a new unit is drawn at random from the next N by rank rather
 // than always the very next one (feedback 2026-09-19). Matches
@@ -26,6 +26,13 @@ export const DEFAULT_SETTINGS = { cardsPerDay: 40, newPerDay: null, learnAheadMi
 export function isPostponed(state, unitId) {
   const until = (state.postponedUntil || {})[unitId];
   return until !== undefined && Object.keys(state.firstReview || {}).length < until;
+}
+
+// Has this unit, still in learning, been failed LEECH_FAILS times since it
+// entered? The page asks after a failed answer and writes a "leech" mark if
+// so (owner, 2026-11-22). Matches should_set_aside in src/engine/session.py.
+export function shouldSetAside(state, unitId) {
+  return unitId in state.records && ((state.fails || {})[unitId] || 0) >= LEECH_FAILS;
 }
 
 // Stability bands for the Einheiten screen, in days. Matches
@@ -373,8 +380,9 @@ export function unitsByStage(deck, state, now) {
   // "deferred" holds what Später set aside (a unit waiting out its
   // postponement has no record, so it would otherwise be in no group) and a
   // pre-2026-10-20 "defer" mark; "never" is "Nicht mehr lernen", listed apart
-  // from "Kannte ich schon". Matches units_by_stage in src/engine/session.py.
-  const groups = { known: [], never: [], deferred: [], learning: [] };
+  // from "Kannte ich schon"; "difficult" what the leech rule set aside
+  // (2026-11-22). Matches units_by_stage in src/engine/session.py.
+  const groups = { known: [], never: [], deferred: [], difficult: [], learning: [] };
   for (const [name] of STABILITY_BANDS) groups[name] = [];
   for (const id of state.known) {
     if (!deck.byId[id]) continue;
@@ -382,7 +390,9 @@ export function unitsByStage(deck, state, now) {
     groups[source === "defer" ? "deferred" : source === "never" ? "never" : "known"].push([deck.byId[id], null]);
   }
   for (const id of Object.keys(state.postponedUntil || {})) {
-    if (deck.byId[id] && !state.known.has(id) && isPostponed(state, id)) groups.deferred.push([deck.byId[id], null]);
+    if (deck.byId[id] && !state.known.has(id) && isPostponed(state, id)) {
+      groups[state.leeches && state.leeches.has(id) ? "difficult" : "deferred"].push([deck.byId[id], null]);
+    }
   }
   for (const [id, r] of Object.entries(state.records)) {
     const unit = deck.byId[id];
