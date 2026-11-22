@@ -477,25 +477,27 @@ As of 2026-09-08, phase 0 (the prune) is done on branch `feat/phrase-deck`.
   jedoch / trotzdem are rival groups (one more try, nothing recorded); he
   had typed those four connectors for each other about thirty times.
 
-- **New units mixed in among due ones, retention 0.85, 2026-11-22** (no
+- **New units mixed in among due ones, retention 0.88, 2026-11-22** (no
   log or deck format change; a page setting). The owner chose "option D"
   of a simulation from his state: one new unit in every five cards while
-  units are due, five a day, Zielgenauigkeit 0.85. `Settings.new_every` /
+  units are due, five a day, Zielgenauigkeit 0.85; then 0.88 instead,
+  once he saw what 0.85 did on the first evening (below). `Settings.new_every` /
   `newEvery` (0 is off and is the library default, so the terminal client
   and the tests are unchanged) makes every `new_every`-th card of the day a
   new unit, counted from the day's last new unit, under `new_per_day`. A
   press of "Neue Einheiten" past the cap does not extend the mix-in; it is
   for when nothing is due. The page lays `newEvery 5, newPerDay 5,
-  retention 0.85` once over what each device stored (`settingsRevision` 1
+  retention 0.88` once over what each device stored (`settingsRevision` 1
   in its settings), since the page saves its whole settings object and a
   changed default never arrives; Settings can change all three after that.
   The verb drill keeps new verbs only once nothing is due. Retention is
   applied by replay, so every interval in the log stretches at once: due by
-  the evening of 11-22 went from 183 at 0.90 to 29 at 0.85, and the
-  simulation, rerun from that state with his due-review pass rate taken
-  down to 84%, gives 30 to 85 due a day over ten days with five new a
-  day, against 88 to 197 under the old rule, which let dozens of new units
-  in whenever the due queue was cleared.
+  the evening of 11-22 was 183 at 0.90, 121 at 0.89, 94 at 0.88, 63 at
+  0.87 and 29 at 0.85. He wanted about 90, so 0.88. The simulation, rerun
+  from that state with his due-review pass rate taken down to 87%, gives
+  72 to 102 due a day over ten days with five new a day (30 to 85 at 0.85
+  and 84%), against 88 to 197 under the old rule, which let dozens of new
+  units in whenever the due queue was cleared.
 
 - **The header counts the target's cards, and the queue says when it is
   empty, 2026-11-17** (no format changes). The owner's complaints on the

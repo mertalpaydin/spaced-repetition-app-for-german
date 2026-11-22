@@ -50,11 +50,12 @@ const VERB_DEFAULTS = { verbCardsPerDay: 20, verbNewPerDay: 5 };
 // went from 8 to 5 on 2026-11-08. The stored copy is dropped.
 const { relearnSpacing: _storedSpacing, ...storedSettings } = loadSettings();
 // The owner's choice of 2026-11-22 ("option D"): a new unit in every five
-// cards while units are due, five a day, Zielgenauigkeit 0.85. Simulated
-// over his log, dues fell from 130 to 180 a day to 65 to 80 with five new
-// words a day. Laid once over what a device stored, for the reason above,
-// and the screen can change it after that.
-const PAGE_SETTINGS = { newEvery: 5, newPerDay: 5, retention: 0.85 };
+// cards while units are due, five a day; Zielgenauigkeit 0.88, his pick
+// over 0.85 for about 90 due on the first evening rather than 29. Simulated
+// over his log, dues held at 72 to 102 a day with five new words a day,
+// against 88 to 197 before. Laid once over what a device stored, for the
+// reason above, and the screen can change it after that.
+const PAGE_SETTINGS = { newEvery: 5, newPerDay: 5, retention: 0.88 };
 const SETTINGS_REVISION = 1;
 const migrated = (storedSettings.settingsRevision ?? 0) < SETTINGS_REVISION;
 if (migrated) Object.assign(storedSettings, PAGE_SETTINGS, { settingsRevision: SETTINGS_REVISION });
