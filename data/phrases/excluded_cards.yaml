@@ -6420,3 +6420,5 @@
 - 497529eeb0d2  # BAD_SENTENCE: 'aber' points back to a missing sentence.
 - 5a94b73aa505  # BAD_SENTENCE: 'Doch auch dieser' points back to a missing sentence.
 # Review round req1116c.
+# The owner's report of 2026-11-17.
+- 18b1631e6872  # WRONG_SENSE: 'auf uns losgegangen' is 'attacked us', a sense the unit's 'to start / to set off' does not cover.
